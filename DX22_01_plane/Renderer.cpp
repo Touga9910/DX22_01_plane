@@ -296,6 +296,7 @@ void Renderer::Uninit()
 	{
 		SAFE_RELEASE(m_pBlendState[i]);
 	}
+	SAFE_RELEASE(m_pBlendStateATC);
 
 	SAFE_RELEASE(m_pDepthStencilView);
 	SAFE_RELEASE(m_pRenderTargetView);

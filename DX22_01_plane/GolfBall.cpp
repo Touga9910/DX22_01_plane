@@ -91,9 +91,6 @@ void GolfBall::Update()
 {
 
 	m_CurrentFrame++;
-	//std::cout << m_CurrentFrame << std::endl;
-
-	//if (m_State != 0) /*return; //’âŽ~ó‘Ô‚È‚çreturn*/
 
 	if (m_State == 0 )
 	{
