@@ -20,14 +20,25 @@ public:
 		ID3D11Device* device = nullptr;
 		device = Renderer::GetDevice();
 		assert(device); //deviceが存在することを確認
+		
+		// インデックスバッファ生成（Renderer.cppから移転）
+		D3D11_BUFFER_DESC bd;
+		D3D11_SUBRESOURCE_DATA InitData;
 
-		// インデックスバッファ作成
-		bool sts = Renderer::CreateIndexBuffer(
-			(unsigned int)(indices.size()),				// インデックス数
-			(void*)indices.data(),						// インデックスデータ先頭アドレス
-			&m_IndexBuffer);							// インデックスバッファ
+		ZeroMemory(&bd, sizeof(bd));
+		bd.Usage = D3D11_USAGE_DEFAULT;								// バッファ使用方
+		bd.ByteWidth = sizeof(unsigned int) * indices.size();				// バッファの大き
+		bd.BindFlags = D3D11_BIND_INDEX_BUFFER;						// インデックスバッファ
+		bd.CPUAccessFlags = 0;										// CPUアクセス不要
 
-		assert(sts == true); //結果を確認
+		ZeroMemory(&InitData, sizeof(InitData));
+		InitData.pSysMem = indices.data();
+
+		HRESULT hr = device->CreateBuffer(&bd, &InitData, m_IndexBuffer.GetAddressOf());
+
+		// 結果を確認
+		assert(SUCCEEDED(hr));
+		
 	}
 
 	void SetGPU()

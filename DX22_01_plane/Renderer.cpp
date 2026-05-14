@@ -659,36 +659,6 @@ HRESULT Renderer::CreatePixelShader(ID3D11PixelShader** ppPixelShader, const cha
 }
 
 //--------------------------------------------------------------------------------------
-//インデックスバッファを作成
-//--------------------------------------------------------------------------------------
-bool Renderer::CreateIndexBuffer(
-	unsigned int indexnum,						// インデックス数
-	void* indexdata,							// インデックスデータ格納メモリ先頭アドレス
-	ID3D11Buffer** pIndexBuffer) {				// インデックスバッファ
-
-	// インデックスバッファ生成
-	D3D11_BUFFER_DESC bd;
-	D3D11_SUBRESOURCE_DATA InitData;
-
-	ZeroMemory(&bd, sizeof(bd));
-	bd.Usage = D3D11_USAGE_DEFAULT;								// バッファ使用方
-	bd.ByteWidth = sizeof(unsigned int) * indexnum;				// バッファの大き
-	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;						// インデックスバッファ
-	bd.CPUAccessFlags = 0;										// CPUアクセス不要
-
-	ZeroMemory(&InitData, sizeof(InitData));
-	InitData.pSysMem = indexdata;
-
-	HRESULT hr = m_pDevice->CreateBuffer(&bd, &InitData, pIndexBuffer);
-	if (FAILED(hr)) {
-		MessageBox(nullptr, "CreateBuffer(index buffer) error", "Error", MB_OK);
-		return false;
-	}
-
-	return true;
-}
-
-//--------------------------------------------------------------------------------------
 //頂点バッファを作成
 //--------------------------------------------------------------------------------------
 bool Renderer::CreateVertexBuffer(

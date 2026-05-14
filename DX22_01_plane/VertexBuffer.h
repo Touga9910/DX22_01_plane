@@ -20,6 +20,7 @@ public:
 		device = Renderer::GetDevice();
 		assert(device); //deviceは存在することを確認
 
+
 		// 頂点バッファ作成
 		bool sts = Renderer::CreateVertexBufferWrite(
 			sizeof(T),						// 1頂点当たりバイト数
