@@ -16,6 +16,9 @@ class IndexBuffer {
 public:
 	void Create(const std::vector<unsigned int>& indices)
 	{
+		// 既存のバッファがある場合は解放（再生成に対応）
+		m_IndexBuffer.Reset();
+
 		// デバイス取得
 		ID3D11Device* device = nullptr;
 		device = Renderer::GetDevice();
