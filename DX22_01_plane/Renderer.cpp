@@ -659,38 +659,6 @@ HRESULT Renderer::CreatePixelShader(ID3D11PixelShader** ppPixelShader, const cha
 }
 
 //--------------------------------------------------------------------------------------
-//頂点バッファを作成
-//--------------------------------------------------------------------------------------
-bool Renderer::CreateVertexBuffer(
-	unsigned int stride,				// １頂点当たりバイト数
-	unsigned int vertexnum,				// 頂点数
-	void* vertexdata,					// 頂点データ格納メモリ先頭アドレス
-	ID3D11Buffer** pVertexBuffer) {		// 頂点バッファ
-
-	HRESULT hr;
-
-	// 頂点バッファ生成
-	D3D11_BUFFER_DESC bd;
-	ZeroMemory(&bd, sizeof(bd));
-	bd.Usage = D3D11_USAGE_DEFAULT;				// バッファ使用方法
-	bd.ByteWidth = stride * vertexnum;			// バッファの大きさ
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;	// 頂点バッファ
-	bd.CPUAccessFlags = 0;						// CPUアクセス不要
-
-	D3D11_SUBRESOURCE_DATA InitData;
-	ZeroMemory(&InitData, sizeof(InitData));
-	InitData.pSysMem = vertexdata;				// バッファの初期値
-
-	hr = m_pDevice->CreateBuffer(&bd, &InitData, pVertexBuffer);		// バッファ生成
-	if (FAILED(hr)) {
-		MessageBox(nullptr, "CreateBuffer(vertex buffer) error", "Error", MB_OK);
-		return false;
-	}
-
-	return true;
-}
-
-//--------------------------------------------------------------------------------------
 //頂点バッファを作成(CPU書き込み可能)
 //--------------------------------------------------------------------------------------
 bool Renderer::CreateVertexBufferWrite(

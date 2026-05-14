@@ -15,20 +15,31 @@ template <typename T> class VertexBuffer{
 public:
 	void Create(const std::vector<T>& vertices)
 	{
+		//既存のバッファがある場合は解放（再生成に対応）
+		m_VertexBuffer.Reset();
+
 		// デバイス取得
 		ID3D11Device* device = nullptr;
 		device = Renderer::GetDevice();
 		assert(device); //deviceは存在することを確認
 
+		// 頂点バッファ作成（Renderer.cppから移転）
+		D3D11_BUFFER_DESC bd = {};
+		// Modifyメソッドで書き換えるため、USAGE_DYNAMIC と CPU_ACCESS_WRITE を指定
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.ByteWidth = (UINT)(sizeof(T) * vertices.size());
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bd.MiscFlags = 0;
+		bd.StructureByteStride = 0;
 
-		// 頂点バッファ作成
-		bool sts = Renderer::CreateVertexBufferWrite(
-			sizeof(T),						// 1頂点当たりバイト数
-			(unsigned int)vertices.size(),	// 頂点数
-			(void*)vertices.data(),			// 頂点データ格納メモリ先頭アドレス
-			&m_VertexBuffer);				// 頂点バッファ
+		// 3. 初期データの準備（Subresource Data）
+		D3D11_SUBRESOURCE_DATA initData = {};
+		initData.pSysMem = vertices.data();
 
-		assert(sts == true); //結果を確認
+		// 4. バッファ生成
+		HRESULT hr = device->CreateBuffer(&bd, &initData, m_VertexBuffer.GetAddressOf());
+		assert(SUCCEEDED(hr));
 	}
 
 	// GPUにセット
