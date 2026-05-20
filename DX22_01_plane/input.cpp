@@ -8,6 +8,10 @@ void Input::Create()
 	m_Instance = new Input;
 
 	m_Instance->VibrationTime = 0;
+
+	// 初期化時のマウス座標を取得しておく
+	GetCursorPos(&m_Instance->mousePos);
+	m_Instance->mousePos_old = m_Instance->mousePos;
 }
 
 void Input::Update()
@@ -18,6 +22,9 @@ void Input::Update()
 
 	//キー入力を更新
 	BOOL hr = GetKeyboardState(m_Instance->keyState);
+
+	// マウス座標を更新（スクリーン座標）
+	GetCursorPos(&m_Instance->mousePos);
 
 	//コントローラー入力を更新(XInput)
 	XInputGetState(0, &(m_Instance->controllerState));
@@ -132,3 +139,17 @@ void Input::SetVibration(int frame, float powor)
 	m_Instance->VibrationTime = frame;
 }
 
+// マウスの現在位置を取得
+DirectX::XMFLOAT2 Input::GetMousePosition()
+{
+	return DirectX::XMFLOAT2((float)m_Instance->mousePos.x, (float)m_Instance->mousePos.y);
+}
+
+// 1フレームでのマウスの移動量を取得
+DirectX::XMFLOAT2 Input::GetMouseMove()
+{
+	float dx = (float)(m_Instance->mousePos.x - m_Instance->mousePos_old.x);
+	float dy = (float)(m_Instance->mousePos.y - m_Instance->mousePos_old.y);
+
+	return DirectX::XMFLOAT2(dx, dy);
+}

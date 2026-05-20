@@ -72,6 +72,10 @@ private:
 
 	int VibrationTime; //振動継続時間をカウントする変数
 
+	//マウス入力情報を保存する変数
+	POINT mousePos{};       // 現在のマウス座標
+	POINT mousePos_old{};   // 1フレーム前のマウス座標
+
 public:
 
 	//Input(); //コンストラクタ
@@ -102,5 +106,9 @@ public:
 	//flame：振動を継続する時間(単位：フレーム)
 	//power：振動の強さ(0～1)
 	static void SetVibration(int frame = 1, float powor = 1);
+
+	//マウス入力
+	static DirectX::XMFLOAT2 GetMousePosition(); // マウスの現在座標を取得
+	static DirectX::XMFLOAT2 GetMouseMove();     // マウスの移動量（デルタ）を取得
 };
 
