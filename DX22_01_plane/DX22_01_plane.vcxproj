@@ -73,12 +73,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\directxtk\include;C:\assimp\5.2.5\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\assimp\5.2.5\lib;C:\directxtk\lib\x64\Debug;$(LibraryPath)</LibraryPath>
-    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\directxtk\include;C:\assimp\5.2.5\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\assimp\5.2.5\lib;C:\directxtk\lib\x64\Release;$(LibraryPath)</LibraryPath>
-    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

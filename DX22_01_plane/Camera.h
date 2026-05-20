@@ -1,7 +1,7 @@
 #pragma once
 
 #include	<SimpleMath.h>
-#include "input.h"
+//#include "input.h"
 
 //-----------------------------------------------------------------------------
 //Cameraクラス
@@ -9,24 +9,25 @@
 class Camera {
 private:
 	DirectX::SimpleMath::Vector3	m_Position = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
-	DirectX::SimpleMath::Vector3	m_Rotation = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
-	DirectX::SimpleMath::Vector3	m_Scale = DirectX::SimpleMath::Vector3(1.0f, 1.0f, 1.0f);
-
 	DirectX::SimpleMath::Vector3	m_Target{};
 	DirectX::SimpleMath::Matrix		m_ViewMatrix{};
 
-	DirectX::SimpleMath::Matrix m_View;
-
 
 	float m_CameraDirection = 0;	// カメラの角度
-	float m_CameraDistanceY = 150;	// カメラとターゲットの距離
+	float m_CameraDistanceY = 150;	// カメラのY座標の距離
+	float m_TargetDistanceY = 150;	// カメラが向かってほしい目的地（Lerp実装で徐々に近づけるため）
+
+	static constexpr float ZOOM_SPEED = 2.0f;
+    static constexpr float MIN_DISTANCE = 30.0f;
+    static constexpr float MAX_DISTANCE = 500.0f;
+    static constexpr float ZOOM_INTERPOLATION_SPEED = 0.1f;
 
 	//シングルトン構成化
 	Camera();
 	~Camera();
 
 	Camera(const Camera&) = delete;
-	Camera& operator=(const Input&) = delete;
+	Camera& operator=(const Camera&) = delete;
 
 
 
@@ -46,7 +47,6 @@ public:
 	void Update(const DirectX::SimpleMath::Vector3& targetPos);
 	void SetCamera(int mode = 0);
 	void Uninit();
-
 	/// <summary>
 	/// カメラ追従のあれこれ
 	/// </summary>
@@ -63,4 +63,9 @@ public:
 	/// </summary>
 	/// <param name="dist">カメラの距離</param>
 	void SetDistanceY(float dist);
+
+	/// <summary>
+	/// カメラ位置の更新処理
+	/// </summary>
+	void RefreshPosition();
 };

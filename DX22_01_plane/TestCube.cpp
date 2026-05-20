@@ -1,4 +1,5 @@
 #include	"TestCube.h"
+#include	"input.h"
 
 #include<iostream>
 using namespace DirectX::SimpleMath;

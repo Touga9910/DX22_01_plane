@@ -1,4 +1,4 @@
-#include "Renderer.h"
+ï»¿#include "Renderer.h"
 #include "Camera.h"
 #include "Application.h"
 #include "input.h"
@@ -7,125 +7,116 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
-	constexpr float CameraRadius = 50.0f;	//ƒJƒƒ‰‚Ì‰ñ“]”¼Œa
+	constexpr float CameraRadius = 50.0f;	//ã‚«ãƒ¡ãƒ©ã®å›è»¢æ™‚åŠå¾„
 }
 
-//ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+//ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Camera::Camera()
 {
-	//•K—v‚È‚ç‚Î‰Šú‰»ˆ—‚ğ
+	//å¿…è¦ãªã‚‰ã°åˆæœŸåŒ–å‡¦ç†ã‚’
 }
 
-//ƒfƒXƒgƒ‰ƒNƒ^
+//ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Camera::~Camera()
 {
 }
 
 //=======================================
-//‰Šú‰»ˆ—
+//åˆæœŸåŒ–å‡¦ç†
 //=======================================
 void Camera::Init()
 {
-	m_Position = Vector3(0.0f, 20.0f, -50.0f);	// ƒJƒƒ‰‚ª‚Ç‚ÌˆÊ’u‚É‚¢‚é‚Ì‚© iX,Y,Zj
-	m_Target = Vector3(0.0f, 0.0f, 0.0f);		// ƒJƒƒ‰‚ª‚Ç‚ÌÀ•W‚ÉŒü‚¢‚Ä‚¢‚é‚Ì‚©  ’†S“_‚ª‚Ç‚±‚È‚Ì‚©iX,Y,Zj
+	m_Position = Vector3(0.0f, 20.0f, -50.0f);	// ã‚«ãƒ¡ãƒ©ãŒã©ã®ä½ç½®ã«ã„ã‚‹ã®ã‹ ï¼ˆX,Y,Zï¼‰
+	m_Target = Vector3(0.0f, 0.0f, 0.0f);		// ã‚«ãƒ¡ãƒ©ãŒã©ã®åº§æ¨™ã«å‘ã„ã¦ã„ã‚‹ã®ã‹ ï¼ ä¸­å¿ƒç‚¹ãŒã©ã“ãªã®ã‹ï¼ˆX,Y,Zï¼‰
 	m_CameraDirection = 3.14f;
+
+	m_CameraDistanceY = 150.0f;
+	m_TargetDistanceY = 150.0f;
 
 }
 
 
 //=======================================
-//XVˆ—
+//æ›´æ–°å‡¦ç†
 //=======================================
 void Camera::Update()
 {
-	//ƒIƒuƒWƒFƒNƒg‚ÆƒJƒƒ‰‚Ì•ÒW‚ğ“¯‚És‚í‚È‚¢  ‚Ç‚¿‚ç‚©‚ğ•ÒW‚·‚é‚Æ‚«‚Í‚à‚¤•Ğ•û‚ÍG‚ç‚È‚¢
 
-	//¶‰EƒL[‚ÅƒJƒƒ‰‰ñ“]
-	/*
-	if (Input::GetKeyPress(VK_D))
+	if (Input::GetKeyPress(VK_O)) // Oã‚­ãƒ¼ã§ã‚ºãƒ¼ãƒ ã‚¤ãƒ³ï¼ˆã‚«ãƒ¡ãƒ©ã‚’ä¸‹ã’ã‚‹ï¼‰
 	{
-		m_CameraDirection += 0.03f;
+		m_TargetDistanceY -= ZOOM_SPEED;
 	}
-	if (Input::GetKeyPress(VK_A))
+	if (Input::GetKeyPress(VK_P)) // Pã‚­ãƒ¼ã§ã‚ºãƒ¼ãƒ ã‚¢ã‚¦ãƒˆï¼ˆã‚«ãƒ¡ãƒ©ã‚’ä¸Šã’ã‚‹ï¼‰
 	{
-		m_CameraDirection -= 0.03f;
+		m_TargetDistanceY += ZOOM_SPEED;
 	}
-	*/
 
-	//ƒJƒƒ‰‚ÌˆÊ’u‚ğXV
-	Vector3 pos = m_Target;
-	/*
-	pos.x += sin(m_CameraDirection) * CameraRadius;
-	pos.y += 20;
-	pos.z += cos(m_CameraDirection) * CameraRadius;
-	*/
-	pos.x += 0.0f;
-	pos.y += m_CameraDistanceY;  // ƒJƒƒ‰‚Ì‚‚³i‰æ–Ê‚Éû‚Ü‚é‚æ‚¤‚É”’l‚ğ’²®‚µ‚Ä‚­‚¾‚³‚¢j
-	pos.z -= 0.1f;    // Š®‘S‚É^ã‚¾‚ÆLookAts—ñ‚ÌŒvZ‚ª”j’]‚·‚é‚½‚ßAZ‚ğ‚í‚¸‚©‚É‚¸‚ç‚·
+	if (m_TargetDistanceY < MIN_DISTANCE) m_TargetDistanceY = MIN_DISTANCE;
+	if (m_TargetDistanceY > MAX_DISTANCE) m_TargetDistanceY = MAX_DISTANCE;
 
-	m_Position = pos;
+	// ç¾åœ¨ã®é«˜ã• ã‹ã‚‰ ç›®æ¨™ã®é«˜ã• ã¸ã€æŒ‡å®šã—ãŸå‰²åˆã ã‘æ¯ãƒ•ãƒ¬ãƒ¼ãƒ è¿‘ã¥ã‘ã‚‹
+	m_CameraDistanceY = m_CameraDistanceY + (m_TargetDistanceY - m_CameraDistanceY) * ZOOM_INTERPOLATION_SPEED;
+
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã¨ã‚«ãƒ¡ãƒ©ã®ç·¨é›†ã‚’åŒæ™‚ã«è¡Œã‚ãªã„ ï¼ ã©ã¡ã‚‰ã‹ã‚’ç·¨é›†ã™ã‚‹ã¨ãã¯ã‚‚ã†ç‰‡æ–¹ã¯è§¦ã‚‰ãªã„
+	RefreshPosition();	// ã‚«ãƒ¡ãƒ©ã®ä½ç½®ã‚’æ›´æ–°
+	UpdateViewMatrix(); // ãƒ“ãƒ¥ãƒ¼è¡Œåˆ—ã®æ›´æ–°
 }
 
 //=======================================
-//XVˆ—(’Ç])
+//æ›´æ–°å‡¦ç†(è¿½å¾“)
 //=======================================
 void Camera::Update(const Vector3& targetPos)
 {
-	/*
-	// ƒLƒƒƒ‰ƒNƒ^[‚Ì”wŒã‚ÉƒJƒƒ‰‚ğ”z’u‚·‚é
-	m_Position = targetPos + Vector3(0, 30, -50); // ã‚É30AŒã‚ë‚É50
-	*/
-	// ƒLƒƒƒ‰ƒNƒ^[‚Ì^ã‚ÉƒJƒƒ‰‚ğ”z’u‚·‚éiŒ©‰º‚ë‚µŒÅ’èj
-	// YÀ•W‚ğ‚‚­‚µAZÀ•W‚ğ‚í‚¸‚©‚É‚¸‚ç‚µ‚ÄŒvZ”j’]‚ğ–h‚®
-	m_Position = targetPos + Vector3(0.0f, m_CameraDistanceY, -0.1f);
-	m_Target = targetPos; // ‹ü‚ÍƒLƒƒƒ‰ƒNƒ^[‚ÉŒü‚¯‚é
-	
+	// è¦–ç·šã¯ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã«å‘ã‘ã‚‹
+	m_Target = targetPos;
+
+	// ä½ç½®ã®è¨ˆç®—ã¯å¼•æ•°ãªã—ã®Update()ã«ä»»ã›ã‚‹ï¼ˆå‡¦ç†ã®å…±é€šåŒ–ï¼‰
+	Update();
+
+	// â€»ã‚‚ã—UpdateViewMatrixãŒã“ã“ã§å¿…è¦ãªå ´åˆã¯æ®‹ã—ã¾ã™
 	UpdateViewMatrix();
 }
 
 //=======================================
-//•`‰æˆ—
+//æç”»å‡¦ç†
 //=======================================
 void Camera::SetCamera(int mode)
 {
-	//3DƒJƒƒ‰İ’è
+	//3Dã‚«ãƒ¡ãƒ©è¨­å®š
 	if (mode == 0)
 	{
-		// ƒrƒ…[•ÏŠ·s—ñì¬
-		Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
-		m_ViewMatrix = DirectX::XMMatrixLookAtLH(m_Position, m_Target, up); //¶èŒn
-
+		// ãƒ“ãƒ¥ãƒ¼å¤‰æ›è¡Œåˆ—ä½œæˆ
 		Renderer::SetViewMatrix(&m_ViewMatrix);
 
-		//ƒvƒƒWƒFƒNƒVƒ‡ƒ“s—ñ‚Ì¶¬
-		constexpr float fieldOfView = DirectX::XMConvertToRadians(45.0f);    // ‹–ìŠp iã‚°‚é‚Æ‹–ì‚ªL‚ª‚é  ƒIƒuƒWƒFƒNƒg‚ÌƒTƒCƒY‚ª¬‚³‚­Œ©‚¦‚½‚è‚·‚éj
+		//ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³è¡Œåˆ—ã®ç”Ÿæˆ
+		constexpr float fieldOfView = DirectX::XMConvertToRadians(45.0f);    // è¦–é‡è§’ ï¼ˆä¸Šã’ã‚‹ã¨è¦–é‡ãŒåºƒãŒã‚‹ ï¼ ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®ã‚µã‚¤ã‚ºãŒå°ã•ãè¦‹ãˆãŸã‚Šã™ã‚‹ï¼‰
 
-		float aspectRatio = static_cast<float>(Application::GetWidth()) / static_cast<float>(Application::GetHeight());	// ƒAƒXƒyƒNƒg”ä	
-		float nearPlane = 1.0f;       // ƒjƒAƒNƒŠƒbƒv
-		float farPlane = 1000.0f;      // ƒtƒ@[ƒNƒŠƒbƒv
+		float aspectRatio = static_cast<float>(Application::GetWidth()) / static_cast<float>(Application::GetHeight());	// ã‚¢ã‚¹ãƒšã‚¯ãƒˆæ¯”	
+		float nearPlane = 1.0f;       // ãƒ‹ã‚¢ã‚¯ãƒªãƒƒãƒ—
+		float farPlane = 1000.0f;      // ãƒ•ã‚¡ãƒ¼ã‚¯ãƒªãƒƒãƒ—
 
-		//ƒvƒƒWƒFƒNƒVƒ‡ƒ“s—ñ‚Ì¶¬
+		//ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³è¡Œåˆ—ã®ç”Ÿæˆ
 		Matrix projectionMatrix;
-		projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fieldOfView, aspectRatio, nearPlane, farPlane);	//¶èŒn
+		projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(fieldOfView, aspectRatio, nearPlane, farPlane);	//å·¦æ‰‹ç³»
 
 		Renderer::SetProjectionMatrix(&projectionMatrix);
 	}
-	//2DƒJƒƒ‰İ’è
+	//2Dã‚«ãƒ¡ãƒ©è¨­å®š
 	else if (mode == 1)
 	{
-		// ƒrƒ…[•ÏŠ·s—ñì¬
+		// ãƒ“ãƒ¥ãƒ¼å¤‰æ›è¡Œåˆ—ä½œæˆ
 		Vector3 pos = { 0.0f, 0.0f, -10.0f };
 		Vector3 tgt = {0.0f, 0.0f, 1.0f};
 		Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
-		m_ViewMatrix = DirectX::XMMatrixLookAtLH(pos, tgt, up); //¶èŒn
+		m_ViewMatrix = DirectX::XMMatrixLookAtLH(pos, tgt, up); //å·¦æ‰‹ç³»
 
 		Renderer::SetViewMatrix(&m_ViewMatrix);
 
-		//ƒvƒƒWƒFƒNƒVƒ‡ƒ“s—ñ‚Ì¶¬
-		float nearPlane = 1.0f;       // ƒjƒAƒNƒŠƒbƒv
-		float farPlane = 1000.0f;      // ƒtƒ@[ƒNƒŠƒbƒv
+		//ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³è¡Œåˆ—ã®ç”Ÿæˆ
+		float nearPlane = 1.0f;       // ãƒ‹ã‚¢ã‚¯ãƒªãƒƒãƒ—
+		float farPlane = 1000.0f;     // ãƒ•ã‚¡ãƒ¼ã‚¯ãƒªãƒƒãƒ—
 
-		//ƒvƒƒWƒFƒNƒVƒ‡ƒ“s—ñ‚Ì¶¬
+		//ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³è¡Œåˆ—ã®ç”Ÿæˆ
 		Matrix projectionMatrix;
 		projectionMatrix = DirectX::XMMatrixOrthographicLH(
 			static_cast<float>(Application::GetWidth()),
@@ -139,7 +130,7 @@ void Camera::SetCamera(int mode)
 
 
 //=======================================
-//I—¹ˆ—
+//çµ‚äº†å‡¦ç†
 //=======================================
 void Camera::Uninit()
 {
@@ -147,25 +138,31 @@ void Camera::Uninit()
 }
 
 //=======================================
-//ƒJƒƒ‰’Ç]‚Ìİ’è
+//ã‚«ãƒ¡ãƒ©è¿½å¾“ã®è¨­å®š
 //=======================================
 void Camera::UpdateViewMatrix()
 {
-	m_View = Matrix::CreateLookAt(m_Position, m_Target, Vector3::UnitY);
+	Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
+	m_ViewMatrix = DirectX::XMMatrixLookAtLH(m_Position, m_Target, up);
 }
 
-//ƒJƒƒ‰‚Ìƒ^[ƒQƒbƒg‚ğİ’è
+//ã‚«ãƒ¡ãƒ©ã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã‚’è¨­å®š
 void Camera::SetTarget(DirectX::SimpleMath::Vector3 target)
 {
-	//ƒJƒƒ‰‚Ì’‹“_‚ğXV
+	//ã‚«ãƒ¡ãƒ©ã®æ³¨è¦–ç‚¹ã‚’æ›´æ–°
 	m_Target = target;
 
-	m_Position = m_Target + DirectX::SimpleMath::Vector3(0.0f, m_CameraDistanceY, -0.1f);
+	RefreshPosition();
 }
 
 void Camera::SetDistanceY(float dist)
 {
 	m_CameraDistanceY = dist;
-	m_Position = m_Target + Vector3(0.0f, m_CameraDistanceY, -0.1f);
+	RefreshPosition();
 
 }
+
+void Camera::RefreshPosition()
+{
+	m_Position = m_Target + Vector3(0.0f, m_CameraDistanceY, -0.1f);
+}	
