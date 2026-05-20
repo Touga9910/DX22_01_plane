@@ -17,10 +17,10 @@ private:
 	float m_CameraDistanceY = 150;	// カメラのY座標の距離
 	float m_TargetDistanceY = 150;	// カメラが向かってほしい目的地（Lerp実装で徐々に近づけるため）
 
-	static constexpr float ZOOM_SPEED = 2.0f;
-    static constexpr float MIN_DISTANCE = 30.0f;
-    static constexpr float MAX_DISTANCE = 500.0f;
-    static constexpr float ZOOM_INTERPOLATION_SPEED = 0.1f;
+	static constexpr float ZOOM_SPEED = 2.0f;					// ズームの速さ
+    static constexpr float MIN_DISTANCE = 30.0f;				// ズームの限界（最近地点）
+    static constexpr float MAX_DISTANCE = 500.0f;				// ズームの限界（最遠地点）
+    static constexpr float ZOOM_INTERPOLATION_SPEED = 0.1f;		// ズームの適応速度（0.0f～1.0fの範囲で指定）
 
 	//シングルトン構成化
 	Camera();
