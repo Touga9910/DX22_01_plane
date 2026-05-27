@@ -521,22 +521,6 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 	// 予測シミュレーション用の物理定数
 	const float gravity = 0.1f;
 	const float deceleratisonPower = 0.02f;
-	const float restisusion = 0.5f;
-	const float friction = 0.95f;
-	const float radius = 1.0f; // ボールの直径
-
-	/*
-	// 地面情報 (既存のUpdateから取得)
-	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
-	std::vector<VERTEX_3D> vertices;
-	for (auto& g : grounds)
-	{
-		for (auto& v : g->GetVertices())
-		{
-			vertices.emplace_back(v);
-		}
-	}
-	*/
 
 	//始めの点を追加
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
@@ -544,7 +528,7 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 	// 予測シミュレーションの実行
 	for (int frame = 0; frame < PREDICTION_FRAMES; ++frame)
 	{
-		Vector3 oldSimPosition = simPosition;
+		//Vector3 oldSimPosition = simPosition;
 
 		// 1. 減速の計算 (m_State==0 ブロックから流用)
 		if (simVelocity.LengthSquared() > 0.03f)
@@ -561,70 +545,14 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 		// 3. 座標の更新
 		simPosition += simVelocity;
 
-		/*
-		// 4. 当たり判定と反射 (Update() ブロックから流用)
-		float moveDistance = 9999;
-		Vector3 normal;
-		Vector3 contactPoint;
 
-		for (int i = 0; i < vertices.size(); i += 3)
-		{
-			Collision::Polygon collisionPolygon = { vertices[i + 0].position, vertices[i + 1].position, vertices[i + 2].position };
-			Vector3 cp;
-			Collision::Segment collisionSegment = { oldSimPosition, simPosition };
+		// 距離が近すぎる場合は追加しない（無駄な描画を防ぐため）
+		float distSq = (simPosition - m_PrePositions.back().position).LengthSquared();
 
-			if (Collision::CheckHit(collisionSegment, collisionPolygon, cp))
-			{
-				float md = 0;
-				Vector3 np = Collision::moveSphere(collisionSegment, radius, collisionPolygon, cp, md);
-				if (moveDistance > md)
-				{
-					moveDistance = md;
-					simPosition = np;
-					contactPoint = cp;
-					normal = Collision::GetNormal(collisionPolygon);
-				}
-			}
-		}
-
-		if (moveDistance != 9999) // もし当たっていたら
-		{
-			float velocityNorma = Collision::Dot(simVelocity, normal);
-			Vector3 v1 = velocityNorma * normal; // 法線方向成分
-			Vector3 v2 = simVelocity - v1;      // 接線方向成分
-
-			Vector3 reflecterVelocity = v2 * friction - v1 * restisusion;
-			simVelocity = reflecterVelocity;
-
-			// 予測が地面にめり込み始めたら（速度がほぼ0になったら）シミュレーションを終了
-			if (simVelocity.LengthSquared() < 0.1f)
-			{
-				// 停止と見なしてループを抜ける
-				break;
-			}
-		}
-		*/
-		// 4. (5.)予測点をリストに追加
-	
-
-		for (int frame = 0; frame < PREDICTION_FRAMES; ++frame)
+		// 点を追加（数値を小さくすると滑らかになります）
+		if (distSq > 3.0f * 3.0f)
 		{
 			m_PrePositions.push_back({ simPosition, 0, 1.0f });
-
-			// 距離が近すぎる場合は追加しない（無駄な描画を防ぐため）
-			float distSq = (simPosition - m_PrePositions.back().position).LengthSquared();
-
-			// 点を追加（数値を小さくすると滑らかになります）
-			if (distSq > 3.0f * 3.0f)
-			{
-				m_PrePositions.push_back({ simPosition, 0, 1.0f });
-			}
-
-			// 停止判定
-			if (simVelocity.LengthSquared() < 0.1f) break;
 		}
-
-		// 6. カップイン判定 (省略可能だが正確性を高めるため)
-		// Poleとの当たり判定を行い、当たったら break
 	}
 }
