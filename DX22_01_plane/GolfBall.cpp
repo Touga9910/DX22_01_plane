@@ -70,6 +70,7 @@ void GolfBall::Init()
 
 	m_Position.x = distrib(gen);
 	m_Position.z = distrib(gen);
+	m_Position.y = -99.0f;
 
 	//モデルによってスケールを調整
 	m_Scale.x = 1;
@@ -141,16 +142,28 @@ void GolfBall::Update()
 			m_State = 1; //静止状態
 		}
 
+		/*
 		//重力
 		const float gravity = 0.1f;
 		m_Velocity.y -= gravity;
 
 		//速度を座標に加算
 		m_Position += m_Velocity;
+		*/
+
+		// Y方向（上下）には絶対に動かないようにする
+		m_Velocity.y = 0.0f;
+
+		//速度を座標に加算
+		m_Position += m_Velocity;
+
+		// 念のため、何が起きても高さが一定になるように固定
+		m_Position.y = 1.0f;
 
 		//ボールモデルの直径
 		float radius = 1.0f;
 
+		/*
 		//Groundの頂点データの取得
 		vector<Ground*>grounds = Game::GetInstance()->GetObjects<Ground>();
 		vector<VERTEX_3D> vertices;
@@ -228,7 +241,7 @@ void GolfBall::Update()
 
 
 		}
-
+		*/
 		// 下に落ちたときはリスポーン
 		if (m_Position.y < -100)
 		{
@@ -540,10 +553,12 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 		}
 
 		// 2. 重力
-		simVelocity.y -= gravity;
+		//simVelocity.y -= gravity;
+		simVelocity.y = 0.0f;
 
 		// 3. 座標の更新
 		simPosition += simVelocity;
+		simVelocity.y = 1.0f;
 
 
 		// 距離が近すぎる場合は追加しない（無駄な描画を防ぐため）
