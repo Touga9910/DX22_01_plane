@@ -9,8 +9,8 @@ using namespace DirectX::SimpleMath;//namespaceでDirectX::SimpleMathを名づけるこ
 void Ground::Init()
 {
 	// 頂点データ
-	m_SizeX = 30;
-	m_SizeZ = 30;
+	m_SizeX = 1;
+	m_SizeZ = 1;
 
 	m_Vertices.resize(6 * m_SizeX * m_SizeZ);
 
@@ -50,7 +50,7 @@ void Ground::Init()
 		}
 	}
 
-	/**/
+	/*
 	//読み込む画像ファイルのパス
 	const char* filename = "assets/texture/terain.png";
 
@@ -102,7 +102,6 @@ void Ground::Init()
 		//メモリを解放
 		stbi_image_free(imageData);
 	}
-	/**/
 	
 	//法線ベクトルを更新
 	for (int z = 0; z < m_SizeZ; z++)
@@ -132,6 +131,7 @@ void Ground::Init()
 			m_Vertices[n + 5].normal = normal;
 		}
 	}
+	*/
 
 	// 頂点バッファ生成
 	m_VertexBuffer.Create(m_Vertices);
@@ -172,8 +172,8 @@ void Ground::Init()
 	m_Material->Create(mtrl);
 
 	m_Position.y = -100.0f;
-	m_Scale.x = 20.0f;
-	m_Scale.z = 20.0f;
+	m_Scale.x = 600.0f;
+	m_Scale.z = 600.0f;
 }
 
 //=======================================
@@ -185,8 +185,6 @@ void Ground::Update()
 	//m_Position.x += 0.2f;	//移動
 	//m_Scale.y += 1.0f;	//拡大縮小
 	//m_Rotation.x+= 0.05f;	//回転
-
-
 }
 
 //=======================================
