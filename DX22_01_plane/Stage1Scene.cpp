@@ -96,12 +96,7 @@ void Stage1Scene::Init()
 	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[3]);//ポール
 	ball->SetState(0);	//ボールを物理挙動させる
 	arrow->SetState(0);	//矢印非表示
-	pole->SetPosition(0.0f,-25.0f,0.0f);	//ポールを設定
-	
-
-
-
-
+	pole->SetPosition(200.0f,-25.0f,0.0f);	//ポールを設定
 }
 
 //更新

@@ -40,6 +40,15 @@ private:
 
 	//Ground* m_Ground;	//地面オブジェクト
 
+	/*
+	// 動的に変更したパラメーター
+	float m_Radius = 1.0f;              // ボールの半径
+	float m_Restitution = 0.8f;         // 壁との反発係数（跳ね返り具合）
+	float m_DecelerationPower = 0.02f;   // 1フレームあたりの減速量（摩擦）
+	float m_MoveSpeed = 0.01f;          // WASDキーによる加速の強さ
+	float m_StopThreshold = 0.03f;      // 停止とみなす速度のしきい値
+	*/
+
 	// 軌跡用変数
 	std::vector<TrailPoint>m_TrajectoryPositions;//過去座標	
 	DirectX::SimpleMath::Vector3 m_LastTrailPos;// 最後に点を打った場所を記録する変数
@@ -73,5 +82,8 @@ public:
 	void ClearTrajectory() { m_TrajectoryPositions.clear(); }
 
 	//void SetGround(Ground* ground);
+
+	// ImGui描画用の関数
+	void DrawImGui();
 };
 

@@ -7,6 +7,7 @@
 #include "Shader.h"
 #include "Texture.h"
 #include "Material.h"
+#include "Collision.h"
 
 class Ground : public Object
 {
@@ -14,6 +15,11 @@ class Ground : public Object
 	DirectX::SimpleMath::Vector3 m_Position = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Rotation = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Scale = DirectX::SimpleMath::Vector3(1.0f, 1.0f, 1.0f);
+
+	// ビリヤード台のサイズ定義（一括管理）
+	float m_FieldWidth = 200.0f;  // X軸の幅
+	float m_FieldDepth = 200.0f;   // Z軸の奥行き
+	float m_FieldHeight = 1.0f;   // ボールが転がるY座標の高さ
 
 	// 頂点データ
 	std::vector<VERTEX_3D> m_Vertices;
@@ -41,7 +47,22 @@ public:
 	void Draw(Camera* cam);
 	void Uninit();
 
-	//頂点情報を取得
+	/// <summary>
+	/// 高さを取得する関数
+	/// </summary>
+	/// <returns></returns>
+	float GetFieldHeight() const { return m_FieldHeight; }
+
+	/// <summary>
+	/// 四方の壁（4本の線分）を配列にして取得する関数
+	/// </summary>
+	/// <returns></returns>
+	std::vector<Collision::Segment> GetWalls() const;
+
+	/// <summary>
+	/// 頂点情報を取得
+	/// </summary>
+	/// <returns></returns>
 	std::vector<VERTEX_3D> GetVertices();
 };
 

@@ -68,20 +68,31 @@ void GolfBall::Init()
 	std::uniform_real_distribution<> distrib(MIN_RANGE, MAX_RANGE);
 
 
-	m_Position.x = distrib(gen);
-	m_Position.z = distrib(gen);
-	m_Position.y = -99.0f;
+	m_Transform.position.x = 0.0f;
+	m_Transform.position.z = 0.0f;
+	m_Transform.position.y = 1.0f;
 
 	//モデルによってスケールを調整
-	m_Scale.x = 1;
-	m_Scale.y = 1;
-	m_Scale.z = 1;
+	m_Transform.scale.x = 5;
+	m_Transform.scale.y = 5;
+	m_Transform.scale.z = 5;
+
+	// ★ Groundから台の高さを取得して合わせる
+	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+	if (grounds.size() > 0)
+	{
+		m_Transform.position.y = grounds[0]->GetFieldHeight();
+	}
+	else
+	{
+		m_Transform.position.y = 1.0f; // 万が一Groundが無い時の保険
+	}
 
 	//最初に速度を与える
 	m_Velocity.x = 1.0f;
 
 	// 軌跡の初期位置を今のボールの位置にする
-	m_LastTrailPos = m_Position;
+	m_LastTrailPos = m_Transform.position;
 	m_TrajectoryPositions.clear();
 }
 
@@ -93,9 +104,13 @@ void GolfBall::Update()
 
 	m_CurrentFrame++;
 
+	// ボールモデルの半径
+	float radius = 1.0f;
+
+	Vector3 oldPos = m_Transform.position;//1フレーム前の位置を記録
+
 	if (m_State == 0 )
 	{
-		Vector3 oldPos = m_Position;//1フレーム前の位置を記録
 
 		// 以下追加
 		// --- 1. キー入力による移動（速度への加算） ---
@@ -150,18 +165,6 @@ void GolfBall::Update()
 		//速度を座標に加算
 		m_Position += m_Velocity;
 		*/
-
-		// Y方向（上下）には絶対に動かないようにする
-		m_Velocity.y = 0.0f;
-
-		//速度を座標に加算
-		m_Position += m_Velocity;
-
-		// 念のため、何が起きても高さが一定になるように固定
-		m_Position.y = 1.0f;
-
-		//ボールモデルの直径
-		float radius = 1.0f;
 
 		/*
 		//Groundの頂点データの取得
@@ -243,9 +246,9 @@ void GolfBall::Update()
 		}
 		*/
 		// 下に落ちたときはリスポーン
-		if (m_Position.y < -100)
+		if (m_Transform.position.y < -100)
 		{
-			m_Position = Vector3(0.0f, 50.0f, 0.0f); //リスポーン座標
+			m_Transform.position = Vector3(0.0f, 50.0f, 0.0f); //リスポーン座標
 			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);	//速度リセット
 
 			// リスポーン時に軌跡を消す
@@ -258,7 +261,7 @@ void GolfBall::Update()
 		{
 			Vector3 polePos = pole[0]->GetPosition();
 
-			Collision::Sphere balCollision = { m_Position,radius };//ゴルフボール当たり判定
+			Collision::Sphere balCollision = { m_Transform.position,radius };//ゴルフボール当たり判定
 
 			Collision::Sphere poleCollision = { polePos,0.5f };//ポール当たり判定
 
@@ -277,7 +280,7 @@ void GolfBall::Update()
 			float stepSize = 1.5f;
 
 			// 最後に打った場所から、現在の場所までのベクトルと距離
-			Vector3 vecToCurrent = m_Position - m_LastTrailPos;
+			Vector3 vecToCurrent = m_Transform.position - m_LastTrailPos;
 			float dist = vecToCurrent.Length();
 
 			// 一定以上離れていたら、間を埋めるように点を追加
@@ -313,22 +316,6 @@ void GolfBall::Update()
 
 		// 移動速度
 		float speed = 0.5f;
-
-		/*
-		if (Input::GetKeyPress(VK_W)) m_Position -= forward * speed;
-		if (Input::GetKeyPress(VK_S)) m_Position += forward * speed;
-		if (Input::GetKeyPress(VK_A)) m_Position += right * speed;
-		if (Input::GetKeyPress(VK_D)) m_Position -= right * speed;
-		*/
-
-		//移動方向によってボールを回転させる
-		if (oldPos != m_Position)
-		{
-			float rotateX = m_Position.x - oldPos.x;
-			float rotateY = m_Position.y - oldPos.y;
-			float rotateZ = m_Position.z - oldPos.z;
-			m_Rotation += {rotateZ, 0, rotateX};
-		}
 	}
 
 	// 軌跡を削除する処理（いつでも作動するように、m_State == 0から外しておく）
@@ -354,8 +341,106 @@ void GolfBall::Update()
 		point.lifeRatio = max(0.0f, (float)remainingFrames / TRAIL_DURATION_FRAMES);
 	}
 
+
+
+	///////////////////////////////////////////////////////////
+	// 壁の当たり判定についての処理（動的サブステップ方式）
+	///////////////////////////////////////////////////////////
+
+	// Y方向（上下）には絶対に動かないようにする
+	m_Velocity.y = 0.0f;
+
+	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+	if (grounds.size() > 0)
+	{
+		std::vector<Collision::Segment> walls = grounds[0]->GetWalls();
+
+		// 1フレームの移動距離を計算
+		float moveDistance = m_Velocity.Length();
+
+		// 1ステップで進んでいい最大の距離（すり抜けないよう半径の半分以下にする）
+		float maxStep = radius * 0.5f;
+
+		// ★必要な分割数（速度が遅ければ1回、速ければ自動で増える！）
+		int subSteps = max(1, (int)ceil(moveDistance / maxStep));
+
+		// 1ステップあたりの移動量
+		Vector3 stepVelocity = m_Velocity / (float)subSteps;
+
+		for (int step = 0; step < subSteps; step++)
+		{
+			// ① 少しだけ移動させる
+			m_Transform.position += stepVelocity;
+
+			// ② その位置で壁との当たり判定
+			// （あなたが作っていた DistancePointToSegment を使うと、半径も完璧に考慮されます）
+			for (int i = 0; i < walls.size(); i++)
+			{
+				Vector3 contactPoint;
+				float distance = Collision::DistancePointToSegment(m_Transform.position, walls[i], contactPoint);
+
+				// ③ 距離が半径以下なら衝突！
+				if (distance <= radius)
+				{
+					// 法線の計算
+					Vector3 normal = m_Transform.position - contactPoint;
+					normal.y = 0.0f;
+
+					if (normal.LengthSquared() > 0.0001f) {
+						normal.Normalize();
+					}
+					else {
+						// 万が一完全に重なった場合の安全装置
+						Vector3 wallVec = walls[i].end - walls[i].start;
+						wallVec.Normalize();
+						normal = Vector3(-wallVec.z, 0.0f, wallVec.x);
+					}
+
+					// 進行方向と法線が逆向きになるよう調整
+					if (Collision::Dot(m_Velocity, normal) > 0)
+					{
+						normal = -normal;
+					}
+
+					// 1. めり込み防止（衝突点から半径分押し返す）
+					m_Transform.position = contactPoint + normal * radius;
+
+					// 2. 反射処理
+					float dot = Collision::Dot(m_Velocity, normal);
+					if (dot < 0)
+					{
+						float restitution = 0.8f; // 反発係数
+						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
+
+						// ★重要：反射したので、残りのステップの移動方向も「反射後の速度」に更新する
+						stepVelocity = m_Velocity / (float)subSteps;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		// Groundが無い時の保険
+		m_Transform.position += m_Velocity;
+	}
+
+	//移動方向によってボールを回転させる
+	if (oldPos != m_Transform.position)
+	{
+		// 1フレームの実際の移動ベクトル
+		Vector3 moveVec = m_Transform.position - oldPos;
+
+		// 半径を考慮した回転角の計算 (移動量 / 半径)
+		float rotX = moveVec.z / radius;
+		float rotZ = moveVec.x / radius;
+
+		// 回転を適用
+		m_Transform.Rotate(Vector3(rotX, 0.0f, rotZ));
+	}
+
 	//カメラを追従させる
-	Camera::GetInstance().SetTarget(m_Position);
+	Camera::GetInstance().SetTarget(m_Transform.position);
 }
 
 //=======================================
@@ -458,7 +543,7 @@ void GolfBall::Draw(Camera* cam)
 		// 軌跡は少し小さくする (0.5倍)
 		Matrix r = Matrix::Identity; // 回転なし
 		Matrix t = Matrix::CreateTranslation(pos);
-		Matrix s = Matrix::CreateScale(m_Scale.x * currentScare, m_Scale.y * currentScare, m_Scale.z * currentScare);
+		Matrix s = Matrix::CreateScale(m_Transform.scale.x * currentScare, m_Transform.scale.y * currentScare, m_Transform.scale.z * currentScare);
 
 		Matrix worldmtx = s * r * t;
 		Renderer::SetWorldMatrix(&worldmtx); // GPUにセット
@@ -479,9 +564,9 @@ void GolfBall::Draw(Camera* cam)
 	}
 
 	// SRT情報作成
-	Matrix r = Matrix::CreateFromYawPitchRoll(m_Rotation.y, m_Rotation.x, m_Rotation.z);
-	Matrix t = Matrix::CreateTranslation(m_Position.x, m_Position.y, m_Position.z);
-	Matrix s = Matrix::CreateScale(m_Scale.x, m_Scale.y, m_Scale.z);
+	Matrix r = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
+	Matrix t = Matrix::CreateTranslation(m_Transform.position.x, m_Transform.position.y, m_Transform.position.z);
+	Matrix s = Matrix::CreateScale(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
 
 	Matrix worldmtx;
 	worldmtx = s * r * t;
@@ -527,7 +612,7 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 	const int PREDICTION_FRAMES = 120;
 
 	// 現在の状態をコピー（シミュレーション用）
-	Vector3 simPosition = m_Position;
+	Vector3 simPosition = m_Transform.position;
 	Vector3 simVelocity = initialVelocity; // 予測したい初速
 	Vector3 simAcceleration;
 
