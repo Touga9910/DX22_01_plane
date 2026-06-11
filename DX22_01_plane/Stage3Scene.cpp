@@ -1,14 +1,14 @@
 #include "Stage3Scene.h"
 #include "Game.h"
 #include "Input.h"
-#include "GolfBall.h"
+#include "PlayerBall.h"
 #include "Ground.h"
 #include "Arrow.h"
 #include "Pole.h"
 #include "SkyBox.h"
 
 #include "Texture2D.h"
-
+#include <iostream>
 
 using namespace DirectX::SimpleMath;
 
@@ -33,7 +33,7 @@ void Stage3Scene::Init()
 	std::cout << "オブジェクトを生成開始\n" << std::endl;
 
 	// オブジェクトを作成
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<GolfBall>());
+	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<PlayerBall>());
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ポール
@@ -92,10 +92,10 @@ void Stage3Scene::Init()
 	}
 
 
-	GolfBall* ball = dynamic_cast<GolfBall*>(m_MySceneObjects[0]);//ゴルフボール
+	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
 	Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
 	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[3]);//ポール
-	ball->SetState(0);	//ボールを物理挙動させる
+	ball->SetState(PlayerBall::State::Simulation);	//ボールを物理挙動させる
 	arrow->SetState(0);	//矢印非表示
 	pole->SetPosition(0.0f, -25.0f, 0.0f);	//ポールを設定
 
@@ -108,7 +108,7 @@ void Stage3Scene::Init()
 //更新
 void Stage3Scene::Update()
 {
-	GolfBall* ball = dynamic_cast<GolfBall*>(m_MySceneObjects[0]);//ゴルフボール
+	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
 	Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
 
 	//状態ごとに処理
@@ -117,7 +117,7 @@ void Stage3Scene::Update()
 		//ボール移動中
 	case 0:
 		//ボールが静止したら
-		if (ball->GetState() == 1)
+		if (ball->GetState() == PlayerBall::State::Idle)
 		{
 			m_State = 1;
 			arrow->SetState(m_State);
@@ -137,7 +137,7 @@ void Stage3Scene::Update()
 			}
 		}
 		//ボールがカップインしたらリザルトへ
-		else if (ball->GetState() == 2)
+		else if (ball->GetState() == PlayerBall::State::Goal)
 		{
 			Game::GetInstance()->ChangeScene(RESULT);
 		}
@@ -162,7 +162,7 @@ void Stage3Scene::Update()
 		if (Input::GetKeyTrigger(VK_SPACE))
 		{
 			m_State = 0;
-			ball->SetState(m_State);
+			ball->SetState(PlayerBall::State::Simulation);
 			arrow->SetState(m_State);
 
 			Vector3 v = arrow->GetVector();

@@ -1,7 +1,7 @@
 #include "Pole.h"
 #include "Collision.h"
 #include "Game.h"
-#include "Golfball.h"
+#include "PlayerBall.h"
 #include "Ground.h"
 
 using namespace std;

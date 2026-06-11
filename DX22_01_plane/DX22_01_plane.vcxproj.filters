@@ -84,7 +84,7 @@
     <ClCompile Include="AssimpPerse.cpp">
       <Filter>ソース ファイル\オブジェクト関連</Filter>
     </ClCompile>
-    <ClCompile Include="GolfBall.cpp">
+    <ClCompile Include="PlayerBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="Ground.cpp">
@@ -176,7 +176,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GolfBall.h">
+    <ClInclude Include="PlayerBall.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
     <ClInclude Include="Ground.h">

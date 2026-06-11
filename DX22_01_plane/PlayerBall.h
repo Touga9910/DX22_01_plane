@@ -16,10 +16,19 @@ struct TrailPoint {
 	float lifeRatio;	//0.0(消滅)～1.0(出現直後)
 };
 
-class GolfBall :public BallBase
+class PlayerBall :public BallBase
 {
+public:
+	// プレイヤーの状態を明確に定義（列挙型）
+	enum class State {
+		Simulation,     // 0: 物理演算中（転がっている状態）
+		Idle,           // 1: 停止中（ショット待ち状態）
+		Goal,           // 2: カップイン / ゴール
+		Dead            // 3: 落下・死亡（必要に応じて拡張）
+	};
+
 private:
-	int m_State = 0; // 状態 0：物理挙動,1:停止,2:カップイン
+	State m_State = State::Idle;
 	int m_StopCount = 0; // 停止カウント
 
 	// 軌跡用変数
@@ -42,8 +51,9 @@ public:
 	void Uninit();
 
 	// 状態の設定・取得
-	void SetState(int s) { m_State = s; }
-	int GetState() const { return m_State; }
+	void SetState(State state) { m_State = state; }
+	State GetState() const { return m_State; }
+	bool IsIdle() const { return m_State == State::Idle; }
 
 	//弾道予測を生成する関数
 	void GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity);

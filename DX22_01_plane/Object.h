@@ -28,7 +28,4 @@ public:
 
 	// ˆÊ’u‚ÌŽæ“¾
 	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Position; }
-
-	//DirectX::SimpleMath::Vector3 m_RollingRotation = DirectX::SimpleMath::Vector3::Zero;
-	DirectX::SimpleMath::Quaternion m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
 };

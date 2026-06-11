@@ -146,7 +146,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collision.cpp" />
     <ClCompile Include="Game.cpp" />
-    <ClCompile Include="GolfBall.cpp" />
+    <ClCompile Include="PlayerBall.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -188,7 +188,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collision.h" />
     <ClInclude Include="Game.h" />
-    <ClInclude Include="GolfBall.h" />
+    <ClInclude Include="PlayerBall.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />

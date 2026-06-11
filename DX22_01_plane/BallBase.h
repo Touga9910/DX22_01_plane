@@ -1,4 +1,3 @@
-// BallBase.h
 #pragma once
 #include "Object.h"
 
@@ -7,7 +6,7 @@
 #include "StaticMesh.h"
 #include "utility.h"
 #include "Material.h"
-
+#include "Collision.h"
 
 class BallBase : public Object {
 protected:
@@ -31,4 +30,10 @@ public:
     void DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx);             // 描画処理を共通化
     void SetRadius(float r) { m_Radius = r; }   // 半径設定の共通化
     void LoadModel(const char* modelFilePath, const char* texDirectory); // モデル読み込み共通化
+
+    DirectX::SimpleMath::Quaternion GetRollingRotation() const { return m_RollingRotation; } // クオータニオンを渡す
+    Collision::Sphere GetSphere() const {
+        // Objectクラスが持つ座標（m_position）と自身の半径を渡す
+        return { m_Transform.position, m_Radius };
+    }
 };

@@ -1,7 +1,7 @@
 #include "Arrow.h"
 #include "Collision.h"
 #include "Game.h"
-#include "Golfball.h"
+#include "PlayerBall.h"
 #include "Camera.h"
 
 using namespace std;
@@ -69,14 +69,14 @@ void Arrow::Update()
 	if (m_State == 0)return; // 非表示ならreturn
 
 	// ゴルフボールの位置を取得
-	vector<GolfBall*> ballpt = Game::GetInstance()->GetObjects<GolfBall>();
+	vector<PlayerBall*> ballpt = Game::GetInstance()->GetObjects<PlayerBall>();
 	if (ballpt.size() > 0)
 	{
 		// 矢印の位置を更新
 		m_Position = ballpt[0]->GetPosition();
 	}
 
-	GolfBall* ball = nullptr;
+	PlayerBall* ball = nullptr;
 	if (ballpt.size() > 0)
 	{
 		ball = ballpt[0];

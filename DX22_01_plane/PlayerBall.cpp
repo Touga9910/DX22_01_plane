@@ -1,5 +1,5 @@
-#include "GolfBall.h"
-#include "Collision.h"
+ï»¿#include "PlayerBall.h"
+//#include "Collision.h"
 #include"Game.h"
 #include"Ground.h"
 #include"Camera.h"
@@ -12,22 +12,22 @@ using namespace std;
 using namespace DirectX::SimpleMath;
 
 //=======================================
-//‰Šú‰»ˆ—
+//åˆæœŸåŒ–å‡¦ç†
 //=======================================
-void GolfBall::Init()
+void PlayerBall::Init()
 {
-	// ƒ‚ƒfƒ‹‚Ì“Ç‚İ‚İ
-	LoadModel("assets/model/golfball/golf_ball.obj", "assets/model/golfball");
+	// ãƒ¢ãƒ‡ãƒ«ã®èª­ã¿è¾¼ã¿
+	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
 
-	// —”¶¬ƒGƒ“ƒWƒ“‚ÆƒV[ƒh‚Ì‰Šú‰»
+	// ä¹±æ•°ç”Ÿæˆã‚¨ãƒ³ã‚¸ãƒ³ã¨ã‚·ãƒ¼ãƒ‰ã®åˆæœŸåŒ–
 	static std::random_device rd;
 	static std::mt19937 gen(rd());
 
-	// ƒ‰ƒ“ƒ_ƒ€‚È”ÍˆÍ‚ğ’è‹` (—á: -50.0 ‚©‚ç 50.0 ‚Ì”ÍˆÍ‚Åƒ‰ƒ“ƒ_ƒ€‚É‚·‚é)
+	// ãƒ©ãƒ³ãƒ€ãƒ ãªç¯„å›²ã‚’å®šç¾© (ä¾‹: -50.0 ã‹ã‚‰ 50.0 ã®ç¯„å›²ã§ãƒ©ãƒ³ãƒ€ãƒ ã«ã™ã‚‹)
 	const float MIN_RANGE = -200.0f;
 	const float MAX_RANGE = 200.0f;
 
-	// •‚“®¬”“_”‚Ìˆê—l•ª•z‚ğ’è‹`
+	// æµ®å‹•å°æ•°ç‚¹æ•°ã®ä¸€æ§˜åˆ†å¸ƒã‚’å®šç¾©
 	std::uniform_real_distribution<> distrib(MIN_RANGE, MAX_RANGE);
 
 
@@ -35,12 +35,12 @@ void GolfBall::Init()
 	m_Transform.position.z = 0.0f;
 	m_Transform.position.y = 1.0f;
 
-	//ƒ‚ƒfƒ‹‚É‚æ‚Á‚ÄƒXƒP[ƒ‹‚ğ’²®
+	//ãƒ¢ãƒ‡ãƒ«ã«ã‚ˆã£ã¦ã‚¹ã‚±ãƒ¼ãƒ«ã‚’èª¿æ•´
 	m_Transform.scale.x = 2;
 	m_Transform.scale.y = 2;
 	m_Transform.scale.z = 2;
 
-	// š Ground‚©‚ç‘ä‚Ì‚‚³‚ğæ“¾‚µ‚Ä‡‚í‚¹‚é
+	// â˜… Groundã‹ã‚‰å°ã®é«˜ã•ã‚’å–å¾—ã—ã¦åˆã‚ã›ã‚‹
 	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
 	if (grounds.size() > 0)
 	{
@@ -48,250 +48,205 @@ void GolfBall::Init()
 	}
 	else
 	{
-		m_Transform.position.y = 1.0f; // –œ‚ªˆêGround‚ª–³‚¢‚Ì•ÛŒ¯
+		m_Transform.position.y = 1.0f; // ä¸‡ãŒä¸€GroundãŒç„¡ã„æ™‚ã®ä¿é™º
 	}
 
-	//Å‰‚É‘¬“x‚ğ—^‚¦‚é
+	//æœ€åˆã«é€Ÿåº¦ã‚’ä¸ãˆã‚‹
 	m_Velocity.x = 1.0f;
 
-	// ‹OÕ‚Ì‰ŠúˆÊ’u‚ğ¡‚Ìƒ{[ƒ‹‚ÌˆÊ’u‚É‚·‚é
+	// è»Œè·¡ã®åˆæœŸä½ç½®ã‚’ä»Šã®ãƒœãƒ¼ãƒ«ã®ä½ç½®ã«ã™ã‚‹
 	m_LastTrailPos = m_Transform.position;
 	m_TrajectoryPositions.clear();
 }
 
 //=======================================
-//XVˆ—
+//æ›´æ–°å‡¦ç†
 //=======================================
-void GolfBall::Update()
+void PlayerBall::Update()
 {
-
 	m_CurrentFrame++;
 
-	// ƒ{[ƒ‹ƒ‚ƒfƒ‹‚Ì”¼Œa
-	//float radius = 1.0f;
-
-	//Vector3 oldPos = m_Transform.position;//1ƒtƒŒ[ƒ€‘O‚ÌˆÊ’u‚ğ‹L˜^
-
-	if (m_State == 0 )
+	// çŠ¶æ…‹ã®æ¯”è¼ƒã‚’ enum class ã«å¤‰æ›´ (0 â” State::Simulation)
+	if (m_State == State::Simulation)
 	{
-		// --- 1. ƒL[“ü—Í‚É‚æ‚éˆÚ“®i‘¬“x‚Ö‚Ì‰ÁZj ---
-		float moveSpeed = 0.01f; // ‰Á‘¬‚Ì‹­‚³iD‚İ‚É‡‚í‚¹‚Ä’²®j
+		// --- ã‚­ãƒ¼å…¥åŠ›ã«ã‚ˆã‚‹ç§»å‹•ï¼ˆãƒ‡ãƒãƒƒã‚°ç”¨ãªã©ã®åŠ é€Ÿã¸ã®åŠ ç®—ï¼‰ ---
+		float moveSpeed = 0.01f;
 		Vector3 moveInput = Vector3::Zero;
 
-		if (Input::GetKeyPress(VK_W)) moveInput.z += 1.0f; // ‰œ‚Ö
-		if (Input::GetKeyPress(VK_S)) moveInput.z -= 1.0f; // è‘O‚Ö
-		if (Input::GetKeyPress(VK_A)) moveInput.x -= 1.0f; // ¶‚Ö
-		if (Input::GetKeyPress(VK_D)) moveInput.x += 1.0f; // ‰E‚Ö
+		if (Input::GetKeyPress(VK_W)) moveInput.z += 1.0f; // å¥¥ã¸
+		if (Input::GetKeyPress(VK_S)) moveInput.z -= 1.0f; // æ‰‹å‰ã¸
+		if (Input::GetKeyPress(VK_A)) moveInput.x -= 1.0f; // å·¦ã¸
+		if (Input::GetKeyPress(VK_D)) moveInput.x += 1.0f; // å³ã¸
 
 		if (moveInput != Vector3::Zero)
 		{
 			moveInput.Normalize();
 			m_Velocity += moveInput * moveSpeed;
-			m_State = 0; // ƒL[“ü—Í‚ª‚ ‚Á‚½‚çuˆÚ“®ó‘Ôv‚É‚·‚é
 		}
 
-		//‘¬“x‚ª0‚É‹ß‚Ã‚¢‚½‚ç’â~
+		// é€Ÿåº¦ãŒ0ã«è¿‘ã¥ã„ãŸã‚‰åœæ­¢åˆ¤å®š
 		if (m_Velocity.LengthSquared() < 0.03f)
 		{
-			//m_Velocity = Vector3(0.0f, 0.0f, 0.0f);
 			m_StopCount++;
 		}
 		else
 		{
 			m_StopCount = 0;
 
-			//Œ»‘¬“x(1ƒtƒŒ[ƒ€“–‚½‚è‚Ç‚ê‚­‚ç‚¢Œ¸‘¬‚·‚é‚©)
+			// æ‘©æ“¦ï¼ˆæ¸›é€Ÿï¼‰ã®è¨ˆç®—
 			float deceleratisonPower = 0.02f;
 
-			Vector3 deceleration = -m_Velocity;	//‘¬“x‚Ì‹tƒxƒNƒgƒ‹‚ğŒvZ
-			deceleration.Normalize();			// ƒxƒNƒgƒ‹‚ğ³‹K‰»
+			Vector3 deceleration = -m_Velocity;	// é€Ÿåº¦ã®é€†ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—
+			deceleration.Normalize();			// ãƒ™ã‚¯ãƒˆãƒ«ã‚’æ­£è¦åŒ–
 			m_Acceleration = deceleration * deceleratisonPower;
 
-			//‰Á‘¬“x‚ğ‘¬“x‚É‰ÁZ
+			// åŠ é€Ÿåº¦ã‚’é€Ÿåº¦ã«åŠ ç®—
 			m_Velocity += m_Acceleration;
-
 		}
-		// 10ƒtƒŒ[ƒ€˜A‘±‚Å‚Ù‚Ú“®‚¢‚Ä‚¢‚È‚¯‚ê‚ÎÃ~ó‘Ô‚Ö
+
+		// 10ãƒ•ãƒ¬ãƒ¼ãƒ é€£ç¶šã§ã»ã¼å‹•ã„ã¦ã„ãªã‘ã‚Œã°é™æ­¢çŠ¶æ…‹ã¸
 		if (m_StopCount > 10)
 		{
 			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);
-			m_State = 1; //Ã~ó‘Ô
+			// çŠ¶æ…‹ã®ä»£å…¥ã‚’ enum class ã«å¤‰æ›´ (1 â” State::Idle)
+			m_State = State::Idle;
 		}
 
-		/*
-		//d—Í
-		const float gravity = 0.1f;
-		m_Velocity.y -= gravity;
-
-		//‘¬“x‚ğÀ•W‚É‰ÁZ
-		m_Position += m_Velocity;
-		*/
-
-		// ‰º‚É—‚¿‚½‚Æ‚«‚ÍƒŠƒXƒ|[ƒ“
+		// ä¸‹ã«è½ã¡ãŸã¨ãã¯ãƒªã‚¹ãƒãƒ¼ãƒ³
 		if (m_Transform.position.y < -100)
 		{
-			m_Transform.position = Vector3(0.0f, 50.0f, 0.0f); //ƒŠƒXƒ|[ƒ“À•W
-			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);	//‘¬“xƒŠƒZƒbƒg
-
-			// ƒŠƒXƒ|[ƒ“‚É‹OÕ‚ğÁ‚·
-			m_TrajectoryPositions.clear();
+			m_Transform.position = Vector3(0.0f, 50.0f, 0.0f); // ãƒªã‚¹ãƒãƒ¼ãƒ³åº§æ¨™
+			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);	// é€Ÿåº¦ãƒªã‚»ãƒƒãƒˆ
+			m_TrajectoryPositions.clear(); // è»Œè·¡ã‚’æ¶ˆã™
 		}
 
-		//Pole‚ÌˆÊ’u‚ğæ“¾
+		// Poleã®ä½ç½®ã‚’å–å¾—ã—ã¦ã‚«ãƒƒãƒ—ã‚¤ãƒ³åˆ¤å®š
 		vector<Pole*> pole = Game::GetInstance()->GetObjects<Pole>();
 		if (pole.size() > 0)
 		{
 			Vector3 polePos = pole[0]->GetPosition();
-
-			Collision::Sphere balCollision = { m_Transform.position,m_Radius };//ƒSƒ‹ƒtƒ{[ƒ‹“–‚½‚è”»’è
-
-			Collision::Sphere poleCollision = { polePos,0.5f };//ƒ|[ƒ‹“–‚½‚è”»’è
+			Collision::Sphere balCollision = { m_Transform.position, m_Radius };
+			Collision::Sphere poleCollision = { polePos, 0.5f };
 
 			if (Collision::CheckHit(balCollision, poleCollision))
 			{
-				m_State = 2;//ƒJƒbƒvƒCƒ“
-
+				// çŠ¶æ…‹ã®ä»£å…¥ã‚’ enum class ã«å¤‰æ›´ (2 â” State::Goal)
+				m_State = State::Goal;
 			}
-
 		}
 
-		//‹OÕ‚ğ’Ç‰Á‚·‚éˆ—
-		if (m_State == 0)
+		// è»Œè·¡ã‚’è¿½åŠ ã™ã‚‹å‡¦ç†
+		// â˜… ä¿®æ­£ç‚¹: ã“ã“ã‚‚æ•´æ•°ã§ã¯ãªãåˆ—æŒ™å‹ã§ãƒã‚§ãƒƒã‚¯
+		if (m_State == State::Simulation)
 		{
-			// “_‚ğ‘Å‚ÂŠÔŠu
 			float stepSize = 1.5f;
 
-			// ÅŒã‚É‘Å‚Á‚½êŠ‚©‚çAŒ»İ‚ÌêŠ‚Ü‚Å‚ÌƒxƒNƒgƒ‹‚Æ‹——£
 			Vector3 vecToCurrent = m_Transform.position - m_LastTrailPos;
 			float dist = vecToCurrent.Length();
 
-			// ˆê’èˆÈã—£‚ê‚Ä‚¢‚½‚çAŠÔ‚ğ–„‚ß‚é‚æ‚¤‚É“_‚ğ’Ç‰Á
 			if (dist >= stepSize)
 			{
-				// •ûŒüƒxƒNƒgƒ‹‚ğ³‹K‰»i’·‚³1‚É‚·‚éj
 				vecToCurrent.Normalize();
-
-				// ‹——£•ª‚¾‚¯ƒ‹[ƒv‚µ‚Ä“_‚ğ‘Å‚Â
-				// while•¶‚ğg‚¤‚±‚Æ‚ÅA1ƒtƒŒ[ƒ€‚É‘å‚«‚­“®‚¢‚Ä‚àŠÔ‚ğ‘S•”–„‚ß‚ê‚é
 				while (dist >= stepSize)
 				{
-					// Ÿ‚Ì“_‚ÌÀ•W‚ğŒvZ
 					m_LastTrailPos += vecToCurrent * stepSize;
-
-					// ƒŠƒXƒg‚É’Ç‰Á
-					m_TrajectoryPositions.push_back({ m_LastTrailPos,m_CurrentFrame, 1.0f });
-
-					// c‚è‚Ì‹——£‚ğŒ¸‚ç‚·
+					m_TrajectoryPositions.push_back({ m_LastTrailPos, m_CurrentFrame, 1.0f });
 					dist -= stepSize;
 				}
 			}
 		}
 
-		//ƒJƒƒ‰•ûŒü‚É‚æ‚Á‚ÄˆÚ“®•ûŒü‚ğ•Ï‚¦‚é
+		// ã‚«ãƒ¡ãƒ©æ–¹å‘ã«ã‚ˆã‚‹ç§»å‹•ï¼ˆâ€»å¿…è¦ã«å¿œã˜ã¦moveInputã®è¨ˆç®—ã«çµ„ã¿è¾¼ã‚“ã§ãã ã•ã„ï¼‰
 		float dir = Camera::GetInstance().GetCameraDirection();
-
-		// ‘O•ûiƒJƒƒ‰‚ªŒü‚­•ûŒüj
 		Vector3 forward(sin(dir), 0, cos(dir));
-
-		// ‰E•ûŒüi‘O•û‚ğ90“x‰ñ“]j
 		Vector3 right(cos(dir), 0, -sin(dir));
-
-		// ˆÚ“®‘¬“x
 		float speed = 0.5f;
 	}
 
-	// ‹OÕ‚ğíœ‚·‚éˆ—i‚¢‚Â‚Å‚àì“®‚·‚é‚æ‚¤‚ÉAm_State == 0‚©‚çŠO‚µ‚Ä‚¨‚­j
-	
-	// íœ‚Ì‚µ‚«‚¢’l‚Æ‚È‚éƒtƒŒ[ƒ€”Ô†‚ğŒvZ (Œ»İ‚ÌƒtƒŒ[ƒ€ - õ–½)
+	// --- è»Œè·¡ã®å‰Šé™¤ãƒ»æ›´æ–°å‡¦ç† ---
 	int expirationFrame = m_CurrentFrame - TRAIL_DURATION_FRAMES;
 
-	// ƒŠƒXƒg‚Ìæ“ª‚©‚çAõ–½‚ªs‚«‚½—v‘f‚ğíœiƒŠƒXƒg‚Ì—v‘f‚ÍŒÃ‚¢‡‚É“ü‚Á‚Ä‚¢‚éj
 	while (!m_TrajectoryPositions.empty() &&
 		m_TrajectoryPositions.front().timestamp < expirationFrame)
 	{
-		// ƒŠƒXƒg‚Ìæ“ªiÅ‚àŒÃ‚¢—v‘fj‚ğíœ
 		m_TrajectoryPositions.erase(m_TrajectoryPositions.begin());
 	}
 
-	// ‹OÕ‚Ì“_‚Ì lifeRatio ‚ğXV
 	for (auto& point : m_TrajectoryPositions)
 	{
-		// õ–½‚Ìc‚èƒtƒŒ[ƒ€”‚ğŒvZ
 		int remainingFrames = TRAIL_DURATION_FRAMES - (m_CurrentFrame - point.timestamp);
-
-		// c‚èƒtƒŒ[ƒ€”‚©‚ç lifeRatio ‚ğŒvZ (0.0 ` 1.0)
 		point.lifeRatio = max(0.0f, (float)remainingFrames / TRAIL_DURATION_FRAMES);
 	}
 
-	// •¨—‰‰Z‚ğXV
+	// ç‰©ç†æ¼”ç®—ã‚’æ›´æ–°ï¼ˆBallBaseã‹ã‚‰å—ã‘ç¶™ã„ã åº§æ¨™æ›´æ–°å‡¦ç†ãªã©ï¼‰
 	UpdatePhysics();
 
-	//ƒJƒƒ‰‚ğ’Ç]‚³‚¹‚é
+	// ã‚«ãƒ¡ãƒ©ã‚’è¿½å¾“ã•ã›ã‚‹
 	Camera::GetInstance().SetTarget(m_Transform.position);
 }
 
 //=======================================
-//•`‰æˆ—
+//æç”»å‡¦ç†
 //=======================================
-void GolfBall::Draw(Camera* cam)
+void PlayerBall::Draw(Camera* cam)
 {
-	//ƒJƒƒ‰‚ğ‘I‘ğ‚·‚é
+	//ã‚«ãƒ¡ãƒ©ã‚’é¸æŠã™ã‚‹
 	cam->SetCamera();
 
-	//ƒJƒƒ‰‚ğ’Ç]‚³‚¹‚é
-	//cam->SetTarget(m_Position);//ƒJƒƒ‰‚Ìƒ^[ƒQƒbƒg‚ğXV
+	//ã‚«ãƒ¡ãƒ©ã‚’è¿½å¾“ã•ã›ã‚‹
+	//cam->SetTarget(m_Position);//ã‚«ãƒ¡ãƒ©ã®ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã‚’æ›´æ–°
 
 	m_Shader.SetGPU();
 
-	// ƒCƒ“ƒfƒbƒNƒXƒoƒbƒtƒ@E’¸“_ƒoƒbƒtƒ@‚ğƒZƒbƒg
+	// ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒãƒƒãƒ•ã‚¡ãƒ»é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã‚’ã‚»ãƒƒãƒˆ
 	m_MeshRenderer.BeforeDraw();
 
-	if (m_State != 0 && m_PrePositions.size() >= 2) // 2“_ˆÈã‚È‚¢‚Æü‚ªˆø‚¯‚È‚¢
+	if (m_State != State::Simulation && m_PrePositions.size() >= 2) // 2ç‚¹ä»¥ä¸Šãªã„ã¨ç·šãŒå¼•ã‘ãªã„
 	{
 
 		const float Y_OFFSET = 0.0f;
 
-		// ƒŠƒXƒg‚ÌuÅŒã‚Ìˆê‚Âè‘Ov‚Ü‚Åƒ‹[ƒv‚·‚é
+		// ãƒªã‚¹ãƒˆã®ã€Œæœ€å¾Œã®ä¸€ã¤æ‰‹å‰ã€ã¾ã§ãƒ«ãƒ¼ãƒ—ã™ã‚‹
 		for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
 		{
-			// ƒXƒ^[ƒg’n“_‚ÆƒS[ƒ‹’n“_‚ğæ“¾
+			// ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã¨ã‚´ãƒ¼ãƒ«åœ°ç‚¹ã‚’å–å¾—
 			Vector3 startPos = m_PrePositions[i].position;
 			Vector3 endPos = m_PrePositions[i + 1].position;
 
-			// 2“_ŠÔ‚Ì‹——£‚ğŒvZi‚±‚ê‚ğZ²‚ÌƒXƒP[ƒ‹‚É‚·‚éj
+			// 2ç‚¹é–“ã®è·é›¢ã‚’è¨ˆç®—ï¼ˆã“ã‚Œã‚’Zè»¸ã®ã‚¹ã‚±ãƒ¼ãƒ«ã«ã™ã‚‹ï¼‰
 			float distance = (endPos - startPos).Length();
 
-			// ‹——£‚ª0‚È‚ç•`‰æ‚µ‚È‚¢
+			// è·é›¢ãŒ0ãªã‚‰æç”»ã—ãªã„
 			if (distance <= 0.0001f) continue;
 
-			// 2“_‚Ì’†ŠÔ’n“_‚ğŒvZi‚±‚±‚Éƒ‚ƒfƒ‹‚ğ’u‚­j
+			// 2ç‚¹ã®ä¸­é–“åœ°ç‚¹ã‚’è¨ˆç®—ï¼ˆã“ã“ã«ãƒ¢ãƒ‡ãƒ«ã‚’ç½®ãï¼‰
 			Vector3 midPos = (startPos + endPos) * 0.5f;
 			
-			// Y²•ûŒü‚É‚¸‚ç‚·
+			// Yè»¸æ–¹å‘ã«ãšã‚‰ã™
 			midPos.y += Y_OFFSET;
 
-			// ü‚Ì‘¾‚³
+			// ç·šã®å¤ªã•
 			float thickness = 0.2f;
 
-			// ¡ SRTs—ñ‚Ìì¬ ¡
+			// â–  SRTè¡Œåˆ—ã®ä½œæˆ â– 
 
-			// 1. ƒXƒP[ƒ‹FX,Y‚Í‘¾‚³AZ‚Í’·‚³i‹——£j
-			// ¦‹…‘Ìƒ‚ƒfƒ‹‚Í’¼Œa1.0‚Æ‰¼’èB‚à‚µ’¼Œa‚ª‘å‚«‚¢ƒ‚ƒfƒ‹‚È‚ç’²®‚ª•K—v
+			// 1. ã‚¹ã‚±ãƒ¼ãƒ«ï¼šX,Yã¯å¤ªã•ã€Zã¯é•·ã•ï¼ˆè·é›¢ï¼‰
+			// â€»çƒä½“ãƒ¢ãƒ‡ãƒ«ã¯ç›´å¾„1.0ã¨ä»®å®šã€‚ã‚‚ã—ç›´å¾„ãŒå¤§ãã„ãƒ¢ãƒ‡ãƒ«ãªã‚‰èª¿æ•´ãŒå¿…è¦
 			Matrix s = Matrix::CreateScale(thickness, thickness, distance);
 
-			// 2. ‰ñ“]‚ÆˆÊ’uFCreateWorld‚ğg‚¤‚Æu‚ ‚éˆÊ’u(midPos)‚ÅA‚ ‚é•ûŒü(forward)‚ğŒü‚­s—ñv‚ª¶¬‰Â”\
-			Vector3 forward = endPos - startPos; // Œü‚«‚½‚¢•ûŒü
+			// 2. å›è»¢ã¨ä½ç½®ï¼šCreateWorldã‚’ä½¿ã†ã¨ã€Œã‚ã‚‹ä½ç½®(midPos)ã§ã€ã‚ã‚‹æ–¹å‘(forward)ã‚’å‘ãè¡Œåˆ—ã€ãŒç”Ÿæˆå¯èƒ½
+			Vector3 forward = endPos - startPos; // å‘ããŸã„æ–¹å‘
 			forward.Normalize();
 
-			// ã•ûŒüƒxƒNƒgƒ‹i^ã‚©Aforward‚ª^ã‚Ì‚Æ‚«‚ÍZ²‚È‚Ç‚ğ‰¼’èj
+			// ä¸Šæ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ï¼ˆçœŸä¸Šã‹ã€forwardãŒçœŸä¸Šã®ã¨ãã¯Zè»¸ãªã©ã‚’ä»®å®šï¼‰
 			Vector3 up = Vector3::Up;
 			if (abs(forward.y) > 0.99f) up = Vector3::UnitZ;
 
-			// ‰ñ“]‚Æ•½sˆÚ“®‚ğ‡‚í‚¹‚½s—ñ‚ğì¬
-			// CreateWorld(ˆÊ’u, ‘O•ûƒxƒNƒgƒ‹, ã•ûƒxƒNƒgƒ‹)
+			// å›è»¢ã¨å¹³è¡Œç§»å‹•ã‚’åˆã‚ã›ãŸè¡Œåˆ—ã‚’ä½œæˆ
+			// CreateWorld(ä½ç½®, å‰æ–¹ãƒ™ã‚¯ãƒˆãƒ«, ä¸Šæ–¹ãƒ™ã‚¯ãƒˆãƒ«)
 			Matrix rt = Matrix::CreateWorld(midPos, forward, up);
 
-			// ‘S‘Ì‚ğ‡¬
+			// å…¨ä½“ã‚’åˆæˆ
 			Matrix worldmtx = s * rt;
 			DrawMesh(worldmtx);
 		}
@@ -301,20 +256,20 @@ void GolfBall::Draw(Camera* cam)
 	for (const auto& trailPoint : m_TrajectoryPositions)
 	{
 
-		const auto& pos = trailPoint.position;//À•Wî•ñ‚ğæ‚èo‚·
+		const auto& pos = trailPoint.position;//åº§æ¨™æƒ…å ±ã‚’å–ã‚Šå‡ºã™
 
 		float fade = trailPoint.lifeRatio;
 
-		// ƒtƒF[ƒhƒAƒEƒg‚É‡‚í‚¹‚ÄƒXƒP[ƒ‹‚ğ•Ï‰»‚³‚¹‚é
-		// ‹OÕ‚ÌƒXƒP[ƒ‹‚ğfade‚É”ä—á‚³‚¹‚ÄAÁ‚¦‚é’¼‘O‚É¬‚³‚­‚·‚é
+		// ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆã«åˆã‚ã›ã¦ã‚¹ã‚±ãƒ¼ãƒ«ã‚’å¤‰åŒ–ã•ã›ã‚‹
+		// è»Œè·¡ã®ã‚¹ã‚±ãƒ¼ãƒ«ã‚’fadeã«æ¯”ä¾‹ã•ã›ã¦ã€æ¶ˆãˆã‚‹ç›´å‰ã«å°ã•ãã™ã‚‹
 		float baseScale = 0.8f;
 		float currentScare = baseScale * fade;
 
-		// Å¬ƒXƒP[ƒ‹‚ğİ‚¯‚é
+		// æœ€å°ã‚¹ã‚±ãƒ¼ãƒ«ã‚’è¨­ã‘ã‚‹
 		currentScare = max(0.01f, currentScare);
 
-		// ‹OÕ‚Í­‚µ¬‚³‚­‚·‚é (0.5”{)
-		Matrix r = Matrix::Identity; // ‰ñ“]‚È‚µ
+		// è»Œè·¡ã¯å°‘ã—å°ã•ãã™ã‚‹ (0.5å€)
+		Matrix r = Matrix::Identity; // å›è»¢ãªã—
 		Matrix t = Matrix::CreateTranslation(pos);
 		Matrix s = Matrix::CreateScale(m_Transform.scale.x * currentScare, m_Transform.scale.y * currentScare, m_Transform.scale.z * currentScare);
 
@@ -322,13 +277,13 @@ void GolfBall::Draw(Camera* cam)
 		DrawMesh(worldmtx);
 	}
 
-	// 1. –{—ˆ‚ÌŒü‚«iˆÚ“®•ûŒü‚È‚Ç‚ğ•\‚·‰ñ“]j
+	// 1. æœ¬æ¥ã®å‘ãï¼ˆç§»å‹•æ–¹å‘ãªã©ã‚’è¡¨ã™å›è»¢ï¼‰
 	Matrix rDirection = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
 
-	// 2. “]‚ª‚è‚Ì‰ñ“]
+	// 2. è»¢ãŒã‚Šã®å›è»¢
 	Matrix rRolling = Matrix::CreateFromQuaternion(m_RollingRotation);
 
-	// 3. s—ñ‚Ì‡¬F“]‚ª‚è(rRolling)‚ğ“K—p‚µ‚½Œã‚ÉA–{—ˆ‚ÌŒü‚«(rDirection)‚ğ‡‚í‚¹‚é
+	// 3. è¡Œåˆ—ã®åˆæˆï¼šè»¢ãŒã‚Š(rRolling)ã‚’é©ç”¨ã—ãŸå¾Œã«ã€æœ¬æ¥ã®å‘ã(rDirection)ã‚’åˆã‚ã›ã‚‹
 	Matrix r = rDirection * rRolling;
 	Matrix t = Matrix::CreateTranslation(m_Transform.position.x, m_Transform.position.y, m_Transform.position.z);
 	Matrix s = Matrix::CreateScale(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
@@ -338,42 +293,42 @@ void GolfBall::Draw(Camera* cam)
 }
 
 //=======================================
-//I—¹ˆ—
+//çµ‚äº†å‡¦ç†
 //=======================================
-void GolfBall::Uninit()
+void PlayerBall::Uninit()
 {
 
 }
 
 //=======================================
-// ’e“¹—\‘ª‚ğ¶¬‚·‚éŠÖ”
+// å¼¾é“äºˆæ¸¬ã‚’ç”Ÿæˆã™ã‚‹é–¢æ•°
 //=======================================
-void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
+void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
-	// Šù‘¶‚ÌƒŠƒXƒg‚ğƒNƒŠƒA
+	// æ—¢å­˜ã®ãƒªã‚¹ãƒˆã‚’ã‚¯ãƒªã‚¢
 	m_PrePositions.clear();
 
-	// —\‘ª‚ÌŒp‘±ŠÔ (ƒtƒŒ[ƒ€”)
+	// äºˆæ¸¬ã®ç¶™ç¶šæ™‚é–“ (ãƒ•ãƒ¬ãƒ¼ãƒ æ•°)
 	const int PREDICTION_FRAMES = 120;
 
-	// Œ»İ‚Ìó‘Ô‚ğƒRƒs[iƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“—pj
+	// ç¾åœ¨ã®çŠ¶æ…‹ã‚’ã‚³ãƒ”ãƒ¼ï¼ˆã‚·ãƒŸãƒ¥ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ç”¨ï¼‰
 	Vector3 simPosition = m_Transform.position;
-	Vector3 simVelocity = initialVelocity; // —\‘ª‚µ‚½‚¢‰‘¬
+	Vector3 simVelocity = initialVelocity; // äºˆæ¸¬ã—ãŸã„åˆé€Ÿ
 	Vector3 simAcceleration;
 
-	// —\‘ªƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“—p‚Ì•¨—’è”
+	// äºˆæ¸¬ã‚·ãƒŸãƒ¥ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ç”¨ã®ç‰©ç†å®šæ•°
 	const float gravity = 0.1f;
 	const float deceleratisonPower = 0.02f;
 
-	//n‚ß‚Ì“_‚ğ’Ç‰Á
+	//å§‹ã‚ã®ç‚¹ã‚’è¿½åŠ 
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
 
-	// —\‘ªƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“‚ÌÀs
+	// äºˆæ¸¬ã‚·ãƒŸãƒ¥ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ã®å®Ÿè¡Œ
 	for (int frame = 0; frame < PREDICTION_FRAMES; ++frame)
 	{
 		//Vector3 oldSimPosition = simPosition;
 
-		// 1. Œ¸‘¬‚ÌŒvZ (m_State==0 ƒuƒƒbƒN‚©‚ç—¬—p)
+		// 1. æ¸›é€Ÿã®è¨ˆç®— (m_State==0 ãƒ–ãƒ­ãƒƒã‚¯ã‹ã‚‰æµç”¨)
 		if (simVelocity.LengthSquared() > 0.03f)
 		{	
 			Vector3 deceleration = -simVelocity;
@@ -382,19 +337,19 @@ void GolfBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initial
 			simVelocity += simAcceleration;
 		}
 
-		// 2. d—Í
+		// 2. é‡åŠ›
 		//simVelocity.y -= gravity;
 		simVelocity.y = 0.0f;
 
-		// 3. À•W‚ÌXV
+		// 3. åº§æ¨™ã®æ›´æ–°
 		simPosition += simVelocity;
 		simVelocity.y = 1.0f;
 
 
-		// ‹——£‚ª‹ß‚·‚¬‚éê‡‚Í’Ç‰Á‚µ‚È‚¢i–³‘Ê‚È•`‰æ‚ğ–h‚®‚½‚ßj
+		// è·é›¢ãŒè¿‘ã™ãã‚‹å ´åˆã¯è¿½åŠ ã—ãªã„ï¼ˆç„¡é§„ãªæç”»ã‚’é˜²ããŸã‚ï¼‰
 		float distSq = (simPosition - m_PrePositions.back().position).LengthSquared();
 
-		// “_‚ğ’Ç‰Ái”’l‚ğ¬‚³‚­‚·‚é‚ÆŠŠ‚ç‚©‚É‚È‚è‚Ü‚·j
+		// ç‚¹ã‚’è¿½åŠ ï¼ˆæ•°å€¤ã‚’å°ã•ãã™ã‚‹ã¨æ»‘ã‚‰ã‹ã«ãªã‚Šã¾ã™ï¼‰
 		if (distSq > 3.0f * 3.0f)
 		{
 			m_PrePositions.push_back({ simPosition, 0, 1.0f });
