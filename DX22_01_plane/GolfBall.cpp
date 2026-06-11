@@ -73,9 +73,9 @@ void GolfBall::Init()
 	m_Transform.position.y = 1.0f;
 
 	//モデルによってスケールを調整
-	m_Transform.scale.x = 5;
-	m_Transform.scale.y = 5;
-	m_Transform.scale.z = 5;
+	m_Transform.scale.x = 2;
+	m_Transform.scale.y = 2;
+	m_Transform.scale.z = 2;
 
 	// ★ Groundから台の高さを取得して合わせる
 	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
@@ -166,85 +166,6 @@ void GolfBall::Update()
 		m_Position += m_Velocity;
 		*/
 
-		/*
-		//Groundの頂点データの取得
-		vector<Ground*>grounds = Game::GetInstance()->GetObjects<Ground>();
-		vector<VERTEX_3D> vertices;
-		for (auto& g : grounds)	//Groundの数だけループ
-		{
-			vector<VERTEX_3D>vecs = g->GetVertices();	//頂点の数だけループ
-			for (auto& v : vecs)
-			{
-				vertices.emplace_back(v);
-			}
-		}
-
-		float moveDistance = 9999;//移動距離
-		Vector3 contactPoint;	//接触点
-		Vector3 normal;
-
-		//地面との当たり判定
-		for (int i = 0; i < vertices.size(); i += 3)
-		{
-			//三角形ポリゴン
-			Collision::Polygon collisionPolygon =
-			{
-				vertices[i + 0].position,
-				vertices[i + 1].position,
-				vertices[i + 2].position
-			};
-			Vector3 cp;//接触点
-			Collision::Segment collisionSegment = { oldPos,m_Position };
-			Collision::Sphere collisionSphere = { m_Position,radius };
-
-			//線分とポリゴンの当たり判定
-			if (Collision::CheckHit(collisionSegment, collisionPolygon, cp))
-			{
-				float md = 0;
-				Vector3 np = Collision::moveSphere(collisionSegment, radius, collisionPolygon, cp, md);
-				if (moveDistance > md)
-				{
-					moveDistance = md;
-					m_Position = np;
-					contactPoint = cp;
-					normal = Collision::GetNormal(collisionPolygon);
-				}
-			}
-			//球体とポリゴンの当たり判定
-			else if (Collision::CheckHit(collisionSphere, collisionPolygon, cp))
-			{
-				Vector3 np = Collision::moveSphere(collisionSphere, collisionPolygon, cp);
-				float md = (np - oldPos).Length();
-				if (moveDistance > md)
-				{
-					moveDistance = md;
-					m_Position = np;
-					contactPoint = cp;
-					normal = Collision::GetNormal(collisionPolygon);
-				}
-			}
-		}
-
-		if (moveDistance != 9999)//もし当たっていたら
-		{
-			//MessageBoxA(NULL, "当たった", "確認", MB_OK);
-
-			//ボールの速度ベクトルの法線方向成分と接戦方向成分を分解
-			float velocityNorma = Collision::Dot(m_Velocity, normal);
-			Vector3 v1 = velocityNorma * normal;//法線方向成分
-			Vector3 v2 = m_Velocity - v1;//接戦方向成分
-
-			//反射ベクトルを計算
-			const float restisusion = 0.5f;
-			const float friction = 0.95f;
-			Vector3 reflecterVelocity = v2 * friction - v1 * restisusion;
-
-			//ボール速度の更新
-			m_Velocity = reflecterVelocity;
-
-
-		}
-		*/
 		// 下に落ちたときはリスポーン
 		if (m_Transform.position.y < -100)
 		{
@@ -343,9 +264,7 @@ void GolfBall::Update()
 
 
 
-	///////////////////////////////////////////////////////////
-	// 壁の当たり判定についての処理（動的サブステップ方式）
-	///////////////////////////////////////////////////////////
+	// 壁の当たり判定についての処理（動的サブステップ方式）//
 
 	// Y方向（上下）には絶対に動かないようにする
 	m_Velocity.y = 0.0f;
@@ -369,17 +288,16 @@ void GolfBall::Update()
 
 		for (int step = 0; step < subSteps; step++)
 		{
-			// ① 少しだけ移動させる
+			// 少しだけ移動させる
 			m_Transform.position += stepVelocity;
 
-			// ② その位置で壁との当たり判定
-			// （あなたが作っていた DistancePointToSegment を使うと、半径も完璧に考慮されます）
+			// その位置で壁との当たり判定
 			for (int i = 0; i < walls.size(); i++)
 			{
 				Vector3 contactPoint;
 				float distance = Collision::DistancePointToSegment(m_Transform.position, walls[i], contactPoint);
 
-				// ③ 距離が半径以下なら衝突！
+				// 距離が半径以下なら衝突
 				if (distance <= radius)
 				{
 					// 法線の計算
@@ -412,7 +330,7 @@ void GolfBall::Update()
 						float restitution = 0.8f; // 反発係数
 						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
 
-						// ★重要：反射したので、残りのステップの移動方向も「反射後の速度」に更新する
+						// 反射したので、残りのステップの移動方向も「反射後の速度」に更新する
 						stepVelocity = m_Velocity / (float)subSteps;
 					}
 				}
@@ -431,12 +349,33 @@ void GolfBall::Update()
 		// 1フレームの実際の移動ベクトル
 		Vector3 moveVec = m_Transform.position - oldPos;
 
-		// 半径を考慮した回転角の計算 (移動量 / 半径)
-		float rotX = moveVec.z / radius;
-		float rotZ = moveVec.x / radius;
+		// Y軸のブレによる影響を消すため、水平方向の移動のみを考慮
+		moveVec.y = 0.0f;
 
-		// 回転を適用
-		m_Transform.Rotate(Vector3(rotX, 0.0f, rotZ));
+		float distance = moveVec.Length();
+
+		// 移動している場合のみ回転処理（ゼロ除算防止）
+		if (distance > 0.0001f)
+		{
+			// 移動方向（正規化ベクトル）
+			Vector3 moveDir = moveVec / distance;
+
+			// 回転軸の計算（外積）
+			// 進行方向(moveDir)と真上(UnitY)の外積をとることで、進行方向に対して「真横」の軸を取得
+			//Vector3 rotationAxis = moveDir.Cross(Vector3::UnitY);
+			Vector3 rotationAxis = Vector3::UnitY.Cross(moveDir);
+			rotationAxis.Normalize();
+
+			// 回転角の計算
+			float angle = distance / radius;
+
+			// 指定した軸(rotationAxis)を中心に、指定した角度(angle)だけ回転するクォータニオン
+			Quaternion deltaRot = Quaternion::CreateFromAxisAngle(rotationAxis, angle);
+
+			// 5. 現在の転がり回転に掛け合わせる
+			//m_RollingRotation = deltaRot * m_RollingRotation;
+			m_RollingRotation = m_RollingRotation * deltaRot;
+		}
 	}
 
 	//カメラを追従させる
@@ -492,7 +431,7 @@ void GolfBall::Draw(Camera* cam)
 			// ※球体モデルは直径1.0と仮定。もし直径が大きいモデルなら調整が必要
 			Matrix s = Matrix::CreateScale(thickness, thickness, distance);
 
-			// 2. 回転と位置：CreateWorldを使うと「ある位置(midPos)で、ある方向(forward)を向く行列」が一発で作れます
+			// 2. 回転と位置：CreateWorldを使うと「ある位置(midPos)で、ある方向(forward)を向く行列」が生成可能
 			Vector3 forward = endPos - startPos; // 向きたい方向
 			forward.Normalize();
 
@@ -563,13 +502,29 @@ void GolfBall::Draw(Camera* cam)
 		}
 	}
 
-	// SRT情報作成
+	/*// SRT情報作成
 	Matrix r = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
 	Matrix t = Matrix::CreateTranslation(m_Transform.position.x, m_Transform.position.y, m_Transform.position.z);
 	Matrix s = Matrix::CreateScale(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
 
 	Matrix worldmtx;
 	worldmtx = s * r * t;
+	Renderer::SetWorldMatrix(&worldmtx); // GPUにセット
+	*/
+
+	// 1. 本来の向き（移動方向などを表す回転）
+	Matrix rDirection = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
+
+	// 2. 転がりの回転（★ここを書き換える）
+	// 変更前： Matrix rRolling = Matrix::CreateFromYawPitchRoll(...);
+	Matrix rRolling = Matrix::CreateFromQuaternion(m_RollingRotation);
+
+	// 3. 行列の合成：転がり(rRolling)を適用した後に、本来の向き(rDirection)を合わせる
+	Matrix r = rDirection * rRolling;
+	Matrix t = Matrix::CreateTranslation(m_Transform.position.x, m_Transform.position.y, m_Transform.position.z);
+	Matrix s = Matrix::CreateScale(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
+
+	Matrix worldmtx = s * r * t;
 	Renderer::SetWorldMatrix(&worldmtx); // GPUにセット
 
 	//マテリアル数分ループ 
