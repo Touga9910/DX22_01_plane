@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Object.h"
+#include "BallBase.h"
 #include "Texture.h"
 #include "MeshRenderer.h"
 #include "StaticMesh.h"
@@ -8,7 +8,6 @@
 #include "Material.h"
 
 #include<vector>
-//#include "Ground.h"
 
 struct TrailPoint {
 	DirectX::SimpleMath::Vector3 position;
@@ -17,37 +16,11 @@ struct TrailPoint {
 	float lifeRatio;	//0.0(消滅)～1.0(出現直後)
 };
 
-class GolfBall :public Object
+class GolfBall :public BallBase
 {
 private:
-
-	//速度
-	DirectX::SimpleMath::Vector3 m_Velocity = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
-
-	//加速度
-	DirectX::SimpleMath::Vector3 m_Acceleration = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
-
-	// 描画の為の情報（メッシュに関わる情報）
-	MeshRenderer m_MeshRenderer; // 頂点バッファ・インデックスバッファ・インデックス数
-
-	// 描画の為の情報（見た目に関わる部分）
-	std::vector<std::unique_ptr<Material>> m_Materials;
-	std::vector<SUBSET> m_subsets;
-	std::vector<std::unique_ptr<Texture>> m_Textures; // テクスチャ
-
 	int m_State = 0; // 状態 0：物理挙動,1:停止,2:カップイン
 	int m_StopCount = 0; // 停止カウント
-
-	//Ground* m_Ground;	//地面オブジェクト
-
-	/*
-	// 動的に変更したパラメーター
-	float m_Radius = 1.0f;              // ボールの半径
-	float m_Restitution = 0.8f;         // 壁との反発係数（跳ね返り具合）
-	float m_DecelerationPower = 0.02f;   // 1フレームあたりの減速量（摩擦）
-	float m_MoveSpeed = 0.01f;          // WASDキーによる加速の強さ
-	float m_StopThreshold = 0.03f;      // 停止とみなす速度のしきい値
-	*/
 
 	// 軌跡用変数
 	std::vector<TrailPoint>m_TrajectoryPositions;//過去座標	

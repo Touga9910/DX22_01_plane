@@ -1,0 +1,175 @@
+#include "BallBase.h"
+
+#include "Collision.h"
+#include"Game.h"
+#include"Ground.h"
+
+#include<random>
+#include<ctime>
+
+using namespace std;
+using namespace DirectX::SimpleMath;
+
+void BallBase::UpdatePhysics()
+{
+	m_OldPosition = m_Transform.position;
+
+	// 壁の当たり判定についての処理（動的サブステップ方式）//
+
+	// Y方向（上下）には絶対に動かないようにする
+	m_Velocity.y = 0.0f;
+
+	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+	if (grounds.size() > 0)
+	{
+		std::vector<Collision::Segment> walls = grounds[0]->GetWalls();
+
+		// 1フレームの移動距離を計算
+		float moveDistance = m_Velocity.Length();
+
+		// 1ステップで進んでいい最大の距離（すり抜けないよう半径の半分以下にする）
+		float maxStep = m_Radius * 0.5f;
+
+		// ★必要な分割数（速度が遅ければ1回、速ければ自動で増える！）
+		int subSteps = max(1, (int)ceil(moveDistance / maxStep));
+
+		// 1ステップあたりの移動量
+		Vector3 stepVelocity = m_Velocity / (float)subSteps;
+
+		for (int step = 0; step < subSteps; step++)
+		{
+			// 少しだけ移動させる
+			m_Transform.position += stepVelocity;
+
+			// その位置で壁との当たり判定
+			for (int i = 0; i < walls.size(); i++)
+			{
+				Vector3 contactPoint;
+				float distance = Collision::DistancePointToSegment(m_Transform.position, walls[i], contactPoint);
+
+				// 距離が半径以下なら衝突
+				if (distance <= m_Radius)
+				{
+					// 法線の計算
+					Vector3 normal = m_Transform.position - contactPoint;
+					normal.y = 0.0f;
+
+					if (normal.LengthSquared() > 0.0001f) {
+						normal.Normalize();
+					}
+					else {
+						// 万が一完全に重なった場合の安全装置
+						Vector3 wallVec = walls[i].end - walls[i].start;
+						wallVec.Normalize();
+						normal = Vector3(-wallVec.z, 0.0f, wallVec.x);
+					}
+
+					// 進行方向と法線が逆向きになるよう調整
+					if (Collision::Dot(m_Velocity, normal) > 0)
+					{
+						normal = -normal;
+					}
+
+					// 1. めり込み防止（衝突点から半径分押し返す）
+					m_Transform.position = contactPoint + normal * m_Radius;
+
+					// 2. 反射処理
+					float dot = Collision::Dot(m_Velocity, normal);
+					if (dot < 0)
+					{
+						float restitution = 0.8f; // 反発係数
+						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
+
+						// 反射したので、残りのステップの移動方向も「反射後の速度」に更新する
+						stepVelocity = m_Velocity / (float)subSteps;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		// Groundが無い時の保険
+		m_Transform.position += m_Velocity;
+	}
+
+	//移動方向によってボールを回転させる
+	if (m_OldPosition != m_Transform.position)
+	{
+		// 1フレームの実際の移動ベクトル
+		Vector3 moveVec = m_Transform.position - m_OldPosition;
+
+		// Y軸のブレによる影響を消すため、水平方向の移動のみを考慮
+		moveVec.y = 0.0f;
+
+		float distance = moveVec.Length();
+
+		// 移動している場合のみ回転処理（ゼロ除算防止）
+		if (distance > 0.0001f)
+		{
+			// 移動方向（正規化ベクトル）
+			Vector3 moveDir = moveVec / distance;
+
+			// 回転軸の計算（外積）
+			// 進行方向(moveDir)と真上(UnitY)の外積をとることで、進行方向に対して「真横」の軸を取得
+			//Vector3 rotationAxis = moveDir.Cross(Vector3::UnitY);
+			Vector3 rotationAxis = Vector3::UnitY.Cross(moveDir);
+			rotationAxis.Normalize();
+
+			// 回転角の計算
+			float angle = distance / m_Radius;
+
+			// 指定した軸(rotationAxis)を中心に、指定した角度(angle)だけ回転するクォータニオン
+			Quaternion deltaRot = Quaternion::CreateFromAxisAngle(rotationAxis, angle);
+
+			// 5. 現在の転がり回転に掛け合わせる
+			//m_RollingRotation = deltaRot * m_RollingRotation;
+			m_RollingRotation = m_RollingRotation * deltaRot;
+		}
+	}
+}
+
+void BallBase::DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx)
+{
+	Renderer::SetWorldMatrix(const_cast<DirectX::SimpleMath::Matrix*>(&worldMtx)); // GPUにセット
+
+	//マテリアル数分ループ 
+	for (int i = 0; i < m_subsetList.size(); i++)
+	{
+		// マテリアルをセット(サブセット情報の中にあるマテリアルインデックスを使用)
+		m_Materials[m_subsetList[i].MaterialIdx]->SetGPU();
+
+		if (m_Materials[m_subsetList[i].MaterialIdx]->isTextureEnable())
+		{
+			m_Textures[m_subsetList[i].MaterialIdx]->SetGPU();
+		}
+
+		m_MeshRenderer.DrawSubset(
+			m_subsetList[i].IndexNum,		// 描画するインデックス数
+			m_subsetList[i].IndexBase,		// 最初のインデックスバッファの位置	
+			m_subsetList[i].VertexBase);	// 頂点バッファの最初から使用
+	}
+}
+
+void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
+{
+	StaticMesh staticmesh;
+	staticmesh.Load(modelFilePath, texDirectory);
+
+	m_MeshRenderer.Init(staticmesh);
+
+	// 共通シェーダーを使う場合はここで指定
+	m_Shader.Create("shader/litTextureVS.hlsl", "shader/litTexturePS.hlsl");
+
+	m_subsetList = staticmesh.GetSubsets();
+	m_Textures = staticmesh.GetTextures();
+
+	// マテリアルの登録処理
+	std::vector<MATERIAL> materials = staticmesh.GetMaterials();
+	for (const auto& matData : materials)
+	{
+		auto m = std::make_unique<Material>();
+		m->Create(matData);
+		m_Materials.push_back(std::move(m));
+	}
+}

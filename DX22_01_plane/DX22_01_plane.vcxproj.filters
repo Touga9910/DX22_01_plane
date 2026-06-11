@@ -171,6 +171,9 @@
     <ClCompile Include="imgui\imgui_widgets.cpp">
       <Filter>ソース ファイル\IMgui</Filter>
     </ClCompile>
+    <ClCompile Include="BallBase.cpp">
+      <Filter>ソース ファイル\オブジェクト関連</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GolfBall.h">
@@ -309,6 +312,9 @@
       <Filter>ソース ファイル\IMgui</Filter>
     </ClInclude>
     <ClInclude Include="transform.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
+    </ClInclude>
+    <ClInclude Include="BallBase.h">
       <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
     </ClInclude>
   </ItemGroup>
