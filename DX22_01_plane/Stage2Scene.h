@@ -1,26 +1,13 @@
 #pragma once
-#include "Scene.h"
-#include "Object.h"
+#include "StageBase.h"
 
-// Stage2Sceneクラス
-class Stage2Scene : public Scene
+class Stage2Scene : public StageBase
 {
-private:
-	std::vector<Object*> m_MySceneObjects; // このシーンのオブジェクト
-
-	int m_State = 0;//状態 0:ボール移動中,1:方向選択中,2:パワー選択中
-	int m_Par = 0;	//パー（標準打数）
-	int m_StrokeCount = 0;//現在の打数
-
-	void Init(); // 初期化
-	void Uninit(); // 終了処理
-
 public:
-	Stage2Scene(); // コンストラクタ
-	~Stage2Scene(); // デストラクタ
+    Stage2Scene();
+    ~Stage2Scene() override = default;
 
-	void Update(); // 更新
-
-	int GetScore() const;//スコア取得
+    void Init();
+    // もしステージ固有の追加ギミックを動かしたい場合はここでオーバーライドして使用する
+    void Update() override;
 };
-

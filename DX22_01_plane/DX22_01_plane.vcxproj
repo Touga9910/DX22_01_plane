@@ -167,6 +167,7 @@
     <ClCompile Include="sound.cpp" />
     <ClCompile Include="Stage1Scene.cpp" />
     <ClCompile Include="Stage3Scene.cpp" />
+    <ClCompile Include="StageBase.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
@@ -215,6 +216,7 @@
     <ClInclude Include="Stage1Scene.h" />
     <ClInclude Include="Stage2Scene.h" />
     <ClInclude Include="Stage3Scene.h" />
+    <ClInclude Include="StageBase.h" />
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />

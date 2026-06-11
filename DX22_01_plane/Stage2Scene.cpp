@@ -19,12 +19,6 @@ Stage2Scene::Stage2Scene()
 	Init();
 }
 
-// デストラクタ
-Stage2Scene::~Stage2Scene()
-{
-	Uninit();
-}
-
 // 初期化
 void Stage2Scene::Init()
 {
@@ -109,94 +103,5 @@ void Stage2Scene::Init()
 //更新
 void Stage2Scene::Update()
 {
-	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
-	Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
-
-	//状態ごとに処理
-	switch (m_State)
-	{
-		//ボール移動中
-	case 0:
-		//ボールが静止したら
-		if (ball->GetState() == PlayerBall::State::Idle)
-		{
-			m_State = 1;
-			arrow->SetState(m_State);
-
-			// 打数を更新
-			Texture2D* count[2] = {};
-			count[0] = dynamic_cast<Texture2D*>(m_MySceneObjects[8]);//打数 一の位
-			count[1] = dynamic_cast<Texture2D*>(m_MySceneObjects[9]);//打数 十の位
-
-			m_StrokeCount++;//現在打数をカウントアップ
-
-			// 各桁を後ろから取得していく
-			for (int i = 0; i < 2; i++)
-			{
-				int cnt = m_StrokeCount % (int)pow(10, i + 1) / (int)pow(10, i);//一桁取り出す
-				count[i]->SetUV((float)(cnt + 1), 1, 10, 1);//UV設定
-			}
-		}
-		//ボールがカップインしたらリザルトへ
-		else if (ball->GetState() == PlayerBall::State::Goal)
-		{
-			Game::GetInstance()->ChangeScene(RESULT);
-		}
-		break;
-		//スペースキーでパワー選択
-	case 1:
-		if (Input::GetKeyTrigger(VK_SPACE))
-		{
-			m_State = 2;
-			arrow->SetState(m_State);
-		}
-		break;
-		//スペースキーでショット
-	case 2:
-		if (Input::GetKeyTrigger(VK_SPACE))
-		{
-			m_State = 3;
-			arrow->SetState(m_State);
-		}
-		break;
-	case 3:
-		if (Input::GetKeyTrigger(VK_SPACE))
-		{
-			m_State = 0;
-			ball->SetState(PlayerBall::State::Simulation);
-			arrow->SetState(m_State);
-
-			Vector3 v = arrow->GetVector();
-			ball->Shot(v);
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	/*
-	// エンターキーを押してリザルトへ
-	if (Input::GetKeyTrigger(VK_RETURN))
-	{
-		Game::GetInstance()->ChangeScene(RESULT);
-	}
-	*/
-}
-
-// 終了処理
-void Stage2Scene::Uninit()
-{
-	// このシーンのオブジェクトを削除する
-	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteObject(o);
-	}
-	m_MySceneObjects.clear();
-}
-
-// スコアを取得
-int Stage2Scene::GetScore() const
-{
-	// 現在打数から標準打数（パー）を引いた値をreturn
-	return(m_StrokeCount - m_Par);
+	StageBase::Update();
 }
