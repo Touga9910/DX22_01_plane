@@ -33,6 +33,18 @@ void BallBase::UpdatePhysics()
 		// ★必要な分割数（速度が遅ければ1回、速ければ自動で増える！）
 		int subSteps = max(1, (int)ceil(moveDistance / maxStep));
 
+		std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
+		for (BallBase* other : balls)
+		{
+			if (other == this) continue;
+
+			Vector3 relativeVelocity = m_Velocity - other->m_Velocity;
+			float relativeSpeed = relativeVelocity.Length();
+
+			int relativeSubSteps = max(1, (int)ceil(relativeSpeed / maxStep));
+			subSteps = max(subSteps, relativeSubSteps);
+		}
+
 		// 1ステップあたりの移動量
 		Vector3 stepVelocity = m_Velocity / (float)subSteps;
 
@@ -81,6 +93,46 @@ void BallBase::UpdatePhysics()
 						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
 
 						// 反射したので、残りのステップの移動方向も「反射後の速度」に更新する
+						stepVelocity = m_Velocity / (float)subSteps;
+					}
+				}
+			}
+			// ★ ボール同士の衝突判定（二重処理防止版）
+			std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
+			bool foundSelf = false;  // 自分を見つけたかのフラグ
+
+			for (BallBase* other : balls)
+			{
+				// 自分を見つけるまでスキップ
+				if (!foundSelf)
+				{
+					if (other == this) foundSelf = true;
+					continue;  // 自分自身も含めてスキップ
+				}
+
+				// ↓ ここから「自分より後ろのボール」とだけ判定される
+				Vector3 diff = m_Transform.position - other->m_Transform.position;
+				float distance = diff.Length();
+				float minDist = m_Radius + other->m_Radius;
+
+				if (distance < minDist && distance > 0.0001f)
+				{
+					Vector3 normal = diff;
+					normal.Normalize();
+
+					float overlap = minDist - distance;
+					m_Transform.position += normal * (overlap * 0.5f);
+					other->m_Transform.position -= normal * (overlap * 0.5f);
+
+					float myDot = Collision::Dot(m_Velocity, normal);
+					float otherDot = Collision::Dot(other->m_Velocity, normal);
+
+					if (myDot - otherDot < 0)
+					{
+						float restitution = 0.8f;
+						m_Velocity -= normal * (myDot - otherDot) * restitution;
+						other->m_Velocity += normal * (myDot - otherDot) * restitution;
+
 						stepVelocity = m_Velocity / (float)subSteps;
 					}
 				}
@@ -172,4 +224,13 @@ void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 		m->Create(matData);
 		m_Materials.push_back(std::move(m));
 	}
+	// ★ 頂点座標からモデルの元の半径を自動計算
+	float maxDist = 0.0f;
+	for (const auto& v : staticmesh.GetVertices())
+	{
+		float dist = Vector3(v.position.x, v.position.y, v.position.z).Length();
+		maxDist = max(maxDist, dist);
+	}
+	m_ModelBaseRadius = maxDist; // モデル本来の半径を保存
+	UpdateRadius();              // スケールを掛けて m_Radius を更新
 }

@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "PlayerBall.h"
+#include "EnemyBall.h"
 #include "Ground.h"
 #include "Arrow.h"
 #include "Pole.h"
@@ -33,6 +34,30 @@ void Stage1Scene::Init()
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ポール
 	
+	// ========================================================
+	// ★ エネミー（EnemyBall）の出現処理
+	// ========================================================
+	// 例として、ステージ1に3体のエネミーをそれぞれ違う位置に出現させます
+	Vector3 enemyPositions[] = {
+		Vector3(50.0f,  0.0f, 50.0f),
+		Vector3(-50.0f, 0.0f, 60.0f),
+		Vector3(0.0f,   0.0f, 100.0f)
+	};
+	/*
+	for (const auto& pos : enemyPositions)
+	{
+		EnemyBall* enemy = Game::GetInstance()->AddObject<EnemyBall>();
+		enemy->GetTransform().position = pos; // 座標を上書き
+		m_MySceneObjects.emplace_back(enemy);
+	}
+	*/
+
+	for (const auto& pos : enemyPositions)
+	{
+		EnemyBall* enemy = Game::GetInstance()->AddObjectWithPosition<EnemyBall>(pos);
+		m_MySceneObjects.emplace_back(enemy);
+	}
+
 	std::cout << "\nオブジェクトの生成終了\n" << std::endl;
 
 	// UIの作成

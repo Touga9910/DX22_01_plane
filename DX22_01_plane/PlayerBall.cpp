@@ -35,10 +35,9 @@ void PlayerBall::Init()
 	m_Transform.position.z = 0.0f;
 	m_Transform.position.y = 1.0f;
 
-	//モデルによってスケールを調整
-	m_Transform.scale.x = 2;
-	m_Transform.scale.y = 2;
-	m_Transform.scale.z = 2;
+	//スケールを調整
+	m_Transform.scale = Vector3(2.0f, 2.0f, 2.0f);
+	UpdateRadius();
 
 	// ★ Groundから台の高さを取得して合わせる
 	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();

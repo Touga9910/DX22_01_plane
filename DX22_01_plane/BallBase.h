@@ -14,7 +14,8 @@ protected:
     DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Vector3 m_Velocity = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Vector3 m_Acceleration = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
-    float m_Radius = 1.0f;
+    float m_Radius = 2.0f;
+    float m_ModelBaseRadius = 1.0f; // モデル本来の半径（スケール適用前）
 
     // --- 共通の描画リソース ---
     MeshRenderer m_MeshRenderer;
@@ -24,6 +25,14 @@ protected:
 
     // --- 共通の回転情報 ---
     DirectX::SimpleMath::Quaternion m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
+
+    void UpdateRadius()
+    {
+        float maxScale = m_Transform.scale.x;
+        if (m_Transform.scale.y > maxScale) maxScale = m_Transform.scale.y;
+        if (m_Transform.scale.z > maxScale) maxScale = m_Transform.scale.z;
+        m_Radius = m_ModelBaseRadius * maxScale;
+    }
 
 public:
     virtual void UpdatePhysics(); // 物理演算を共通化
@@ -37,3 +46,4 @@ public:
         return { m_Transform.position, m_Radius };
     }
 };
+

@@ -90,4 +90,14 @@ public:
 		}
 		return res;
 	}
+
+	//オブジェクトを追加する.座標指定版
+	template<typename T> T* AddObjectWithPosition(DirectX::SimpleMath::Vector3 pos)
+	{
+		T* pt = new T;
+		pt->SetInitPosition(pos); // Init前に座標をセット
+		m_Instance->m_Objects.emplace_back(pt);
+		pt->Init();               // 座標セット後にInit
+		return pt;
+	}
 };
