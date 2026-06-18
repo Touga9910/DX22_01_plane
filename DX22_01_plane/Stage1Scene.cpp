@@ -41,7 +41,7 @@ void Stage1Scene::Init()
 	Vector3 enemyPositions[] = {
 		Vector3(50.0f,  0.0f, 50.0f),
 		Vector3(-50.0f, 0.0f, 60.0f),
-		Vector3(0.0f,   0.0f, 100.0f)
+		Vector3(0.0f,   0.0f, 50.0f)
 	};
 	/*
 	for (const auto& pos : enemyPositions)

@@ -3,6 +3,7 @@
 #include "Collision.h"
 #include"Game.h"
 #include"Ground.h"
+#include "imgui/imgui.h"
 
 #include<random>
 #include<ctime>
@@ -89,7 +90,7 @@ void BallBase::UpdatePhysics()
 					float dot = Collision::Dot(m_Velocity, normal);
 					if (dot < 0)
 					{
-						float restitution = 0.8f; // 反発係数
+						float restitution = m_Restitution; // 反発係数
 						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
 
 						// 反射したので、残りのステップの移動方向も「反射後の速度」に更新する
@@ -129,9 +130,15 @@ void BallBase::UpdatePhysics()
 
 					if (myDot - otherDot < 0)
 					{
-						float restitution = 0.8f;
-						m_Velocity -= normal * (myDot - otherDot) * restitution;
-						other->m_Velocity += normal * (myDot - otherDot) * restitution;
+						float restitution = m_Restitution;
+
+						// 質量を考慮した速度変化量
+						float totalMass = m_Mass + other->m_Mass;
+						float myRatio = (2.0f * other->m_Mass) / totalMass;
+						float otherRatio = (2.0f * m_Mass) / totalMass;
+
+						m_Velocity -= normal * myRatio * (myDot - otherDot) * restitution;
+						other->m_Velocity += normal * otherRatio * (myDot - otherDot) * restitution;
 
 						stepVelocity = m_Velocity / (float)subSteps;
 					}
@@ -233,4 +240,45 @@ void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 	}
 	m_ModelBaseRadius = maxDist; // モデル本来の半径を保存
 	UpdateRadius();              // スケールを掛けて m_Radius を更新
+}
+
+
+
+void BallBase::DrawImGui(const std::string& label)
+{
+	if (ImGui::CollapsingHeader(label.c_str()))
+	{
+		// スケール
+		float currentScale = m_Transform.scale.x;
+
+		if (ImGui::SliderFloat("Ball Scale", &currentScale, 0.1f, 5.0f))
+		{
+			// スライダーが動いたら、縦横奥（X, Y, Z）全てのスケールを均等に更新
+			m_Transform.scale.x = currentScale;
+			m_Transform.scale.y = currentScale;
+			m_Transform.scale.z = currentScale;
+
+			// スケールが変わったので、これに連動して物理半径 m_Radius を再計算する
+			UpdateRadius();
+		}
+
+		// 質量
+		ImGui::SliderFloat("Mass", &m_Mass, 0.1f, 10.0f);
+
+		// 速度（読み取り専用で表示）
+		ImGui::Text("Velocity: (%.2f, %.2f, %.2f)",
+			m_Velocity.x, m_Velocity.y, m_Velocity.z);
+
+		// 座標（読み取り専用で表示）
+		ImGui::Text("Position: (%.2f, %.2f, %.2f)",
+			m_Transform.position.x,
+			m_Transform.position.y,
+			m_Transform.position.z);
+
+		// 反発係数
+		ImGui::SliderFloat("Restitution", &m_Restitution, 0.0f, 1.0f);
+
+		// 摩擦係数
+		ImGui::SliderFloat("Friction", &m_Friction, 0.0f, 1.0f);
+	}
 }

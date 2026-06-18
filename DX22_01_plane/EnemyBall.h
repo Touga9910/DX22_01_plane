@@ -14,6 +14,8 @@ public:
 
     // 敵の初期位置を設定するための関数
     void SetInitPosition(DirectX::SimpleMath::Vector3 pos) { m_InitPosition = pos; }
+    // ImGuiで敵の情報を表示するための関数
+    void DrawImGui(const std::string& label) override;
 private:
     // 必要に応じて敵固有の変数を定義
     // 例: 敵の種類、HP、あるいは自律移動用のタイマーなど
@@ -21,5 +23,4 @@ private:
 
     // 敵の初期位置を保持する変数
     DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);
-
 };

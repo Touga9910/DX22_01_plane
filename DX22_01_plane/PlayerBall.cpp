@@ -4,6 +4,7 @@
 #include"Ground.h"
 #include"Camera.h"
 #include "Pole.h"
+#include "imgui/imgui.h"
 
 #include<random>
 #include<ctime>
@@ -93,7 +94,7 @@ void PlayerBall::Update()
 			m_StopCount = 0;
 
 			// 摩擦（減速）の計算
-			float deceleratisonPower = 0.02f;
+			float deceleratisonPower = m_Friction;
 
 			Vector3 deceleration = -m_Velocity;	// 速度の逆ベクトルを計算
 			deceleration.Normalize();			// ベクトルを正規化
@@ -317,7 +318,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 
 	// 予測シミュレーション用の物理定数
 	const float gravity = 0.1f;
-	const float deceleratisonPower = 0.02f;
+	const float deceleratisonPower = m_Friction;
 
 	//始めの点を追加
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
@@ -353,5 +354,29 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 		{
 			m_PrePositions.push_back({ simPosition, 0, 1.0f });
 		}
+	}
+}
+
+void PlayerBall::DrawImGui()
+{
+	// 親クラスの共通UIを呼ぶ
+	BallBase::DrawImGui("PlayerBall");
+
+	// PlayerBall固有の情報を追加
+	if (ImGui::CollapsingHeader("PlayerBall Detail"))
+	{
+		// 状態表示
+		const char* stateStr = "";
+		switch (m_State)
+		{
+		case State::Simulation: stateStr = "Simulation"; break;
+		case State::Idle:       stateStr = "Idle";       break;
+		case State::Goal:       stateStr = "Goal";       break;
+		case State::Dead:       stateStr = "Dead";       break;
+		}
+		ImGui::Text("State: %s", stateStr);
+
+		// 停止カウント
+		ImGui::Text("StopCount: %d", m_StopCount);
 	}
 }

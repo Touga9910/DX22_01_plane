@@ -1,121 +1,136 @@
-#include "Game.h"
+ï»¿#include "Game.h"
 #include "Renderer.h"
 #include "input.h"
+#include "imgui/imgui.h"
+#include "PlayerBall.h"  // DrawImGuiå‘¼ã³å‡ºã—ã«å¿…è¦
+#include "EnemyBall.h"   // DrawImGuiå‘¼ã³å‡ºã—ã«å¿…è¦
+#include "imgui/imgui_impl_dx11.h" 
 
-Game* Game::m_Instance;//ƒQ[ƒ€ƒCƒ“ƒXƒ^ƒ“ƒX
+Game* Game::m_Instance;//ã‚²ãƒ¼ãƒ ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Game::Game()
 {
 	m_Scene = nullptr;
 }
 
-// ƒfƒXƒgƒ‰ƒNƒ^
+// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Game::~Game()
 {
 	delete m_Scene;
 	DeleteAllObject();
 }
 
-// ‰Šú‰»
+// åˆæœŸåŒ–
 void Game::Init()
 {
-	//ƒCƒ“ƒXƒ^ƒ“ƒXì¬
+	//ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ä½œæˆ
 	m_Instance = new Game;
-	// •`‰æI—¹ˆ—
+	// æç”»çµ‚äº†å‡¦ç†
 	Renderer::Init();
 
-	//“ü—Íˆ—‰Šú‰»
+	//å…¥åŠ›å‡¦ç†åˆæœŸåŒ–
 	Input::Create();
 
-	// ƒJƒƒ‰‰Šú‰»
+	// ã‚«ãƒ¡ãƒ©åˆæœŸåŒ–
 	m_Instance->m_Camera.Init();
 
-	//Å‰‚ÌƒV[ƒ“‚ğ“Ç‚İ‚±‚Ş
+	//æœ€åˆã®ã‚·ãƒ¼ãƒ³ã‚’èª­ã¿ã“ã‚€
 	m_Instance->m_Scene = new TitleScene;
 }
 
-// XV
+// æ›´æ–°
 void Game::Update()
 {
-	// “ü—Íˆ—XV
+	// å…¥åŠ›å‡¦ç†æ›´æ–°
 	Input::Update();
 
-	//ƒV[ƒ“XV
+	//ã‚·ãƒ¼ãƒ³æ›´æ–°
 
 	m_Instance->m_Scene->Update();
 
-	// ƒJƒƒ‰XV
+	// ã‚«ãƒ¡ãƒ©æ›´æ–°
 	m_Instance->m_Camera.Update();
 
-	//ƒIƒuƒWƒFƒNƒgXV
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆæ›´æ–°
 	for (auto& o : m_Instance->m_Objects)
 	{
 		o->Update();
 	}
 }
 
-// •`‰æ
+// æç”»
 void Game::Draw()
 {
-	//sƒXƒJƒCƒ{ƒbƒNƒX•`‰æ
 	SkyBox* sky = Game::GetInstance()->GetSkyBox();
 	if (sky)
-	{
 		sky->Draw(&m_Instance->m_Camera);
-	}
 
-	// •`‰æ‘Oˆ—
 	Renderer::DrawStart();
 
-	//ƒIƒuƒWƒFƒNƒg‰Šú‰»
 	for (auto& o : m_Instance->m_Objects)
-	{
-
 		o->Draw(&m_Instance->m_Camera);
+
+	// â˜… ImGuiã®Beginã€œEndã‚’DrawEnd()ã®å‰ã«ç§»å‹•
+	ImGui::Begin("Ball Debugger");
+
+	std::vector<PlayerBall*> players = m_Instance->GetObjects<PlayerBall>();
+	for (int i = 0; i < players.size(); i++)
+		players[i]->DrawImGui();
+
+	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
+	for (int i = 0; i < enemies.size(); i++)
+	{
+		std::string label = "EnemyBall " + std::to_string(i);
+		enemies[i]->DrawImGui(label);
 	}
 
-	// •`‰æŒãˆ—
-	Renderer::DrawEnd();
+	ImGui::End();
+
+	// â˜… Render ã¨ RenderDrawData ã‚‚ DrawEnd()ã®å‰ã«ç§»å‹•
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+	Renderer::DrawEnd(); // â† Present ã¯æœ€å¾Œ
 }
 
-// I—¹ˆ—
+// çµ‚äº†å‡¦ç†
 void Game::Uninit()
 {
-	// ƒJƒƒ‰I—¹ˆ—
+	// ã‚«ãƒ¡ãƒ©çµ‚äº†å‡¦ç†
 	m_Instance->m_Camera.Uninit();
 
-	//ƒIƒuƒWƒFƒNƒgI—¹ˆ—
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆçµ‚äº†å‡¦ç†
 	for (auto& o : m_Instance->m_Objects)
 	{
 		o->Uninit();;
 	}
 
 
-	//“ü—Íˆ—I—¹
+	//å…¥åŠ›å‡¦ç†çµ‚äº†
 	Input::Release();
 
-	// •`‰æI—¹ˆ—
+	// æç”»çµ‚äº†å‡¦ç†
 	Renderer::Uninit();
 
-	//ƒCƒ“ƒXƒ^ƒ“ƒXíœ
+	//ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹å‰Šé™¤
 	delete m_Instance;
 }
 
-//ƒCƒ“ƒXƒ^ƒ“ƒXæ“¾
+//ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹å–å¾—
 Game* Game::GetInstance()
 {
 	return m_Instance;
 }
 
-//ƒV[ƒ“Ø‚è‘Ö‚¦
+//ã‚·ãƒ¼ãƒ³åˆ‡ã‚Šæ›¿ãˆ
 void Game::ChangeScene(SceneName sName)
 {
-	//“Ç‚İ‚İƒV[ƒ“‚ ‚ê‚Îíœ
+	//èª­ã¿è¾¼ã¿ã‚·ãƒ¼ãƒ³ã‚ã‚Œã°å‰Šé™¤
 	int score = 0;
 	if (m_Instance->m_Scene != nullptr)
 	{
-		// Á‚»‚¤‚Æ‚·‚éƒV[ƒ“‚ªStage1‚È‚çƒXƒRƒA‚ğ•Û‘¶‚·‚é
+		// æ¶ˆãã†ã¨ã™ã‚‹ã‚·ãƒ¼ãƒ³ãŒStage1ãªã‚‰ã‚¹ã‚³ã‚¢ã‚’ä¿å­˜ã™ã‚‹
 		if (Stage1Scene* sObj = dynamic_cast<Stage1Scene*>(m_Instance->m_Scene))
 		{
 			score = sObj->GetScore();
@@ -127,37 +142,37 @@ void Game::ChangeScene(SceneName sName)
 	switch (sName)
 	{
 	case TITLE:
-		m_Instance->m_Scene = new TitleScene;	//ƒƒ‚ƒŠŠm•Û
+		m_Instance->m_Scene = new TitleScene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
 		break;
 	case STAGE1:
-		m_Instance->m_Scene = new Stage1Scene;	//ƒƒ‚ƒŠŠm•Û
+		m_Instance->m_Scene = new Stage1Scene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
 		break;
 	case STAGE2:
-		m_Instance->m_Scene = new Stage2Scene;	//ƒƒ‚ƒŠŠm•Û
+		m_Instance->m_Scene = new Stage2Scene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
 		break;
 	case STAGE3:
-		m_Instance->m_Scene = new Stage3Scene;	//ƒƒ‚ƒŠŠm•Û
+		m_Instance->m_Scene = new Stage3Scene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
 		break;
 	case SELECT:
-		m_Instance->m_Scene = new StageSelectScene;	//ƒƒ‚ƒŠŠm•Û
+		m_Instance->m_Scene = new StageSelectScene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
 		break;
 	case RESULT:
-		m_Instance->m_Scene = new ResultScene;	//ƒƒ‚ƒŠŠm•Û
-		dynamic_cast<ResultScene*>(m_Instance->m_Scene)->SetScore(score);//ƒXƒRƒA‚ğİ’è
+		m_Instance->m_Scene = new ResultScene;	//ãƒ¡ãƒ¢ãƒªç¢ºä¿
+		dynamic_cast<ResultScene*>(m_Instance->m_Scene)->SetScore(score);//ã‚¹ã‚³ã‚¢ã‚’è¨­å®š
 		break;
 	default:
 		break;
 	}
 }
 
-//ƒIƒuƒWƒFƒNƒg‚ğíœ
+//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å‰Šé™¤
 void Game::DeleteObject(Object* pt)
 {
 	if (pt == NULL)return;
 
 	pt->Uninit();
 
-	//—v‘fíœ
+	//è¦ç´ å‰Šé™¤
 	erase_if(m_Instance->m_Objects,
 		[pt](const std::unique_ptr<Object>& element) {
 			return element.get() == pt;
@@ -165,15 +180,15 @@ void Game::DeleteObject(Object* pt)
 		m_Instance->m_Objects.shrink_to_fit();
 }
 
-//ƒIƒuƒWƒFƒNƒg‚ğ‘Síœ
+//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å…¨å‰Šé™¤
 void Game::DeleteAllObject()
 {
-	//I—¹ˆ—
+	//çµ‚äº†å‡¦ç†
 	for (auto& o : m_Instance->m_Objects)
 	{
 		o->Uninit();
 	}
-	m_Instance->m_Objects.clear();//‘S‚Äíœ
+	m_Instance->m_Objects.clear();//å…¨ã¦å‰Šé™¤
 	m_Instance->m_Objects.shrink_to_fit();
 }
 

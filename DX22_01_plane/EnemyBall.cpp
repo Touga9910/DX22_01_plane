@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Ground.h"
 #include "Camera.h"
+#include "imgui/imgui.h"
 
 using namespace DirectX::SimpleMath;
 
@@ -47,7 +48,7 @@ void EnemyBall::Update()
         }
         else
         {
-            float deceleratisonPower = 0.02f;
+            float deceleratisonPower = m_Friction;
             Vector3 deceleration = -m_Velocity;
             deceleration.Normalize();
             m_Velocity += deceleration * deceleratisonPower;
@@ -102,4 +103,15 @@ void EnemyBall::Draw(Camera* cam)
 void EnemyBall::Uninit()
 {
     // •K—v‚É‰‚¶‚½‰ğ•úˆ—
+}
+
+// EnemyBall.cpp
+void EnemyBall::DrawImGui(const std::string& label)
+{
+    BallBase::DrawImGui(label); // ‹¤’ÊUI‚ğŒÄ‚Ô
+
+    if (ImGui::CollapsingHeader((label + " Detail").c_str()))
+    {
+        ImGui::Text("Frame: %d", m_CurrentFrame);
+    }
 }

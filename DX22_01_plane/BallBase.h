@@ -10,12 +10,17 @@
 
 class BallBase : public Object {
 protected:
+    // --- 共通の
+    
     // --- 共通の物理パラメーター ---
     DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Vector3 m_Velocity = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Vector3 m_Acceleration = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
     float m_Radius = 2.0f;
     float m_ModelBaseRadius = 1.0f; // モデル本来の半径（スケール適用前）
+    float m_Mass = 1.0f;   // 質量
+    float m_Restitution = 0.8f;   // 反発係数
+    float m_Friction = 0.02f;  // 摩擦係数
 
     // --- 共通の描画リソース ---
     MeshRenderer m_MeshRenderer;
@@ -45,5 +50,7 @@ public:
         // Objectクラスが持つ座標（m_position）と自身の半径を渡す
         return { m_Transform.position, m_Radius };
     }
+    // ImGuiで物理パラメーターを表示・編集するための共通関数
+    virtual void DrawImGui(const std::string& label);
 };
 

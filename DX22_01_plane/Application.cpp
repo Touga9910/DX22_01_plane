@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "Game.h"
 #include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"   // ← 追加
+#include "imgui/imgui_impl_dx11.h"    // ← 追加
+#include "Renderer.h"                  // ← 追加（Device取得のため）
 
 const auto ClassName = TEXT("2025 framework ひな型");     //ウィンドウクラス名
 const auto WindowName = TEXT("2025 framework ひな型");    //ウィンドウ名
@@ -148,6 +151,13 @@ void Application::MainLoop()
 
     // ゲーム初期化処理
     Game::Init();
+
+    // ★ ImGui初期化
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui_ImplWin32_Init(m_hWnd);
+    ImGui_ImplDX11_Init(Renderer::GetDevice(), Renderer::GetDeviceContext());
+    ImGui::StyleColorsDark(); // テーマ（お好みで）
     
     // FPS計測用変数
    int fpsCounter = 0;
@@ -191,8 +201,17 @@ void Application::MainLoop()
                // ゲーム更新
                Game::Update();
 
+               // ★ ImGuiフレーム開始（Game::Draw()より前に必ず呼ぶ）
+               ImGui_ImplDX11_NewFrame();
+               ImGui_ImplWin32_NewFrame();
+               ImGui::NewFrame();
+
                // ゲーム描画
                Game::Draw();
+
+               // ★ ImGui描画（Game::Draw()より後に呼ぶ）
+               ImGui::Render();
+               ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
                fpsCounter++; // ゲーム処理を実行したら＋１する
                oldCount = nowCount;
@@ -227,6 +246,11 @@ void Application::MainLoop()
            }
         }
     }
+
+   // ★ ImGui終了処理
+   ImGui_ImplDX11_Shutdown();
+   ImGui_ImplWin32_Shutdown();
+   ImGui::DestroyContext();
 
    // ゲーム終了処理
    Game::Uninit();
