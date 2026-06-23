@@ -1,9 +1,11 @@
 ﻿#include "Game.h"
 #include "Renderer.h"
 #include "input.h"
-#include "imgui/imgui.h"
+
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
 #include "EnemyBall.h"   // DrawImGui呼び出しに必要
+
+#include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h" 
 
 Game* Game::m_Instance;//ゲームインスタンス
@@ -24,8 +26,10 @@ Game::~Game()
 // 初期化
 void Game::Init()
 {
-	//インスタンス作成
-	m_Instance = new Game;
+	// 静的インスタンスをここで1つだけ生成
+	if (m_Instance == nullptr) {
+		m_Instance = new Game();
+	}
 	// 描画終了処理
 	Renderer::Init();
 
@@ -57,6 +61,17 @@ void Game::Update()
 	{
 		o->Update();
 	}
+	// 死亡フラグ（HPが0など）が立っているオブジェクトを自動・動的削除
+	std::erase_if(m_Instance->m_Objects, [](const std::unique_ptr<Object>& o) {
+		if (o && o->IsDead()) {
+			o->Uninit(); // 削除される前に終了処理を呼ぶ
+			return true; // 配列から削除する
+		}
+		return false;    // 残す
+		});
+
+	// 要素が減った場合はメモリを詰める（既存の処理をここに集約）
+	m_Instance->m_Objects.shrink_to_fit();
 }
 
 // 描画
@@ -168,16 +183,24 @@ void Game::ChangeScene(SceneName sName)
 //オブジェクトを削除
 void Game::DeleteObject(Object* pt)
 {
-	if (pt == NULL)return;
+	if (pt == nullptr) return;
 
-	pt->Uninit();
-
-	//要素削除
-	erase_if(m_Instance->m_Objects,
+	// 1. まず、本当に m_Objects の中に pt が存在するか確認する
+	auto it = std::find_if(m_Instance->m_Objects.begin(), m_Instance->m_Objects.end(),
 		[pt](const std::unique_ptr<Object>& element) {
 			return element.get() == pt;
 		});
-		m_Instance->m_Objects.shrink_to_fit();
+
+	// 2. 存在しない（すでに消えている）なら何もしない
+	if (it == m_Instance->m_Objects.end()) return;
+
+	// 3. 存在する場合のみ、安全に終了して削除
+	pt->Uninit();
+
+	m_Instance->m_Objects.erase(it);
+
+	// ※終了時のループ中に shrink_to_fit() を高頻度で呼ぶとメモリ再確保で落ちやすいため、
+	// 削除処理の直後ではなく、ゲーム全体のUpdateの最後などで呼ぶのが安全です。
 }
 
 //オブジェクトを全削除

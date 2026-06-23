@@ -1,0 +1,25 @@
+{
+  "enemies": {
+    "Normal": {
+      "hp": 3,
+      "mass": 1.0,
+      "restitution": 0.8,
+      "scale": 1.0,
+      "modelPath": "assets/model/GolfBall/golf_ball.obj"
+    },
+    "Heavy": {
+      "hp": 10,
+      "mass": 3.0,
+      "restitution": 0.4,
+      "scale": 1.5,
+      "modelPath": "assets/model/GolfBall/golf_ball.obj"
+    },
+    "Speed": {
+      "hp": 1,
+      "mass": 0.5,
+      "restitution": 0.9,
+      "scale": 0.8,
+      "modelPath": "assets/model/GolfBall/golf_ball.obj"
+    }
+  }
+}

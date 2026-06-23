@@ -4,6 +4,7 @@
 #include"Game.h"
 #include"Ground.h"
 #include "imgui/imgui.h"
+#include "EnemyBall.h"
 
 #include<random>
 #include<ctime>
@@ -141,6 +142,25 @@ void BallBase::UpdatePhysics()
 						other->m_Velocity += normal * otherRatio * (myDot - otherDot) * restitution;
 
 						stepVelocity = m_Velocity / (float)subSteps;
+
+						// ==========================================================
+						// ★ 追加：衝突時のダメージ適用処理
+						// ==========================================================
+						// 仮のダメージ量（威力を速度依存にする場合は、相対速度などから計算しても面白いです）
+						int damageAmount = 1;
+
+						// ① 自分が EnemyBall だった場合は、自分にダメージ
+						if (EnemyBall* myEnemy = dynamic_cast<EnemyBall*>(this))
+						{
+							myEnemy->TakeDamage(damageAmount);
+						}
+
+						// ② 相手(other) が EnemyBall だった場合は、相手にダメージ
+						if (EnemyBall* otherEnemy = dynamic_cast<EnemyBall*>(other))
+						{
+							otherEnemy->TakeDamage(damageAmount);
+						}
+						// ==========================================================
 					}
 				}
 			}

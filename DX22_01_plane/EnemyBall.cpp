@@ -74,10 +74,6 @@ void EnemyBall::Update()
 //=======================================
 void EnemyBall::Draw(Camera* cam)
 {
-    std::cout << "EnemyBallの描画関数が呼ばれています！位置: "
-        << m_Transform.position.x << ", "
-        << m_Transform.position.y << ", "
-        << m_Transform.position.z << std::endl;
     cam->SetCamera();
 
     m_Shader.SetGPU();
@@ -105,7 +101,7 @@ void EnemyBall::Uninit()
     // 必要に応じた解放処理
 }
 
-// EnemyBall.cpp
+// ImGUIによるステータス確認
 void EnemyBall::DrawImGui(const std::string& label)
 {
     BallBase::DrawImGui(label); // 共通UIを呼ぶ

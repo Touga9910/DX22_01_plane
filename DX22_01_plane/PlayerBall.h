@@ -45,10 +45,10 @@ private:
 	const int TRAIL_DURATION_FRAMES = 60;
 
 public:
-	void Init();
-	void Update();
-	void Draw(Camera* cam);
-	void Uninit();
+	void Init()override;
+	void Update()override;
+	void Draw(Camera* cam)override;
+	void Uninit()override;
 
 	// ó‘Ô‚Ìİ’èEæ“¾
 	void SetState(State state) { m_State = state; }

@@ -10,7 +10,8 @@
 
 class BallBase : public Object {
 protected:
-    // --- 共通の
+    // --- 共通のステータス ---
+    int m_HP = 3;           // 最大HPや初期HP
     
     // --- 共通の物理パラメーター ---
     DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;
@@ -40,7 +41,8 @@ protected:
     }
 
 public:
-    virtual void UpdatePhysics(); // 物理演算を共通化
+    virtual void UpdatePhysics();   // 物理演算を共通化
+
     void DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx);             // 描画処理を共通化
     void SetRadius(float r) { m_Radius = r; }   // 半径設定の共通化
     void LoadModel(const char* modelFilePath, const char* texDirectory); // モデル読み込み共通化
@@ -52,5 +54,14 @@ public:
     }
     // ImGuiで物理パラメーターを表示・編集するための共通関数
     virtual void DrawImGui(const std::string& label);
+
+    // ダメージを受ける共通処理
+    void TakeDamage(int damage) {
+        m_HP -= damage;
+        if (m_HP <= 0)
+        {
+            m_IsDead = true; // Object クラスが持つ死亡フラグが true になります！
+        }
+    }
 };
 

@@ -15,6 +15,7 @@ protected:
 	// 描画の為の情報（見た目に関わる部分）
 	Shader m_Shader; // シェーダー
 
+	bool m_IsDead = false; // オブジェクト共通の死亡・消滅フラグ
 public:
 	virtual ~Object() {}	//仮想デストラクタ（派生クラスのデストラクタを発生させるため）
 
@@ -28,4 +29,10 @@ public:
 
 	// 位置の取得
 	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Position; }
+
+	// 外部（Gameクラスなど）から死亡状態をチェックするための関数
+	bool IsDead() const { return m_IsDead; }
+
+	// 外部から強制的に死亡させる関数
+	void Destroy() { m_IsDead = true; }
 };

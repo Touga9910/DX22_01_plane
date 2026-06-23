@@ -52,6 +52,12 @@
     <Filter Include="ソース ファイル\IMgui">
       <UniqueIdentifier>{8c7dbc3d-bb96-4b2d-819f-b4fbb79ed882}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\オブジェクト関連\オブジェクトの設定">
+      <UniqueIdentifier>{9d6f52ec-7722-452f-b0a7-b63701477fa8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\オブジェクト関連\オブジェクトの設定">
+      <UniqueIdentifier>{e4efbb4a-af95-4b12-b321-6084a80e5170}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp">
@@ -346,5 +352,10 @@
     <FxCompile Include="shader\litTextureVS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="EnemySettings.json">
+      <Filter>ソース ファイル</Filter>
+    </None>
   </ItemGroup>
 </Project>
