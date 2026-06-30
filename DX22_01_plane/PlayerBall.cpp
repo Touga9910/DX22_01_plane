@@ -52,7 +52,8 @@ void PlayerBall::Init()
 	}
 
 	//最初に速度を与える
-	m_Velocity.x = 1.0f;
+	//m_Velocity.x = 1.0f;
+	m_Velocity = Vector3::Zero;
 
 	// 軌跡の初期位置を今のボールの位置にする
 	m_LastTrailPos = m_Transform.position;
@@ -69,14 +70,15 @@ void PlayerBall::Update()
 	// 状態の比較を enum class に変更 (0 ➔ State::Simulation)
 	if (m_State == State::Simulation)
 	{
+
 		// --- キー入力による移動（デバッグ用などの加速への加算） ---
 		float moveSpeed = 0.01f;
 		Vector3 moveInput = Vector3::Zero;
 
-		if (Input::GetKeyPress(VK_W)) moveInput.z += 1.0f; // 奥へ
-		if (Input::GetKeyPress(VK_S)) moveInput.z -= 1.0f; // 手前へ
-		if (Input::GetKeyPress(VK_A)) moveInput.x -= 1.0f; // 左へ
-		if (Input::GetKeyPress(VK_D)) moveInput.x += 1.0f; // 右へ
+		if (Input::GetKeyPress(VK_W)) moveInput.z += 4.0f; // 奥へ
+		if (Input::GetKeyPress(VK_S)) moveInput.z -= 4.0f; // 手前へ
+		if (Input::GetKeyPress(VK_A)) moveInput.x -= 4.0f; // 左へ
+		if (Input::GetKeyPress(VK_D)) moveInput.x += 4.0f; // 右へ
 
 		if (moveInput != Vector3::Zero)
 		{
@@ -162,6 +164,14 @@ void PlayerBall::Update()
 		Vector3 right(cos(dir), 0, -sin(dir));
 		float speed = 0.5f;
 	}
+	// ▼ if (m_State == State::Simulation) { ... } の直後に追加 ▼
+
+	else if (m_State == State::Idle)
+	{
+		// TC-19: Simulation 中は到達しないため UpdateAim() は呼ばれない
+		UpdateAim();  // 内部で GameState をチェックして処理を振り分ける
+	}
+
 
 	// --- 軌跡の削除・更新処理 ---
 	int expirationFrame = m_CurrentFrame - TRAIL_DURATION_FRAMES;
@@ -290,6 +300,8 @@ void PlayerBall::Draw(Camera* cam)
 
 	Matrix worldmtx = s * r * t;
 	DrawMesh(worldmtx);
+	// 矢印インジケーターを描画（旧 Arrow::Draw() 相当）
+	DrawArrow(cam);
 }
 
 //=======================================
@@ -300,6 +312,91 @@ void PlayerBall::Uninit()
 
 }
 
+//=======================================
+// エイム操作（旧 Arrow::Update() + StageBase のステートマシンを統合）
+// 呼び出し条件: PlayerBall::State::Idle の時のみ
+//=======================================
+void PlayerBall::UpdateAim()
+{
+	GameState gs = Game::GetInstance()->GetGameState();
+
+	if (gs == GameState::AimingDirection)
+	{
+		// TC-10: 左キーで方向角度を減少
+		if (Input::GetKeyPress(VK_LEFT))  m_AimAngle -= 0.02f;
+		// TC-11: 右キーで方向角度を増加
+		if (Input::GetKeyPress(VK_RIGHT)) m_AimAngle += 0.02f;
+		// TC-15: SPACE（Trigger）でパワー選択へ（TC-12: 方向ロック開始）
+		if (Input::GetKeyTrigger(VK_SPACE))
+			Game::GetInstance()->SetGameState(GameState::AimingPower);
+	}
+	else if (gs == GameState::AimingPower)
+	{
+		// TC-13: 上キーでパワー増加（上限クランプ）
+		if (Input::GetKeyPress(VK_UP))
+			m_ShotPower = min(m_MaxShotPower, m_ShotPower + m_PowerStep);
+		// TC-14: 下キーでパワー減少（下限クランプ）
+		if (Input::GetKeyPress(VK_DOWN))
+			m_ShotPower = max(m_MinShotPower, m_ShotPower - m_PowerStep);
+		// TC-16: SPACE（Trigger）でショット確認へ
+		if (Input::GetKeyTrigger(VK_SPACE))
+			Game::GetInstance()->SetGameState(GameState::ConfirmShot);
+	}
+	else if (gs == GameState::ConfirmShot)
+	{
+		// TC-23: 毎フレーム弾道予測を更新（既存 Draw() が m_PrePositions を描画）
+		GeneratePreTrajectory(GetShotVector());
+
+		// TC-17: SPACE（Trigger）でショット実行
+		if (Input::GetKeyTrigger(VK_SPACE))
+		{
+			Shot(GetShotVector());                   // TC-17: Velocity をセット
+			m_State = State::Simulation;             // TC-17: State を Simulation へ
+			m_PrePositions.clear();                  // 予測弾道をクリア
+			m_StopCount = 0;                         // 停止カウントをリセット
+			Game::GetInstance()->SetGameState(GameState::BallsMoving); // TC-17
+		}
+	}
+	// BallsMoving / TurnEnd は上記のいずれにも該当しないため何もしない
+}
+
+//=======================================
+// ショットベクトルを計算して返す（旧 Arrow::GetVector() 相当）
+//=======================================
+Vector3 PlayerBall::GetShotVector() const
+{
+	// TC-18: m_AimAngle=0, m_ShotPower=5 → Vector3(sin(0),0,cos(0))×5 = Vector3(0,0,5)
+	return Vector3(sin(m_AimAngle), 0.0f, cos(m_AimAngle)) * m_ShotPower;
+}
+
+//=======================================
+// 矢印インジケーター描画（旧 Arrow::Draw() 相当）
+// AimingDirection: 固定長の方向矢印
+// AimingPower / ConfirmShot: パワー比例の矢印
+//=======================================
+void PlayerBall::DrawArrow(Camera* cam)
+{
+	GameState gs = Game::GetInstance()->GetGameState();
+	if (m_State != State::Idle) return;
+	if (gs == GameState::BallsMoving || gs == GameState::TurnEnd) return;
+
+	Vector3 shotDir(sin(m_AimAngle), 0.0f, cos(m_AimAngle));
+
+	// AimingDirection は固定長、それ以外はパワー比例
+	float arrowLength = (gs == GameState::AimingDirection)
+		? m_MaxShotPower * 1.5f
+		: m_ShotPower * 2.0f;
+
+	Vector3 midPos = m_Transform.position + shotDir * (arrowLength * 0.5f);
+	const float thickness = 0.3f;
+
+	Matrix s = Matrix::CreateScale(thickness, thickness, arrowLength);
+	Vector3 up = Vector3::Up;
+	if (abs(shotDir.y) > 0.99f) up = Vector3::UnitZ;
+	Matrix rt = Matrix::CreateWorld(midPos, shotDir, up);
+
+	DrawMesh(s * rt);
+}
 //=======================================
 // 弾道予測を生成する関数
 //=======================================
@@ -365,6 +462,25 @@ void PlayerBall::DrawImGui()
 	// PlayerBall固有の情報を追加
 	if (ImGui::CollapsingHeader("PlayerBall Detail"))
 	{
+		// ▼ "PlayerBall Detail" ヘッダー内の既存表示の後に追加 ▼
+
+		// エイム情報
+		ImGui::SliderFloat("Aim Angle", &m_AimAngle, -3.14159265f, 3.14159265f);
+		ImGui::SliderFloat("Shot Power", &m_ShotPower, m_MinShotPower, m_MaxShotPower);
+		// 現在の GameState 表示
+		const char* gsStr = "";
+		switch (Game::GetInstance()->GetGameState())
+		{
+		case GameState::AimingDirection: gsStr = "AimingDirection"; break;
+		case GameState::AimingPower:     gsStr = "AimingPower";     break;
+		case GameState::ConfirmShot:     gsStr = "ConfirmShot";     break;
+		case GameState::BallsMoving:     gsStr = "BallsMoving";     break;
+		case GameState::TurnEnd:         gsStr = "TurnEnd";         break;
+		}
+		ImGui::Text("GameState: %s", gsStr);
+
+
+
 		// 状態表示
 		const char* stateStr = "";
 		switch (m_State)

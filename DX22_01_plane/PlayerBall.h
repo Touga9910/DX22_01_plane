@@ -44,6 +44,22 @@ private:
 	// 軌跡の表示時間（フレーム数）
 	const int TRAIL_DURATION_FRAMES = 60;
 
+	// ▼ private セクション末尾に追加 ▼
+
+	// --- Arrow 機能統合（旧 Arrow クラスの変数を PlayerBall に移管）---
+	float m_AimAngle = 0.0f;             // エイム方向（ラジアン）
+	float m_ShotPower = 5.0f;            // 現在のショットパワー
+	const float m_MinShotPower = 1.0f;   // パワー下限
+	const float m_MaxShotPower = 15.0f;  // パワー上限
+	const float m_PowerStep = 0.1f;      // 1フレームあたりのパワー変化量
+
+	// 旧 Arrow::Update() + Arrow::SetState() 相当
+	void UpdateAim();
+	// 旧 Arrow::Draw() 相当
+	void DrawArrow(Camera* cam);
+	// 旧 Arrow::GetVector() 相当（TC-18）
+	DirectX::SimpleMath::Vector3 GetShotVector() const;
+
 public:
 	void Init()override;
 	void Update()override;

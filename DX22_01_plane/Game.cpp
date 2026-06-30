@@ -4,6 +4,7 @@
 
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
 #include "EnemyBall.h"   // DrawImGui呼び出しに必要
+#include "BallBase.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h" 
@@ -72,6 +73,36 @@ void Game::Update()
 
 	// 要素が減った場合はメモリを詰める（既存の処理をここに集約）
 	m_Instance->m_Objects.shrink_to_fit();
+
+
+
+	// ▼ Update() 内の shrink_to_fit() の直後に追加 ▼
+
+	// ゲーム状態の更新（全ボール停止検出）
+	if (m_Instance->m_GameState == GameState::BallsMoving)
+	{
+		std::vector<BallBase*> balls = m_Instance->GetObjects<BallBase>();
+		if (!balls.empty())                     // TC-08: 0体の場合は遷移しない
+		{
+			bool allStopped = true;
+			for (BallBase* ball : balls)
+			{
+				if (!ball->IsStopped())         // TC-07: 1体でも動いていれば維持
+				{
+					allStopped = false;
+					break;
+				}
+			}
+			if (allStopped)                     // TC-06: 全停止で TurnEnd へ
+			{
+				m_Instance->m_GameState = GameState::TurnEnd;
+			}
+		}
+	}
+	else if (m_Instance->m_GameState == GameState::TurnEnd) // TC-09: 翌フレームで自動遷移
+	{
+		m_Instance->m_GameState = GameState::AimingDirection;
+	}
 }
 
 // 描画

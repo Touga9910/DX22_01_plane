@@ -33,6 +33,15 @@ enum SceneName {
 	SCENE_MAX
 };
 
+// ゲーム全体のターン進行状態
+enum class GameState {
+	AimingDirection, // 方向選択中（旧 m_State=1 相当）
+	AimingPower,     // パワー選択中（旧 m_State=2 相当）
+	ConfirmShot,     // ショット確認・弾道表示中（旧 m_State=3 相当）
+	BallsMoving,     // ボール移動中（旧 m_State=0 相当）
+	TurnEnd,         // ターン終了（翌フレームに AimingDirection へ自動遷移）
+};	;
+
 class Game
 {
 private:
@@ -49,6 +58,7 @@ private:
 	//オブジェクト配列
 	std::vector<std::unique_ptr<Object>> m_Objects;
 
+	GameState m_GameState = GameState::AimingDirection;
 public:
 	Game(); // コンストラクタ
 	~Game(); // デストラクタ
@@ -66,6 +76,9 @@ public:
 
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
 	static SkyBox* GetSkyBox();
+
+	GameState GetGameState() const { return m_GameState; }
+	void SetGameState(GameState state) { m_GameState = state; }
 
 	//オブジェクトを追加する（※テンプレート関数）
 	template<typename T> T* AddObject()

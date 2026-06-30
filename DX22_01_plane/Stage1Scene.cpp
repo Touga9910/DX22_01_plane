@@ -4,7 +4,7 @@
 #include "PlayerBall.h"
 #include "EnemyBall.h"
 #include "Ground.h"
-#include "Arrow.h"
+//#include "Arrow.h"
 #include "Pole.h"
 #include "SkyBox.h"
 
@@ -31,7 +31,7 @@ void Stage1Scene::Init()
 	// オブジェクトを作成
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<PlayerBall>());
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
+	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ポール
 	
 	// ========================================================
@@ -41,7 +41,19 @@ void Stage1Scene::Init()
 	Vector3 enemyPositions[] = {
 		Vector3(50.0f,  0.0f, 50.0f),
 		Vector3(-50.0f, 0.0f, 60.0f),
-		Vector3(0.0f,   0.0f, 50.0f)
+		Vector3(0.0f,   0.0f, 50.0f),
+		/*
+		Vector3(0.0f,   0.0f, 40.0f),
+		Vector3(0.0f,   0.0f, 30.0f),
+		Vector3(0.0f,   0.0f, 20.0f),
+		Vector3(0.0f,   0.0f, 10.0f),
+		Vector3(-50.0f, 0.0f, 50.0f),
+		Vector3(-50.0f, 0.0f, 40.0f),
+		Vector3(-50.0f, 0.0f, 30.0f),
+		Vector3(-50.0f, 0.0f, 20.0f),
+		Vector3(-50.0f, 0.0f, 10.0f),
+		Vector3(-50.0f, 0.0f, 0.0f),
+		*/
 	};
 	/*
 	for (const auto& pos : enemyPositions)
@@ -112,10 +124,10 @@ void Stage1Scene::Init()
 
 
 	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
-	Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
-	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[3]);//ポール
+	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
+	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[2]);//ポール
 	ball->SetState(PlayerBall::State::Simulation);	//ボールを物理挙動させる
-	arrow->SetState(0);	//矢印非表示
+	//arrow->SetState(0);	//矢印非表示
 	pole->SetPosition(200.0f,-25.0f,0.0f);	//ポールを設定
 }
 

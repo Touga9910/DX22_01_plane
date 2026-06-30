@@ -63,5 +63,11 @@ public:
             m_IsDead = true; // Object クラスが持つ死亡フラグが true になります！
         }
     }
+    // ボールが停止しているかを判定（速度の二乗ノルムが閾値未満なら true）
+    // PlayerBall / EnemyBall の既存停止閾値（0.03f）と統一
+    bool IsStopped() const
+    {
+        return m_Velocity.LengthSquared() < 0.03f;
+    }
 };
 
