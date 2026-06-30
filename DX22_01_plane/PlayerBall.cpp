@@ -164,8 +164,6 @@ void PlayerBall::Update()
 		Vector3 right(cos(dir), 0, -sin(dir));
 		float speed = 0.5f;
 	}
-	// ▼ if (m_State == State::Simulation) { ... } の直後に追加 ▼
-
 	else if (m_State == State::Idle)
 	{
 		// TC-19: Simulation 中は到達しないため UpdateAim() は呼ばれない
@@ -192,7 +190,7 @@ void PlayerBall::Update()
 	UpdatePhysics();
 
 	// カメラを追従させる
-	Camera::GetInstance().SetTarget(m_Transform.position);
+	//Camera::GetInstance().SetTarget(m_Transform.position);
 }
 
 //=======================================
