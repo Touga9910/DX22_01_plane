@@ -256,3 +256,18 @@ SkyBox* Game::GetSkyBox()
 		return nullptr;
 	}
 }
+
+bool Game::ContainsObject(const Object* pt) const
+{
+	if (pt == nullptr) return false;
+
+	for (const auto& o : m_Objects)
+	{
+		if (o.get() == pt)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

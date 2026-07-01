@@ -20,58 +20,11 @@ Arrow* StageBase::GetArrow() const {
 
 void StageBase::Update()
 {
+    RemoveInvalidSceneObjectRefs();
+
     PlayerBall* ball = GetPlayerBall();
     if (!ball) return;
-    //Arrow* arrow = GetArrow();
-    //if (!ball || !arrow) return;
-
-    
-    // ★どのステージでも共通のショット・静止・遷移ロジックをここに完全集約！
-    /*
-    switch (m_State)
-    {
-    case 0: // ボール移動中
-        if (ball->GetState() == PlayerBall::State::Idle)
-        {
-            m_State = 1;
-            arrow->SetState(m_State);
-            m_StrokeCount++;
-            UpdateStrokeUI();
-        }
-        else if (ball->GetState() == PlayerBall::State::Goal)
-        {
-            Game::GetInstance()->ChangeScene(RESULT);
-        }
-        break;
-
-    case 1: // パワー選択へ
-        if (Input::GetKeyTrigger(VK_SPACE))
-        {
-            m_State = 2;
-            arrow->SetState(m_State);
-        }
-        break;
-
-    case 2: // ショットへ
-        if (Input::GetKeyTrigger(VK_SPACE))
-        {
-            m_State = 3;
-            arrow->SetState(m_State);
-        }
-        break;
-
-    case 3: // ショット実行
-        if (Input::GetKeyTrigger(VK_SPACE))
-        {
-            m_State = 0;
-            ball->SetState(PlayerBall::State::Simulation);
-            arrow->SetState(m_State);
-            ball->Shot(arrow->GetVector());
-        }
-        break;
-    }
-    */
-
+   
     switch (Game::GetInstance()->GetGameState())
     {
     case GameState::TurnEnd:
@@ -98,14 +51,27 @@ void StageBase::Update()
 
 void StageBase::UpdateStrokeUI()
 {
-    if (m_MySceneObjects.size() < 10) return;
-    Texture2D* count[2] = {
-        dynamic_cast<Texture2D*>(m_MySceneObjects[8]),
-        dynamic_cast<Texture2D*>(m_MySceneObjects[9])
-    };
-    if (!count[0] || !count[1]) return;
+    RemoveInvalidSceneObjectRefs();
 
-    for (int i = 0; i < 2; i++) {
+    std::vector<Texture2D*> textures;
+
+    for (Object* o : m_MySceneObjects)
+    {
+        if (Texture2D* tex = dynamic_cast<Texture2D*>(o))
+        {
+            textures.push_back(tex);
+        }
+    }
+
+    if (textures.size() < 2) return;
+
+    Texture2D* count[2] = {
+        textures[textures.size() - 2],
+        textures[textures.size() - 1]
+    };
+
+    for (int i = 0; i < 2; i++)
+    {
         int cnt = m_StrokeCount % (int)pow(10, i + 1) / (int)pow(10, i);
         count[i]->SetUV((float)(cnt + 1), 1, 10, 1);
     }
@@ -114,4 +80,13 @@ void StageBase::UpdateStrokeUI()
 void StageBase::Uninit() {
     for (auto& o : m_MySceneObjects) { Game::GetInstance()->DeleteObject(o); }
     m_MySceneObjects.clear();
+}
+
+void StageBase::RemoveInvalidSceneObjectRefs()
+{
+    Game* game = Game::GetInstance();
+
+    std::erase_if(m_MySceneObjects, [game](Object* o) {
+        return !game->ContainsObject(o);
+        });
 }

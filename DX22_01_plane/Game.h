@@ -80,6 +80,8 @@ public:
 	GameState GetGameState() const { return m_GameState; }
 	void SetGameState(GameState state) { m_GameState = state; }
 
+	bool ContainsObject(const Object* pt) const;
+
 	//オブジェクトを追加する（※テンプレート関数）
 	template<typename T> T* AddObject()
 	{

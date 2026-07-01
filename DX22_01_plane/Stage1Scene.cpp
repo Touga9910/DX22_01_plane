@@ -42,18 +42,12 @@ void Stage1Scene::Init()
 		Vector3(50.0f,  0.0f, 50.0f),
 		Vector3(-50.0f, 0.0f, 60.0f),
 		Vector3(0.0f,   0.0f, 50.0f),
-		/*
-		Vector3(0.0f,   0.0f, 40.0f),
-		Vector3(0.0f,   0.0f, 30.0f),
-		Vector3(0.0f,   0.0f, 20.0f),
-		Vector3(0.0f,   0.0f, 10.0f),
-		Vector3(-50.0f, 0.0f, 50.0f),
-		Vector3(-50.0f, 0.0f, 40.0f),
-		Vector3(-50.0f, 0.0f, 30.0f),
-		Vector3(-50.0f, 0.0f, 20.0f),
-		Vector3(-50.0f, 0.0f, 10.0f),
-		Vector3(-50.0f, 0.0f, 0.0f),
-		*/
+		Vector3(50.0f,   0.0f, 40.0f),
+		Vector3(50.0f,   0.0f, 30.0f),
+		Vector3(50.0f,   0.0f, 20.0f),
+		Vector3(50.0f,   0.0f, 10.0f),
+		Vector3(50.0f,   0.0f, 0.0f),
+		Vector3(50.0f,   0.0f, -10.0f),
 	};
 	/*
 	for (const auto& pos : enemyPositions)

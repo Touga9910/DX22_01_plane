@@ -11,7 +11,7 @@
 class BallBase : public Object {
 protected:
     // --- 共通のステータス ---
-    int m_HP = 3;           // 最大HPや初期HP
+    int m_HP = 1;           // 最大HPや初期HP
     
     // --- 共通の物理パラメーター ---
     DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;

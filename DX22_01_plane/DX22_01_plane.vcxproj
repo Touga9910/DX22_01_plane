@@ -140,7 +140,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="Arrow.cpp" />
+    <ClCompile Include="Arrow.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="AssimpPerse.cpp" />
     <ClCompile Include="BallBase.cpp" />
     <ClCompile Include="Camera.cpp" />
@@ -179,12 +182,16 @@
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="TitleScene.cpp" />
+    <ClCompile Include="TrajectoryModel.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="Stage2Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
-    <ClInclude Include="Arrow.h" />
+    <ClInclude Include="Arrow.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="AssimpPerse.h" />
     <ClInclude Include="BallBase.h" />
     <ClInclude Include="Camera.h" />
@@ -229,6 +236,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="TitleScene.h" />
+    <ClInclude Include="TrajectoryModel.h" />
     <ClInclude Include="transform.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="VertexBuffer.h" />

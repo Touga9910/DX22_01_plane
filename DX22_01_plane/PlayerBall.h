@@ -6,8 +6,19 @@
 #include "StaticMesh.h"
 #include "utility.h"
 #include "Material.h"
+#include "TrajectoryModel.h"  // ★ 追加
+#include "Mesh.h"
 
 #include<vector>
+#include<memory>
+
+// 弾道予測の描画モデルタイプ
+enum class TrajectoryVisualModel
+{
+	Sphere,      // スフィア（現在のGolfBall）
+	Cylinder,    // シリンダー（ラインのような見た目）
+	Quad         // クワッド（平面 - 最もシンプル）
+};
 
 struct TrailPoint {
 	DirectX::SimpleMath::Vector3 position;
@@ -44,6 +55,46 @@ private:
 	// 軌跡の表示時間（フレーム数）
 	const int TRAIL_DURATION_FRAMES = 60;
 
+	// 弾道予測の再計算制御
+	bool m_PreTrajectoryDirty = true;
+	float m_LastPreviewAimAngle = 99999.0f;
+	float m_LastPreviewShotPower = -1.0f;
+	DirectX::SimpleMath::Vector3 m_LastPreviewPosition =
+		DirectX::SimpleMath::Vector3(99999.0f, 99999.0f, 99999.0f);
+
+	// 弾道予測用
+	std::unique_ptr<ITrajectoryModel> m_TrajectoryModel;
+
+	// ★ 追加: 弾道予測用の描画モデル選択
+	TrajectoryVisualModel m_TrajectoryVisualModel = TrajectoryVisualModel::Quad;
+
+	// ★ 修正: Mesh継承して簡易実装
+	class PreviewMesh : public Mesh {
+	public:
+		void InitQuad() {
+			// クワッド（平面）の頂点を生成
+			m_vertices = {
+				{ DirectX::SimpleMath::Vector3(-0.5f, 0.0f, -0.5f), DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f), DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f), DirectX::SimpleMath::Vector2(0.0f, 1.0f) },
+				{ DirectX::SimpleMath::Vector3(0.5f, 0.0f, -0.5f), DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f), DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f), DirectX::SimpleMath::Vector2(1.0f, 1.0f) },
+				{ DirectX::SimpleMath::Vector3(0.5f, 0.0f, 0.5f), DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f), DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f), DirectX::SimpleMath::Vector2(1.0f, 0.0f) },
+				{ DirectX::SimpleMath::Vector3(-0.5f, 0.0f, 0.5f), DirectX::SimpleMath::Vector3(0.0f, 1.0f, 0.0f), DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f), DirectX::SimpleMath::Vector2(0.0f, 0.0f) }
+			};
+
+			// インデックスを生成
+			m_indices = { 0, 1, 2, 0, 2, 3 };
+		}
+	};
+
+	// ★ 追加: 弾道予測用の別MeshRenderer
+	PreviewMesh m_PreviewMesh;
+	MeshRenderer m_PreviewMeshRenderer;
+	std::vector<std::unique_ptr<Material>> m_PreviewMaterials;
+	std::vector<SUBSET> m_PreviewSubsets;
+
+	// 弾道予測用モデルの初期化・描画
+	void InitTrajectoryVisualModel();
+	void DrawTrajectoryLine();
+
 	// ▼ private セクション末尾に追加 ▼
 
 	// --- Arrow 機能統合（旧 Arrow クラスの変数を PlayerBall に移管）---
@@ -70,6 +121,20 @@ public:
 	void SetState(State state) { m_State = state; }
 	State GetState() const { return m_State; }
 	bool IsIdle() const { return m_State == State::Idle; }
+
+	// モデル選択用メソッドを追加
+	void SetTrajectoryModel(std::unique_ptr<ITrajectoryModel> model)
+	{
+		m_TrajectoryModel = std::move(model);
+	}
+
+	// ★ 追加: 弾道予測モデルの選択
+	void SetTrajectoryVisualModel(TrajectoryVisualModel model)
+	{
+		m_TrajectoryVisualModel = model;
+	}
+	TrajectoryVisualModel GetTrajectoryVisualModel() const { return m_TrajectoryVisualModel; }
+
 
 	//弾道予測を生成する関数
 	void GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity);

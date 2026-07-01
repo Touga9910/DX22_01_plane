@@ -3,7 +3,7 @@
 #include "Input.h"
 #include "PlayerBall.h"
 #include "Ground.h"
-#include "Arrow.h"
+//#include "Arrow.h"
 #include "Pole.h"
 #include "SkyBox.h"
 
@@ -29,7 +29,7 @@ void Stage3Scene::Init()
 	// オブジェクトを作成
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<PlayerBall>());
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
+	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ポール
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<SkyBox>());	//ポール
 
@@ -87,10 +87,10 @@ void Stage3Scene::Init()
 
 
 	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
-	Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
+	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
 	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[3]);//ポール
 	ball->SetState(PlayerBall::State::Simulation);	//ボールを物理挙動させる
-	arrow->SetState(0);	//矢印非表示
+	//arrow->SetState(0);	//矢印非表示
 	pole->SetPosition(0.0f, -25.0f, 0.0f);	//ポールを設定
 
 

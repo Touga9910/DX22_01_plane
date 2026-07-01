@@ -64,5 +64,8 @@ public:
 	/// </summary>
 	/// <returns></returns>
 	std::vector<VERTEX_3D> GetVertices();
+
+	float GetFieldWidth() const { return m_FieldWidth; }
+	float GetFieldDepth() const { return m_FieldDepth; }
 };
 

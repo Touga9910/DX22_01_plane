@@ -35,4 +35,6 @@ public:
     void Uninit();
 
     int GetScore() const { return m_StrokeCount - m_Par; }
+
+    void RemoveInvalidSceneObjectRefs();
 };

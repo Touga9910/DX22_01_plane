@@ -186,6 +186,9 @@
     <ClCompile Include="EnemyBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
+    <ClCompile Include="TrajectoryModel.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PlayerBall.h">
@@ -333,6 +336,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="EnemyBall.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
+    </ClInclude>
+    <ClInclude Include="TrajectoryModel.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
   </ItemGroup>
