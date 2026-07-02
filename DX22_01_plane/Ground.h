@@ -9,17 +9,14 @@
 #include "Material.h"
 #include "Collision.h"
 
+#include "TableConfig.h"
+
 class Ground : public Object
 {
 	// SRT情報（姿勢情報）
 	DirectX::SimpleMath::Vector3 m_Position = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Rotation = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Scale = DirectX::SimpleMath::Vector3(1.0f, 1.0f, 1.0f);
-
-	// ビリヤード台のサイズ定義（一括管理）
-	float m_FieldWidth = 80.0f;  // X軸の幅
-	float m_FieldDepth = 145.0f;   // Z軸の奥行き
-	float m_FieldHeight = 1.0f;   // ボールが転がるY座標の高さ
 
 	// 頂点データ
 	std::vector<VERTEX_3D> m_Vertices;
@@ -48,24 +45,14 @@ public:
 	void Uninit();
 
 	/// <summary>
-	/// 高さを取得する関数
-	/// </summary>
-	/// <returns></returns>
-	float GetFieldHeight() const { return m_FieldHeight; }
-
-	/// <summary>
-	/// 四方の壁（4本の線分）を配列にして取得する関数
-	/// </summary>
-	/// <returns></returns>
-	std::vector<Collision::Segment> GetWalls() const;
-
-	/// <summary>
 	/// 頂点情報を取得
 	/// </summary>
 	/// <returns></returns>
 	std::vector<VERTEX_3D> GetVertices();
-
-	float GetFieldWidth() const { return m_FieldWidth; }
-	float GetFieldDepth() const { return m_FieldDepth; }
+	
+	// コンフィグから必要情報を取得
+	float GetFieldHeight() const { return TableConfig::FIELD_HEIGHT; }
+	float GetFieldWidth() const { return TableConfig::GetFieldWidth(); }
+	float GetFieldDepth() const { return TableConfig::GetFieldDepth(); }
 };
 

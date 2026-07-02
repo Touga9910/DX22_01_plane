@@ -4,6 +4,8 @@
 #include "PlayerBall.h"
 #include "EnemyBall.h"
 #include "Ground.h"
+#include "TableFrame.h"
+#include "Pocket.h"
 //#include "Arrow.h"
 #include "Pole.h"
 #include "SkyBox.h"
@@ -33,9 +35,27 @@ void Stage1Scene::Init()
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
 	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ポール
-	
+
+
+	TableFrame* tableFrame = Game::GetInstance()->AddObject<TableFrame>();
+	m_MySceneObjects.emplace_back(tableFrame);
+
 	// ========================================================
-	// ★ エネミー（EnemyBall）の出現処理
+	// ★ TableFrame のポケット位置を元に Pocket を生成
+	// ========================================================
+	std::vector<Collision::Sphere> pocketSpheres = tableFrame->GetPocketSpheres();
+
+	for (const Collision::Sphere& sphere : pocketSpheres)
+	{
+		Pocket* pocket = Game::GetInstance()->AddObject<Pocket>();
+		pocket->SetPosition(sphere.center);
+		pocket->SetRadius(sphere.radius);
+
+		m_MySceneObjects.emplace_back(pocket);
+	}
+
+	// ========================================================
+	// エネミー（EnemyBall）の出現処理
 	// ========================================================
 	// 例として、ステージ1に3体のエネミーをそれぞれ違う位置に出現させます
 	Vector3 enemyPositions[] = {

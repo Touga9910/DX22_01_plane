@@ -162,6 +162,7 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Object.cpp" />
+    <ClCompile Include="Pocket.cpp" />
     <ClCompile Include="Pole.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ResultScene.cpp" />
@@ -175,14 +176,24 @@
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
-    <ClCompile Include="TestCube.cpp" />
+    <ClCompile Include="TableFrame.cpp" />
+    <ClCompile Include="TestCube.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="TestGolfFlag.cpp" />
     <ClCompile Include="TestModel.cpp" />
-    <ClCompile Include="TestPlane.cpp" />
+    <ClCompile Include="TestPlane.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="TitleScene.cpp" />
-    <ClCompile Include="TrajectoryModel.cpp" />
+    <ClCompile Include="TrajectoryModel.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="Stage2Scene.cpp" />
   </ItemGroup>
@@ -215,6 +226,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshRenderer.h" />
     <ClInclude Include="Object.h" />
+    <ClInclude Include="Pocket.h" />
     <ClInclude Include="Pole.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ResultScene.h" />
@@ -229,6 +241,8 @@
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="TableConfig.h" />
+    <ClInclude Include="TableFrame.h" />
     <ClInclude Include="TestCube.h" />
     <ClInclude Include="TestGolfFlag.h" />
     <ClInclude Include="TestModel.h" />

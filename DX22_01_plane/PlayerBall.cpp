@@ -2,6 +2,7 @@
 //#include "Collision.h"
 #include"Game.h"
 #include"Ground.h"
+#include"TableFrame.h"
 #include"Camera.h"
 #include "Pole.h"
 #include "imgui/imgui.h"
@@ -443,14 +444,20 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 	Vector3 simVelocity = initialVelocity;
 	Vector3 simAcceleration;
 
-	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+
 	std::vector<Collision::Segment> walls;
+	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
+
 	float fieldHeight = 1.0f;
 
-	if (!grounds.empty())
+	for (TableFrame* frame : frames)
 	{
-		walls = grounds[0]->GetWalls();
-		fieldHeight = grounds[0]->GetFieldHeight();
+		std::vector<Collision::Segment> frameWalls = frame->GetWalls();
+
+		walls.insert(
+			walls.end(),
+			frameWalls.begin(),
+			frameWalls.end());
 	}
 
 	simPosition.y = fieldHeight;

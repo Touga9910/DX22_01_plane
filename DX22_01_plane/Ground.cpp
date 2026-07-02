@@ -89,9 +89,14 @@ void Ground::Init()
 	m_Material->Create(mtrl);
 
 
-	m_Position.y = m_FieldHeight;
-	m_Scale.x = m_FieldWidth;
-	m_Scale.z = m_FieldDepth;
+	//m_Position.y = m_FieldHeight;
+	//m_Scale.x = m_FieldWidth;
+	//m_Scale.z = m_FieldDepth;
+
+	// コンフィグから取得
+	m_Position.y = TableConfig::FIELD_HEIGHT;
+	m_Scale.x = TableConfig::GetFieldWidth();
+	m_Scale.z = TableConfig::GetFieldDepth();
 }
 
 //=======================================
@@ -173,29 +178,4 @@ std::vector<VERTEX_3D>Ground::GetVertices()
 		res[i].uv = m_Vertices[i].uv;
 	}
 	return res;
-}
-
-// 四方の壁を生成して返す
-std::vector<Collision::Segment> Ground::GetWalls() const
-{
-	std::vector<Collision::Segment> walls;
-
-	// 中心から端までの距離
-	float halfW = m_FieldWidth / 2.0f;
-	float halfD = m_FieldDepth / 2.0f;
-	float y = m_FieldHeight;
-
-	// ① 奥の壁
-	walls.push_back({ Vector3(-halfW, y, halfD), Vector3(halfW, y, halfD) });
-
-	// ② 手前の壁
-	walls.push_back({ Vector3(-halfW, y, -halfD), Vector3(halfW, y, -halfD) });
-
-	// ③ 左の壁
-	walls.push_back({ Vector3(-halfW, y, -halfD), Vector3(-halfW, y, halfD) });
-
-	// ④ 右の壁
-	walls.push_back({ Vector3(halfW, y, -halfD), Vector3(halfW, y, halfD) });
-
-	return walls;
 }

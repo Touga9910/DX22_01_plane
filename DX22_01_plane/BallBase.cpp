@@ -2,7 +2,9 @@
 
 #include "Collision.h"
 #include"Game.h"
-#include"Ground.h"
+//#include"Ground.h"
+#include"TableFrame.h"
+#include"Pocket.h"
 #include "imgui/imgui.h"
 #include "EnemyBall.h"
 
@@ -21,18 +23,27 @@ void BallBase::UpdatePhysics()
 	// Y方向（上下）には絶対に動かないようにする
 	m_Velocity.y = 0.0f;
 
-	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
-	if (grounds.size() > 0)
+	std::vector<Collision::Segment> walls;
+	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
+	
+	for (TableFrame* frame : frames)
 	{
-		std::vector<Collision::Segment> walls = grounds[0]->GetWalls();
+		std::vector<Collision::Segment> frameWalls = frame->GetWalls();
 
+		walls.insert(
+			walls.end(),
+			frameWalls.begin(),
+			frameWalls.end());
+	}
+	if (!walls.empty())
+	{
 		// 1フレームの移動距離を計算
 		float moveDistance = m_Velocity.Length();
 
 		// 1ステップで進んでいい最大の距離（すり抜けないよう半径の半分以下にする）
 		float maxStep = m_Radius * 0.5f;
 
-		// ★必要な分割数（速度が遅ければ1回、速ければ自動で増える！）
+		// 必要な分割数（速度が遅ければ1回、速ければ自動で増える）
 		int subSteps = max(1, (int)ceil(moveDistance / maxStep));
 
 		std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
@@ -172,7 +183,26 @@ void BallBase::UpdatePhysics()
 		m_Transform.position += m_Velocity;
 	}
 
-	//移動方向によってボールを回転させる
+	// ==========================
+	// ポケットとの当たり判定
+	// ==========================
+	std::vector<Pocket*> pockets = Game::GetInstance()->GetObjects<Pocket>();
+
+	for (Pocket* pocket : pockets)
+	{
+		if (Collision::CheckHit(GetSphere(), pocket->GetSphere()))
+		{
+			// ポケットに触れたら停止
+			m_Velocity = Vector3::Zero;
+			m_Acceleration = Vector3::Zero;
+
+			break;
+		}
+	}
+
+	// ==========================
+	// ボールの転がり回転の計算
+	// ==========================
 	if (m_OldPosition != m_Transform.position)
 	{
 		// 1フレームの実際の移動ベクトル
