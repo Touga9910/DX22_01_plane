@@ -17,8 +17,8 @@ class Ground : public Object
 	DirectX::SimpleMath::Vector3 m_Scale = DirectX::SimpleMath::Vector3(1.0f, 1.0f, 1.0f);
 
 	// ビリヤード台のサイズ定義（一括管理）
-	float m_FieldWidth = 200.0f;  // X軸の幅
-	float m_FieldDepth = 200.0f;   // Z軸の奥行き
+	float m_FieldWidth = 80.0f;  // X軸の幅
+	float m_FieldDepth = 145.0f;   // Z軸の奥行き
 	float m_FieldHeight = 1.0f;   // ボールが転がるY座標の高さ
 
 	// 頂点データ

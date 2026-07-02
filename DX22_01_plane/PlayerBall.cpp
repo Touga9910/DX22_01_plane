@@ -625,7 +625,7 @@ void PlayerBall::DrawTrajectoryLine()
 	m_PreviewMeshRenderer.BeforeDraw();
 
 	// ★ Y_OFFSETをさらに大きくする
-	const float Y_OFFSET = 2.0f;  // 0.5f → 2.0f に変更
+	const float Y_OFFSET = .5f;  // 0.5f → 2.0f に変更
 
 	for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
 	{
