@@ -65,10 +65,10 @@ private:
 	// 弾道予測用
 	std::unique_ptr<ITrajectoryModel> m_TrajectoryModel;
 
-	// ★ 追加: 弾道予測用の描画モデル選択
+	// 弾道予測用の描画モデル選択
 	TrajectoryVisualModel m_TrajectoryVisualModel = TrajectoryVisualModel::Quad;
 
-	// ★ 修正: Mesh継承して簡易実装
+	// Mesh継承して簡易実装
 	class PreviewMesh : public Mesh {
 	public:
 		void InitQuad() {
@@ -81,21 +81,38 @@ private:
 			};
 
 			// インデックスを生成
-			m_indices = { 0, 1, 2, 0, 2, 3 };
+			// Back-face culling can hide a flat guide quad, so draw both sides.
+			m_indices = { 0, 2, 1, 0, 3, 2, 0, 1, 2, 0, 2, 3 };
 		}
 	};
 
-	// ★ 追加: 弾道予測用の別MeshRenderer
+	// 弾道予測用の別MeshRenderer
 	PreviewMesh m_PreviewMesh;
 	MeshRenderer m_PreviewMeshRenderer;
 	std::vector<std::unique_ptr<Material>> m_PreviewMaterials;
 	std::vector<SUBSET> m_PreviewSubsets;
 
+	bool m_PreviewHitBall = false;
+	DirectX::SimpleMath::Vector3 m_PreviewGhostBallPosition = DirectX::SimpleMath::Vector3::Zero;
+	DirectX::SimpleMath::Vector3 m_PreviewHitBallPosition = DirectX::SimpleMath::Vector3::Zero;
+	DirectX::SimpleMath::Vector3 m_PreviewObjectBallDirection = DirectX::SimpleMath::Vector3::Zero;
+
 	// 弾道予測用モデルの初期化・描画
 	void InitTrajectoryVisualModel();
 	void DrawTrajectoryLine();
+	void DrawGuideSegment(
+		const DirectX::SimpleMath::Vector3& start,
+		const DirectX::SimpleMath::Vector3& end,
+		float thickness,
+		float yOffset,
+		int materialIndex);
+	void DrawGuideCircle(
+		const DirectX::SimpleMath::Vector3& center,
+		float radius,
+		float thickness,
+		float yOffset,
+		int materialIndex);
 
-	// ▼ private セクション末尾に追加 ▼
 
 	// --- Arrow 機能統合（旧 Arrow クラスの変数を PlayerBall に移管）---
 	float m_AimAngle = 0.0f;             // エイム方向（ラジアン）
@@ -117,10 +134,15 @@ public:
 	void Draw(Camera* cam)override;
 	void Uninit()override;
 
+	void Defeat() override;
+
+	void OnPocketHit() override;
+
 	// 状態の設定・取得
 	void SetState(State state) { m_State = state; }
 	State GetState() const { return m_State; }
 	bool IsIdle() const { return m_State == State::Idle; }
+	void TakeDamage(int damage) override;
 
 	// モデル選択用メソッドを追加
 	void SetTrajectoryModel(std::unique_ptr<ITrajectoryModel> model)

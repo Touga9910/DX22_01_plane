@@ -151,6 +151,7 @@ HRESULT Renderer::Init()
 	hr = m_pDevice->CreateDepthStencilState(&depthStencilDesc, &m_pDepthStateEnable); //深度有効ステート
 	if (FAILED(hr)) return hr;
 
+	depthStencilDesc.DepthEnable = FALSE;
 	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 	hr = m_pDevice->CreateDepthStencilState(&depthStencilDesc, &m_pDepthStateDisable); //深度無効ステート
 	if (FAILED(hr)) return hr;

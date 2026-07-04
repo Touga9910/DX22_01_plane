@@ -1,4 +1,5 @@
 #include "EnemyBall.h"
+#include "PlayerBall.h"
 #include "Game.h"
 #include "Ground.h"
 #include "Camera.h"
@@ -11,6 +12,9 @@ using namespace DirectX::SimpleMath;
 //=======================================
 void EnemyBall::Init()
 {
+    m_MaxHP = 3;
+    m_HP = m_MaxHP;
+
     // 1. 敵用のモデルを読み込む (Playerと違うモデルやテクスチャを指定可能)
     LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
 
@@ -37,6 +41,11 @@ void EnemyBall::Init()
 //=======================================
 void EnemyBall::Update()
 {
+    if (IsDefeated())
+    {
+        return;
+    }
+
     m_CurrentFrame++;
 
     // --- 摩擦・減速の計算 (PlayerBallの挙動と合わせる場合) ---
@@ -55,16 +64,6 @@ void EnemyBall::Update()
         }
     }
 
-    // --- [発展要素] 簡単な敵のAI（例：一定時間ごとにランダムな方向に動く） ---
-    /*
-    if (m_CurrentFrame % 180 == 0) // 3秒に1回
-    {
-        float angle = (rand() % 360) * 3.141592f / 180.0f;
-        float speed = 2.0f;
-        m_Velocity = Vector3(cos(angle) * speed, 0.0f, sin(angle) * speed);
-    }
-    */
-
     // --- 物理演算の更新 (BallBaseの壁判定や移動、転がり回転を呼び出す) ---
     UpdatePhysics();
 }
@@ -74,6 +73,10 @@ void EnemyBall::Update()
 //=======================================
 void EnemyBall::Draw(Camera* cam)
 {
+    if (IsDefeated())
+    {
+        return;
+    }
     cam->SetCamera();
 
     m_Shader.SetGPU();
@@ -101,6 +104,36 @@ void EnemyBall::Uninit()
     // 必要に応じた解放処理
 }
 
+// ======================================
+// 倒された時の処理
+// ======================================
+void EnemyBall::Defeat()
+{
+    BallBase::Defeat();
+
+    // 敵専用の倒された時の処理を書くならここ
+    // 例：撃破エフェクト、スコア加算、ドロップ抽選など
+}
+
+void EnemyBall::Attack(PlayerBall* player)
+{
+    if (IsDefeated())
+    {
+        return;
+    }
+
+    if (player == nullptr)
+    {
+        return;
+    }
+
+    if (player->IsDefeated())
+    {
+        return;
+    }
+
+    player->TakeDamage(m_AttackPower);
+}
 // ImGUIによるステータス確認
 void EnemyBall::DrawImGui(const std::string& label)
 {

@@ -35,12 +35,16 @@ enum SceneName {
 
 // ゲーム全体のターン進行状態
 enum class GameState {
-	AimingDirection, // 方向選択中（旧 m_State=1 相当）
-	AimingPower,     // パワー選択中（旧 m_State=2 相当）
-	ConfirmShot,     // ショット確認・弾道表示中（旧 m_State=3 相当）
-	BallsMoving,     // ボール移動中（旧 m_State=0 相当）
-	TurnEnd,         // ターン終了（翌フレームに AimingDirection へ自動遷移）
-};	;
+	AimingDirection,	// 方向選択中
+	AimingPower,		// パワー選択中
+	ConfirmShot,		// ショット確認・弾道表示中
+	BallsMoving,		// ボール移動中
+	EnemyAttack,		// 敵の攻撃中
+	TurnEnd,			// ターン終了（翌フレームに AimingDirection へ自動遷移）
+
+	ClearReward,		// クリア時の報酬表示
+	GameOver,			// ゲームオーバー
+};
 
 class Game
 {
@@ -59,6 +63,48 @@ private:
 	std::vector<std::unique_ptr<Object>> m_Objects;
 
 	GameState m_GameState = GameState::AimingDirection;
+
+	// ==========================
+	// 報酬UI用
+	// ==========================
+	int m_SelectedRewardIndex = 0;
+
+	/// <summary>
+	/// 全てのボールが停止しているかどうかを判定する関数
+	/// </summary>
+	bool AreAllBallsStopped() const;
+
+	/// <summary>
+	/// 敵の攻撃処理を行う関数
+	/// </summary>
+	void ProcessEnemyAttack();
+
+	/// <summary>
+	/// ゲームオーバー時の処理を行う関数
+	/// </summary>
+	void ProcessGameOver();
+
+	/// <summary>
+	/// 敵全滅時に報酬UIを表示する処理
+	/// </summary>
+	void StartClearReward();
+
+	/// <summary>
+	/// 報酬UIの更新処理を行う関数
+	/// </summary>
+	void UpdateClearReward();
+
+	/// <summary>
+	/// 報酬UIの描画処理を行う関数
+	/// </summary>
+	void DrawClearRewardUI();
+
+	/// <summary>
+	/// 報酬を適用する関数
+	/// </summary>
+	void ApplyReward(int rewardIndex);
+	void SaveDebugSnapshot();
+
 public:
 	Game(); // コンストラクタ
 	~Game(); // デストラクタ
@@ -82,6 +128,10 @@ public:
 
 	bool ContainsObject(const Object* pt) const;
 
+	/// <summary>
+	/// 敵が全滅しているかどうかを判定する関数
+	bool AreAllEnemiesDefeated() const;
+
 	//オブジェクトを追加する（※テンプレート関数）
 	template<typename T> T* AddObject()
 	{
@@ -94,7 +144,7 @@ public:
 	//オブジェクトを取得する
 	template<typename T>std::vector<T*> GetObjects()
 	{
-		std::vector<T*>res; 
+		std::vector<T*>res;
 		for (auto& o : m_Instance->m_Objects)
 		{
 			//dynamic_castで型をチェック

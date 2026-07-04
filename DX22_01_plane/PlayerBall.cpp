@@ -18,6 +18,9 @@ using namespace DirectX::SimpleMath;
 //=======================================
 void PlayerBall::Init()
 {
+	m_MaxHP = 10;
+	m_HP = m_MaxHP;
+
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
 
@@ -36,6 +39,8 @@ void PlayerBall::Init()
 	m_Transform.position.x = 0.0f;
 	m_Transform.position.z = 0.0f;
 	m_Transform.position.y = 1.0f;
+
+	SetInitialPosition(m_Transform.position);
 
 	//スケールを調整
 	m_Transform.scale = Vector3(2.0f, 2.0f, 2.0f);
@@ -65,9 +70,6 @@ void PlayerBall::Init()
 
 	// ★ 弾道予測用モデルの初期化（別途）
 	InitTrajectoryVisualModel();
-
-	// ★ デフォルトモデルを設定
-	m_TrajectoryModel = std::make_unique<BallTrajectoryModel>();
 }
 
 //=======================================
@@ -75,6 +77,11 @@ void PlayerBall::Init()
 //=======================================
 void PlayerBall::Update()
 {
+	if (IsDefeated())
+	{
+		return;
+	}
+
 	m_CurrentFrame++;
 
 	// 状態の比較を enum class に変更 (0 ➔ State::Simulation)
@@ -210,6 +217,10 @@ void PlayerBall::Update()
 //=======================================
 void PlayerBall::Draw(Camera* cam)
 {
+	if (IsDefeated())
+	{
+		return;
+	}
 	//カメラを選択する
 	cam->SetCamera();
 
@@ -220,58 +231,6 @@ void PlayerBall::Draw(Camera* cam)
 
 	// インデックスバッファ・頂点バッファをセット
 	m_MeshRenderer.BeforeDraw();
-
-	if (m_State != State::Simulation && m_PrePositions.size() >= 2) // 2点以上ないと線が引けない
-	{
-
-		const float Y_OFFSET = 0.0f;
-
-		// リストの「最後の一つ手前」までループする
-		for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
-		{
-			// スタート地点とゴール地点を取得
-			Vector3 startPos = m_PrePositions[i].position;
-			Vector3 endPos = m_PrePositions[i + 1].position;
-
-			// 2点間の距離を計算（これをZ軸のスケールにする）
-			float distance = (endPos - startPos).Length();
-
-			// 距離が0なら描画しない
-			if (distance <= 0.0001f) continue;
-
-			// 2点の中間地点を計算（ここにモデルを置く）
-			Vector3 midPos = (startPos + endPos) * 0.5f;
-			
-			// Y軸方向にずらす
-			midPos.y += Y_OFFSET;
-
-			// 線の太さ
-			float thickness = 0.5f;
-
-			// ■ SRT行列の作成 ■
-
-			// 1. スケール：X,Yは太さ、Zは長さ（距離）
-			// ※球体モデルは直径1.0と仮定。もし直径が大きいモデルなら調整が必要
-			Matrix s = Matrix::CreateScale(thickness, thickness, distance);
-
-			// 2. 回転と位置：CreateWorldを使うと「ある位置(midPos)で、ある方向(forward)を向く行列」が生成可能
-			Vector3 forward = endPos - startPos; // 向きたい方向
-			forward.Normalize();
-
-			// 上方向ベクトル（真上か、forwardが真上のときはZ軸などを仮定）
-			Vector3 up = Vector3::Up;
-			if (abs(forward.y) > 0.99f) up = Vector3::UnitZ;
-
-			// 回転と平行移動を合わせた行列を作成
-			// CreateWorld(位置, 前方ベクトル, 上方ベクトル)
-			Matrix rt = Matrix::CreateWorld(midPos, forward, up);
-
-			// 全体を合成
-			Matrix worldmtx = s * rt;
-			DrawMesh(worldmtx);
-		}
-	}
-
 
 	for (const auto& trailPoint : m_TrajectoryPositions)
 	{
@@ -322,6 +281,41 @@ void PlayerBall::Draw(Camera* cam)
 void PlayerBall::Uninit()
 {
 
+}
+
+// =======================================
+// 倒された時の処理（HPが0になったとき）
+// =======================================
+void PlayerBall::Defeat()
+{
+	BallBase::Defeat();
+
+	// プレイヤー専用：ゲームオーバーへ移行
+	Game::GetInstance()->SetGameState(GameState::GameOver);
+}
+
+//=======================================
+//ポケットに入ったときの処理
+//=======================================
+void PlayerBall::OnPocketHit()
+{
+	// HPを減らす処理
+	TakeDamage(1);
+
+	// 初期位置に戻す
+	ResetToInitialPosition();
+
+	m_TrajectoryPositions.clear();
+	m_PrePositions.clear();
+	m_LastTrailPos = m_Transform.position;
+	m_StopCount = 0;
+	m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
+	m_State = State::Idle;
+}
+
+void PlayerBall::TakeDamage(int damage)
+{
+	Damage(damage);
 }
 
 //=======================================
@@ -427,11 +421,15 @@ void PlayerBall::DrawArrow(Camera* cam)
 void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
 	m_PrePositions.clear();
+	m_PreviewHitBall = false;
+	m_PreviewGhostBallPosition = Vector3::Zero;
+	m_PreviewHitBallPosition = Vector3::Zero;
+	m_PreviewObjectBallDirection = Vector3::Zero;
 
 	const int PREDICTION_FRAMES = 240;
 	const int MAX_PREVIEW_POINTS = 120;
 	const float PREVIEW_POINT_INTERVAL = 1.0f;
-	const float PREVIEW_BALL_HIT_SCALE = 0.75f;
+	const float PREVIEW_BALL_HIT_SCALE = 1.0f;
 
 	m_PrePositions.reserve(MAX_PREVIEW_POINTS);
 
@@ -448,7 +446,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 	std::vector<Collision::Segment> walls;
 	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
 
-	float fieldHeight = 1.0f;
+	float fieldHeight = m_Transform.position.y;
 
 	for (TableFrame* frame : frames)
 	{
@@ -518,9 +516,31 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 						normal = -normal;
 					}
 
+					Vector3 visualContactPoint = contactPoint;
+					Vector3 lineStart = m_PrePositions.back().position;
+					Vector3 lineDir = stepMove;
+					Vector3 wallDir = wall.end - wall.start;
+					lineStart.y = 0.0f;
+					lineDir.y = 0.0f;
+					wallDir.y = 0.0f;
+
+					float cross = lineDir.x * wallDir.z - lineDir.z * wallDir.x;
+					if (fabs(cross) > 0.0001f)
+					{
+						Vector3 toWall = wall.start - lineStart;
+						toWall.y = 0.0f;
+
+						float t = (toWall.x * wallDir.z - toWall.z * wallDir.x) / cross;
+						if (t >= 0.0f)
+						{
+							visualContactPoint = lineStart + lineDir * t;
+						}
+					}
+					visualContactPoint.y = fieldHeight;
+
 					simPosition = contactPoint + normal * m_Radius;
 					simPosition.y = fieldHeight;
-					m_PrePositions.push_back({ simPosition, 0, 1.0f });
+					m_PrePositions.push_back({ visualContactPoint, 0, 1.0f });
 					hit = true;
 					break;
 				}
@@ -531,6 +551,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 			for (BallBase* other : balls)
 			{
 				if (other == this) continue;
+				if (other->IsDefeated()) continue;
 
 				Collision::Sphere otherSphere = other->GetSphere();
 				Vector3 diff = simPosition - otherSphere.center;
@@ -560,7 +581,15 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 							normal = Vector3::UnitZ;
 					}
 
-					simPosition = otherSphere.center + normal * minDist;
+					float ghostDistance = m_Radius + otherSphere.radius;
+					m_PreviewHitBall = true;
+					m_PreviewGhostBallPosition = otherSphere.center + normal * ghostDistance;
+					m_PreviewGhostBallPosition.y = fieldHeight;
+					m_PreviewHitBallPosition = otherSphere.center;
+					m_PreviewHitBallPosition.y = fieldHeight;
+					m_PreviewObjectBallDirection = -normal;
+
+					simPosition = m_PreviewGhostBallPosition;
 					simPosition.y = fieldHeight;
 					m_PrePositions.push_back({ simPosition, 0, 1.0f });
 					hit = true;
@@ -598,78 +627,160 @@ void PlayerBall::InitTrajectoryVisualModel()
 	// ★ MeshRendererを初期化
 	m_PreviewMeshRenderer.Init(m_PreviewMesh);
 
-	// 簡単なマテリアルを作成
-	std::unique_ptr<Material> mat = std::make_unique<Material>();
-	// 白色のシンプルなマテリアル
-	MATERIAL matData;
-	matData.Ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
-	matData.Diffuse = { 0.8f, 0.8f, 1.0f, 0.7f };  // 薄い青色
-	matData.Specular = { 0.5f, 0.5f, 0.5f, 1.0f };
-	matData.Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
-	matData.Shiness = 16.0f;
-	mat->Create(matData);
-	m_PreviewMaterials.push_back(std::move(mat));
+	auto addGuideMaterial = [this](const DirectX::SimpleMath::Color& color)
+		{
+			std::unique_ptr<Material> mat = std::make_unique<Material>();
+			MATERIAL matData{};
+			matData.Ambient = color;
+			matData.Diffuse = color;
+			matData.Specular = { 0.2f, 0.2f, 0.2f, 1.0f };
+			matData.Emission = color;
+			matData.Shiness = 4.0f;
+			matData.TextureEnable = FALSE;
+			mat->Create(matData);
+			m_PreviewMaterials.push_back(std::move(mat));
+		};
+
+	addGuideMaterial({ 0.35f, 0.95f, 1.0f, 1.0f });   // 軌道予測線の色
+	addGuideMaterial({ 1.0f, 1.0f, 1.0f, 0.9f });     // 接触時のプレイヤーボール半径の色
+	addGuideMaterial({ 1.0f, 0.86f, 0.25f, 1.0f });   // 当たったボールが飛ぶ方向の色
 
 	// サブセットを作成
 	SUBSET subset;
 	subset.MaterialIdx = 0;
-	subset.IndexNum = 6;
+	subset.IndexNum = static_cast<unsigned int>(m_PreviewMesh.GetIndices().size());
 	subset.IndexBase = 0;
 	subset.VertexBase = 0;
 	m_PreviewSubsets.push_back(subset);
 }
-// PlayerBall.cpp の DrawTrajectoryLine() を修正
+void PlayerBall::DrawGuideSegment(
+	const DirectX::SimpleMath::Vector3& start,
+	const DirectX::SimpleMath::Vector3& end,
+	float thickness,
+	float yOffset,
+	int materialIndex)
+{
+	if (materialIndex < 0 || materialIndex >= static_cast<int>(m_PreviewMaterials.size()))
+	{
+		return;
+	}
+
+	Vector3 startPos = start;
+	Vector3 endPos = end;
+	startPos.y += yOffset;
+	endPos.y += yOffset;
+
+	Vector3 forward = endPos - startPos;
+	float distance = forward.Length();
+	if (distance <= 0.0001f)
+	{
+		return;
+	}
+
+	forward /= distance;
+
+	Vector3 midPos = (startPos + endPos) * 0.5f;
+	Matrix s = Matrix::CreateScale(thickness, thickness, distance);
+	Matrix rt = Matrix::CreateWorld(midPos, forward, Vector3::Up);
+	Matrix worldmtx = s * rt;
+
+	Renderer::SetWorldMatrix(&worldmtx);
+	m_PreviewMaterials[materialIndex]->SetGPU();
+	m_PreviewMeshRenderer.DrawSubset(
+		m_PreviewSubsets[0].IndexNum,
+		m_PreviewSubsets[0].IndexBase,
+		m_PreviewSubsets[0].VertexBase);
+}
+
+void PlayerBall::DrawGuideCircle(
+	const DirectX::SimpleMath::Vector3& center,
+	float radius,
+	float thickness,
+	float yOffset,
+	int materialIndex)
+{
+	const int segmentCount = 48;
+
+	for (int i = 0; i < segmentCount; ++i)
+	{
+		float angle0 = DirectX::XM_2PI * static_cast<float>(i) / static_cast<float>(segmentCount);
+		float angle1 = DirectX::XM_2PI * static_cast<float>(i + 1) / static_cast<float>(segmentCount);
+
+		Vector3 p0 = center + Vector3(cos(angle0) * radius, 0.0f, sin(angle0) * radius);
+		Vector3 p1 = center + Vector3(cos(angle1) * radius, 0.0f, sin(angle1) * radius);
+		DrawGuideSegment(p0, p1, thickness, yOffset, materialIndex);
+	}
+}
 
 void PlayerBall::DrawTrajectoryLine()
 {
 	if (m_State == State::Simulation || m_PrePositions.size() < 2)
 		return;
 
-	// ★ 追加: デプスをOFF（後ろの描画も見えるようにする）
-	Renderer::SetDepthEnable(false);
-
 	// プレビュー用MeshRendererを準備
+	Renderer::SetDepthEnable(true);
 	m_PreviewMeshRenderer.BeforeDraw();
 
-	// ★ Y_OFFSETをさらに大きくする
-	const float Y_OFFSET = .5f;  // 0.5f → 2.0f に変更
+	const float Y_OFFSET = 0.8f;
+	const float MAIN_LINE_THICKNESS = 0.32f;
+	const float GHOST_LINE_THICKNESS = 0.2f;
+	const float OBJECT_LINE_THICKNESS = 0.32f;
+	const float OBJECT_LINE_LENGTH = 10.0f;
 
 	for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
 	{
-		Vector3 startPos = m_PrePositions[i].position;
-		Vector3 endPos = m_PrePositions[i + 1].position;
+		Vector3 start = m_PrePositions[i].position;
+		Vector3 end = m_PrePositions[i + 1].position;
 
-		float distance = (endPos - startPos).Length();
-		if (distance <= 0.0001f) continue;
+		if (i == 0)
+		{
+			Vector3 lineDir = end - start;
+			lineDir.y = 0.0f;
 
-		Vector3 midPos = (startPos + endPos) * 0.5f;
-		midPos.y += Y_OFFSET;
+			float lineLength = lineDir.Length();
+			float startOffset = m_Radius + MAIN_LINE_THICKNESS;
 
-		float thickness = 0.2f;
+			if (lineLength <= startOffset)
+			{
+				continue;
+			}
 
-		Matrix s = Matrix::CreateScale(thickness, thickness, distance);
+			lineDir /= lineLength;
+			start += lineDir * startOffset;
+		}
 
-		Vector3 forward = endPos - startPos;
-		forward.Normalize();
-
-		Vector3 up = Vector3::Up;
-		if (abs(forward.y) > 0.99f) up = Vector3::UnitZ;
-
-		Matrix rt = Matrix::CreateWorld(midPos, forward, up);
-		Matrix worldmtx = s * rt;
-		Renderer::SetWorldMatrix(&worldmtx);
-
-		// マテリアルを設定
-		m_PreviewMaterials[0]->SetGPU();
-
-		// 描画
-		m_PreviewMeshRenderer.DrawSubset(
-			m_PreviewSubsets[0].IndexNum,
-			m_PreviewSubsets[0].IndexBase,
-			m_PreviewSubsets[0].VertexBase);
+		DrawGuideSegment(
+			start,
+			end,
+			MAIN_LINE_THICKNESS,
+			Y_OFFSET,
+			0);
 	}
 
-	// ★ 追加: デプスをON（元に戻す）
+	if (m_PreviewHitBall)
+	{
+		DrawGuideCircle(
+			m_PreviewGhostBallPosition,
+			m_Radius,
+			GHOST_LINE_THICKNESS,
+			Y_OFFSET + 0.03f,
+			1);
+
+		if (m_PreviewObjectBallDirection.LengthSquared() > 0.0001f)
+		{
+			Vector3 objectLineEnd =
+				m_PreviewHitBallPosition +
+				m_PreviewObjectBallDirection * OBJECT_LINE_LENGTH;
+
+			DrawGuideSegment(
+				m_PreviewHitBallPosition,
+				objectLineEnd,
+				OBJECT_LINE_THICKNESS,
+				Y_OFFSET + 0.06f,
+				2);
+		}
+	}
+
 	Renderer::SetDepthEnable(true);
 }
 
@@ -695,31 +806,11 @@ void PlayerBall::DrawImGui()
 		case GameState::ConfirmShot:     gsStr = "ConfirmShot";     break;
 		case GameState::BallsMoving:     gsStr = "BallsMoving";     break;
 		case GameState::TurnEnd:         gsStr = "TurnEnd";         break;
+		case GameState::EnemyAttack:	 gsStr = "EnemyAttack";		break;
+		case GameState::ClearReward:	 gsStr = "ClearReward";		break;
+		case GameState::GameOver:		 gsStr = "GameOver";			break;
 		}
 		ImGui::Text("GameState: %s", gsStr);
-
-		// ★ TrajectoryModel 選択UI
-		if (ImGui::CollapsingHeader("Trajectory Model Settings"))
-		{
-			const char* modelItems[] = { "Ball", "Simple", "HighRolling", "Slippery" };
-			static int modelIndex = 0;
-
-			if (ImGui::Combo("Model", &modelIndex, modelItems, IM_ARRAYSIZE(modelItems)))
-			{
-				switch (modelIndex)
-				{
-				case 0: SetTrajectoryModel(std::make_unique<BallTrajectoryModel>()); break;
-				case 1: SetTrajectoryModel(std::make_unique<SimpleTrajectoryModel>()); break;
-				case 2: SetTrajectoryModel(std::make_unique<HighRollingTrajectoryModel>()); break;
-				case 3: SetTrajectoryModel(std::make_unique<SlipperyTrajectoryModel>()); break;
-				}
-			}
-
-			if (m_TrajectoryModel)
-			{
-				ImGui::Text("Current Model: %s", m_TrajectoryModel->GetModelName());
-			}
-		}
 
 		// 状態表示
 		const char* stateStr = "";

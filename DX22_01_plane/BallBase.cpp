@@ -14,6 +14,35 @@
 using namespace std;
 using namespace DirectX::SimpleMath;
 
+void BallBase::Damage(int damage)
+{
+	if (m_IsDefeated)
+	{
+		return;
+	}
+
+	m_HP -= damage;
+
+	if (m_HP <= 0)
+	{
+		Defeat();
+	}
+}
+
+void BallBase::Defeat()
+{
+	if (m_IsDefeated)
+	{
+		return;
+	}
+
+	m_IsDefeated = true;
+
+	// 倒されたら速度を止める
+	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
+	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
+}
+
 void BallBase::UpdatePhysics()
 {
 	m_OldPosition = m_Transform.position;
@@ -50,6 +79,7 @@ void BallBase::UpdatePhysics()
 		for (BallBase* other : balls)
 		{
 			if (other == this) continue;
+			if (other->IsDefeated()) continue;
 
 			Vector3 relativeVelocity = m_Velocity - other->m_Velocity;
 			float relativeSpeed = relativeVelocity.Length();
@@ -116,6 +146,8 @@ void BallBase::UpdatePhysics()
 
 			for (BallBase* other : balls)
 			{
+				if (other->IsDefeated()) continue;
+
 				// 自分を見つけるまでスキップ
 				if (!foundSelf)
 				{
@@ -155,7 +187,7 @@ void BallBase::UpdatePhysics()
 						stepVelocity = m_Velocity / (float)subSteps;
 
 						// ==========================================================
-						// ★ 追加：衝突時のダメージ適用処理
+						// 衝突時のダメージ適用処理
 						// ==========================================================
 						// 仮のダメージ量（威力を速度依存にする場合は、相対速度などから計算しても面白いです）
 						int damageAmount = 1;
@@ -192,10 +224,7 @@ void BallBase::UpdatePhysics()
 	{
 		if (Collision::CheckHit(GetSphere(), pocket->GetSphere()))
 		{
-			// ポケットに触れたら停止
-			m_Velocity = Vector3::Zero;
-			m_Acceleration = Vector3::Zero;
-
+			OnPocketHit();
 			break;
 		}
 	}
@@ -292,7 +321,28 @@ void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 	UpdateRadius();              // スケールを掛けて m_Radius を更新
 }
 
+void BallBase::ResetToInitialPosition()
+{
+	m_Transform.position = m_InitialPosition;
+	m_Position = m_InitialPosition;
+	m_OldPosition = m_InitialPosition;
 
+	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
+	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
+	m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
+}
+
+void BallBase::OnPocketHit()
+{
+	// デフォルトでは停止だけ
+	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
+	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
+}
+
+void BallBase::TakeDamage(int damage)
+{
+	Damage(damage);
+}
 
 void BallBase::DrawImGui(const std::string& label)
 {
@@ -324,6 +374,9 @@ void BallBase::DrawImGui(const std::string& label)
 			m_Transform.position.x,
 			m_Transform.position.y,
 			m_Transform.position.z);
+
+		// HP（読み取り専用で表示）
+		ImGui::Text("HP: %d", m_HP);
 
 		// 反発係数
 		ImGui::SliderFloat("Restitution", &m_Restitution, 0.0f, 1.0f);
