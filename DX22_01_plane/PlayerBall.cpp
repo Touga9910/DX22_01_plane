@@ -1,52 +1,34 @@
 ﻿#include "PlayerBall.h"
-//#include "Collision.h"
-#include"Game.h"
-#include"Ground.h"
-#include"TableFrame.h"
-#include"Camera.h"
+#include "Game.h"
+#include "Ground.h"
+#include "TableFrame.h"
+#include "Camera.h"
 #include "Application.h"
 #include "Pole.h"
 #include "imgui/imgui.h"
 
-#include<random>
-#include<ctime>
-#include<algorithm>
-#include<cmath>
+#include <algorithm>
+#include <cmath>
 
 using namespace std;
 using namespace DirectX::SimpleMath;
 
-//=======================================
-//初期化処理
-//=======================================
 void PlayerBall::Init()
 {
 	// ステータス設定
 	BallStatus status;
-	status.maxHp = 10;
-	status.attack = 1;
-	status.defense = 0;
+	status.maxHp = 10;    // 最大HP
+	status.attack = 1;     // 攻撃力
+	status.defense = 0;     // 防御力
 
 	SetStatus(status);
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
 
-	// 乱数生成エンジンとシードの初期化
-	static std::random_device rd;
-	static std::mt19937 gen(rd());
-
-	// ランダムな範囲を定義 (例: -50.0 から 50.0 の範囲でランダムにする)
-	const float MIN_RANGE = -200.0f;
-	const float MAX_RANGE = 200.0f;
-
-	// 浮動小数点数の一様分布を定義
-	std::uniform_real_distribution<> distrib(MIN_RANGE, MAX_RANGE);
-
-
-	m_Transform.position.x = 0.0f;
-	m_Transform.position.z = 0.0f;
-	m_Transform.position.y = 1.0f;
+	m_Transform.position.x = 0.0f;    // 初期X座標
+	m_Transform.position.z = 0.0f;    // 初期Z座標
+	m_Transform.position.y = 1.0f;    // 仮の初期Y座標
 
 	SetInitialPosition(m_Transform.position);
 
@@ -73,167 +55,44 @@ void PlayerBall::Init()
 	m_LastTrailPos = m_Transform.position;
 	m_TrajectoryPositions.clear();
 
-	// ★ デフォルトモデルを設定
+	// デフォルトモデルを設定
 	m_TrajectoryModel = std::make_unique<BallTrajectoryModel>();
 
-	// ★ 弾道予測用モデルの初期化（別途）
+	// 弾道予測用モデルの初期化（別途）
 	InitTrajectoryVisualModel();
 }
 
-//=======================================
-//更新処理
-//=======================================
 void PlayerBall::Update()
 {
-	if (IsDefeated())
+	if (IsDefeated()) return;    // 倒されている場合は更新しない
+
+	m_CurrentFrame++;           // 軌跡の寿命計算で使うフレームを進める
+
+	// 現在の状態に応じて、更新処理を切り替える
+	switch (m_State)
 	{
-		return;
+	case State::Simulation:
+		UpdateSimulation();
+		break;
+
+	case State::Idle:
+		UpdateAim();
+		break;
 	}
 
-	m_CurrentFrame++;
-
-	// 状態の比較を enum class に変更 (0 ➔ State::Simulation)
-	if (m_State == State::Simulation)
-	{
-
-		// --- キー入力による移動（デバッグ用などの加速への加算） ---
-		float moveSpeed = 0.01f;
-		Vector3 moveInput = Vector3::Zero;
-
-		if (Input::GetKeyPress(VK_W)) moveInput.z += 4.0f; // 奥へ
-		if (Input::GetKeyPress(VK_S)) moveInput.z -= 4.0f; // 手前へ
-		if (Input::GetKeyPress(VK_A)) moveInput.x -= 4.0f; // 左へ
-		if (Input::GetKeyPress(VK_D)) moveInput.x += 4.0f; // 右へ
-
-		if (moveInput != Vector3::Zero)
-		{
-			moveInput.Normalize();
-			m_Velocity += moveInput * moveSpeed;
-		}
-
-		// 速度が0に近づいたら停止判定
-		if (m_Velocity.LengthSquared() < 0.03f)
-		{
-			m_StopCount++;
-		}
-		else
-		{
-			m_StopCount = 0;
-
-			// 摩擦（減速）の計算
-			float deceleratisonPower = m_Friction;
-
-			Vector3 deceleration = -m_Velocity;	// 速度の逆ベクトルを計算
-			deceleration.Normalize();			// ベクトルを正規化
-			m_Acceleration = deceleration * deceleratisonPower;
-
-			// 加速度を速度に加算
-			m_Velocity += m_Acceleration;
-		}
-
-		// 10フレーム連続でほぼ動いていなければ静止状態へ
-		if (m_StopCount > 10)
-		{
-			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);
-			// 状態の代入を enum class に変更 (1 ➔ State::Idle)
-			m_State = State::Idle;
-		}
-
-		// 下に落ちたときはリスポーン
-		if (m_Transform.position.y < -100)
-		{
-			m_Transform.position = Vector3(0.0f, 50.0f, 0.0f); // リスポーン座標
-			m_Velocity = Vector3(0.0f, 0.0f, 0.0f);	// 速度リセット
-			m_TrajectoryPositions.clear(); // 軌跡を消す
-		}
-
-		// Poleの位置を取得してカップイン判定
-		vector<Pole*> pole = Game::GetInstance()->GetObjects<Pole>();
-		if (pole.size() > 0)
-		{
-			Vector3 polePos = pole[0]->GetPosition();
-			Collision::Sphere balCollision = { m_Transform.position, m_Radius };
-			Collision::Sphere poleCollision = { polePos, 0.5f };
-
-			if (Collision::CheckHit(balCollision, poleCollision))
-			{
-				// 状態の代入を enum class に変更 (2 ➔ State::Goal)
-				m_State = State::Goal;
-			}
-		}
-
-		// 軌跡を追加する処理
-		// ★ 修正点: ここも整数ではなく列挙型でチェック
-		if (m_State == State::Simulation)
-		{
-			float stepSize = 1.5f;
-
-			Vector3 vecToCurrent = m_Transform.position - m_LastTrailPos;
-			float dist = vecToCurrent.Length();
-
-			if (dist >= stepSize)
-			{
-				vecToCurrent.Normalize();
-				while (dist >= stepSize)
-				{
-					m_LastTrailPos += vecToCurrent * stepSize;
-					m_TrajectoryPositions.push_back({ m_LastTrailPos, m_CurrentFrame, 1.0f });
-					dist -= stepSize;
-				}
-			}
-		}
-
-		// カメラ方向による移動（※必要に応じてmoveInputの計算に組み込んでください）
-		float dir = Camera::GetInstance().GetCameraDirection();
-		Vector3 forward(sin(dir), 0, cos(dir));
-		Vector3 right(cos(dir), 0, -sin(dir));
-		float speed = 0.5f;
-	}
-	// ▼ if (m_State == State::Simulation) { ... } の直後に追加 ▼
-
-	else if (m_State == State::Idle)
-	{
-		// TC-19: Simulation 中は到達しないため UpdateAim() は呼ばれない
-		UpdateAim();  // 内部で GameState をチェックして処理を振り分ける
-	}
-
-
-	// --- 軌跡の削除・更新処理 ---
-	int expirationFrame = m_CurrentFrame - TRAIL_DURATION_FRAMES;
-
-	while (!m_TrajectoryPositions.empty() &&
-		m_TrajectoryPositions.front().timestamp < expirationFrame)
-	{
-		m_TrajectoryPositions.erase(m_TrajectoryPositions.begin());
-	}
-
-	for (auto& point : m_TrajectoryPositions)
-	{
-		int remainingFrames = TRAIL_DURATION_FRAMES - (m_CurrentFrame - point.timestamp);
-		point.lifeRatio = max(0.0f, (float)remainingFrames / TRAIL_DURATION_FRAMES);
-	}
-
-	// 物理演算を更新（BallBaseから受け継いだ座標更新処理など）
-	UpdatePhysics();
-
-	// カメラを追従させる
-	//Camera::GetInstance().SetTarget(m_Transform.position);
+	UpdateTrailLife();           // 軌跡の寿命とフェードを更新する
+	UpdatePhysics();             // BallBase側の物理更新を行う
 }
 
-//=======================================
-//描画処理
-//=======================================
 void PlayerBall::Draw(Camera* cam)
 {
 	if (IsDefeated())
 	{
 		return;
 	}
+
 	//カメラを選択する
 	cam->SetCamera();
-
-	//カメラを追従させる
-	//cam->SetTarget(m_Position);//カメラのターゲットを更新
 
 	m_Shader.SetGPU();
 
@@ -242,56 +101,62 @@ void PlayerBall::Draw(Camera* cam)
 
 	for (const auto& trailPoint : m_TrajectoryPositions)
 	{
-
-		const auto& pos = trailPoint.position;//座標情報を取り出す
+		const auto& pos = trailPoint.position;    //座標情報を取り出す
 
 		float fade = trailPoint.lifeRatio;
 
 		// フェードアウトに合わせてスケールを変化させる
 		// 軌跡のスケールをfadeに比例させて、消える直前に小さくする
 		float baseScale = 0.8f;
-		float currentScare = baseScale * fade;
+		float currentScale = baseScale * fade;
 
 		// 最小スケールを設ける
-		currentScare = max(0.01f, currentScare);
+		currentScale = max(0.01f, currentScale);
 
-		// 軌跡は少し小さくする (0.5倍)
-		Matrix r = Matrix::Identity; // 回転なし
+		// 軌跡は少し小さくする
+		Matrix r = Matrix::Identity;    // 回転なし
 		Matrix t = Matrix::CreateTranslation(pos);
-		Matrix s = Matrix::CreateScale(m_Transform.scale.x * currentScare, m_Transform.scale.y * currentScare, m_Transform.scale.z * currentScare);
+		Matrix s = Matrix::CreateScale(
+			m_Transform.scale.x * currentScale,
+			m_Transform.scale.y * currentScale,
+			m_Transform.scale.z * currentScale);
 
 		Matrix worldmtx = s * r * t;
 		DrawMesh(worldmtx);
 	}
 
-	// 1. 本来の向き（移動方向などを表す回転）
-	Matrix rDirection = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
+	// 本来の向き（移動方向などを表す回転）
+	Matrix rDirection = Matrix::CreateFromYawPitchRoll(
+		m_Transform.rotation.y,
+		m_Transform.rotation.x,
+		m_Transform.rotation.z);
 
-	// 2. 転がりの回転
+	// 転がりの回転
 	Matrix rRolling = Matrix::CreateFromQuaternion(m_RollingRotation);
 
 	// 3. 行列の合成：転がり(rRolling)を適用した後に、本来の向き(rDirection)を合わせる
 	Matrix r = rDirection * rRolling;
-	Matrix t = Matrix::CreateTranslation(m_Transform.position.x, m_Transform.position.y, m_Transform.position.z);
-	Matrix s = Matrix::CreateScale(m_Transform.scale.x, m_Transform.scale.y, m_Transform.scale.z);
+	Matrix t = Matrix::CreateTranslation(
+		m_Transform.position.x,
+		m_Transform.position.y,
+		m_Transform.position.z);
+	Matrix s = Matrix::CreateScale(
+		m_Transform.scale.x,
+		m_Transform.scale.y,
+		m_Transform.scale.z);
 
 	Matrix worldmtx = s * r * t;
 	DrawMesh(worldmtx);
+
 	// ★ 弾道予測線の描画（新しいメソッド）
 	DrawTrajectoryLine();
 }
 
-//=======================================
-//終了処理
-//=======================================
 void PlayerBall::Uninit()
 {
-
+	// 現時点では解放が必要な専用リソースはない
 }
 
-// =======================================
-// 倒された時の処理（HPが0になったとき）
-// =======================================
 void PlayerBall::Defeat()
 {
 	BallBase::Defeat();
@@ -300,9 +165,6 @@ void PlayerBall::Defeat()
 	Game::GetInstance()->SetGameState(GameState::GameOver);
 }
 
-//=======================================
-//ポケットに入ったときの処理
-//=======================================
 void PlayerBall::OnPocketHit()
 {
 	// HPを減らす処理
@@ -321,13 +183,188 @@ void PlayerBall::OnPocketHit()
 
 void PlayerBall::TakeDamage(int damage)
 {
-	Damage(damage);
+	Damage(damage);    // BallBase側のダメージ処理を呼ぶ
 }
 
-//=======================================
-// マウス位置を床面上のワールド座標にするため、画面座標からレイを飛ばす。
-// 呼び出し条件: PlayerBall::State::Idle の時のみ
-//=======================================
+void PlayerBall::UpdateSimulation()
+{
+	UpdateDebugMove();          // デバッグ用のWASD加速を反映する
+	UpdateStopByFriction();     // 摩擦による減速と停止判定を行う
+	CheckFallRespawn();         // 落下していたらリスポーンする
+	CheckCupIn();               // カップに入ったか確認する
+
+	if (m_State == State::Simulation)
+	{
+		AddTrailPoint();         // まだ移動中なら軌跡を追加する
+	}
+}
+
+void PlayerBall::UpdateDebugMove()
+{
+	const float moveSpeed = 0.01f;           // デバッグ移動の加速度
+	Vector3 moveInput = Vector3::Zero;   // WASD入力から作る移動方向
+
+	if (Input::GetKeyPress(VK_W)) moveInput.z += 4.0f;
+	if (Input::GetKeyPress(VK_S)) moveInput.z -= 4.0f;
+	if (Input::GetKeyPress(VK_A)) moveInput.x -= 4.0f;
+	if (Input::GetKeyPress(VK_D)) moveInput.x += 4.0f;
+
+	if (moveInput == Vector3::Zero) return;  // 入力がない場合は速度を変えない
+
+	moveInput.Normalize();                   // 斜め移動が速くならないように正規化する
+	m_Velocity += moveInput * moveSpeed;     // 入力方向へ速度を加算する
+}
+
+void PlayerBall::UpdateStopByFriction()
+{
+	if (m_Velocity.LengthSquared() < 0.03f)
+	{
+		m_StopCount++;                         // ほぼ停止しているフレーム数を数える
+	}
+	else
+	{
+		m_StopCount = 0;                       // 動いている場合は停止カウントをリセットする
+
+		Vector3 deceleration = -m_Velocity;    // 速度と逆方向に減速させる
+		deceleration.Normalize();             // 摩擦方向だけを使うため正規化する
+
+		m_Acceleration = deceleration * m_Friction;
+		m_Velocity += m_Acceleration;
+	}
+
+	if (m_StopCount > 10)
+	{
+		m_Velocity = Vector3::Zero;            // 完全停止として速度を0にする
+		m_State = State::Idle;                 // ショット待ち状態へ戻す
+	}
+}
+
+void PlayerBall::CheckFallRespawn()
+{
+	if (m_Transform.position.y >= -100.0f) return;       // 一定以下に落ちていなければ何もしない
+
+	m_Transform.position = Vector3(0.0f, 50.0f, 0.0f);   // リスポーン位置へ戻す
+	m_Velocity = Vector3::Zero;                          // 落下時の速度を消す
+	m_TrajectoryPositions.clear();                       // 落下前の軌跡を消す
+}
+
+void PlayerBall::CheckCupIn()
+{
+	auto poles = Game::GetInstance()->GetObjects<Pole>(); // シーン内のポールを取得する
+	if (poles.empty()) return;                           // ポールがない場合は判定しない
+
+	Collision::Sphere ballSphere = { m_Transform.position, m_Radius };
+	Collision::Sphere poleSphere = { poles[0]->GetPosition(), 0.5f };
+
+	if (Collision::CheckHit(ballSphere, poleSphere))
+	{
+		m_State = State::Goal;                            // 接触していればゴール状態にする
+	}
+}
+
+void PlayerBall::AddTrailPoint()
+{
+	const float stepSize = 1.5f;                         // 軌跡を追加する間隔
+
+	Vector3 toCurrent = m_Transform.position - m_LastTrailPos;
+	float dist = toCurrent.Length();              // 最後の軌跡点から現在位置までの距離
+
+	if (dist < stepSize) return;                         // 間隔未満なら軌跡は追加しない
+
+	toCurrent.Normalize();                               // 軌跡を等間隔で置くため移動方向だけにする
+
+	while (dist >= stepSize)
+	{
+		m_LastTrailPos += toCurrent * stepSize;
+		m_TrajectoryPositions.push_back({ m_LastTrailPos, m_CurrentFrame, 1.0f });
+		dist -= stepSize;
+	}
+}
+
+void PlayerBall::UpdateTrailLife()
+{
+	const int expirationFrame = m_CurrentFrame - TRAIL_DURATION_FRAMES;
+
+	while (!m_TrajectoryPositions.empty() &&
+		m_TrajectoryPositions.front().timestamp < expirationFrame)
+	{
+		m_TrajectoryPositions.erase(m_TrajectoryPositions.begin());
+	}
+
+	for (auto& point : m_TrajectoryPositions)
+	{
+		const int remainingFrames =
+			TRAIL_DURATION_FRAMES - (m_CurrentFrame - point.timestamp);
+
+		point.lifeRatio =
+			(max)(0.0f, static_cast<float>(remainingFrames) / TRAIL_DURATION_FRAMES);
+	}
+}
+
+void PlayerBall::UpdateAim()
+{
+	const bool imguiWantsMouse =
+		ImGui::GetCurrentContext() != nullptr &&
+		ImGui::GetIO().WantCaptureMouse;
+
+	const bool leftPressed =
+		Input::GetKeyTrigger(VK_LBUTTON) && !imguiWantsMouse;
+	const bool leftReleased =
+		Input::GetKeyRelease(VK_LBUTTON);
+	const bool rightPressed =
+		Input::GetKeyTrigger(VK_RBUTTON) && (!imguiWantsMouse || m_IsPowerDragging);
+
+	if (m_IsPowerDragging)
+	{
+		UpdateShotPowerFromMouseDrag();
+
+		if (rightPressed)
+		{
+			CancelMousePowerDrag();
+		}
+		else if (leftReleased)
+		{
+			UpdateShotPowerFromMouseDrag();
+			FireMouseShot();
+			return;
+		}
+	}
+	else
+	{
+		if (Game::GetInstance()->GetGameState() != GameState::AimingDirection)
+		{
+			Game::GetInstance()->SetGameState(GameState::AimingDirection);
+		}
+
+		UpdateAimDirectionFromMouse();
+
+		if (leftPressed)
+		{
+			//UpdateAimDirectionFromMouse();
+			BeginMousePowerDrag();
+		}
+		else if (rightPressed)
+		{
+			CancelMousePowerDrag();
+		}
+	}
+
+	bool previewChanged =
+		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
+		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
+		(m_Transform.position - m_LastPreviewPosition).LengthSquared() > 0.01f;
+
+	if (m_PreTrajectoryDirty || previewChanged || m_PrePositions.empty())
+	{
+		GeneratePreTrajectory(GetShotVector());
+
+		m_LastPreviewAimAngle = m_AimAngle;
+		m_LastPreviewShotPower = m_ShotPower;
+		m_LastPreviewPosition = m_Transform.position;
+		m_PreTrajectoryDirty = false;
+	}
+}
+
 bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 {
 	// ウィンドウハンドルを取得する
@@ -353,14 +390,15 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 	}
 
 	// ビューポートの計算（アスペクト比を維持するために黒帯を考慮）//
-
 	float viewportX = 0.0f;
 	float viewportY = 0.0f;
 	float viewportWidth = clientWidth;
 	float viewportHeight = clientHeight;
+
 	// ゲーム側が考慮する画面比
 	const float targetAspect = static_cast<float>(Application::GetWidth()) /
 		static_cast<float>(Application::GetHeight());
+
 	// 実際のウィンドウ比
 	const float windowAspect = clientWidth / clientHeight;
 
@@ -378,9 +416,8 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 		viewportY = (clientHeight - viewportHeight) * 0.5f;
 	}
 
-
 	// マウス位置をビューポート内に制限する（黒帯外のマウス位置は端に固定）
-	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();	// まだ画面上の2D座標
+	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();    // まだ画面上の2D座標
 
 	// マウス座標をビューポート内に制限する（画面外に行ったら、一番近い画面端に補正）
 	const float viewportRight = viewportX + viewportWidth;
@@ -463,17 +500,16 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 	return true;
 }
 
-// ボールからマウス位置への水平ベクトルで、ショット方向の角度を更新する。
 void PlayerBall::UpdateAimDirectionFromMouse()
 {
-	Vector3 aimPosition;
+	Vector3 aimPosition;                         // マウスが指している床上の座標
 	if (!TryGetMouseAimPosition(aimPosition))
 	{
 		return;
 	}
 
 	Vector3 aimVector = aimPosition - m_Transform.position;
-	aimVector.y = 0.0f;
+	aimVector.y = 0.0f;                           // 水平方向だけで角度を決める
 	if (aimVector.LengthSquared() <= 0.0001f)
 	{
 		return;
@@ -482,141 +518,59 @@ void PlayerBall::UpdateAimDirectionFromMouse()
 	m_AimAngle = static_cast<float>(std::atan2(aimVector.x, aimVector.z));
 }
 
-// 左クリック押下時の方向を固定し、ドラッグ開始位置と初期パワーを記録する。
 void PlayerBall::BeginMousePowerDrag()
 {
-	m_IsPowerDragging = true;
-	m_LockedAimAngle = m_AimAngle;
+	m_IsPowerDragging = true;                                             // パワードラッグ中にする
+	m_LockedAimAngle = m_AimAngle;                                        // クリック時点の角度を固定する
 	m_LockedShotDirection = Vector3(sin(m_LockedAimAngle), 0.0f, cos(m_LockedAimAngle));
-	m_LockedShotDirection.Normalize();
-	m_PowerDragStartMousePos = Input::GetMousePosition();
-	m_ShotPower = m_MinShotPower;
-	m_PreTrajectoryDirty = true;
+	m_LockedShotDirection.Normalize();                                    // ショット方向として使えるよう正規化する
+	m_PowerDragStartMousePos = Input::GetMousePosition();                 // パワー計算の基準位置を保存する
+	m_ShotPower = m_MinShotPower;                                         // ドラッグ開始時は最小パワーにする
+	m_PreTrajectoryDirty = true;                                          // 予測線を再計算対象にする
 	Game::GetInstance()->SetGameState(GameState::AimingPower);
 }
 
-// 固定方向を保ったまま、ドラッグ距離をショットパワーに変換する。
 void PlayerBall::UpdateShotPowerFromMouseDrag()
 {
-	m_AimAngle = m_LockedAimAngle;
-	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();
-	float dx = mousePos.x - m_PowerDragStartMousePos.x;
-	float dy = mousePos.y - m_PowerDragStartMousePos.y;
-	float dragDistance = std::sqrt(dx * dx + dy * dy);
-	float powerRatio = dragDistance / m_PixelsForMaxShotPower;
+	m_AimAngle = m_LockedAimAngle;                                        // ドラッグ中は方向を固定する
 
-	if (powerRatio < 0.0f)
-	{
-		powerRatio = 0.0f;
-	}
-	if (powerRatio > 1.0f)
-	{
-		powerRatio = 1.0f;
-	}
+	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();               // 現在のマウス座標を取得する
 
-	// 微小なマウス揺れで予測線が震えないよう、パワーを一定刻みに丸める。
-	float rawPower = m_MinShotPower + (m_MaxShotPower - m_MinShotPower) * powerRatio;
-	float steppedPower = std::floor(rawPower / m_PowerPreviewStep + 0.5f) * m_PowerPreviewStep;
+	const float dx = mousePos.x - m_PowerDragStartMousePos.x;             // ドラッグ開始位置からのX差分
+	const float dy = mousePos.y - m_PowerDragStartMousePos.y;             // ドラッグ開始位置からのY差分
+	const float dragDistance = std::sqrt(dx * dx + dy * dy);              // ドラッグ距離を計算する
 
-	if (steppedPower < m_MinShotPower)
-	{
-		steppedPower = m_MinShotPower;
-	}
-	if (steppedPower > m_MaxShotPower)
-	{
-		steppedPower = m_MaxShotPower;
-	}
+	const float powerRatio =
+		std::clamp(dragDistance / m_PixelsForMaxShotPower, 0.0f, 1.0f);    // 距離を0.0〜1.0の割合にする
 
-	m_ShotPower = steppedPower;
+	const float rawPower =
+		m_MinShotPower + (m_MaxShotPower - m_MinShotPower) * powerRatio;   // 割合からパワー値を計算する
+
+	const float steppedPower =
+		std::floor(rawPower / m_PowerPreviewStep + 0.5f) * m_PowerPreviewStep; // 予測線の揺れを抑えるため丸める
+
+	m_ShotPower = std::clamp(steppedPower, m_MinShotPower, m_MaxShotPower);
 }
 
-// 右クリック時はパワー調整を中止し、方向合わせ状態へ戻す。
 void PlayerBall::CancelMousePowerDrag()
 {
-	m_IsPowerDragging = false;
-	m_PreTrajectoryDirty = true;
-	Game::GetInstance()->SetGameState(GameState::AimingDirection);
+	m_IsPowerDragging = false;                                      // パワードラッグを終了する
+	m_PreTrajectoryDirty = true;                                    // 方向合わせに戻るため予測線を更新対象にする
+	Game::GetInstance()->SetGameState(GameState::AimingDirection);  // 方向合わせ状態へ戻す
 }
 
-// 左クリックを離したら、固定方向と現在パワーでショットを開始する。
 void PlayerBall::FireMouseShot()
 {
-	m_AimAngle = m_LockedAimAngle;
-	Shot(GetShotVector());
-	m_IsPowerDragging = false;
-	m_State = State::Simulation;
-	m_PrePositions.clear();
-	m_PreTrajectoryDirty = true;
-	m_StopCount = 0;
+	m_AimAngle = m_LockedAimAngle;                                  // 固定していた角度を現在角度に反映する
+	Shot(GetShotVector());                                          // 固定方向と現在パワーで速度を設定する
+	m_IsPowerDragging = false;                                      // パワードラッグを終了する
+	m_State = State::Simulation;                                    // 物理演算中に切り替える
+	m_PrePositions.clear();                                         // ショット開始後は予測線を消す
+	m_PreTrajectoryDirty = true;                                    // 次回停止後に予測線を再計算できるようにする
+	m_StopCount = 0;                                                // 停止判定カウントをリセットする
 	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
 
-// マウス入力の押下・ドラッグ・解放・キャンセルをショット操作に割り当てる。
-void PlayerBall::UpdateAim()
-{
-	const bool imguiWantsMouse =
-		ImGui::GetCurrentContext() != nullptr &&
-		ImGui::GetIO().WantCaptureMouse;
-
-	const bool leftPressed =
-		Input::GetKeyTrigger(VK_LBUTTON) && !imguiWantsMouse;
-	const bool leftReleased =
-		Input::GetKeyRelease(VK_LBUTTON);
-	const bool rightPressed =
-		Input::GetKeyTrigger(VK_RBUTTON) && (!imguiWantsMouse || m_IsPowerDragging);
-
-	if (m_IsPowerDragging)
-	{
-		UpdateShotPowerFromMouseDrag();
-
-		if (rightPressed)
-		{
-			CancelMousePowerDrag();
-		}
-		else if (leftReleased)
-		{
-			UpdateShotPowerFromMouseDrag();
-			FireMouseShot();
-			return;
-		}
-	}
-	else
-	{
-		if (Game::GetInstance()->GetGameState() != GameState::AimingDirection)
-		{
-			Game::GetInstance()->SetGameState(GameState::AimingDirection);
-		}
-
-		UpdateAimDirectionFromMouse();
-
-		if (leftPressed)
-		{
-			//UpdateAimDirectionFromMouse();
-			BeginMousePowerDrag();
-		}
-		else if (rightPressed)
-		{
-			CancelMousePowerDrag();
-		}
-	}
-
-	bool previewChanged =
-		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
-		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
-		(m_Transform.position - m_LastPreviewPosition).LengthSquared() > 0.01f;
-
-	if (m_PreTrajectoryDirty || previewChanged || m_PrePositions.empty())
-	{
-		GeneratePreTrajectory(GetShotVector());
-
-		m_LastPreviewAimAngle = m_AimAngle;
-		m_LastPreviewShotPower = m_ShotPower;
-		m_LastPreviewPosition = m_Transform.position;
-		m_PreTrajectoryDirty = false;
-	}
-}
-
-// ショット速度を作るため、ドラッグ中は固定方向、それ以外は現在方向を使う。
 Vector3 PlayerBall::GetShotVector() const
 {
 	// TC-18: m_AimAngle=0, m_ShotPower=5 → Vector3(sin(0),0,cos(0))×5 = Vector3(0,0,5)
@@ -628,9 +582,6 @@ Vector3 PlayerBall::GetShotVector() const
 	return Vector3(sin(m_AimAngle), 0.0f, cos(m_AimAngle)) * m_ShotPower;
 }
 
-//=======================================
-// 弾道予測を生成する関数
-//=======================================
 void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
 	m_PrePositions.clear();
@@ -654,7 +605,6 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 	Vector3 simPosition = m_Transform.position;
 	Vector3 simVelocity = initialVelocity;
 	Vector3 simAcceleration;
-
 
 	std::vector<Collision::Segment> walls;
 	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
@@ -868,7 +818,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 		}
 	}
 }
-// ★ 新規メソッド: 弾道予測用の描画モデルを初期化
+
 void PlayerBall::InitTrajectoryVisualModel()
 {
 	// ★ PreviewMeshの初期化
@@ -902,64 +852,6 @@ void PlayerBall::InitTrajectoryVisualModel()
 	subset.IndexBase = 0;
 	subset.VertexBase = 0;
 	m_PreviewSubsets.push_back(subset);
-}
-void PlayerBall::DrawGuideSegment(
-	const DirectX::SimpleMath::Vector3& start,
-	const DirectX::SimpleMath::Vector3& end,
-	float thickness,
-	float yOffset,
-	int materialIndex)
-{
-	if (materialIndex < 0 || materialIndex >= static_cast<int>(m_PreviewMaterials.size()))
-	{
-		return;
-	}
-
-	Vector3 startPos = start;
-	Vector3 endPos = end;
-	startPos.y += yOffset;
-	endPos.y += yOffset;
-
-	Vector3 forward = endPos - startPos;
-	float distance = forward.Length();
-	if (distance <= 0.0001f)
-	{
-		return;
-	}
-
-	forward /= distance;
-
-	Vector3 midPos = (startPos + endPos) * 0.5f;
-	Matrix s = Matrix::CreateScale(thickness, thickness, distance);
-	Matrix rt = Matrix::CreateWorld(midPos, forward, Vector3::Up);
-	Matrix worldmtx = s * rt;
-
-	Renderer::SetWorldMatrix(&worldmtx);
-	m_PreviewMaterials[materialIndex]->SetGPU();
-	m_PreviewMeshRenderer.DrawSubset(
-		m_PreviewSubsets[0].IndexNum,
-		m_PreviewSubsets[0].IndexBase,
-		m_PreviewSubsets[0].VertexBase);
-}
-
-void PlayerBall::DrawGuideCircle(
-	const DirectX::SimpleMath::Vector3& center,
-	float radius,
-	float thickness,
-	float yOffset,
-	int materialIndex)
-{
-	const int segmentCount = 48;
-
-	for (int i = 0; i < segmentCount; ++i)
-	{
-		float angle0 = DirectX::XM_2PI * static_cast<float>(i) / static_cast<float>(segmentCount);
-		float angle1 = DirectX::XM_2PI * static_cast<float>(i + 1) / static_cast<float>(segmentCount);
-
-		Vector3 p0 = center + Vector3(cos(angle0) * radius, 0.0f, sin(angle0) * radius);
-		Vector3 p1 = center + Vector3(cos(angle1) * radius, 0.0f, sin(angle1) * radius);
-		DrawGuideSegment(p0, p1, thickness, yOffset, materialIndex);
-	}
 }
 
 void PlayerBall::DrawTrajectoryLine()
@@ -1034,6 +926,65 @@ void PlayerBall::DrawTrajectoryLine()
 	Renderer::SetDepthEnable(true);
 }
 
+void PlayerBall::DrawGuideSegment(
+	const DirectX::SimpleMath::Vector3& start,
+	const DirectX::SimpleMath::Vector3& end,
+	float thickness,
+	float yOffset,
+	int materialIndex)
+{
+	if (materialIndex < 0 || materialIndex >= static_cast<int>(m_PreviewMaterials.size()))
+	{
+		return;
+	}
+
+	Vector3 startPos = start;                       // 描画開始位置
+	Vector3 endPos = end;                         // 描画終了位置
+	startPos.y += yOffset;                          // 床と重ならないように少し上げる
+	endPos.y += yOffset;                            // 床と重ならないように少し上げる
+
+	Vector3 forward = endPos - startPos;            // 線分の向き
+	float distance = forward.Length();             // 線分の長さ
+	if (distance <= 0.0001f)
+	{
+		return;
+	}
+
+	forward /= distance;                            // CreateWorldに渡すため方向だけにする
+
+	Vector3 midPos = (startPos + endPos) * 0.5f;    // 線分の中央にメッシュを配置する
+	Matrix s = Matrix::CreateScale(thickness, thickness, distance);
+	Matrix rt = Matrix::CreateWorld(midPos, forward, Vector3::Up);
+	Matrix worldmtx = s * rt;
+
+	Renderer::SetWorldMatrix(&worldmtx);
+	m_PreviewMaterials[materialIndex]->SetGPU();
+	m_PreviewMeshRenderer.DrawSubset(
+		m_PreviewSubsets[0].IndexNum,
+		m_PreviewSubsets[0].IndexBase,
+		m_PreviewSubsets[0].VertexBase);
+}
+
+void PlayerBall::DrawGuideCircle(
+	const DirectX::SimpleMath::Vector3& center,
+	float radius,
+	float thickness,
+	float yOffset,
+	int materialIndex)
+{
+	const int segmentCount = 48;                    // 円を構成する線分数
+
+	for (int i = 0; i < segmentCount; ++i)
+	{
+		float angle0 = DirectX::XM_2PI * static_cast<float>(i) / static_cast<float>(segmentCount);
+		float angle1 = DirectX::XM_2PI * static_cast<float>(i + 1) / static_cast<float>(segmentCount);
+
+		Vector3 p0 = center + Vector3(cos(angle0) * radius, 0.0f, sin(angle0) * radius);
+		Vector3 p1 = center + Vector3(cos(angle1) * radius, 0.0f, sin(angle1) * radius);
+		DrawGuideSegment(p0, p1, thickness, yOffset, materialIndex);
+	}
+}
+
 void PlayerBall::DrawImGui()
 {
 	// 親クラスの共通UIを呼ぶ
@@ -1047,6 +998,7 @@ void PlayerBall::DrawImGui()
 		// エイム情報
 		ImGui::SliderFloat("Aim Angle", &m_AimAngle, -3.14159265f, 3.14159265f);
 		ImGui::SliderFloat("Shot Power", &m_ShotPower, m_MinShotPower, m_MaxShotPower);
+
 		// 現在の GameState 表示
 		const char* gsStr = "";
 		switch (Game::GetInstance()->GetGameState())
@@ -1056,9 +1008,9 @@ void PlayerBall::DrawImGui()
 		case GameState::ConfirmShot:     gsStr = "ConfirmShot";     break;
 		case GameState::BallsMoving:     gsStr = "BallsMoving";     break;
 		case GameState::TurnEnd:         gsStr = "TurnEnd";         break;
-		case GameState::EnemyAttack:	 gsStr = "EnemyAttack";		break;
-		case GameState::ClearReward:	 gsStr = "ClearReward";		break;
-		case GameState::GameOver:		 gsStr = "GameOver";			break;
+		case GameState::EnemyAttack:     gsStr = "EnemyAttack";     break;
+		case GameState::ClearReward:     gsStr = "ClearReward";     break;
+		case GameState::GameOver:        gsStr = "GameOver";        break;
 		}
 		ImGui::Text("GameState: %s", gsStr);
 
