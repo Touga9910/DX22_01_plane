@@ -7,12 +7,14 @@
 #include "utility.h"
 #include "Material.h"
 #include "Collision.h"
+#include "BallStatus.h"
 
 class BallBase : public Object {
 protected:
     // --- 共通のステータス ---
+	BallStatus m_Status;            // ステータス構造体
+
     int m_HP = 3;               // 現在のHP
-    int m_MaxHP = 3;            // 最大HPや初期HP
 	bool m_IsDefeated = false;  // 敗北フラグ
 
     DirectX::SimpleMath::Vector3 m_InitialPosition = DirectX::SimpleMath::Vector3::Zero;
@@ -74,23 +76,42 @@ public:
 
     bool IsDefeated() const { return m_IsDefeated; }
 
-    int GetHP() const { return m_HP; }
-    int GetMaxHP() const { return m_MaxHP; }
-    DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Velocity; }
-    float GetRadius() const { return m_Radius; }
 
-    void SetHP(int hp) { m_HP = hp; }
-    void SetMaxHP(int maxHp) { m_MaxHP = maxHp; }
-
-    void ResetDefeated()
+    // -------------------------
+    // ステータス設定関連
+    // -------------------------
+    void SetStatus(const BallStatus& status)
     {
+        m_Status = status;
+        m_HP = m_Status.maxHp;
         m_IsDefeated = false;
     }
 
-    bool IsHpZero() const
+    const BallStatus& GetStatus() const { return m_Status; }
+
+    // HP設定
+    int GetHP() const { return m_HP; }
+    int GetMaxHP() const { return m_Status.maxHp; }
+    void SetHP(int hp) { m_HP = hp; }
+    void SetMaxHP(int maxHp)
     {
-        return m_HP <= 0;
+        m_Status.maxHp = maxHp;
+
+        if (m_HP > m_Status.maxHp)
+        {
+            m_HP = m_Status.maxHp;
+        }
     }
+
+	// 攻撃力・防御力設定
+    int GetAttack() const { return m_Status.attack; }
+    int GetDefense() const { return m_Status.defense; }
+
+    // その他設定
+    DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Velocity; }
+    float GetRadius() const { return m_Radius; }
+    void ResetDefeated() { m_IsDefeated = false; }
+    bool IsHpZero() const { return m_HP <= 0; }
 
     // ボールが停止しているかを判定（速度の二乗ノルムが閾値未満なら true）
     // PlayerBall / EnemyBall の既存停止閾値（0.03f）と統一

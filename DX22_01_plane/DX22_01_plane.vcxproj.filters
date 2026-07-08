@@ -52,11 +52,26 @@
     <Filter Include="ソース ファイル\IMgui">
       <UniqueIdentifier>{8c7dbc3d-bb96-4b2d-819f-b4fbb79ed882}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ソース ファイル\オブジェクト関連\オブジェクトの設定">
-      <UniqueIdentifier>{9d6f52ec-7722-452f-b0a7-b63701477fa8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ヘッダー ファイル\オブジェクト関連\オブジェクトの設定">
       <UniqueIdentifier>{e4efbb4a-af95-4b12-b321-6084a80e5170}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\オブジェクト関連\設定">
+      <UniqueIdentifier>{9d6f52ec-7722-452f-b0a7-b63701477fa8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連">
+      <UniqueIdentifier>{815ab93a-4900-4b6c-95a2-6018dad35f20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連">
+      <UniqueIdentifier>{cbc709d2-52d7-45fc-b13e-c51afaa41719}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連">
+      <UniqueIdentifier>{06bd0471-29bb-4713-806a-0242facf3e68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連">
+      <UniqueIdentifier>{e3b18e1a-f346-4992-8b09-1700314a75fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JSON">
+      <UniqueIdentifier>{6375ba00-242a-4c6b-ac10-405e3008248d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -89,12 +104,6 @@
     </ClCompile>
     <ClCompile Include="AssimpPerse.cpp">
       <Filter>ソース ファイル\オブジェクト関連</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerBall.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
-    <ClCompile Include="Ground.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="TestPlane.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
@@ -177,26 +186,35 @@
     <ClCompile Include="imgui\imgui_widgets.cpp">
       <Filter>ソース ファイル\IMgui</Filter>
     </ClCompile>
-    <ClCompile Include="BallBase.cpp">
-      <Filter>ソース ファイル\オブジェクト関連</Filter>
-    </ClCompile>
     <ClCompile Include="StageBase.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerBall.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClCompile>
     <ClCompile Include="EnemyBall.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClCompile>
+    <ClCompile Include="BallBase.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClCompile>
+    <ClCompile Include="Ground.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
     <ClCompile Include="TrajectoryModel.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="TableFrame.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="Pocket.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="StageDataLoader.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="PlayerBall.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
-    <ClInclude Include="Ground.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
     <ClInclude Include="TestCube.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
@@ -329,17 +347,44 @@
     <ClInclude Include="transform.h">
       <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
     </ClInclude>
-    <ClInclude Include="BallBase.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
+    <ClInclude Include="BallStatus.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
-    <ClInclude Include="StageBase.h">
-      <Filter>ヘッダー ファイル</Filter>
+    <ClInclude Include="EnemyData.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="StageData.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBall.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClInclude>
     <ClInclude Include="EnemyBall.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClInclude>
+    <ClInclude Include="BallBase.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClInclude>
+    <ClInclude Include="Ground.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="TrajectoryModel.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="Pocket.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="TableFrame.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="StageBase.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="TableConfig.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="StageDataLoader.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -360,8 +405,11 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="EnemySettings.json">
-      <Filter>ソース ファイル</Filter>
+    <None Include="assets\data\enemy_data.json">
+      <Filter>JSON</Filter>
+    </None>
+    <None Include="assets\data\stage_01.json">
+      <Filter>JSON</Filter>
     </None>
   </ItemGroup>
 </Project>

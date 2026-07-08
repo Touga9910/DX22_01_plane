@@ -12,28 +12,38 @@ using namespace DirectX::SimpleMath;
 //=======================================
 void EnemyBall::Init()
 {
-    m_MaxHP = 3;
-    m_HP = m_MaxHP;
+    EnemyData data;
+    Init(data);
+}
 
-    // 1. 敵用のモデルを読み込む (Playerと違うモデルやテクスチャを指定可能)
-    LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
+// EnemyDataからの情報を元に初期化する関数
+void EnemyBall::Init(const EnemyData& data)
+{
+    m_EnemyData = data;
 
-    // 2. 初期座標の設定 (あとで配置マネージャーなどから設定できるようにすると良い)
-    m_Transform.position = m_InitPosition;
+    SetStatus(m_EnemyData.status);
 
-    // スケール調整
-    m_Transform.scale = Vector3(2.0f, 2.0f, 2.0f);
+    LoadModel(
+        m_EnemyData.modelFilePath.c_str(),
+        m_EnemyData.textureDirectory.c_str()
+    );
+
+    m_Transform.position = m_EnemyData.initPosition;
+
+    m_Transform.scale = m_EnemyData.scale;
     UpdateRadius();
 
-    // Groundから台の高さを取得して合わせる
     std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
     if (!grounds.empty())
     {
         m_Transform.position.y = grounds[0]->GetFieldHeight();
     }
 
-    // 初期速度（最初は止まっている、あるいはゆっくり動かす）
     m_Velocity = Vector3::Zero;
+    m_Acceleration = Vector3::Zero;
+    m_CurrentFrame = 0;
+
+    ResetDefeated();
 }
 
 //=======================================
@@ -132,15 +142,19 @@ void EnemyBall::Attack(PlayerBall* player)
         return;
     }
 
-    player->TakeDamage(m_AttackPower);
+    player->TakeDamage(GetAttack());
 }
 // ImGUIによるステータス確認
 void EnemyBall::DrawImGui(const std::string& label)
 {
+    
     BallBase::DrawImGui(label); // 共通UIを呼ぶ
 
+    /*
     if (ImGui::CollapsingHeader((label + " Detail").c_str()))
     {
         ImGui::Text("Frame: %d", m_CurrentFrame);
     }
+    */
+    
 }

@@ -3,6 +3,9 @@
 #include "Input.h"
 #include "PlayerBall.h"
 #include "EnemyBall.h"
+#include "EnemyData.h"
+#include "StageDataLoader.h"
+
 #include "Ground.h"
 #include "TableFrame.h"
 #include "Pocket.h"
@@ -41,7 +44,7 @@ void Stage1Scene::Init()
 	m_MySceneObjects.emplace_back(tableFrame);
 
 	// ========================================================
-	// ★ TableFrame のポケット位置を元に Pocket を生成
+	// TableFrame のポケット位置を元に Pocket を生成
 	// ========================================================
 	std::vector<Collision::Sphere> pocketSpheres = tableFrame->GetPocketSpheres();
 
@@ -57,24 +60,18 @@ void Stage1Scene::Init()
 	// ========================================================
 	// エネミー（EnemyBall）の出現処理
 	// ========================================================
-	// 例として、ステージ1に3体のエネミーをそれぞれ違う位置に出現させます
-	Vector3 enemyPositions[] = {
-		Vector3(50.0f,  0.0f, -20.0f),
-		Vector3(-50.0f, 0.0f, -30.0f),
-		//Vector3(0.0f,   0.0f, -20.0f),
-		/*
-		Vector3(50.0f,   0.0f, 40.0f),
-		Vector3(50.0f,   0.0f, 30.0f),
-		Vector3(50.0f,   0.0f, 20.0f),
-		Vector3(50.0f,   0.0f, 10.0f),
-		Vector3(50.0f,   0.0f, 0.0f),
-		Vector3(50.0f,   0.0f, -10.0f),
-		*/
-	};
+	StageData stageData = StageDataLoader::Load(
+		"assets/data/stage_01.json",
+		"assets/data/enemy_data.json"
+	);
 
-	for (const auto& pos : enemyPositions)
+	m_Par = stageData.par;
+
+	for (const EnemyData& enemyData : stageData.enemies)
 	{
-		EnemyBall* enemy = Game::GetInstance()->AddObjectWithPosition<EnemyBall>(pos);
+		EnemyBall* enemy = Game::GetInstance()->AddObject<EnemyBall>();
+		enemy->Init(enemyData);
+
 		m_MySceneObjects.emplace_back(enemy);
 	}
 

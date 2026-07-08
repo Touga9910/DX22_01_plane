@@ -21,8 +21,13 @@ using namespace DirectX::SimpleMath;
 //=======================================
 void PlayerBall::Init()
 {
-	m_MaxHP = 10;
-	m_HP = m_MaxHP;
+	// ステータス設定
+	BallStatus status;
+	status.maxHp = 10;
+	status.attack = 1;
+	status.defense = 0;
+
+	SetStatus(status);
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");

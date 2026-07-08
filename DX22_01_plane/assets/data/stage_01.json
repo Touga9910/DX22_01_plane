@@ -1,0 +1,22 @@
+{
+  "stageId": "stage_01",
+  "par": 4,
+  "enemySpawns": [
+    {
+      "enemyId": "enemy_normal",
+      "initPosition": {
+        "x": 50.0,
+        "y": 0.0,
+        "z": -20.0
+      }
+    },
+    {
+      "enemyId": "enemy_strong",
+      "initPosition": {
+        "x": -50.0,
+        "y": 0.0,
+        "z": -30.0
+      }
+    }
+  ]
+}

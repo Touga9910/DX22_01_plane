@@ -1,5 +1,6 @@
 #pragma once
 #include "BallBase.h"
+#include "EnemyData.h"
 
 class PlayerBall;
 
@@ -8,6 +9,8 @@ class EnemyBall : public BallBase
 public:
     EnemyBall() = default;
     ~EnemyBall() = default;
+
+    void Init(const EnemyData& data);
 
     void Init() override;
     void Update() override;
@@ -28,8 +31,7 @@ private:
     // 例: 敵の種類、HP、あるいは自律移動用のタイマーなど
     int m_CurrentFrame = 0;
 
-	// 敵の攻撃力を保持する変数
-    int m_AttackPower = 1;
+	EnemyData m_EnemyData;  // 敵のデータを保持する変数
 
     // 敵の初期位置を保持する変数
     DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);

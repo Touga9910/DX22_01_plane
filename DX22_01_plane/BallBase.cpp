@@ -21,9 +21,18 @@ void BallBase::Damage(int damage)
 		return;
 	}
 
-	m_HP -= damage;
+	// 防御力を考慮したダメージ計算
+	int finalDamage = damage - m_Status.defense;
 
-	if (m_HP <= 0)
+	if (finalDamage < 1)
+	{
+		finalDamage = 1;
+	}
+
+	m_HP -= finalDamage;
+
+	// HPが0以下になった場合は倒された状態にする
+	if (IsHpZero())
 	{
 		Defeat();
 	}
@@ -375,8 +384,10 @@ void BallBase::DrawImGui(const std::string& label)
 			m_Transform.position.y,
 			m_Transform.position.z);
 
-		// HP（読み取り専用で表示）
-		ImGui::Text("HP: %d", m_HP);
+		// ステータス状態
+		ImGui::Text("HP: %d / %d", m_HP, m_Status.maxHp);
+		ImGui::Text("Attack: %d", m_Status.attack);
+		ImGui::Text("Defense: %d", m_Status.defense);
 
 		// 反発係数
 		ImGui::SliderFloat("Restitution", &m_Restitution, 0.0f, 1.0f);

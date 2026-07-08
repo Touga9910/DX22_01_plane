@@ -173,6 +173,7 @@
     <ClCompile Include="Stage1Scene.cpp" />
     <ClCompile Include="Stage3Scene.cpp" />
     <ClCompile Include="StageBase.cpp" />
+    <ClCompile Include="StageDataLoader.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
@@ -205,9 +206,11 @@
     </ClInclude>
     <ClInclude Include="AssimpPerse.h" />
     <ClInclude Include="BallBase.h" />
+    <ClInclude Include="BallStatus.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collision.h" />
     <ClInclude Include="EnemyBall.h" />
+    <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="PlayerBall.h" />
     <ClInclude Include="Ground.h" />
@@ -238,6 +241,8 @@
     <ClInclude Include="Stage2Scene.h" />
     <ClInclude Include="Stage3Scene.h" />
     <ClInclude Include="StageBase.h" />
+    <ClInclude Include="StageData.h" />
+    <ClInclude Include="StageDataLoader.h" />
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
@@ -278,7 +283,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="EnemySettings.json" />
+    <None Include="assets\data\enemy_data.json" />
+    <None Include="assets\data\stage_01.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

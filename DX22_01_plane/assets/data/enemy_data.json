@@ -1,0 +1,38 @@
+{
+  "enemies": [
+    {
+      "id": "enemy_normal",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 3,
+        "attack": 1,
+        "defense": 0
+      },
+      "scale": {
+        "x": 2.0,
+        "y": 2.0,
+        "z": 2.0
+      },
+      "rewardMoney": 0,
+      "rewardExp": 0
+    },
+    {
+      "id": "enemy_strong",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 6,
+        "attack": 2,
+        "defense": 1
+      },
+      "scale": {
+        "x": 2.2,
+        "y": 2.2,
+        "z": 2.2
+      },
+      "rewardMoney": 10,
+      "rewardExp": 5
+    }
+  ]
+}
