@@ -115,18 +115,28 @@ private:
 
 
 	// --- Arrow 機能統合（旧 Arrow クラスの変数を PlayerBall に移管）---
-	float m_AimAngle = 0.0f;             // エイム方向（ラジアン）
-	float m_ShotPower = 5.0f;            // 現在のショットパワー
-	const float m_MinShotPower = 1.0f;   // パワー下限
-	const float m_MaxShotPower = 15.0f;  // パワー上限
-	const float m_PowerStep = 0.1f;      // 1フレームあたりのパワー変化量
+	float m_AimAngle = 0.0f;				// エイム方向（ラジアン）
+	float m_ShotPower = 5.0f;				// 現在のショットパワー
+	const float m_MinShotPower = 1.0f;		// パワー下限
+	const float m_MaxShotPower = 8.0f;		// パワー上限
+	const float m_PowerStep = 0.1f;			// 1フレームあたりのパワー変化量
+	bool m_IsPowerDragging = false;			// パワー調整ドラッグ中かを保持する
+	float m_LockedAimAngle = 0.0f;			// クリック時に固定したショット角度
+	DirectX::SimpleMath::Vector3 m_LockedShotDirection = DirectX::SimpleMath::Vector3::UnitZ; // 固定したショット方向
+	DirectX::XMFLOAT2 m_PowerDragStartMousePos{};	// パワー計算の基準になるドラッグ開始位置
+	const float m_PixelsForMaxShotPower = 300.0f;	// 最大パワーに到達するドラッグ距離
+	const float m_PowerPreviewStep = 0.1f;			// 予測線の揺れを抑えるパワー更新刻み
 
 	// 旧 Arrow::Update() + Arrow::SetState() 相当
 	void UpdateAim();
-	// 旧 Arrow::Draw() 相当
-	void DrawArrow(Camera* cam);
-	// 旧 Arrow::GetVector() 相当（TC-18）
-	DirectX::SimpleMath::Vector3 GetShotVector() const;
+
+	bool TryGetMouseAimPosition(DirectX::SimpleMath::Vector3& aimPosition) const; // マウス位置を床面上の狙い位置に変換する
+	void UpdateAimDirectionFromMouse();			// ボールからマウス位置への方向にエイムを更新する
+	void BeginMousePowerDrag();					// 左クリック時の方向を固定してパワー調整を開始する
+	void UpdateShotPowerFromMouseDrag();		// ドラッグ距離からショットパワーを更新する
+	void CancelMousePowerDrag();				// 右クリックでパワー調整を中止する
+	void FireMouseShot();						// 固定方向と現在パワーでショットを実行する
+	DirectX::SimpleMath::Vector3 GetShotVector() const; // 状態に応じたショット速度ベクトルを取得する
 
 public:
 	void Init()override;
@@ -150,7 +160,7 @@ public:
 		m_TrajectoryModel = std::move(model);
 	}
 
-	// ★ 追加: 弾道予測モデルの選択
+	// 弾道予測モデルの選択
 	void SetTrajectoryVisualModel(TrajectoryVisualModel model)
 	{
 		m_TrajectoryVisualModel = model;

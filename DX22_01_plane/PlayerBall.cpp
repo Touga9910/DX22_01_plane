@@ -4,11 +4,14 @@
 #include"Ground.h"
 #include"TableFrame.h"
 #include"Camera.h"
+#include "Application.h"
 #include "Pole.h"
 #include "imgui/imgui.h"
 
 #include<random>
 #include<ctime>
+#include<algorithm>
+#include<cmath>
 
 using namespace std;
 using namespace DirectX::SimpleMath;
@@ -269,8 +272,6 @@ void PlayerBall::Draw(Camera* cam)
 
 	Matrix worldmtx = s * r * t;
 	DrawMesh(worldmtx);
-	// 矢印インジケーターを描画（旧 Arrow::Draw() 相当）
-	DrawArrow(cam);
 	// ★ 弾道予測線の描画（新しいメソッド）
 	DrawTrajectoryLine();
 }
@@ -319,52 +320,286 @@ void PlayerBall::TakeDamage(int damage)
 }
 
 //=======================================
-// エイム操作（旧 Arrow::Update() + StageBase のステートマシンを統合）
+// マウス位置を床面上のワールド座標にするため、画面座標からレイを飛ばす。
 // 呼び出し条件: PlayerBall::State::Idle の時のみ
 //=======================================
+bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
+{
+	// ウィンドウハンドルを取得する
+	HWND hwnd = Application::GetWindow();
+	if (hwnd == nullptr)
+	{
+		return false;
+	}
+
+	// ウィンドウ内の描画を取得する
+	RECT clientRect{};
+	if (!GetClientRect(hwnd, &clientRect))
+	{
+		return false;
+	}
+
+	// ウィンドウのクライアント領域の幅と高さを計算する
+	float clientWidth = static_cast<float>(clientRect.right - clientRect.left);
+	float clientHeight = static_cast<float>(clientRect.bottom - clientRect.top);
+	if (clientWidth <= 0.0f || clientHeight <= 0.0f)
+	{
+		return false;
+	}
+
+	// ビューポートの計算（アスペクト比を維持するために黒帯を考慮）//
+
+	float viewportX = 0.0f;
+	float viewportY = 0.0f;
+	float viewportWidth = clientWidth;
+	float viewportHeight = clientHeight;
+	// ゲーム側が考慮する画面比
+	const float targetAspect = static_cast<float>(Application::GetWidth()) /
+		static_cast<float>(Application::GetHeight());
+	// 実際のウィンドウ比
+	const float windowAspect = clientWidth / clientHeight;
+
+	// アスペクト比を維持するために黒帯を考慮してビューポートを計算（黒帯でにマウスを向けても狙いがずれない）
+	if (windowAspect > targetAspect)
+	{
+		viewportHeight = clientHeight;
+		viewportWidth = clientHeight * targetAspect;
+		viewportX = (clientWidth - viewportWidth) * 0.5f;
+	}
+	else
+	{
+		viewportWidth = clientWidth;
+		viewportHeight = clientWidth / targetAspect;
+		viewportY = (clientHeight - viewportHeight) * 0.5f;
+	}
+
+
+	// マウス位置をビューポート内に制限する（黒帯外のマウス位置は端に固定）
+	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();	// まだ画面上の2D座標
+
+	// マウス座標をビューポート内に制限する（画面外に行ったら、一番近い画面端に補正）
+	const float viewportRight = viewportX + viewportWidth;
+	const float viewportBottom = viewportY + viewportHeight;
+	float mouseX = mousePos.x < viewportX ? viewportX : (mousePos.x > viewportRight ? viewportRight : mousePos.x);
+	float mouseY = mousePos.y < viewportY ? viewportY : (mousePos.y > viewportBottom ? viewportBottom : mousePos.y);
+
+	// プロジェクション行列を取得（視野角、アスペクト比、ニア・ファー平面の設定）
+	constexpr float fieldOfView = DirectX::XMConvertToRadians(45.0f);
+	constexpr float nearPlane = 1.0f;
+	constexpr float farPlane = 1000.0f;
+	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(
+		fieldOfView,
+		targetAspect,
+		nearPlane,
+		farPlane);
+
+	// ビュー行列を取得（カメラの位置と向き）
+	Matrix viewMatrix = Camera::GetInstance().GetViewMatrix();
+	DirectX::XMMATRIX view = viewMatrix;
+
+	// マウス位置をワールド座標に変換するために、ニア平面とファー平面の2点を取得する //
+
+	// ニア平面の座標を取得
+	DirectX::XMVECTOR nearPointVector = DirectX::XMVector3Unproject(
+		DirectX::XMVectorSet(mouseX, mouseY, 0.0f, 1.0f),
+		viewportX,
+		viewportY,
+		viewportWidth,
+		viewportHeight,
+		0.0f,
+		1.0f,
+		projection,
+		view,
+		DirectX::XMMatrixIdentity());
+
+	// ファー平面の座標を取得
+	DirectX::XMVECTOR farPointVector = DirectX::XMVector3Unproject(
+		DirectX::XMVectorSet(mouseX, mouseY, 1.0f, 1.0f),
+		viewportX,
+		viewportY,
+		viewportWidth,
+		viewportHeight,
+		0.0f,
+		1.0f,
+		projection,
+		view,
+		DirectX::XMMatrixIdentity());
+
+	// XMVECTORを、DirectX::SimpleMath::Vector3に変換する
+	DirectX::XMFLOAT3 nearFloat{};
+	DirectX::XMFLOAT3 farFloat{};
+	DirectX::XMStoreFloat3(&nearFloat, nearPointVector);
+	DirectX::XMStoreFloat3(&farFloat, farPointVector);
+
+	Vector3 nearPoint(nearFloat.x, nearFloat.y, nearFloat.z);
+	Vector3 farPoint(farFloat.x, farFloat.y, farFloat.z);
+
+	// ニア平面とファー平面の2点から、マウス位置を通るレイを作る
+	Vector3 ray = farPoint - nearPoint;
+
+	// レイのy成分がほぼ0の場合は、床面との交点が計算できないので失敗とする
+	if (std::fabs(ray.y) <= 0.0001f)
+	{
+		return false;
+	}
+
+	// レイのパラメータtを計算して、床面（y=ボールの高さ）との交点を求める
+	float t = (m_Transform.position.y - nearPoint.y) / ray.y;
+
+	// tが負の場合は、レイが床面の下方向を向いているので失敗とする
+	if (t < 0.0f)
+	{
+		return false;
+	}
+
+	// 床面の交点を計算して、aimPositionに格納する
+	aimPosition = nearPoint + ray * t;
+	aimPosition.y = m_Transform.position.y;
+	return true;
+}
+
+// ボールからマウス位置への水平ベクトルで、ショット方向の角度を更新する。
+void PlayerBall::UpdateAimDirectionFromMouse()
+{
+	Vector3 aimPosition;
+	if (!TryGetMouseAimPosition(aimPosition))
+	{
+		return;
+	}
+
+	Vector3 aimVector = aimPosition - m_Transform.position;
+	aimVector.y = 0.0f;
+	if (aimVector.LengthSquared() <= 0.0001f)
+	{
+		return;
+	}
+
+	m_AimAngle = static_cast<float>(std::atan2(aimVector.x, aimVector.z));
+}
+
+// 左クリック押下時の方向を固定し、ドラッグ開始位置と初期パワーを記録する。
+void PlayerBall::BeginMousePowerDrag()
+{
+	m_IsPowerDragging = true;
+	m_LockedAimAngle = m_AimAngle;
+	m_LockedShotDirection = Vector3(sin(m_LockedAimAngle), 0.0f, cos(m_LockedAimAngle));
+	m_LockedShotDirection.Normalize();
+	m_PowerDragStartMousePos = Input::GetMousePosition();
+	m_ShotPower = m_MinShotPower;
+	m_PreTrajectoryDirty = true;
+	Game::GetInstance()->SetGameState(GameState::AimingPower);
+}
+
+// 固定方向を保ったまま、ドラッグ距離をショットパワーに変換する。
+void PlayerBall::UpdateShotPowerFromMouseDrag()
+{
+	m_AimAngle = m_LockedAimAngle;
+	DirectX::XMFLOAT2 mousePos = Input::GetMousePosition();
+	float dx = mousePos.x - m_PowerDragStartMousePos.x;
+	float dy = mousePos.y - m_PowerDragStartMousePos.y;
+	float dragDistance = std::sqrt(dx * dx + dy * dy);
+	float powerRatio = dragDistance / m_PixelsForMaxShotPower;
+
+	if (powerRatio < 0.0f)
+	{
+		powerRatio = 0.0f;
+	}
+	if (powerRatio > 1.0f)
+	{
+		powerRatio = 1.0f;
+	}
+
+	// 微小なマウス揺れで予測線が震えないよう、パワーを一定刻みに丸める。
+	float rawPower = m_MinShotPower + (m_MaxShotPower - m_MinShotPower) * powerRatio;
+	float steppedPower = std::floor(rawPower / m_PowerPreviewStep + 0.5f) * m_PowerPreviewStep;
+
+	if (steppedPower < m_MinShotPower)
+	{
+		steppedPower = m_MinShotPower;
+	}
+	if (steppedPower > m_MaxShotPower)
+	{
+		steppedPower = m_MaxShotPower;
+	}
+
+	m_ShotPower = steppedPower;
+}
+
+// 右クリック時はパワー調整を中止し、方向合わせ状態へ戻す。
+void PlayerBall::CancelMousePowerDrag()
+{
+	m_IsPowerDragging = false;
+	m_PreTrajectoryDirty = true;
+	Game::GetInstance()->SetGameState(GameState::AimingDirection);
+}
+
+// 左クリックを離したら、固定方向と現在パワーでショットを開始する。
+void PlayerBall::FireMouseShot()
+{
+	m_AimAngle = m_LockedAimAngle;
+	Shot(GetShotVector());
+	m_IsPowerDragging = false;
+	m_State = State::Simulation;
+	m_PrePositions.clear();
+	m_PreTrajectoryDirty = true;
+	m_StopCount = 0;
+	Game::GetInstance()->SetGameState(GameState::BallsMoving);
+}
+
+// マウス入力の押下・ドラッグ・解放・キャンセルをショット操作に割り当てる。
 void PlayerBall::UpdateAim()
 {
-	GameState gs = Game::GetInstance()->GetGameState();
+	const bool imguiWantsMouse =
+		ImGui::GetCurrentContext() != nullptr &&
+		ImGui::GetIO().WantCaptureMouse;
 
-	if (gs == GameState::AimingDirection)
+	const bool leftPressed =
+		Input::GetKeyTrigger(VK_LBUTTON) && !imguiWantsMouse;
+	const bool leftReleased =
+		Input::GetKeyRelease(VK_LBUTTON);
+	const bool rightPressed =
+		Input::GetKeyTrigger(VK_RBUTTON) && (!imguiWantsMouse || m_IsPowerDragging);
+
+	if (m_IsPowerDragging)
 	{
-		if (Input::GetKeyPress(VK_LEFT))  m_AimAngle -= 0.02f;
-		if (Input::GetKeyPress(VK_RIGHT)) m_AimAngle += 0.02f;
+		UpdateShotPowerFromMouseDrag();
 
-		if (Input::GetKeyTrigger(VK_SPACE))
-			Game::GetInstance()->SetGameState(GameState::AimingPower);
-	}
-	else if (gs == GameState::AimingPower)
-	{
-		if (Input::GetKeyPress(VK_UP))
-			m_ShotPower = min(m_MaxShotPower, m_ShotPower + m_PowerStep);
-
-		if (Input::GetKeyPress(VK_DOWN))
-			m_ShotPower = max(m_MinShotPower, m_ShotPower - m_PowerStep);
-
-		if (Input::GetKeyTrigger(VK_SPACE))
-			Game::GetInstance()->SetGameState(GameState::ConfirmShot);
-	}
-	else if (gs == GameState::ConfirmShot)
-	{
-		if (Input::GetKeyTrigger(VK_SPACE))
+		if (rightPressed)
 		{
-			Shot(GetShotVector());
-			m_State = State::Simulation;
-			m_PrePositions.clear();
-			m_PreTrajectoryDirty = true;
-			m_StopCount = 0;
-			Game::GetInstance()->SetGameState(GameState::BallsMoving);
+			CancelMousePowerDrag();
+		}
+		else if (leftReleased)
+		{
+			UpdateShotPowerFromMouseDrag();
+			FireMouseShot();
+			return;
+		}
+	}
+	else
+	{
+		if (Game::GetInstance()->GetGameState() != GameState::AimingDirection)
+		{
+			Game::GetInstance()->SetGameState(GameState::AimingDirection);
+		}
+
+		UpdateAimDirectionFromMouse();
+
+		if (leftPressed)
+		{
+			//UpdateAimDirectionFromMouse();
+			BeginMousePowerDrag();
+		}
+		else if (rightPressed)
+		{
+			CancelMousePowerDrag();
 		}
 	}
 
-	// 方向を変えたときにフラグを変更する
 	bool previewChanged =
 		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
 		(m_Transform.position - m_LastPreviewPosition).LengthSquared() > 0.01f;
 
-	// 弾道予測の更新が必要な場合に再計算する
 	if (m_PreTrajectoryDirty || previewChanged || m_PrePositions.empty())
 	{
 		GeneratePreTrajectory(GetShotVector());
@@ -376,45 +611,18 @@ void PlayerBall::UpdateAim()
 	}
 }
 
-//=======================================
-// ショットベクトルを計算して返す（旧 Arrow::GetVector() 相当）
-//=======================================
+// ショット速度を作るため、ドラッグ中は固定方向、それ以外は現在方向を使う。
 Vector3 PlayerBall::GetShotVector() const
 {
 	// TC-18: m_AimAngle=0, m_ShotPower=5 → Vector3(sin(0),0,cos(0))×5 = Vector3(0,0,5)
+	if (m_IsPowerDragging)
+	{
+		return m_LockedShotDirection * m_ShotPower;
+	}
+
 	return Vector3(sin(m_AimAngle), 0.0f, cos(m_AimAngle)) * m_ShotPower;
 }
 
-//=======================================
-// 矢印インジケーター描画（旧 Arrow::Draw() 相当）
-// AimingDirection: 固定長の方向矢印
-// AimingPower / ConfirmShot: パワー比例の矢印
-//=======================================
-void PlayerBall::DrawArrow(Camera* cam)
-{
-	/*
-	GameState gs = Game::GetInstance()->GetGameState();
-	if (m_State != State::Idle) return;
-	if (gs == GameState::BallsMoving || gs == GameState::TurnEnd) return;
-
-	Vector3 shotDir(sin(m_AimAngle), 0.0f, cos(m_AimAngle));
-
-	// AimingDirection は固定長、それ以外はパワー比例
-	float arrowLength = (gs == GameState::AimingDirection)
-		? m_MaxShotPower * 1.5f
-		: m_ShotPower * 2.0f;
-
-	Vector3 midPos = m_Transform.position + shotDir * (arrowLength * 0.5f);
-	const float thickness = 0.3f;
-
-	Matrix s = Matrix::CreateScale(thickness, thickness, arrowLength);
-	Vector3 up = Vector3::Up;
-	if (abs(shotDir.y) > 0.99f) up = Vector3::UnitZ;
-	Matrix rt = Matrix::CreateWorld(midPos, shotDir, up);
-
-	DrawMesh(s * rt);
-	*/
-}
 //=======================================
 // 弾道予測を生成する関数
 //=======================================
@@ -548,23 +756,60 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 
 			if (hit) break;
 
+			// 対象ボールとの接触点を安定させるため、移動線分と拡張円の交点で判定する。
 			for (BallBase* other : balls)
 			{
 				if (other == this) continue;
 				if (other->IsDefeated()) continue;
 
 				Collision::Sphere otherSphere = other->GetSphere();
-				Vector3 diff = simPosition - otherSphere.center;
-				diff.y = 0.0f;
+				otherSphere.center.y = fieldHeight;
 
 				float myHitRadius = m_Radius * PREVIEW_BALL_HIT_SCALE;
 				float otherHitRadius = otherSphere.radius * PREVIEW_BALL_HIT_SCALE;
 				float minDist = myHitRadius + otherHitRadius;
-				float minDistSq = minDist * minDist;
 
-				if (diff.LengthSquared() <= minDistSq)
+				Vector3 segmentStart = simPosition - stepMove;
+				Vector3 segmentEnd = simPosition;
+				segmentStart.y = fieldHeight;
+				segmentEnd.y = fieldHeight;
+
+				Vector3 segmentMove = segmentEnd - segmentStart;
+				segmentMove.y = 0.0f;
+
+				float a = segmentMove.LengthSquared();
+				if (a <= 0.0001f)
 				{
-					Vector3 normal = diff;
+					continue;
+				}
+
+				Vector3 toStart = segmentStart - otherSphere.center;
+				toStart.y = 0.0f;
+
+				float b = 2.0f * (toStart.x * segmentMove.x + toStart.z * segmentMove.z);
+				float c = toStart.LengthSquared() - minDist * minDist;
+				float hitT = -1.0f;
+
+				if (c <= 0.0f)
+				{
+					hitT = 0.0f;
+				}
+				else
+				{
+					float discriminant = b * b - 4.0f * a * c;
+					if (discriminant >= 0.0f)
+					{
+						hitT = (-b - std::sqrt(discriminant)) / (2.0f * a);
+					}
+				}
+
+				if (hitT >= 0.0f && hitT <= 1.0f)
+				{
+					Vector3 hitCenter = segmentStart + segmentMove * hitT;
+					hitCenter.y = fieldHeight;
+
+					Vector3 normal = hitCenter - otherSphere.center;
+					normal.y = 0.0f;
 
 					if (normal.LengthSquared() > 0.0001f)
 					{
@@ -572,7 +817,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 					}
 					else
 					{
-						normal = -stepMove;
+						normal = -segmentMove;
 						normal.y = 0.0f;
 
 						if (normal.LengthSquared() > 0.0001f)

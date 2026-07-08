@@ -1,4 +1,5 @@
 #include "input.h"
+#include "Application.h"
 
 Input* Input::m_Instance = {};
 
@@ -9,30 +10,27 @@ void Input::Create()
 
 	m_Instance->VibrationTime = 0;
 
-	// 初期化時のマウス座標を取得しておく
 	GetCursorPos(&m_Instance->mousePos);
+	ScreenToClient(Application::GetWindow(), &m_Instance->mousePos);
 	m_Instance->mousePos_old = m_Instance->mousePos;
 }
 
 void Input::Update()
 {
-	//1フレーム前の入力を記録しておく
 	for (int i = 0; i < 256; i++) { m_Instance->keyState_old[i] = m_Instance->keyState[i]; }
 	m_Instance->controllerState_old = m_Instance->controllerState;
+	m_Instance->mousePos_old = m_Instance->mousePos;
 
-	//キー入力を更新
 	BOOL hr = GetKeyboardState(m_Instance->keyState);
 
-	// マウス座標を更新（スクリーン座標）
 	GetCursorPos(&m_Instance->mousePos);
+	ScreenToClient(Application::GetWindow(), &m_Instance->mousePos);
 
-	//コントローラー入力を更新(XInput)
 	XInputGetState(0, &(m_Instance->controllerState));
 
-	//振動継続時間をカウント
 	if (m_Instance->VibrationTime > 0) {
 		m_Instance->VibrationTime--;
-		if (m_Instance->VibrationTime == 0) { //振動継続時間が経った時に振動を止める
+		if (m_Instance->VibrationTime == 0) {
 			XINPUT_VIBRATION vibration;
 			ZeroMemory(&vibration, sizeof(XINPUT_VIBRATION));
 			vibration.wLeftMotorSpeed = 0;

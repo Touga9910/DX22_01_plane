@@ -54,6 +54,7 @@ public:
 	void UpdateViewMatrix();
 
 	DirectX::SimpleMath::Vector3 GetPosition() { return m_Position; }
+	DirectX::SimpleMath::Matrix GetViewMatrix() const { return m_ViewMatrix; }
 
 	void SetTarget(DirectX::SimpleMath::Vector3 target);
 

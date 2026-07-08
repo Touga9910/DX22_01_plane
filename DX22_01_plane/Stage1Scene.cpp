@@ -71,14 +71,6 @@ void Stage1Scene::Init()
 		Vector3(50.0f,   0.0f, -10.0f),
 		*/
 	};
-	/*
-	for (const auto& pos : enemyPositions)
-	{
-		EnemyBall* enemy = Game::GetInstance()->AddObject<EnemyBall>();
-		enemy->GetTransform().position = pos; // 座標を上書き
-		m_MySceneObjects.emplace_back(enemy);
-	}
-	*/
 
 	for (const auto& pos : enemyPositions)
 	{
@@ -89,6 +81,7 @@ void Stage1Scene::Init()
 	std::cout << "\nオブジェクトの生成終了\n" << std::endl;
 
 	// UIの作成
+	/*
 	{
 		// UI（背景）
 		Texture2D* pt1 = Game::GetInstance()->AddObject<Texture2D>();
@@ -137,7 +130,7 @@ void Stage1Scene::Init()
 		pt6->SetUV(1, 1, 10, 1);				// UV指定
 		m_MySceneObjects.emplace_back(pt6);//m_MySceneObjects[8]
 	}
-
+	*/
 
 	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ゴルフボール
 	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
