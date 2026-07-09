@@ -1,15 +1,14 @@
 #include "BallBase.h"
 
 #include "Collision.h"
-#include"Game.h"
-//#include"Ground.h"
-#include"TableFrame.h"
-#include"Pocket.h"
+#include "Game.h"
+#include "TableFrame.h"
+#include "Pocket.h"
 #include "imgui/imgui.h"
 #include "EnemyBall.h"
 
-#include<random>
-#include<ctime>
+#include <algorithm>
+#include <cmath>
 
 using namespace std;
 using namespace DirectX::SimpleMath;
@@ -22,7 +21,7 @@ void BallBase::Damage(int damage)
 	}
 
 	// 防御力を考慮したダメージ計算
-	int finalDamage = damage - m_Status.defense;
+	int finalDamage = damage - m_Status.defense;    // 防御力を引いた最終ダメージ
 
 	if (finalDamage < 1)
 	{
@@ -36,6 +35,12 @@ void BallBase::Damage(int damage)
 	{
 		Defeat();
 	}
+}
+
+void BallBase::TakeDamage(int damage)
+{
+	// 外部から受け取ったダメージを、共通のダメージ処理へ渡す
+	Damage(damage);
 }
 
 void BallBase::Defeat()
@@ -61,9 +66,9 @@ void BallBase::UpdatePhysics()
 	// Y方向（上下）には絶対に動かないようにする
 	m_Velocity.y = 0.0f;
 
-	std::vector<Collision::Segment> walls;
+	std::vector<Collision::Segment> walls;                          // テーブル枠から集めた壁情報
 	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
-	
+
 	for (TableFrame* frame : frames)
 	{
 		std::vector<Collision::Segment> frameWalls = frame->GetWalls();
@@ -73,6 +78,7 @@ void BallBase::UpdatePhysics()
 			frameWalls.begin(),
 			frameWalls.end());
 	}
+
 	if (!walls.empty())
 	{
 		// 1フレームの移動距離を計算
@@ -82,7 +88,7 @@ void BallBase::UpdatePhysics()
 		float maxStep = m_Radius * 0.5f;
 
 		// 必要な分割数（速度が遅ければ1回、速ければ自動で増える）
-		int subSteps = max(1, (int)ceil(moveDistance / maxStep));
+		int subSteps = (std::max)(1, static_cast<int>(std::ceil(moveDistance / maxStep)));
 
 		std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
 		for (BallBase* other : balls)
@@ -93,12 +99,12 @@ void BallBase::UpdatePhysics()
 			Vector3 relativeVelocity = m_Velocity - other->m_Velocity;
 			float relativeSpeed = relativeVelocity.Length();
 
-			int relativeSubSteps = max(1, (int)ceil(relativeSpeed / maxStep));
-			subSteps = max(subSteps, relativeSubSteps);
+			int relativeSubSteps = (std::max)(1, static_cast<int>(std::ceil(relativeSpeed / maxStep)));
+			subSteps = (std::max)(subSteps, relativeSubSteps);
 		}
 
 		// 1ステップあたりの移動量
-		Vector3 stepVelocity = m_Velocity / (float)subSteps;
+		Vector3 stepVelocity = m_Velocity / static_cast<float>(subSteps);
 
 		for (int step = 0; step < subSteps; step++)
 		{
@@ -106,7 +112,7 @@ void BallBase::UpdatePhysics()
 			m_Transform.position += stepVelocity;
 
 			// その位置で壁との当たり判定
-			for (int i = 0; i < walls.size(); i++)
+			for (int i = 0; i < static_cast<int>(walls.size()); i++)
 			{
 				Vector3 contactPoint;
 				float distance = Collision::DistancePointToSegment(m_Transform.position, walls[i], contactPoint);
@@ -118,10 +124,12 @@ void BallBase::UpdatePhysics()
 					Vector3 normal = m_Transform.position - contactPoint;
 					normal.y = 0.0f;
 
-					if (normal.LengthSquared() > 0.0001f) {
+					if (normal.LengthSquared() > 0.0001f)
+					{
 						normal.Normalize();
 					}
-					else {
+					else
+					{
 						// 万が一完全に重なった場合の安全装置
 						Vector3 wallVec = walls[i].end - walls[i].start;
 						wallVec.Normalize();
@@ -145,10 +153,11 @@ void BallBase::UpdatePhysics()
 						m_Velocity = m_Velocity - normal * (2.0f * dot) * restitution;
 
 						// 反射したので、残りのステップの移動方向も「反射後の速度」に更新する
-						stepVelocity = m_Velocity / (float)subSteps;
+						stepVelocity = m_Velocity / static_cast<float>(subSteps);
 					}
 				}
 			}
+
 			// ボール同士の衝突判定（二重処理防止版）
 			std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
 			bool foundSelf = false;  // 自分を見つけたかのフラグ
@@ -193,7 +202,7 @@ void BallBase::UpdatePhysics()
 						m_Velocity -= normal * myRatio * (myDot - otherDot) * restitution;
 						other->m_Velocity += normal * otherRatio * (myDot - otherDot) * restitution;
 
-						stepVelocity = m_Velocity / (float)subSteps;
+						stepVelocity = m_Velocity / static_cast<float>(subSteps);
 
 						// ==========================================================
 						// 衝突時のダメージ適用処理
@@ -275,31 +284,29 @@ void BallBase::UpdatePhysics()
 	}
 }
 
-void BallBase::DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx)
+void BallBase::ResetToInitialPosition()
 {
-	Renderer::SetWorldMatrix(const_cast<DirectX::SimpleMath::Matrix*>(&worldMtx)); // GPUにセット
+	// 位置情報を初期位置に戻す
+	m_Transform.position = m_InitialPosition;
+	m_Position = m_InitialPosition;
+	m_OldPosition = m_InitialPosition;
 
-	//マテリアル数分ループ 
-	for (int i = 0; i < m_subsetList.size(); i++)
-	{
-		// マテリアルをセット(サブセット情報の中にあるマテリアルインデックスを使用)
-		m_Materials[m_subsetList[i].MaterialIdx]->SetGPU();
+	// 移動・加速度・転がり回転をリセットする
+	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
+	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
+	m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
+}
 
-		if (m_Materials[m_subsetList[i].MaterialIdx]->isTextureEnable())
-		{
-			m_Textures[m_subsetList[i].MaterialIdx]->SetGPU();
-		}
-
-		m_MeshRenderer.DrawSubset(
-			m_subsetList[i].IndexNum,		// 描画するインデックス数
-			m_subsetList[i].IndexBase,		// 最初のインデックスバッファの位置	
-			m_subsetList[i].VertexBase);	// 頂点バッファの最初から使用
-	}
+void BallBase::OnPocketHit()
+{
+	// デフォルトでは停止だけ
+	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
+	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
 }
 
 void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 {
-	StaticMesh staticmesh;
+	StaticMesh staticmesh;                         // 読み込み用の静的メッシュ
 	staticmesh.Load(modelFilePath, texDirectory);
 
 	m_MeshRenderer.Init(staticmesh);
@@ -314,42 +321,43 @@ void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 	std::vector<MATERIAL> materials = staticmesh.GetMaterials();
 	for (const auto& matData : materials)
 	{
-		auto m = std::make_unique<Material>();
-		m->Create(matData);
-		m_Materials.push_back(std::move(m));
+		auto material = std::make_unique<Material>();
+		material->Create(matData);
+		m_Materials.push_back(std::move(material));
 	}
+
 	// 頂点座標からモデルの元の半径を自動計算
 	float maxDist = 0.0f;
-	for (const auto& v : staticmesh.GetVertices())
+	for (const auto& vertex : staticmesh.GetVertices())
 	{
-		float dist = Vector3(v.position.x, v.position.y, v.position.z).Length();
-		maxDist = max(maxDist, dist);
+		float dist = Vector3(vertex.position.x, vertex.position.y, vertex.position.z).Length();
+		maxDist = (std::max)(maxDist, dist);
 	}
-	m_ModelBaseRadius = maxDist; // モデル本来の半径を保存
-	UpdateRadius();              // スケールを掛けて m_Radius を更新
+
+	m_ModelBaseRadius = maxDist;    // モデル本来の半径を保存
+	UpdateRadius();                 // スケールを掛けて m_Radius を更新
 }
 
-void BallBase::ResetToInitialPosition()
+void BallBase::DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx)
 {
-	m_Transform.position = m_InitialPosition;
-	m_Position = m_InitialPosition;
-	m_OldPosition = m_InitialPosition;
+	Renderer::SetWorldMatrix(const_cast<DirectX::SimpleMath::Matrix*>(&worldMtx)); // GPUにセット
 
-	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
-	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
-	m_RollingRotation = DirectX::SimpleMath::Quaternion::Identity;
-}
+	//マテリアル数分ループ 
+	for (int i = 0; i < static_cast<int>(m_subsetList.size()); i++)
+	{
+		// マテリアルをセット(サブセット情報の中にあるマテリアルインデックスを使用)
+		m_Materials[m_subsetList[i].MaterialIdx]->SetGPU();
 
-void BallBase::OnPocketHit()
-{
-	// デフォルトでは停止だけ
-	m_Velocity = DirectX::SimpleMath::Vector3::Zero;
-	m_Acceleration = DirectX::SimpleMath::Vector3::Zero;
-}
+		if (m_Materials[m_subsetList[i].MaterialIdx]->isTextureEnable())
+		{
+			m_Textures[m_subsetList[i].MaterialIdx]->SetGPU();
+		}
 
-void BallBase::TakeDamage(int damage)
-{
-	Damage(damage);
+		m_MeshRenderer.DrawSubset(
+			m_subsetList[i].IndexNum,       // 描画するインデックス数
+			m_subsetList[i].IndexBase,      // 最初のインデックスバッファの位置	
+			m_subsetList[i].VertexBase);    // 頂点バッファの最初から使用
+	}
 }
 
 void BallBase::DrawImGui(const std::string& label)
