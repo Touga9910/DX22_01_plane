@@ -26,6 +26,7 @@ namespace
         return v;
     }
 
+    // 
     BallStatus LoadBallStatus(const json& j)
     {
         BallStatus status;
@@ -42,6 +43,7 @@ namespace
         return status;
     }
 
+	// 敵のマスターデータをJSONから読み込む関数（1体分のデータ）
     EnemyData LoadEnemyMasterData(const json& j)
     {
         EnemyData data;
@@ -71,6 +73,7 @@ namespace
         return data;
     }
 
+	// 敵のマスターデータをJSONファイルから読み込み、IDをキーとしたunordered_mapに格納する関数
     std::unordered_map<std::string, EnemyData> LoadEnemyMasterMap(
         const std::string& filePath
     )

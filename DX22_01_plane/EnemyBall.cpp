@@ -144,6 +144,36 @@ void EnemyBall::Attack(PlayerBall* player)
 
     player->TakeDamage(GetAttack());
 }
+
+void EnemyBall::ApplyHotReloadData(const EnemyData& data)
+{
+    // 別の敵IDのデータを誤って適用しない
+    if (m_EnemyData.id != data.id)
+    {
+        return;
+    }
+
+    // 敵データを更新
+    m_EnemyData.status = data.status;
+    m_EnemyData.rewardMoney = data.rewardMoney;
+    m_EnemyData.rewardExp = data.rewardExp;
+    m_EnemyData.scale = data.scale;
+
+    // HP割合を維持したままステータス更新
+    ApplyStatusKeepHpRate(data.status);
+
+    // スケールも反映
+    m_Transform.scale = data.scale;
+    UpdateRadius();
+
+    std::cout << "[HotReload] Enemy updated: "
+        << m_EnemyData.id
+        << " HP: " << m_EnemyData.status.maxHp
+        << " Attack: " << m_EnemyData.status.attack
+        << " Defense: " << m_EnemyData.status.defense
+        << std::endl;
+}
+
 // ImGUIによるステータス確認
 void EnemyBall::DrawImGui(const std::string& label)
 {

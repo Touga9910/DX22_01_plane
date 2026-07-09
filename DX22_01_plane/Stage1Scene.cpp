@@ -15,7 +15,7 @@
 
 #include "Texture2D.h"
 #include <iostream>
-
+#include <unordered_map>
 
 using namespace DirectX::SimpleMath;
 
@@ -61,9 +61,12 @@ void Stage1Scene::Init()
 	// エネミー（EnemyBall）の出現処理
 	// ========================================================
 	StageData stageData = StageDataLoader::Load(
-		"assets/data/stage_01.json",
-		"assets/data/enemy_data.json"
+		m_StageJsonPath,
+		m_EnemyJsonPath
 	);
+
+	m_LastStageJsonWriteTime = GetJsonWriteTime(m_StageJsonPath);
+	m_LastEnemyJsonWriteTime = GetJsonWriteTime(m_EnemyJsonPath);
 
 	m_Par = stageData.par;
 
@@ -141,4 +144,134 @@ void Stage1Scene::Init()
 void Stage1Scene::Update()
 {
 	StageBase::Update();
+
+	UpdateJsonHotReload();
+	if (Input::GetKeyTrigger(VK_F5))
+	{
+		ReloadEnemyStatusFromJson();
+	}
+}
+
+// =======================================
+// JSONホットリロード関連の処理
+// =======================================
+void Stage1Scene::UpdateJsonHotReload()
+{
+	// すでに変更検知済みなら、少し待ってからリロードする
+	if (m_HotReloadPending)
+	{
+		m_HotReloadWaitFrame++;
+
+		if (m_HotReloadWaitFrame < 30)
+		{
+			return;
+		}
+
+		m_HotReloadPending = false;
+		m_HotReloadWaitFrame = 0;
+
+		std::cout << "[HotReload] JSONを再読み込みします" << std::endl;
+		ReloadEnemyStatusFromJson();
+		return;
+	}
+
+	m_HotReloadCheckFrame++;
+
+	// 毎フレームではなく、60フレームに1回だけ確認
+	if (m_HotReloadCheckFrame < 60)
+	{
+		return;
+	}
+
+	m_HotReloadCheckFrame = 0;
+
+	auto currentStageWriteTime = GetJsonWriteTime(m_StageJsonPath);
+	auto currentEnemyWriteTime = GetJsonWriteTime(m_EnemyJsonPath);
+
+	bool stageChanged =
+		currentStageWriteTime != m_LastStageJsonWriteTime;
+
+	bool enemyChanged =
+		currentEnemyWriteTime != m_LastEnemyJsonWriteTime;
+
+	if (!stageChanged && !enemyChanged)
+	{
+		return;
+	}
+
+	// ここではまだ読み込まない
+	// 更新時刻だけ保存して、少し待ってから読む
+	m_LastStageJsonWriteTime = currentStageWriteTime;
+	m_LastEnemyJsonWriteTime = currentEnemyWriteTime;
+
+	m_HotReloadPending = true;
+	m_HotReloadWaitFrame = 0;
+
+	std::cout << "[HotReload] JSON変更を検知しました。少し待ってから再読み込みします。"
+		<< std::endl;
+}
+
+void Stage1Scene::ReloadEnemyStatusFromJson()
+{
+	StageData stageData = StageDataLoader::Load(
+		m_StageJsonPath,
+		m_EnemyJsonPath
+	);
+
+	if (stageData.enemies.empty())
+	{
+		std::cout << "[HotReload] 敵データが空のため、反映を中止しました"
+			<< std::endl;
+		return;
+	}
+
+	std::unordered_map<std::string, EnemyData> enemyDataMap;
+
+	for (const EnemyData& enemyData : stageData.enemies)
+	{
+		enemyDataMap[enemyData.id] = enemyData;
+	}
+
+	std::vector<EnemyBall*> enemies =
+		Game::GetInstance()->GetObjects<EnemyBall>();
+
+	for (EnemyBall* enemy : enemies)
+	{
+		if (enemy == nullptr)
+		{
+			continue;
+		}
+
+		auto it = enemyDataMap.find(enemy->GetEnemyId());
+
+		if (it == enemyDataMap.end())
+		{
+			continue;
+		}
+
+		enemy->ApplyHotReloadData(it->second);
+	}
+
+	std::cout << "[HotReload] 敵ステータスを更新しました" << std::endl;
+}
+
+std::filesystem::file_time_type Stage1Scene::GetJsonWriteTime(
+	const std::string& path
+) const
+{
+	try
+	{
+		if (std::filesystem::exists(path))
+		{
+			return std::filesystem::last_write_time(path);
+		}
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "[HotReload] JSON更新時刻の取得に失敗: "
+			<< path << std::endl;
+		std::cout << e.what() << std::endl;
+	}
+
+	return {};
 }

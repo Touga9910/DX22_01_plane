@@ -149,7 +149,7 @@ void BallBase::UpdatePhysics()
 					}
 				}
 			}
-			// ★ ボール同士の衝突判定（二重処理防止版）
+			// ボール同士の衝突判定（二重処理防止版）
 			std::vector<BallBase*> balls = Game::GetInstance()->GetObjects<BallBase>();
 			bool foundSelf = false;  // 自分を見つけたかのフラグ
 
@@ -259,7 +259,6 @@ void BallBase::UpdatePhysics()
 
 			// 回転軸の計算（外積）
 			// 進行方向(moveDir)と真上(UnitY)の外積をとることで、進行方向に対して「真横」の軸を取得
-			//Vector3 rotationAxis = moveDir.Cross(Vector3::UnitY);
 			Vector3 rotationAxis = Vector3::UnitY.Cross(moveDir);
 			rotationAxis.Normalize();
 
@@ -319,7 +318,7 @@ void BallBase::LoadModel(const char* modelFilePath, const char* texDirectory)
 		m->Create(matData);
 		m_Materials.push_back(std::move(m));
 	}
-	// ★ 頂点座標からモデルの元の半径を自動計算
+	// 頂点座標からモデルの元の半径を自動計算
 	float maxDist = 0.0f;
 	for (const auto& v : staticmesh.GetVertices())
 	{
