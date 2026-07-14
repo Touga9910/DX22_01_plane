@@ -39,6 +39,8 @@ namespace
         status.maxHp = j.value("maxHp", status.maxHp);
         status.attack = j.value("attack", status.attack);
         status.defense = j.value("defense", status.defense);
+            status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
+        }
 
         return status;
     }
