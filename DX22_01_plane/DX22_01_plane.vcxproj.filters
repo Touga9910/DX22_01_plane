@@ -408,6 +408,9 @@
     <None Include="assets\data\enemy_data.json">
       <Filter>JSON</Filter>
     </None>
+    <None Include="assets\data\player_status.json">
+      <Filter>JSON</Filter>
+    </None>
     <None Include="assets\data\stage_01.json">
       <Filter>JSON</Filter>
     </None>

@@ -5,9 +5,17 @@
       "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
       "textureDirectory": "assets/model/GolfBall",
       "status": {
-        "maxHp": 3,
+        "maxHp": 2,
         "attack": 1,
-        "defense": 0
+        "defense": 0,
+        "mass": 1.0,
+        "radius": 2.0,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
       },
       "scale": {
         "x": 2.0,
@@ -22,9 +30,17 @@
       "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
       "textureDirectory": "assets/model/GolfBall",
       "status": {
-        "maxHp": 6,
+        "maxHp": 2,
         "attack": 2,
-        "defense": 1
+        "defense": 0,
+        "mass": 1.0,
+        "radius": 2.2,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
       },
       "scale": {
         "x": 2.2,

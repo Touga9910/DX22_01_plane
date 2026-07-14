@@ -32,7 +32,7 @@ public:
     {
         if (m_IsDefeated)
         {
-            m_Status = status;
+            ApplyStatusValues(status);
             return;
         }
 
@@ -43,7 +43,7 @@ public:
             hpRate = static_cast<float>(m_HP) / static_cast<float>(m_Status.maxHp);
         }
 
-        m_Status = status;
+        ApplyStatusValues(status);
 
         int newHp = static_cast<int>(m_Status.maxHp * hpRate);
 

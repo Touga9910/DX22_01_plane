@@ -205,21 +205,20 @@ void BallBase::UpdatePhysics()
 						stepVelocity = m_Velocity / static_cast<float>(subSteps);
 
 						// ==========================================================
-						// 衝突時のダメージ適用処理
 						// ==========================================================
-						// 仮のダメージ量
-						int damageAmount = 1;
+						// Apply collision damage
+						// ==========================================================
+						int damageToThis = other->GetAttack();
+						int damageToOther = GetAttack();
 
-						// ① 自分が EnemyBall だった場合は、自分にダメージ
 						if (EnemyBall* myEnemy = dynamic_cast<EnemyBall*>(this))
 						{
-							myEnemy->TakeDamage(damageAmount);
+							myEnemy->TakeDamage(damageToThis);
 						}
 
-						// ② 相手(other) が EnemyBall だった場合は、相手にダメージ
 						if (EnemyBall* otherEnemy = dynamic_cast<EnemyBall*>(other))
 						{
-							otherEnemy->TakeDamage(damageAmount);
+							otherEnemy->TakeDamage(damageToOther);
 						}
 						// ==========================================================
 					}
@@ -362,6 +361,8 @@ void BallBase::DrawMesh(const DirectX::SimpleMath::Matrix& worldMtx)
 
 void BallBase::DrawImGui(const std::string& label)
 {
+	ImGui::PushID(label.c_str());
+
 	if (ImGui::CollapsingHeader(label.c_str()))
 	{
 		// スケール
@@ -402,4 +403,6 @@ void BallBase::DrawImGui(const std::string& label)
 		// 摩擦係数
 		ImGui::SliderFloat("Friction", &m_Friction, 0.0f, 1.0f);
 	}
+
+	ImGui::PopID();
 }

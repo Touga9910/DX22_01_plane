@@ -10,6 +10,7 @@
 #include "Collision.h"
 #include "BallStatus.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -34,7 +35,7 @@ public:
     void SetStatus(const BallStatus& status)
     {
         // ステータスを反映し、HPと撃破状態を初期化する
-        m_Status = status;
+        ApplyStatusValues(status);
         m_HP = m_Status.maxHp;
         m_IsDefeated = false;
     }
@@ -45,6 +46,8 @@ public:
     int GetMaxHP() const { return m_Status.maxHp; }
     int GetAttack() const { return m_Status.attack; }
     int GetDefense() const { return m_Status.defense; }
+    bool HasSplitAbility() const { return m_Status.abilities.split; }
+    bool HasPierceAbility() const { return m_Status.abilities.pierce; }
 
     void SetHP(int hp) { m_HP = hp; }
 
@@ -76,7 +79,11 @@ public:
     DirectX::SimpleMath::Quaternion GetRollingRotation() const { return m_RollingRotation; }
 
     float GetRadius() const { return m_Radius; }
-    void SetRadius(float radius) { m_Radius = radius; }
+    void SetRadius(float radius)
+    {
+        m_Status.radius = radius;
+        m_Radius = radius;
+    }
 
     Collision::Sphere GetSphere() const
     {
@@ -103,6 +110,12 @@ protected:
     //=======================================
     void UpdateRadius()
     {
+        if (m_Status.radius > 0.0f)
+        {
+            m_Radius = m_Status.radius;
+            return;
+        }
+
         // モデル本来の半径に、XYZの最大スケールを掛けて当たり判定半径を更新する
         float maxScale = m_Transform.scale.x;
 
@@ -110,6 +123,21 @@ protected:
         if (m_Transform.scale.z > maxScale) maxScale = m_Transform.scale.z;
 
         m_Radius = m_ModelBaseRadius * maxScale;
+    }
+
+    void ApplyStatusValues(const BallStatus& status)
+    {
+        m_Status = status;
+        m_Status.maxHp = (std::max)(1, m_Status.maxHp);
+        m_Status.mass = (std::max)(0.0001f, m_Status.mass);
+        m_Status.radius = (std::max)(0.0f, m_Status.radius);
+        m_Status.restitution = std::clamp(m_Status.restitution, 0.0f, 1.0f);
+        m_Status.friction = (std::max)(0.0f, m_Status.friction);
+
+        m_Mass = m_Status.mass;
+        m_Restitution = m_Status.restitution;
+        m_Friction = m_Status.friction;
+        UpdateRadius();
     }
 
 protected:
@@ -123,19 +151,19 @@ protected:
     //=======================================
     // 位置
     //=======================================
-    DirectX::SimpleMath::Vector3 m_InitialPosition = DirectX::SimpleMath::Vector3::Zero; // 初期位置
-    DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero; // 前フレーム位置
+    DirectX::SimpleMath::Vector3 m_InitialPosition = DirectX::SimpleMath::Vector3::Zero;    // 初期位置
+    DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;        // 前フレーム位置
 
     //=======================================
     // 物理パラメータ
     //=======================================
-    DirectX::SimpleMath::Vector3 m_Velocity = DirectX::SimpleMath::Vector3::Zero;                // 速度
-    DirectX::SimpleMath::Vector3 m_Acceleration = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);    // 加速度
+    DirectX::SimpleMath::Vector3 m_Velocity = DirectX::SimpleMath::Vector3::Zero;                   // 速度
+    DirectX::SimpleMath::Vector3 m_Acceleration = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);   // 加速度
 
-    float m_Radius = 2.0f;        // 当たり判定半径
-    float m_ModelBaseRadius = 1.0f;        // モデル本来の半径
-    float m_Mass = 1.0f;        // 質量
-    float m_Restitution = 0.8f;        // 反発係数
+    float m_Radius = 2.0f;          // 当たり判定半径
+    float m_ModelBaseRadius = 1.0f; // モデル本来の半径
+    float m_Mass = 1.0f;            // 質量
+    float m_Restitution = 0.8f;     // 反発係数
     float m_Friction = 0.02f;       // 摩擦係数
 
     //=======================================

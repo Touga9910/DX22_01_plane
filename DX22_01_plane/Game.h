@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <vector>
 
 //オブジェクト情報のあるファイルをインクルード
 //#include "TestPlane.h"
@@ -22,6 +23,7 @@
 #include"SkyBox.h"
 
 #include "input.h"
+#include "BallStatus.h"
 
 enum SceneName {
 	TITLE,
@@ -64,6 +66,15 @@ private:
 
 	GameState m_GameState = GameState::AimingDirection;
 
+	BallStatus m_DefaultPlayerStatus{ 10, 1, 0 };
+	int m_DefaultPlayerHP = 10;
+	BallStatus m_PlayerStatus{ 10, 1, 0 };
+	int m_PlayerHP = 10;
+	std::vector<BallStatus> m_DefaultPlayerDeck;
+	std::vector<BallStatus> m_PlayerDrawPile;
+	std::vector<BallStatus> m_PlayerDiscardPile;
+	bool m_HasCurrentPlayerBall = false;
+
 	// ==========================
 	// 報酬UI用
 	// ==========================
@@ -104,6 +115,10 @@ private:
 	/// </summary>
 	void ApplyReward(int rewardIndex);
 	void SaveDebugSnapshot();
+	void CaptureCurrentPlayerStatus();
+	void ShufflePlayerDrawPile();
+	void DrawNextPlayerBall();
+	void PrepareNextPlayerBall();
 
 public:
 	Game(); // コンストラクタ
@@ -127,6 +142,14 @@ public:
 	void SetGameState(GameState state) { m_GameState = state; }
 
 	bool ContainsObject(const Object* pt) const;
+
+	void LoadPlayerStatusFromJson(const std::string& filePath = "assets/data/player_status.json");
+	void ResetPlayerRuntimeStatus();
+	void ApplyPlayerStatusTo(PlayerBall* player);
+	void CapturePlayerStatusFrom(const PlayerBall* player);
+	void OnPlayerShotFired(PlayerBall* player);
+	int GetPlayerDeckCount() const { return static_cast<int>(m_PlayerDrawPile.size()); }
+	int GetPlayerDiscardCount() const { return static_cast<int>(m_PlayerDiscardPile.size()); }
 
 	/// <summary>
 	/// 敵が全滅しているかどうかを判定する関数

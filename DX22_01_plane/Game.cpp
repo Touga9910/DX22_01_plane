@@ -5,18 +5,67 @@
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
 #include "EnemyBall.h"   // DrawImGui呼び出しに必要
 #include "BallBase.h"
+#include "json/json.hpp"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
 #include "imgui/imgui_impl_win32.h"
 
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <random>
 
 Game* Game::m_Instance;//ゲームインスタンス
+using json = nlohmann::json;
 
 namespace
 {
+	float g_HealRewardRate = 0.25f;
+
+	void LoadAbilitiesFromJson(BallStatus& status, const json& statusJson)
+	{
+		if (statusJson.contains("abilities") && statusJson["abilities"].is_object())
+		{
+			const json& abilitiesJson = statusJson["abilities"];
+			status.abilities.split = abilitiesJson.value("split", status.abilities.split);
+			status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
+		}
+	}
+
+	BallStatus LoadBallStatusFromJson(const json& statusJson, const BallStatus& defaultStatus)
+	{
+		BallStatus status = defaultStatus;
+
+		if (!statusJson.is_object())
+		{
+			return status;
+		}
+
+		status.maxHp = statusJson.value("maxHp", status.maxHp);
+		status.attack = statusJson.value("attack", status.attack);
+		status.defense = statusJson.value("defense", status.defense);
+		status.mass = statusJson.value("mass", status.mass);
+		status.radius = statusJson.value("radius", status.radius);
+		status.restitution = statusJson.value("restitution", status.restitution);
+		status.friction = statusJson.value("friction", status.friction);
+		LoadAbilitiesFromJson(status, statusJson);
+
+		return status;
+	}
+
+	BallStatus NormalizeBallStatus(BallStatus status)
+	{
+		status.maxHp = (std::max)(1, status.maxHp);
+		status.mass = (std::max)(0.0001f, status.mass);
+		status.radius = (std::max)(0.0f, status.radius);
+		status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);
+		status.friction = (std::max)(0.0f, status.friction);
+
+		return status;
+	}
+
 	const char* GetGameStateDebugName(GameState state)
 	{
 		switch (state)
@@ -102,6 +151,8 @@ void Game::Init()
 	// カメラ初期化
 	m_Instance->m_Camera.Init();
 
+	m_Instance->LoadPlayerStatusFromJson();
+
 	//最初のシーンを読みこむ
 	m_Instance->m_Scene = new TitleScene;
 }
@@ -167,6 +218,7 @@ void Game::Update()
 		break;
 
 	case GameState::TurnEnd:
+		m_Instance->PrepareNextPlayerBall();
 		m_Instance->m_GameState = GameState::AimingDirection;
 		break;
 
@@ -249,6 +301,9 @@ void Game::Draw()
 	ImGui::Text("AreAllEnemiesDefeated = %s",
 		m_Instance->AreAllEnemiesDefeated() ? "true" : "false");
 
+	ImGui::Text("Player Deck = %d", m_Instance->GetPlayerDeckCount());
+	ImGui::Text("Player Discard = %d", m_Instance->GetPlayerDiscardCount());
+
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
 		m_Instance->SaveDebugSnapshot();
@@ -324,6 +379,8 @@ void Game::ChangeScene(SceneName sName)
 	int score = 0;
 	if (m_Instance->m_Scene != nullptr)
 	{
+		m_Instance->CaptureCurrentPlayerStatus();
+
 		// 消そうとするシーンがStage1ならスコアを保存する
 		if (Stage1Scene* sObj = dynamic_cast<Stage1Scene*>(m_Instance->m_Scene))
 		{
@@ -595,6 +652,7 @@ void Game::DrawClearRewardUI()
 	}
 
 	ImGui::Separator();
+	ImGui::SliderFloat("Heal Rate", &g_HealRewardRate, 0.0f, 1.0f, "%.2f");
 	ImGui::Text("LEFT / RIGHT : Select");
 	ImGui::Text("SPACE : Decide");
 
@@ -616,7 +674,24 @@ void Game::ApplyReward(int rewardIndex)
 	{
 	case 0:
 		// Heal
-		player->SetHP(player->GetMaxHP());
+		{
+			int healAmount = static_cast<int>(
+				std::ceil(player->GetMaxHP() * g_HealRewardRate)
+			);
+
+			if (g_HealRewardRate > 0.0f && healAmount < 1)
+			{
+				healAmount = 1;
+			}
+
+			int newHp = std::clamp(
+				player->GetHP() + healAmount,
+				0,
+				player->GetMaxHP()
+			);
+
+			player->SetHP(newHp);
+		}
 		break;
 
 	case 1:
@@ -627,14 +702,208 @@ void Game::ApplyReward(int rewardIndex)
 
 	case 2:
 		// Power Up
-		// 現在 PlayerBall 側に攻撃力・ショット強化用関数がないため仮実装
-		// 後で player->AddShotPower(1.0f); のような関数を追加する
+		{
+			int currentHp = player->GetHP();
+			BallStatus status = player->GetStatus();
+			status.attack += 1;
+			player->SetStatus(status);
+			player->SetHP(currentHp);
+		}
 		break;
 
 	default:
 		break;
 	}
+
+	CapturePlayerStatusFrom(player);
 }
+void Game::LoadPlayerStatusFromJson(const std::string& filePath)
+{
+	BallStatus status = m_DefaultPlayerStatus;
+	int hp = status.maxHp;
+	std::vector<BallStatus> loadedDeck;
+	std::ifstream file(filePath);
+	if (file.is_open())
+	{
+		try
+		{
+			json root;
+			file >> root;
+			if (root.contains("status"))
+			{
+				if (root["status"].is_object())
+				{
+					const json& statusJson = root["status"];
+					status = LoadBallStatusFromJson(statusJson, status);
+				}
+			}
+
+			if (root.contains("balls") && root["balls"].is_array())
+			{
+				for (const json& ballJson : root["balls"])
+				{
+					if (!ballJson.is_object())
+					{
+						continue;
+					}
+
+					if (ballJson.contains("status") && ballJson["status"].is_object())
+					{
+						loadedDeck.push_back(
+							NormalizeBallStatus(
+								LoadBallStatusFromJson(ballJson["status"], status)
+							)
+						);
+					}
+					else
+					{
+						loadedDeck.push_back(
+							NormalizeBallStatus(
+								LoadBallStatusFromJson(ballJson, status)
+							)
+						);
+					}
+				}
+			}
+
+			hp = root.value("currentHp", status.maxHp);
+		}
+		catch (...)
+		{
+			status = m_DefaultPlayerStatus;
+			hp = status.maxHp;
+			loadedDeck.clear();
+		}
+	}
+	status = NormalizeBallStatus(status);
+	if (loadedDeck.empty())
+	{
+		loadedDeck.push_back(status);
+	}
+
+	hp = std::clamp(hp, 0, status.maxHp);
+	m_DefaultPlayerStatus = status;
+	m_DefaultPlayerHP = hp;
+	m_DefaultPlayerDeck = loadedDeck;
+	ResetPlayerRuntimeStatus();
+}
+
+void Game::ResetPlayerRuntimeStatus()
+{
+	m_PlayerDrawPile = m_DefaultPlayerDeck;
+	if (m_PlayerDrawPile.empty())
+	{
+		m_PlayerDrawPile.push_back(m_DefaultPlayerStatus);
+	}
+
+	m_PlayerDiscardPile.clear();
+	m_HasCurrentPlayerBall = false;
+	m_PlayerHP = m_DefaultPlayerHP;
+	ShufflePlayerDrawPile();
+	DrawNextPlayerBall();
+}
+
+void Game::ApplyPlayerStatusTo(PlayerBall* player)
+{
+	if (player == nullptr)
+	{
+		return;
+	}
+
+	if (!m_HasCurrentPlayerBall)
+	{
+		DrawNextPlayerBall();
+	}
+
+	player->SetStatus(m_PlayerStatus);
+	player->SetHP(std::clamp(m_PlayerHP, 0, m_PlayerStatus.maxHp));
+}
+
+void Game::CapturePlayerStatusFrom(const PlayerBall* player)
+{
+	if (player == nullptr)
+	{
+		return;
+	}
+	m_PlayerStatus = NormalizeBallStatus(player->GetStatus());
+	m_PlayerHP = std::clamp(player->GetHP(), 0, m_PlayerStatus.maxHp);
+}
+
+void Game::CaptureCurrentPlayerStatus()
+{
+	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	if (players.empty())
+	{
+		return;
+	}
+	CapturePlayerStatusFrom(players[0]);
+}
+
+void Game::ShufflePlayerDrawPile()
+{
+	static std::mt19937 rng(std::random_device{}());
+	std::shuffle(m_PlayerDrawPile.begin(), m_PlayerDrawPile.end(), rng);
+}
+
+void Game::DrawNextPlayerBall()
+{
+	if (m_PlayerDrawPile.empty())
+	{
+		if (!m_PlayerDiscardPile.empty())
+		{
+			m_PlayerDrawPile = m_PlayerDiscardPile;
+			m_PlayerDiscardPile.clear();
+			ShufflePlayerDrawPile();
+		}
+		else if (!m_DefaultPlayerDeck.empty())
+		{
+			m_PlayerDrawPile = m_DefaultPlayerDeck;
+			ShufflePlayerDrawPile();
+		}
+		else
+		{
+			m_PlayerDrawPile.push_back(m_DefaultPlayerStatus);
+		}
+	}
+
+	m_PlayerStatus = NormalizeBallStatus(m_PlayerDrawPile.back());
+	m_PlayerDrawPile.pop_back();
+	m_PlayerHP = std::clamp(m_PlayerHP, 0, m_PlayerStatus.maxHp);
+	m_HasCurrentPlayerBall = true;
+}
+
+void Game::PrepareNextPlayerBall()
+{
+	if (m_HasCurrentPlayerBall)
+	{
+		return;
+	}
+
+	DrawNextPlayerBall();
+
+	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	if (!players.empty())
+	{
+		ApplyPlayerStatusTo(players[0]);
+	}
+}
+
+void Game::OnPlayerShotFired(PlayerBall* player)
+{
+	if (player != nullptr)
+	{
+		CapturePlayerStatusFrom(player);
+	}
+
+	if (!m_HasCurrentPlayerBall)
+	{
+		return;
+	}
+
+	m_PlayerDiscardPile.push_back(m_PlayerStatus);
+	m_HasCurrentPlayerBall = false;
+}
+
 void Game::SaveDebugSnapshot()
 {
 	std::ofstream file("debug_state_snapshot.txt");

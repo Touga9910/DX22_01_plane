@@ -39,6 +39,15 @@ namespace
         status.maxHp = j.value("maxHp", status.maxHp);
         status.attack = j.value("attack", status.attack);
         status.defense = j.value("defense", status.defense);
+        status.mass = j.value("mass", status.mass);
+        status.radius = j.value("radius", status.radius);
+        status.restitution = j.value("restitution", status.restitution);
+        status.friction = j.value("friction", status.friction);
+
+        if (j.contains("abilities") && j["abilities"].is_object())
+        {
+            const json& abilitiesJson = j["abilities"];
+            status.abilities.split = abilitiesJson.value("split", status.abilities.split);
             status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
         }
 

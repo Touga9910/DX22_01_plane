@@ -64,6 +64,7 @@ void TitleScene::Update()
 		switch (m_CursolPos)
 		{
 		case 0:
+			Game::GetInstance()->ResetPlayerRuntimeStatus();
 			Game::GetInstance()->ChangeScene(SELECT);
 			break;
 		case 1:

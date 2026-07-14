@@ -22,6 +22,7 @@ void PlayerBall::Init()
 	status.defense = 0;     // 防御力
 
 	SetStatus(status);
+	Game::GetInstance()->ApplyPlayerStatusTo(this);
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
@@ -184,6 +185,7 @@ void PlayerBall::OnPocketHit()
 void PlayerBall::TakeDamage(int damage)
 {
 	Damage(damage);    // BallBase側のダメージ処理を呼ぶ
+	Game::GetInstance()->CapturePlayerStatusFrom(this);
 }
 
 void PlayerBall::UpdateSimulation()
@@ -303,6 +305,15 @@ void PlayerBall::UpdateTrailLife()
 
 void PlayerBall::UpdateAim()
 {
+	GameState gameState = Game::GetInstance()->GetGameState();
+
+	if (gameState != GameState::AimingDirection &&
+		gameState != GameState::AimingPower &&
+		gameState != GameState::ConfirmShot)
+	{
+		return;
+	}
+
 	const bool imguiWantsMouse =
 		ImGui::GetCurrentContext() != nullptr &&
 		ImGui::GetIO().WantCaptureMouse;
@@ -331,7 +342,7 @@ void PlayerBall::UpdateAim()
 	}
 	else
 	{
-		if (Game::GetInstance()->GetGameState() != GameState::AimingDirection)
+		if (gameState != GameState::AimingDirection)
 		{
 			Game::GetInstance()->SetGameState(GameState::AimingDirection);
 		}
@@ -568,6 +579,7 @@ void PlayerBall::FireMouseShot()
 	m_PrePositions.clear();                                         // ショット開始後は予測線を消す
 	m_PreTrajectoryDirty = true;                                    // 次回停止後に予測線を再計算できるようにする
 	m_StopCount = 0;                                                // 停止判定カウントをリセットする
+	Game::GetInstance()->OnPlayerShotFired(this);
 	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
 
@@ -590,10 +602,11 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 	m_PreviewHitBallPosition = Vector3::Zero;
 	m_PreviewObjectBallDirection = Vector3::Zero;
 
-	const int PREDICTION_FRAMES = 240;
-	const int MAX_PREVIEW_POINTS = 120;
+	const int PREDICTION_FRAMES = 2000;
+	const size_t MAX_PREVIEW_POINTS = 1000;
 	const float PREVIEW_POINT_INTERVAL = 1.0f;
 	const float PREVIEW_BALL_HIT_SCALE = 1.0f;
+	const float PREVIEW_SIM_SPEED = m_MaxShotPower;
 
 	m_PrePositions.reserve(MAX_PREVIEW_POINTS);
 
@@ -623,6 +636,14 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 
 	simPosition.y = fieldHeight;
 	simVelocity.y = 0.0f;
+
+	if (simVelocity.LengthSquared() <= 0.0001f)
+	{
+		return;
+	}
+
+	simVelocity.Normalize();
+	simVelocity *= PREVIEW_SIM_SPEED;
 
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
 
@@ -800,7 +821,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 			if (hit) break;
 		}
 
-		if (hit || m_TrajectoryModel->ShouldStop(simVelocity))
+		if (hit)
 		{
 			break;
 		}
