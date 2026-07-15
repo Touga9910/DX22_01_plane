@@ -151,6 +151,8 @@
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="PlayerBall.cpp" />
+    <ClCompile Include="PlayerDeck.cpp" />
+    <ClCompile Include="PlayerBallDataLoader.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />
@@ -229,6 +231,10 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshRenderer.h" />
     <ClInclude Include="Object.h" />
+    <ClInclude Include="PlayerBallData.h" />
+    <ClInclude Include="PlayerDeck.h" />
+    <ClInclude Include="PlayerBallDataLoader.h" />
+    <ClInclude Include="PlayerRunStatus.h" />
     <ClInclude Include="Pocket.h" />
     <ClInclude Include="Pole.h" />
     <ClInclude Include="Renderer.h" />

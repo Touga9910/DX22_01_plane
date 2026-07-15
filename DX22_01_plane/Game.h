@@ -24,6 +24,8 @@
 
 #include "input.h"
 #include "BallStatus.h"
+#include "PlayerDeck.h"
+#include "PlayerRunStatus.h"
 
 enum SceneName {
 	TITLE,
@@ -67,18 +69,16 @@ private:
 	GameState m_GameState = GameState::AimingDirection;
 
 	BallStatus m_DefaultPlayerStatus{ 10, 1, 0 };
-	int m_DefaultPlayerHP = 10;
-	BallStatus m_PlayerStatus{ 10, 1, 0 };
-	int m_PlayerHP = 10;
-	std::vector<BallStatus> m_DefaultPlayerDeck;
-	std::vector<BallStatus> m_PlayerDrawPile;
-	std::vector<BallStatus> m_PlayerDiscardPile;
-	bool m_HasCurrentPlayerBall = false;
+	PlayerRunStatus m_DefaultPlayerRunStatus{};
+	PlayerRunStatus m_PlayerRunStatus{};
+
+	PlayerDeck m_PlayerDeck;
 
 	// ==========================
 	// 報酬UI用
 	// ==========================
 	int m_SelectedRewardIndex = 0;
+	int m_SelectedRewardBallIndex = 0;
 
 	/// <summary>
 	/// 全てのボールが停止しているかどうかを判定する関数
@@ -114,10 +114,11 @@ private:
 	/// 報酬を適用する関数
 	/// </summary>
 	void ApplyReward(int rewardIndex);
+	void ApplyPlayerRunStatusTo(PlayerBall* player);
 	void SaveDebugSnapshot();
 	void CaptureCurrentPlayerStatus();
-	void ShufflePlayerDrawPile();
 	void DrawNextPlayerBall();
+	void DiscardCurrentPlayerBall();
 	void PrepareNextPlayerBall();
 
 public:
@@ -148,8 +149,8 @@ public:
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
 	void OnPlayerShotFired(PlayerBall* player);
-	int GetPlayerDeckCount() const { return static_cast<int>(m_PlayerDrawPile.size()); }
-	int GetPlayerDiscardCount() const { return static_cast<int>(m_PlayerDiscardPile.size()); }
+	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
+	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
 
 	/// <summary>
 	/// 敵が全滅しているかどうかを判定する関数

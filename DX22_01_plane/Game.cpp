@@ -5,7 +5,7 @@
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
 #include "EnemyBall.h"   // DrawImGui呼び出しに必要
 #include "BallBase.h"
-#include "json/json.hpp"
+#include "PlayerBallDataLoader.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -18,42 +18,31 @@
 #include <random>
 
 Game* Game::m_Instance;//ゲームインスタンス
-using json = nlohmann::json;
 
 namespace
 {
-	float g_HealRewardRate = 0.25f;
-
-	void LoadAbilitiesFromJson(BallStatus& status, const json& statusJson)
+	enum class RewardTargetType
 	{
-		if (statusJson.contains("abilities") && statusJson["abilities"].is_object())
-		{
-			const json& abilitiesJson = statusJson["abilities"];
-			status.abilities.split = abilitiesJson.value("split", status.abilities.split);
-			status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
-		}
-	}
+		SingleBall,
+		WholeDeck,
+		PlayerOverall,
+	};
 
-	BallStatus LoadBallStatusFromJson(const json& statusJson, const BallStatus& defaultStatus)
+	struct RewardDefinition
 	{
-		BallStatus status = defaultStatus;
+		const char* name;
+		RewardTargetType targetType;
+	};
 
-		if (!statusJson.is_object())
-		{
-			return status;
-		}
+	constexpr RewardDefinition kRewardDefinitions[] =
+	{
+		{ "Attack Up", RewardTargetType::SingleBall },
+		{ "Defense Up", RewardTargetType::SingleBall },
+		{ "Ball Max HP Up", RewardTargetType::SingleBall },
+	};
 
-		status.maxHp = statusJson.value("maxHp", status.maxHp);
-		status.attack = statusJson.value("attack", status.attack);
-		status.defense = statusJson.value("defense", status.defense);
-		status.mass = statusJson.value("mass", status.mass);
-		status.radius = statusJson.value("radius", status.radius);
-		status.restitution = statusJson.value("restitution", status.restitution);
-		status.friction = statusJson.value("friction", status.friction);
-		LoadAbilitiesFromJson(status, statusJson);
-
-		return status;
-	}
+	constexpr int kRewardCount =
+		static_cast<int>(sizeof(kRewardDefinitions) / sizeof(kRewardDefinitions[0]));
 
 	BallStatus NormalizeBallStatus(BallStatus status)
 	{
@@ -62,6 +51,14 @@ namespace
 		status.radius = (std::max)(0.0f, status.radius);
 		status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);
 		status.friction = (std::max)(0.0f, status.friction);
+
+		return status;
+	}
+
+	PlayerRunStatus NormalizePlayerRunStatus(PlayerRunStatus status)
+	{
+		status.maxHp = (std::max)(1, status.maxHp);
+		status.currentHp = std::clamp(status.currentHp, 0, status.maxHp);
 
 		return status;
 	}
@@ -301,8 +298,32 @@ void Game::Draw()
 	ImGui::Text("AreAllEnemiesDefeated = %s",
 		m_Instance->AreAllEnemiesDefeated() ? "true" : "false");
 
-	ImGui::Text("Player Deck = %d", m_Instance->GetPlayerDeckCount());
-	ImGui::Text("Player Discard = %d", m_Instance->GetPlayerDiscardCount());
+	ImGui::Text("Player Run HP = %d / %d",
+		m_Instance->m_PlayerRunStatus.currentHp,
+		m_Instance->m_PlayerRunStatus.maxHp);
+	ImGui::Text("Draw Pile Count = %d", m_Instance->GetPlayerDeckCount());
+	ImGui::Text("Discard Pile Count = %d", m_Instance->GetPlayerDiscardCount());
+	ImGui::Text("Current Ball Used = %s",
+		m_Instance->m_PlayerDeck.IsCurrentUsed() ? "true" : "false");
+
+	const PlayerBallData* currentDebugBall =
+		m_Instance->m_PlayerDeck.GetCurrent();
+	if (currentDebugBall != nullptr)
+	{
+		ImGui::Text(
+			"Current Ball ID = %s",
+			currentDebugBall->definitionId.c_str()
+		);
+
+		ImGui::Text(
+			"Current Ball Attack = %d",
+			currentDebugBall->status.attack
+		);
+	}
+	else
+	{
+		ImGui::Text("Current Ball ID = none");
+	}
 
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
@@ -557,7 +578,9 @@ void Game::ProcessEnemyAttack()
 		enemy->Attack(player);
 	}
 
-	if (player->GetHP() <= 0)
+	CapturePlayerStatusFrom(player);
+
+	if (m_PlayerRunStatus.currentHp <= 0)
 	{
 		m_GameState = GameState::GameOver;
 	}
@@ -569,21 +592,25 @@ void Game::ProcessEnemyAttack()
 
 void Game::ProcessGameOver()
 {
+	DiscardCurrentPlayerBall();
 	ChangeScene(RESULT);
 	m_GameState = GameState::AimingDirection;
 }
 
 void Game::StartClearReward()
 {
+	DiscardCurrentPlayerBall();
 	m_SelectedRewardIndex = 0;
+	m_SelectedRewardBallIndex = 0;
 	m_GameState = GameState::ClearReward;
 }
 
 void Game::UpdateClearReward()
 {
-	const int rewardCount = 3;
+	const int rewardCount = kRewardCount;
+	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
 
-	if (Input::GetKeyTrigger(VK_LEFT))
+	if (Input::GetKeyTrigger(VK_UP))
 	{
 		m_SelectedRewardIndex--;
 
@@ -593,7 +620,7 @@ void Game::UpdateClearReward()
 		}
 	}
 
-	if (Input::GetKeyTrigger(VK_RIGHT))
+	if (Input::GetKeyTrigger(VK_DOWN))
 	{
 		m_SelectedRewardIndex++;
 
@@ -601,6 +628,33 @@ void Game::UpdateClearReward()
 		{
 			m_SelectedRewardIndex = 0;
 		}
+	}
+
+	if (ballCount > 0)
+	{
+		if (Input::GetKeyTrigger(VK_LEFT))
+		{
+			m_SelectedRewardBallIndex--;
+
+			if (m_SelectedRewardBallIndex < 0)
+			{
+				m_SelectedRewardBallIndex = ballCount - 1;
+			}
+		}
+
+		if (Input::GetKeyTrigger(VK_RIGHT))
+		{
+			m_SelectedRewardBallIndex++;
+
+			if (m_SelectedRewardBallIndex >= ballCount)
+			{
+				m_SelectedRewardBallIndex = 0;
+			}
+		}
+	}
+	else
+	{
+		m_SelectedRewardBallIndex = 0;
 	}
 
 	if (Input::GetKeyTrigger(VK_SPACE))
@@ -618,7 +672,7 @@ void Game::UpdateClearReward()
 void Game::DrawClearRewardUI()
 {
 	ImGui::SetNextWindowPos(ImVec2(300.0f, 120.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(500.0f, 300.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(560.0f, 360.0f), ImGuiCond_Always);
 
 	ImGuiWindowFlags flags =
 		ImGuiWindowFlags_NoResize |
@@ -631,29 +685,50 @@ void Game::DrawClearRewardUI()
 	ImGui::Separator();
 
 	ImGui::Text("Reward Select");
-
-	const char* rewards[3] =
-	{
-		"Heal",
-		"Max HP Up",
-		"Power Up"
-	};
-
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < kRewardCount; i++)
 	{
 		if (i == m_SelectedRewardIndex)
 		{
-			ImGui::Text(" > [ %s ]", rewards[i]);
+			ImGui::Text(" > [ %s ]", kRewardDefinitions[i].name);
 		}
 		else
 		{
-			ImGui::Text("   %s", rewards[i]);
+			ImGui::Text("   %s", kRewardDefinitions[i].name);
 		}
 	}
 
 	ImGui::Separator();
-	ImGui::SliderFloat("Heal Rate", &g_HealRewardRate, 0.0f, 1.0f, "%.2f");
-	ImGui::Text("LEFT / RIGHT : Select");
+	ImGui::Text("Target Ball");
+
+	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
+	for (int i = 0; i < ballCount; i++)
+	{
+		const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(i);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+
+		const char* mark = (i == m_SelectedRewardBallIndex) ? " >" : "  ";
+		ImGui::Text(
+			"%s [%d] %s  ATK:%d DEF:%d BallHP:%d",
+			mark,
+			i,
+			ball->definitionId.c_str(),
+			ball->status.attack,
+			ball->status.defense,
+			ball->status.maxHp
+		);
+	}
+
+	if (ballCount <= 0)
+	{
+		ImGui::Text("No target ball");
+	}
+
+	ImGui::Separator();
+	ImGui::Text("UP / DOWN : Reward");
+	ImGui::Text("LEFT / RIGHT : Target Ball");
 	ImGui::Text("SPACE : Decide");
 
 	ImGui::End();
@@ -661,148 +736,82 @@ void Game::DrawClearRewardUI()
 
 void Game::ApplyReward(int rewardIndex)
 {
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
-
-	if (players.empty())
+	if (rewardIndex < 0 || rewardIndex >= kRewardCount)
 	{
 		return;
 	}
 
-	PlayerBall* player = players[0];
+	const RewardDefinition& reward = kRewardDefinitions[rewardIndex];
 
-	switch (rewardIndex)
+	switch (reward.targetType)
 	{
-	case 0:
-		// Heal
+	case RewardTargetType::SingleBall:
+	{
+		PlayerBallData* targetBall =
+			m_PlayerDeck.GetRewardTarget(m_SelectedRewardBallIndex);
+		if (targetBall == nullptr)
 		{
-			int healAmount = static_cast<int>(
-				std::ceil(player->GetMaxHP() * g_HealRewardRate)
-			);
+			return;
+		}
 
-			if (g_HealRewardRate > 0.0f && healAmount < 1)
+		switch (rewardIndex)
+		{
+		case 0:
+			targetBall->status.attack += 1;
+			break;
+
+		case 1:
+			targetBall->status.defense += 1;
+			break;
+
+		case 2:
+			targetBall->status.maxHp += 1;
+			break;
+
+		default:
+			break;
+		}
+
+		PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+		if (targetBall == currentBall)
+		{
+			std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+			if (!players.empty())
 			{
-				healAmount = 1;
+				ApplyPlayerStatusTo(players[0]);
 			}
-
-			int newHp = std::clamp(
-				player->GetHP() + healAmount,
-				0,
-				player->GetMaxHP()
-			);
-
-			player->SetHP(newHp);
 		}
 		break;
+	}
 
-	case 1:
-		// Max HP Up
-		player->SetMaxHP(player->GetMaxHP() + 1);
-		player->SetHP(player->GetMaxHP());
-		break;
-
-	case 2:
-		// Power Up
-		{
-			int currentHp = player->GetHP();
-			BallStatus status = player->GetStatus();
-			status.attack += 1;
-			player->SetStatus(status);
-			player->SetHP(currentHp);
-		}
-		break;
-
+	case RewardTargetType::WholeDeck:
+	case RewardTargetType::PlayerOverall:
 	default:
 		break;
 	}
-
-	CapturePlayerStatusFrom(player);
 }
 void Game::LoadPlayerStatusFromJson(const std::string& filePath)
 {
-	BallStatus status = m_DefaultPlayerStatus;
-	int hp = status.maxHp;
-	std::vector<BallStatus> loadedDeck;
-	std::ifstream file(filePath);
-	if (file.is_open())
-	{
-		try
-		{
-			json root;
-			file >> root;
-			if (root.contains("status"))
-			{
-				if (root["status"].is_object())
-				{
-					const json& statusJson = root["status"];
-					status = LoadBallStatusFromJson(statusJson, status);
-				}
-			}
+	PlayerBallDataLoadResult loadResult =
+		PlayerBallDataLoader::Load(
+			filePath,
+			m_DefaultPlayerStatus,
+			m_DefaultPlayerRunStatus
+		);
 
-			if (root.contains("balls") && root["balls"].is_array())
-			{
-				for (const json& ballJson : root["balls"])
-				{
-					if (!ballJson.is_object())
-					{
-						continue;
-					}
+	m_DefaultPlayerStatus = loadResult.defaultBallStatus;
+	m_DefaultPlayerRunStatus = NormalizePlayerRunStatus(
+		loadResult.defaultRunStatus
+	);
+	m_PlayerDeck.SetDefaultDeck(loadResult.defaultDeck);
 
-					if (ballJson.contains("status") && ballJson["status"].is_object())
-					{
-						loadedDeck.push_back(
-							NormalizeBallStatus(
-								LoadBallStatusFromJson(ballJson["status"], status)
-							)
-						);
-					}
-					else
-					{
-						loadedDeck.push_back(
-							NormalizeBallStatus(
-								LoadBallStatusFromJson(ballJson, status)
-							)
-						);
-					}
-				}
-			}
-
-			hp = root.value("currentHp", status.maxHp);
-		}
-		catch (...)
-		{
-			status = m_DefaultPlayerStatus;
-			hp = status.maxHp;
-			loadedDeck.clear();
-		}
-	}
-	status = NormalizeBallStatus(status);
-	if (loadedDeck.empty())
-	{
-		loadedDeck.push_back(status);
-	}
-
-	hp = std::clamp(hp, 0, status.maxHp);
-	m_DefaultPlayerStatus = status;
-	m_DefaultPlayerHP = hp;
-	m_DefaultPlayerDeck = loadedDeck;
 	ResetPlayerRuntimeStatus();
 }
-
 void Game::ResetPlayerRuntimeStatus()
 {
-	m_PlayerDrawPile = m_DefaultPlayerDeck;
-	if (m_PlayerDrawPile.empty())
-	{
-		m_PlayerDrawPile.push_back(m_DefaultPlayerStatus);
-	}
-
-	m_PlayerDiscardPile.clear();
-	m_HasCurrentPlayerBall = false;
-	m_PlayerHP = m_DefaultPlayerHP;
-	ShufflePlayerDrawPile();
-	DrawNextPlayerBall();
+	m_PlayerRunStatus = NormalizePlayerRunStatus(m_DefaultPlayerRunStatus);
+	m_PlayerDeck.Reset();
 }
-
 void Game::ApplyPlayerStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -810,25 +819,57 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 		return;
 	}
 
-	if (!m_HasCurrentPlayerBall)
+	if (!m_PlayerDeck.HasCurrent())
 	{
-		DrawNextPlayerBall();
+		m_PlayerDeck.DrawNext();
 	}
 
-	player->SetStatus(m_PlayerStatus);
-	player->SetHP(std::clamp(m_PlayerHP, 0, m_PlayerStatus.maxHp));
+	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	if (currentBall == nullptr)
+	{
+		return;
+	}
+
+	player->SetStatus(currentBall->status);
+	ApplyPlayerRunStatusTo(player);
 }
 
+void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
+{
+	if (player == nullptr)
+	{
+		return;
+	}
+
+	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
+	player->SetMaxHP(m_PlayerRunStatus.maxHp);
+	player->SetHP(m_PlayerRunStatus.currentHp);
+}
 void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 {
 	if (player == nullptr)
 	{
 		return;
 	}
-	m_PlayerStatus = NormalizeBallStatus(player->GetStatus());
-	m_PlayerHP = std::clamp(player->GetHP(), 0, m_PlayerStatus.maxHp);
-}
 
+	BallStatus updatedStatus =
+		NormalizeBallStatus(player->GetStatus());
+
+	PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	if (currentBall != nullptr)
+	{
+		const int ballMaxHp = currentBall->status.maxHp;
+		currentBall->status = updatedStatus;
+		currentBall->status.maxHp = ballMaxHp;
+	}
+
+	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
+	m_PlayerRunStatus.currentHp = std::clamp(
+		player->GetHP(),
+		0,
+		m_PlayerRunStatus.maxHp
+	);
+}
 void Game::CaptureCurrentPlayerStatus()
 {
 	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
@@ -839,49 +880,24 @@ void Game::CaptureCurrentPlayerStatus()
 	CapturePlayerStatusFrom(players[0]);
 }
 
-void Game::ShufflePlayerDrawPile()
-{
-	static std::mt19937 rng(std::random_device{}());
-	std::shuffle(m_PlayerDrawPile.begin(), m_PlayerDrawPile.end(), rng);
-}
-
 void Game::DrawNextPlayerBall()
 {
-	if (m_PlayerDrawPile.empty())
-	{
-		if (!m_PlayerDiscardPile.empty())
-		{
-			m_PlayerDrawPile = m_PlayerDiscardPile;
-			m_PlayerDiscardPile.clear();
-			ShufflePlayerDrawPile();
-		}
-		else if (!m_DefaultPlayerDeck.empty())
-		{
-			m_PlayerDrawPile = m_DefaultPlayerDeck;
-			ShufflePlayerDrawPile();
-		}
-		else
-		{
-			m_PlayerDrawPile.push_back(m_DefaultPlayerStatus);
-		}
-	}
-
-	m_PlayerStatus = NormalizeBallStatus(m_PlayerDrawPile.back());
-	m_PlayerDrawPile.pop_back();
-	m_PlayerHP = std::clamp(m_PlayerHP, 0, m_PlayerStatus.maxHp);
-	m_HasCurrentPlayerBall = true;
+	m_PlayerDeck.DrawNext();
 }
-
 void Game::PrepareNextPlayerBall()
 {
-	if (m_HasCurrentPlayerBall)
+	DiscardCurrentPlayerBall();
+
+	if (m_PlayerDeck.HasCurrent())
 	{
 		return;
 	}
 
 	DrawNextPlayerBall();
 
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	std::vector<PlayerBall*> players =
+		GetObjects<PlayerBall>();
+
 	if (!players.empty())
 	{
 		ApplyPlayerStatusTo(players[0]);
@@ -895,13 +911,34 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		CapturePlayerStatusFrom(player);
 	}
 
-	if (!m_HasCurrentPlayerBall)
+	if (!m_PlayerDeck.HasCurrent())
 	{
 		return;
 	}
 
-	m_PlayerDiscardPile.push_back(m_PlayerStatus);
-	m_HasCurrentPlayerBall = false;
+	m_PlayerDeck.MarkCurrentUsed();
+}
+
+void Game::DiscardCurrentPlayerBall()
+{
+	if (!m_PlayerDeck.HasCurrent())
+	{
+		m_PlayerDeck.ClearCurrentUsed();
+		return;
+	}
+
+	if (!m_PlayerDeck.IsCurrentUsed())
+	{
+		return;
+	}
+
+	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	if (!players.empty() && players[0] != nullptr)
+	{
+		CapturePlayerStatusFrom(players[0]);
+	}
+
+	m_PlayerDeck.DiscardCurrentIfUsed();
 }
 
 void Game::SaveDebugSnapshot()
@@ -927,6 +964,40 @@ void Game::SaveDebugSnapshot()
 	std::vector<EnemyBall*> enemies = GetObjects<EnemyBall>();
 
 	file << "[BallCounts]\n";
+	file << "PlayerRunCurrentHp = "
+		<< m_PlayerRunStatus.currentHp << "\n";
+
+	file << "PlayerRunMaxHp = "
+		<< m_PlayerRunStatus.maxHp << "\n";
+
+	file << "[Deck]\n";
+	file << "DrawPile = "
+		<< m_PlayerDeck.GetDrawPileCount() << "\n";
+
+	file << "DiscardPile = "
+		<< m_PlayerDeck.GetDiscardPileCount() << "\n";
+
+	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	if (currentBall != nullptr)
+	{
+		file << "CurrentBallId = "
+			<< currentBall->definitionId
+			<< "\n";
+
+		file << "CurrentBallAttack = "
+			<< currentBall->status.attack
+			<< "\n";
+
+		file << "CurrentBallUsed = "
+			<< (m_PlayerDeck.IsCurrentUsed() ? "true" : "false")
+			<< "\n";
+	}
+	else
+	{
+		file << "CurrentBallId = none\n";
+	}
+
+	file << "\n";
 	file << "PlayerBall = " << players.size() << "\n";
 	file << "EnemyBall = " << enemies.size() << "\n";
 	file << "\n";

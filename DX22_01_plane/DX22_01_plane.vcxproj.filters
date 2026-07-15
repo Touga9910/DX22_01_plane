@@ -192,6 +192,12 @@
     <ClCompile Include="PlayerBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerDeck.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerBallDataLoader.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClCompile>
     <ClCompile Include="EnemyBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClCompile>
@@ -385,6 +391,18 @@
     </ClInclude>
     <ClInclude Include="StageDataLoader.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBallData.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerDeck.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBallDataLoader.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerRunStatus.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
