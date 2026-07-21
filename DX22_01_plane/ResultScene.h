@@ -1,22 +1,23 @@
-#pragma once
+ï»¿#pragma once
 #include "Scene.h"
-#include "Object.h"
+#include "Component.h"
+#include <vector>
 
-// ResultSceneƒNƒ‰ƒX
+// ResultSceneã‚¯ãƒ©ã‚¹
 class ResultScene : public Scene
 {
 private:
-	std::vector<Object*> m_MySceneObjects; // ‚±‚ÌƒV[ƒ“‚ÌƒIƒuƒWƒFƒNƒg
+	std::vector<Component*> m_MySceneObjects; // ã“ã®ã‚·ãƒ¼ãƒ³ãŒæ‰€æœ‰ã™ã‚‹GameObjectå†…ã®ä»£è¡¨Component
 
-	void Init(); // ‰Šú‰»
-	void Uninit(); // I—¹ˆ—
+	void Init(); // åˆæœŸåŒ–
+	void Uninit(); // çµ‚äº†å‡¦ç†
 
 public:
-	ResultScene(); // ƒRƒ“ƒXƒgƒ‰ƒNƒ^
-	~ResultScene(); // ƒfƒXƒgƒ‰ƒNƒ^
+	ResultScene(); // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
+	~ResultScene(); // ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 
-	void Update(); // XV
+	void Update(); // æ›´æ–°
 
-	void SetScore(int c);//ƒXƒRƒA‚ğİ’è
+	void SetScore(int c);//ã‚¹ã‚³ã‚¢ã‚’è¨­å®š
 };
 

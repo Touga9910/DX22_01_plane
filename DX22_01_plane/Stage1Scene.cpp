@@ -1,8 +1,9 @@
-#include "Stage1Scene.h"
+ï»¿#include "Stage1Scene.h"
 #include "Game.h"
 #include "Input.h"
 #include "PlayerBall.h"
 #include "EnemyBall.h"
+#include "BallFactory.h"
 #include "EnemyData.h"
 #include "StageDataLoader.h"
 
@@ -19,32 +20,34 @@
 
 using namespace DirectX::SimpleMath;
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Stage1Scene::Stage1Scene()
 {
 	Init();
 }
 
-// ‰Šú‰»
+// åˆæœŸåŒ–
 void Stage1Scene::Init()
 {
-	m_Par = 4;			// ƒp[‚ğİ’è
-	m_StrokeCount = 0;	// Œ»İ‘Å”‚ğ‰Šú‰»
+	m_Par = 4;			// ãƒ‘ãƒ¼ã‚’è¨­å®š
+	m_StrokeCount = 0;	// ç¾åœ¨æ‰“æ•°ã‚’åˆæœŸåŒ–
 
-	std::cout << "ƒIƒuƒWƒFƒNƒg‚ğ¶¬ŠJn\n" << std::endl;
+	std::cout << "ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ç”Ÿæˆé–‹å§‹\n" << std::endl;
 
-	// ƒIƒuƒWƒFƒNƒg‚ğì¬
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<PlayerBall>());
+	// ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆ
+	PlayerBall* ball = BallFactory::CreatePlayer(*Game::GetInstance());
+	m_MySceneObjects.emplace_back(ball);
 	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
-	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//–îˆó
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Pole>());	//ƒ|[ƒ‹
+	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//çŸ¢å°
+	Pole* pole = Game::GetInstance()->AddObject<Pole>();
+	m_MySceneObjects.emplace_back(pole);	//ãƒãƒ¼ãƒ«
 
 
 	TableFrame* tableFrame = Game::GetInstance()->AddObject<TableFrame>();
 	m_MySceneObjects.emplace_back(tableFrame);
 
 	// ========================================================
-	// TableFrame ‚Ìƒ|ƒPƒbƒgˆÊ’u‚ğŒ³‚É Pocket ‚ğ¶¬
+	// TableFrame ã®ãƒã‚±ãƒƒãƒˆä½ç½®ã‚’å…ƒã« Pocket ã‚’ç”Ÿæˆ
 	// ========================================================
 	std::vector<Collision::Sphere> pocketSpheres = tableFrame->GetPocketSpheres();
 
@@ -58,7 +61,7 @@ void Stage1Scene::Init()
 	}
 
 	// ========================================================
-	// ƒGƒlƒ~[iEnemyBallj‚ÌoŒ»ˆ—
+	// ã‚¨ãƒãƒŸãƒ¼ï¼ˆEnemyBallï¼‰ã®å‡ºç¾å‡¦ç†
 	// ========================================================
 	StageData stageData = StageDataLoader::Load(
 		m_StageJsonPath,
@@ -72,75 +75,72 @@ void Stage1Scene::Init()
 
 	for (const EnemyData& enemyData : stageData.enemies)
 	{
-		EnemyBall* enemy = Game::GetInstance()->AddObject<EnemyBall>();
-		enemy->Init(enemyData);
+		EnemyBall* enemy = BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
 
 		m_MySceneObjects.emplace_back(enemy);
 	}
 
-	std::cout << "\nƒIƒuƒWƒFƒNƒg‚Ì¶¬I—¹\n" << std::endl;
+	std::cout << "\nã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®ç”Ÿæˆçµ‚äº†\n" << std::endl;
 
-	// UI‚Ìì¬
+	// UIã®ä½œæˆ
 	/*
 	{
-		// UIi”wŒij
+		// UIï¼ˆèƒŒæ™¯ï¼‰
 		Texture2D* pt1 = Game::GetInstance()->AddObject<Texture2D>();
-		pt1->SetTexture("assets/texture/ui_back.png");	// ‰æ‘œw’è
-		pt1->SetPosition(-475.0f, -300.0f, 0.0f);		// ˆÊ’uw’è
-		pt1->SetScale(270.0f, 75.0f, 0.0f);				// ‘å‚«‚³w’è
+		pt1->SetTexture("assets/texture/ui_back.png");	// ç”»åƒæŒ‡å®š
+		pt1->SetPosition(-475.0f, -300.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt1->SetScale(270.0f, 75.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
 		m_MySceneObjects.emplace_back(pt1);//m_MySceneObjects[4]
 
-		// UIiuƒp[vj
+		// UIï¼ˆã€Œãƒ‘ãƒ¼ã€ï¼‰
 		Texture2D* pt2 = Game::GetInstance()->AddObject<Texture2D>();
-		pt2->SetTexture("assets/texture/ui_string.png");// ‰æ‘œw’è
-		pt2->SetPosition(-575.0f, -240.0f, 0.0f);		// ˆÊ’uw’è
-		pt2->SetScale(60.0f, 45.0f, 0.0f);				// ‘å‚«‚³w’è
-		pt2->SetUV(1, 1, 2, 1);							// UVw’è
+		pt2->SetTexture("assets/texture/ui_string.png");// ç”»åƒæŒ‡å®š
+		pt2->SetPosition(-575.0f, -240.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt2->SetScale(60.0f, 45.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
+		pt2->SetUV(1, 1, 2, 1);							// UVæŒ‡å®š
 		m_MySceneObjects.emplace_back(pt2);//m_MySceneObjects[5]
 
-		// UIiu‘Å–Úvj
+		// UIï¼ˆã€Œæ‰“ç›®ã€ï¼‰
 		Texture2D* pt3 = Game::GetInstance()->AddObject<Texture2D>();
-		pt3->SetTexture("assets/texture/ui_string.png");// ‰æ‘œw’è
-		pt3->SetPosition(-400.0f, -305.0f, 0.0f);		// ˆÊ’uw’è
-		pt3->SetScale(105.0f, 63.0f, 0.0f);				// ‘å‚«‚³w’è
-		pt3->SetUV(2, 1, 2, 1);							// UVw’è
+		pt3->SetTexture("assets/texture/ui_string.png");// ç”»åƒæŒ‡å®š
+		pt3->SetPosition(-400.0f, -305.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt3->SetScale(105.0f, 63.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
+		pt3->SetUV(2, 1, 2, 1);							// UVæŒ‡å®š
 		m_MySceneObjects.emplace_back(pt3);//m_MySceneObjects[6]
 
-		// UIiƒp[‚Ì”’lj
+		// UIï¼ˆãƒ‘ãƒ¼ã®æ•°å€¤ï¼‰
 		Texture2D* pt4 = Game::GetInstance()->AddObject<Texture2D>();
-		pt4->SetTexture("assets/texture/ui_number.png");// ‰æ‘œw’è
-		pt4->SetPosition(-510.0f, -245.0f, 0.0f);		// ˆÊ’uw’è
-		pt4->SetScale(65.0f, 45.0f, 0.0f);				// ‘å‚«‚³w’è
-		pt4->SetUV((float)(m_Par + 1), 1, 10, 1);			// UVw’è
+		pt4->SetTexture("assets/texture/ui_number.png");// ç”»åƒæŒ‡å®š
+		pt4->SetPosition(-510.0f, -245.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt4->SetScale(65.0f, 45.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
+		pt4->SetUV((float)(m_Par + 1), 1, 10, 1);			// UVæŒ‡å®š
 		m_MySceneObjects.emplace_back(pt4);//m_MySceneObjects[7]
 
-		// UIiŒ»İ‘Å”‚Ì”’l ˆê‚ÌˆÊj
+		// UIï¼ˆç¾åœ¨æ‰“æ•°ã®æ•°å€¤ ä¸€ã®ä½ï¼‰
 		Texture2D* pt5 = Game::GetInstance()->AddObject<Texture2D>();
-		pt5->SetTexture("assets/texture/ui_number.png");// ‰æ‘œw’è
-		pt5->SetPosition(-485.0f, -300.0f, 0.0f);		// ˆÊ’uw’è
-		pt5->SetScale(95.0f, 72.0f, 0.0f);				// ‘å‚«‚³w’è
-		pt5->SetUV(2, 1, 10, 1);				// UVw’è
+		pt5->SetTexture("assets/texture/ui_number.png");// ç”»åƒæŒ‡å®š
+		pt5->SetPosition(-485.0f, -300.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt5->SetScale(95.0f, 72.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
+		pt5->SetUV(2, 1, 10, 1);				// UVæŒ‡å®š
 		m_MySceneObjects.emplace_back(pt5);//m_MySceneObjects[8]
 
-		// UIiŒ»İ‘Å”‚Ì”’l \‚ÌˆÊj
+		// UIï¼ˆç¾åœ¨æ‰“æ•°ã®æ•°å€¤ åã®ä½ï¼‰
 		Texture2D* pt6 = Game::GetInstance()->AddObject<Texture2D>();
-		pt6->SetTexture("assets/texture/ui_number.png");// ‰æ‘œw’è
-		pt6->SetPosition(-556.0f, -300.0f, 0.0f);		// ˆÊ’uw’è
-		pt6->SetScale(95.0f, 72.0f, 0.0f);				// ‘å‚«‚³w’è
-		pt6->SetUV(1, 1, 10, 1);				// UVw’è
+		pt6->SetTexture("assets/texture/ui_number.png");// ç”»åƒæŒ‡å®š
+		pt6->SetPosition(-556.0f, -300.0f, 0.0f);		// ä½ç½®æŒ‡å®š
+		pt6->SetScale(95.0f, 72.0f, 0.0f);				// å¤§ãã•æŒ‡å®š
+		pt6->SetUV(1, 1, 10, 1);				// UVæŒ‡å®š
 		m_MySceneObjects.emplace_back(pt6);//m_MySceneObjects[8]
 	}
 	*/
 
-	PlayerBall* ball = dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);//ƒSƒ‹ƒtƒ{[ƒ‹
-	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//–îˆó
-	Pole* pole = dynamic_cast<Pole*>(m_MySceneObjects[2]);//ƒ|[ƒ‹
-	ball->SetState(PlayerBall::State::Simulation);	//ƒ{[ƒ‹‚ğ•¨—‹““®‚³‚¹‚é
-	//arrow->SetState(0);	//–îˆó”ñ•\¦
-	pole->SetPosition(200.0f,-25.0f,0.0f);	//ƒ|[ƒ‹‚ğİ’è
+	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//çŸ¢å°
+	ball->SetState(PlayerBall::State::Simulation);	//ãƒœãƒ¼ãƒ«ã‚’ç‰©ç†æŒ™å‹•ã•ã›ã‚‹
+	//arrow->SetState(0);	//çŸ¢å°éè¡¨ç¤º
+	pole->SetPosition(200.0f,-25.0f,0.0f);	//ãƒãƒ¼ãƒ«ã‚’è¨­å®š
 }
 
-//XV
+//æ›´æ–°
 void Stage1Scene::Update()
 {
 	StageBase::Update();
@@ -153,11 +153,11 @@ void Stage1Scene::Update()
 }
 
 // =======================================
-// JSONƒzƒbƒgƒŠƒ[ƒhŠÖ˜A‚Ìˆ—
+// JSONãƒ›ãƒƒãƒˆãƒªãƒ­ãƒ¼ãƒ‰é–¢é€£ã®å‡¦ç†
 // =======================================
 void Stage1Scene::UpdateJsonHotReload()
 {
-	// ‚·‚Å‚É•ÏXŒŸ’mÏ‚İ‚È‚çA­‚µ‘Ò‚Á‚Ä‚©‚çƒŠƒ[ƒh‚·‚é
+	// ã™ã§ã«å¤‰æ›´æ¤œçŸ¥æ¸ˆã¿ãªã‚‰ã€å°‘ã—å¾…ã£ã¦ã‹ã‚‰ãƒªãƒ­ãƒ¼ãƒ‰ã™ã‚‹
 	if (m_HotReloadPending)
 	{
 		m_HotReloadWaitFrame++;
@@ -170,14 +170,14 @@ void Stage1Scene::UpdateJsonHotReload()
 		m_HotReloadPending = false;
 		m_HotReloadWaitFrame = 0;
 
-		std::cout << "[HotReload] JSON‚ğÄ“Ç‚İ‚İ‚µ‚Ü‚·" << std::endl;
+		std::cout << "[HotReload] JSONã‚’å†èª­ã¿è¾¼ã¿ã—ã¾ã™" << std::endl;
 		ReloadEnemyStatusFromJson();
 		return;
 	}
 
 	m_HotReloadCheckFrame++;
 
-	// –ˆƒtƒŒ[ƒ€‚Å‚Í‚È‚­A60ƒtƒŒ[ƒ€‚É1‰ñ‚¾‚¯Šm”F
+	// æ¯ãƒ•ãƒ¬ãƒ¼ãƒ ã§ã¯ãªãã€60ãƒ•ãƒ¬ãƒ¼ãƒ ã«1å›ã ã‘ç¢ºèª
 	if (m_HotReloadCheckFrame < 60)
 	{
 		return;
@@ -199,15 +199,15 @@ void Stage1Scene::UpdateJsonHotReload()
 		return;
 	}
 
-	// ‚±‚±‚Å‚Í‚Ü‚¾“Ç‚İ‚Ü‚È‚¢
-	// XV‚¾‚¯•Û‘¶‚µ‚ÄA­‚µ‘Ò‚Á‚Ä‚©‚ç“Ç‚Ş
+	// ã“ã“ã§ã¯ã¾ã èª­ã¿è¾¼ã¾ãªã„
+	// æ›´æ–°æ™‚åˆ»ã ã‘ä¿å­˜ã—ã¦ã€å°‘ã—å¾…ã£ã¦ã‹ã‚‰èª­ã‚€
 	m_LastStageJsonWriteTime = currentStageWriteTime;
 	m_LastEnemyJsonWriteTime = currentEnemyWriteTime;
 
 	m_HotReloadPending = true;
 	m_HotReloadWaitFrame = 0;
 
-	std::cout << "[HotReload] JSON•ÏX‚ğŒŸ’m‚µ‚Ü‚µ‚½B­‚µ‘Ò‚Á‚Ä‚©‚çÄ“Ç‚İ‚İ‚µ‚Ü‚·B"
+	std::cout << "[HotReload] JSONå¤‰æ›´ã‚’æ¤œçŸ¥ã—ã¾ã—ãŸã€‚å°‘ã—å¾…ã£ã¦ã‹ã‚‰å†èª­ã¿è¾¼ã¿ã—ã¾ã™ã€‚"
 		<< std::endl;
 }
 
@@ -220,7 +220,7 @@ void Stage1Scene::ReloadEnemyStatusFromJson()
 
 	if (stageData.enemies.empty())
 	{
-		std::cout << "[HotReload] “Gƒf[ƒ^‚ª‹ó‚Ì‚½‚ßA”½‰f‚ğ’†~‚µ‚Ü‚µ‚½"
+		std::cout << "[HotReload] æ•µãƒ‡ãƒ¼ã‚¿ãŒç©ºã®ãŸã‚ã€åæ˜ ã‚’ä¸­æ­¢ã—ã¾ã—ãŸ"
 			<< std::endl;
 		return;
 	}
@@ -252,7 +252,7 @@ void Stage1Scene::ReloadEnemyStatusFromJson()
 		enemy->ApplyHotReloadData(it->second);
 	}
 
-	std::cout << "[HotReload] “GƒXƒe[ƒ^ƒX‚ğXV‚µ‚Ü‚µ‚½" << std::endl;
+	std::cout << "[HotReload] æ•µã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‚’æ›´æ–°ã—ã¾ã—ãŸ" << std::endl;
 }
 
 std::filesystem::file_time_type Stage1Scene::GetJsonWriteTime(
@@ -268,7 +268,7 @@ std::filesystem::file_time_type Stage1Scene::GetJsonWriteTime(
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << "[HotReload] JSONXV‚Ìæ“¾‚É¸”s: "
+		std::cout << "[HotReload] JSONæ›´æ–°æ™‚åˆ»ã®å–å¾—ã«å¤±æ•—: "
 			<< path << std::endl;
 		std::cout << e.what() << std::endl;
 	}

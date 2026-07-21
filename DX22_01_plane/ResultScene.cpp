@@ -1,38 +1,38 @@
-#include "ResultScene.h"
+ï»¿#include "ResultScene.h"
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 ResultScene::ResultScene()
 {
 	Init();
 }
 
-// ƒfƒXƒgƒ‰ƒNƒ^
+// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 ResultScene::~ResultScene()
 {
 	Uninit();
 }
 
-// ‰Šú‰»
+// åˆæœŸåŒ–
 void ResultScene::Init()
 {
-	//”wŒi‰æ‘œƒIƒuƒWƒFƒNƒg‚ğì¬
+	//èƒŒæ™¯ç”»åƒã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆ
 	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
 	pt->SetTexture("assets/texture/background2.png");
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
 	m_MySceneObjects.emplace_back(pt);
 
-	//ƒŠƒUƒ‹ƒg•¶š—ñƒIƒuƒWƒFƒNƒg‚ğì¬
+	//ãƒªã‚¶ãƒ«ãƒˆæ–‡å­—åˆ—ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆ
 	Texture2D* pt2 = Game::GetInstance()->AddObject<Texture2D>();
 	pt2->SetTexture("assets/texture/resultString.png");
 	pt2->SetScale(700.0f, 100.0f, 0.0f);
-	pt2->SetUV(1, 1, 1, 13);//c1‰¡13•ªŠ„‚ÌA¶‚©‚ç1”Ô–Úã‚©‚ç5”Ô–Ú‚ğw’è
+	pt2->SetUV(1, 1, 1, 13);//ç¸¦1æ¨ª13åˆ†å‰²ã®ã€å·¦ã‹ã‚‰1ç•ªç›®ä¸Šã‹ã‚‰5ç•ªç›®ã‚’æŒ‡å®š
 	m_MySceneObjects.emplace_back(pt2);
 
 	/*
-	// lƒIƒuƒWƒFƒNƒg‚ğì¬
+	// äººã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆ
 	Texture2D* pt3 = Game::GetInstance()->AddObject<Texture2D>();
 	pt3->SetTexture("assets/texture/golf_jou_man.png");
 	pt3->SetPosition(-300.0f, 0.0f, 0.0f);
@@ -42,57 +42,57 @@ void ResultScene::Init()
 
 }
 
-// XV
+// æ›´æ–°
 void ResultScene::Update()
 {
-	// ƒGƒ“ƒ^[ƒL[‚ğ‰Ÿ‚µ‚Äƒ^ƒCƒgƒ‹‚Ö
+	// ã‚¨ãƒ³ã‚¿ãƒ¼ã‚­ãƒ¼ã‚’æŠ¼ã—ã¦ã‚¿ã‚¤ãƒˆãƒ«ã¸
 	if (Input::GetKeyTrigger(VK_RETURN))
 	{
 		Game::GetInstance()->ChangeScene(TITLE);
 	}
 }
 
-// I—¹ˆ—
+// çµ‚äº†å‡¦ç†
 void ResultScene::Uninit()
 {
-	// ‚±‚ÌƒV[ƒ“‚ÌƒIƒuƒWƒFƒNƒg‚ğíœ‚·‚é
+	// ã“ã®ã‚·ãƒ¼ãƒ³ã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å‰Šé™¤ã™ã‚‹
 	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteObject(o);
+		Game::GetInstance()->DeleteComponent(o);
 	}
 	m_MySceneObjects.clear();
 }
 
-// ƒXƒRƒA‚ğİ’è
+// ã‚¹ã‚³ã‚¢ã‚’è¨­å®š
 void ResultScene::SetScore(int c)
 {
-	// ƒŠƒUƒ‹ƒg•¶š—ñƒIƒuƒWƒFƒNƒg
+	// ãƒªã‚¶ãƒ«ãƒˆæ–‡å­—åˆ—ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
 	Texture2D* stringObj = dynamic_cast<Texture2D*>(m_MySceneObjects[1]);
 
 	switch (c)
 	{
 	case -4:
-		stringObj->SetUV(1, 2, 1, 13);	// -4 ƒRƒ“ƒhƒ‹
+		stringObj->SetUV(1, 2, 1, 13);	// -4 ã‚³ãƒ³ãƒ‰ãƒ«
 		break;
 	case -3:
-		stringObj->SetUV(1, 3, 1, 13);	// -3 ƒAƒ‹ƒoƒgƒƒX
+		stringObj->SetUV(1, 3, 1, 13);	// -3 ã‚¢ãƒ«ãƒãƒˆãƒ­ã‚¹
 		break;
 	case -2:
-		stringObj->SetUV(1, 4, 1, 13);	// -2 ƒC[ƒOƒ‹
+		stringObj->SetUV(1, 4, 1, 13);	// -2 ã‚¤ãƒ¼ã‚°ãƒ«
 		break;
 	case -1:
-		stringObj->SetUV(1, 5, 1, 13);	// -1 ƒo[ƒfƒB
+		stringObj->SetUV(1, 5, 1, 13);	// -1 ãƒãƒ¼ãƒ‡ã‚£
 		break;
 	case 0:
-		stringObj->SetUV(1, 6, 1, 13);	// 0 ƒp[
+		stringObj->SetUV(1, 6, 1, 13);	// 0 ãƒ‘ãƒ¼
 		break;
 	case 1:
-		stringObj->SetUV(1, 7, 1, 13);	// +1 ƒ{ƒM[
+		stringObj->SetUV(1, 7, 1, 13);	// +1 ãƒœã‚®ãƒ¼
 		break;
 	case 2:
-		stringObj->SetUV(1, 8, 1, 13);	// +2 ƒ_ƒuƒ‹ƒ{ƒM[
+		stringObj->SetUV(1, 8, 1, 13);	// +2 ãƒ€ãƒ–ãƒ«ãƒœã‚®ãƒ¼
 		break;
 	case 3:
-		stringObj->SetUV(1, 9, 1, 13);	// +3 ƒgƒŠƒvƒ‹ƒ{ƒM[
+		stringObj->SetUV(1, 9, 1, 13);	// +3 ãƒˆãƒªãƒ—ãƒ«ãƒœã‚®ãƒ¼
 		break;
 	case 4:
 		stringObj->SetUV(1, 10, 1, 13);	// +4

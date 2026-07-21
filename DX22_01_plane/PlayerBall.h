@@ -1,6 +1,6 @@
-#pragma once
+ï»¿#pragma once
 
-#include "BallBase.h"
+#include "BallComponent.h"
 #include "Texture.h"
 #include "MeshRenderer.h"
 #include "StaticMesh.h"
@@ -12,8 +12,10 @@
 #include <vector>
 #include <memory>
 
+class Camera;
+
 //=======================================
-// ’e“¹—\‘ª‚Ì•`‰æƒ‚ƒfƒ‹ƒ^ƒCƒv
+// å¼¾é“äºˆæ¸¬ã®æç”»ãƒ¢ãƒ‡ãƒ«ã‚¿ã‚¤ãƒ—
 //=======================================
 enum class TrajectoryVisualModel
 {
@@ -23,7 +25,7 @@ enum class TrajectoryVisualModel
 };
 
 //=======================================
-// ‹OÕ‚Ì1“_•ª‚Ìî•ñ
+// è»Œè·¡ã®1ç‚¹åˆ†ã®æƒ…å ±
 //=======================================
 struct TrailPoint
 {
@@ -33,57 +35,75 @@ struct TrailPoint
 };
 
 //=======================================
-// ƒvƒŒƒCƒ„[ƒ{[ƒ‹
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒœãƒ¼ãƒ«
 //=======================================
-class PlayerBall : public BallBase
+class PlayerBall final : public Component
 {
 public:
 	//=======================================
-	// ƒvƒŒƒCƒ„[ó‘Ô
+	// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼çŠ¶æ…‹
 	//=======================================
 	enum class State
 	{
-		Simulation, // •¨—‰‰Z’†
-		Idle,       // ƒVƒ‡ƒbƒg‘Ò‚¿
-		Goal,       // ƒS[ƒ‹
-		Dead        // €–S
+		Simulation, // ç‰©ç†æ¼”ç®—ä¸­
+		Idle,       // ã‚·ãƒ§ãƒƒãƒˆå¾…ã¡
+		Goal,       // ã‚´ãƒ¼ãƒ«
+		Dead        // æ­»äº¡
 	};
 
 public:
 	//=======================================
-	// Šî–{ˆ—
+	// åŸºæœ¬å‡¦ç†
 	//=======================================
-	void Init() override;
+	void Awake() override;
 	void Update() override;
-	void Draw(Camera* cam) override;
-	void Uninit() override;
+	void Draw() override;
+	void OnDestroy() override;
 
 	//=======================================
-	// ƒCƒxƒ“ƒgˆ—
+	// ã‚¤ãƒ™ãƒ³ãƒˆå‡¦ç†
 	//=======================================
-	void Defeat() override;
-	void OnPocketHit() override;
+	void Defeat();
+	void OnPocketHit();
 
 	//=======================================
-	// ó‘ÔŠÇ—
+	// çŠ¶æ…‹ç®¡ç†
 	//=======================================
 	void SetState(State state) { m_State = state; }
 	State GetState() const { return m_State; }
 	bool IsIdle() const { return m_State == State::Idle; }
 
 	//=======================================
-	// ƒXƒe[ƒ^ƒXŒn
+	// ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ç³»
 	//=======================================
-	void TakeDamage(int damage) override;
+	void TakeDamage(int damage);
 
 	//=======================================
-	// ƒVƒ‡ƒbƒgE‹OÕŒn
+	// ã‚·ãƒ§ãƒƒãƒˆãƒ»è»Œè·¡ç³»
 	//=======================================
-	void Shot(DirectX::SimpleMath::Vector3 velocity) { m_Velocity = velocity; }
+	void Shot(DirectX::SimpleMath::Vector3 velocity) { m_Ball->GetMutableVelocity() = velocity; }
 	void ClearTrajectory() { m_TrajectoryPositions.clear(); }
 
+	void SetStatus(const BallStatus& status)
+	{
+		m_Ball->SetStatus(status);
+		m_PreTrajectoryDirty = true;
+	}
+	const BallStatus& GetStatus() const { return m_Ball->GetStatus(); }
+	void SetHP(int hp) { m_Ball->SetHP(hp); }
+	void SetMaxHP(int maxHp) { m_Ball->SetMaxHP(maxHp); }
+	int GetHP() const { return m_Ball->GetHP(); }
+	int GetMaxHP() const { return m_Ball->GetMaxHP(); }
+	int GetAttack() const { return m_Ball->GetAttack(); }
+	int GetDefense() const { return m_Ball->GetDefense(); }
+	bool IsDefeated() const { return m_Ball->IsDefeated(); }
+	bool IsStopped() const { return m_Ball->IsStopped(); }
+	DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
+	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
+	BallComponent* GetBall() const { return m_Ball; }
+
 	//=======================================
-	// ’e“¹—\‘ªŒn
+	// å¼¾é“äºˆæ¸¬ç³»
 	//=======================================
 	void GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity);
 
@@ -103,13 +123,34 @@ public:
 	}
 
 	//=======================================
-	// ƒfƒoƒbƒOUI
+	// ãƒ‡ãƒãƒƒã‚°UI
 	//=======================================
 	void DrawImGui();
 
 private:
+	void Init();
+	void Draw(Camera* cam);
+	void Uninit();
+
+	void LoadModel(const char* modelFilePath, const char* textureDirectory)
+	{
+		m_Ball->LoadModel(modelFilePath, textureDirectory);
+	}
+	void SetInitialPosition(const DirectX::SimpleMath::Vector3& position)
+	{
+		m_Ball->SetInitialPosition(position);
+	}
+	void UpdateRadius() { m_Ball->UpdateRadius(); }
+	void UpdatePhysics() { m_Ball->UpdatePhysics(); }
+	void ResetToInitialPosition() { m_Ball->ResetToInitialPosition(); }
+	void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix)
+	{
+		m_Ball->DrawMesh(worldMatrix);
+	}
+	void Damage(int damage) { m_Ball->Damage(damage); }
+
 	//=======================================
-	// Update“à•”ˆ—
+	// Updateå†…éƒ¨å‡¦ç†
 	//=======================================
 	void UpdateSimulation();
 	void UpdateDebugMove();
@@ -118,13 +159,13 @@ private:
 	void CheckCupIn();
 
 	//=======================================
-	// ‹OÕXV
+	// è»Œè·¡æ›´æ–°
 	//=======================================
 	void AddTrailPoint();
 	void UpdateTrailLife();
 
 	//=======================================
-	// ƒ}ƒEƒXƒGƒCƒ€EƒVƒ‡ƒbƒg‘€ì
+	// ãƒã‚¦ã‚¹ã‚¨ã‚¤ãƒ ãƒ»ã‚·ãƒ§ãƒƒãƒˆæ“ä½œ
 	//=======================================
 	void UpdateAim();
 	bool TryGetMouseAimPosition(DirectX::SimpleMath::Vector3& aimPosition) const;
@@ -136,7 +177,7 @@ private:
 	DirectX::SimpleMath::Vector3 GetShotVector() const;
 
 	//=======================================
-	// ’e“¹—\‘ª‚Ì•`‰æ
+	// å¼¾é“äºˆæ¸¬ã®æç”»
 	//=======================================
 	void InitTrajectoryVisualModel();
 	void DrawTrajectoryLine();
@@ -156,8 +197,10 @@ private:
 		int materialIndex);
 
 private:
+	BallComponent* m_Ball = nullptr;
+
 	//=======================================
-	// ’e“¹—\‘ª—p‚ÌŠÈˆÕƒƒbƒVƒ…
+	// å¼¾é“äºˆæ¸¬ç”¨ã®ç°¡æ˜“ãƒ¡ãƒƒã‚·ãƒ¥
 	//=======================================
 	class PreviewMesh : public Mesh
 	{
@@ -192,7 +235,7 @@ private:
 				}
 			};
 
-			// —¼–Ê•`‰æ—p
+			// ä¸¡é¢æç”»ç”¨
 			m_indices =
 			{
 				0, 2, 1,
@@ -205,25 +248,25 @@ private:
 
 private:
 	//=======================================
-	// ó‘ÔŠÇ—
+	// çŠ¶æ…‹ç®¡ç†
 	//=======================================
 	State m_State = State::Idle;
 	int m_StopCount = 0;
 
 	//=======================================
-	// ƒtƒŒ[ƒ€ŠÇ—
+	// ãƒ•ãƒ¬ãƒ¼ãƒ ç®¡ç†
 	//=======================================
 	int m_CurrentFrame = 0;
 	const int TRAIL_DURATION_FRAMES = 60;
 
 	//=======================================
-	// ‹OÕ
+	// è»Œè·¡
 	//=======================================
 	std::vector<TrailPoint> m_TrajectoryPositions;
 	DirectX::SimpleMath::Vector3 m_LastTrailPos;
 
 	//=======================================
-	// ’e“¹—\‘ªƒf[ƒ^
+	// å¼¾é“äºˆæ¸¬ãƒ‡ãƒ¼ã‚¿
 	//=======================================
 	std::vector<TrailPoint> m_PrePositions;
 
@@ -238,7 +281,7 @@ private:
 	TrajectoryVisualModel m_TrajectoryVisualModel = TrajectoryVisualModel::Quad;
 
 	//=======================================
-	// ’e“¹—\‘ª•`‰æ
+	// å¼¾é“äºˆæ¸¬æç”»
 	//=======================================
 	PreviewMesh m_PreviewMesh;
 	MeshRenderer m_PreviewMeshRenderer;
@@ -257,7 +300,7 @@ private:
 		DirectX::SimpleMath::Vector3::Zero;
 
 	//=======================================
-	// ƒGƒCƒ€EƒVƒ‡ƒbƒg“ü—Í
+	// ã‚¨ã‚¤ãƒ ãƒ»ã‚·ãƒ§ãƒƒãƒˆå…¥åŠ›
 	//=======================================
 	float m_AimAngle = 0.0f;
 	float m_ShotPower = 5.0f;

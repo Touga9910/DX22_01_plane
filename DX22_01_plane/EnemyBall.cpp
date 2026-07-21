@@ -1,54 +1,76 @@
-#include "EnemyBall.h"
-#include "PlayerBall.h"
+ï»¿#include "EnemyBall.h"
+
+#include "Camera.h"
 #include "Game.h"
 #include "Ground.h"
-#include "Camera.h"
+#include "PlayerBall.h"
 #include "imgui/imgui.h"
+#include "GameObject.h"
+
+#include <iostream>
 
 using namespace DirectX::SimpleMath;
 
-//=======================================
-// ‰Šú‰»ˆ—
-//=======================================
+void EnemyBall::Awake()
+{
+    m_Ball = GetGameObject()->AddComponent<BallComponent>();
+    if (m_InitialData.has_value())
+    {
+        Init(*m_InitialData);
+        m_InitialData.reset();
+    }
+    else
+    {
+        Init();
+    }
+}
+
+void EnemyBall::Draw()
+{
+    Draw(Game::GetCamera());
+}
+
+void EnemyBall::OnDestroy()
+{
+    Uninit();
+}
+
 void EnemyBall::Init()
 {
+    // ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã®EnemyDataã‚’ä½¿ã£ã¦åˆæœŸåŒ–ã™ã‚‹
     EnemyData data;
     Init(data);
 }
 
-// EnemyData‚©‚ç‚Ìî•ñ‚ğŒ³‚É‰Šú‰»‚·‚éŠÖ”
 void EnemyBall::Init(const EnemyData& data)
 {
-    m_EnemyData = data;
+    m_EnemyData = data;                        // èª­ã¿è¾¼ã‚“ã æ•µãƒ‡ãƒ¼ã‚¿ã‚’ä¿æŒ
 
-    SetStatus(m_EnemyData.status);
+    SetStatus(m_EnemyData.status);             // ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‚’åæ˜ 
 
-    LoadModel(
+    m_Ball->LoadModel(
         m_EnemyData.modelFilePath.c_str(),
         m_EnemyData.textureDirectory.c_str()
     );
 
-    m_Transform.position = m_EnemyData.initPosition;
-
-    m_Transform.scale = m_EnemyData.scale;
-    UpdateRadius();
+    m_Ball->GetMutableTransform().position = m_EnemyData.initPosition; // åˆæœŸä½ç½®ã‚’åæ˜ 
+    m_Ball->GetMutableTransform().scale = m_EnemyData.scale;        // ã‚¹ã‚±ãƒ¼ãƒ«ã‚’åæ˜ 
+    m_Ball->UpdateRadius();                                  // ã‚¹ã‚±ãƒ¼ãƒ«ã«åˆã‚ã›ã¦åŠå¾„ã‚’æ›´æ–°
 
     std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
     if (!grounds.empty())
     {
-        m_Transform.position.y = grounds[0]->GetFieldHeight();
+        // GroundãŒã‚ã‚‹å ´åˆã¯ã€å°ã®é«˜ã•ã«åˆã‚ã›ã¦Yåº§æ¨™ã‚’è£œæ­£ã™ã‚‹
+        m_Ball->GetMutableTransform().position.y = grounds[0]->GetFieldHeight();
     }
 
-    m_Velocity = Vector3::Zero;
-    m_Acceleration = Vector3::Zero;
-    m_CurrentFrame = 0;
+    m_Ball->GetMutableVelocity() = Vector3::Zero;             // é€Ÿåº¦ã‚’åˆæœŸåŒ–
+    m_Ball->GetMutableAcceleration() = Vector3::Zero;             // åŠ é€Ÿåº¦ã‚’åˆæœŸåŒ–
+    m_CurrentFrame = 0;                         // ãƒ•ãƒ¬ãƒ¼ãƒ ã‚«ã‚¦ãƒ³ãƒˆã‚’åˆæœŸåŒ–
 
-    ResetDefeated();
+    m_Ball->ResetDefeated();                            // æ’ƒç ´çŠ¶æ…‹ã‚’è§£é™¤
 }
 
-//=======================================
-// XVˆ—
-//=======================================
 void EnemyBall::Update()
 {
     if (IsDefeated())
@@ -58,113 +80,88 @@ void EnemyBall::Update()
 
     m_CurrentFrame++;
 
-    // --- –€CEŒ¸‘¬‚ÌŒvZ (PlayerBall‚Ì‹““®‚Æ‡‚í‚¹‚éê‡) ---
-    if (m_Velocity.LengthSquared() > 0.001f)
+    // --- æ‘©æ“¦ãƒ»æ¸›é€Ÿã®è¨ˆç®— (PlayerBallã®æŒ™å‹•ã¨åˆã‚ã›ã‚‹å ´åˆ) ---
+    if (m_Ball->GetMutableVelocity().LengthSquared() > 0.001f)
     {
-        if (m_Velocity.LengthSquared() < 0.03f)
+        if (m_Ball->GetMutableVelocity().LengthSquared() < 0.03f)
         {
-            m_Velocity = Vector3::Zero;
+            m_Ball->GetMutableVelocity() = Vector3::Zero;
         }
         else
         {
-            float deceleratisonPower = m_Friction;
-            Vector3 deceleration = -m_Velocity;
+            float decelerationPower = m_Ball->GetMutableFriction();   // æ‘©æ“¦ã«ã‚ˆã‚‹æ¸›é€Ÿé‡
+            Vector3 deceleration = -m_Ball->GetMutableVelocity();     // é€Ÿåº¦ã¨é€†æ–¹å‘ã«æ¸›é€Ÿã•ã›ã‚‹
             deceleration.Normalize();
-            m_Velocity += deceleration * deceleratisonPower;
+            m_Ball->GetMutableVelocity() += deceleration * decelerationPower;
         }
     }
 
-    // --- •¨—‰‰Z‚ÌXV (BallBase‚Ì•Ç”»’è‚âˆÚ“®A“]‚ª‚è‰ñ“]‚ğŒÄ‚Ño‚·) ---
-    UpdatePhysics();
+    // --- ç‰©ç†æ¼”ç®—ã®æ›´æ–° (BallComponentã®å£åˆ¤å®šã‚„ç§»å‹•ã€è»¢ãŒã‚Šå›è»¢ã‚’å‘¼ã³å‡ºã™) ---
+    m_Ball->UpdatePhysics();
 }
 
-//=======================================
-// •`‰æˆ—
-//=======================================
 void EnemyBall::Draw(Camera* cam)
 {
     if (IsDefeated())
     {
         return;
     }
+
     cam->SetCamera();
 
-    m_Shader.SetGPU();
-    m_MeshRenderer.BeforeDraw();
+    m_Ball->BeginDraw();
 
-    // s—ñ‚Ìì¬iBallBase‚ªŒvZ‚µ‚Ä‚­‚ê‚½ m_RollingRotation ‚ğ“K—pj
-    Matrix rDirection = Matrix::CreateFromYawPitchRoll(m_Transform.rotation.y, m_Transform.rotation.x, m_Transform.rotation.z);
-    Matrix rRolling = Matrix::CreateFromQuaternion(m_RollingRotation);
+    // è¡Œåˆ—ã®ä½œæˆï¼ˆBallComponentãŒè¨ˆç®—ã—ãŸ m_Ball->GetMutableRollingRotation() ã‚’é©ç”¨ï¼‰
+    Matrix rDirection = Matrix::CreateFromYawPitchRoll(
+        m_Ball->GetMutableTransform().rotation.y,
+        m_Ball->GetMutableTransform().rotation.x,
+        m_Ball->GetMutableTransform().rotation.z
+    );
+    Matrix rRolling = Matrix::CreateFromQuaternion(m_Ball->GetMutableRollingRotation());
     Matrix r = rDirection * rRolling;
 
-    Matrix t = Matrix::CreateTranslation(m_Transform.position);
-    Matrix s = Matrix::CreateScale(m_Transform.scale);
+    Matrix t = Matrix::CreateTranslation(m_Ball->GetMutableTransform().position);
+    Matrix s = Matrix::CreateScale(m_Ball->GetMutableTransform().scale);
 
     Matrix worldmtx = s * r * t;
 
-    // BallBase‚Ì‹¤’Ê•`‰æŠÖ”‚ğŒÄ‚Ño‚·
-    DrawMesh(worldmtx);
+    // BallComponentã®å…±é€šæç”»é–¢æ•°ã‚’å‘¼ã³å‡ºã™
+    m_Ball->DrawMesh(worldmtx);
 }
 
-//=======================================
-// I—¹ˆ—
-//=======================================
 void EnemyBall::Uninit()
 {
-    // •K—v‚É‰‚¶‚½‰ğ•úˆ—
+    // å¿…è¦ã«å¿œã˜ãŸè§£æ”¾å‡¦ç†
 }
 
-// ======================================
-// “|‚³‚ê‚½‚Ìˆ—
-// ======================================
 void EnemyBall::Defeat()
 {
-    BallBase::Defeat();
+    m_Ball->Defeat();
 
-    // “Gê—p‚Ì“|‚³‚ê‚½‚Ìˆ—‚ğ‘‚­‚È‚ç‚±‚±
-    // —áFŒ‚”jƒGƒtƒFƒNƒgAƒXƒRƒA‰ÁZAƒhƒƒbƒv’Š‘I‚È‚Ç
-}
-
-void EnemyBall::Attack(PlayerBall* player)
-{
-    if (IsDefeated())
-    {
-        return;
-    }
-
-    if (player == nullptr)
-    {
-        return;
-    }
-
-    if (player->IsDefeated())
-    {
-        return;
-    }
-
-    player->TakeDamage(GetAttack());
+    // æ•µå°‚ç”¨ã®å€’ã•ã‚ŒãŸæ™‚ã®å‡¦ç†ã‚’æ›¸ããªã‚‰ã“ã“
+    // ä¾‹ï¼šæ’ƒç ´ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã€ã‚¹ã‚³ã‚¢åŠ ç®—ã€ãƒ‰ãƒ­ãƒƒãƒ—æŠ½é¸ãªã©
 }
 
 void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 {
-    // •Ê‚Ì“GID‚Ìƒf[ƒ^‚ğŒë‚Á‚Ä“K—p‚µ‚È‚¢
+    // åˆ¥ã®æ•µIDã®ãƒ‡ãƒ¼ã‚¿ã‚’èª¤ã£ã¦é©ç”¨ã—ãªã„
     if (m_EnemyData.id != data.id)
     {
         return;
     }
 
-    // “Gƒf[ƒ^‚ğXV
+    // æ•µãƒ‡ãƒ¼ã‚¿ã‚’æ›´æ–°
     m_EnemyData.status = data.status;
     m_EnemyData.rewardMoney = data.rewardMoney;
     m_EnemyData.rewardExp = data.rewardExp;
     m_EnemyData.scale = data.scale;
 
-    // HPŠ„‡‚ğˆÛ‚µ‚½‚Ü‚ÜƒXƒe[ƒ^ƒXXV
+    // HPå‰²åˆã‚’ç¶­æŒã—ãŸã¾ã¾ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹æ›´æ–°
     ApplyStatusKeepHpRate(data.status);
 
-    // ƒXƒP[ƒ‹‚à”½‰f
-    m_Transform.scale = data.scale;
-    UpdateRadius();
+    // ã‚¹ã‚±ãƒ¼ãƒ«ã‚‚åæ˜ 
+    m_Ball->GetMutableTransform().scale = data.scale;
+    m_Ball->UpdateRadius();
 
     std::cout << "[HotReload] Enemy updated: "
         << m_EnemyData.id
@@ -174,17 +171,46 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
         << std::endl;
 }
 
-// ImGUI‚É‚æ‚éƒXƒe[ƒ^ƒXŠm”F
+void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
+{
+    if (m_Ball->IsDefeated())
+    {
+        // æ’ƒç ´æ¸ˆã¿ã®å ´åˆã¯HPå‰²åˆã‚’è¨ˆç®—ã›ãšã€ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹å€¤ã ã‘æ›´æ–°ã™ã‚‹
+        ApplyStatusValuesOnly(status);
+        return;
+    }
+
+    float hpRate = 1.0f;                       // ç¾åœ¨HPã®å‰²åˆ
+
+    if (GetMaxHP() > 0)
+    {
+        hpRate = static_cast<float>(GetHP()) / static_cast<float>(GetMaxHP());
+    }
+
+    ApplyStatusValuesOnly(status);             // æœ€å¤§HPãªã©ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‚’æ›´æ–°
+
+    int newHp = static_cast<int>(GetMaxHP() * hpRate); // æ›´æ–°å¾Œã®æœ€å¤§HPã«åˆã‚ã›ãŸç¾åœ¨HP
+
+    if (newHp < 1)
+    {
+        newHp = 1;
+    }
+
+    if (newHp > GetMaxHP())
+    {
+        newHp = GetMaxHP();
+    }
+
+    SetHP(newHp);
+}
+
+void EnemyBall::ApplyStatusValuesOnly(const BallStatus& status)
+{
+    // HPã‚„æ’ƒç ´çŠ¶æ…‹ã‚’åˆæœŸåŒ–ã›ãšã€ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹æ§‹é€ ä½“ã ã‘ã‚’å·®ã—æ›¿ãˆã‚‹
+    m_Ball->ApplyStatusValuesOnly(status);
+}
+
 void EnemyBall::DrawImGui(const std::string& label)
 {
-    
-    BallBase::DrawImGui(label); // ‹¤’ÊUI‚ğŒÄ‚Ô
-
-    /*
-    if (ImGui::CollapsingHeader((label + " Detail").c_str()))
-    {
-        ImGui::Text("Frame: %d", m_CurrentFrame);
-    }
-    */
-    
+    m_Ball->DrawImGui(label); // å…±é€šUIã‚’å‘¼ã¶
 }

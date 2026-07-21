@@ -1,22 +1,23 @@
-#pragma once
+ï»¿#pragma once
 #include "Scene.h"
-#include "Object.h"
+#include "Component.h"
+#include <vector>
 
-// TitleSceneƒNƒ‰ƒX
+// TitleSceneã‚¯ãƒ©ã‚¹
 class TitleScene : public Scene
 {
 private:
-	std::vector<Object*> m_MySceneObjects; // ‚±‚ÌƒV[ƒ“‚ÌƒIƒuƒWƒFƒNƒg
+	std::vector<Component*> m_MySceneObjects; // ã“ã®ã‚·ãƒ¼ãƒ³ãŒæ‰€æœ‰ã™ã‚‹GameObjectå†…ã®ä»£è¡¨Component
 
-	int m_CursolPos = 0;	//ƒJ[ƒ\ƒ‹‚ÌˆÊ’u
+	int m_CursolPos = 0;	//ã‚«ãƒ¼ã‚½ãƒ«ã®ä½ç½®
 
-	void Init(); // ‰Šú‰»
-	void Uninit(); // I—¹ˆ—
+	void Init(); // åˆæœŸåŒ–
+	void Uninit(); // çµ‚äº†å‡¦ç†
 
 public:
-	TitleScene(); // ƒRƒ“ƒXƒgƒ‰ƒNƒ^
-	~TitleScene(); // ƒfƒXƒgƒ‰ƒNƒ^
+	TitleScene(); // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
+	~TitleScene(); // ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 
-	void Update(); // XV
+	void Update(); // æ›´æ–°
 };
 

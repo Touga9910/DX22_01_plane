@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 
 using json = nlohmann::json;
 
@@ -104,7 +105,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 					if (ballData.definitionId.empty())
 					{
 						ballData.definitionId =
-							"player_ball_" + std::to_string(result.defaultDeck.size());
+							"player_ball_" + std::to_string(result.ballDefinitions.size());
 					}
 
 					if (ballJson.contains("status") && ballJson["status"].is_object())
@@ -122,7 +123,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 								result.defaultBallStatus));
 					}
 
-					result.defaultDeck.push_back(ballData);
+					result.ballDefinitions.push_back(ballData);
 				}
 			}
 		}
@@ -130,20 +131,98 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 		{
 			result.defaultBallStatus = fallbackBallStatus;
 			result.defaultRunStatus = fallbackRunStatus;
-			result.defaultDeck.clear();
+			result.ballDefinitions.clear();
 		}
 	}
 
 	result.defaultBallStatus = NormalizeBallStatus(result.defaultBallStatus);
 	result.defaultRunStatus = NormalizePlayerRunStatus(result.defaultRunStatus);
 
-	if (result.defaultDeck.empty())
+	if (result.ballDefinitions.empty())
 	{
 		PlayerBallData defaultBall;
 		defaultBall.definitionId = "player_default";
 		defaultBall.status = result.defaultBallStatus;
-		result.defaultDeck.push_back(defaultBall);
+		result.ballDefinitions.push_back(defaultBall);
 	}
 
 	return result;
+}
+
+std::vector<PlayerBallData> PlayerBallDataLoader::LoadDeck(
+	const std::string& filePath,
+	const std::vector<PlayerBallData>& ballDefinitions)
+{
+	std::vector<PlayerBallData> deck;
+
+	std::ifstream file(filePath);
+	if (file.is_open())
+	{
+		try
+		{
+			json root;
+			file >> root;
+
+			if (root.contains("deck") && root["deck"].is_array())
+			{
+				for (const json& deckEntry : root["deck"])
+				{
+					if (!deckEntry.is_string())
+					{
+						std::cerr
+							<< "[PlayerDeck] Ignored a non-string deck entry in "
+							<< filePath << '\n';
+						continue;
+					}
+
+					const std::string definitionId = deckEntry.get<std::string>();
+					const auto definition = std::find_if(
+						ballDefinitions.begin(),
+						ballDefinitions.end(),
+						[&definitionId](const PlayerBallData& ballData)
+						{
+							return ballData.definitionId == definitionId;
+						});
+
+					if (definition == ballDefinitions.end())
+					{
+						std::cerr
+							<< "[PlayerDeck] Unknown ball id: "
+							<< definitionId << '\n';
+						continue;
+					}
+
+					// A repeated ID represents another copy of the same ball.
+					deck.push_back(*definition);
+				}
+			}
+			else
+			{
+				std::cerr
+					<< "[PlayerDeck] Missing deck array in "
+					<< filePath << '\n';
+			}
+		}
+		catch (const std::exception& exception)
+		{
+			std::cerr
+				<< "[PlayerDeck] Failed to load " << filePath
+				<< ": " << exception.what() << '\n';
+		}
+	}
+	else
+	{
+		std::cerr << "[PlayerDeck] Could not open " << filePath << '\n';
+	}
+
+	// Keep the game playable when the deck file is missing or has no valid IDs.
+	if (deck.empty() && !ballDefinitions.empty())
+	{
+		std::cerr
+			<< "[PlayerDeck] Falling back to the first ball definition: "
+			<< ballDefinitions.front().definitionId << '\n';
+		deck.push_back(ballDefinitions.front());
+	}
+
+	return deck;
 }

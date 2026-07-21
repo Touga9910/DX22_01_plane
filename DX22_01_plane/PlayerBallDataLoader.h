@@ -11,7 +11,7 @@ struct PlayerBallDataLoadResult
 {
 	BallStatus defaultBallStatus{};
 	PlayerRunStatus defaultRunStatus{};
-	std::vector<PlayerBallData> defaultDeck;
+	std::vector<PlayerBallData> ballDefinitions;
 };
 
 class PlayerBallDataLoader
@@ -21,4 +21,8 @@ public:
 		const std::string& filePath,
 		const BallStatus& fallbackBallStatus,
 		const PlayerRunStatus& fallbackRunStatus);
+
+	static std::vector<PlayerBallData> LoadDeck(
+		const std::string& filePath,
+		const std::vector<PlayerBallData>& ballDefinitions);
 };

@@ -1,10 +1,12 @@
 ﻿#include "Game.h"
 #include "Renderer.h"
+#include "BallPhysicsComponent.h"
 #include "input.h"
 
-#include "PlayerBall.h"  // DrawImGui呼び出しに必要
-#include "EnemyBall.h"   // DrawImGui呼び出しに必要
-#include "BallBase.h"
+#include "PlayerBall.h"  // DrawImGui蜻ｼ縺ｳ蜃ｺ縺励↓蠢・ｦ・
+#include "EnemyBall.h"   // DrawImGui蜻ｼ縺ｳ蜃ｺ縺励↓蠢・ｦ・
+#include "EnemyAttackComponent.h"
+#include "BallComponent.h"
 #include "PlayerBallDataLoader.h"
 
 #include "imgui/imgui.h"
@@ -17,32 +19,38 @@
 #include <iomanip>
 #include <random>
 
-Game* Game::m_Instance;//ゲームインスタンス
+Game* Game::m_Instance;//繧ｲ繝ｼ繝繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ
 
 namespace
 {
 	enum class RewardTargetType
 	{
 		SingleBall,
-		WholeDeck,
 		PlayerOverall,
+		Exit,
 	};
 
 	struct RewardDefinition
 	{
 		const char* name;
 		RewardTargetType targetType;
+		int cost;
 	};
 
 	constexpr RewardDefinition kRewardDefinitions[] =
 	{
-		{ "Attack Up", RewardTargetType::SingleBall },
-		{ "Defense Up", RewardTargetType::SingleBall },
-		{ "Ball Max HP Up", RewardTargetType::SingleBall },
+		{ "Attack Up +1",        RewardTargetType::SingleBall,    10 },
+		{ "Defense Up +1",       RewardTargetType::SingleBall,    10 },
+		{ "Heal 3 HP",           RewardTargetType::PlayerOverall,  5 },
+		{ "Player Max HP Up +1", RewardTargetType::PlayerOverall, 15 },
+		{ "Leave",               RewardTargetType::Exit,           0 },
 	};
 
 	constexpr int kRewardCount =
-		static_cast<int>(sizeof(kRewardDefinitions) / sizeof(kRewardDefinitions[0]));
+		static_cast<int>(
+			sizeof(kRewardDefinitions) /
+			sizeof(kRewardDefinitions[0])
+			);
 
 	BallStatus NormalizeBallStatus(BallStatus status)
 	{
@@ -99,14 +107,14 @@ namespace
 			<< value.z << ")\n";
 	}
 
-	void WriteBallDebugStatus(std::ofstream& file, const char* typeName, int index, BallBase* ball)
+	void WriteBallDebugStatus(std::ofstream& file, const char* typeName, int index, BallComponent* ball)
 	{
 		if (ball == nullptr)
 		{
 			return;
 		}
 
-		const Transform transform = ball->GetTransform();
+		const Transform transform = ball->GetMutableTransform();
 
 		file << "[" << typeName << " " << index << "]\n";
 		WriteVector3(file, "Position", transform.position);
@@ -119,49 +127,49 @@ namespace
 	}
 }
 
-// コンストラクタ
+// 繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ
 Game::Game()
 {
 	m_Scene = nullptr;
 }
 
-// デストラクタ
+// 繝・せ繝医Λ繧ｯ繧ｿ
 Game::~Game()
 {
 	delete m_Scene;
 	DeleteAllObject();
 }
 
-// 初期化
+// 蛻晄悄蛹・
 void Game::Init()
 {
-	// 静的インスタンスをここで1つだけ生成
+	// 髱咏噪繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ繧偵％縺薙〒1縺､縺縺醍函謌・
 	if (m_Instance == nullptr) {
 		m_Instance = new Game();
 	}
-	// 描画終了処理
+	// 謠冗判邨ゆｺ・・逅・
 	Renderer::Init();
 
-	//入力処理初期化
+	//蜈･蜉帛・逅・・譛溷喧
 	Input::Create();
 
-	// カメラ初期化
+	// 繧ｫ繝｡繝ｩ蛻晄悄蛹・
 	m_Instance->m_Camera.Init();
 
 	m_Instance->LoadPlayerStatusFromJson();
 
-	//最初のシーンを読みこむ
+	//譛蛻昴・繧ｷ繝ｼ繝ｳ繧定ｪｭ縺ｿ縺薙・
 	m_Instance->m_Scene = new TitleScene;
 }
 
-// 更新
+// 譖ｴ譁ｰ
 void Game::Update()
 {
-	// 入力処理更新
+	// 蜈･蜉帛・逅・峩譁ｰ
 	Input::Update();
 
 	// ==========================
-	// ClearReward中はゲーム本編を更新しない
+	// ClearReward荳ｭ縺ｯ繧ｲ繝ｼ繝譛ｬ邱ｨ繧呈峩譁ｰ縺励↑縺・
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
@@ -169,30 +177,45 @@ void Game::Update()
 		return;
 	}
 
-	//シーン更新
+	if (m_Instance->m_PlayerDeck.GetOfferCount() > 0)
+	{
+		m_Instance->UpdateBallSelection();
+	}
+
+	//繧ｷ繝ｼ繝ｳ譖ｴ譁ｰ
 	m_Instance->m_Scene->Update();
 
-	// カメラ更新
+	// 繧ｫ繝｡繝ｩ譖ｴ譁ｰ
 	m_Instance->m_Camera.Update();
 
-	//オブジェクト更新
-	for (auto& o : m_Instance->m_Objects)
+	for (auto& gameObject : m_Instance->m_GameObjects)
 	{
-		o->Update();
+		gameObject->FixedUpdate();
 	}
-	// 死亡フラグ（HPが0など）が立っているオブジェクトを自動・動的削除
-	std::erase_if(m_Instance->m_Objects, [](const std::unique_ptr<Object>& o) {
+
+	//繧ｪ繝悶ず繧ｧ繧ｯ繝域峩譁ｰ
+	for (auto& gameObject : m_Instance->m_GameObjects)
+	{
+		gameObject->Update();
+	}
+
+	for (auto& gameObject : m_Instance->m_GameObjects)
+	{
+		gameObject->LateUpdate();
+	}
+	// 豁ｻ莠｡繝輔Λ繧ｰ・・P縺・縺ｪ縺ｩ・峨′遶九▲縺ｦ縺・ｋ繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ閾ｪ蜍輔・蜍慕噪蜑企勁
+	std::erase_if(m_Instance->m_GameObjects, [](const std::unique_ptr<GameObject>& o) {
 		if (o && o->IsDead()) {
-			o->Uninit(); // 削除される前に終了処理を呼ぶ
-			return true; // 配列から削除する
+			o->Uninit(); // 蜑企勁縺輔ｌ繧句燕縺ｫ邨ゆｺ・・逅・ｒ蜻ｼ縺ｶ
+			return true; // 驟榊・縺九ｉ蜑企勁縺吶ｋ
 		}
-		return false;    // 残す
+		return false;    // 谿九☆
 		});
 
-	// 要素が減った場合はメモリを詰める（既存の処理をここに集約）
-	m_Instance->m_Objects.shrink_to_fit();
+	// 隕∫ｴ縺梧ｸ帙▲縺溷ｴ蜷医・繝｡繝｢繝ｪ繧定ｩｰ繧√ｋ・域里蟄倥・蜃ｦ逅・ｒ縺薙％縺ｫ髮・ｴ・ｼ・
+	m_Instance->m_GameObjects.shrink_to_fit();
 
-	// ゲーム状態の更新（全ボール停止検出）
+	// 繧ｲ繝ｼ繝迥ｶ諷九・譖ｴ譁ｰ・亥・繝懊・繝ｫ蛛懈ｭ｢讀懷・・・
 	switch (m_Instance->m_GameState)
 	{
 	case GameState::BallsMoving:
@@ -202,7 +225,7 @@ void Game::Update()
 			{
 				m_Instance->StartClearReward();
 
-				// 攻撃はしないのでリターン
+				// 謾ｻ謦・・縺励↑縺・・縺ｧ繝ｪ繧ｿ繝ｼ繝ｳ
 				return;
 			}
 
@@ -216,7 +239,6 @@ void Game::Update()
 
 	case GameState::TurnEnd:
 		m_Instance->PrepareNextPlayerBall();
-		m_Instance->m_GameState = GameState::AimingDirection;
 		break;
 
 	case GameState::GameOver:
@@ -228,7 +250,7 @@ void Game::Update()
 	}
 }
 
-// 描画
+// 謠冗判
 /*
 void Game::Draw()
 {
@@ -238,10 +260,10 @@ void Game::Draw()
 
 	Renderer::DrawStart();
 
-	for (auto& o : m_Instance->m_Objects)
-		o->Draw(&m_Instance->m_Camera);
+	for (auto& gameObject : m_Instance->m_GameObjects)
+		gameObject->Draw();
 
-	// ★ ImGuiのBegin?EndをDrawEnd()の前に移動
+	// 笘・ImGui縺ｮBegin?End繧奪rawEnd()縺ｮ蜑阪↓遘ｻ蜍・
 	ImGui::Begin("Ball Debugger");
 
 	std::vector<PlayerBall*> players = m_Instance->GetObjects<PlayerBall>();
@@ -258,18 +280,18 @@ void Game::Draw()
 	ImGui::End();
 
 	// ==========================
-	// 報酬UIを最後に重ねる
+	// 蝣ｱ驟ｬUI繧呈怙蠕後↓驥阪・繧・
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
 		m_Instance->DrawClearRewardUI();
 	}
 
-	// Render と RenderDrawData も DrawEnd()の前に移動
+	// Render 縺ｨ RenderDrawData 繧・DrawEnd()縺ｮ蜑阪↓遘ｻ蜍・
 	ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-	Renderer::DrawEnd(); // ← Present は最後
+	Renderer::DrawEnd(); // 竊・Present 縺ｯ譛蠕・
 }
 */
 
@@ -283,9 +305,9 @@ void Game::Draw()
 
 	Renderer::DrawStart();
 
-	for (auto& o : m_Instance->m_Objects)
+	for (auto& gameObject : m_Instance->m_GameObjects)
 	{
-		o->Draw(&m_Instance->m_Camera);
+		gameObject->Draw();
 	}
 
 	ImGui::Begin("Ball Debugger");
@@ -303,6 +325,8 @@ void Game::Draw()
 		m_Instance->m_PlayerRunStatus.maxHp);
 	ImGui::Text("Draw Pile Count = %d", m_Instance->GetPlayerDeckCount());
 	ImGui::Text("Discard Pile Count = %d", m_Instance->GetPlayerDiscardCount());
+	ImGui::Text("Offer Count = %d", m_Instance->m_PlayerDeck.GetOfferCount());
+	ImGui::Text("Total Deck Count = %d", m_Instance->m_PlayerDeck.GetRewardTargetCount());
 	ImGui::Text("Current Ball Used = %s",
 		m_Instance->m_PlayerDeck.IsCurrentUsed() ? "true" : "false");
 
@@ -345,131 +369,183 @@ void Game::Draw()
 		enemies[i]->DrawImGui(label);
 	}
 
+	ImGui::Text(
+		"Player Money = %d",
+		m_Instance->m_PlayerRunStatus.money
+	);
+
 	ImGui::End();
 
+	if (m_Instance->m_PlayerDeck.GetOfferCount() > 0)
+	{
+		m_Instance->DrawBallSelectionUI();
+	}
+
 	// ==========================
-	// 報酬UIを最後に重ねる
+	// 蝣ｱ驟ｬUI繧呈怙蠕後↓驥阪・繧・
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
 		m_Instance->DrawClearRewardUI();
 	}
 
-	// ==========================
-	// ImGui描画確定
-	// ==========================
+	// ImGui縺ｮ謠冗判蜀・ｮｹ繧堤｢ｺ螳・
 	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
+	// DirectX11縺ｧImGui繧呈緒逕ｻ
+	ImGui_ImplDX11_RenderDrawData(
+		ImGui::GetDrawData()
+	);
+
+	// 譛蠕後↓逕ｻ髱｢繧定｡ｨ遉ｺ
 	Renderer::DrawEnd();
 }
 
-// 終了処理
+// 邨ゆｺ・・逅・
 void Game::Uninit()
 {
-	// カメラ終了処理
+	// 繧ｫ繝｡繝ｩ邨ゆｺ・・逅・
 	m_Instance->m_Camera.Uninit();
 
-	//オブジェクト終了処理
-	for (auto& o : m_Instance->m_Objects)
+	//繧ｪ繝悶ず繧ｧ繧ｯ繝育ｵゆｺ・・逅・
+	for (auto& o : m_Instance->m_GameObjects)
 	{
 		o->Uninit();;
 	}
 
 
-	//入力処理終了
+	//蜈･蜉帛・逅・ｵゆｺ・
 	Input::Release();
 
-	// 描画終了処理
+	// 謠冗判邨ゆｺ・・逅・
 	Renderer::Uninit();
 
-	//インスタンス削除
+	//繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ蜑企勁
 	delete m_Instance;
 }
 
-//インスタンス取得
+//繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ蜿門ｾ・
 Game* Game::GetInstance()
 {
 	return m_Instance;
 }
 
-//シーン切り替え
+GameObject* Game::CreateGameObject(const std::string& name)
+{
+	auto gameObject = std::make_unique<GameObject>(name);
+	GameObject* result = gameObject.get();
+	m_GameObjects.emplace_back(std::move(gameObject));
+	return result;
+}
+
+//繧ｷ繝ｼ繝ｳ蛻・ｊ譖ｿ縺・
 void Game::ChangeScene(SceneName sName)
 {
-	//読み込みシーンあれば削除
 	int score = 0;
+
 	if (m_Instance->m_Scene != nullptr)
 	{
 		m_Instance->CaptureCurrentPlayerStatus();
 
-		// 消そうとするシーンがStage1ならスコアを保存する
-		if (Stage1Scene* sObj = dynamic_cast<Stage1Scene*>(m_Instance->m_Scene))
+		if (Stage1Scene* sObj =
+			dynamic_cast<Stage1Scene*>(m_Instance->m_Scene))
 		{
 			score = sObj->GetScore();
 		}
+
 		delete m_Instance->m_Scene;
 		m_Instance->m_Scene = nullptr;
+	}
+
+	// =====================================
+	// 譁ｰ縺励＞繧ｹ繝・・繧ｸ縺ｸ蜈･繧九→縺榊ｱ驟ｬ蜿門ｾ礼憾諷九ｒ繝ｪ繧ｻ繝・ヨ
+	// =====================================
+	if (sName == STAGE1 ||
+		sName == STAGE2 ||
+		sName == STAGE3)
+	{
+		// ステージ開始時に現在ボール・山札・捨て札を回収して再シャッフルする。
+		m_PlayerDeck.Reset();
+		BeginBallSelection();
+
+		m_IsStageRewardCollected = false;
+		m_CurrentStageRewardMoney = 0;
+		m_RewardMessage.clear();
 	}
 
 	switch (sName)
 	{
 	case TITLE:
-		m_Instance->m_Scene = new TitleScene;	//メモリ確保
+		m_Instance->m_Scene = new TitleScene;
 		break;
+
 	case STAGE1:
-		m_Instance->m_Scene = new Stage1Scene;	//メモリ確保
+		m_Instance->m_Scene = new Stage1Scene;
 		break;
+
 	case STAGE2:
-		m_Instance->m_Scene = new Stage2Scene;	//メモリ確保
+		m_Instance->m_Scene = new Stage2Scene;
 		break;
+
 	case STAGE3:
-		m_Instance->m_Scene = new Stage3Scene;	//メモリ確保
+		m_Instance->m_Scene = new Stage3Scene;
 		break;
+
 	case SELECT:
-		m_Instance->m_Scene = new StageSelectScene;	//メモリ確保
+		m_Instance->m_Scene = new StageSelectScene;
 		break;
+
 	case RESULT:
-		m_Instance->m_Scene = new ResultScene;	//メモリ確保
-		dynamic_cast<ResultScene*>(m_Instance->m_Scene)->SetScore(score);//スコアを設定
+		m_Instance->m_Scene = new ResultScene;
+
+		dynamic_cast<ResultScene*>(
+			m_Instance->m_Scene
+			)->SetScore(score);
+
 		break;
+
 	default:
 		break;
 	}
 }
 
-//オブジェクトを削除
+//繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ蜑企勁
 void Game::DeleteObject(Object* pt)
 {
-	if (pt == nullptr) return;
-
-	// 1. まず、本当に m_Objects の中に pt が存在するか確認する
-	auto it = std::find_if(m_Instance->m_Objects.begin(), m_Instance->m_Objects.end(),
-		[pt](const std::unique_ptr<Object>& element) {
-			return element.get() == pt;
-		});
-
-	// 2. 存在しない（すでに消えている）なら何もしない
-	if (it == m_Instance->m_Objects.end()) return;
-
-	// 3. 存在する場合のみ、安全に終了して削除
-	pt->Uninit();
-
-	m_Instance->m_Objects.erase(it);
-
-	// ※終了時のループ中に shrink_to_fit() を高頻度で呼ぶとメモリ再確保で落ちやすいため、
-	// 削除処理の直後ではなく、ゲーム全体のUpdateの最後などで呼ぶのが安全です。
+	DeleteComponent(pt);
 }
 
-//オブジェクトを全削除
+void Game::DeleteComponent(Component* component)
+{
+	if (component == nullptr) return;
+
+	// 1. 縺ｾ縺壹∵悽蠖薙↓ m_Objects 縺ｮ荳ｭ縺ｫ pt 縺悟ｭ伜惠縺吶ｋ縺狗｢ｺ隱阪☆繧・
+	GameObject* owner = component->GetGameObject();
+	auto it = std::find_if(m_Instance->m_GameObjects.begin(), m_Instance->m_GameObjects.end(),
+		[owner](const std::unique_ptr<GameObject>& element) {
+			return element.get() == owner;
+		});
+
+	// 2. 蟄伜惠縺励↑縺・ｼ医☆縺ｧ縺ｫ豸医∴縺ｦ縺・ｋ・峨↑繧我ｽ輔ｂ縺励↑縺・
+	if (it == m_Instance->m_GameObjects.end()) return;
+
+	// 3. 蟄伜惠縺吶ｋ蝣ｴ蜷医・縺ｿ縲∝ｮ牙・縺ｫ邨ゆｺ・＠縺ｦ蜑企勁
+	m_Instance->m_GameObjects.erase(it);
+
+	// 窶ｻ邨ゆｺ・凾縺ｮ繝ｫ繝ｼ繝嶺ｸｭ縺ｫ shrink_to_fit() 繧帝ｫ倬ｻ蠎ｦ縺ｧ蜻ｼ縺ｶ縺ｨ繝｡繝｢繝ｪ蜀咲｢ｺ菫昴〒關ｽ縺｡繧・☆縺・◆繧√・
+	// 蜑企勁蜃ｦ逅・・逶ｴ蠕後〒縺ｯ縺ｪ縺上√ご繝ｼ繝蜈ｨ菴薙・Update縺ｮ譛蠕後↑縺ｩ縺ｧ蜻ｼ縺ｶ縺ｮ縺悟ｮ牙・縺ｧ縺吶・
+}
+
+//繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ蜈ｨ蜑企勁
 void Game::DeleteAllObject()
 {
-	//終了処理
-	for (auto& o : m_Instance->m_Objects)
+	//邨ゆｺ・・逅・
+	for (auto& o : m_Instance->m_GameObjects)
 	{
 		o->Uninit();
 	}
-	m_Instance->m_Objects.clear();//全て削除
-	m_Instance->m_Objects.shrink_to_fit();
+	m_Instance->m_GameObjects.clear();
+	m_Instance->m_GameObjects.shrink_to_fit();
 }
 
 SkyBox* Game::GetSkyBox()
@@ -485,11 +561,16 @@ SkyBox* Game::GetSkyBox()
 
 bool Game::ContainsObject(const Object* pt) const
 {
-	if (pt == nullptr) return false;
+	return ContainsComponent(pt);
+}
 
-	for (const auto& o : m_Objects)
+bool Game::ContainsComponent(const Component* component) const
+{
+	if (component == nullptr) return false;
+
+	for (const auto& gameObject : m_GameObjects)
 	{
-		if (o.get() == pt)
+		if (gameObject.get() == component->GetGameObject())
 		{
 			return true;
 		}
@@ -502,7 +583,7 @@ bool Game::AreAllEnemiesDefeated() const
 {
 	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
 
-	// 敵が1体もいない場合はクリア扱いにしない
+	// 謨ｵ縺・菴薙ｂ縺・↑縺・ｴ蜷医・繧ｯ繝ｪ繧｢謇ｱ縺・↓縺励↑縺・
 	if (enemies.empty())
 	{
 		return false;
@@ -526,7 +607,7 @@ bool Game::AreAllEnemiesDefeated() const
 
 bool Game::AreAllBallsStopped() const
 {
-	std::vector<BallBase*> balls = m_Instance->GetObjects<BallBase>();
+	std::vector<GameObject*> balls = m_Instance->GetGameObjectsWith<BallPhysicsComponent>();
 
 	if (balls.empty())
 	{
@@ -534,14 +615,16 @@ bool Game::AreAllBallsStopped() const
 	}
 
 	// Game::AreAllBallsStopped()
-	for (BallBase* ball : balls)
+	for (GameObject* ball : balls)
 	{
 		if (ball == nullptr) continue;
 
-		// 撃破済みボールは停止判定から除外
-		if (ball->IsDefeated()) continue;
+		// 謦・ｴ貂医∩繝懊・繝ｫ縺ｯ蛛懈ｭ｢蛻､螳壹°繧蛾勁螟・
+		BallStatusComponent* status = ball->GetComponent<BallStatusComponent>();
+		if (status != nullptr && status->IsDefeated()) continue;
 
-		if (!ball->IsStopped())
+		BallPhysicsComponent* physics = ball->GetComponent<BallPhysicsComponent>();
+		if (physics != nullptr && !physics->IsStopped())
 		{
 			return false;
 		}
@@ -575,7 +658,12 @@ void Game::ProcessEnemyAttack()
 			continue;
 		}
 
-		enemy->Attack(player);
+		EnemyAttackComponent* attack =
+			enemy->GetGameObject()->GetComponent<EnemyAttackComponent>();
+		if (attack != nullptr)
+		{
+			attack->Attack(player);
+		}
 	}
 
 	CapturePlayerStatusFrom(player);
@@ -600,6 +688,10 @@ void Game::ProcessGameOver()
 void Game::StartClearReward()
 {
 	DiscardCurrentPlayerBall();
+
+	// 謨ｵ蜈ｨ貊・ｱ驟ｬ繧呈園謖｀oney縺ｸ蜉邂励☆繧・
+	CollectStageRewardMoney();
+
 	m_SelectedRewardIndex = 0;
 	m_SelectedRewardBallIndex = 0;
 	m_GameState = GameState::ClearReward;
@@ -607,16 +699,13 @@ void Game::StartClearReward()
 
 void Game::UpdateClearReward()
 {
-	const int rewardCount = kRewardCount;
-	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
-
 	if (Input::GetKeyTrigger(VK_UP))
 	{
 		m_SelectedRewardIndex--;
 
 		if (m_SelectedRewardIndex < 0)
 		{
-			m_SelectedRewardIndex = rewardCount - 1;
+			m_SelectedRewardIndex = kRewardCount - 1;
 		}
 	}
 
@@ -624,55 +713,248 @@ void Game::UpdateClearReward()
 	{
 		m_SelectedRewardIndex++;
 
-		if (m_SelectedRewardIndex >= rewardCount)
+		if (m_SelectedRewardIndex >= kRewardCount)
 		{
 			m_SelectedRewardIndex = 0;
 		}
 	}
 
-	if (ballCount > 0)
-	{
-		if (Input::GetKeyTrigger(VK_LEFT))
-		{
-			m_SelectedRewardBallIndex--;
+	const RewardDefinition& selectedReward =
+		kRewardDefinitions[m_SelectedRewardIndex];
 
-			if (m_SelectedRewardBallIndex < 0)
+	// 繝懊・繝ｫ蠑ｷ蛹悶ｒ驕ｸ繧薙〒縺・ｋ縺ｨ縺阪□縺大ｯｾ雎｡繝懊・繝ｫ繧貞､画峩縺吶ｋ
+	if (selectedReward.targetType ==
+		RewardTargetType::SingleBall)
+	{
+		const int ballCount =
+			m_PlayerDeck.GetRewardTargetCount();
+
+		if (ballCount > 0)
+		{
+			if (Input::GetKeyTrigger(VK_LEFT))
 			{
-				m_SelectedRewardBallIndex = ballCount - 1;
+				m_SelectedRewardBallIndex--;
+
+				if (m_SelectedRewardBallIndex < 0)
+				{
+					m_SelectedRewardBallIndex =
+						ballCount - 1;
+				}
+			}
+
+			if (Input::GetKeyTrigger(VK_RIGHT))
+			{
+				m_SelectedRewardBallIndex++;
+
+				if (m_SelectedRewardBallIndex >= ballCount)
+				{
+					m_SelectedRewardBallIndex = 0;
+				}
 			}
 		}
-
-		if (Input::GetKeyTrigger(VK_RIGHT))
+		else
 		{
-			m_SelectedRewardBallIndex++;
-
-			if (m_SelectedRewardBallIndex >= ballCount)
-			{
-				m_SelectedRewardBallIndex = 0;
-			}
+			m_SelectedRewardBallIndex = 0;
 		}
 	}
-	else
+
+	if (!Input::GetKeyTrigger(VK_SPACE))
 	{
-		m_SelectedRewardBallIndex = 0;
+		return;
 	}
 
-	if (Input::GetKeyTrigger(VK_SPACE))
+	// Leave繧帝∈謚槭＠縺溷ｴ蜷医・繧ｷ繝ｧ繝・・繧堤ｵゆｺ・☆繧・
+	if (selectedReward.targetType ==
+		RewardTargetType::Exit)
 	{
-		ApplyReward(m_SelectedRewardIndex);
-
-		// 仮：報酬選択後にステージ選択へ戻る
-		// 次ステージ制にするなら、ここを STAGE2 / STAGE3 などに変更
 		ChangeScene(SELECT);
-
 		m_GameState = GameState::AimingDirection;
+		return;
 	}
+
+	// 驕ｸ謚樔ｸｭ縺ｮ蠑ｷ蛹悶・蝗槫ｾｩ繧定ｳｼ蜈･縺吶ｋ
+	TryPurchaseReward(m_SelectedRewardIndex);
+}
+
+void Game::BeginBallSelection()
+{
+	if (!m_PlayerDeck.PrepareOffer())
+	{
+		m_GameState = GameState::GameOver;
+		return;
+	}
+
+	m_SelectedOfferIndex = 0;
+	m_SelectedHoldIndex = -1;
+
+	// 前回から保持していたボールは、初期状態では保持を継続する。
+	for (int index = 0; index < m_PlayerDeck.GetOfferCount(); index++)
+	{
+		if (m_PlayerDeck.WasHeldOffer(index))
+		{
+			m_SelectedHoldIndex = index;
+			break;
+		}
+	}
+
+	if (m_SelectedHoldIndex >= 0 && m_PlayerDeck.GetOfferCount() > 1)
+	{
+		// 保持中のボールとは別の、新しく引いた候補を初期選択にする。
+		m_SelectedOfferIndex = 1;
+	}
+	else if (m_SelectedHoldIndex == m_SelectedOfferIndex)
+	{
+		m_SelectedHoldIndex = -1;
+	}
+
+	m_GameState = GameState::AimingDirection;
+	ApplySelectedBallPreview();
+}
+
+void Game::UpdateBallSelection()
+{
+	const int offerCount = m_PlayerDeck.GetOfferCount();
+	if (offerCount <= 0)
+	{
+		return;
+	}
+
+	bool selectionChanged = false;
+	for (int index = 0; index < offerCount && index < 3; index++)
+	{
+		if (Input::GetKeyTrigger('1' + index))
+		{
+			m_SelectedOfferIndex = index;
+			selectionChanged = true;
+			if (m_SelectedHoldIndex == index)
+			{
+				m_SelectedHoldIndex = -1;
+			}
+		}
+	}
+
+	constexpr int HOLD_KEYS[] = { 'Q', 'W', 'E' };
+	for (int index = 0; index < offerCount && index < 3; index++)
+	{
+		if (!Input::GetKeyTrigger(HOLD_KEYS[index]) ||
+			index == m_SelectedOfferIndex)
+		{
+			continue;
+		}
+
+		m_SelectedHoldIndex =
+			m_SelectedHoldIndex == index ? -1 : index;
+	}
+
+	if (selectionChanged)
+	{
+		ApplySelectedBallPreview();
+	}
+}
+
+void Game::ApplySelectedBallPreview()
+{
+	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	if (players.empty() || players[0] == nullptr)
+	{
+		return;
+	}
+
+	ApplyPlayerStatusTo(players[0]);
+}
+
+void Game::DrawBallSelectionUI()
+{
+	ImGui::SetNextWindowPos(
+		ImVec2(30.0f, 90.0f),
+		ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(
+		ImVec2(520.0f, 430.0f),
+		ImGuiCond_FirstUseEver);
+
+	ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoCollapse |
+		ImGuiWindowFlags_NoResize;
+
+	ImGui::Begin("Ball Selection", nullptr, flags);
+	ImGui::TextUnformatted("Choose a ball, then aim and shoot normally.");
+	ImGui::TextUnformatted("The selected ball is applied immediately.");
+	ImGui::TextUnformatted("You may hold one of the other balls.");
+	ImGui::Separator();
+
+	const int offerCount = m_PlayerDeck.GetOfferCount();
+	for (int index = 0; index < offerCount; index++)
+	{
+		const PlayerBallData* ball = m_PlayerDeck.GetOffer(index);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+
+		ImGui::PushID(index);
+		ImGui::Text(
+			"[%d] %s%s",
+			index + 1,
+			ball->definitionId.c_str(),
+			m_PlayerDeck.WasHeldOffer(index) ? "  (HELD)" : "");
+		ImGui::Text(
+			"ATK:%d  DEF:%d  MASS:%.2f  RADIUS:%.2f",
+			ball->status.attack,
+			ball->status.defense,
+			ball->status.mass,
+			ball->status.radius);
+		ImGui::Text(
+			"Split:%s  Pierce:%s",
+			ball->status.abilities.split ? "Yes" : "No",
+			ball->status.abilities.pierce ? "Yes" : "No");
+
+		if (ImGui::RadioButton(
+			"Use",
+			m_SelectedOfferIndex == index))
+		{
+			m_SelectedOfferIndex = index;
+			if (m_SelectedHoldIndex == index)
+			{
+				m_SelectedHoldIndex = -1;
+			}
+			ApplySelectedBallPreview();
+		}
+
+		ImGui::SameLine();
+		if (m_SelectedOfferIndex == index)
+		{
+			ImGui::TextUnformatted("Selected for this shot");
+		}
+		else
+		{
+			const bool isHeld = m_SelectedHoldIndex == index;
+			if (ImGui::Button(isHeld ? "Release Hold" : "Hold"))
+			{
+				m_SelectedHoldIndex = isHeld ? -1 : index;
+			}
+		}
+
+		ImGui::Separator();
+		ImGui::PopID();
+	}
+
+	ImGui::TextUnformatted("1 / 2 / 3 : Use ball");
+	ImGui::TextUnformatted("Q / W / E : Toggle hold");
+	ImGui::TextUnformatted("The choice is finalized when the shot is fired.");
+	ImGui::End();
 }
 
 void Game::DrawClearRewardUI()
 {
-	ImGui::SetNextWindowPos(ImVec2(300.0f, 120.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(560.0f, 360.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowPos(
+		ImVec2(300.0f, 120.0f),
+		ImGuiCond_Always
+	);
+
+	ImGui::SetNextWindowSize(
+		ImVec2(600.0f, 420.0f),
+		ImGuiCond_Always
+	);
 
 	ImGuiWindowFlags flags =
 		ImGuiWindowFlags_NoResize |
@@ -684,74 +966,138 @@ void Game::DrawClearRewardUI()
 	ImGui::Text("CLEAR!");
 	ImGui::Separator();
 
-	ImGui::Text("Reward Select");
+	ImGui::Text(
+		"Stage Reward : +%d Money",
+		m_CurrentStageRewardMoney
+	);
+
+	ImGui::Text(
+		"Current Money : %d",
+		m_PlayerRunStatus.money
+	);
+
+	ImGui::Text(
+		"Player HP : %d / %d",
+		m_PlayerRunStatus.currentHp,
+		m_PlayerRunStatus.maxHp
+	);
+
+	ImGui::Separator();
+	ImGui::Text("Shop");
+
 	for (int i = 0; i < kRewardCount; i++)
 	{
-		if (i == m_SelectedRewardIndex)
+		const RewardDefinition& reward =
+			kRewardDefinitions[i];
+
+		const char* mark =
+			i == m_SelectedRewardIndex
+			? ">"
+			: " ";
+
+		if (reward.targetType ==
+			RewardTargetType::Exit)
 		{
-			ImGui::Text(" > [ %s ]", kRewardDefinitions[i].name);
+			ImGui::Text(
+				"%s [ %s ]",
+				mark,
+				reward.name
+			);
 		}
 		else
 		{
-			ImGui::Text("   %s", kRewardDefinitions[i].name);
+			ImGui::Text(
+				"%s [ %s ]  Cost:%d",
+				mark,
+				reward.name,
+				reward.cost
+			);
 		}
 	}
 
-	ImGui::Separator();
-	ImGui::Text("Target Ball");
+	const RewardDefinition& selectedReward =
+		kRewardDefinitions[m_SelectedRewardIndex];
 
-	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
-	for (int i = 0; i < ballCount; i++)
+	// 繝懊・繝ｫ蠑ｷ蛹悶ｒ驕ｸ謚樔ｸｭ縺ｮ蝣ｴ蜷医□縺大ｯｾ雎｡繧定｡ｨ遉ｺ
+	if (selectedReward.targetType ==
+		RewardTargetType::SingleBall)
 	{
-		const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(i);
-		if (ball == nullptr)
+		ImGui::Separator();
+		ImGui::Text("Target Ball");
+
+		const int ballCount =
+			m_PlayerDeck.GetRewardTargetCount();
+
+		for (int i = 0; i < ballCount; i++)
 		{
-			continue;
+			const PlayerBallData* ball =
+				m_PlayerDeck.GetRewardTarget(i);
+
+			if (ball == nullptr)
+			{
+				continue;
+			}
+
+			const char* mark =
+				i == m_SelectedRewardBallIndex
+				? ">"
+				: " ";
+
+			ImGui::Text(
+				"%s [%d] %s  ATK:%d DEF:%d",
+				mark,
+				i,
+				ball->definitionId.c_str(),
+				ball->status.attack,
+				ball->status.defense
+			);
 		}
 
-		const char* mark = (i == m_SelectedRewardBallIndex) ? " >" : "  ";
-		ImGui::Text(
-			"%s [%d] %s  ATK:%d DEF:%d BallHP:%d",
-			mark,
-			i,
-			ball->definitionId.c_str(),
-			ball->status.attack,
-			ball->status.defense,
-			ball->status.maxHp
-		);
-	}
-
-	if (ballCount <= 0)
-	{
-		ImGui::Text("No target ball");
+		if (ballCount <= 0)
+		{
+			ImGui::Text("No target ball");
+		}
 	}
 
 	ImGui::Separator();
-	ImGui::Text("UP / DOWN : Reward");
+
+	if (!m_RewardMessage.empty())
+	{
+		ImGui::Text("%s", m_RewardMessage.c_str());
+	}
+
+	ImGui::Separator();
+	ImGui::Text("UP / DOWN : Select");
 	ImGui::Text("LEFT / RIGHT : Target Ball");
-	ImGui::Text("SPACE : Decide");
+	ImGui::Text("SPACE : Buy / Leave");
 
 	ImGui::End();
 }
 
-void Game::ApplyReward(int rewardIndex)
+bool Game::ApplyReward(int rewardIndex)
 {
-	if (rewardIndex < 0 || rewardIndex >= kRewardCount)
+	if (rewardIndex < 0 ||
+		rewardIndex >= kRewardCount)
 	{
-		return;
+		return false;
 	}
 
-	const RewardDefinition& reward = kRewardDefinitions[rewardIndex];
+	const RewardDefinition& reward =
+		kRewardDefinitions[rewardIndex];
 
 	switch (reward.targetType)
 	{
 	case RewardTargetType::SingleBall:
 	{
 		PlayerBallData* targetBall =
-			m_PlayerDeck.GetRewardTarget(m_SelectedRewardBallIndex);
+			m_PlayerDeck.GetRewardTarget(
+				m_SelectedRewardBallIndex
+			);
+
 		if (targetBall == nullptr)
 		{
-			return;
+			m_RewardMessage = "No target ball";
+			return false;
 		}
 
 		switch (rewardIndex)
@@ -764,33 +1110,88 @@ void Game::ApplyReward(int rewardIndex)
 			targetBall->status.defense += 1;
 			break;
 
-		case 2:
-			targetBall->status.maxHp += 1;
-			break;
-
 		default:
-			break;
+			return false;
 		}
 
-		PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+		// 迴ｾ蝨ｨ菴ｿ逕ｨ荳ｭ縺ｮ繝懊・繝ｫ縺ｪ繧牙ｮ滉ｽ薙↓繧ょ渚譏縺吶ｋ
+		PlayerBallData* currentBall =
+			m_PlayerDeck.GetCurrent();
+
 		if (targetBall == currentBall)
 		{
-			std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+			std::vector<PlayerBall*> players =
+				GetObjects<PlayerBall>();
+
 			if (!players.empty())
 			{
 				ApplyPlayerStatusTo(players[0]);
 			}
 		}
-		break;
+
+		return true;
 	}
 
-	case RewardTargetType::WholeDeck:
 	case RewardTargetType::PlayerOverall:
+	{
+		switch (rewardIndex)
+		{
+		case 2:
+		{
+			constexpr int HEAL_AMOUNT = 3;
+
+			if (m_PlayerRunStatus.currentHp >=
+				m_PlayerRunStatus.maxHp)
+			{
+				m_RewardMessage = "HP is already full";
+				return false;
+			}
+
+			m_PlayerRunStatus.currentHp += HEAL_AMOUNT;
+			break;
+		}
+
+		case 3:
+		{
+			constexpr int MAX_HP_UP_AMOUNT = 1;
+
+			m_PlayerRunStatus.maxHp +=
+				MAX_HP_UP_AMOUNT;
+
+			// 譛螟ｧHP荳頑・蛻・□縺醍樟蝨ｨHP繧ょ｢怜刈
+			m_PlayerRunStatus.currentHp +=
+				MAX_HP_UP_AMOUNT;
+			break;
+		}
+
+		default:
+			return false;
+		}
+
+		m_PlayerRunStatus =
+			NormalizePlayerRunStatus(m_PlayerRunStatus);
+
+		// 迴ｾ蝨ｨ陦ｨ遉ｺ荳ｭ縺ｮPlayerBall縺ｫ繧ょ渚譏縺吶ｋ
+		std::vector<PlayerBall*> players =
+			GetObjects<PlayerBall>();
+
+		if (!players.empty())
+		{
+			ApplyPlayerRunStatusTo(players[0]);
+		}
+
+		return true;
+	}
+
+	case RewardTargetType::Exit:
 	default:
-		break;
+		return false;
 	}
 }
-void Game::LoadPlayerStatusFromJson(const std::string& filePath)
+
+void Game::LoadPlayerStatusFromJson(
+	const std::string& filePath,
+	const std::string& deckFilePath)
 {
 	PlayerBallDataLoadResult loadResult =
 		PlayerBallDataLoader::Load(
@@ -803,7 +1204,13 @@ void Game::LoadPlayerStatusFromJson(const std::string& filePath)
 	m_DefaultPlayerRunStatus = NormalizePlayerRunStatus(
 		loadResult.defaultRunStatus
 	);
-	m_PlayerDeck.SetDefaultDeck(loadResult.defaultDeck);
+
+	std::vector<PlayerBallData> defaultDeck =
+		PlayerBallDataLoader::LoadDeck(
+			deckFilePath,
+			loadResult.ballDefinitions
+		);
+	m_PlayerDeck.SetDefaultDeck(defaultDeck);
 
 	ResetPlayerRuntimeStatus();
 }
@@ -819,18 +1226,32 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 		return;
 	}
 
-	if (!m_PlayerDeck.HasCurrent())
+	const PlayerBallData* selectedBall = m_PlayerDeck.GetCurrent();
+	if (selectedBall == nullptr)
 	{
-		m_PlayerDeck.DrawNext();
+		selectedBall = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
 	}
 
-	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
-	if (currentBall == nullptr)
+	if (selectedBall == nullptr)
 	{
+		ApplyPlayerRunStatusTo(player);
 		return;
 	}
 
-	player->SetStatus(currentBall->status);
+	player->SetStatus(selectedBall->status);
+
+	// 物理半径だけでなく、描画モデルの大きさも選択したボールへ合わせる。
+	if (selectedBall->status.radius > 0.0f && player->GetBall() != nullptr)
+	{
+		const float visualScale = selectedBall->status.radius;
+		Transform& transform = player->GetBall()->GetMutableTransform();
+		transform.scale = DirectX::SimpleMath::Vector3(
+			visualScale,
+			visualScale,
+			visualScale);
+		player->GetBall()->SynchronizeComponents();
+	}
+
 	ApplyPlayerRunStatusTo(player);
 }
 
@@ -893,27 +1314,117 @@ void Game::PrepareNextPlayerBall()
 		return;
 	}
 
-	DrawNextPlayerBall();
+	BeginBallSelection();
+}
 
-	std::vector<PlayerBall*> players =
-		GetObjects<PlayerBall>();
+int Game::CalculateStageRewardMoney() const
+{
+	int totalRewardMoney = 0;
 
-	if (!players.empty())
+	std::vector<EnemyBall*> enemies =
+		m_Instance->GetObjects<EnemyBall>();
+
+	for (EnemyBall* enemy : enemies)
 	{
-		ApplyPlayerStatusTo(players[0]);
+		if (enemy == nullptr)
+		{
+			continue;
+		}
+
+		// 蛟偵＠縺滓雰縺ｮ蝣ｱ驟ｬ縺縺代ｒ蜿門ｾ励☆繧・
+		if (!enemy->IsDefeated())
+		{
+			continue;
+		}
+
+		totalRewardMoney +=
+			(std::max)(0, enemy->GetRewardMoney());
 	}
+
+	return totalRewardMoney;
+}
+
+void Game::CollectStageRewardMoney()
+{
+	// StartClearReward縺瑚､・焚蝗槫他縺ｰ繧後※繧ゆｺ碁㍾蜿門ｾ励＠縺ｪ縺・
+	if (m_IsStageRewardCollected)
+	{
+		return;
+	}
+
+	m_CurrentStageRewardMoney =
+		CalculateStageRewardMoney();
+
+	m_PlayerRunStatus.money +=
+		m_CurrentStageRewardMoney;
+
+	m_PlayerRunStatus =
+		NormalizePlayerRunStatus(m_PlayerRunStatus);
+
+	m_IsStageRewardCollected = true;
+
+	m_RewardMessage =
+		"Stage Reward: +" +
+		std::to_string(m_CurrentStageRewardMoney) +
+		" Money";
+}
+
+bool Game::TryPurchaseReward(int rewardIndex)
+{
+	if (rewardIndex < 0 ||
+		rewardIndex >= kRewardCount)
+	{
+		return false;
+	}
+
+	const RewardDefinition& reward =
+		kRewardDefinitions[rewardIndex];
+
+	if (reward.targetType == RewardTargetType::Exit)
+	{
+		return false;
+	}
+
+	// 謇謖｀oney縺瑚ｶｳ繧翫↑縺・
+	if (m_PlayerRunStatus.money < reward.cost)
+	{
+		m_RewardMessage = "Not enough Money";
+		return false;
+	}
+
+	// HP貅繧ｿ繝ｳ縺ｪ縺ｩ縺ｧ驕ｩ逕ｨ縺ｧ縺阪↑縺九▲縺溷ｴ蜷医・Money繧呈ｸ帙ｉ縺輔↑縺・
+	if (!ApplyReward(rewardIndex))
+	{
+		return false;
+	}
+
+	m_PlayerRunStatus.money -= reward.cost;
+	m_PlayerRunStatus =
+		NormalizePlayerRunStatus(m_PlayerRunStatus);
+
+	m_RewardMessage =
+		std::string(reward.name) +
+		" purchased";
+
+	return true;
 }
 
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
+	// 選択内容はショットした瞬間に確定する。
+	if (!m_PlayerDeck.HasCurrent())
+	{
+		if (!m_PlayerDeck.SelectOffer(
+			m_SelectedOfferIndex,
+			m_SelectedHoldIndex))
+		{
+			return;
+		}
+	}
+
 	if (player != nullptr)
 	{
 		CapturePlayerStatusFrom(player);
-	}
-
-	if (!m_PlayerDeck.HasCurrent())
-	{
-		return;
 	}
 
 	m_PlayerDeck.MarkCurrentUsed();
@@ -977,6 +1488,12 @@ void Game::SaveDebugSnapshot()
 	file << "DiscardPile = "
 		<< m_PlayerDeck.GetDiscardPileCount() << "\n";
 
+	file << "OfferCount = "
+		<< m_PlayerDeck.GetOfferCount() << "\n";
+
+	file << "TotalDeckCount = "
+		<< m_PlayerDeck.GetRewardTargetCount() << "\n";
+
 	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
 	if (currentBall != nullptr)
 	{
@@ -1002,13 +1519,17 @@ void Game::SaveDebugSnapshot()
 	file << "EnemyBall = " << enemies.size() << "\n";
 	file << "\n";
 
+	file << "PlayerMoney = "
+		<< m_PlayerRunStatus.money
+		<< "\n";
+
 	for (int i = 0; i < static_cast<int>(players.size()); i++)
 	{
-		WriteBallDebugStatus(file, "PlayerBall", i, players[i]);
+		WriteBallDebugStatus(file, "PlayerBall", i, players[i]->GetBall());
 	}
 
 	for (int i = 0; i < static_cast<int>(enemies.size()); i++)
 	{
-		WriteBallDebugStatus(file, "EnemyBall", i, enemies[i]);
+		WriteBallDebugStatus(file, "EnemyBall", i, enemies[i]->GetBall());
 	}
 }

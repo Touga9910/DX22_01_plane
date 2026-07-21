@@ -1,4 +1,4 @@
-#include "StageBase.h"
+ï»¿#include "StageBase.h"
 #include "Game.h"
 #include "Input.h"
 #include "PlayerBall.h"
@@ -9,7 +9,16 @@ StageBase::StageBase() {}
 StageBase::~StageBase() { Uninit(); }
 
 PlayerBall* StageBase::GetPlayerBall() const {
-    return dynamic_cast<PlayerBall*>(m_MySceneObjects[0]);
+    const auto players = Game::GetInstance()->GetGameObjectsWithTag(GameObjectTag::Player);
+    for (GameObject* playerObject : players)
+    {
+        if (PlayerBall* player = playerObject->GetComponent<PlayerBall>())
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
 }
 
 /*
@@ -28,14 +37,14 @@ void StageBase::Update()
     switch (Game::GetInstance()->GetGameState())
     {
     case GameState::TurnEnd:
-        // TC-20: ƒVƒ‡ƒbƒgŠ®—¹i‘Sƒ{[ƒ‹’â~j‚Ìƒ^ƒCƒ~ƒ“ƒO‚Å‘Å”ƒJƒEƒ“ƒg
+        // TC-20: ã‚·ãƒ§ãƒƒãƒˆå®Œäº†ï¼ˆå…¨ãƒœãƒ¼ãƒ«åœæ­¢ï¼‰ã®ã‚¿ã‚¤ãƒŸãƒ³ã‚°ã§æ‰“æ•°ã‚«ã‚¦ãƒ³ãƒˆ
         m_StrokeCount++;
         UpdateStrokeUI();
-        // ¦ —‚ƒtƒŒ[ƒ€‚É Game::Update() ‚ª©“®‚Å AimingDirection ‚Ö‘JˆÚ‚³‚¹‚é
+        // â€» ç¿Œãƒ•ãƒ¬ãƒ¼ãƒ ã« Game::Update() ãŒè‡ªå‹•ã§ AimingDirection ã¸é·ç§»ã•ã›ã‚‹
         break;
 
     case GameState::BallsMoving:
-        // TC-21: ƒS[ƒ‹”»’è
+        // TC-21: ã‚´ãƒ¼ãƒ«åˆ¤å®š
         if (ball->GetState() == PlayerBall::State::Goal)
         {
             Game::GetInstance()->ChangeScene(RESULT);
@@ -43,8 +52,8 @@ void StageBase::Update()
         break;
 
     default:
-        // TC-22: AimingDirection / AimingPower / ConfirmShot ‚Å‚Í
-        //        ‰½‚à‚µ‚È‚¢iPlayerBall::UpdateAim() ‚ª“ü—ÍEó‘Ô‘JˆÚ‚ğˆ—j
+        // TC-22: AimingDirection / AimingPower / ConfirmShot ã§ã¯
+        //        ä½•ã‚‚ã—ãªã„ï¼ˆPlayerBall::UpdateAim() ãŒå…¥åŠ›ãƒ»çŠ¶æ…‹é·ç§»ã‚’å‡¦ç†ï¼‰
         break;
     }
 }
@@ -55,9 +64,9 @@ void StageBase::UpdateStrokeUI()
 
     std::vector<Texture2D*> textures;
 
-    for (Object* o : m_MySceneObjects)
+    for (Component* component : m_MySceneObjects)
     {
-        if (Texture2D* tex = dynamic_cast<Texture2D*>(o))
+        if (Texture2D* tex = dynamic_cast<Texture2D*>(component))
         {
             textures.push_back(tex);
         }
@@ -78,7 +87,7 @@ void StageBase::UpdateStrokeUI()
 }
 
 void StageBase::Uninit() {
-    for (auto& o : m_MySceneObjects) { Game::GetInstance()->DeleteObject(o); }
+    for (Component* component : m_MySceneObjects) { Game::GetInstance()->DeleteComponent(component); }
     m_MySceneObjects.clear();
 }
 
@@ -86,7 +95,7 @@ void StageBase::RemoveInvalidSceneObjectRefs()
 {
     Game* game = Game::GetInstance();
 
-    std::erase_if(m_MySceneObjects, [game](Object* o) {
-        return !game->ContainsObject(o);
+    std::erase_if(m_MySceneObjects, [game](Component* component) {
+        return !game->ContainsComponent(component);
         });
 }

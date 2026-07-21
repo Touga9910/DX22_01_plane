@@ -73,6 +73,12 @@
     <Filter Include="JSON">
       <UniqueIdentifier>{6375ba00-242a-4c6b-ac10-405e3008248d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ヘッダー ファイル\コンポーネント">
+      <UniqueIdentifier>{6c36a8f1-5525-49dd-9c4a-e4b586374ba0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\コンポーネント">
+      <UniqueIdentifier>{fb5fadd4-4dd0-430f-bd5e-8a908a6c2a72}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp">
@@ -105,16 +111,10 @@
     <ClCompile Include="AssimpPerse.cpp">
       <Filter>ソース ファイル\オブジェクト関連</Filter>
     </ClCompile>
-    <ClCompile Include="TestPlane.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
     <ClCompile Include="TestModel.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="TestGolfFlag.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
-    <ClCompile Include="TestCube.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="utility.cpp">
@@ -146,12 +146,6 @@
     </ClCompile>
     <ClCompile Include="Texture2D.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
-    </ClCompile>
-    <ClCompile Include="Pole.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
-    <ClCompile Include="Arrow.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="StageSelectScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
@@ -192,16 +186,10 @@
     <ClCompile Include="PlayerBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClCompile>
-    <ClCompile Include="PlayerDeck.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\オブジェクトの設定</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerBallDataLoader.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\オブジェクトの設定</Filter>
-    </ClCompile>
     <ClCompile Include="EnemyBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClCompile>
-    <ClCompile Include="BallBase.cpp">
+    <ClCompile Include="BallComponent.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClCompile>
     <ClCompile Include="Ground.cpp">
@@ -218,6 +206,24 @@
     </ClCompile>
     <ClCompile Include="StageDataLoader.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerDeck.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerBallDataLoader.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Pole.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
+    </ClCompile>
+    <ClCompile Include="Component.cpp">
+      <Filter>ソース ファイル\コンポーネント</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject.cpp">
+      <Filter>ソース ファイル\コンポーネント</Filter>
+    </ClCompile>
+    <ClCompile Include="RigidbodyComponent.cpp">
+      <Filter>ソース ファイル\コンポーネント</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -308,9 +314,6 @@
     <ClInclude Include="Texture2D.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
-    <ClInclude Include="Arrow.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
     <ClInclude Include="Pole.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
@@ -368,7 +371,7 @@
     <ClInclude Include="EnemyBall.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClInclude>
-    <ClInclude Include="BallBase.h">
+    <ClInclude Include="BallComponent.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
     </ClInclude>
     <ClInclude Include="Ground.h">
@@ -404,6 +407,18 @@
     <ClInclude Include="PlayerRunStatus.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>ヘッダー ファイル\コンポーネント</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject.h">
+      <Filter>ヘッダー ファイル\コンポーネント</Filter>
+    </ClInclude>
+    <ClInclude Include="TransformComponent.h">
+      <Filter>ヘッダー ファイル\コンポーネント</Filter>
+    </ClInclude>
+    <ClInclude Include="RigidbodyComponent.h">
+      <Filter>ヘッダー ファイル\コンポーネント</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\common.hlsl">
@@ -424,6 +439,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\data\enemy_data.json">
+      <Filter>JSON</Filter>
+    </None>
+    <None Include="assets\data\player_deck.json">
       <Filter>JSON</Filter>
     </None>
     <None Include="assets\data\player_status.json">

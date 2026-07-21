@@ -155,6 +155,15 @@ void Application::MainLoop()
     // ★ ImGui初期化
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
     ImGui_ImplWin32_Init(m_hWnd);
     ImGui_ImplDX11_Init(Renderer::GetDevice(), Renderer::GetDeviceContext());
     ImGui::StyleColorsDark(); // テーマ（お好みで）
@@ -209,9 +218,18 @@ void Application::MainLoop()
                // ゲーム描画
                Game::Draw();
 
+               
                // ★ ImGui描画（Game::Draw()より後に呼ぶ）
                ImGui::Render();
                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+               ImGuiIO& io = ImGui::GetIO();
+               if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+               {
+                   ImGui::UpdatePlatformWindows();
+                   ImGui::RenderPlatformWindowsDefault();
+               }
+               
 
                fpsCounter++; // ゲーム処理を実行したら＋１する
                oldCount = nowCount;

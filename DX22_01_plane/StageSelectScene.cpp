@@ -1,27 +1,27 @@
-#include "StageSelectScene.h"
+ï»¿#include "StageSelectScene.h"
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 StageSelectScene::StageSelectScene()
 {
 	Init();
 }
 
-// ƒfƒXƒgƒ‰ƒNƒ^
+// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 StageSelectScene::~StageSelectScene()
 {
 	Uninit();
 }
 
-// ‰Šú‰»
+// åˆæœŸåŒ–
 void StageSelectScene::Init()
 {
 
-	SelectArrow = 2; //enum‚É‚ÄƒXƒe[ƒW1‚Ì’l‚ª2‚ÉÝ’è‚³‚ê‚Ä‚¢‚é‚½‚ß
+	SelectArrow = 2; //enumã«ã¦ã‚¹ãƒ†ãƒ¼ã‚¸1ã®å€¤ãŒ2ã«è¨­å®šã•ã‚Œã¦ã„ã‚‹ãŸã‚
 
-	//”wŒi‰æ‘œƒIƒuƒWƒFƒNƒg‚ðì¬
+	//èƒŒæ™¯ç”»åƒã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆ
 	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
@@ -40,10 +40,10 @@ void StageSelectScene::Init()
 
 }
 
-// XV
+// æ›´æ–°
 void StageSelectScene::Update()
 {
-	bool isChanged = false;//–îˆó‚ª“®‚¢‚½‚©‚Ç‚¤‚©
+	bool isChanged = false;//çŸ¢å°ãŒå‹•ã„ãŸã‹ã©ã†ã‹
 
 	if (Input::GetKeyTrigger(VK_S))
 	{
@@ -58,14 +58,14 @@ void StageSelectScene::Update()
 		isChanged = true;
 	}
 
-	// ’l‚ª•Ï‚í‚Á‚Ä‚¢‚½‚çA‰æ‘œ‚ÌˆÊ’u‚ðXV‚·‚é
+	// å€¤ãŒå¤‰ã‚ã£ã¦ã„ãŸã‚‰ã€ç”»åƒã®ä½ç½®ã‚’æ›´æ–°ã™ã‚‹
 	if (isChanged && m_pArrowImage != nullptr)
 	{
-		// Init‚Æ“¯‚¶ŒvŽZŽ®‚ÅÀ•W‚ðÄÝ’è
+		// Initã¨åŒã˜è¨ˆç®—å¼ã§åº§æ¨™ã‚’å†è¨­å®š
 		m_pArrowImage->SetPosition(0.0f, -SelectArrow * 100.0f, 0.0f);
 	}
 
-	// ƒGƒ“ƒ^[ƒL[‚ð‰Ÿ‚µ‚ÄƒXƒe[ƒW1‚Ö
+	// ã‚¨ãƒ³ã‚¿ãƒ¼ã‚­ãƒ¼ã‚’æŠ¼ã—ã¦ã‚¹ãƒ†ãƒ¼ã‚¸1ã¸
 	if (Input::GetKeyTrigger(VK_RETURN))
 	{
 		switch (SelectArrow)
@@ -86,12 +86,12 @@ void StageSelectScene::Update()
 	}
 }
 
-// I—¹ˆ—
+// çµ‚äº†å‡¦ç†
 void StageSelectScene::Uninit()
 {
-	// ‚±‚ÌƒV[ƒ“‚ÌƒIƒuƒWƒFƒNƒg‚ðíœ‚·‚é
+	// ã“ã®ã‚·ãƒ¼ãƒ³ã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å‰Šé™¤ã™ã‚‹
 	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteObject(o);
+		Game::GetInstance()->DeleteComponent(o);
 	}
 	m_MySceneObjects.clear();
 }

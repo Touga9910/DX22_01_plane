@@ -1,73 +1,76 @@
-#pragma once
-#include "BallBase.h"
+ï»¿#pragma once
+
+#include "BallComponent.h"
 #include "EnemyData.h"
 
-class PlayerBall;
+#include <string>
+#include <optional>
 
-class EnemyBall : public BallBase
+class PlayerBall;
+class Camera;
+
+class EnemyBall final : public Component
 {
 public:
     EnemyBall() = default;
+    explicit EnemyBall(const EnemyData& data) : m_InitialData(data) {}
     ~EnemyBall() = default;
 
+    // -------------------------
+    // åŸºæœ¬å‡¦ç†
+    // -------------------------
+    void Awake() override;
+    void Init();
     void Init(const EnemyData& data);
-
-    void Init() override;
     void Update() override;
-    void Draw(Camera* cam) override;
-    void Uninit() override;
+    void Draw() override;
+    void OnDestroy() override;
 
-    void Defeat() override;
+    // -------------------------
+    // æˆ¦é—˜ãƒ»çŠ¶æ…‹å‡¦ç†
+    // -------------------------
+    void Defeat();
+    void TakeDamage(int damage) { m_Ball->TakeDamage(damage); }
 
-	// ƒvƒŒƒCƒ„[‚ÉUŒ‚‚·‚é‚½‚ß‚ÌŠÖ”
-    void Attack(PlayerBall* player);
+    void SetStatus(const BallStatus& status) { m_Ball->SetStatus(status); }
+    const BallStatus& GetStatus() const { return m_Ball->GetStatus(); }
+    void SetHP(int hp) { m_Ball->SetHP(hp); }
+    int GetHP() const { return m_Ball->GetHP(); }
+    int GetMaxHP() const { return m_Ball->GetMaxHP(); }
+    int GetAttack() const { return m_Ball->GetAttack(); }
+    int GetDefense() const { return m_Ball->GetDefense(); }
+    bool IsDefeated() const { return m_Ball->IsDefeated(); }
+    bool IsStopped() const { return m_Ball->IsStopped(); }
+    DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
+    DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
+    BallComponent* GetBall() const { return m_Ball; }
 
-	// “G‚ÌID‚ğæ“¾‚·‚é‚½‚ß‚ÌŠÖ”
+    // -------------------------
+    // æ•µãƒ‡ãƒ¼ã‚¿ãƒ»ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹
+    // -------------------------
     const std::string& GetEnemyId() const { return m_EnemyData.id; }
-
-	// ƒzƒbƒgƒŠƒ[ƒh—p‚Ìƒf[ƒ^‚ğ“K—p‚·‚é‚½‚ß‚ÌŠÖ”
     void ApplyHotReloadData(const EnemyData& data);
+    void ApplyStatusKeepHpRate(const BallStatus& status);
 
-    void ApplyStatusKeepHpRate(const BallStatus& status)
+    int GetRewardMoney() const
     {
-        if (m_IsDefeated)
-        {
-            ApplyStatusValues(status);
-            return;
-        }
-
-        float hpRate = 1.0f;
-
-        if (m_Status.maxHp > 0)
-        {
-            hpRate = static_cast<float>(m_HP) / static_cast<float>(m_Status.maxHp);
-        }
-
-        ApplyStatusValues(status);
-
-        int newHp = static_cast<int>(m_Status.maxHp * hpRate);
-
-        if (newHp < 1)
-        {
-            newHp = 1;
-        }
-
-        if (newHp > m_Status.maxHp)
-        {
-            newHp = m_Status.maxHp;
-        }
-
-        m_HP = newHp;
+        return m_EnemyData.rewardMoney;
     }
-    // ImGui‚Å“G‚Ìî•ñ‚ğ•\¦‚·‚é‚½‚ß‚ÌŠÖ”
-    void DrawImGui(const std::string& label) override;
+
+    // -------------------------
+    // ãƒ‡ãƒãƒƒã‚°UI
+    // -------------------------
+    void DrawImGui(const std::string& label);
+
 private:
-    // •K—v‚É‰‚¶‚Ä“GŒÅ—L‚Ì•Ï”‚ğ’è‹`
-    // —á: “G‚Ìí—ŞAHPA‚ ‚é‚¢‚Í©—¥ˆÚ“®—p‚Ìƒ^ƒCƒ}[‚È‚Ç
-    int m_CurrentFrame = 0;
+    void Draw(Camera* cam);
+    void Uninit();
+    void ApplyStatusValuesOnly(const BallStatus& status);
 
-	EnemyData m_EnemyData;  // “G‚Ìƒf[ƒ^‚ğ•Û‚·‚é•Ï”
-
-    // “G‚Ì‰ŠúˆÊ’u‚ğ•Û‚·‚é•Ï”
-    DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);
+private:
+    BallComponent* m_Ball = nullptr;
+    std::optional<EnemyData> m_InitialData;
+    int m_CurrentFrame = 0;                                                                    // çµŒéãƒ•ãƒ¬ãƒ¼ãƒ 
+    EnemyData m_EnemyData;                                                                     // æ•µãƒ‡ãƒ¼ã‚¿
+    DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f); // æ•µã®åˆæœŸä½ç½®
 };

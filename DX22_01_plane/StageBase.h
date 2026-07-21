@@ -1,37 +1,37 @@
-#pragma once
+ï»¿#pragma once
 #include "Scene.h"
+#include "Component.h"
 #include <vector>
 
-class Object; // ‘O•ûéŒ¾
 class PlayerBall;
 //class Arrow;
 
 class StageBase : public Scene
 {
 protected:
-    // ŠeƒXƒe[ƒW‚Å‹¤—L‚·‚éƒIƒuƒWƒFƒNƒgŠÇ—”z—ñ
-    std::vector<Object*> m_MySceneObjects;
+    // å„ã‚¹ãƒ†ãƒ¼ã‚¸ã§å…±æœ‰ã™ã‚‹ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆç®¡ç†é…åˆ—
+    std::vector<Component*> m_MySceneObjects;
 
-    // ƒXƒe[ƒW‹¤’Ê‚ÌisƒXƒe[ƒg
+    // ã‚¹ãƒ†ãƒ¼ã‚¸å…±é€šã®é€²è¡Œã‚¹ãƒ†ãƒ¼ãƒˆ
     //int m_State = 0;
     int m_Par = 4;
     int m_StrokeCount = 0;
 
-    // •Ö—˜‚Èƒwƒ‹ƒp[ŠÖ”i–ˆ‰ñ dynamic_cast ‚·‚éèŠÔ‚ğÈ‚­j
+    // ä¾¿åˆ©ãªãƒ˜ãƒ«ãƒ‘ãƒ¼é–¢æ•°ï¼ˆæ¯å› dynamic_cast ã™ã‚‹æ‰‹é–“ã‚’çœãï¼‰
     PlayerBall* GetPlayerBall() const;
     //Arrow* GetArrow() const;
 
-    // ‘Å”UI‚ÌXVˆ—‚ğ‹¤’Ê‰»
+    // æ‰“æ•°UIã®æ›´æ–°å‡¦ç†ã‚’å…±é€šåŒ–
     void UpdateStrokeUI();
 
 public:
     StageBase();
     virtual ~StageBase() override;
 
-    //  Scene::Update ‚ğ‚±‚±‚ÅƒI[ƒo[ƒ‰ƒCƒh‚µA‹¤’Ê‚ÌisƒƒWƒbƒN‚ğ‘‚­
+    //  Scene::Update ã‚’ã“ã“ã§ã‚ªãƒ¼ãƒãƒ¼ãƒ©ã‚¤ãƒ‰ã—ã€å…±é€šã®é€²è¡Œãƒ­ã‚¸ãƒƒã‚¯ã‚’æ›¸ã
     void Update() override;
 
-    // I—¹ˆ—‚à‹¤’Ê‰»
+    // çµ‚äº†å‡¦ç†ã‚‚å…±é€šåŒ–
     void Uninit();
 
     int GetScore() const { return m_StrokeCount - m_Par; }

@@ -1,25 +1,25 @@
-
+Ôªø
 #include "TitleScene.h"
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
 
-// ÉRÉìÉXÉgÉâÉNÉ^
+// „Ç≥„É≥„Çπ„Éà„É©„ÇØ„Çø
 TitleScene::TitleScene()
 {
 	Init();
 }
 
-// ÉfÉXÉgÉâÉNÉ^
+// „Éá„Çπ„Éà„É©„ÇØ„Çø
 TitleScene::~TitleScene()
 {
 	Uninit();
 }
 
-// èâä˙âª
+// ÂàùÊúüÂåñ
 void TitleScene::Init()
 {
-	//îwåiâÊëúÉIÉuÉWÉFÉNÉgÇçÏê¨
+	//ËÉåÊôØÁîªÂÉè„Ç™„Éñ„Ç∏„Çß„ÇØ„Éà„Çí‰ΩúÊàê
 	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
@@ -35,7 +35,7 @@ void TitleScene::Init()
 	m_MySceneObjects.emplace_back(pt2);
 }
 
-// çXêV
+// Êõ¥Êñ∞
 void TitleScene::Update()
 {
 
@@ -58,7 +58,7 @@ void TitleScene::Update()
 		std::cout << m_CursolPos << std::endl;
 	}
 
-	// ÉGÉìÉ^Å[ÉLÅ[ÇâüÇµÇƒÉXÉeÅ[ÉWÉZÉåÉNÉgÇ÷
+	// „Ç®„É≥„Çø„Éº„Ç≠„Éº„ÇíÊäº„Åó„Å¶„Çπ„ÉÜ„Éº„Ç∏„Çª„É¨„ÇØ„Éà„Å∏
 	if (Input::GetKeyTrigger(VK_RETURN))
 	{
 		switch (m_CursolPos)
@@ -76,12 +76,12 @@ void TitleScene::Update()
 	}
 }
 
-// èIóπèàóù
+// ÁµÇ‰∫ÜÂá¶ÁêÜ
 void TitleScene::Uninit()
 {
-	// Ç±ÇÃÉVÅ[ÉìÇÃÉIÉuÉWÉFÉNÉgÇçÌèúÇ∑ÇÈ
+	// „Åì„ÅÆ„Ç∑„Éº„É≥„ÅÆ„Ç™„Éñ„Ç∏„Çß„ÇØ„Éà„ÇíÂâäÈô§„Åô„Çã
 	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteObject(o);
+		Game::GetInstance()->DeleteComponent(o);
 	}
 	m_MySceneObjects.clear();
 }

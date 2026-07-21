@@ -1,4 +1,7 @@
-#include "Pocket.h"
+ï»¿#include "Pocket.h"
+
+#include "GameObject.h"
+#include "SphereColliderComponent.h"
 
 using namespace DirectX::SimpleMath;
 
@@ -12,8 +15,8 @@ void Pocket::Update()
 
 void Pocket::Draw(Camera* cam)
 {
-    // ƒ|ƒPƒbƒg‚ÌŒ©‚½–Ú‚Í TableFrame ‘¤‚Ì•‚¢‰~‚Å•`‰æ‚µ‚Ä‚¢‚é‚½‚ßA
-    // Pocket ƒNƒ‰ƒX‚Å‚Í•`‰æ‚µ‚È‚¢
+    // ãƒã‚±ãƒƒãƒˆã®è¦‹ãŸç›®ã¯ TableFrame å´ã®é»’ã„å††ã§æç”»ã—ã¦ã„ã‚‹ãŸã‚ã€
+    // Pocket ã‚¯ãƒ©ã‚¹ã§ã¯æç”»ã—ãªã„
 }
 
 void Pocket::Uninit()
@@ -22,7 +25,7 @@ void Pocket::Uninit()
 
 void Pocket::SetPosition(const Vector3& position)
 {
-    // Object::GetPosition() ‚ðŽg‚¤‰Â”\«‚à‚ ‚é‚½‚ßA—¼•û‚É“ü‚ê‚Ä‚¨‚­
+    // Object::GetPosition() ã‚’ä½¿ã†å¯èƒ½æ€§ã‚‚ã‚ã‚‹ãŸã‚ã€ä¸¡æ–¹ã«å…¥ã‚Œã¦ãŠã
     m_Position = position;
     m_Transform.position = position;
 }
@@ -30,6 +33,15 @@ void Pocket::SetPosition(const Vector3& position)
 void Pocket::SetRadius(float radius)
 {
     m_Radius = radius;
+
+	if (GameObject* owner = GetGameObject())
+	{
+		if (SphereColliderComponent* collider =
+			owner->GetComponent<SphereColliderComponent>())
+		{
+			collider->SetRadius(radius);
+		}
+	}
 }
 
 Collision::Sphere Pocket::GetSphere() const

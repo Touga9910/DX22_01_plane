@@ -1,8 +1,11 @@
-#pragma once
+ï»¿#pragma once
 #include <iostream>
+#include <memory>
 #include <vector>
+#include <string>
+#include <typeinfo>
 
-//ƒIƒuƒWƒFƒNƒgî•ñ‚Ì‚ ‚éƒtƒ@ƒCƒ‹‚ğƒCƒ“ƒNƒ‹[ƒh
+//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆæƒ…å ±ã®ã‚ã‚‹ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã‚¤ãƒ³ã‚¯ãƒ«ãƒ¼ãƒ‰
 //#include "TestPlane.h"
 //#include "TestCube.h"
 //#include "TestGolfFlag.h"
@@ -26,6 +29,17 @@
 #include "BallStatus.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
+#include "GameObject.h"
+#include "SphereColliderComponent.h"
+#include "TagComponent.h"
+
+class EnemyBall;
+class Ground;
+class PlayerBall;
+class Pocket;
+class Pole;
+class TableFrame;
+class Texture2D;
 
 enum SceneName {
 	TITLE,
@@ -37,34 +51,34 @@ enum SceneName {
 	SCENE_MAX
 };
 
-// ƒQ[ƒ€‘S‘Ì‚Ìƒ^[ƒ“isó‘Ô
+// ã‚²ãƒ¼ãƒ å…¨ä½“ã®ã‚¿ãƒ¼ãƒ³é€²è¡ŒçŠ¶æ…‹
 enum class GameState {
-	AimingDirection,	// •ûŒü‘I‘ğ’†
-	AimingPower,		// ƒpƒ[‘I‘ğ’†
-	ConfirmShot,		// ƒVƒ‡ƒbƒgŠm”FE’e“¹•\¦’†
-	BallsMoving,		// ƒ{[ƒ‹ˆÚ“®’†
-	EnemyAttack,		// “G‚ÌUŒ‚’†
-	TurnEnd,			// ƒ^[ƒ“I—¹i—‚ƒtƒŒ[ƒ€‚É AimingDirection ‚Ö©“®‘JˆÚj
+	AimingDirection,	// æ–¹å‘é¸æŠä¸­
+	AimingPower,		// ãƒ‘ãƒ¯ãƒ¼é¸æŠä¸­
+	ConfirmShot,		// ã‚·ãƒ§ãƒƒãƒˆç¢ºèªãƒ»å¼¾é“è¡¨ç¤ºä¸­
+	BallsMoving,		// ãƒœãƒ¼ãƒ«ç§»å‹•ä¸­
+	EnemyAttack,		// æ•µã®æ”»æ’ƒä¸­
+	TurnEnd,			// ã‚¿ãƒ¼ãƒ³çµ‚äº†ï¼ˆç¿Œãƒ•ãƒ¬ãƒ¼ãƒ ã« AimingDirection ã¸è‡ªå‹•é·ç§»ï¼‰
 
-	ClearReward,		// ƒNƒŠƒA‚Ì•ñV•\¦
-	GameOver,			// ƒQ[ƒ€ƒI[ƒo[
+	ClearReward,		// ã‚¯ãƒªã‚¢æ™‚ã®å ±é…¬è¡¨ç¤º
+	GameOver,			// ã‚²ãƒ¼ãƒ ã‚ªãƒ¼ãƒãƒ¼
 };
 
 class Game
 {
 private:
-	static Game* m_Instance;//ƒQ[ƒ€ƒCƒ“ƒXƒ^ƒ“ƒX
+	static Game* m_Instance;//ã‚²ãƒ¼ãƒ ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹
 
-	Scene* m_Scene;//ƒV[ƒ“
+	Scene* m_Scene;//ã‚·ãƒ¼ãƒ³
 
-	// ƒJƒƒ‰
+	// ã‚«ãƒ¡ãƒ©
 	Camera&  m_Camera = Camera::GetInstance();
 
-	// ƒXƒJƒCƒ{ƒbƒNƒX
+	// ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹
 	SkyBox* m_SkyBox = nullptr;
 
-	//ƒIƒuƒWƒFƒNƒg”z—ñ
-	std::vector<std::unique_ptr<Object>> m_Objects;
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆé…åˆ—
+	std::vector<std::unique_ptr<GameObject>> m_GameObjects;
 
 	GameState m_GameState = GameState::AimingDirection;
 
@@ -73,68 +87,83 @@ private:
 	PlayerRunStatus m_PlayerRunStatus{};
 
 	PlayerDeck m_PlayerDeck;
+	int m_SelectedOfferIndex = 0;
+	int m_SelectedHoldIndex = -1;
 
 	// ==========================
-	// •ñVUI—p
+	// å ±é…¬ãƒ»ã‚·ãƒ§ãƒƒãƒ—UIç”¨
 	// ==========================
 	int m_SelectedRewardIndex = 0;
 	int m_SelectedRewardBallIndex = 0;
 
+	int m_CurrentStageRewardMoney = 0;    // ä»Šå›ã®ã‚¹ãƒ†ãƒ¼ã‚¸ã§å–å¾—ã—ãŸMoney
+	bool m_IsStageRewardCollected = false; // äºŒé‡å–å¾—é˜²æ­¢
+	std::string m_RewardMessage;           // è³¼å…¥çµæœãªã©ã®è¡¨ç¤º
+
 	/// <summary>
-	/// ‘S‚Ä‚Ìƒ{[ƒ‹‚ª’â~‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©‚ğ”»’è‚·‚éŠÖ”
+	/// å…¨ã¦ã®ãƒœãƒ¼ãƒ«ãŒåœæ­¢ã—ã¦ã„ã‚‹ã‹ã©ã†ã‹ã‚’åˆ¤å®šã™ã‚‹é–¢æ•°
 	/// </summary>
 	bool AreAllBallsStopped() const;
 
 	/// <summary>
-	/// “G‚ÌUŒ‚ˆ—‚ğs‚¤ŠÖ”
+	/// æ•µã®æ”»æ’ƒå‡¦ç†ã‚’è¡Œã†é–¢æ•°
 	/// </summary>
 	void ProcessEnemyAttack();
 
 	/// <summary>
-	/// ƒQ[ƒ€ƒI[ƒo[‚Ìˆ—‚ğs‚¤ŠÖ”
+	/// ã‚²ãƒ¼ãƒ ã‚ªãƒ¼ãƒãƒ¼æ™‚ã®å‡¦ç†ã‚’è¡Œã†é–¢æ•°
 	/// </summary>
 	void ProcessGameOver();
 
 	/// <summary>
-	/// “G‘S–Å‚É•ñVUI‚ğ•\¦‚·‚éˆ—
+	/// æ•µå…¨æ»…æ™‚ã«å ±é…¬UIã‚’è¡¨ç¤ºã™ã‚‹å‡¦ç†
 	/// </summary>
 	void StartClearReward();
 
 	/// <summary>
-	/// •ñVUI‚ÌXVˆ—‚ğs‚¤ŠÖ”
+	/// å ±é…¬UIã®æ›´æ–°å‡¦ç†ã‚’è¡Œã†é–¢æ•°
 	/// </summary>
 	void UpdateClearReward();
 
 	/// <summary>
-	/// •ñVUI‚Ì•`‰æˆ—‚ğs‚¤ŠÖ”
+	/// å ±é…¬UIã®æç”»å‡¦ç†ã‚’è¡Œã†é–¢æ•°
 	/// </summary>
 	void DrawClearRewardUI();
+	void BeginBallSelection();
+	void UpdateBallSelection();
+	void DrawBallSelectionUI();
+	void ApplySelectedBallPreview();
 
 	/// <summary>
-	/// •ñV‚ğ“K—p‚·‚éŠÖ”
+	/// å ±é…¬ã‚’é©ç”¨ã™ã‚‹é–¢æ•°
 	/// </summary>
-	void ApplyReward(int rewardIndex);
 	void ApplyPlayerRunStatusTo(PlayerBall* player);
 	void SaveDebugSnapshot();
 	void CaptureCurrentPlayerStatus();
 	void DrawNextPlayerBall();
 	void DiscardCurrentPlayerBall();
 	void PrepareNextPlayerBall();
+	int CalculateStageRewardMoney() const;
+	void CollectStageRewardMoney();
+	bool TryPurchaseReward(int rewardIndex);
+	bool ApplyReward(int rewardIndex);
 
 public:
-	Game(); // ƒRƒ“ƒXƒgƒ‰ƒNƒ^
-	~Game(); // ƒfƒXƒgƒ‰ƒNƒ^
+	Game(); // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
+	~Game(); // ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 
-	static void Init(); // ‰Šú‰»
-	static void Update(); // XV
-	static void Draw(); // •`‰æ
-	static void Uninit(); // I—¹ˆ—
+	static void Init(); // åˆæœŸåŒ–
+	static void Update(); // æ›´æ–°
+	static void Draw(); // æç”»
+	static void Uninit(); // çµ‚äº†å‡¦ç†
 
 	static Game* GetInstance();
+	GameObject* CreateGameObject(const std::string& name);
 
-	void ChangeScene(SceneName sName);	//ƒV[ƒ“‚ğ•ÏX
-	void DeleteObject(Object* pt);		//ƒIƒuƒWƒFƒNƒg‚ğíœ‚·‚é
-	void DeleteAllObject();				//ƒIƒuƒWƒFƒNƒg‚ğ‘S‚Äíœ‚·‚é
+	void ChangeScene(SceneName sName);	//ã‚·ãƒ¼ãƒ³ã‚’å¤‰æ›´
+	void DeleteObject(Object* pt);		//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å‰Šé™¤ã™ã‚‹
+	void DeleteComponent(Component* component);
+	void DeleteAllObject();				//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å…¨ã¦å‰Šé™¤ã™ã‚‹
 
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
 	static SkyBox* GetSkyBox();
@@ -143,8 +172,11 @@ public:
 	void SetGameState(GameState state) { m_GameState = state; }
 
 	bool ContainsObject(const Object* pt) const;
+	bool ContainsComponent(const Component* component) const;
 
-	void LoadPlayerStatusFromJson(const std::string& filePath = "assets/data/player_status.json");
+	void LoadPlayerStatusFromJson(
+		const std::string& filePath = "assets/data/player_status.json",
+		const std::string& deckFilePath = "assets/data/player_deck.json");
 	void ResetPlayerRuntimeStatus();
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
@@ -153,40 +185,96 @@ public:
 	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
 
 	/// <summary>
-	/// “G‚ª‘S–Å‚µ‚Ä‚¢‚é‚©‚Ç‚¤‚©‚ğ”»’è‚·‚éŠÖ”
+	/// æ•µãŒå…¨æ»…ã—ã¦ã„ã‚‹ã‹ã©ã†ã‹ã‚’åˆ¤å®šã™ã‚‹é–¢æ•°
 	bool AreAllEnemiesDefeated() const;
 
-	//ƒIƒuƒWƒFƒNƒg‚ğ’Ç‰Á‚·‚éi¦ƒeƒ“ƒvƒŒ[ƒgŠÖ”j
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’è¿½åŠ ã™ã‚‹ï¼ˆâ€»ãƒ†ãƒ³ãƒ—ãƒ¬ãƒ¼ãƒˆé–¢æ•°ï¼‰
 	template<typename T> T* AddObject()
 	{
-		T* pt = new T;
-		m_Instance->m_Objects.emplace_back(pt);
-		pt->Init();
-		return pt;
+		static_assert(std::is_base_of_v<Component, T>,
+			"T must inherit from Component");
+
+		GameObject* gameObject = CreateGameObject(typeid(T).name());
+		T* component = gameObject->AddComponent<T>();
+
+		GameObjectTag tag = GameObjectTag::None;
+		if constexpr (std::is_same_v<T, Ground>) tag = GameObjectTag::Ground;
+		else if constexpr (std::is_same_v<T, TableFrame>) tag = GameObjectTag::Rail;
+		else if constexpr (std::is_same_v<T, Pocket>) tag = GameObjectTag::Pocket;
+		else if constexpr (std::is_same_v<T, Pole>) tag = GameObjectTag::Goal;
+		else if constexpr (std::is_same_v<T, Texture2D>) tag = GameObjectTag::ScreenUi;
+
+		if (tag != GameObjectTag::None)
+		{
+			gameObject->AddComponent<TagComponent>(tag);
+		}
+
+		if constexpr (std::is_same_v<T, Pocket>)
+		{
+			gameObject->AddComponent<SphereColliderComponent>(2.0f, true);
+		}
+		return component;
 	}
 
-	//ƒIƒuƒWƒFƒNƒg‚ğæ“¾‚·‚é
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’å–å¾—ã™ã‚‹
 	template<typename T>std::vector<T*> GetObjects()
 	{
+		static_assert(std::is_base_of_v<Component, T>,
+			"T must inherit from Component");
+
 		std::vector<T*>res;
-		for (auto& o : m_Instance->m_Objects)
+		for (auto& gameObject : m_Instance->m_GameObjects)
 		{
-			//dynamic_cast‚ÅŒ^‚ğƒ`ƒFƒbƒN
-			if (T* derivedObj = dynamic_cast<T*>(o.get()))
+			if (T* component = gameObject->GetComponent<T>())
 			{
-				res.emplace_back(derivedObj);
+				res.emplace_back(component);
 			}
 		}
 		return res;
 	}
 
-	//ƒIƒuƒWƒFƒNƒg‚ğ’Ç‰Á‚·‚é.À•Ww’è”Å
+	// Entityã®ç¶™æ‰¿å‹ã§ã¯ãªãã€ä¿æŒComponentã§Worldã‚’æ¤œç´¢ã™ã‚‹ã€‚
+	template<typename T>
+	std::vector<GameObject*> GetGameObjectsWith()
+	{
+		static_assert(std::is_base_of_v<Component, T>,
+			"T must inherit from Component");
+
+		std::vector<GameObject*> result;
+		for (auto& gameObject : m_Instance->m_GameObjects)
+		{
+			if (gameObject->HasComponent<T>())
+			{
+				result.push_back(gameObject.get());
+			}
+		}
+		return result;
+	}
+
+	std::vector<GameObject*> GetGameObjectsWithTag(GameObjectTag tag)
+	{
+		std::vector<GameObject*> result;
+		for (auto& gameObject : m_Instance->m_GameObjects)
+		{
+			TagComponent* tagComponent = gameObject->GetComponent<TagComponent>();
+			if (tagComponent != nullptr && tagComponent->GetTag() == tag)
+			{
+				result.push_back(gameObject.get());
+			}
+		}
+		return result;
+	}
+
+	//ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’è¿½åŠ ã™ã‚‹.åº§æ¨™æŒ‡å®šç‰ˆ
 	template<typename T> T* AddObjectWithPosition(DirectX::SimpleMath::Vector3 pos)
 	{
-		T* pt = new T;
-		pt->SetInitPosition(pos); // Init‘O‚ÉÀ•W‚ğƒZƒbƒg
-		m_Instance->m_Objects.emplace_back(pt);
-		pt->Init();               // À•WƒZƒbƒgŒã‚ÉInit
-		return pt;
+		T* component = AddObject<T>();
+		component->SetInitPosition(pos);
+		return component;
+	}
+
+	int GetPlayerMoney() const
+	{
+		return m_PlayerRunStatus.money;
 	}
 };

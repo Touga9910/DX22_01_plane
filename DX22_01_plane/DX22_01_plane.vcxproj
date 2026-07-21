@@ -140,16 +140,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="Arrow.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="AssimpPerse.cpp" />
-    <ClCompile Include="BallBase.cpp" />
+    <ClCompile Include="BallComponent.cpp" />
+    <ClCompile Include="BallFactory.cpp" />
+    <ClCompile Include="BallRenderComponent.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collision.cpp" />
+    <ClCompile Include="Component.cpp" />
     <ClCompile Include="EnemyBall.cpp" />
+    <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="PlayerBall.cpp" />
     <ClCompile Include="PlayerDeck.cpp" />
     <ClCompile Include="PlayerBallDataLoader.cpp" />
@@ -168,6 +169,7 @@
     <ClCompile Include="Pole.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ResultScene.cpp" />
+    <ClCompile Include="RigidbodyComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="SkyBox.cpp" />
@@ -180,16 +182,8 @@
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="TableFrame.cpp" />
-    <ClCompile Include="TestCube.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="TestGolfFlag.cpp" />
     <ClCompile Include="TestModel.cpp" />
-    <ClCompile Include="TestPlane.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="TitleScene.cpp" />
@@ -202,18 +196,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
-    <ClInclude Include="Arrow.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="AssimpPerse.h" />
-    <ClInclude Include="BallBase.h" />
+    <ClInclude Include="BallComponent.h" />
+    <ClInclude Include="BallFactory.h" />
+    <ClInclude Include="BallComponent.h" />
+    <ClInclude Include="BallPhysicsComponent.h" />
+    <ClInclude Include="BallRenderComponent.h" />
     <ClInclude Include="BallStatus.h" />
+    <ClInclude Include="BallStatusComponent.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collision.h" />
+    <ClInclude Include="Component.h" />
     <ClInclude Include="EnemyBall.h" />
+    <ClInclude Include="EnemyAttackComponent.h" />
     <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameObject.h" />
     <ClInclude Include="PlayerBall.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="imgui\imconfig.h" />
@@ -239,8 +237,10 @@
     <ClInclude Include="Pole.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ResultScene.h" />
+    <ClInclude Include="RigidbodyComponent.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="SphereColliderComponent.h" />
     <ClInclude Include="SkyBox.h" />
     <ClInclude Include="sound.h" />
     <ClInclude Include="Stage1Scene.h" />
@@ -253,6 +253,7 @@
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="TableConfig.h" />
+    <ClInclude Include="TagComponent.h" />
     <ClInclude Include="TableFrame.h" />
     <ClInclude Include="TestCube.h" />
     <ClInclude Include="TestGolfFlag.h" />
@@ -263,6 +264,7 @@
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="TrajectoryModel.h" />
     <ClInclude Include="transform.h" />
+    <ClInclude Include="TransformComponent.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="VertexBuffer.h" />
   </ItemGroup>
@@ -290,6 +292,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\data\enemy_data.json" />
+    <None Include="assets\data\player_deck.json" />
     <None Include="assets\data\player_status.json" />
     <None Include="assets\data\stage_01.json" />
   </ItemGroup>

@@ -1,38 +1,53 @@
-#pragma once
+ï»¿#pragma once
 #include "Camera.h"
+#include "Component.h"
 #include "Shader.h"
 #include "transform.h"
 
-class Object {
+// æ—§æ¥ã®ã‚²ãƒ¼ãƒ ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’GameObjectã¸å–ã‚Šä»˜ã‘ã‚‹ãŸã‚ã®äº’æ›ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã€‚
+// æ–°ã—ã„æ©Ÿèƒ½ã¯Objectã§ã¯ãªãComponentã‚’ç›´æ¥ç¶™æ‰¿ã—ã¦å®Ÿè£…ã™ã‚‹ã€‚
+class Object : public Component {
 protected:
-	// SRTî•ñip¨î•ñj
+	virtual void SynchronizeComponents() {}
+
+	// SRTæƒ…å ±ï¼ˆå§¿å‹¢æƒ…å ±ï¼‰
 	DirectX::SimpleMath::Vector3 m_Position = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Rotation = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 	DirectX::SimpleMath::Vector3 m_Scale = DirectX::SimpleMath::Vector3(1.0f, 1.0f, 1.0f);
 
 	Transform m_Transform;
 
-	// •`‰æ‚Ìˆ×‚Ìî•ñiŒ©‚½–Ú‚ÉŠÖ‚í‚é•”•ªj
-	Shader m_Shader; // ƒVƒF[ƒ_[
+	// æç”»ã®ç‚ºã®æƒ…å ±ï¼ˆè¦‹ãŸç›®ã«é–¢ã‚ã‚‹éƒ¨åˆ†ï¼‰
+	Shader m_Shader; // ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼
 
-	bool m_IsDead = false; // ƒIƒuƒWƒFƒNƒg‹¤’Ê‚Ì€–SEÁ–Åƒtƒ‰ƒO
+	bool m_IsDead = false; // ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆå…±é€šã®æ­»äº¡ãƒ»æ¶ˆæ»…ãƒ•ãƒ©ã‚°
 public:
-	virtual ~Object() {}	//‰¼‘zƒfƒXƒgƒ‰ƒNƒ^i”h¶ƒNƒ‰ƒX‚ÌƒfƒXƒgƒ‰ƒNƒ^‚ğ”­¶‚³‚¹‚é‚½‚ßj
+	virtual ~Object() {}	//ä»®æƒ³ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ï¼ˆæ´¾ç”Ÿã‚¯ãƒ©ã‚¹ã®ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã‚’ç™ºç”Ÿã•ã›ã‚‹ãŸã‚ï¼‰
 
 	virtual void Init() = 0;
-	virtual void Update() = 0;
+	virtual void Update() override = 0;
 	virtual void Draw(Camera* cam) = 0;
 	virtual void Uninit() = 0;
 
-	// p¨î•ñ‚Ìæ“¾
+	void Awake() final override;
+	void LateUpdate() final override;
+	void Draw() final override;
+	void OnDestroy() final override;
+
+	// å§¿å‹¢æƒ…å ±ã®å–å¾—
 	Transform GetTransform() const { return m_Transform; }
 
-	// ˆÊ’u‚Ìæ“¾
+	// ä½ç½®ã®å–å¾—
 	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Position; }
 
-	// ŠO•”iGameƒNƒ‰ƒX‚È‚Çj‚©‚ç€–Só‘Ô‚ğƒ`ƒFƒbƒN‚·‚é‚½‚ß‚ÌŠÖ”
+	// å¤–éƒ¨ï¼ˆGameã‚¯ãƒ©ã‚¹ãªã©ï¼‰ã‹ã‚‰æ­»äº¡çŠ¶æ…‹ã‚’ãƒã‚§ãƒƒã‚¯ã™ã‚‹ãŸã‚ã®é–¢æ•°
 	bool IsDead() const { return m_IsDead; }
 
-	// ŠO•”‚©‚ç‹­§“I‚É€–S‚³‚¹‚éŠÖ”
-	void Destroy() { m_IsDead = true; }
+	// å¤–éƒ¨ã‹ã‚‰å¼·åˆ¶çš„ã«æ­»äº¡ã•ã›ã‚‹é–¢æ•°
+	void Destroy();
+
+private:
+	void SyncTransformComponent();
+
+	bool m_IsInitialized = false;
 };
