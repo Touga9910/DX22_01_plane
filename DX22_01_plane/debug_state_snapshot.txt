@@ -1,27 +1,27 @@
 [Scene]
-Scene = STAGE1
-GameState = SelectingBall (0)
+Scene = BATTLE
+GameState = AimingDirection (0)
 AreAllBallsStopped = true
 AreAllEnemiesDefeated = false
 
 [BallCounts]
-PlayerRunCurrentHp = 9
+PlayerRunCurrentHp = 10
 PlayerRunMaxHp = 10
 [Deck]
-DrawPile = 0
+DrawPile = 3
 DiscardPile = 0
 OfferCount = 3
-TotalDeckCount = 3
+TotalDeckCount = 6
 CurrentBallId = none
 
 PlayerBall = 1
 EnemyBall = 2
 
-PlayerMoney = 15
+PlayerMoney = 0
 [PlayerBall 0]
 Position = (0.000, 1.000, 0.000)
 Velocity = (0.000, 0.000, 0.000)
-HP = 9 / 10
+HP = 10 / 10
 Radius = 2.000
 IsStopped = true
 IsDefeated = false

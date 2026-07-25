@@ -135,7 +135,7 @@
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
-    <ClCompile Include="Stage1Scene.cpp">
+    <ClCompile Include="BattleScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
     <ClCompile Include="Scene.cpp">
@@ -144,6 +144,12 @@
     <ClCompile Include="ResultScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
+	<ClCompile Include="RestSiteScene.cpp">
+	  <Filter>ソース ファイル\シーン関連</Filter>
+	</ClCompile>
+	<ClCompile Include="ShopScene.cpp">
+	  <Filter>ソース ファイル\シーン関連</Filter>
+	</ClCompile>
     <ClCompile Include="Texture2D.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
     </ClCompile>
@@ -152,12 +158,6 @@
     </ClCompile>
     <ClCompile Include="SkyBox.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
-    <ClCompile Include="Stage2Scene.cpp">
-      <Filter>ソース ファイル\シーン関連</Filter>
-    </ClCompile>
-    <ClCompile Include="Stage3Scene.cpp">
-      <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
     <ClCompile Include="imgui\imgui_impl_win32.cpp">
       <Filter>ソース ファイル\IMgui</Filter>
@@ -205,6 +205,9 @@
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
     <ClCompile Include="StageDataLoader.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="StageSelector.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
     <ClCompile Include="PlayerDeck.cpp">
@@ -302,7 +305,7 @@
     <ClInclude Include="TitleScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
-    <ClInclude Include="Stage1Scene.h">
+    <ClInclude Include="BattleScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
     <ClInclude Include="Scene.h">
@@ -311,6 +314,12 @@
     <ClInclude Include="ResultScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
+	<ClInclude Include="RestSiteScene.h">
+	  <Filter>ヘッダー ファイル\シーン関連</Filter>
+	</ClInclude>
+	<ClInclude Include="ShopScene.h">
+	  <Filter>ヘッダー ファイル\シーン関連</Filter>
+	</ClInclude>
     <ClInclude Include="Texture2D.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
@@ -322,12 +331,6 @@
     </ClInclude>
     <ClInclude Include="SkyBox.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
-    <ClInclude Include="Stage2Scene.h">
-      <Filter>ヘッダー ファイル\シーン関連</Filter>
-    </ClInclude>
-    <ClInclude Include="Stage3Scene.h">
-      <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
     <ClInclude Include="imgui\imgui_impl_win32.h">
       <Filter>ソース ファイル\IMgui</Filter>
@@ -393,6 +396,9 @@
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
     <ClInclude Include="StageDataLoader.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="StageSelector.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="PlayerBallData.h">

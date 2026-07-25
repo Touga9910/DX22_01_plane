@@ -17,11 +17,11 @@
 
 #include"Renderer.h"
 #include"TitleScene.h"
-#include"Stage1Scene.h"
-#include"Stage2Scene.h"
-#include"Stage3Scene.h"
+#include"BattleScene.h"
 #include"ResultScene.h"
 #include"StageSelectScene.h"
+#include"RestSiteScene.h"
+#include"ShopScene.h"
 
 #include"SkyBox.h"
 
@@ -29,6 +29,7 @@
 #include "BallStatus.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
+#include "StageSelector.h"
 #include "GameObject.h"
 #include "SphereColliderComponent.h"
 #include "TagComponent.h"
@@ -41,14 +42,14 @@ class Pole;
 class TableFrame;
 class Texture2D;
 
-enum SceneName {
-	TITLE,
-	SELECT,
-	STAGE1,
-	STAGE2,
-	STAGE3,
-	RESULT,
-	SCENE_MAX
+enum class SceneType {
+	Title,
+	Select,
+	Battle,
+	RestSite,
+	Shop,
+	Result,
+	Max
 };
 
 // ゲーム全体のターン進行状態
@@ -85,6 +86,7 @@ private:
 	BallStatus m_DefaultPlayerStatus{ 10, 1, 0 };
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	PlayerRunStatus m_PlayerRunStatus{};
+	StageSelector m_StageSelector;
 
 	PlayerDeck m_PlayerDeck;
 	int m_SelectedOfferIndex = 0;
@@ -99,6 +101,8 @@ private:
 	int m_CurrentStageRewardMoney = 0;    // 今回のステージで取得したMoney
 	bool m_IsStageRewardCollected = false; // 二重取得防止
 	std::string m_RewardMessage;           // 購入結果などの表示
+	bool m_IsClearRewardChosen = false;
+	int m_ClearedStageCount = 0;
 
 	/// <summary>
 	/// 全てのボールが停止しているかどうかを判定する関数
@@ -145,8 +149,6 @@ private:
 	void PrepareNextPlayerBall();
 	int CalculateStageRewardMoney() const;
 	void CollectStageRewardMoney();
-	bool TryPurchaseReward(int rewardIndex);
-	bool ApplyReward(int rewardIndex);
 
 public:
 	Game(); // コンストラクタ
@@ -160,7 +162,7 @@ public:
 	static Game* GetInstance();
 	GameObject* CreateGameObject(const std::string& name);
 
-	void ChangeScene(SceneName sName);	//シーンを変更
+	void ChangeScene(SceneType sceneType);	//シーンを変更
 	void DeleteObject(Object* pt);		//オブジェクトを削除する
 	void DeleteComponent(Component* component);
 	void DeleteAllObject();				//オブジェクトを全て削除する
@@ -180,6 +182,8 @@ public:
 	void ResetPlayerRuntimeStatus();
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
+	void CompleteCurrentStage();
+	void StartNextBattle(StageType stageType = StageType::Normal);
 	void OnPlayerShotFired(PlayerBall* player);
 	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
 	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
@@ -277,4 +281,21 @@ public:
 	{
 		return m_PlayerRunStatus.money;
 	}
+	int GetPlayerCurrentHp() const { return m_PlayerRunStatus.currentHp; }
+	int GetPlayerMaxHp() const { return m_PlayerRunStatus.maxHp; }
+	int GetClearedStageCount() const { return m_ClearedStageCount; }
+	int GetPlayerProgress() const { return m_PlayerRunStatus.progress; }
+	const std::string& GetSelectedStageId() const
+	{
+		return m_PlayerRunStatus.GetSelectedStageId();
+	}
+
+	int GetDeckBallCount() const { return m_PlayerDeck.GetRewardTargetCount(); }
+	const PlayerBallData* GetDeckBall(int index) const { return m_PlayerDeck.GetRewardTarget(index); }
+	int GetShopBallCount() const { return m_PlayerDeck.GetCatalogCount(); }
+	const PlayerBallData* GetShopBall(int index) const { return m_PlayerDeck.GetCatalogBall(index); }
+	bool RestHeal();
+	bool RestUpgradeBall(int ballIndex);
+	bool BuyShopBall(int catalogIndex, int cost);
+	bool RemoveShopBall(int ballIndex, int cost);
 };

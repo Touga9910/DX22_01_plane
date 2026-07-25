@@ -27,7 +27,11 @@
           "split": false,
           "pierce": false
         }
-      }
+      },
+      "upgrades": [
+        { "attack": 3, "defense": 4 },
+        { "attack": 5, "defense": 6 }
+      ]
     },
     {
       "id": "player_split",
@@ -43,7 +47,11 @@
           "split": true,
           "pierce": false
         }
-      }
+      },
+      "upgrades": [
+        { "attack": 5, "defense": 2 },
+        { "attack": 7, "defense": 4 }
+      ]
     },
     {
       "id": "player_pierce",
@@ -59,7 +67,11 @@
           "split": false,
           "pierce": true
         }
-      }
+      },
+      "upgrades": [
+        { "attack": 3, "defense": 3 },
+        { "attack": 5, "defense": 5 }
+      ]
     }
   ],
   "currentHp": 10

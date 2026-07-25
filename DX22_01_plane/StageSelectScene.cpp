@@ -2,6 +2,20 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "imgui/imgui.h"
+
+namespace
+{
+	constexpr const char* kNodeNames[] =
+	{
+		"Battle",
+		"Rest Site",
+		"Shop",
+	};
+
+	constexpr int kNodeCount = static_cast<int>(sizeof(kNodeNames) / sizeof(kNodeNames[0]));
+
+}
 
 // コンストラクタ
 StageSelectScene::StageSelectScene()
@@ -19,7 +33,7 @@ StageSelectScene::~StageSelectScene()
 void StageSelectScene::Init()
 {
 
-	SelectArrow = 2; //enumにてステージ1の値が2に設定されているため
+	m_SelectedNode = 0;
 
 	//背景画像オブジェクトを作成
 	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
@@ -29,61 +43,67 @@ void StageSelectScene::Init()
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
 	m_MySceneObjects.emplace_back(pt);
 
-	
-	m_pArrowImage = Game::GetInstance()->AddObject<Texture2D>();
-	m_pArrowImage->SetTexture("assets/texture/golf_jou_man.png");
-	m_pArrowImage->SetPosition(0.0f, -SelectArrow * 100.0f, 0.0f);
-	m_pArrowImage->SetRotation(0.0f, 0.0f, 0.0f);
-	m_pArrowImage->SetScale(150.0f, 150.0f, 0.0f);
-	m_MySceneObjects.emplace_back(m_pArrowImage);
-
-
 }
 
 // 更新
 void StageSelectScene::Update()
 {
-	bool isChanged = false;//矢印が動いたかどうか
-
-	if (Input::GetKeyTrigger(VK_S))
+	if (Input::GetKeyTrigger(VK_S) || Input::GetKeyTrigger(VK_DOWN))
 	{
-		if (SelectArrow < 4) SelectArrow += 1;
-		else SelectArrow = 2;
-		isChanged = true;
+		m_SelectedNode = (m_SelectedNode + 1) % kNodeCount;
 	}
-	if (Input::GetKeyTrigger(VK_W))
+	if (Input::GetKeyTrigger(VK_W) || Input::GetKeyTrigger(VK_UP))
 	{
-		if (SelectArrow > 2) SelectArrow -= 1;
-		else SelectArrow = 4;
-		isChanged = true;
+		m_SelectedNode = (m_SelectedNode + kNodeCount - 1) % kNodeCount;
 	}
 
-	// 値が変わっていたら、画像の位置を更新する
-	if (isChanged && m_pArrowImage != nullptr)
+	if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
 	{
-		// Initと同じ計算式で座標を再設定
-		m_pArrowImage->SetPosition(0.0f, -SelectArrow * 100.0f, 0.0f);
-	}
-
-	// エンターキーを押してステージ1へ
-	if (Input::GetKeyTrigger(VK_RETURN))
-	{
-		switch (SelectArrow)
+		Game* game = Game::GetInstance();
+		switch (m_SelectedNode)
 		{
+		case 0:
+			game->StartNextBattle();
+			break;
+		case 1:
+			game->ChangeScene(SceneType::RestSite);
+			break;
 		case 2:
-			Game::GetInstance()->ChangeScene(STAGE1);
-			break;
-		case 3:
-			Game::GetInstance()->ChangeScene(STAGE2);
-			break;
-		case 4:
-			Game::GetInstance()->ChangeScene(STAGE3);
+			game->ChangeScene(SceneType::Shop);
 			break;
 		default:
 			break;
 		}
-
 	}
+}
+
+void StageSelectScene::DrawUI()
+{
+	ImGui::SetNextWindowPos(ImVec2(340.0f, 80.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(600.0f, 560.0f), ImGuiCond_Always);
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+
+	ImGui::Begin("Route Select", nullptr, flags);
+	ImGui::Text("Floor %d", Game::GetInstance()->GetClearedStageCount() + 1);
+	ImGui::Text("HP %d / %d    Money %d    Deck %d",
+		Game::GetInstance()->GetPlayerCurrentHp(),
+		Game::GetInstance()->GetPlayerMaxHp(),
+		Game::GetInstance()->GetPlayerMoney(),
+		Game::GetInstance()->GetDeckBallCount());
+	ImGui::Separator();
+	ImGui::TextUnformatted("Choose the next node");
+
+	for (int index = 0; index < kNodeCount; index++)
+	{
+		ImGui::Text("%s %s", index == m_SelectedNode ? ">" : " ", kNodeNames[index]);
+	}
+	ImGui::TextUnformatted("Next battle stage: Random");
+
+	ImGui::Separator();
+	ImGui::TextUnformatted("W/S or UP/DOWN : Select");
+	ImGui::TextUnformatted("ENTER or SPACE : Enter node");
+	ImGui::End();
 }
 
 // 終了処理

@@ -13,6 +13,7 @@ public:
     // -------------------------
     void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
     void Reset();
+    void ResetToDefault();
 
     // -------------------------
     // ボール提示・選択・保持
@@ -56,6 +57,14 @@ public:
     int GetRewardTargetCount() const;
     const PlayerBallData* GetRewardTarget(int index) const;
     PlayerBallData* GetRewardTarget(int index);
+
+    // -------------------------
+    // 休憩所・ショップ操作
+    // -------------------------
+    int GetCatalogCount() const;
+    const PlayerBallData* GetCatalogBall(int index) const;
+    bool AddCatalogBall(int index);
+    bool RemoveRewardTarget(int index);
 
 private:
     bool DrawOneFromPile(PlayerBallData& result);

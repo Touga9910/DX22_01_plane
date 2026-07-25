@@ -169,16 +169,18 @@
     <ClCompile Include="Pole.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ResultScene.cpp" />
+	<ClCompile Include="RestSiteScene.cpp" />
     <ClCompile Include="RigidbodyComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="sound.cpp" />
-    <ClCompile Include="Stage1Scene.cpp" />
-    <ClCompile Include="Stage3Scene.cpp" />
+    <ClCompile Include="BattleScene.cpp" />
     <ClCompile Include="StageBase.cpp" />
     <ClCompile Include="StageDataLoader.cpp" />
+    <ClCompile Include="StageSelector.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
+	<ClCompile Include="ShopScene.cpp" />
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="TableFrame.cpp" />
@@ -192,7 +194,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="utility.cpp" />
-    <ClCompile Include="Stage2Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -237,19 +238,20 @@
     <ClInclude Include="Pole.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ResultScene.h" />
+	<ClInclude Include="RestSiteScene.h" />
     <ClInclude Include="RigidbodyComponent.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SphereColliderComponent.h" />
     <ClInclude Include="SkyBox.h" />
     <ClInclude Include="sound.h" />
-    <ClInclude Include="Stage1Scene.h" />
-    <ClInclude Include="Stage2Scene.h" />
-    <ClInclude Include="Stage3Scene.h" />
+    <ClInclude Include="BattleScene.h" />
     <ClInclude Include="StageBase.h" />
     <ClInclude Include="StageData.h" />
     <ClInclude Include="StageDataLoader.h" />
+    <ClInclude Include="StageSelector.h" />
     <ClInclude Include="StageSelectScene.h" />
+	<ClInclude Include="ShopScene.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="TableConfig.h" />

@@ -52,10 +52,42 @@ namespace
 		return status;
 	}
 
+	void LoadUpgradeTableFromJson(PlayerBallData& ballData, const json& ballJson)
+	{
+		// Provide a two-level fallback when the JSON has no upgrade table.
+		ballData.upgradeTable[0] =
+			BallUpgradeStep{ ballData.status.attack + 1, ballData.status.defense + 1 };
+		ballData.upgradeTable[1] =
+			BallUpgradeStep{ ballData.status.attack + 2, ballData.status.defense + 2 };
+
+		if (!ballJson.contains("upgrades") || !ballJson["upgrades"].is_array())
+		{
+			return;
+		}
+
+		const json& upgradesJson = ballJson["upgrades"];
+		const int upgradeCount = (std::min)(
+			static_cast<int>(upgradesJson.size()),
+			PlayerBallData::MaxUpgradeLevel);
+
+		for (int index = 0; index < upgradeCount; index++)
+		{
+			if (!upgradesJson[index].is_object())
+			{
+				continue;
+			}
+
+			BallUpgradeStep& step = ballData.upgradeTable[index];
+			step.attack = (std::max)(0, upgradesJson[index].value("attack", step.attack));
+			step.defense = (std::max)(0, upgradesJson[index].value("defense", step.defense));
+		}
+	}
+
 	PlayerRunStatus NormalizePlayerRunStatus(PlayerRunStatus status)
 	{
 		status.maxHp = (std::max)(1, status.maxHp);
 		status.currentHp = std::clamp(status.currentHp, 0, status.maxHp);
+		status.progress = (std::max)(1, status.progress);
 
 		return status;
 	}
@@ -123,6 +155,8 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 								result.defaultBallStatus));
 					}
 
+					LoadUpgradeTableFromJson(ballData, ballJson);
+
 					result.ballDefinitions.push_back(ballData);
 				}
 			}
@@ -143,6 +177,10 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 		PlayerBallData defaultBall;
 		defaultBall.definitionId = "player_default";
 		defaultBall.status = result.defaultBallStatus;
+		defaultBall.upgradeTable[0] =
+			BallUpgradeStep{ defaultBall.status.attack + 1, defaultBall.status.defense + 1 };
+		defaultBall.upgradeTable[1] =
+			BallUpgradeStep{ defaultBall.status.attack + 2, defaultBall.status.defense + 2 };
 		result.ballDefinitions.push_back(defaultBall);
 	}
 

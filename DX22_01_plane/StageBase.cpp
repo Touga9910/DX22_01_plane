@@ -47,7 +47,7 @@ void StageBase::Update()
         // TC-21: ゴール判定
         if (ball->GetState() == PlayerBall::State::Goal)
         {
-            Game::GetInstance()->ChangeScene(RESULT);
+            Game::GetInstance()->CompleteCurrentStage();
         }
         break;
 

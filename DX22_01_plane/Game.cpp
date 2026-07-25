@@ -8,6 +8,7 @@
 #include "EnemyAttackComponent.h"
 #include "BallComponent.h"
 #include "PlayerBallDataLoader.h"
+#include "StageDataLoader.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -23,34 +24,15 @@ Game* Game::m_Instance;//繧ｲ繝ｼ繝繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ
 
 namespace
 {
-	enum class RewardTargetType
+	constexpr const char* kClearRewardNames[] =
 	{
-		SingleBall,
-		PlayerOverall,
-		Exit,
+		"New Ball",
+		"Upgrade Owned Ball (max +2)",
+		"Extra Money (+10)",
 	};
-
-	struct RewardDefinition
-	{
-		const char* name;
-		RewardTargetType targetType;
-		int cost;
-	};
-
-	constexpr RewardDefinition kRewardDefinitions[] =
-	{
-		{ "Attack Up +1",        RewardTargetType::SingleBall,    10 },
-		{ "Defense Up +1",       RewardTargetType::SingleBall,    10 },
-		{ "Heal 3 HP",           RewardTargetType::PlayerOverall,  5 },
-		{ "Player Max HP Up +1", RewardTargetType::PlayerOverall, 15 },
-		{ "Leave",               RewardTargetType::Exit,           0 },
-	};
-
-	constexpr int kRewardCount =
-		static_cast<int>(
-			sizeof(kRewardDefinitions) /
-			sizeof(kRewardDefinitions[0])
-			);
+	constexpr int kClearRewardCount =
+		static_cast<int>(sizeof(kClearRewardNames) / sizeof(kClearRewardNames[0]));
+	constexpr int kExtraRewardMoney = 10;
 
 	BallStatus NormalizeBallStatus(BallStatus status)
 	{
@@ -67,6 +49,7 @@ namespace
 	{
 		status.maxHp = (std::max)(1, status.maxHp);
 		status.currentHp = std::clamp(status.currentHp, 0, status.maxHp);
+		status.progress = (std::max)(1, status.progress);
 
 		return status;
 	}
@@ -91,9 +74,9 @@ namespace
 	{
 		if (dynamic_cast<TitleScene*>(scene)) return "TITLE";
 		if (dynamic_cast<StageSelectScene*>(scene)) return "SELECT";
-		if (dynamic_cast<Stage1Scene*>(scene)) return "STAGE1";
-		if (dynamic_cast<Stage2Scene*>(scene)) return "STAGE2";
-		if (dynamic_cast<Stage3Scene*>(scene)) return "STAGE3";
+		if (dynamic_cast<BattleScene*>(scene)) return "BATTLE";
+		if (dynamic_cast<RestSiteScene*>(scene)) return "REST_SITE";
+		if (dynamic_cast<ShopScene*>(scene)) return "SHOP";
 		if (dynamic_cast<ResultScene*>(scene)) return "RESULT";
 
 		return "Unknown";
@@ -310,6 +293,11 @@ void Game::Draw()
 		gameObject->Draw();
 	}
 
+	if (m_Instance->m_Scene != nullptr)
+	{
+		m_Instance->m_Scene->DrawUI();
+	}
+
 	ImGui::Begin("Ball Debugger");
 
 	ImGui::Text("GameState = %d", static_cast<int>(m_Instance->m_GameState));
@@ -439,7 +427,7 @@ GameObject* Game::CreateGameObject(const std::string& name)
 }
 
 //繧ｷ繝ｼ繝ｳ蛻・ｊ譖ｿ縺・
-void Game::ChangeScene(SceneName sName)
+void Game::ChangeScene(SceneType sceneType)
 {
 	int score = 0;
 
@@ -447,10 +435,10 @@ void Game::ChangeScene(SceneName sName)
 	{
 		m_Instance->CaptureCurrentPlayerStatus();
 
-		if (Stage1Scene* sObj =
-			dynamic_cast<Stage1Scene*>(m_Instance->m_Scene))
+		if (BattleScene* battleScene =
+			dynamic_cast<BattleScene*>(m_Instance->m_Scene))
 		{
-			score = sObj->GetScore();
+			score = battleScene->GetScore();
 		}
 
 		delete m_Instance->m_Scene;
@@ -460,9 +448,7 @@ void Game::ChangeScene(SceneName sName)
 	// =====================================
 	// 譁ｰ縺励＞繧ｹ繝・・繧ｸ縺ｸ蜈･繧九→縺榊ｱ驟ｬ蜿門ｾ礼憾諷九ｒ繝ｪ繧ｻ繝・ヨ
 	// =====================================
-	if (sName == STAGE1 ||
-		sName == STAGE2 ||
-		sName == STAGE3)
+	if (sceneType == SceneType::Battle)
 	{
 		// ステージ開始時に現在ボール・山札・捨て札を回収して再シャッフルする。
 		m_PlayerDeck.Reset();
@@ -473,29 +459,29 @@ void Game::ChangeScene(SceneName sName)
 		m_RewardMessage.clear();
 	}
 
-	switch (sName)
+	switch (sceneType)
 	{
-	case TITLE:
+	case SceneType::Title:
 		m_Instance->m_Scene = new TitleScene;
 		break;
 
-	case STAGE1:
-		m_Instance->m_Scene = new Stage1Scene;
+	case SceneType::Battle:
+		m_Instance->m_Scene = new BattleScene;
 		break;
 
-	case STAGE2:
-		m_Instance->m_Scene = new Stage2Scene;
+	case SceneType::RestSite:
+		m_Instance->m_Scene = new RestSiteScene;
 		break;
 
-	case STAGE3:
-		m_Instance->m_Scene = new Stage3Scene;
+	case SceneType::Shop:
+		m_Instance->m_Scene = new ShopScene;
 		break;
 
-	case SELECT:
+	case SceneType::Select:
 		m_Instance->m_Scene = new StageSelectScene;
 		break;
 
-	case RESULT:
+	case SceneType::Result:
 		m_Instance->m_Scene = new ResultScene;
 
 		dynamic_cast<ResultScene*>(
@@ -681,7 +667,7 @@ void Game::ProcessEnemyAttack()
 void Game::ProcessGameOver()
 {
 	DiscardCurrentPlayerBall();
-	ChangeScene(RESULT);
+	ChangeScene(SceneType::Result);
 	m_GameState = GameState::AimingDirection;
 }
 
@@ -694,88 +680,126 @@ void Game::StartClearReward()
 
 	m_SelectedRewardIndex = 0;
 	m_SelectedRewardBallIndex = 0;
+	m_IsClearRewardChosen = false;
+	m_RewardMessage = "Choose one clear reward.";
+	m_ClearedStageCount++;
+	m_PlayerRunStatus.progress = m_ClearedStageCount + 1;
 	m_GameState = GameState::ClearReward;
+}
+
+void Game::CompleteCurrentStage()
+{
+	if (m_GameState != GameState::ClearReward)
+	{
+		StartClearReward();
+	}
+}
+
+void Game::StartNextBattle(StageType stageType)
+{
+	const std::vector<StageData> stages = StageDataLoader::LoadAll(
+		"assets/data/stage_01.json",
+		"assets/data/enemy_data.json");
+
+	const std::string previousStageId =
+		m_PlayerRunStatus.GetSelectedStageId().empty()
+		? m_PlayerRunStatus.GetLastStageId()
+		: m_PlayerRunStatus.GetSelectedStageId();
+
+	const StageData* selectedStage = m_StageSelector.SelectStage(
+		stages,
+		stageType,
+		m_PlayerRunStatus.progress,
+		previousStageId);
+	if (selectedStage == nullptr)
+	{
+		std::cerr << "[Game] 戦闘ステージを選択できなかったため、"
+			"シーン遷移を中止します" << std::endl;
+		return;
+	}
+
+	m_PlayerRunStatus.SetLastStageId(previousStageId);
+	m_PlayerRunStatus.SetSelectedStageId(selectedStage->id);
+	ChangeScene(SceneType::Battle);
 }
 
 void Game::UpdateClearReward()
 {
-	if (Input::GetKeyTrigger(VK_UP))
+	if (m_IsClearRewardChosen)
 	{
-		m_SelectedRewardIndex--;
-
-		if (m_SelectedRewardIndex < 0)
+		if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
 		{
-			m_SelectedRewardIndex = kRewardCount - 1;
+			ChangeScene(SceneType::Select);
+			m_GameState = GameState::AimingDirection;
+		}
+		return;
+	}
+
+	if (Input::GetKeyTrigger(VK_UP) || Input::GetKeyTrigger(VK_W))
+	{
+		m_SelectedRewardIndex =
+			(m_SelectedRewardIndex + kClearRewardCount - 1) % kClearRewardCount;
+		m_SelectedRewardBallIndex = 0;
+	}
+	if (Input::GetKeyTrigger(VK_DOWN) || Input::GetKeyTrigger(VK_S))
+	{
+		m_SelectedRewardIndex = (m_SelectedRewardIndex + 1) % kClearRewardCount;
+		m_SelectedRewardBallIndex = 0;
+	}
+
+	int targetCount = 0;
+	if (m_SelectedRewardIndex == 0)
+	{
+		targetCount = m_PlayerDeck.GetCatalogCount();
+	}
+	else if (m_SelectedRewardIndex == 1)
+	{
+		targetCount = m_PlayerDeck.GetRewardTargetCount();
+	}
+
+	if (targetCount > 0)
+	{
+		if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A))
+		{
+			m_SelectedRewardBallIndex =
+				(m_SelectedRewardBallIndex + targetCount - 1) % targetCount;
+		}
+		if (Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D))
+		{
+			m_SelectedRewardBallIndex = (m_SelectedRewardBallIndex + 1) % targetCount;
 		}
 	}
 
-	if (Input::GetKeyTrigger(VK_DOWN))
-	{
-		m_SelectedRewardIndex++;
-
-		if (m_SelectedRewardIndex >= kRewardCount)
-		{
-			m_SelectedRewardIndex = 0;
-		}
-	}
-
-	const RewardDefinition& selectedReward =
-		kRewardDefinitions[m_SelectedRewardIndex];
-
-	// 繝懊・繝ｫ蠑ｷ蛹悶ｒ驕ｸ繧薙〒縺・ｋ縺ｨ縺阪□縺大ｯｾ雎｡繝懊・繝ｫ繧貞､画峩縺吶ｋ
-	if (selectedReward.targetType ==
-		RewardTargetType::SingleBall)
-	{
-		const int ballCount =
-			m_PlayerDeck.GetRewardTargetCount();
-
-		if (ballCount > 0)
-		{
-			if (Input::GetKeyTrigger(VK_LEFT))
-			{
-				m_SelectedRewardBallIndex--;
-
-				if (m_SelectedRewardBallIndex < 0)
-				{
-					m_SelectedRewardBallIndex =
-						ballCount - 1;
-				}
-			}
-
-			if (Input::GetKeyTrigger(VK_RIGHT))
-			{
-				m_SelectedRewardBallIndex++;
-
-				if (m_SelectedRewardBallIndex >= ballCount)
-				{
-					m_SelectedRewardBallIndex = 0;
-				}
-			}
-		}
-		else
-		{
-			m_SelectedRewardBallIndex = 0;
-		}
-	}
-
-	if (!Input::GetKeyTrigger(VK_SPACE))
+	if (!Input::GetKeyTrigger(VK_RETURN) && !Input::GetKeyTrigger(VK_SPACE))
 	{
 		return;
 	}
 
-	// Leave繧帝∈謚槭＠縺溷ｴ蜷医・繧ｷ繝ｧ繝・・繧堤ｵゆｺ・☆繧・
-	if (selectedReward.targetType ==
-		RewardTargetType::Exit)
+	bool rewardApplied = false;
+	switch (m_SelectedRewardIndex)
 	{
-		ChangeScene(SELECT);
-		m_GameState = GameState::AimingDirection;
-		return;
+	case 0:
+		rewardApplied = m_PlayerDeck.AddCatalogBall(m_SelectedRewardBallIndex);
+		m_RewardMessage = rewardApplied ? "A new ball was added to the deck." : "No ball is available.";
+		break;
+	case 1:
+		rewardApplied = RestUpgradeBall(m_SelectedRewardBallIndex);
+		m_RewardMessage = rewardApplied ? "The selected ball reached its next upgrade level." : "This ball is already +2.";
+		break;
+	case 2:
+		m_PlayerRunStatus.money += kExtraRewardMoney;
+		rewardApplied = true;
+		m_RewardMessage = "Received 10 extra Money.";
+		break;
+	default:
+		break;
 	}
 
-	// 驕ｸ謚樔ｸｭ縺ｮ蠑ｷ蛹悶・蝗槫ｾｩ繧定ｳｼ蜈･縺吶ｋ
-	TryPurchaseReward(m_SelectedRewardIndex);
+	if (rewardApplied)
+	{
+		m_IsClearRewardChosen = true;
+	}
 }
-
 void Game::BeginBallSelection()
 {
 	if (!m_PlayerDeck.PrepareOffer())
@@ -946,249 +970,79 @@ void Game::DrawBallSelectionUI()
 
 void Game::DrawClearRewardUI()
 {
-	ImGui::SetNextWindowPos(
-		ImVec2(300.0f, 120.0f),
-		ImGuiCond_Always
-	);
-
-	ImGui::SetNextWindowSize(
-		ImVec2(600.0f, 420.0f),
-		ImGuiCond_Always
-	);
-
-	ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoCollapse;
-
-	ImGui::Begin("Clear Reward UI", nullptr, flags);
-
-	ImGui::Text("CLEAR!");
+	ImGui::SetNextWindowPos(ImVec2(290.0f, 90.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(700.0f, 540.0f), ImGuiCond_Always);
+	const ImGuiWindowFlags clearFlags = ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+	ImGui::Begin("Stage Clear", nullptr, clearFlags);
+	ImGui::TextUnformatted("STAGE CLEAR!");
+	ImGui::Separator();
+	ImGui::Text("Reward : +%d Money", m_CurrentStageRewardMoney);
+	ImGui::Text("Money : %d", m_PlayerRunStatus.money);
+	ImGui::Text("HP : %d / %d", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp);
+	ImGui::Text("Cleared stages : %d", m_ClearedStageCount);
 	ImGui::Separator();
 
-	ImGui::Text(
-		"Stage Reward : +%d Money",
-		m_CurrentStageRewardMoney
-	);
-
-	ImGui::Text(
-		"Current Money : %d",
-		m_PlayerRunStatus.money
-	);
-
-	ImGui::Text(
-		"Player HP : %d / %d",
-		m_PlayerRunStatus.currentHp,
-		m_PlayerRunStatus.maxHp
-	);
-
-	ImGui::Separator();
-	ImGui::Text("Shop");
-
-	for (int i = 0; i < kRewardCount; i++)
+	if (!m_IsClearRewardChosen)
 	{
-		const RewardDefinition& reward =
-			kRewardDefinitions[i];
-
-		const char* mark =
-			i == m_SelectedRewardIndex
-			? ">"
-			: " ";
-
-		if (reward.targetType ==
-			RewardTargetType::Exit)
+		ImGui::TextUnformatted("Choose one reward");
+		for (int index = 0; index < kClearRewardCount; index++)
 		{
-			ImGui::Text(
-				"%s [ %s ]",
-				mark,
-				reward.name
-			);
+			ImGui::Text("%s %s", index == m_SelectedRewardIndex ? ">" : " ", kClearRewardNames[index]);
 		}
-		else
+
+		if (m_SelectedRewardIndex == 0)
 		{
-			ImGui::Text(
-				"%s [ %s ]  Cost:%d",
-				mark,
-				reward.name,
-				reward.cost
-			);
-		}
-	}
-
-	const RewardDefinition& selectedReward =
-		kRewardDefinitions[m_SelectedRewardIndex];
-
-	// 繝懊・繝ｫ蠑ｷ蛹悶ｒ驕ｸ謚樔ｸｭ縺ｮ蝣ｴ蜷医□縺大ｯｾ雎｡繧定｡ｨ遉ｺ
-	if (selectedReward.targetType ==
-		RewardTargetType::SingleBall)
-	{
-		ImGui::Separator();
-		ImGui::Text("Target Ball");
-
-		const int ballCount =
-			m_PlayerDeck.GetRewardTargetCount();
-
-		for (int i = 0; i < ballCount; i++)
-		{
-			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(i);
-
-			if (ball == nullptr)
+			ImGui::Separator();
+			ImGui::TextUnformatted("New ball (LEFT / RIGHT)");
+			for (int index = 0; index < m_PlayerDeck.GetCatalogCount(); index++)
 			{
-				continue;
+				const PlayerBallData* ball = m_PlayerDeck.GetCatalogBall(index);
+				if (ball != nullptr)
+				{
+					ImGui::Text("%s %s  ATK:%d DEF:%d",
+						index == m_SelectedRewardBallIndex ? ">" : " ",
+						ball->definitionId.c_str(), ball->status.attack, ball->status.defense);
+				}
 			}
-
-			const char* mark =
-				i == m_SelectedRewardBallIndex
-				? ">"
-				: " ";
-
-			ImGui::Text(
-				"%s [%d] %s  ATK:%d DEF:%d",
-				mark,
-				i,
-				ball->definitionId.c_str(),
-				ball->status.attack,
-				ball->status.defense
-			);
 		}
-
-		if (ballCount <= 0)
+		else if (m_SelectedRewardIndex == 1)
 		{
-			ImGui::Text("No target ball");
+			ImGui::Separator();
+			ImGui::TextUnformatted("Ball to upgrade (LEFT / RIGHT)");
+			for (int index = 0; index < m_PlayerDeck.GetRewardTargetCount(); index++)
+			{
+				const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(index);
+				if (ball != nullptr)
+				{
+					ImGui::Text("%s [%d] %s  +%d  ATK:%d DEF:%d",
+						index == m_SelectedRewardBallIndex ? ">" : " ", index,
+						ball->definitionId.c_str(), ball->upgradeLevel,
+						ball->status.attack, ball->status.defense);
+					if (ball->CanUpgrade())
+					{
+						const BallUpgradeStep& next = ball->upgradeTable[ball->upgradeLevel];
+						ImGui::Text("    Next: ATK:%d DEF:%d", next.attack, next.defense);
+					}
+					else
+					{
+						ImGui::TextUnformatted("    MAX +2");
+					}
+				}
+			}
 		}
+
+		ImGui::Separator();
+		ImGui::TextUnformatted("UP/DOWN : Reward    LEFT/RIGHT : Ball    ENTER/SPACE : Claim");
 	}
-
-	ImGui::Separator();
-
-	if (!m_RewardMessage.empty())
+	else
 	{
-		ImGui::Text("%s", m_RewardMessage.c_str());
+		ImGui::TextUnformatted(m_RewardMessage.c_str());
+		ImGui::Separator();
+		ImGui::TextUnformatted("ENTER or SPACE : Choose the next route");
 	}
-
-	ImGui::Separator();
-	ImGui::Text("UP / DOWN : Select");
-	ImGui::Text("LEFT / RIGHT : Target Ball");
-	ImGui::Text("SPACE : Buy / Leave");
-
 	ImGui::End();
 }
-
-bool Game::ApplyReward(int rewardIndex)
-{
-	if (rewardIndex < 0 ||
-		rewardIndex >= kRewardCount)
-	{
-		return false;
-	}
-
-	const RewardDefinition& reward =
-		kRewardDefinitions[rewardIndex];
-
-	switch (reward.targetType)
-	{
-	case RewardTargetType::SingleBall:
-	{
-		PlayerBallData* targetBall =
-			m_PlayerDeck.GetRewardTarget(
-				m_SelectedRewardBallIndex
-			);
-
-		if (targetBall == nullptr)
-		{
-			m_RewardMessage = "No target ball";
-			return false;
-		}
-
-		switch (rewardIndex)
-		{
-		case 0:
-			targetBall->status.attack += 1;
-			break;
-
-		case 1:
-			targetBall->status.defense += 1;
-			break;
-
-		default:
-			return false;
-		}
-
-		// 迴ｾ蝨ｨ菴ｿ逕ｨ荳ｭ縺ｮ繝懊・繝ｫ縺ｪ繧牙ｮ滉ｽ薙↓繧ょ渚譏縺吶ｋ
-		PlayerBallData* currentBall =
-			m_PlayerDeck.GetCurrent();
-
-		if (targetBall == currentBall)
-		{
-			std::vector<PlayerBall*> players =
-				GetObjects<PlayerBall>();
-
-			if (!players.empty())
-			{
-				ApplyPlayerStatusTo(players[0]);
-			}
-		}
-
-		return true;
-	}
-
-	case RewardTargetType::PlayerOverall:
-	{
-		switch (rewardIndex)
-		{
-		case 2:
-		{
-			constexpr int HEAL_AMOUNT = 3;
-
-			if (m_PlayerRunStatus.currentHp >=
-				m_PlayerRunStatus.maxHp)
-			{
-				m_RewardMessage = "HP is already full";
-				return false;
-			}
-
-			m_PlayerRunStatus.currentHp += HEAL_AMOUNT;
-			break;
-		}
-
-		case 3:
-		{
-			constexpr int MAX_HP_UP_AMOUNT = 1;
-
-			m_PlayerRunStatus.maxHp +=
-				MAX_HP_UP_AMOUNT;
-
-			// 譛螟ｧHP荳頑・蛻・□縺醍樟蝨ｨHP繧ょ｢怜刈
-			m_PlayerRunStatus.currentHp +=
-				MAX_HP_UP_AMOUNT;
-			break;
-		}
-
-		default:
-			return false;
-		}
-
-		m_PlayerRunStatus =
-			NormalizePlayerRunStatus(m_PlayerRunStatus);
-
-		// 迴ｾ蝨ｨ陦ｨ遉ｺ荳ｭ縺ｮPlayerBall縺ｫ繧ょ渚譏縺吶ｋ
-		std::vector<PlayerBall*> players =
-			GetObjects<PlayerBall>();
-
-		if (!players.empty())
-		{
-			ApplyPlayerRunStatusTo(players[0]);
-		}
-
-		return true;
-	}
-
-	case RewardTargetType::Exit:
-	default:
-		return false;
-	}
-}
-
 void Game::LoadPlayerStatusFromJson(
 	const std::string& filePath,
 	const std::string& deckFilePath)
@@ -1217,7 +1071,67 @@ void Game::LoadPlayerStatusFromJson(
 void Game::ResetPlayerRuntimeStatus()
 {
 	m_PlayerRunStatus = NormalizePlayerRunStatus(m_DefaultPlayerRunStatus);
-	m_PlayerDeck.Reset();
+	m_PlayerRunStatus.progress = 1;
+	m_PlayerRunStatus.SetSelectedStageId("");
+	m_PlayerRunStatus.SetLastStageId("");
+	m_PlayerDeck.ResetToDefault();
+	m_ClearedStageCount = 0;
+}
+
+bool Game::RestHeal()
+{
+	if (m_PlayerRunStatus.currentHp >= m_PlayerRunStatus.maxHp)
+	{
+		return false;
+	}
+
+	m_PlayerRunStatus.currentHp = m_PlayerRunStatus.maxHp;
+	return true;
+}
+
+bool Game::RestUpgradeBall(int ballIndex)
+{
+	PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(ballIndex);
+	if (ball == nullptr || !ball->CanUpgrade())
+	{
+		return false;
+	}
+
+	const BallUpgradeStep& upgrade = ball->upgradeTable[ball->upgradeLevel];
+	ball->status.attack = upgrade.attack;
+	ball->status.defense = upgrade.defense;
+	ball->upgradeLevel++;
+	ball->status = NormalizeBallStatus(ball->status);
+	return true;
+}
+
+bool Game::BuyShopBall(int catalogIndex, int cost)
+{
+	cost = (std::max)(0, cost);
+	if (m_PlayerRunStatus.money < cost || !m_PlayerDeck.AddCatalogBall(catalogIndex))
+	{
+		return false;
+	}
+
+	m_PlayerRunStatus.money -= cost;
+	return true;
+}
+
+bool Game::RemoveShopBall(int ballIndex, int cost)
+{
+	cost = (std::max)(0, cost);
+	if (m_PlayerRunStatus.money < cost || m_PlayerDeck.GetRewardTargetCount() <= 1)
+	{
+		return false;
+	}
+
+	if (!m_PlayerDeck.RemoveRewardTarget(ballIndex))
+	{
+		return false;
+	}
+
+	m_PlayerRunStatus.money -= cost;
+	return true;
 }
 void Game::ApplyPlayerStatusTo(PlayerBall* player)
 {
@@ -1319,7 +1233,8 @@ void Game::PrepareNextPlayerBall()
 
 int Game::CalculateStageRewardMoney() const
 {
-	int totalRewardMoney = 0;
+	constexpr int BASE_CLEAR_MONEY = 5;
+	int totalRewardMoney = BASE_CLEAR_MONEY;
 
 	std::vector<EnemyBall*> enemies =
 		m_Instance->GetObjects<EnemyBall>();
@@ -1367,46 +1282,6 @@ void Game::CollectStageRewardMoney()
 		"Stage Reward: +" +
 		std::to_string(m_CurrentStageRewardMoney) +
 		" Money";
-}
-
-bool Game::TryPurchaseReward(int rewardIndex)
-{
-	if (rewardIndex < 0 ||
-		rewardIndex >= kRewardCount)
-	{
-		return false;
-	}
-
-	const RewardDefinition& reward =
-		kRewardDefinitions[rewardIndex];
-
-	if (reward.targetType == RewardTargetType::Exit)
-	{
-		return false;
-	}
-
-	// 謇謖｀oney縺瑚ｶｳ繧翫↑縺・
-	if (m_PlayerRunStatus.money < reward.cost)
-	{
-		m_RewardMessage = "Not enough Money";
-		return false;
-	}
-
-	// HP貅繧ｿ繝ｳ縺ｪ縺ｩ縺ｧ驕ｩ逕ｨ縺ｧ縺阪↑縺九▲縺溷ｴ蜷医・Money繧呈ｸ帙ｉ縺輔↑縺・
-	if (!ApplyReward(rewardIndex))
-	{
-		return false;
-	}
-
-	m_PlayerRunStatus.money -= reward.cost;
-	m_PlayerRunStatus =
-		NormalizePlayerRunStatus(m_PlayerRunStatus);
-
-	m_RewardMessage =
-		std::string(reward.name) +
-		" purchased";
-
-	return true;
 }
 
 void Game::OnPlayerShotFired(PlayerBall* player)

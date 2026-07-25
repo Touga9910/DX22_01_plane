@@ -9,8 +9,7 @@ class StageSelectScene : public Scene
 private:
 	std::vector<Component*> m_MySceneObjects; // このシーンが所有するGameObject内の代表Component
 
-	int SelectArrow;
-	class Texture2D* m_pArrowImage;
+	int m_SelectedNode = 0;
 
 	void Init(); // 初期化
 	void Uninit(); // 終了処理
@@ -20,5 +19,6 @@ public:
 	~StageSelectScene(); // デストラクタ
 
 	void Update(); // 更新
+	void DrawUI() override;
 };
 

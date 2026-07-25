@@ -1,8 +1,10 @@
-#include "StageDataLoader.h"
+Ôªø#include "StageDataLoader.h"
 
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
+#include "TableConfig.h"
 #include "json/json.hpp"
 
 using json = nlohmann::json;
@@ -10,92 +12,93 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
-    Vector3 LoadVector3(const json& j, const Vector3& defaultValue)
+    constexpr const char* kDefaultEnemyId = "enemy_normal";
+
+    Vector3 LoadVector3(const json& value, const Vector3& defaultValue)
     {
-        if (!j.is_object())
+        if (value.is_array() && value.size() == 3)
         {
-            return defaultValue;
+            return Vector3(
+                value[0].get<float>(),
+                value[1].get<float>(),
+                value[2].get<float>());
         }
 
-        Vector3 v = defaultValue;
+        if (value.is_object())
+        {
+            return Vector3(
+                value.value("x", defaultValue.x),
+                value.value("y", defaultValue.y),
+                value.value("z", defaultValue.z));
+        }
 
-        v.x = j.value("x", defaultValue.x);
-        v.y = j.value("y", defaultValue.y);
-        v.z = j.value("z", defaultValue.z);
-
-        return v;
+        return defaultValue;
     }
 
-    // 
-    BallStatus LoadBallStatus(const json& j)
+    BallStatus LoadBallStatus(const json& value)
     {
         BallStatus status;
-
-        if (!j.is_object())
+        if (!value.is_object())
         {
             return status;
         }
 
-        status.maxHp = j.value("maxHp", status.maxHp);
-        status.attack = j.value("attack", status.attack);
-        status.defense = j.value("defense", status.defense);
-        status.mass = j.value("mass", status.mass);
-        status.radius = j.value("radius", status.radius);
-        status.restitution = j.value("restitution", status.restitution);
-        status.friction = j.value("friction", status.friction);
+        status.maxHp = value.value("maxHp", status.maxHp);
+        status.attack = value.value("attack", status.attack);
+        status.defense = value.value("defense", status.defense);
+        status.mass = value.value("mass", status.mass);
+        status.radius = value.value("radius", status.radius);
+        status.restitution = value.value("restitution", status.restitution);
+        status.friction = value.value("friction", status.friction);
 
-        if (j.contains("abilities") && j["abilities"].is_object())
+        if (value.contains("abilities") && value["abilities"].is_object())
         {
-            const json& abilitiesJson = j["abilities"];
-            status.abilities.split = abilitiesJson.value("split", status.abilities.split);
-            status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
+            const json& abilities = value["abilities"];
+            status.abilities.split =
+                abilities.value("split", status.abilities.split);
+            status.abilities.pierce =
+                abilities.value("pierce", status.abilities.pierce);
         }
 
         return status;
     }
 
-	// ìGÇÃÉ}ÉXÉ^Å[ÉfÅ[É^ÇJSONÇ©ÇÁì«Ç›çûÇﬁä÷êîÅi1ëÃï™ÇÃÉfÅ[É^Åj
-    EnemyData LoadEnemyMasterData(const json& j)
+    EnemyData LoadEnemyMasterData(const json& value)
     {
         EnemyData data;
-
-        if (!j.is_object())
+        if (!value.is_object())
         {
             return data;
         }
 
-        data.id = j.value("id", data.id);
-        data.modelFilePath = j.value("modelFilePath", data.modelFilePath);
-        data.textureDirectory = j.value("textureDirectory", data.textureDirectory);
+        data.id = value.value("id", data.id);
+        data.modelFilePath =
+            value.value("modelFilePath", data.modelFilePath);
+        data.textureDirectory =
+            value.value("textureDirectory", data.textureDirectory);
+        data.rewardMoney = value.value("rewardMoney", data.rewardMoney);
+        data.rewardExp = value.value("rewardExp", data.rewardExp);
 
-        if (j.contains("status"))
+        if (value.contains("status"))
         {
-            data.status = LoadBallStatus(j["status"]);
+            data.status = LoadBallStatus(value["status"]);
         }
-
-        if (j.contains("scale"))
+        if (value.contains("scale"))
         {
-            data.scale = LoadVector3(j["scale"], data.scale);
+            data.scale = LoadVector3(value["scale"], data.scale);
         }
-
-        data.rewardMoney = j.value("rewardMoney", data.rewardMoney);
-        data.rewardExp = j.value("rewardExp", data.rewardExp);
 
         return data;
     }
 
-	// ìGÇÃÉ}ÉXÉ^Å[ÉfÅ[É^ÇJSONÉtÉ@ÉCÉãÇ©ÇÁì«Ç›çûÇ›ÅAIDÇÉLÅ[Ç∆ÇµÇΩunordered_mapÇ…äiî[Ç∑ÇÈä÷êî
     std::unordered_map<std::string, EnemyData> LoadEnemyMasterMap(
-        const std::string& filePath
-    )
+        const std::string& filePath)
     {
         std::unordered_map<std::string, EnemyData> enemyMap;
-
         std::ifstream file(filePath);
-
         if (!file.is_open())
         {
-            std::cout << "Enemy Master JSONÇäJÇØÇ‹ÇπÇÒÇ≈ÇµÇΩ: "
+            std::cerr << "[StageDataLoader] Enemy master JSON„ÇíÈñã„Åë„Åæ„Åõ„Çì: "
                 << filePath << std::endl;
             return enemyMap;
         }
@@ -104,110 +107,229 @@ namespace
         {
             json root;
             file >> root;
-
-            if (root.contains("enemies") && root["enemies"].is_array())
+            if (!root.contains("enemies") || !root["enemies"].is_array())
             {
-                for (const auto& enemyJson : root["enemies"])
-                {
-                    EnemyData data = LoadEnemyMasterData(enemyJson);
+                std::cerr
+                    << "[StageDataLoader] enemy master„Å´enemiesÈÖçÂàó„Åå„ÅÇ„Çä„Åæ„Åõ„Çì: "
+                    << filePath << std::endl;
+                return enemyMap;
+            }
 
-                    if (!data.id.empty())
-                    {
-                        enemyMap[data.id] = data;
-                    }
+            for (const json& enemyJson : root["enemies"])
+            {
+                EnemyData data = LoadEnemyMasterData(enemyJson);
+                if (data.id.empty())
+                {
+                    std::cerr
+                        << "[StageDataLoader] enemy master„Å´Á©∫„ÅÆID„Åå„ÅÇ„Çä„Åæ„Åô"
+                        << std::endl;
+                    continue;
                 }
+                enemyMap[data.id] = data;
             }
         }
         catch (const std::exception& e)
         {
-            std::cout << "Enemy Master JSONÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ: "
-                << filePath << std::endl;
-            std::cout << e.what() << std::endl;
+            std::cerr
+                << "[StageDataLoader] Enemy master JSON„ÅÆË™≠„ÅøËæº„Åø„Å´Â§±Êïó: "
+                << filePath << " / " << e.what() << std::endl;
         }
 
         return enemyMap;
     }
+
+    StageType ParseStageType(const std::string& value)
+    {
+        if (value == "normal")
+        {
+            return StageType::Normal;
+        }
+        if (value == "midBoss")
+        {
+            return StageType::MidBoss;
+        }
+        if (value == "boss")
+        {
+            return StageType::Boss;
+        }
+
+        std::cerr << "[StageDataLoader] ‰∏çÊòé„Å™stageType„Äå" << value
+            << "„Äç„Çínormal„Å®„Åó„Å¶Êâ±„ÅÑ„Åæ„Åô" << std::endl;
+        return StageType::Normal;
+    }
+
+    bool HasRequiredStageFields(const json& stageJson, size_t index)
+    {
+        const char* requiredFields[] =
+        {
+            "id",
+            "stageType",
+            "difficulty",
+            "enemies"
+        };
+
+        for (const char* field : requiredFields)
+        {
+            if (!stageJson.contains(field))
+            {
+                std::cerr << "[StageDataLoader] stages[" << index
+                    << "] „Å´ÂøÖÈ†àÈ†ÖÁõÆ„Äå" << field << "„Äç„Åå„ÅÇ„Çä„Åæ„Åõ„Çì"
+                    << std::endl;
+                return false;
+            }
+        }
+
+        if (!stageJson["id"].is_string() ||
+            !stageJson["stageType"].is_string() ||
+            !stageJson["difficulty"].is_number_integer() ||
+            !stageJson["enemies"].is_array())
+        {
+            std::cerr << "[StageDataLoader] stages[" << index
+                << "] „ÅÆÂøÖÈ†àÈ†ÖÁõÆ„ÅÆÂûã„Åå‰∏çÊ≠£„Åß„Åô" << std::endl;
+            return false;
+        }
+
+        return true;
+    }
 }
 
-StageData StageDataLoader::Load(
+std::vector<StageData> StageDataLoader::LoadAll(
     const std::string& stageFilePath,
-    const std::string& enemyMasterFilePath
-)
+    const std::string& enemyMasterFilePath)
 {
-    StageData stageData;
-
-    std::unordered_map<std::string, EnemyData> enemyMasterMap =
+    std::vector<StageData> stages;
+    const std::unordered_map<std::string, EnemyData> enemyMasterMap =
         LoadEnemyMasterMap(enemyMasterFilePath);
+    if (enemyMasterMap.empty())
+    {
+        return stages;
+    }
 
     std::ifstream file(stageFilePath);
-
     if (!file.is_open())
     {
-        std::cout << "Stage JSONÇäJÇØÇ‹ÇπÇÒÇ≈ÇµÇΩ: "
+        std::cerr << "[StageDataLoader] Stage JSON„ÇíÈñã„Åë„Åæ„Åõ„Çì: "
             << stageFilePath << std::endl;
-        return stageData;
+        return stages;
     }
 
     try
     {
         json root;
         file >> root;
-
-        stageData.stageId = root.value("stageId", stageData.stageId);
-        stageData.par = root.value("par", stageData.par);
-
-        if (root.contains("enemySpawns") && root["enemySpawns"].is_array())
+        if (!root.contains("stages") || !root["stages"].is_array())
         {
-            for (const auto& spawnJson : root["enemySpawns"])
+            std::cerr << "[StageDataLoader] stagesÈÖçÂàó„Åå„ÅÇ„Çä„Åæ„Åõ„Çì: "
+                << stageFilePath << std::endl;
+            return stages;
+        }
+
+        std::unordered_set<std::string> loadedIds;
+        const json& stageArray = root["stages"];
+        for (size_t stageIndex = 0;
+            stageIndex < stageArray.size();
+            ++stageIndex)
+        {
+            const json& stageJson = stageArray[stageIndex];
+            if (!stageJson.is_object() ||
+                !HasRequiredStageFields(stageJson, stageIndex))
             {
-                std::string enemyId = spawnJson.value("enemyId", "");
+                continue;
+            }
 
-                auto it = enemyMasterMap.find(enemyId);
+            StageData stage;
+            stage.id = stageJson["id"].get<std::string>();
+            if (stage.id.empty())
+            {
+                std::cerr << "[StageDataLoader] stages[" << stageIndex
+                    << "] „ÅÆid„ÅåÁ©∫„Åß„Åô" << std::endl;
+                continue;
+            }
+            if (!loadedIds.insert(stage.id).second)
+            {
+                std::cerr << "[StageDataLoader] stage ID„ÅåÈáçË§á„Åó„Å¶„ÅÑ„Åæ„Åô: "
+                    << stage.id << std::endl;
+                continue;
+            }
 
-                if (it == enemyMasterMap.end())
+            stage.stageType =
+                ParseStageType(stageJson["stageType"].get<std::string>());
+            stage.difficulty = stageJson["difficulty"].get<int>();
+            stage.par = stageJson.value("par", stage.par);
+
+            const json& enemyArray = stageJson["enemies"];
+            for (size_t enemyIndex = 0;
+                enemyIndex < enemyArray.size();
+                ++enemyIndex)
+            {
+                const json& spawnJson = enemyArray[enemyIndex];
+                if (!spawnJson.is_object() ||
+                    !spawnJson.contains("position"))
                 {
-                    std::cout << "ìGIDÇ™enemy_data.jsonÇ…ë∂ç›ÇµÇ‹ÇπÇÒ: "
-                        << enemyId << std::endl;
+                    std::cerr << "[StageDataLoader] stage„Äå" << stage.id
+                        << "„Äç„ÅÆÊïµ[" << enemyIndex
+                        << "] „Å´position„Åå„ÅÇ„Çä„Åæ„Åõ„Çì" << std::endl;
                     continue;
                 }
 
-                EnemyData enemyData = it->second;
-
-                if (spawnJson.contains("initPosition"))
+                EnemySpawnData spawn;
+                spawn.enemyId =
+                    spawnJson.value("enemyId", std::string(kDefaultEnemyId));
+                const auto enemyIt = enemyMasterMap.find(spawn.enemyId);
+                if (enemyIt == enemyMasterMap.end())
                 {
-                    enemyData.initPosition = LoadVector3(
-                        spawnJson["initPosition"],
-                        enemyData.initPosition
-                    );
+                    std::cerr << "[StageDataLoader] stage„Äå" << stage.id
+                        << "„Äç„ÅÆÊïµ[" << enemyIndex << "] „ÅåÂèÇÁÖß„Åô„Çãenemy ID„Äå"
+                        << spawn.enemyId << "„Äç„ÅØÂ≠òÂú®„Åó„Åæ„Åõ„Çì" << std::endl;
+                    continue;
                 }
 
-                stageData.enemies.push_back(enemyData);
-            }
-        }
+                try
+                {
+                    spawn.position = LoadVector3(
+                        spawnJson["position"],
+                        Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f));
+                }
+                catch (const std::exception& e)
+                {
+                    std::cerr << "[StageDataLoader] stage„Äå" << stage.id
+                        << "„Äç„ÅÆÊïµ[" << enemyIndex
+                        << "] „ÅÆposition„Åå‰∏çÊ≠£„Åß„Åô: " << e.what()
+                        << std::endl;
+                    continue;
+                }
 
-        std::cout << "Loaded Stage: " << stageData.stageId << std::endl;
-        std::cout << "Loaded Enemy Count: "
-            << stageData.enemies.size() << std::endl;
+                spawn.enemyData = enemyIt->second;
+                spawn.enemyData.initPosition = spawn.position;
+                stage.enemies.push_back(spawn);
+            }
+
+            stages.push_back(std::move(stage));
+        }
     }
     catch (const std::exception& e)
     {
-        std::cout << "Stage JSONÇÃì«Ç›çûÇ›Ç…é∏îsÇµÇ‹ÇµÇΩ: "
-            << stageFilePath << std::endl;
-        std::cout << e.what() << std::endl;
+        std::cerr << "[StageDataLoader] Stage JSON„ÅÆË™≠„ÅøËæº„Åø„Å´Â§±Êïó: "
+            << stageFilePath << " / " << e.what() << std::endl;
+        stages.clear();
     }
 
-    for (const EnemyData& enemy : stageData.enemies)
+    std::cout << "[StageDataLoader] " << stages.size()
+        << "‰ª∂„ÅÆ„Çπ„ÉÜ„Éº„Ç∏„ÇíË™≠„ÅøËæº„Åø„Åæ„Åó„Åü" << std::endl;
+    return stages;
+}
+
+const StageData* StageDataLoader::FindById(
+    const std::vector<StageData>& stages,
+    const std::string& stageId)
+{
+    for (const StageData& stage : stages)
     {
-        std::cout << "Enemy: "
-            << enemy.id
-            << " HP: " << enemy.status.maxHp
-            << " Attack: " << enemy.status.attack
-            << " Pos("
-            << enemy.initPosition.x << ", "
-            << enemy.initPosition.y << ", "
-            << enemy.initPosition.z << ")"
-            << std::endl;
+        if (stage.id == stageId)
+        {
+            return &stage;
+        }
     }
 
-    return stageData;
+    return nullptr;
 }

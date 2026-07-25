@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <random>
+#include <unordered_set>
 
 void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
 {
@@ -59,6 +60,18 @@ void PlayerDeck::Reset()
     m_PreviousHeldOfferIndex = -1;
     m_IsCurrentBallUsed = false;
 
+    ShuffleDrawPile();
+}
+
+void PlayerDeck::ResetToDefault()
+{
+    m_DrawPile = m_DefaultDeck;
+    m_DiscardPile.clear();
+    m_OfferedBalls.clear();
+    m_HeldBall.reset();
+    m_CurrentBall.reset();
+    m_PreviousHeldOfferIndex = -1;
+    m_IsCurrentBallUsed = false;
     ShuffleDrawPile();
 }
 
@@ -125,19 +138,17 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
         m_HeldBall->status = NormalizeStatus(m_HeldBall->status);
     }
 
-    // 選択・保持されなかったボールは山札の下（vectorの先頭）へ戻す。
-    for (int index = static_cast<int>(m_OfferedBalls.size()) - 1;
-        index >= 0;
-        index--)
+    // 選択・保持されなかったボールは捨て札へ送る。
+    for (int index = 0;
+        index < static_cast<int>(m_OfferedBalls.size());
+        index++)
     {
         if (index == selectedIndex || index == heldIndex)
         {
             continue;
         }
 
-        m_DrawPile.insert(
-            m_DrawPile.begin(),
-            std::move(m_OfferedBalls[index]));
+        m_DiscardPile.push_back(std::move(m_OfferedBalls[index]));
     }
 
     m_OfferedBalls.clear();
@@ -361,6 +372,109 @@ PlayerBallData* PlayerDeck::GetRewardTarget(int index)
     }
 
     return nullptr;
+}
+
+int PlayerDeck::GetCatalogCount() const
+{
+    std::unordered_set<std::string> definitionIds;
+    for (const PlayerBallData& ball : m_DefaultDeck)
+    {
+        definitionIds.insert(ball.definitionId);
+    }
+
+    return static_cast<int>(definitionIds.size());
+}
+
+const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
+{
+    if (index < 0)
+    {
+        return nullptr;
+    }
+
+    std::unordered_set<std::string> visitedIds;
+    for (const PlayerBallData& ball : m_DefaultDeck)
+    {
+        if (!visitedIds.insert(ball.definitionId).second)
+        {
+            continue;
+        }
+
+        if (index == 0)
+        {
+            return &ball;
+        }
+
+        index--;
+    }
+
+    return nullptr;
+}
+
+bool PlayerDeck::AddCatalogBall(int index)
+{
+    const PlayerBallData* catalogBall = GetCatalogBall(index);
+    if (catalogBall == nullptr)
+    {
+        return false;
+    }
+
+    PlayerBallData addedBall = *catalogBall;
+    addedBall.status = NormalizeStatus(addedBall.status);
+    m_DrawPile.push_back(std::move(addedBall));
+    return true;
+}
+
+bool PlayerDeck::RemoveRewardTarget(int index)
+{
+    if (index < 0 || GetRewardTargetCount() <= 1)
+    {
+        return false;
+    }
+
+    if (m_CurrentBall.has_value())
+    {
+        if (index == 0)
+        {
+            m_CurrentBall.reset();
+            m_IsCurrentBallUsed = false;
+            return true;
+        }
+        index--;
+    }
+
+    if (m_HeldBall.has_value())
+    {
+        if (index == 0)
+        {
+            m_HeldBall.reset();
+            return true;
+        }
+        index--;
+    }
+
+    if (index < static_cast<int>(m_OfferedBalls.size()))
+    {
+        m_OfferedBalls.erase(m_OfferedBalls.begin() + index);
+        m_PreviousHeldOfferIndex = -1;
+        return true;
+    }
+    index -= static_cast<int>(m_OfferedBalls.size());
+
+    if (index < static_cast<int>(m_DrawPile.size()))
+    {
+        m_DrawPile.erase(m_DrawPile.begin() + index);
+        return true;
+    }
+    index -= static_cast<int>(m_DrawPile.size());
+
+    if (index < static_cast<int>(m_DiscardPile.size()))
+    {
+        m_DiscardPile.erase(m_DiscardPile.begin() + index);
+        return true;
+    }
+
+    return false;
 }
 
 bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)

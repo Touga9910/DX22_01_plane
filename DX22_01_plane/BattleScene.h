@@ -1,22 +1,26 @@
-#pragma once
+ï»¿#pragma once
 #include "StageBase.h"
 
 #include <string>
 #include <filesystem>
 
-class Stage1Scene : public StageBase // šStageBase‚ğŒp³
+struct StageData;
+class PlayerBall;
+class TableFrame;
+
+class BattleScene : public StageBase
 {
 public:
-    Stage1Scene();
-    ~Stage1Scene() override = default;
+    BattleScene();
+    ~BattleScene() override = default;
 
     void Init();
-    // ‚à‚µƒXƒe[ƒWŒÅ—L‚Ì’Ç‰ÁƒMƒ~ƒbƒN‚ğ“®‚©‚µ‚½‚¢ê‡‚Í‚±‚±‚ÅƒI[ƒo[ƒ‰ƒCƒh‚µ‚Äg—p‚·‚é
     void Update() override;
 
 private:
     std::string m_StageJsonPath = "assets/data/stage_01.json";
     std::string m_EnemyJsonPath = "assets/data/enemy_data.json";
+    std::string m_SelectedStageId;
 
     std::filesystem::file_time_type m_LastStageJsonWriteTime{};
     std::filesystem::file_time_type m_LastEnemyJsonWriteTime{};
@@ -26,9 +30,12 @@ private:
     bool m_HotReloadPending = false;
     int m_HotReloadWaitFrame = 0;
 
-	void UpdateJsonHotReload();         // JSON‚ğƒzƒbƒgƒŠƒ[ƒh‚·‚é‚½‚ß‚ÌŠÖ”
-	void ReloadEnemyStatusFromJson();   // JSON‚©‚ç“G‚ÌƒXƒe[ƒ^ƒX‚ğƒŠƒ[ƒh‚·‚é‚½‚ß‚ÌŠÖ”
+	void UpdateJsonHotReload();
+	void ReloadEnemyStatusFromJson();
+    void ValidateEnemySpawns(
+        const StageData& stage,
+        const PlayerBall& player,
+        const TableFrame& tableFrame) const;
 
-    // XVæ“¾
     std::filesystem::file_time_type GetJsonWriteTime(const std::string& path) const;
 };

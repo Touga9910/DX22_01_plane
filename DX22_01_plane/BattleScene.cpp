@@ -1,4 +1,4 @@
-﻿#include "Stage1Scene.h"
+﻿#include "BattleScene.h"
 #include "Game.h"
 #include "Input.h"
 #include "PlayerBall.h"
@@ -6,6 +6,8 @@
 #include "BallFactory.h"
 #include "EnemyData.h"
 #include "StageDataLoader.h"
+#include "TableConfig.h"
+#include "Collision.h"
 
 #include "Ground.h"
 #include "TableFrame.h"
@@ -15,19 +17,21 @@
 #include "SkyBox.h"
 
 #include "Texture2D.h"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <unordered_map>
 
 using namespace DirectX::SimpleMath;
 
 // コンストラクタ
-Stage1Scene::Stage1Scene()
+BattleScene::BattleScene()
 {
 	Init();
 }
 
 // 初期化
-void Stage1Scene::Init()
+void BattleScene::Init()
 {
 	m_Par = 4;			// パーを設定
 	m_StrokeCount = 0;	// 現在打数を初期化
@@ -45,6 +49,8 @@ void Stage1Scene::Init()
 
 	TableFrame* tableFrame = Game::GetInstance()->AddObject<TableFrame>();
 	m_MySceneObjects.emplace_back(tableFrame);
+	m_MySceneObjects.emplace_back(
+		Game::GetInstance()->AddObject<SkyBox>());
 
 	// ========================================================
 	// TableFrame のポケット位置を元に Pocket を生成
@@ -63,7 +69,7 @@ void Stage1Scene::Init()
 	// ========================================================
 	// エネミー（EnemyBall）の出現処理
 	// ========================================================
-	StageData stageData = StageDataLoader::Load(
+	std::vector<StageData> stages = StageDataLoader::LoadAll(
 		m_StageJsonPath,
 		m_EnemyJsonPath
 	);
@@ -71,13 +77,38 @@ void Stage1Scene::Init()
 	m_LastStageJsonWriteTime = GetJsonWriteTime(m_StageJsonPath);
 	m_LastEnemyJsonWriteTime = GetJsonWriteTime(m_EnemyJsonPath);
 
-	m_Par = stageData.par;
-
-	for (const EnemyData& enemyData : stageData.enemies)
+	m_SelectedStageId = Game::GetInstance()->GetSelectedStageId();
+	const StageData* stageData =
+		StageDataLoader::FindById(stages, m_SelectedStageId);
+	if (stageData == nullptr)
 	{
-		EnemyBall* enemy = BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
+		std::cerr << "[BattleScene] 保存済みstage ID「"
+			<< m_SelectedStageId << "」が見つかりません" << std::endl;
 
-		m_MySceneObjects.emplace_back(enemy);
+		if (!stages.empty())
+		{
+			stageData = &stages.front();
+			m_SelectedStageId = stageData->id;
+			std::cerr << "[BattleScene] 安全なフォールバックとして「"
+				<< m_SelectedStageId << "」を使用します" << std::endl;
+		}
+	}
+
+	if (stageData != nullptr)
+	{
+		m_Par = stageData->par;
+		ValidateEnemySpawns(*stageData, *ball, *tableFrame);
+
+		for (const EnemySpawnData& spawn : stageData->enemies)
+		{
+			EnemyData enemyData = spawn.enemyData;
+			enemyData.initPosition = spawn.position;
+			enemyData.initPosition.y = TableConfig::FIELD_HEIGHT;
+
+			EnemyBall* enemy =
+				BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
+			m_MySceneObjects.emplace_back(enemy);
+		}
 	}
 
 	std::cout << "\nオブジェクトの生成終了\n" << std::endl;
@@ -141,7 +172,7 @@ void Stage1Scene::Init()
 }
 
 //更新
-void Stage1Scene::Update()
+void BattleScene::Update()
 {
 	StageBase::Update();
 
@@ -155,7 +186,7 @@ void Stage1Scene::Update()
 // =======================================
 // JSONホットリロード関連の処理
 // =======================================
-void Stage1Scene::UpdateJsonHotReload()
+void BattleScene::UpdateJsonHotReload()
 {
 	// すでに変更検知済みなら、少し待ってからリロードする
 	if (m_HotReloadPending)
@@ -211,14 +242,24 @@ void Stage1Scene::UpdateJsonHotReload()
 		<< std::endl;
 }
 
-void Stage1Scene::ReloadEnemyStatusFromJson()
+void BattleScene::ReloadEnemyStatusFromJson()
 {
-	StageData stageData = StageDataLoader::Load(
+	std::vector<StageData> stages = StageDataLoader::LoadAll(
 		m_StageJsonPath,
 		m_EnemyJsonPath
 	);
 
-	if (stageData.enemies.empty())
+	const StageData* stageData =
+		StageDataLoader::FindById(stages, m_SelectedStageId);
+	if (stageData == nullptr)
+	{
+		std::cerr << "[HotReload] 現在のstage ID「" << m_SelectedStageId
+			<< "」が再読込後のJSONに存在しないため、反映を中止しました"
+			<< std::endl;
+		return;
+	}
+
+	if (stageData->enemies.empty())
 	{
 		std::cout << "[HotReload] 敵データが空のため、反映を中止しました"
 			<< std::endl;
@@ -227,9 +268,9 @@ void Stage1Scene::ReloadEnemyStatusFromJson()
 
 	std::unordered_map<std::string, EnemyData> enemyDataMap;
 
-	for (const EnemyData& enemyData : stageData.enemies)
+	for (const EnemySpawnData& spawn : stageData->enemies)
 	{
-		enemyDataMap[enemyData.id] = enemyData;
+		enemyDataMap[spawn.enemyData.id] = spawn.enemyData;
 	}
 
 	std::vector<EnemyBall*> enemies =
@@ -255,7 +296,89 @@ void Stage1Scene::ReloadEnemyStatusFromJson()
 	std::cout << "[HotReload] 敵ステータスを更新しました" << std::endl;
 }
 
-std::filesystem::file_time_type Stage1Scene::GetJsonWriteTime(
+void BattleScene::ValidateEnemySpawns(
+	const StageData& stage,
+	const PlayerBall& player,
+	const TableFrame& tableFrame) const
+{
+	const float fieldHalfWidth = TableConfig::GetFieldWidth() * 0.5f;
+	const float fieldHalfDepth = TableConfig::GetFieldDepth() * 0.5f;
+	const std::vector<Collision::Segment> walls = tableFrame.GetWalls();
+	const std::vector<Collision::Sphere> pockets =
+		tableFrame.GetPocketSpheres();
+	const Collision::Sphere playerSphere = player.GetBall()->GetSphere();
+	std::vector<Collision::Sphere> validatedEnemies;
+
+	auto warn = [&stage](
+		size_t enemyIndex,
+		const Vector3& position,
+		const char* issue)
+	{
+		std::cerr << "[StageValidation] Stage ID: " << stage.id
+			<< " / Enemy Index: " << enemyIndex
+			<< " / Position: (" << position.x << ", "
+			<< position.y << ", " << position.z << ")"
+			<< " / Issue: " << issue << std::endl;
+	};
+
+	for (size_t enemyIndex = 0;
+		enemyIndex < stage.enemies.size();
+		++enemyIndex)
+	{
+		const EnemySpawnData& spawn = stage.enemies[enemyIndex];
+		Vector3 position = spawn.position;
+		position.y = TableConfig::FIELD_HEIGHT;
+		const float radius =
+			(std::max)(0.01f, spawn.enemyData.status.radius);
+		const Collision::Sphere enemySphere{ position, radius };
+
+		if (std::abs(position.x) + radius > fieldHalfWidth ||
+			std::abs(position.z) + radius > fieldHalfDepth)
+		{
+			warn(enemyIndex, position, "プレイ可能範囲外");
+		}
+
+		for (const Collision::Segment& wall : walls)
+		{
+			Vector3 wallCheckPosition = position;
+			wallCheckPosition.y = wall.start.y;
+			if (Collision::DistancePointToSegment(
+				wallCheckPosition,
+				wall) <= radius)
+			{
+				warn(enemyIndex, position, "壁と重なっています");
+				break;
+			}
+		}
+
+		for (const Collision::Sphere& pocket : pockets)
+		{
+			if (Collision::CheckHit(enemySphere, pocket))
+			{
+				warn(enemyIndex, position, "ポケットと重なっています");
+				break;
+			}
+		}
+
+		if (Collision::CheckHit(enemySphere, playerSphere))
+		{
+			warn(enemyIndex, position, "プレイヤー初期位置と重なっています");
+		}
+
+		for (const Collision::Sphere& otherEnemy : validatedEnemies)
+		{
+			if (Collision::CheckHit(enemySphere, otherEnemy))
+			{
+				warn(enemyIndex, position, "別の敵と重なっています");
+				break;
+			}
+		}
+
+		validatedEnemies.push_back(enemySphere);
+	}
+}
+
+std::filesystem::file_time_type BattleScene::GetJsonWriteTime(
 	const std::string& path
 ) const
 {

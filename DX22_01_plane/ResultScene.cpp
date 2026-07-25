@@ -48,7 +48,7 @@ void ResultScene::Update()
 	// エンターキーを押してタイトルへ
 	if (Input::GetKeyTrigger(VK_RETURN))
 	{
-		Game::GetInstance()->ChangeScene(TITLE);
+		Game::GetInstance()->ChangeScene(SceneType::Title);
 	}
 }
 

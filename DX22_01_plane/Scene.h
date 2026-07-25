@@ -1,13 +1,14 @@
 #pragma once
 #include <memory>
 
-//Scene クラス
+// Base scene class.
 class Scene
 {
 public:
 
-	Scene(); // コンストラクタ
-	virtual ~Scene(); // デストラクタ(virtualが必要)
+	Scene();
+	virtual ~Scene();
 
-	virtual void Update() = 0; // 更新（純粋仮想関数）
+	virtual void Update() = 0;
+	virtual void DrawUI() {}
 };
