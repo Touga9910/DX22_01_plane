@@ -33,8 +33,19 @@ public:
     int GetMaxHP() const { return m_StatusComponent->GetMaxHp(); }
     int GetAttack() const { return m_StatusComponent->GetAttack(); }
     int GetDefense() const { return m_StatusComponent->GetDefense(); }
+    void SetCombatModifiers(int attackModifier, int defenseModifier)
+    {
+        m_StatusComponent->SetCombatModifiers(
+            attackModifier,
+            defenseModifier);
+    }
     bool HasSplitAbility() const { return GetStatus().abilities.split; }
     bool HasPierceAbility() const { return GetStatus().abilities.pierce; }
+    void ResetShotAbilityState()
+    {
+        m_PierceConsumed = false;
+        m_PiercedBall = nullptr;
+    }
 
     void SetHP(int hp);
     void SetMaxHP(int maxHp);
@@ -96,4 +107,7 @@ private:
     Transform m_Transform;
     std::function<void()> m_PocketHandler;
     std::function<void()> m_DefeatHandler;
+
+    bool m_PierceConsumed = false;
+    const BallComponent* m_PiercedBall = nullptr;
 };

@@ -14,6 +14,8 @@ public:
 
 	void Update() override;
 	void DrawUI() override;
+	bool HasUsedAction() const { return m_ActionUsed; }
+	void MarkActionUsed() { m_ActionUsed = true; }
 
 private:
 	void Init();

@@ -48,6 +48,12 @@ void ShopScene::Update()
 		if (moveLeft) m_SelectedRemoveBall = (m_SelectedRemoveBall + count - 1) % count;
 		if (moveRight) m_SelectedRemoveBall = (m_SelectedRemoveBall + 1) % count;
 	}
+	else if (m_SelectedAction == 2 && Game::GetInstance()->GetRelicCount() > 0)
+	{
+		const int count = Game::GetInstance()->GetRelicCount();
+		if (moveLeft) m_SelectedRelic = (m_SelectedRelic + count - 1) % count;
+		if (moveRight) m_SelectedRelic = (m_SelectedRelic + 1) % count;
+	}
 
 	if (!Input::GetKeyTrigger(VK_RETURN) && !Input::GetKeyTrigger(VK_SPACE))
 	{
@@ -61,7 +67,22 @@ void ShopScene::Update()
 	}
 	if (m_SelectedAction == 2)
 	{
-		m_Message = "Relics are not implemented yet.";
+		const RelicDefinition* relic =
+			Game::GetInstance()->GetRelic(m_SelectedRelic);
+		if (Game::GetInstance()->BuyRelic(m_SelectedRelic))
+		{
+			m_Message = std::string(relic != nullptr ? relic->name : "Relic") +
+				" purchased.";
+		}
+		else if (relic != nullptr &&
+			Game::GetInstance()->HasRelic(relic->type))
+		{
+			m_Message = "That relic is already owned.";
+		}
+		else
+		{
+			m_Message = "Purchase failed. Check your Money.";
+		}
 		return;
 	}
 
@@ -86,7 +107,8 @@ void ShopScene::Update()
 		}
 		else
 		{
-			m_Message = "Removal failed. Keep at least one ball and check your Money.";
+			m_Message =
+				"Removal failed. Keep at least 5 balls and check your Money.";
 		}
 	}
 }
@@ -99,11 +121,16 @@ void ShopScene::DrawUI()
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
 	ImGui::Begin("Shop", nullptr, flags);
 
-	ImGui::Text("Money %d    Deck %d", Game::GetInstance()->GetPlayerMoney(), Game::GetInstance()->GetDeckBallCount());
+	ImGui::Text(
+		"Money %d    Deck %d    Relics %d/%d",
+		Game::GetInstance()->GetPlayerMoney(),
+		Game::GetInstance()->GetDeckBallCount(),
+		Game::GetInstance()->GetOwnedRelicCount(),
+		Game::GetInstance()->GetRelicCount());
 	ImGui::Separator();
 	ImGui::Text("%s Buy Ball - %d Money", m_SelectedAction == 0 ? ">" : " ", kBallPrice);
 	ImGui::Text("%s Remove Ball - %d Money", m_SelectedAction == 1 ? ">" : " ", kRemovePrice);
-	ImGui::Text("%s Buy Relic - Coming Soon", m_SelectedAction == 2 ? ">" : " ");
+	ImGui::Text("%s Buy Relic", m_SelectedAction == 2 ? ">" : " ");
 	ImGui::Text("%s Leave", m_SelectedAction == 3 ? ">" : " ");
 
 	ImGui::Separator();
@@ -117,13 +144,18 @@ void ShopScene::DrawUI()
 			{
 				ImGui::Text("%s %s  ATK:%d DEF:%d",
 					index == m_SelectedBuyBall ? ">" : " ",
-					ball->definitionId.c_str(), ball->status.attack, ball->status.defense);
+					ball->definitionId.c_str(),
+					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
+					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
 			}
 		}
 	}
 	else if (m_SelectedAction == 1)
 	{
 		ImGui::TextUnformatted("Deck ball to remove (LEFT / RIGHT)");
+		ImGui::Text(
+			"Minimum deck size: %d",
+			Game::GetInstance()->GetMinimumDeckSize());
 		for (int index = 0; index < Game::GetInstance()->GetDeckBallCount(); index++)
 		{
 			const PlayerBallData* ball = Game::GetInstance()->GetDeckBall(index);
@@ -131,13 +163,33 @@ void ShopScene::DrawUI()
 			{
 				ImGui::Text("%s [%d] %s  ATK:%d DEF:%d",
 					index == m_SelectedRemoveBall ? ">" : " ", index,
-					ball->definitionId.c_str(), ball->status.attack, ball->status.defense);
+					ball->definitionId.c_str(),
+					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
+					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
 			}
 		}
 	}
 	else if (m_SelectedAction == 2)
 	{
-		ImGui::TextUnformatted("Relic purchases will be implemented later.");
+		ImGui::TextUnformatted("Relic catalog (LEFT / RIGHT)");
+		for (int index = 0; index < Game::GetInstance()->GetRelicCount(); index++)
+		{
+			const RelicDefinition* relic = Game::GetInstance()->GetRelic(index);
+			if (relic == nullptr)
+			{
+				continue;
+			}
+
+			ImGui::Text(
+				"%s %s - %d Money%s",
+				index == m_SelectedRelic ? ">" : " ",
+				relic->name,
+				relic->price,
+				Game::GetInstance()->HasRelic(relic->type)
+					? "  [OWNED]"
+					: "");
+			ImGui::Text("    %s", relic->description);
+		}
 	}
 
 	if (!m_Message.empty())
@@ -147,7 +199,7 @@ void ShopScene::DrawUI()
 	}
 	ImGui::Separator();
 	ImGui::TextUnformatted("W/S or UP/DOWN : Select service");
-	ImGui::TextUnformatted("A/D or LEFT/RIGHT : Select ball    ENTER/SPACE : Confirm");
+	ImGui::TextUnformatted("A/D or LEFT/RIGHT : Select item    ENTER/SPACE : Confirm");
 	ImGui::End();
 }
 

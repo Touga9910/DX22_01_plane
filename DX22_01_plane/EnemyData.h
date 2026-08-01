@@ -18,7 +18,7 @@ struct EnemyData
         DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);
 
     DirectX::SimpleMath::Vector3 scale =
-        DirectX::SimpleMath::Vector3(2.0f, 2.0f, 2.0f);
+        DirectX::SimpleMath::Vector3(2.4f, 2.4f, 2.4f);
 
     int rewardMoney = 0;
     int rewardExp = 0;

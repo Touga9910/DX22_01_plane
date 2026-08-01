@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "allow_write_actions": true,
+  "bridge_directory": "runtime/game_mcp",
+  "state_publish_interval_frames": 10
+}

@@ -1,14 +1,17 @@
 ﻿#include "Game.h"
 #include "Renderer.h"
+#include "BalanceLogger.h"
+#include "GameMcpBridge.h"
 #include "BallPhysicsComponent.h"
 #include "input.h"
 
-#include "PlayerBall.h"  // DrawImGui蜻ｼ縺ｳ蜃ｺ縺励↓蠢・ｦ・
-#include "EnemyBall.h"   // DrawImGui蜻ｼ縺ｳ蜃ｺ縺励↓蠢・ｦ・
+#include "PlayerBall.h"  // DrawImGui呼び出しに必要
+#include "EnemyBall.h"   // DrawImGui呼び出しに必要
 #include "EnemyAttackComponent.h"
 #include "BallComponent.h"
 #include "PlayerBallDataLoader.h"
 #include "StageDataLoader.h"
+#include "EnemyData.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -18,9 +21,10 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <random>
 
-Game* Game::m_Instance;//繧ｲ繝ｼ繝繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ
+Game* Game::m_Instance;//ゲームインスタンス
 
 namespace
 {
@@ -33,6 +37,29 @@ namespace
 	constexpr int kClearRewardCount =
 		static_cast<int>(sizeof(kClearRewardNames) / sizeof(kClearRewardNames[0]));
 	constexpr int kExtraRewardMoney = 10;
+	constexpr int kAutoShopRemoveCost = 15;
+
+	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
+	{
+		return static_cast<int>(std::count_if(
+			enemies.begin(),
+			enemies.end(),
+			[](const EnemyBall* enemy)
+			{
+				return enemy != nullptr && enemy->IsDefeated();
+			}));
+	}
+
+	int CountAliveEnemies(const std::vector<EnemyBall*>& enemies)
+	{
+		return static_cast<int>(std::count_if(
+			enemies.begin(),
+			enemies.end(),
+			[](const EnemyBall* enemy)
+			{
+				return enemy != nullptr && !enemy->IsDefeated();
+			}));
+	}
 
 	BallStatus NormalizeBallStatus(BallStatus status)
 	{
@@ -110,49 +137,64 @@ namespace
 	}
 }
 
-// 繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ
+// コンストラクタ
 Game::Game()
 {
 	m_Scene = nullptr;
 }
 
-// 繝・せ繝医Λ繧ｯ繧ｿ
+// デストラクタ
 Game::~Game()
 {
 	delete m_Scene;
 	DeleteAllObject();
 }
 
-// 蛻晄悄蛹・
+// 初期化
 void Game::Init()
 {
-	// 髱咏噪繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ繧偵％縺薙〒1縺､縺縺醍函謌・
+	// 静的インスタンスをここで1つだけ生成
 	if (m_Instance == nullptr) {
 		m_Instance = new Game();
 	}
-	// 謠冗判邨ゆｺ・・逅・
+	// 描画処理を初期化
 	Renderer::Init();
 
-	//蜈･蜉帛・逅・・譛溷喧
+	// 入力処理を初期化
 	Input::Create();
 
-	// 繧ｫ繝｡繝ｩ蛻晄悄蛹・
+	// カメラを初期化
 	m_Instance->m_Camera.Init();
 
 	m_Instance->LoadPlayerStatusFromJson();
+	m_Instance->LoadBalanceAutoPlayConfig();
+	m_Instance->LoadDynamicBalanceConfig();
 
-	//譛蛻昴・繧ｷ繝ｼ繝ｳ繧定ｪｭ縺ｿ縺薙・
+	// 最初のシーンを読み込む
 	m_Instance->m_Scene = new TitleScene;
+	m_Instance->m_GameMcpBridge =
+		std::make_unique<GameMcpBridge>();
+	m_Instance->m_GameMcpBridge->Initialize(*m_Instance);
 }
 
-// 譖ｴ譁ｰ
+// 更新
 void Game::Update()
 {
-	// 蜈･蜉帛・逅・峩譁ｰ
+	// 入力処理を更新
 	Input::Update();
 
+	if (m_Instance->m_GameMcpBridge != nullptr)
+	{
+		m_Instance->m_GameMcpBridge->Update(*m_Instance);
+	}
+
+	if (m_Instance->UpdateBalanceAutoPlay())
+	{
+		return;
+	}
+
 	// ==========================
-	// ClearReward荳ｭ縺ｯ繧ｲ繝ｼ繝譛ｬ邱ｨ繧呈峩譁ｰ縺励↑縺・
+	// ClearReward中はゲーム本編を更新しない
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
@@ -160,15 +202,16 @@ void Game::Update()
 		return;
 	}
 
-	if (m_Instance->m_PlayerDeck.GetOfferCount() > 0)
+	if (!m_Instance->m_BalanceAutoPlayEnabled &&
+		m_Instance->m_PlayerDeck.GetOfferCount() > 0)
 	{
 		m_Instance->UpdateBallSelection();
 	}
 
-	//繧ｷ繝ｼ繝ｳ譖ｴ譁ｰ
+	// シーンを更新
 	m_Instance->m_Scene->Update();
 
-	// 繧ｫ繝｡繝ｩ譖ｴ譁ｰ
+	// カメラを更新
 	m_Instance->m_Camera.Update();
 
 	for (auto& gameObject : m_Instance->m_GameObjects)
@@ -176,7 +219,7 @@ void Game::Update()
 		gameObject->FixedUpdate();
 	}
 
-	//繧ｪ繝悶ず繧ｧ繧ｯ繝域峩譁ｰ
+	// オブジェクトを更新
 	for (auto& gameObject : m_Instance->m_GameObjects)
 	{
 		gameObject->Update();
@@ -186,29 +229,44 @@ void Game::Update()
 	{
 		gameObject->LateUpdate();
 	}
-	// 豁ｻ莠｡繝輔Λ繧ｰ・・P縺・縺ｪ縺ｩ・峨′遶九▲縺ｦ縺・ｋ繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ閾ｪ蜍輔・蜍慕噪蜑企勁
+	// 死亡フラグ（HP0など）が立っているオブジェクトを自動的に削除
 	std::erase_if(m_Instance->m_GameObjects, [](const std::unique_ptr<GameObject>& o) {
 		if (o && o->IsDead()) {
-			o->Uninit(); // 蜑企勁縺輔ｌ繧句燕縺ｫ邨ゆｺ・・逅・ｒ蜻ｼ縺ｶ
-			return true; // 驟榊・縺九ｉ蜑企勁縺吶ｋ
+			o->Uninit(); // 削除される前に終了処理を呼ぶ
+			return true; // 配列から削除する
 		}
-		return false;    // 谿九☆
+		return false;    // 残す
 		});
 
-	// 隕∫ｴ縺梧ｸ帙▲縺溷ｴ蜷医・繝｡繝｢繝ｪ繧定ｩｰ繧√ｋ・域里蟄倥・蜃ｦ逅・ｒ縺薙％縺ｫ髮・ｴ・ｼ・
+	// 要素が減った場合はメモリを詰める（既存の処理をここに集約）
 	m_Instance->m_GameObjects.shrink_to_fit();
 
-	// 繧ｲ繝ｼ繝迥ｶ諷九・譖ｴ譁ｰ・亥・繝懊・繝ｫ蛛懈ｭ｢讀懷・・・
+	// ゲーム状態を更新（全ボールの停止検知など）
 	switch (m_Instance->m_GameState)
 	{
 	case GameState::BallsMoving:
 		if (m_Instance->AreAllBallsStopped())
 		{
+			const std::vector<PlayerBall*> players =
+				m_Instance->GetObjects<PlayerBall>();
+			const std::vector<EnemyBall*> enemies =
+				m_Instance->GetObjects<EnemyBall>();
+			const int playerHp =
+				players.empty() || players[0] == nullptr
+				? m_Instance->m_PlayerRunStatus.currentHp
+				: players[0]->GetHP();
+
+			BalanceLogger::GetInstance().EndShot(
+				playerHp,
+				CountAliveEnemies(enemies),
+				CountDefeatedEnemies(enemies));
+			m_Instance->FinishDynamicBalanceShot();
+
 			if (m_Instance->AreAllEnemiesDefeated())
 			{
 				m_Instance->StartClearReward();
 
-				// 謾ｻ謦・・縺励↑縺・・縺ｧ繝ｪ繧ｿ繝ｼ繝ｳ
+				// 攻撃フェーズへ進まないのでリターン
 				return;
 			}
 
@@ -233,51 +291,7 @@ void Game::Update()
 	}
 }
 
-// 謠冗判
-/*
-void Game::Draw()
-{
-	SkyBox* sky = Game::GetInstance()->GetSkyBox();
-	if (sky)
-		sky->Draw(&m_Instance->m_Camera);
-
-	Renderer::DrawStart();
-
-	for (auto& gameObject : m_Instance->m_GameObjects)
-		gameObject->Draw();
-
-	// 笘・ImGui縺ｮBegin?End繧奪rawEnd()縺ｮ蜑阪↓遘ｻ蜍・
-	ImGui::Begin("Ball Debugger");
-
-	std::vector<PlayerBall*> players = m_Instance->GetObjects<PlayerBall>();
-	for (int i = 0; i < players.size(); i++)
-		players[i]->DrawImGui();
-
-	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
-	for (int i = 0; i < enemies.size(); i++)
-	{
-		std::string label = "EnemyBall " + std::to_string(i);
-		enemies[i]->DrawImGui(label);
-	}
-
-	ImGui::End();
-
-	// ==========================
-	// 蝣ｱ驟ｬUI繧呈怙蠕後↓驥阪・繧・
-	// ==========================
-	if (m_Instance->m_GameState == GameState::ClearReward)
-	{
-		m_Instance->DrawClearRewardUI();
-	}
-
-	// Render 縺ｨ RenderDrawData 繧・DrawEnd()縺ｮ蜑阪↓遘ｻ蜍・
-	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-	Renderer::DrawEnd(); // 竊・Present 縺ｯ譛蠕・
-}
-*/
-
+// 描画
 void Game::Draw()
 {
 	SkyBox* sky = Game::GetInstance()->GetSkyBox();
@@ -337,6 +351,23 @@ void Game::Draw()
 		ImGui::Text("Current Ball ID = none");
 	}
 
+	if (ImGui::Button(
+		m_Instance->m_BalanceAutoPlayEnabled
+			? "Stop Balance Auto Play"
+			: "Start Balance Auto Play"))
+	{
+		m_Instance->m_BalanceAutoPlayEnabled =
+			!m_Instance->m_BalanceAutoPlayEnabled;
+		m_Instance->m_AutoDecisionFrame = 0;
+	}
+	ImGui::SameLine();
+	ImGui::Text(
+		"F8 / Runs: %d%s",
+		m_Instance->m_AutoRunCount,
+		m_Instance->m_AutoMaxRuns > 0
+			? " (limited)"
+			: " (unlimited)");
+
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
 		m_Instance->SaveDebugSnapshot();
@@ -370,49 +401,83 @@ void Game::Draw()
 	}
 
 	// ==========================
-	// 蝣ｱ驟ｬUI繧呈怙蠕後↓驥阪・繧・
+	// 報酬UIを最後に重ねる
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
 		m_Instance->DrawClearRewardUI();
 	}
 
-	// ImGui縺ｮ謠冗判蜀・ｮｹ繧堤｢ｺ螳・
+	// ImGuiの描画内容を確定
 	ImGui::Render();
 
-	// DirectX11縺ｧImGui繧呈緒逕ｻ
+	// DirectX11でImGuiを描画
 	ImGui_ImplDX11_RenderDrawData(
 		ImGui::GetDrawData()
 	);
 
-	// 譛蠕後↓逕ｻ髱｢繧定｡ｨ遉ｺ
+	// 最後に画面を表示
 	Renderer::DrawEnd();
 }
 
-// 邨ゆｺ・・逅・
+// 終了処理
 void Game::Uninit()
 {
-	// 繧ｫ繝｡繝ｩ邨ゆｺ・・逅・
+	if (m_Instance != nullptr)
+	{
+		if (m_Instance->m_GameMcpBridge != nullptr)
+		{
+			m_Instance->m_GameMcpBridge->Shutdown(*m_Instance);
+		}
+
+		const std::vector<PlayerBall*> players =
+			m_Instance->GetObjects<PlayerBall>();
+		const std::vector<EnemyBall*> enemies =
+			m_Instance->GetObjects<EnemyBall>();
+		const int playerHp =
+			players.empty() || players[0] == nullptr
+			? m_Instance->m_PlayerRunStatus.currentHp
+			: players[0]->GetHP();
+
+		BalanceLogger& logger =
+			BalanceLogger::GetInstance();
+		logger.EndShot(
+			playerHp,
+			CountAliveEnemies(enemies),
+			CountDefeatedEnemies(enemies));
+		logger.EndStage(
+			"application_exit",
+			playerHp,
+			m_Instance->m_PlayerRunStatus.maxHp,
+			CountDefeatedEnemies(enemies));
+		logger.EndRun(
+			"application_exit",
+			playerHp,
+			m_Instance->m_PlayerRunStatus.maxHp,
+			m_Instance->m_ClearedStageCount);
+	}
+
+	// カメラの終了処理
 	m_Instance->m_Camera.Uninit();
 
-	//繧ｪ繝悶ず繧ｧ繧ｯ繝育ｵゆｺ・・逅・
+	// オブジェクトの終了処理
 	for (auto& o : m_Instance->m_GameObjects)
 	{
 		o->Uninit();;
 	}
 
 
-	//蜈･蜉帛・逅・ｵゆｺ・
+	// 入力処理を終了
 	Input::Release();
 
-	// 謠冗判邨ゆｺ・・逅・
+	// 描画処理を終了
 	Renderer::Uninit();
 
-	//繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ蜑企勁
+	// インスタンスを削除
 	delete m_Instance;
 }
 
-//繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ蜿門ｾ・
+// インスタンスを取得
 Game* Game::GetInstance()
 {
 	return m_Instance;
@@ -426,7 +491,7 @@ GameObject* Game::CreateGameObject(const std::string& name)
 	return result;
 }
 
-//繧ｷ繝ｼ繝ｳ蛻・ｊ譖ｿ縺・
+// シーンを切り替える
 void Game::ChangeScene(SceneType sceneType)
 {
 	int score = 0;
@@ -446,7 +511,7 @@ void Game::ChangeScene(SceneType sceneType)
 	}
 
 	// =====================================
-	// 譁ｰ縺励＞繧ｹ繝・・繧ｸ縺ｸ蜈･繧九→縺榊ｱ驟ｬ蜿門ｾ礼憾諷九ｒ繝ｪ繧ｻ繝・ヨ
+	// 新しいステージへ入るときに報酬取得状態をリセット
 	// =====================================
 	if (sceneType == SceneType::Battle)
 	{
@@ -495,7 +560,7 @@ void Game::ChangeScene(SceneType sceneType)
 	}
 }
 
-//繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ蜑企勁
+// オブジェクトを削除
 void Game::DeleteObject(Object* pt)
 {
 	DeleteComponent(pt);
@@ -505,27 +570,27 @@ void Game::DeleteComponent(Component* component)
 {
 	if (component == nullptr) return;
 
-	// 1. 縺ｾ縺壹∵悽蠖薙↓ m_Objects 縺ｮ荳ｭ縺ｫ pt 縺悟ｭ伜惠縺吶ｋ縺狗｢ｺ隱阪☆繧・
+	// 1. 所有元のGameObjectがm_GameObjectsに存在するか確認する
 	GameObject* owner = component->GetGameObject();
 	auto it = std::find_if(m_Instance->m_GameObjects.begin(), m_Instance->m_GameObjects.end(),
 		[owner](const std::unique_ptr<GameObject>& element) {
 			return element.get() == owner;
 		});
 
-	// 2. 蟄伜惠縺励↑縺・ｼ医☆縺ｧ縺ｫ豸医∴縺ｦ縺・ｋ・峨↑繧我ｽ輔ｂ縺励↑縺・
+	// 2. 存在しない（すでに削除済み）場合は何もしない
 	if (it == m_Instance->m_GameObjects.end()) return;
 
-	// 3. 蟄伜惠縺吶ｋ蝣ｴ蜷医・縺ｿ縲∝ｮ牙・縺ｫ邨ゆｺ・＠縺ｦ蜑企勁
+	// 3. 存在する場合のみ安全に削除する
 	m_Instance->m_GameObjects.erase(it);
 
-	// 窶ｻ邨ゆｺ・凾縺ｮ繝ｫ繝ｼ繝嶺ｸｭ縺ｫ shrink_to_fit() 繧帝ｫ倬ｻ蠎ｦ縺ｧ蜻ｼ縺ｶ縺ｨ繝｡繝｢繝ｪ蜀咲｢ｺ菫昴〒關ｽ縺｡繧・☆縺・◆繧√・
-	// 蜑企勁蜃ｦ逅・・逶ｴ蠕後〒縺ｯ縺ｪ縺上√ご繝ｼ繝蜈ｨ菴薙・Update縺ｮ譛蠕後↑縺ｩ縺ｧ蜻ｼ縺ｶ縺ｮ縺悟ｮ牙・縺ｧ縺吶・
+	// ※終了処理のループ中にshrink_to_fit()を高頻度で呼ぶと、メモリ再確保で不安定になる。
+	// 削除直後ではなく、ゲーム全体のUpdateの最後などで呼ぶのが安全。
 }
 
-//繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ蜈ｨ蜑企勁
+// オブジェクトをすべて削除
 void Game::DeleteAllObject()
 {
-	//邨ゆｺ・・逅・
+	// 終了処理
 	for (auto& o : m_Instance->m_GameObjects)
 	{
 		o->Uninit();
@@ -569,7 +634,7 @@ bool Game::AreAllEnemiesDefeated() const
 {
 	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
 
-	// 謨ｵ縺・菴薙ｂ縺・↑縺・ｴ蜷医・繧ｯ繝ｪ繧｢謇ｱ縺・↓縺励↑縺・
+	// 敵が1体もいない場合はクリア扱いにしない
 	if (enemies.empty())
 	{
 		return false;
@@ -605,10 +670,7 @@ bool Game::AreAllBallsStopped() const
 	{
 		if (ball == nullptr) continue;
 
-		// 謦・ｴ貂医∩繝懊・繝ｫ縺ｯ蛛懈ｭ｢蛻､螳壹°繧蛾勁螟・
-		BallStatusComponent* status = ball->GetComponent<BallStatusComponent>();
-		if (status != nullptr && status->IsDefeated()) continue;
-
+		// 撃破済みの敵も反射後に停止するまではショット中として扱う。
 		BallPhysicsComponent* physics = ball->GetComponent<BallPhysicsComponent>();
 		if (physics != nullptr && !physics->IsStopped())
 		{
@@ -629,6 +691,17 @@ void Game::ProcessEnemyAttack()
 		m_GameState = GameState::GameOver;
 		return;
 	}
+
+	// 撃破済みの敵はショット中の反射物として残し、
+	// 敵の攻撃が始まる直前にだけ取り除く。
+	for (EnemyBall* enemy : enemies)
+	{
+		if (enemy != nullptr && enemy->IsDefeated())
+		{
+			DeleteComponent(enemy);
+		}
+	}
+	enemies = GetObjects<EnemyBall>();
 
 	PlayerBall* player = players[0];
 
@@ -667,6 +740,26 @@ void Game::ProcessEnemyAttack()
 void Game::ProcessGameOver()
 {
 	DiscardCurrentPlayerBall();
+
+	const std::vector<EnemyBall*> enemies =
+		GetObjects<EnemyBall>();
+	BalanceLogger& logger = BalanceLogger::GetInstance();
+	logger.EndShot(
+		m_PlayerRunStatus.currentHp,
+		CountAliveEnemies(enemies),
+		CountDefeatedEnemies(enemies));
+	logger.EndStage(
+		"game_over",
+		m_PlayerRunStatus.currentHp,
+		m_PlayerRunStatus.maxHp,
+		CountDefeatedEnemies(enemies));
+	logger.EndRun(
+		"game_over",
+		m_PlayerRunStatus.currentHp,
+		m_PlayerRunStatus.maxHp,
+		m_ClearedStageCount);
+	EvaluateDynamicBalanceStage(false);
+
 	ChangeScene(SceneType::Result);
 	m_GameState = GameState::AimingDirection;
 }
@@ -675,8 +768,31 @@ void Game::StartClearReward()
 {
 	DiscardCurrentPlayerBall();
 
-	// 謨ｵ蜈ｨ貊・ｱ驟ｬ繧呈園謖｀oney縺ｸ蜉邂励☆繧・
+	const std::vector<EnemyBall*> enemies =
+		GetObjects<EnemyBall>();
+	BalanceLogger& logger = BalanceLogger::GetInstance();
+	logger.EndShot(
+		m_PlayerRunStatus.currentHp,
+		CountAliveEnemies(enemies),
+		CountDefeatedEnemies(enemies));
+	logger.EndStage(
+		"clear",
+		m_PlayerRunStatus.currentHp,
+		m_PlayerRunStatus.maxHp,
+		CountDefeatedEnemies(enemies));
+	EvaluateDynamicBalanceStage(true);
+
+	// 敵全滅報酬を所持Moneyへ加算する
 	CollectStageRewardMoney();
+
+	// 全滅時は攻撃フェーズへ進まないため、報酬計算後に撃破済みの敵を取り除く。
+	for (EnemyBall* enemy : enemies)
+	{
+		if (enemy != nullptr && enemy->IsDefeated())
+		{
+			DeleteComponent(enemy);
+		}
+	}
 
 	m_SelectedRewardIndex = 0;
 	m_SelectedRewardBallIndex = 0;
@@ -697,14 +813,27 @@ void Game::CompleteCurrentStage()
 
 void Game::StartNextBattle(StageType stageType)
 {
-	const std::vector<StageData> stages = StageDataLoader::LoadAll(
-		"assets/data/stage_01.json",
-		"assets/data/enemy_data.json");
-
 	const std::string previousStageId =
 		m_PlayerRunStatus.GetSelectedStageId().empty()
 		? m_PlayerRunStatus.GetLastStageId()
 		: m_PlayerRunStatus.GetSelectedStageId();
+
+	if (m_McpNextStageOverride.has_value())
+	{
+		m_McpCurrentStageOverride =
+			std::move(m_McpNextStageOverride.value());
+		m_McpNextStageOverride.reset();
+		m_PlayerRunStatus.SetLastStageId(previousStageId);
+		m_PlayerRunStatus.SetSelectedStageId(
+			m_McpCurrentStageOverride->id);
+		ChangeScene(SceneType::Battle);
+		return;
+	}
+
+	m_McpCurrentStageOverride.reset();
+	const std::vector<StageData> stages = StageDataLoader::LoadAll(
+		"assets/data/stage_01.json",
+		"assets/data/enemy_data.json");
 
 	const StageData* selectedStage = m_StageSelector.SelectStage(
 		stages,
@@ -784,7 +913,9 @@ void Game::UpdateClearReward()
 		break;
 	case 1:
 		rewardApplied = RestUpgradeBall(m_SelectedRewardBallIndex);
-		m_RewardMessage = rewardApplied ? "The selected ball reached its next upgrade level." : "This ball is already +2.";
+		m_RewardMessage = rewardApplied
+			? "The selected ball reached its next upgrade level."
+			: "This ball is already +2.";
 		break;
 	case 2:
 		m_PlayerRunStatus.money += kExtraRewardMoney;
@@ -802,6 +933,10 @@ void Game::UpdateClearReward()
 }
 void Game::BeginBallSelection()
 {
+	m_CurrentShotCollisionAttackBonus = 0;
+	m_CurrentShotPlayerEnemyCollisionCount = 0;
+	m_CurrentShotEnemyEnemyCollisionCount = 0;
+
 	if (!m_PlayerDeck.PrepareOffer())
 	{
 		m_GameState = GameState::GameOver;
@@ -923,13 +1058,12 @@ void Game::DrawBallSelectionUI()
 			m_PlayerDeck.WasHeldOffer(index) ? "  (HELD)" : "");
 		ImGui::Text(
 			"ATK:%d  DEF:%d  MASS:%.2f  RADIUS:%.2f",
-			ball->status.attack,
-			ball->status.defense,
+			GetEffectivePlayerBallAttack(ball),
+			GetEffectivePlayerBallDefense(ball),
 			ball->status.mass,
 			ball->status.radius);
 		ImGui::Text(
-			"Split:%s  Pierce:%s",
-			ball->status.abilities.split ? "Yes" : "No",
+			"Pierce:%s",
 			ball->status.abilities.pierce ? "Yes" : "No");
 
 		if (ImGui::RadioButton(
@@ -1002,7 +1136,9 @@ void Game::DrawClearRewardUI()
 				{
 					ImGui::Text("%s %s  ATK:%d DEF:%d",
 						index == m_SelectedRewardBallIndex ? ">" : " ",
-						ball->definitionId.c_str(), ball->status.attack, ball->status.defense);
+						ball->definitionId.c_str(),
+						GetEffectivePlayerBallAttack(ball),
+						GetEffectivePlayerBallDefense(ball));
 				}
 			}
 		}
@@ -1018,7 +1154,8 @@ void Game::DrawClearRewardUI()
 					ImGui::Text("%s [%d] %s  +%d  ATK:%d DEF:%d",
 						index == m_SelectedRewardBallIndex ? ">" : " ", index,
 						ball->definitionId.c_str(), ball->upgradeLevel,
-						ball->status.attack, ball->status.defense);
+						GetEffectivePlayerBallAttack(ball),
+						GetEffectivePlayerBallDefense(ball));
 					if (ball->CanUpgrade())
 					{
 						const BallUpgradeStep& next = ball->upgradeTable[ball->upgradeLevel];
@@ -1075,33 +1212,1030 @@ void Game::ResetPlayerRuntimeStatus()
 	m_PlayerRunStatus.SetSelectedStageId("");
 	m_PlayerRunStatus.SetLastStageId("");
 	m_PlayerDeck.ResetToDefault();
+	m_OwnedRelics.fill(false);
+	m_CurrentShotCollisionAttackBonus = 0;
+	m_CurrentShotPlayerEnemyCollisionCount = 0;
+	m_CurrentShotEnemyEnemyCollisionCount = 0;
 	m_ClearedStageCount = 0;
+	m_AutoPendingBallAdjustments.clear();
+	m_McpCurrentStageOverride.reset();
+}
+
+void Game::StartNewRun()
+{
+	ResetPlayerRuntimeStatus();
+
+	std::vector<BalanceBallSnapshot> deck;
+	deck.reserve(static_cast<size_t>(
+		m_PlayerDeck.GetRewardTargetCount()));
+
+	for (int index = 0;
+		index < m_PlayerDeck.GetRewardTargetCount();
+		index++)
+	{
+		const PlayerBallData* ball =
+			m_PlayerDeck.GetRewardTarget(index);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+
+		BalanceBallSnapshot snapshot;
+		snapshot.id = ball->definitionId;
+		snapshot.upgradeLevel = ball->upgradeLevel;
+		snapshot.attack = ball->status.attack;
+		snapshot.defense = ball->status.defense;
+		snapshot.mass = ball->status.mass;
+		snapshot.radius = ball->status.radius;
+		snapshot.restitution = ball->status.restitution;
+		snapshot.friction = ball->status.friction;
+		snapshot.split = ball->status.abilities.split;
+		snapshot.pierce = ball->status.abilities.pierce;
+		deck.push_back(std::move(snapshot));
+	}
+
+	BalanceLogger::GetInstance().BeginRun(
+		m_PlayerRunStatus.maxHp,
+		m_PlayerRunStatus.currentHp,
+		deck,
+		m_BalanceAutoPlayEnabled ? "autoplay" : "human");
+}
+
+void Game::LoadBalanceAutoPlayConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout
+			<< "[BalanceAutoPlay] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+
+		m_BalanceAutoPlayEnabled =
+			config.value("enabled", false);
+		m_AutoRestartAfterGameOver =
+			config.value("restart_after_game_over", true);
+		m_AutoDecisionDelayFrames =
+			(std::max)(
+				1,
+				config.value("decision_delay_frames", 20));
+		m_AutoMaxRuns =
+			(std::max)(0, config.value("max_runs", 0));
+		m_AutoMinShotPower =
+			std::clamp(
+				config.value("min_shot_power", 4.0f),
+				1.0f,
+				8.0f);
+		m_AutoMaxShotPower =
+			std::clamp(
+				config.value("max_shot_power", 8.0f),
+				m_AutoMinShotPower,
+				8.0f);
+		m_AutoAimJitterDegrees =
+			std::clamp(
+				config.value("aim_jitter_degrees", 1.5f),
+				0.0f,
+				15.0f);
+
+		const unsigned int randomSeed =
+			config.value("random_seed", 20260727u);
+		m_AutoRandomEngine.seed(randomSeed);
+
+		std::cout
+			<< "[BalanceAutoPlay] "
+			<< (m_BalanceAutoPlayEnabled ? "Enabled" : "Disabled")
+			<< " / F8 toggles auto play"
+			<< std::endl;
+	}
+	catch (const nlohmann::json::exception& error)
+	{
+		std::cerr
+			<< "[BalanceAutoPlay] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::LoadDynamicBalanceConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout
+			<< "[DynamicBalance] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+
+		m_DynamicBalanceEnabled =
+			config.value("enabled", m_DynamicBalanceEnabled);
+		m_DynamicBalanceMinLevel =
+			config.value("minimum_level", m_DynamicBalanceMinLevel);
+		m_DynamicBalanceMaxLevel =
+			config.value("maximum_level", m_DynamicBalanceMaxLevel);
+		if (m_DynamicBalanceMinLevel > m_DynamicBalanceMaxLevel)
+		{
+			std::swap(
+				m_DynamicBalanceMinLevel,
+				m_DynamicBalanceMaxLevel);
+		}
+		m_DynamicBalanceLevel = std::clamp(
+			config.value("initial_level", m_DynamicBalanceLevel),
+			m_DynamicBalanceMinLevel,
+			m_DynamicBalanceMaxLevel);
+		m_DynamicBalanceHpStep =
+			(std::max)(0, config.value(
+				"hp_step_per_level",
+				m_DynamicBalanceHpStep));
+		m_DynamicBalanceAttackStep =
+			(std::max)(0, config.value(
+				"attack_step",
+				m_DynamicBalanceAttackStep));
+		m_DynamicBalanceLevelsPerAttackStep =
+			(std::max)(1, config.value(
+				"levels_per_attack_step",
+				m_DynamicBalanceLevelsPerAttackStep));
+		m_DynamicBalanceMinEnemyHp =
+			(std::max)(1, config.value(
+				"minimum_enemy_hp",
+				m_DynamicBalanceMinEnemyHp));
+		m_DynamicBalanceMaxEnemyHp =
+			(std::max)(
+				m_DynamicBalanceMinEnemyHp,
+				config.value(
+					"maximum_enemy_hp",
+					m_DynamicBalanceMaxEnemyHp));
+		m_DynamicBalanceMinEnemyAttack =
+			(std::max)(0, config.value(
+				"minimum_enemy_attack",
+				m_DynamicBalanceMinEnemyAttack));
+		m_DynamicBalanceMaxEnemyAttack =
+			(std::max)(
+				m_DynamicBalanceMinEnemyAttack,
+				config.value(
+					"maximum_enemy_attack",
+					m_DynamicBalanceMaxEnemyAttack));
+		m_DynamicBalanceStrongHpRatio = std::clamp(
+			config.value(
+				"strong_clear_hp_ratio",
+				m_DynamicBalanceStrongHpRatio),
+			0.0f,
+			1.0f);
+		m_DynamicBalanceWeakHpRatio = std::clamp(
+			config.value(
+				"weak_clear_hp_ratio",
+				m_DynamicBalanceWeakHpRatio),
+			0.0f,
+			1.0f);
+		m_DynamicBalanceStrongNoHitRate = std::clamp(
+			config.value(
+				"strong_no_hit_rate",
+				m_DynamicBalanceStrongNoHitRate),
+			0.0f,
+			1.0f);
+		m_DynamicBalanceWeakNoHitRate = std::clamp(
+			config.value(
+				"weak_no_hit_rate",
+				m_DynamicBalanceWeakNoHitRate),
+			0.0f,
+			1.0f);
+		m_DynamicBalanceTargetShotsPerEnemy =
+			(std::max)(
+				0.1f,
+				config.value(
+					"target_shots_per_enemy",
+					m_DynamicBalanceTargetShotsPerEnemy));
+		m_DynamicBalanceWeakShotMultiplier =
+			(std::max)(
+				1.0f,
+				config.value(
+					"weak_shot_multiplier",
+					m_DynamicBalanceWeakShotMultiplier));
+
+		std::cout
+			<< "[DynamicBalance] "
+			<< (m_DynamicBalanceEnabled ? "Enabled" : "Disabled")
+			<< " / Level=" << m_DynamicBalanceLevel
+			<< " / Range=" << m_DynamicBalanceMinLevel
+			<< ".." << m_DynamicBalanceMaxLevel
+			<< std::endl;
+	}
+	catch (const nlohmann::json::exception& error)
+	{
+		std::cerr
+			<< "[DynamicBalance] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::FinishDynamicBalanceShot()
+{
+	if (!m_DynamicBalanceStageActive ||
+		!m_DynamicBalanceShotActive)
+	{
+		return;
+	}
+
+	if (!m_DynamicBalanceCurrentShotHit)
+	{
+		m_DynamicBalanceStageNoHitShots++;
+	}
+	m_DynamicBalanceShotActive = false;
+}
+
+void Game::EvaluateDynamicBalanceStage(bool cleared)
+{
+	if (!m_DynamicBalanceStageActive)
+	{
+		return;
+	}
+
+	FinishDynamicBalanceShot();
+
+	const int safeEnemyCount =
+		(std::max)(1, m_DynamicBalanceStageEnemyCount);
+	const float targetShots =
+		m_DynamicBalanceTargetShotsPerEnemy *
+		static_cast<float>(safeEnemyCount);
+	m_DynamicBalanceLastHpRatio =
+		m_PlayerRunStatus.maxHp <= 0
+			? 0.0f
+			: std::clamp(
+				static_cast<float>(m_PlayerRunStatus.currentHp) /
+					static_cast<float>(m_PlayerRunStatus.maxHp),
+				0.0f,
+				1.0f);
+	m_DynamicBalanceLastNoHitRate =
+		m_DynamicBalanceStageShots <= 0
+			? 0.0f
+			: static_cast<float>(
+				m_DynamicBalanceStageNoHitShots) /
+				static_cast<float>(m_DynamicBalanceStageShots);
+	m_DynamicBalanceLastShotsPerEnemy =
+		static_cast<float>(m_DynamicBalanceStageShots) /
+		static_cast<float>(safeEnemyCount);
+	m_DynamicBalanceLastResult =
+		cleared ? "clear" : "game_over";
+	m_DynamicBalanceLastLevelChange = 0;
+
+	int requestedChange = 0;
+	if (!m_DynamicBalanceEnabled)
+	{
+		m_DynamicBalanceLastReason =
+			"Automatic adjustment is disabled.";
+	}
+	else if (!cleared)
+	{
+		requestedChange = -1;
+		m_DynamicBalanceLastReason =
+			"Game over: reduce the next battle difficulty.";
+	}
+	else
+	{
+		const bool strongClear =
+			m_DynamicBalanceLastHpRatio >=
+				m_DynamicBalanceStrongHpRatio &&
+			m_DynamicBalanceLastNoHitRate <=
+				m_DynamicBalanceStrongNoHitRate &&
+			static_cast<float>(m_DynamicBalanceStageShots) <=
+				targetShots;
+		const bool weakClear =
+			m_DynamicBalanceLastHpRatio <=
+				m_DynamicBalanceWeakHpRatio ||
+			m_DynamicBalanceLastNoHitRate >=
+				m_DynamicBalanceWeakNoHitRate ||
+			static_cast<float>(m_DynamicBalanceStageShots) >
+				targetShots *
+				m_DynamicBalanceWeakShotMultiplier;
+
+		if (strongClear)
+		{
+			requestedChange = 1;
+			m_DynamicBalanceLastReason =
+				"Strong clear: raise the next battle difficulty.";
+		}
+		else if (weakClear)
+		{
+			requestedChange = -1;
+			m_DynamicBalanceLastReason =
+				"Struggling clear: reduce the next battle difficulty.";
+		}
+		else
+		{
+			m_DynamicBalanceLastReason =
+				"Performance is inside the target range.";
+		}
+	}
+
+	const int previousLevel = m_DynamicBalanceLevel;
+	m_DynamicBalanceLevel = std::clamp(
+		m_DynamicBalanceLevel + requestedChange,
+		m_DynamicBalanceMinLevel,
+		m_DynamicBalanceMaxLevel);
+	m_DynamicBalanceLastLevelChange =
+		m_DynamicBalanceLevel - previousLevel;
+	m_DynamicBalanceStageActive = false;
+
+	std::cout
+		<< "[DynamicBalance] Result="
+		<< m_DynamicBalanceLastResult
+		<< " HP=" << m_DynamicBalanceLastHpRatio
+		<< " NoHit=" << m_DynamicBalanceLastNoHitRate
+		<< " ShotsPerEnemy="
+		<< m_DynamicBalanceLastShotsPerEnemy
+		<< " Level=" << previousLevel
+		<< "->" << m_DynamicBalanceLevel
+		<< " Reason=" << m_DynamicBalanceLastReason
+		<< std::endl;
+}
+
+bool Game::UpdateBalanceAutoPlay()
+{
+	if (Input::GetKeyTrigger(VK_F8))
+	{
+		m_BalanceAutoPlayEnabled =
+			!m_BalanceAutoPlayEnabled;
+		m_AutoDecisionFrame = 0;
+
+		std::cout
+			<< "[BalanceAutoPlay] "
+			<< (m_BalanceAutoPlayEnabled ? "ON" : "OFF")
+			<< std::endl;
+	}
+
+	if (!m_BalanceAutoPlayEnabled || m_Scene == nullptr)
+	{
+		return false;
+	}
+
+	auto isDecisionReady = [this]()
+	{
+		m_AutoDecisionFrame++;
+		if (m_AutoDecisionFrame < m_AutoDecisionDelayFrames)
+		{
+			return false;
+		}
+
+		m_AutoDecisionFrame = 0;
+		return true;
+	};
+
+	if (dynamic_cast<TitleScene*>(m_Scene) != nullptr)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		if (m_AutoMaxRuns > 0 &&
+			m_AutoRunCount >= m_AutoMaxRuns)
+		{
+			m_BalanceAutoPlayEnabled = false;
+			std::cout
+				<< "[BalanceAutoPlay] Max runs reached"
+				<< std::endl;
+			return false;
+		}
+
+		StartNewRun();
+		m_AutoRunCount++;
+		ChangeScene(SceneType::Select);
+		return true;
+	}
+
+	if (dynamic_cast<ResultScene*>(m_Scene) != nullptr)
+	{
+		if (!m_AutoRestartAfterGameOver)
+		{
+			m_BalanceAutoPlayEnabled = false;
+			return false;
+		}
+
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		ChangeScene(SceneType::Title);
+		m_GameState = GameState::AimingDirection;
+		return true;
+	}
+
+	if (dynamic_cast<StageSelectScene*>(m_Scene) != nullptr)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		PruneBalanceAutoPendingBalls();
+		if (IsBalanceAutoHealNeeded())
+		{
+			std::cout
+				<< "[BalanceAutoPlay] Route=RestSite Reason=HP below 40%"
+				<< std::endl;
+			ChangeScene(SceneType::RestSite);
+			return true;
+		}
+
+		if (FindBalanceAutoPendingUpgradeableBall() >= 0)
+		{
+			std::cout
+				<< "[BalanceAutoPlay] Route=RestSite Reason=Ball upgrade pending"
+				<< std::endl;
+			ChangeScene(SceneType::RestSite);
+			return true;
+		}
+
+		if (FindBalanceAutoPendingRemovalBall() >= 0 &&
+			m_PlayerRunStatus.money >= kAutoShopRemoveCost &&
+			m_PlayerDeck.GetRewardTargetCount() > 1)
+		{
+			std::cout
+				<< "[BalanceAutoPlay] Route=Shop Reason=Ball removal pending"
+				<< std::endl;
+			ChangeScene(SceneType::Shop);
+			return true;
+		}
+
+		StartNextBattle(GetBalanceAutoStageType());
+		return true;
+	}
+
+	if (dynamic_cast<RestSiteScene*>(m_Scene) != nullptr)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		if (IsBalanceAutoHealNeeded() && RestHeal())
+		{
+			std::cout
+				<< "[BalanceAutoPlay] RestSite: HP fully restored"
+				<< std::endl;
+		}
+		else
+		{
+			const int ballIndex =
+				FindBalanceAutoPendingUpgradeableBall();
+			const PlayerBallData* ball =
+				m_PlayerDeck.GetRewardTarget(ballIndex);
+			if (ball != nullptr)
+			{
+				const std::uint64_t instanceId = ball->instanceId;
+				const std::string definitionId = ball->definitionId;
+				if (RestUpgradeBall(ballIndex))
+				{
+					std::cout
+						<< "[BalanceAutoPlay] RestSite: upgraded "
+						<< definitionId
+						<< " (instance " << instanceId << ")"
+						<< std::endl;
+				}
+			}
+		}
+
+		StartNextBattle(GetBalanceAutoStageType());
+		return true;
+	}
+
+	if (dynamic_cast<ShopScene*>(m_Scene) != nullptr)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		const int ballIndex =
+			FindBalanceAutoPendingRemovalBall();
+		const PlayerBallData* ball =
+			m_PlayerDeck.GetRewardTarget(ballIndex);
+		if (ball != nullptr)
+		{
+			const std::uint64_t instanceId = ball->instanceId;
+			const std::string definitionId = ball->definitionId;
+			if (RemoveShopBall(
+				ballIndex,
+				kAutoShopRemoveCost))
+			{
+				std::cout
+					<< "[BalanceAutoPlay] Shop: removed "
+					<< definitionId
+					<< " (instance " << instanceId << ")"
+					<< std::endl;
+			}
+		}
+
+		StartNextBattle(GetBalanceAutoStageType());
+		return true;
+	}
+
+	if (m_GameState == GameState::ClearReward)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		if (!m_IsClearRewardChosen)
+		{
+			ApplyBalanceAutoReward();
+		}
+		else
+		{
+			ChangeScene(SceneType::Select);
+			m_GameState = GameState::AimingDirection;
+		}
+		return true;
+	}
+
+	if (dynamic_cast<BattleScene*>(m_Scene) != nullptr &&
+		m_GameState == GameState::AimingDirection)
+	{
+		std::vector<PlayerBall*> players =
+			GetObjects<PlayerBall>();
+		if (players.empty() ||
+			players[0] == nullptr ||
+			!players[0]->IsIdle() ||
+			!AreAllBallsStopped())
+		{
+			m_AutoDecisionFrame = 0;
+			return false;
+		}
+
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		SelectBalanceAutoBall();
+		return FireBalanceAutoShot();
+	}
+
+	return false;
+}
+
+void Game::SelectBalanceAutoBall()
+{
+	const int offerCount = m_PlayerDeck.GetOfferCount();
+	if (offerCount <= 0)
+	{
+		return;
+	}
+
+	int bestIndex = 0;
+	float bestScore =
+		-(std::numeric_limits<float>::max)();
+	const bool needsDefense =
+		m_PlayerRunStatus.currentHp * 2 <=
+		m_PlayerRunStatus.maxHp;
+
+	for (int index = 0; index < offerCount; index++)
+	{
+		const PlayerBallData* ball =
+			m_PlayerDeck.GetOffer(index);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+
+		float score =
+			static_cast<float>(ball->status.attack) * 4.0f +
+			static_cast<float>(ball->status.defense) *
+				(needsDefense ? 3.0f : 1.0f);
+		score += (std::max)(0.0f, ball->status.mass - 2.0f);
+		if (ball->status.abilities.pierce)
+		{
+			score += 2.0f;
+		}
+
+		if (score > bestScore)
+		{
+			bestScore = score;
+			bestIndex = index;
+		}
+	}
+
+	m_SelectedOfferIndex = bestIndex;
+	if (m_SelectedHoldIndex == bestIndex)
+	{
+		m_SelectedHoldIndex = -1;
+	}
+	ApplySelectedBallPreview();
+}
+
+bool Game::FireBalanceAutoShot()
+{
+	std::vector<PlayerBall*> players =
+		GetObjects<PlayerBall>();
+	std::vector<EnemyBall*> enemies =
+		GetObjects<EnemyBall>();
+
+	if (players.empty() || players[0] == nullptr)
+	{
+		return false;
+	}
+
+	PlayerBall* player = players[0];
+	const DirectX::SimpleMath::Vector3 playerPosition =
+		player->GetPosition();
+
+	EnemyBall* bestTarget = nullptr;
+	DirectX::SimpleMath::Vector3 bestDirection =
+		DirectX::SimpleMath::Vector3::UnitZ;
+	float bestDistance = 0.0f;
+	float bestTargetScore =
+		-(std::numeric_limits<float>::max)();
+
+	for (EnemyBall* target : enemies)
+	{
+		if (target == nullptr || target->IsDefeated())
+		{
+			continue;
+		}
+
+		DirectX::SimpleMath::Vector3 direction =
+			target->GetPosition() - playerPosition;
+		direction.y = 0.0f;
+		const float distance = direction.Length();
+		if (distance <= 0.0001f)
+		{
+			continue;
+		}
+		direction /= distance;
+
+		float chainScore = 0.0f;
+		for (EnemyBall* other : enemies)
+		{
+			if (other == nullptr ||
+				other == target ||
+				other->IsDefeated())
+			{
+				continue;
+			}
+
+			DirectX::SimpleMath::Vector3 relative =
+				other->GetPosition() - target->GetPosition();
+			relative.y = 0.0f;
+			const float forward =
+				relative.Dot(direction);
+			if (forward <= 0.0f)
+			{
+				continue;
+			}
+
+			const float lateralSquared =
+				(std::max)(
+					0.0f,
+					relative.LengthSquared() -
+					forward * forward);
+			const float targetRadius =
+				target->GetBall() == nullptr
+				? 0.0f
+				: target->GetBall()->GetRadius();
+			const float otherRadius =
+				other->GetBall() == nullptr
+				? 0.0f
+				: other->GetBall()->GetRadius();
+			const float chainWidth =
+				targetRadius + otherRadius + 1.5f;
+
+			if (lateralSquared <= chainWidth * chainWidth)
+			{
+				chainScore +=
+					100.0f / (1.0f + forward * 0.05f);
+			}
+		}
+
+		const float targetScore =
+			chainScore -
+			distance * 0.02f +
+			static_cast<float>(target->GetAttack()) * 0.25f;
+		if (targetScore > bestTargetScore)
+		{
+			bestTargetScore = targetScore;
+			bestTarget = target;
+			bestDirection = direction;
+			bestDistance = distance;
+		}
+	}
+
+	if (bestTarget == nullptr)
+	{
+		return false;
+	}
+
+	constexpr float DegreesToRadians =
+		3.14159265358979323846f / 180.0f;
+	std::uniform_real_distribution<float> jitterDistribution(
+		-m_AutoAimJitterDegrees,
+		m_AutoAimJitterDegrees);
+	const float jitter =
+		jitterDistribution(m_AutoRandomEngine) *
+		DegreesToRadians;
+	const float cosine = std::cos(jitter);
+	const float sine = std::sin(jitter);
+	const DirectX::SimpleMath::Vector3 shotDirection(
+		bestDirection.x * cosine +
+			bestDirection.z * sine,
+		0.0f,
+		-bestDirection.x * sine +
+			bestDirection.z * cosine);
+
+	const float shotPower = std::clamp(
+		3.0f + bestDistance * 0.03f,
+		m_AutoMinShotPower,
+		m_AutoMaxShotPower);
+
+	std::cout
+		<< "[BalanceAutoPlay] Target="
+		<< bestTarget->GetEnemyId()
+		<< " Power=" << shotPower
+		<< std::endl;
+
+	player->FireAutomatedShot(
+		shotDirection * shotPower);
+	return true;
+}
+
+void Game::ApplyBalanceAutoReward()
+{
+	// 削除待ちのボールがある場合は、ショップ費用を優先して確保する。
+	if (FindBalanceAutoPendingRemovalBall() >= 0 &&
+		m_PlayerRunStatus.money < kAutoShopRemoveCost)
+	{
+		m_SelectedRewardIndex = 2;
+		m_PlayerRunStatus.money += kExtraRewardMoney;
+		m_RewardMessage =
+			"Auto Play: saved Money for a pending ball removal.";
+		m_IsClearRewardChosen = true;
+		return;
+	}
+
+	// 通常時は強化報酬を選ばない。強化は衝突条件を満たした個体だけ、
+	// 休憩所で実行する。
+	for (int index = 0;
+		index < m_PlayerDeck.GetCatalogCount();
+		index++)
+	{
+		if (m_PlayerDeck.AddCatalogBall(index))
+		{
+			m_SelectedRewardIndex = 0;
+			m_SelectedRewardBallIndex = index;
+			m_RewardMessage =
+				"Auto Play: added a new ball.";
+			m_IsClearRewardChosen = true;
+			return;
+		}
+	}
+
+	m_SelectedRewardIndex = 2;
+	m_PlayerRunStatus.money += kExtraRewardMoney;
+	m_RewardMessage =
+		"Auto Play: received extra Money.";
+	m_IsClearRewardChosen = true;
+}
+
+StageType Game::GetBalanceAutoStageType() const
+{
+	const int progress =
+		(std::max)(1, m_PlayerRunStatus.progress);
+	if (progress % 10 == 0)
+	{
+		return StageType::Boss;
+	}
+	if (progress % 5 == 0)
+	{
+		return StageType::MidBoss;
+	}
+	return StageType::Normal;
+}
+
+bool Game::IsBalanceAutoHealNeeded() const
+{
+	return m_PlayerRunStatus.maxHp > 0 &&
+		m_PlayerRunStatus.currentHp * 10 <
+		m_PlayerRunStatus.maxHp * 4;
+}
+
+int Game::FindBalanceAutoPendingUpgradeableBall() const
+{
+	for (const std::uint64_t instanceId :
+		m_AutoPendingBallAdjustments)
+	{
+		for (int index = 0;
+			index < m_PlayerDeck.GetRewardTargetCount();
+			index++)
+		{
+			const PlayerBallData* ball =
+				m_PlayerDeck.GetRewardTarget(index);
+			if (ball != nullptr &&
+				ball->instanceId == instanceId &&
+				ball->CanUpgrade())
+			{
+				return index;
+			}
+		}
+	}
+
+	return -1;
+}
+
+int Game::FindBalanceAutoPendingRemovalBall() const
+{
+	for (const std::uint64_t instanceId :
+		m_AutoPendingBallAdjustments)
+	{
+		for (int index = 0;
+			index < m_PlayerDeck.GetRewardTargetCount();
+			index++)
+		{
+			const PlayerBallData* ball =
+				m_PlayerDeck.GetRewardTarget(index);
+			if (ball != nullptr &&
+				ball->instanceId == instanceId &&
+				!ball->CanUpgrade())
+			{
+				return index;
+			}
+		}
+	}
+
+	return -1;
+}
+
+bool Game::IsBallAdjustmentCandidate(
+	std::uint64_t instanceId) const
+{
+	return instanceId != 0 &&
+		std::find(
+			m_AutoPendingBallAdjustments.begin(),
+			m_AutoPendingBallAdjustments.end(),
+			instanceId) !=
+		m_AutoPendingBallAdjustments.end();
+}
+
+bool Game::HasAvailableRestBenefit() const
+{
+	if (m_PlayerRunStatus.currentHp <
+		m_PlayerRunStatus.maxHp)
+	{
+		return true;
+	}
+
+	const int ballCount =
+		m_PlayerDeck.GetRewardTargetCount();
+	for (int index = 0; index < ballCount; index++)
+	{
+		const PlayerBallData* ball =
+			m_PlayerDeck.GetRewardTarget(index);
+		if (ball != nullptr && ball->CanUpgrade())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void Game::RemoveBalanceAutoPendingBall(
+	std::uint64_t instanceId)
+{
+	m_AutoPendingBallAdjustments.erase(
+		std::remove(
+			m_AutoPendingBallAdjustments.begin(),
+			m_AutoPendingBallAdjustments.end(),
+			instanceId),
+		m_AutoPendingBallAdjustments.end());
+}
+
+void Game::PruneBalanceAutoPendingBalls()
+{
+	m_AutoPendingBallAdjustments.erase(
+		std::remove_if(
+			m_AutoPendingBallAdjustments.begin(),
+			m_AutoPendingBallAdjustments.end(),
+			[this](std::uint64_t instanceId)
+			{
+				for (int index = 0;
+					index < m_PlayerDeck.GetRewardTargetCount();
+					index++)
+				{
+					const PlayerBallData* ball =
+						m_PlayerDeck.GetRewardTarget(index);
+					if (ball != nullptr &&
+						ball->instanceId == instanceId)
+					{
+						return false;
+					}
+				}
+				return true;
+			}),
+		m_AutoPendingBallAdjustments.end());
+}
+
+void Game::OnBattleStageStarted(const StageData& stage)
+{
+	m_DynamicBalanceAppliedEnabled = m_DynamicBalanceEnabled;
+	m_DynamicBalanceAppliedLevel = m_DynamicBalanceLevel;
+	m_DynamicBalanceStageActive = true;
+	m_DynamicBalanceShotActive = false;
+	m_DynamicBalanceCurrentShotHit = false;
+	m_DynamicBalanceStageShots = 0;
+	m_DynamicBalanceStageNoHitShots = 0;
+	m_DynamicBalanceStageEnemyCount =
+		static_cast<int>(stage.enemies.size());
+
+	std::vector<BalanceEnemySnapshot> enemies;
+	enemies.reserve(stage.enemies.size());
+
+	for (const EnemySpawnData& spawn : stage.enemies)
+	{
+		const BallStatus& status = spawn.enemyData.status;
+		BalanceEnemySnapshot snapshot;
+		snapshot.id = spawn.enemyData.id;
+		snapshot.maxHp = status.maxHp;
+		snapshot.attack = status.attack;
+		snapshot.defense = status.defense;
+		snapshot.mass = status.mass;
+		snapshot.radius = status.radius;
+		snapshot.restitution = status.restitution;
+		snapshot.friction = status.friction;
+		snapshot.positionX = spawn.position.x;
+		snapshot.positionY = spawn.position.y;
+		snapshot.positionZ = spawn.position.z;
+		enemies.push_back(std::move(snapshot));
+	}
+
+	BalanceLogger::GetInstance().BeginStage(
+		stage.id,
+		ToString(stage.stageType),
+		stage.difficulty,
+		m_PlayerRunStatus.currentHp,
+		m_PlayerRunStatus.maxHp,
+		enemies);
 }
 
 bool Game::RestHeal()
 {
+	RestSiteScene* restSite =
+		dynamic_cast<RestSiteScene*>(m_Scene);
+	if (restSite != nullptr && restSite->HasUsedAction())
+	{
+		return false;
+	}
 	if (m_PlayerRunStatus.currentHp >= m_PlayerRunStatus.maxHp)
 	{
 		return false;
 	}
 
 	m_PlayerRunStatus.currentHp = m_PlayerRunStatus.maxHp;
+	if (restSite != nullptr)
+	{
+		restSite->MarkActionUsed();
+	}
 	return true;
 }
 
 bool Game::RestUpgradeBall(int ballIndex)
 {
+	RestSiteScene* restSite =
+		dynamic_cast<RestSiteScene*>(m_Scene);
+	if (restSite != nullptr && restSite->HasUsedAction())
+	{
+		return false;
+	}
 	PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(ballIndex);
-	if (ball == nullptr || !ball->CanUpgrade())
+	if (ball == nullptr ||
+		!ball->CanUpgrade())
 	{
 		return false;
 	}
 
+	const std::uint64_t instanceId = ball->instanceId;
 	const BallUpgradeStep& upgrade = ball->upgradeTable[ball->upgradeLevel];
 	ball->status.attack = upgrade.attack;
 	ball->status.defense = upgrade.defense;
 	ball->upgradeLevel++;
 	ball->status = NormalizeBallStatus(ball->status);
+	RemoveBalanceAutoPendingBall(instanceId);
+	if (restSite != nullptr)
+	{
+		restSite->MarkActionUsed();
+	}
 	return true;
 }
 
@@ -1120,10 +2254,20 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 bool Game::RemoveShopBall(int ballIndex, int cost)
 {
 	cost = (std::max)(0, cost);
-	if (m_PlayerRunStatus.money < cost || m_PlayerDeck.GetRewardTargetCount() <= 1)
+	if (m_PlayerRunStatus.money < cost ||
+		m_PlayerDeck.GetRewardTargetCount() <=
+			PlayerDeck::MinimumDeckSize)
 	{
 		return false;
 	}
+
+	const PlayerBallData* ball =
+		m_PlayerDeck.GetRewardTarget(ballIndex);
+	if (ball == nullptr)
+	{
+		return false;
+	}
+	const std::uint64_t instanceId = ball->instanceId;
 
 	if (!m_PlayerDeck.RemoveRewardTarget(ballIndex))
 	{
@@ -1131,8 +2275,70 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 	}
 
 	m_PlayerRunStatus.money -= cost;
+	RemoveBalanceAutoPendingBall(instanceId);
 	return true;
 }
+
+bool Game::BuyRelic(int relicIndex)
+{
+	const RelicDefinition* relic = GetRelic(relicIndex);
+	if (relic == nullptr || HasRelic(relic->type))
+	{
+		return false;
+	}
+
+	const int cost = (std::max)(0, relic->price);
+	if (m_PlayerRunStatus.money < cost)
+	{
+		return false;
+	}
+
+	m_PlayerRunStatus.money -= cost;
+	m_OwnedRelics[static_cast<std::size_t>(relic->type)] = true;
+
+	const std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	for (PlayerBall* player : players)
+	{
+		ApplyRelicModifiersTo(player);
+	}
+
+	return true;
+}
+
+int Game::GetOwnedRelicCount() const
+{
+	return static_cast<int>(std::count(
+		m_OwnedRelics.begin(),
+		m_OwnedRelics.end(),
+		true));
+}
+
+int Game::GetRelicAttackBonus() const
+{
+	return HasRelic(RelicType::AllBallAttackUp) ? 1 : 0;
+}
+
+int Game::GetRelicDefenseBonus() const
+{
+	return HasRelic(RelicType::AllBallDefenseUp) ? 1 : 0;
+}
+
+int Game::GetEffectivePlayerBallAttack(
+	const PlayerBallData* ball) const
+{
+	return ball == nullptr
+		? 0
+		: ball->status.attack + GetRelicAttackBonus();
+}
+
+int Game::GetEffectivePlayerBallDefense(
+	const PlayerBallData* ball) const
+{
+	return ball == nullptr
+		? 0
+		: ball->status.defense + GetRelicDefenseBonus();
+}
+
 void Game::ApplyPlayerStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -1179,7 +2385,36 @@ void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
 	player->SetMaxHP(m_PlayerRunStatus.maxHp);
 	player->SetHP(m_PlayerRunStatus.currentHp);
+	ApplyRelicModifiersTo(player);
 }
+
+void Game::ApplyRelicModifiersTo(PlayerBall* player)
+{
+	if (player == nullptr || player->GetBall() == nullptr)
+	{
+		return;
+	}
+
+	const int collisionBonus =
+		HasRelic(RelicType::CollisionAttackUp)
+			? m_CurrentShotCollisionAttackBonus
+			: 0;
+	player->GetBall()->SetCombatModifiers(
+		GetRelicAttackBonus() + collisionBonus,
+		GetRelicDefenseBonus());
+}
+
+void Game::ResetShotRelicAttackBonus(PlayerBall* player)
+{
+	m_CurrentShotCollisionAttackBonus = 0;
+	m_CurrentShotPlayerEnemyCollisionCount = 0;
+	m_CurrentShotEnemyEnemyCollisionCount = 0;
+	if (player != nullptr)
+	{
+		ApplyRelicModifiersTo(player);
+	}
+}
+
 void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 {
 	if (player == nullptr)
@@ -1246,7 +2481,7 @@ int Game::CalculateStageRewardMoney() const
 			continue;
 		}
 
-		// 蛟偵＠縺滓雰縺ｮ蝣ｱ驟ｬ縺縺代ｒ蜿門ｾ励☆繧・
+		// 倒した敵の報酬だけを取得する
 		if (!enemy->IsDefeated())
 		{
 			continue;
@@ -1261,7 +2496,7 @@ int Game::CalculateStageRewardMoney() const
 
 void Game::CollectStageRewardMoney()
 {
-	// StartClearReward縺瑚､・焚蝗槫他縺ｰ繧後※繧ゆｺ碁㍾蜿門ｾ励＠縺ｪ縺・
+	// StartClearRewardが複数回呼ばれても二重取得しない
 	if (m_IsStageRewardCollected)
 	{
 		return;
@@ -1286,6 +2521,12 @@ void Game::CollectStageRewardMoney()
 
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
+	ResetShotRelicAttackBonus(player);
+	if (player != nullptr && player->GetBall() != nullptr)
+	{
+		player->GetBall()->ResetShotAbilityState();
+	}
+
 	// 選択内容はショットした瞬間に確定する。
 	if (!m_PlayerDeck.HasCurrent())
 	{
@@ -1302,7 +2543,171 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		CapturePlayerStatusFrom(player);
 	}
 
+	const PlayerBallData* currentBall =
+		m_PlayerDeck.GetCurrent();
+	if (player != nullptr && currentBall != nullptr)
+	{
+		if (m_DynamicBalanceStageActive)
+		{
+			FinishDynamicBalanceShot();
+			m_DynamicBalanceStageShots++;
+			m_DynamicBalanceShotActive = true;
+			m_DynamicBalanceCurrentShotHit = false;
+		}
+
+		const DirectX::SimpleMath::Vector3 position =
+			player->GetPosition();
+		const DirectX::SimpleMath::Vector3 velocity =
+			player->GetVelocity();
+		const std::vector<EnemyBall*> enemies =
+			GetObjects<EnemyBall>();
+
+		BalanceLogger::GetInstance().BeginShot(
+			currentBall->definitionId,
+			currentBall->upgradeLevel,
+			velocity.Length(),
+			position.x,
+			position.y,
+			position.z,
+			velocity.x,
+			velocity.y,
+			velocity.z,
+			player->GetHP(),
+			CountAliveEnemies(enemies),
+			CountDefeatedEnemies(enemies));
+	}
+
 	m_PlayerDeck.MarkCurrentUsed();
+}
+
+void Game::NotifyDamageBallCollision(
+	DamageBallCollisionType collisionType)
+{
+	if (!HasRelic(RelicType::CollisionAttackUp))
+	{
+		return;
+	}
+
+	if (collisionType == DamageBallCollisionType::PlayerEnemy)
+	{
+		m_CurrentShotPlayerEnemyCollisionCount++;
+	}
+	else
+	{
+		m_CurrentShotEnemyEnemyCollisionCount++;
+	}
+
+	m_CurrentShotCollisionAttackBonus++;
+	const std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	for (PlayerBall* player : players)
+	{
+		ApplyRelicModifiersTo(player);
+	}
+}
+
+void Game::NotifyDynamicBalanceHit()
+{
+	if (m_DynamicBalanceStageActive &&
+		m_DynamicBalanceShotActive)
+	{
+		m_DynamicBalanceCurrentShotHit = true;
+	}
+}
+
+void Game::ApplyDynamicBalanceToEnemyData(
+	EnemyData& enemyData) const
+{
+	const bool effectiveEnabled =
+		m_DynamicBalanceStageActive
+			? m_DynamicBalanceAppliedEnabled
+			: m_DynamicBalanceEnabled;
+	if (!effectiveEnabled)
+	{
+		return;
+	}
+
+	const int effectiveLevel =
+		m_DynamicBalanceStageActive
+			? m_DynamicBalanceAppliedLevel
+			: m_DynamicBalanceLevel;
+	const int hpDelta =
+		effectiveLevel *
+		m_DynamicBalanceHpStep;
+	const int attackLevel =
+		effectiveLevel /
+		m_DynamicBalanceLevelsPerAttackStep;
+	const int attackDelta =
+		attackLevel *
+		m_DynamicBalanceAttackStep;
+
+	enemyData.status.maxHp = std::clamp(
+		enemyData.status.maxHp + hpDelta,
+		m_DynamicBalanceMinEnemyHp,
+		m_DynamicBalanceMaxEnemyHp);
+	enemyData.status.attack = std::clamp(
+		enemyData.status.attack + attackDelta,
+		m_DynamicBalanceMinEnemyAttack,
+		m_DynamicBalanceMaxEnemyAttack);
+}
+
+void Game::SetDynamicBalance(
+	bool enabled,
+	bool resetLevel,
+	int requestedLevel,
+	bool hasRequestedLevel)
+{
+	m_DynamicBalanceEnabled = enabled;
+	if (hasRequestedLevel)
+	{
+		m_DynamicBalanceLevel = std::clamp(
+			requestedLevel,
+			m_DynamicBalanceMinLevel,
+			m_DynamicBalanceMaxLevel);
+		m_DynamicBalanceLastReason =
+			"Difficulty level was set through MCP.";
+	}
+	else if (resetLevel)
+	{
+		m_DynamicBalanceLevel = 0;
+		m_DynamicBalanceLastReason =
+			"Difficulty level was reset through MCP.";
+	}
+	else
+	{
+		m_DynamicBalanceLastReason =
+			enabled
+				? "Automatic adjustment was enabled through MCP."
+				: "Automatic adjustment was disabled through MCP.";
+	}
+	m_DynamicBalanceLastLevelChange = 0;
+}
+
+void Game::NotifyBalanceAutoFullHpEnemySurvived()
+{
+	const PlayerBallData* currentBall =
+		m_PlayerDeck.GetCurrent();
+	if (currentBall == nullptr ||
+		currentBall->instanceId == 0)
+	{
+		return;
+	}
+
+	if (std::find(
+		m_AutoPendingBallAdjustments.begin(),
+		m_AutoPendingBallAdjustments.end(),
+		currentBall->instanceId) !=
+		m_AutoPendingBallAdjustments.end())
+	{
+		return;
+	}
+
+	m_AutoPendingBallAdjustments.push_back(
+		currentBall->instanceId);
+	std::cout
+		<< "[BalanceAutoPlay] Ball adjustment pending: "
+		<< currentBall->definitionId
+		<< " (instance " << currentBall->instanceId << ")"
+		<< std::endl;
 }
 
 void Game::DiscardCurrentPlayerBall()

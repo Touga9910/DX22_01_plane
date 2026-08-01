@@ -8,6 +8,11 @@ void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
 {
     // リセット時に戻す基準デッキを保存する
     m_DefaultDeck = defaultDeck;
+    m_NextInstanceId = 1;
+    for (PlayerBallData& ball : m_DefaultDeck)
+    {
+        ball.instanceId = m_NextInstanceId++;
+    }
 }
 
 void PlayerDeck::Reset()
@@ -420,6 +425,7 @@ bool PlayerDeck::AddCatalogBall(int index)
     }
 
     PlayerBallData addedBall = *catalogBall;
+    addedBall.instanceId = m_NextInstanceId++;
     addedBall.status = NormalizeStatus(addedBall.status);
     m_DrawPile.push_back(std::move(addedBall));
     return true;
@@ -427,7 +433,8 @@ bool PlayerDeck::AddCatalogBall(int index)
 
 bool PlayerDeck::RemoveRewardTarget(int index)
 {
-    if (index < 0 || GetRewardTargetCount() <= 1)
+    if (index < 0 ||
+        GetRewardTargetCount() <= MinimumDeckSize)
     {
         return false;
     }

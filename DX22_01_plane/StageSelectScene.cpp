@@ -6,19 +6,37 @@
 
 namespace
 {
-	constexpr const char* kNodeNames[] =
+	// 各枠の抽選比率。値を変更するだけで出現確率を調整できる。
+	constexpr int kBattleWeight = 6;
+	constexpr int kShopWeight = 2;
+	constexpr int kRestSiteWeight = 2;
+
+	static_assert(
+		kBattleWeight + kShopWeight + kRestSiteWeight > 0,
+		"At least one route weight must be greater than zero.");
+	static_assert(
+		kBattleWeight >= 0 && kShopWeight >= 0 && kRestSiteWeight >= 0,
+		"Route weights must not be negative.");
+
+	const char* GetRouteName(StageRouteType routeType)
 	{
-		"Battle",
-		"Rest Site",
-		"Shop",
-	};
-
-	constexpr int kNodeCount = static_cast<int>(sizeof(kNodeNames) / sizeof(kNodeNames[0]));
-
+		switch (routeType)
+		{
+		case StageRouteType::Battle:
+			return "Battle";
+		case StageRouteType::Shop:
+			return "Shop";
+		case StageRouteType::RestSite:
+			return "Rest Site";
+		default:
+			return "Unknown";
+		}
+	}
 }
 
 // コンストラクタ
 StageSelectScene::StageSelectScene()
+	: m_RandomEngine(std::random_device{}())
 {
 	Init();
 }
@@ -32,8 +50,8 @@ StageSelectScene::~StageSelectScene()
 // 初期化
 void StageSelectScene::Init()
 {
-
 	m_SelectedNode = 0;
+	RollRouteNodes();
 
 	//背景画像オブジェクトを作成
 	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
@@ -59,21 +77,45 @@ void StageSelectScene::Update()
 
 	if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
 	{
-		Game* game = Game::GetInstance();
-		switch (m_SelectedNode)
-		{
-		case 0:
-			game->StartNextBattle();
-			break;
-		case 1:
-			game->ChangeScene(SceneType::RestSite);
-			break;
-		case 2:
-			game->ChangeScene(SceneType::Shop);
-			break;
-		default:
-			break;
-		}
+		EnterRoute(m_RouteNodes[m_SelectedNode]);
+	}
+}
+
+void StageSelectScene::RollRouteNodes()
+{
+	const std::array<int, 3> weights =
+	{
+		kBattleWeight,
+		kShopWeight,
+		kRestSiteWeight
+	};
+	std::discrete_distribution<int> routeDistribution(
+		weights.begin(),
+		weights.end());
+
+	for (StageRouteType& routeType : m_RouteNodes)
+	{
+		routeType =
+			static_cast<StageRouteType>(routeDistribution(m_RandomEngine));
+	}
+}
+
+void StageSelectScene::EnterRoute(StageRouteType routeType)
+{
+	Game* game = Game::GetInstance();
+	switch (routeType)
+	{
+	case StageRouteType::Battle:
+		game->StartNextBattle();
+		break;
+	case StageRouteType::Shop:
+		game->ChangeScene(SceneType::Shop);
+		break;
+	case StageRouteType::RestSite:
+		game->ChangeScene(SceneType::RestSite);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -96,7 +138,10 @@ void StageSelectScene::DrawUI()
 
 	for (int index = 0; index < kNodeCount; index++)
 	{
-		ImGui::Text("%s %s", index == m_SelectedNode ? ">" : " ", kNodeNames[index]);
+		ImGui::Text(
+			"%s %s",
+			index == m_SelectedNode ? ">" : " ",
+			GetRouteName(m_RouteNodes[index]));
 	}
 	ImGui::TextUnformatted("Next battle stage: Random");
 

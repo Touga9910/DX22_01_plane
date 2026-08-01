@@ -11,7 +11,6 @@
 
 #include "Ground.h"
 #include "TableFrame.h"
-#include "Pocket.h"
 //#include "Arrow.h"
 #include "Pole.h"
 #include "SkyBox.h"
@@ -53,33 +52,29 @@ void BattleScene::Init()
 		Game::GetInstance()->AddObject<SkyBox>());
 
 	// ========================================================
-	// TableFrame のポケット位置を元に Pocket を生成
-	// ========================================================
-	std::vector<Collision::Sphere> pocketSpheres = tableFrame->GetPocketSpheres();
-
-	for (const Collision::Sphere& sphere : pocketSpheres)
-	{
-		Pocket* pocket = Game::GetInstance()->AddObject<Pocket>();
-		pocket->SetPosition(sphere.center);
-		pocket->SetRadius(sphere.radius);
-
-		m_MySceneObjects.emplace_back(pocket);
-	}
-
-	// ========================================================
 	// エネミー（EnemyBall）の出現処理
 	// ========================================================
-	std::vector<StageData> stages = StageDataLoader::LoadAll(
-		m_StageJsonPath,
-		m_EnemyJsonPath
-	);
+	Game* game = Game::GetInstance();
+	const StageData* stageData = game->GetCurrentStageOverride();
+	const bool usesMcpStageOverride = stageData != nullptr;
+	std::vector<StageData> stages;
+	if (!usesMcpStageOverride)
+	{
+		stages = StageDataLoader::LoadAll(
+			m_StageJsonPath,
+			m_EnemyJsonPath
+		);
+	}
 
 	m_LastStageJsonWriteTime = GetJsonWriteTime(m_StageJsonPath);
 	m_LastEnemyJsonWriteTime = GetJsonWriteTime(m_EnemyJsonPath);
 
-	m_SelectedStageId = Game::GetInstance()->GetSelectedStageId();
-	const StageData* stageData =
-		StageDataLoader::FindById(stages, m_SelectedStageId);
+	m_SelectedStageId = game->GetSelectedStageId();
+	if (!usesMcpStageOverride)
+	{
+		stageData =
+			StageDataLoader::FindById(stages, m_SelectedStageId);
+	}
 	if (stageData == nullptr)
 	{
 		std::cerr << "[BattleScene] 保存済みstage ID「"
@@ -96,10 +91,21 @@ void BattleScene::Init()
 
 	if (stageData != nullptr)
 	{
-		m_Par = stageData->par;
-		ValidateEnemySpawns(*stageData, *ball, *tableFrame);
+		StageData adjustedStage = *stageData;
+		for (EnemySpawnData& spawn : adjustedStage.enemies)
+		{
+			Game::GetInstance()->ApplyDynamicBalanceToEnemyData(
+				spawn.enemyData);
+		}
+		if (!usesMcpStageOverride)
+		{
+			ArrangeDenseEnemySpawns(adjustedStage);
+		}
 
-		for (const EnemySpawnData& spawn : stageData->enemies)
+		m_Par = adjustedStage.par;
+		ValidateEnemySpawns(adjustedStage, *ball, *tableFrame);
+
+		for (const EnemySpawnData& spawn : adjustedStage.enemies)
 		{
 			EnemyData enemyData = spawn.enemyData;
 			enemyData.initPosition = spawn.position;
@@ -109,6 +115,8 @@ void BattleScene::Init()
 				BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
 			m_MySceneObjects.emplace_back(enemy);
 		}
+
+		Game::GetInstance()->OnBattleStageStarted(adjustedStage);
 	}
 
 	std::cout << "\nオブジェクトの生成終了\n" << std::endl;
@@ -188,6 +196,11 @@ void BattleScene::Update()
 // =======================================
 void BattleScene::UpdateJsonHotReload()
 {
+	if (Game::GetInstance()->GetCurrentStageOverride() != nullptr)
+	{
+		return;
+	}
+
 	// すでに変更検知済みなら、少し待ってからリロードする
 	if (m_HotReloadPending)
 	{
@@ -270,7 +283,10 @@ void BattleScene::ReloadEnemyStatusFromJson()
 
 	for (const EnemySpawnData& spawn : stageData->enemies)
 	{
-		enemyDataMap[spawn.enemyData.id] = spawn.enemyData;
+		EnemyData enemyData = spawn.enemyData;
+		Game::GetInstance()->ApplyDynamicBalanceToEnemyData(
+			enemyData);
+		enemyDataMap[enemyData.id] = std::move(enemyData);
 	}
 
 	std::vector<EnemyBall*> enemies =
@@ -296,6 +312,65 @@ void BattleScene::ReloadEnemyStatusFromJson()
 	std::cout << "[HotReload] 敵ステータスを更新しました" << std::endl;
 }
 
+void BattleScene::ArrangeDenseEnemySpawns(StageData& stage) const
+{
+	constexpr size_t kDenseColumnCount = 3;
+	constexpr float kDenseGap = 2.0f;
+	constexpr float kNearestRowDistance = 14.0f;
+
+	if (stage.enemies.size() <= 3)
+	{
+		return;
+	}
+
+	float maxRadius = 0.01f;
+	float originalCenterZ = 0.0f;
+	for (const EnemySpawnData& spawn : stage.enemies)
+	{
+		maxRadius = (std::max)(
+			maxRadius,
+			spawn.enemyData.status.radius);
+		originalCenterZ += spawn.position.z;
+	}
+	originalCenterZ /= static_cast<float>(stage.enemies.size());
+
+	const float spacing =
+		maxRadius * 2.0f + kDenseGap;
+	const float zDirection =
+		originalCenterZ < 0.0f ? -1.0f : 1.0f;
+
+	size_t enemyIndex = 0;
+	size_t rowIndex = 0;
+	while (enemyIndex < stage.enemies.size())
+	{
+		const size_t enemiesInRow = (std::min)(
+			kDenseColumnCount,
+			stage.enemies.size() - enemyIndex);
+		const float rowStartX =
+			-static_cast<float>(enemiesInRow - 1) *
+			spacing * 0.5f;
+		const float rowZ =
+			zDirection *
+			(kNearestRowDistance +
+			 static_cast<float>(rowIndex) * spacing);
+
+		for (size_t columnIndex = 0;
+			columnIndex < enemiesInRow;
+			columnIndex++, enemyIndex++)
+		{
+			EnemySpawnData& spawn = stage.enemies[enemyIndex];
+			spawn.position = Vector3(
+				rowStartX +
+					static_cast<float>(columnIndex) * spacing,
+				TableConfig::FIELD_HEIGHT,
+				rowZ);
+			spawn.enemyData.initPosition = spawn.position;
+		}
+
+		rowIndex++;
+	}
+}
+
 void BattleScene::ValidateEnemySpawns(
 	const StageData& stage,
 	const PlayerBall& player,
@@ -304,8 +379,6 @@ void BattleScene::ValidateEnemySpawns(
 	const float fieldHalfWidth = TableConfig::GetFieldWidth() * 0.5f;
 	const float fieldHalfDepth = TableConfig::GetFieldDepth() * 0.5f;
 	const std::vector<Collision::Segment> walls = tableFrame.GetWalls();
-	const std::vector<Collision::Sphere> pockets =
-		tableFrame.GetPocketSpheres();
 	const Collision::Sphere playerSphere = player.GetBall()->GetSphere();
 	std::vector<Collision::Sphere> validatedEnemies;
 
@@ -347,15 +420,6 @@ void BattleScene::ValidateEnemySpawns(
 				wall) <= radius)
 			{
 				warn(enemyIndex, position, "壁と重なっています");
-				break;
-			}
-		}
-
-		for (const Collision::Sphere& pocket : pockets)
-		{
-			if (Collision::CheckHit(enemySphere, pocket))
-			{
-				warn(enemyIndex, position, "ポケットと重なっています");
 				break;
 			}
 		}

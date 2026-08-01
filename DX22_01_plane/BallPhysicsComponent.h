@@ -51,7 +51,7 @@ private:
     float m_Mass = 1.0f;
     float m_Restitution = 0.8f;
     float m_Friction = 0.02f;
-    float m_Radius = 2.0f;
+    float m_Radius = 2.4f;
     DirectX::SimpleMath::Vector3 m_InitialPosition = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Vector3 m_OldPosition = DirectX::SimpleMath::Vector3::Zero;
     DirectX::SimpleMath::Quaternion m_RollingRotation =

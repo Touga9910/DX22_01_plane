@@ -144,12 +144,14 @@
     <ClCompile Include="BallComponent.cpp" />
     <ClCompile Include="BallFactory.cpp" />
     <ClCompile Include="BallRenderComponent.cpp" />
+    <ClCompile Include="BalanceLogger.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Collision.cpp" />
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameMcpBridge.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="PlayerBall.cpp" />
     <ClCompile Include="PlayerDeck.cpp" />
@@ -169,7 +171,7 @@
     <ClCompile Include="Pole.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ResultScene.cpp" />
-	<ClCompile Include="RestSiteScene.cpp" />
+    <ClCompile Include="RestSiteScene.cpp" />
     <ClCompile Include="RigidbodyComponent.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
@@ -180,7 +182,7 @@
     <ClCompile Include="StageDataLoader.cpp" />
     <ClCompile Include="StageSelector.cpp" />
     <ClCompile Include="StageSelectScene.cpp" />
-	<ClCompile Include="ShopScene.cpp" />
+    <ClCompile Include="ShopScene.cpp" />
     <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="TableFrame.cpp" />
@@ -205,6 +207,7 @@
     <ClInclude Include="BallRenderComponent.h" />
     <ClInclude Include="BallStatus.h" />
     <ClInclude Include="BallStatusComponent.h" />
+    <ClInclude Include="BalanceLogger.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Collision.h" />
     <ClInclude Include="Component.h" />
@@ -212,6 +215,7 @@
     <ClInclude Include="EnemyAttackComponent.h" />
     <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameMcpBridge.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="PlayerBall.h" />
     <ClInclude Include="Ground.h" />
@@ -238,7 +242,7 @@
     <ClInclude Include="Pole.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ResultScene.h" />
-	<ClInclude Include="RestSiteScene.h" />
+    <ClInclude Include="RestSiteScene.h" />
     <ClInclude Include="RigidbodyComponent.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
@@ -251,7 +255,7 @@
     <ClInclude Include="StageDataLoader.h" />
     <ClInclude Include="StageSelector.h" />
     <ClInclude Include="StageSelectScene.h" />
-	<ClInclude Include="ShopScene.h" />
+    <ClInclude Include="ShopScene.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="TableConfig.h" />
@@ -293,10 +297,25 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="assets\data\balance_autoplay.json" />
+    <None Include="assets\data\balance_targets.json" />
+    <None Include="assets\data\game_mcp_bridge.json" />
     <None Include="assets\data\enemy_data.json" />
     <None Include="assets\data\player_deck.json" />
     <None Include="assets\data\player_status.json" />
     <None Include="assets\data\stage_01.json" />
+    <None Include="tools\analyze_balance_logs.py" />
+    <None Include="tools\game_mcp\bridge_store.py" />
+    <None Include="tools\game_mcp\init_secure_tunnel.cmd" />
+    <None Include="tools\game_mcp\player_profiles.json" />
+    <None Include="tools\game_mcp\README.md" />
+    <None Include="tools\game_mcp\requirements.txt" />
+    <None Include="tools\game_mcp\server.py" />
+    <None Include="tools\game_mcp\setup_game_mcp.cmd" />
+    <None Include="tools\game_mcp\smoke_test.py" />
+    <None Include="tools\game_mcp\start_game_mcp.cmd" />
+    <None Include="tools\game_mcp\start_secure_tunnel.cmd" />
+    <None Include="tools\game_mcp\test_bridge_store.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

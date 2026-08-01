@@ -1,11 +1,13 @@
 ﻿#include "BallComponent.h"
 
 #include "Collision.h"
+#include "BalanceLogger.h"
 #include "Game.h"
 #include "TableFrame.h"
 #include "Pocket.h"
 #include "imgui/imgui.h"
 #include "EnemyBall.h"
+#include "PlayerBall.h"
 #include "GameObject.h"
 #include "TransformComponent.h"
 
@@ -201,7 +203,6 @@ void BallComponent::UpdatePhysics()
 		for (BallComponent* other : balls)
 		{
 			if (other == this) continue;
-			if (other->IsDefeated()) continue;
 
 			Vector3 relativeVelocity = m_PhysicsComponent->Velocity() - other->m_PhysicsComponent->Velocity();
 			float relativeSpeed = relativeVelocity.Length();
@@ -271,8 +272,6 @@ void BallComponent::UpdatePhysics()
 
 			for (BallComponent* other : balls)
 			{
-				if (other->IsDefeated()) continue;
-
 				// 自分を見つけるまでスキップ
 				if (!foundSelf)
 				{
@@ -285,31 +284,112 @@ void BallComponent::UpdatePhysics()
 				float distance = diff.Length();
 				float minDist = m_PhysicsComponent->Radius() + other->m_PhysicsComponent->Radius();
 
-				if (distance < minDist && distance > 0.0001f)
+				if (distance >= minDist)
+				{
+					if (m_PiercedBall == other)
+					{
+						m_PiercedBall = nullptr;
+					}
+					if (other->m_PiercedBall == this)
+					{
+						other->m_PiercedBall = nullptr;
+					}
+				}
+
+				const bool ignoresPiercedContact =
+					m_PiercedBall == other ||
+					other->m_PiercedBall == this;
+
+				if (distance < minDist &&
+					distance > 0.0001f &&
+					!ignoresPiercedContact)
 				{
 					Vector3 normal = diff;
 					normal.Normalize();
 
-					float overlap = minDist - distance;
-					m_Transform.position += normal * (overlap * 0.5f);
-					other->m_Transform.position -= normal * (overlap * 0.5f);
+					EnemyBall* myEnemy =
+						GetGameObject()->GetComponent<EnemyBall>();
+					EnemyBall* otherEnemy =
+						other->GetGameObject()->GetComponent<EnemyBall>();
+					PlayerBall* myPlayer =
+						GetGameObject()->GetComponent<PlayerBall>();
+					PlayerBall* otherPlayer =
+						other->GetGameObject()->GetComponent<PlayerBall>();
+
+					const bool myPlayerPiercesOther =
+						myPlayer != nullptr &&
+						otherEnemy != nullptr &&
+						HasPierceAbility() &&
+						!m_PierceConsumed;
+					const bool otherPlayerPiercesMe =
+						otherPlayer != nullptr &&
+						myEnemy != nullptr &&
+						other->HasPierceAbility() &&
+						!other->m_PierceConsumed;
+					const bool piercesThisCollision =
+						myPlayerPiercesOther ||
+						otherPlayerPiercesMe;
+
+					if (!piercesThisCollision)
+					{
+						float overlap = minDist - distance;
+						m_Transform.position += normal * (overlap * 0.5f);
+						other->m_Transform.position -= normal * (overlap * 0.5f);
+					}
 
 					float myDot = Collision::Dot(m_PhysicsComponent->Velocity(), normal);
 					float otherDot = Collision::Dot(other->m_PhysicsComponent->Velocity(), normal);
 
 					if (myDot - otherDot < 0)
 					{
-						float restitution = m_PhysicsComponent->Restitution();
+						if (piercesThisCollision)
+						{
+							constexpr float PierceSpeedRetention = 0.75f;
+							if (myPlayerPiercesOther)
+							{
+								m_PierceConsumed = true;
+								m_PiercedBall = other;
+								m_PhysicsComponent->Velocity() *=
+									PierceSpeedRetention;
+								stepVelocity =
+									m_PhysicsComponent->Velocity() /
+									static_cast<float>(subSteps);
+							}
+							else
+							{
+								other->m_PierceConsumed = true;
+								other->m_PiercedBall = this;
+								other->m_PhysicsComponent->Velocity() *=
+									PierceSpeedRetention;
+							}
+						}
+						else
+						{
+							float restitution =
+								m_PhysicsComponent->Restitution();
 
-						// 質量を考慮した速度変化量
-						float totalMass = m_PhysicsComponent->Mass() + other->m_PhysicsComponent->Mass();
-						float myRatio = (2.0f * other->m_PhysicsComponent->Mass()) / totalMass;
-						float otherRatio = (2.0f * m_PhysicsComponent->Mass()) / totalMass;
+							// 質量を考慮した速度変化量
+							float totalMass =
+								m_PhysicsComponent->Mass() +
+								other->m_PhysicsComponent->Mass();
+							float myRatio =
+								(2.0f * other->m_PhysicsComponent->Mass()) /
+								totalMass;
+							float otherRatio =
+								(2.0f * m_PhysicsComponent->Mass()) /
+								totalMass;
 
-						m_PhysicsComponent->Velocity() -= normal * myRatio * (myDot - otherDot) * restitution;
-						other->m_PhysicsComponent->Velocity() += normal * otherRatio * (myDot - otherDot) * restitution;
+							m_PhysicsComponent->Velocity() -=
+								normal * myRatio * (myDot - otherDot) *
+								restitution;
+							other->m_PhysicsComponent->Velocity() +=
+								normal * otherRatio * (myDot - otherDot) *
+								restitution;
 
-						stepVelocity = m_PhysicsComponent->Velocity() / static_cast<float>(subSteps);
+							stepVelocity =
+								m_PhysicsComponent->Velocity() /
+								static_cast<float>(subSteps);
+						}
 
 						// ==========================================================
 						// ==========================================================
@@ -318,14 +398,75 @@ void BallComponent::UpdatePhysics()
 						int damageToThis = other->GetAttack();
 						int damageToOther = GetAttack();
 
-						if (EnemyBall* myEnemy = GetGameObject()->GetComponent<EnemyBall>())
+						const bool isPlayerEnemyCollision =
+							(myPlayer != nullptr && otherEnemy != nullptr) ||
+							(myEnemy != nullptr && otherPlayer != nullptr);
+						const bool isEnemyEnemyCollision =
+							myEnemy != nullptr && otherEnemy != nullptr;
+						if (isEnemyEnemyCollision)
 						{
-							myEnemy->TakeDamage(damageToThis);
+							const int impactBonus =
+								Game::GetInstance()->
+									GetCurrentShotCollisionAttackBonus();
+							damageToThis += impactBonus;
+							damageToOther += impactBonus;
+						}
+						const bool myEnemyWasFullHp =
+							myEnemy != nullptr &&
+							otherPlayer != nullptr &&
+							myEnemy->GetHP() == myEnemy->GetMaxHP();
+						const bool otherEnemyWasFullHp =
+							otherEnemy != nullptr &&
+							myPlayer != nullptr &&
+							otherEnemy->GetHP() == otherEnemy->GetMaxHP();
+
+						if (isPlayerEnemyCollision)
+						{
+							BalanceLogger::GetInstance().RecordDamageCollision(
+								BalanceCollisionType::PlayerEnemy);
+							Game::GetInstance()->NotifyDynamicBalanceHit();
+						}
+						else if (isEnemyEnemyCollision)
+						{
+							// 両方の敵にダメージが入っても、衝突回数は1回。
+							BalanceLogger::GetInstance().RecordDamageCollision(
+								BalanceCollisionType::EnemyEnemy);
+							Game::GetInstance()->NotifyDynamicBalanceHit();
 						}
 
-						if (EnemyBall* otherEnemy = other->GetGameObject()->GetComponent<EnemyBall>())
+						if (myEnemy != nullptr)
+						{
+							myEnemy->TakeDamage(damageToThis);
+							if (myEnemyWasFullHp &&
+								!myEnemy->IsDefeated())
+							{
+								Game::GetInstance()->
+									NotifyBalanceAutoFullHpEnemySurvived();
+							}
+						}
+
+						if (otherEnemy != nullptr)
 						{
 							otherEnemy->TakeDamage(damageToOther);
+							if (otherEnemyWasFullHp &&
+								!otherEnemy->IsDefeated())
+							{
+								Game::GetInstance()->
+									NotifyBalanceAutoFullHpEnemySurvived();
+							}
+						}
+
+						if (isPlayerEnemyCollision)
+						{
+							Game::GetInstance()->
+								NotifyDamageBallCollision(
+									DamageBallCollisionType::PlayerEnemy);
+						}
+						else if (isEnemyEnemyCollision)
+						{
+							Game::GetInstance()->
+								NotifyDamageBallCollision(
+									DamageBallCollisionType::EnemyEnemy);
 						}
 						// ==========================================================
 					}
@@ -392,6 +533,8 @@ void BallComponent::UpdatePhysics()
 
 void BallComponent::ResetToInitialPosition()
 {
+	ResetShotAbilityState();
+
 	// 位置情報を初期位置に戻す
 	m_Transform.position = m_PhysicsComponent->InitialPosition();
 	m_PhysicsComponent->OldPosition() = m_PhysicsComponent->InitialPosition();

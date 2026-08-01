@@ -96,6 +96,13 @@ void TableFrame::BuildMesh()
     Color railColor = Color(0.45f, 0.22f, 0.08f, 1.0f);
     Color pocketColor = Color(0.0f, 0.0f, 0.0f, 1.0f);
 
+    // Build four continuous rails without pocket gaps.
+    AddQuad(-outerHalfW, fieldHalfD, outerHalfW, outerHalfD, y, railColor);
+    AddQuad(-outerHalfW, -outerHalfD, outerHalfW, -fieldHalfD, y, railColor);
+    AddQuad(-outerHalfW, -fieldHalfD, -fieldHalfW, fieldHalfD, y, railColor);
+    AddQuad(fieldHalfW, -fieldHalfD, outerHalfW, fieldHalfD, y, railColor);
+    return;
+
     if (TableConfig::IsDepthLongSide())
     {
         // =====================================================
@@ -261,6 +268,21 @@ void TableFrame::BuildWalls()
     float centerGap = pocketRadius * 1.4f;
 
     float y = 0.0f;
+
+    // Build four continuous collision walls without pocket gaps.
+    AddWall(
+        Vector3{ -fieldHalfW, y, fieldHalfD },
+        Vector3{ fieldHalfW, y, fieldHalfD });
+    AddWall(
+        Vector3{ -fieldHalfW, y, -fieldHalfD },
+        Vector3{ fieldHalfW, y, -fieldHalfD });
+    AddWall(
+        Vector3{ -fieldHalfW, y, -fieldHalfD },
+        Vector3{ -fieldHalfW, y, fieldHalfD });
+    AddWall(
+        Vector3{ fieldHalfW, y, -fieldHalfD },
+        Vector3{ fieldHalfW, y, fieldHalfD });
+    return;
 
     if (TableConfig::IsDepthLongSide())
     {

@@ -73,11 +73,6 @@ void EnemyBall::Init(const EnemyData& data)
 
 void EnemyBall::Update()
 {
-    if (IsDefeated())
-    {
-        return;
-    }
-
     m_CurrentFrame++;
 
     // --- 摩擦・減速の計算 (PlayerBallの挙動と合わせる場合) ---
@@ -102,11 +97,6 @@ void EnemyBall::Update()
 
 void EnemyBall::Draw(Camera* cam)
 {
-    if (IsDefeated())
-    {
-        return;
-    }
-
     cam->SetCamera();
 
     m_Ball->BeginDraw();

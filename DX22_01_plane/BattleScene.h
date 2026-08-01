@@ -32,6 +32,7 @@ private:
 
 	void UpdateJsonHotReload();
 	void ReloadEnemyStatusFromJson();
+    void ArrangeDenseEnemySpawns(StageData& stage) const;
     void ValidateEnemySpawns(
         const StageData& stage,
         const PlayerBall& player,

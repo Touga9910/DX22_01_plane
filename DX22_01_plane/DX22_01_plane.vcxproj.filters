@@ -99,6 +99,12 @@
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
+    <ClCompile Include="GameMcpBridge.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLogger.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
     <ClCompile Include="StaticMesh.cpp">
       <Filter>ソース ファイル\オブジェクト関連</Filter>
     </ClCompile>
@@ -144,12 +150,12 @@
     <ClCompile Include="ResultScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
-	<ClCompile Include="RestSiteScene.cpp">
-	  <Filter>ソース ファイル\シーン関連</Filter>
-	</ClCompile>
-	<ClCompile Include="ShopScene.cpp">
-	  <Filter>ソース ファイル\シーン関連</Filter>
-	</ClCompile>
+    <ClCompile Include="RestSiteScene.cpp">
+      <Filter>ソース ファイル\シーン関連</Filter>
+    </ClCompile>
+    <ClCompile Include="ShopScene.cpp">
+      <Filter>ソース ファイル\シーン関連</Filter>
+    </ClCompile>
     <ClCompile Include="Texture2D.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
     </ClCompile>
@@ -228,6 +234,15 @@
     <ClCompile Include="RigidbodyComponent.cpp">
       <Filter>ソース ファイル\コンポーネント</Filter>
     </ClCompile>
+    <ClCompile Include="BallFactory.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="BallRenderComponent.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="EnemyAttackComponent.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestCube.h">
@@ -243,6 +258,12 @@
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
     <ClInclude Include="Game.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
+    <ClInclude Include="GameMcpBridge.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
+    <ClInclude Include="BalanceLogger.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
     <ClInclude Include="Application.h">
@@ -314,12 +335,12 @@
     <ClInclude Include="ResultScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
-	<ClInclude Include="RestSiteScene.h">
-	  <Filter>ヘッダー ファイル\シーン関連</Filter>
-	</ClInclude>
-	<ClInclude Include="ShopScene.h">
-	  <Filter>ヘッダー ファイル\シーン関連</Filter>
-	</ClInclude>
+    <ClInclude Include="RestSiteScene.h">
+      <Filter>ヘッダー ファイル\シーン関連</Filter>
+    </ClInclude>
+    <ClInclude Include="ShopScene.h">
+      <Filter>ヘッダー ファイル\シーン関連</Filter>
+    </ClInclude>
     <ClInclude Include="Texture2D.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
@@ -425,6 +446,30 @@
     <ClInclude Include="RigidbodyComponent.h">
       <Filter>ヘッダー ファイル\コンポーネント</Filter>
     </ClInclude>
+    <ClInclude Include="BallFactory.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="BallComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="BallPhysicsComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="BallRenderComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="BallStatusComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyAttackComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereColliderComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="TagComponent.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\common.hlsl">
@@ -444,6 +489,12 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="assets\data\balance_autoplay.json">
+      <Filter>JSON</Filter>
+    </None>
+    <None Include="assets\data\balance_targets.json">
+      <Filter>JSON</Filter>
+    </None>
     <None Include="assets\data\enemy_data.json">
       <Filter>JSON</Filter>
     </None>
@@ -454,6 +505,23 @@
       <Filter>JSON</Filter>
     </None>
     <None Include="assets\data\stage_01.json">
+      <Filter>JSON</Filter>
+    </None>
+    <None Include="tools\analyze_balance_logs.py">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </None>
+    <None Include="assets\data\game_mcp_bridge.json" />
+    <None Include="tools\game_mcp\bridge_store.py" />
+    <None Include="tools\game_mcp\init_secure_tunnel.cmd" />
+    <None Include="tools\game_mcp\README.md" />
+    <None Include="tools\game_mcp\requirements.txt" />
+    <None Include="tools\game_mcp\server.py" />
+    <None Include="tools\game_mcp\setup_game_mcp.cmd" />
+    <None Include="tools\game_mcp\smoke_test.py" />
+    <None Include="tools\game_mcp\start_game_mcp.cmd" />
+    <None Include="tools\game_mcp\start_secure_tunnel.cmd" />
+    <None Include="tools\game_mcp\test_bridge_store.py" />
+    <None Include="tools\game_mcp\player_profiles.json">
       <Filter>JSON</Filter>
     </None>
   </ItemGroup>

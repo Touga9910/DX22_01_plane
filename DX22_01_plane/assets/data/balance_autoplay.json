@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "restart_after_game_over": true,
+  "decision_delay_frames": 20,
+  "max_runs": 0,
+  "min_shot_power": 4.0,
+  "max_shot_power": 8.0,
+  "aim_jitter_degrees": 1.5,
+  "random_seed": 20260727
+}

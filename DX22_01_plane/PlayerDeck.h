@@ -2,12 +2,15 @@
 
 #include "PlayerBallData.h"
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
 class PlayerDeck
 {
 public:
+    static constexpr int MinimumDeckSize = 5;
+
     // -------------------------
     // デッキ初期化
     // -------------------------
@@ -80,4 +83,5 @@ private:
     std::optional<PlayerBallData> m_CurrentBall;    // 現在使用中のボール
     int m_PreviousHeldOfferIndex = -1;              // 提示内で前回から保持されていた位置
     bool m_IsCurrentBallUsed = false;               // 現在ボールを使用済みかどうか
+    std::uint64_t m_NextInstanceId = 1;              // 同名ボールを区別するランタイムID
 };

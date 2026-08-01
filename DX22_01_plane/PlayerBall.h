@@ -82,6 +82,8 @@ public:
 	// ショット・軌跡系
 	//=======================================
 	void Shot(DirectX::SimpleMath::Vector3 velocity) { m_Ball->GetMutableVelocity() = velocity; }
+	void FireAutomatedShot(
+		const DirectX::SimpleMath::Vector3& velocity);
 	void ClearTrajectory() { m_TrajectoryPositions.clear(); }
 
 	void SetStatus(const BallStatus& status)

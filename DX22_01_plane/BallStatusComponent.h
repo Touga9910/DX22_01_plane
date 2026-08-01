@@ -39,9 +39,15 @@ public:
     const BallStatus& GetStatus() const { return m_Status; }
     int GetCurrentHp() const { return m_CurrentHp; }
     int GetMaxHp() const { return m_Status.maxHp; }
-    int GetAttack() const { return m_Status.attack; }
-    int GetDefense() const { return m_Status.defense; }
+    int GetAttack() const { return m_Status.attack + m_AttackModifier; }
+    int GetDefense() const { return m_Status.defense + m_DefenseModifier; }
     bool IsDefeated() const { return m_IsDefeated; }
+
+    void SetCombatModifiers(int attackModifier, int defenseModifier)
+    {
+        m_AttackModifier = (std::max)(0, attackModifier);
+        m_DefenseModifier = (std::max)(0, defenseModifier);
+    }
 
     void SetCurrentHp(int hp)
     {
@@ -64,7 +70,7 @@ public:
     bool ApplyDamage(int damage)
     {
         if (m_IsDefeated) return false;
-        const int finalDamage = (std::max)(1, damage - m_Status.defense);
+        const int finalDamage = (std::max)(1, damage - GetDefense());
         m_CurrentHp -= finalDamage;
         if (m_CurrentHp <= 0)
         {
@@ -76,6 +82,8 @@ public:
 
 private:
     BallStatus m_Status{};
+    int m_AttackModifier = 0;
+    int m_DefenseModifier = 0;
     int m_CurrentHp = 0;
     bool m_IsDefeated = false;
 };

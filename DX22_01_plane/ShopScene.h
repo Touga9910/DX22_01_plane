@@ -26,5 +26,6 @@ private:
 	int m_SelectedAction = 0;
 	int m_SelectedBuyBall = 0;
 	int m_SelectedRemoveBall = 0;
+	int m_SelectedRelic = 0;
 	std::string m_Message;
 };

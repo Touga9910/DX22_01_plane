@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "initial_level": 0,
+  "minimum_level": -3,
+  "maximum_level": 3,
+  "hp_step_per_level": 1,
+  "attack_step": 1,
+  "levels_per_attack_step": 2,
+  "minimum_enemy_hp": 1,
+  "maximum_enemy_hp": 100,
+  "minimum_enemy_attack": 0,
+  "maximum_enemy_attack": 50,
+  "strong_clear_hp_ratio": 0.7,
+  "weak_clear_hp_ratio": 0.3,
+  "strong_no_hit_rate": 0.2,
+  "weak_no_hit_rate": 0.5,
+  "target_shots_per_enemy": 3.0,
+  "weak_shot_multiplier": 1.5
+}

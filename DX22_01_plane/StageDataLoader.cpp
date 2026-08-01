@@ -1,5 +1,6 @@
 ﻿#include "StageDataLoader.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
@@ -191,6 +192,27 @@ namespace
 
         return true;
     }
+}
+
+std::vector<EnemyData> StageDataLoader::LoadEnemyDefinitions(
+    const std::string& enemyMasterFilePath)
+{
+    const std::unordered_map<std::string, EnemyData> enemyMasterMap =
+        LoadEnemyMasterMap(enemyMasterFilePath);
+    std::vector<EnemyData> definitions;
+    definitions.reserve(enemyMasterMap.size());
+    for (const auto& [id, data] : enemyMasterMap)
+    {
+        definitions.push_back(data);
+    }
+    std::sort(
+        definitions.begin(),
+        definitions.end(),
+        [](const EnemyData& left, const EnemyData& right)
+        {
+            return left.id < right.id;
+        });
+    return definitions;
 }
 
 std::vector<StageData> StageDataLoader::LoadAll(

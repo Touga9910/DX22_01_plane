@@ -58,7 +58,13 @@ void PlayerBall::Init()
 	SetInitialPosition(m_Ball->GetMutableTransform().position);
 
 	//スケールを調整
-	m_Ball->GetMutableTransform().scale = Vector3(2.0f, 2.0f, 2.0f);
+	const float visualScale = m_Ball->GetStatus().radius > 0.0f
+		? m_Ball->GetStatus().radius
+		: 2.4f;
+	m_Ball->GetMutableTransform().scale = Vector3(
+		visualScale,
+		visualScale,
+		visualScale);
 	UpdateRadius();
 
 	// ★ Groundから台の高さを取得して合わせる
@@ -101,7 +107,10 @@ void PlayerBall::Update()
 		break;
 
 	case State::Idle:
-		UpdateAim();
+		if (!Game::GetInstance()->IsBalanceAutoPlayEnabled())
+		{
+			UpdateAim();
+		}
 		break;
 	}
 
@@ -604,6 +613,21 @@ void PlayerBall::FireMouseShot()
 	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
 
+void PlayerBall::FireAutomatedShot(
+	const DirectX::SimpleMath::Vector3& velocity)
+{
+	Shot(velocity);
+	m_IsPowerDragging = false;
+	m_State = State::Simulation;
+	m_TrajectoryPositions.clear();
+	m_PrePositions.clear();
+	m_PreTrajectoryDirty = true;
+	m_StopCount = 0;
+
+	Game::GetInstance()->OnPlayerShotFired(this);
+	Game::GetInstance()->SetGameState(GameState::BallsMoving);
+}
+
 Vector3 PlayerBall::GetShotVector() const
 {
 	// TC-18: m_AimAngle=0, m_ShotPower=5 → Vector3(sin(0),0,cos(0))×5 = Vector3(0,0,5)
@@ -669,6 +693,8 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
 
 	std::vector<BallComponent*> balls = Game::GetInstance()->GetObjects<BallComponent>();
+	bool previewPierceAvailable = m_Ball->HasPierceAbility();
+	BallComponent* previewPiercedBall = nullptr;
 
 	for (int frame = 0; frame < PREDICTION_FRAMES; ++frame)
 	{
@@ -757,6 +783,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 			for (BallComponent* other : balls)
 			{
 				if (other == m_Ball) continue;
+				if (other == previewPiercedBall) continue;
 				if (other->IsDefeated()) continue;
 
 				Collision::Sphere otherSphere = other->GetSphere();
@@ -804,6 +831,18 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 				{
 					Vector3 hitCenter = segmentStart + segmentMove * hitT;
 					hitCenter.y = fieldHeight;
+
+					if (previewPierceAvailable)
+					{
+						constexpr float PierceSpeedRetention = 0.75f;
+						previewPierceAvailable = false;
+						previewPiercedBall = other;
+						simVelocity *= PierceSpeedRetention;
+						stepMove *= PierceSpeedRetention;
+						m_PrePositions.push_back(
+							{ hitCenter, 0, 1.0f });
+						break;
+					}
 
 					Vector3 normal = hitCenter - otherSphere.center;
 					normal.y = 0.0f;

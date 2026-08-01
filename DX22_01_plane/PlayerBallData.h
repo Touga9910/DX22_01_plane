@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string>
 
 #include "BallStatus.h"
@@ -17,6 +18,7 @@ struct PlayerBallData
 	static constexpr int MaxUpgradeLevel = 2;
 
 	std::string definitionId = "player_default";
+	std::uint64_t instanceId = 0;
 	BallStatus status{};
 	std::array<BallUpgradeStep, MaxUpgradeLevel> upgradeTable{};
 	int upgradeLevel = 0;

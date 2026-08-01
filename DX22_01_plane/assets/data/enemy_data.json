@@ -9,7 +9,7 @@
         "attack": 1,
         "defense": 0,
         "mass": 1.0,
-        "radius": 2.0,
+        "radius": 2.4,
         "restitution": 0.8,
         "friction": 0.02,
         "abilities": {
@@ -18,9 +18,9 @@
         }
       },
       "scale": {
-        "x": 2.0,
-        "y": 2.0,
-        "z": 2.0
+        "x": 2.4,
+        "y": 2.4,
+        "z": 2.4
       },
       "rewardMoney": 5,
       "rewardExp": 0
@@ -34,7 +34,7 @@
         "attack": 2,
         "defense": 0,
         "mass": 1.0,
-        "radius": 2.2,
+        "radius": 2.6,
         "restitution": 0.8,
         "friction": 0.02,
         "abilities": {
@@ -43,9 +43,9 @@
         }
       },
       "scale": {
-        "x": 2.2,
-        "y": 2.2,
-        "z": 2.2
+        "x": 2.6,
+        "y": 2.6,
+        "z": 2.6
       },
       "rewardMoney": 10,
       "rewardExp": 5

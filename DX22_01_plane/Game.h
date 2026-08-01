@@ -1,6 +1,10 @@
 ﻿#pragma once
+#include <array>
+#include <cstdint>
 #include <iostream>
 #include <memory>
+#include <optional>
+#include <random>
 #include <vector>
 #include <string>
 #include <typeinfo>
@@ -35,6 +39,8 @@
 #include "TagComponent.h"
 
 class EnemyBall;
+struct EnemyData;
+class GameMcpBridge;
 class Ground;
 class PlayerBall;
 class Pocket;
@@ -50,6 +56,52 @@ enum class SceneType {
 	Shop,
 	Result,
 	Max
+};
+
+enum class RelicType
+{
+	AllBallAttackUp,
+	AllBallDefenseUp,
+	CollisionAttackUp,
+	Count
+};
+
+struct RelicDefinition
+{
+	RelicType type;
+	const char* name;
+	const char* description;
+	int price;
+};
+
+inline constexpr std::array<
+	RelicDefinition,
+	static_cast<std::size_t>(RelicType::Count)> RelicCatalog =
+{{
+	{
+		RelicType::AllBallAttackUp,
+		"Power Core",
+		"All owned balls gain +1 ATK.",
+		20
+	},
+	{
+		RelicType::AllBallDefenseUp,
+		"Guard Core",
+		"All owned balls gain +1 DEF.",
+		20
+	},
+	{
+		RelicType::CollisionAttackUp,
+		"Impact Accelerator",
+		"Damage to enemies gains +1 after player-enemy or enemy-enemy hits. Resets each shot.",
+		20
+	}
+}};
+
+enum class DamageBallCollisionType
+{
+	PlayerEnemy,
+	EnemyEnemy
 };
 
 // ゲーム全体のターン進行状態
@@ -87,8 +139,15 @@ private:
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	PlayerRunStatus m_PlayerRunStatus{};
 	StageSelector m_StageSelector;
+	std::optional<StageData> m_McpNextStageOverride;
+	std::optional<StageData> m_McpCurrentStageOverride;
 
 	PlayerDeck m_PlayerDeck;
+	std::array<bool, static_cast<std::size_t>(RelicType::Count)>
+		m_OwnedRelics{};
+	int m_CurrentShotCollisionAttackBonus = 0;
+	int m_CurrentShotPlayerEnemyCollisionCount = 0;
+	int m_CurrentShotEnemyEnemyCollisionCount = 0;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
@@ -103,6 +162,56 @@ private:
 	std::string m_RewardMessage;           // 購入結果などの表示
 	bool m_IsClearRewardChosen = false;
 	int m_ClearedStageCount = 0;
+
+	// バランスログ収集用の自動プレイ設定
+	bool m_BalanceAutoPlayEnabled = false;
+	bool m_AutoRestartAfterGameOver = true;
+	int m_AutoDecisionDelayFrames = 20;
+	int m_AutoDecisionFrame = 0;
+	int m_AutoRunCount = 0;
+	int m_AutoMaxRuns = 0;
+	float m_AutoMinShotPower = 4.0f;
+	float m_AutoMaxShotPower = 8.0f;
+	float m_AutoAimJitterDegrees = 1.5f;
+	std::mt19937 m_AutoRandomEngine{ std::random_device{}() };
+	std::vector<std::uint64_t> m_AutoPendingBallAdjustments;
+	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
+
+	// Dynamic difficulty adjustment (DDA). The result of one battle is
+	// applied to enemies spawned in the following battle.
+	bool m_DynamicBalanceEnabled = true;
+	bool m_DynamicBalanceAppliedEnabled = true;
+	int m_DynamicBalanceLevel = 0;
+	int m_DynamicBalanceAppliedLevel = 0;
+	int m_DynamicBalanceMinLevel = -3;
+	int m_DynamicBalanceMaxLevel = 3;
+	int m_DynamicBalanceHpStep = 1;
+	int m_DynamicBalanceAttackStep = 1;
+	int m_DynamicBalanceLevelsPerAttackStep = 2;
+	int m_DynamicBalanceMinEnemyHp = 1;
+	int m_DynamicBalanceMaxEnemyHp = 100;
+	int m_DynamicBalanceMinEnemyAttack = 0;
+	int m_DynamicBalanceMaxEnemyAttack = 50;
+	float m_DynamicBalanceStrongHpRatio = 0.70f;
+	float m_DynamicBalanceWeakHpRatio = 0.30f;
+	float m_DynamicBalanceStrongNoHitRate = 0.20f;
+	float m_DynamicBalanceWeakNoHitRate = 0.50f;
+	float m_DynamicBalanceTargetShotsPerEnemy = 3.0f;
+	float m_DynamicBalanceWeakShotMultiplier = 1.5f;
+	bool m_DynamicBalanceStageActive = false;
+	bool m_DynamicBalanceShotActive = false;
+	bool m_DynamicBalanceCurrentShotHit = false;
+	int m_DynamicBalanceStageShots = 0;
+	int m_DynamicBalanceStageNoHitShots = 0;
+	int m_DynamicBalanceStageEnemyCount = 0;
+	int m_DynamicBalanceLastLevelChange = 0;
+	float m_DynamicBalanceLastHpRatio = 1.0f;
+	float m_DynamicBalanceLastNoHitRate = 0.0f;
+	float m_DynamicBalanceLastShotsPerEnemy = 0.0f;
+	std::string m_DynamicBalanceLastResult = "not_evaluated";
+	std::string m_DynamicBalanceLastReason = "No battle has been evaluated.";
+
+	friend class GameMcpBridge;
 
 	/// <summary>
 	/// 全てのボールが停止しているかどうかを判定する関数
@@ -142,6 +251,8 @@ private:
 	/// 報酬を適用する関数
 	/// </summary>
 	void ApplyPlayerRunStatusTo(PlayerBall* player);
+	void ApplyRelicModifiersTo(PlayerBall* player);
+	void ResetShotRelicAttackBonus(PlayerBall* player = nullptr);
 	void SaveDebugSnapshot();
 	void CaptureCurrentPlayerStatus();
 	void DrawNextPlayerBall();
@@ -149,6 +260,24 @@ private:
 	void PrepareNextPlayerBall();
 	int CalculateStageRewardMoney() const;
 	void CollectStageRewardMoney();
+	void LoadBalanceAutoPlayConfig(
+		const std::string& filePath =
+			"assets/data/balance_autoplay.json");
+	void LoadDynamicBalanceConfig(
+		const std::string& filePath =
+			"assets/data/dynamic_balance.json");
+	void FinishDynamicBalanceShot();
+	void EvaluateDynamicBalanceStage(bool cleared);
+	bool UpdateBalanceAutoPlay();
+	bool FireBalanceAutoShot();
+	void SelectBalanceAutoBall();
+	void ApplyBalanceAutoReward();
+	StageType GetBalanceAutoStageType() const;
+	bool IsBalanceAutoHealNeeded() const;
+	int FindBalanceAutoPendingUpgradeableBall() const;
+	int FindBalanceAutoPendingRemovalBall() const;
+	void RemoveBalanceAutoPendingBall(std::uint64_t instanceId);
+	void PruneBalanceAutoPendingBalls();
 
 public:
 	Game(); // コンストラクタ
@@ -172,6 +301,10 @@ public:
 
 	GameState GetGameState() const { return m_GameState; }
 	void SetGameState(GameState state) { m_GameState = state; }
+	bool IsBalanceAutoPlayEnabled() const
+	{
+		return m_BalanceAutoPlayEnabled;
+	}
 
 	bool ContainsObject(const Object* pt) const;
 	bool ContainsComponent(const Component* component) const;
@@ -180,11 +313,28 @@ public:
 		const std::string& filePath = "assets/data/player_status.json",
 		const std::string& deckFilePath = "assets/data/player_deck.json");
 	void ResetPlayerRuntimeStatus();
+	void StartNewRun();
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
 	void CompleteCurrentStage();
 	void StartNextBattle(StageType stageType = StageType::Normal);
+	void OnBattleStageStarted(const StageData& stage);
+	const StageData* GetCurrentStageOverride() const
+	{
+		return m_McpCurrentStageOverride.has_value()
+			? &m_McpCurrentStageOverride.value()
+			: nullptr;
+	}
 	void OnPlayerShotFired(PlayerBall* player);
+	void NotifyDamageBallCollision(DamageBallCollisionType collisionType);
+	void NotifyDynamicBalanceHit();
+	void ApplyDynamicBalanceToEnemyData(EnemyData& enemyData) const;
+	void SetDynamicBalance(
+		bool enabled,
+		bool resetLevel,
+		int requestedLevel,
+		bool hasRequestedLevel);
+	void NotifyBalanceAutoFullHpEnemySurvived();
 	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
 	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
 
@@ -291,11 +441,47 @@ public:
 	}
 
 	int GetDeckBallCount() const { return m_PlayerDeck.GetRewardTargetCount(); }
+	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
 	const PlayerBallData* GetDeckBall(int index) const { return m_PlayerDeck.GetRewardTarget(index); }
 	int GetShopBallCount() const { return m_PlayerDeck.GetCatalogCount(); }
 	const PlayerBallData* GetShopBall(int index) const { return m_PlayerDeck.GetCatalogBall(index); }
+	bool IsBallAdjustmentCandidate(std::uint64_t instanceId) const;
+	bool HasAvailableRestBenefit() const;
 	bool RestHeal();
 	bool RestUpgradeBall(int ballIndex);
 	bool BuyShopBall(int catalogIndex, int cost);
 	bool RemoveShopBall(int ballIndex, int cost);
+	int GetRelicCount() const
+	{
+		return static_cast<int>(RelicCatalog.size());
+	}
+	const RelicDefinition* GetRelic(int index) const
+	{
+		return index >= 0 && index < GetRelicCount()
+			? &RelicCatalog[static_cast<std::size_t>(index)]
+			: nullptr;
+	}
+	bool HasRelic(RelicType type) const
+	{
+		const std::size_t index = static_cast<std::size_t>(type);
+		return index < m_OwnedRelics.size() && m_OwnedRelics[index];
+	}
+	int GetOwnedRelicCount() const;
+	int GetRelicAttackBonus() const;
+	int GetRelicDefenseBonus() const;
+	int GetCurrentShotCollisionAttackBonus() const
+	{
+		return m_CurrentShotCollisionAttackBonus;
+	}
+	int GetCurrentShotPlayerEnemyCollisionCount() const
+	{
+		return m_CurrentShotPlayerEnemyCollisionCount;
+	}
+	int GetCurrentShotEnemyEnemyCollisionCount() const
+	{
+		return m_CurrentShotEnemyEnemyCollisionCount;
+	}
+	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
+	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;
+	bool BuyRelic(int relicIndex);
 };

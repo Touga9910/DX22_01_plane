@@ -4,12 +4,12 @@
     "attack": 1,
     "defense": 0,
     "mass": 1.0,
-    "radius": 2.0,
+    "radius": 2.4,
     "restitution": 0.8,
     "friction": 0.02,
     "abilities": {
       "split": false,
-      "pierce": true
+      "pierce": false
     }
   },
   "balls": [
@@ -19,8 +19,8 @@
         "maxHp": 10,
         "attack": 2,
         "defense": 0,
-        "mass": 1.0,
-        "radius": 2.0,
+        "mass": 2.0,
+        "radius": 2.4,
         "restitution": 0.8,
         "friction": 0.02,
         "abilities": {
@@ -34,23 +34,23 @@
       ]
     },
     {
-      "id": "player_split",
+      "id": "player_heavy",
       "status": {
         "maxHp": 10,
-        "attack": 3,
+        "attack": 2,
         "defense": 0,
-        "mass": 1.0,
-        "radius": 2.0,
+        "mass": 4.0,
+        "radius": 2.4,
         "restitution": 0.8,
         "friction": 0.02,
         "abilities": {
-          "split": true,
+          "split": false,
           "pierce": false
         }
       },
       "upgrades": [
-        { "attack": 5, "defense": 2 },
-        { "attack": 7, "defense": 4 }
+        { "attack": 3, "defense": 4 },
+        { "attack": 5, "defense": 6 }
       ]
     },
     {
@@ -59,8 +59,8 @@
         "maxHp": 10,
         "attack": 1,
         "defense": 0,
-        "mass": 1.0,
-        "radius": 2.0,
+        "mass": 2.0,
+        "radius": 2.4,
         "restitution": 0.8,
         "friction": 0.02,
         "abilities": {
@@ -69,8 +69,8 @@
         }
       },
       "upgrades": [
-        { "attack": 3, "defense": 3 },
-        { "attack": 5, "defense": 5 }
+        { "attack": 2, "defense": 3 },
+        { "attack": 4, "defense": 5 }
       ]
     }
   ],

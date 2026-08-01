@@ -54,6 +54,13 @@ void RestSiteScene::Update()
 
 	if (m_SelectedAction == 2)
 	{
+		if (!m_ActionUsed &&
+			Game::GetInstance()->HasAvailableRestBenefit())
+		{
+			m_Message =
+				"Choose a rest action before leaving.";
+			return;
+		}
 		Game::GetInstance()->StartNextBattle();
 		return;
 	}
@@ -83,7 +90,7 @@ void RestSiteScene::Update()
 	}
 	else
 	{
-		m_Message = "This ball is already MAX +2.";
+		m_Message = "This ball is already +2.";
 	}
 }
 
@@ -114,7 +121,8 @@ void RestSiteScene::DrawUI()
 				ImGui::Text("%s [%d] %s  +%d  ATK:%d DEF:%d",
 					index == m_SelectedBall ? ">" : " ", index,
 					ball->definitionId.c_str(), ball->upgradeLevel,
-					ball->status.attack, ball->status.defense);
+					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
+					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
 				if (ball->CanUpgrade())
 				{
 					const BallUpgradeStep& next = ball->upgradeTable[ball->upgradeLevel];
