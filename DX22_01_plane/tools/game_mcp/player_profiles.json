@@ -8,11 +8,47 @@
         "min": 3.0,
         "max": 5.5
       },
+      "human_error": {
+        "aim_radius_ratio": 0.02,
+        "power_ratio": 0.10
+      },
+      "pocket_tactics": {
+        "minimum_alignment": 0.75,
+        "minimum_score_advantage": 3.0,
+        "self_pocket_risk_weight": 4.0,
+        "control_attack_weight": 2.0,
+        "finisher_bonus": 5.0
+      },
+      "route_policy": {
+        "low_hp_rest_threshold": 25,
+        "force_low_hp_rest": true,
+        "avoid_unactionable_shop": true
+      },
+      "stage_choice_policy": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0
+      },
+      "relic_policy": {
+        "low_hp_ratio": 0.5,
+        "minimum_average_attack": 2.0,
+        "low_hp_priority": [
+          "Emergency Repair Kit",
+          "Guard Core"
+        ],
+        "attack_priority": [
+          "Power Core",
+          "Impact Accelerator",
+          "Bank Shot"
+        ]
+      },
       "instructions": [
-        "最も近い生存中の敵を優先し、必ずdirectショットで敵の中心を狙う。",
+        "最も近い生存中の敵を優先し、directでdamageと安全なポケットフィニッシュを比較する。",
         "複雑な連鎖よりも、確実に1体へ当てることを優先する。",
         "ボール選択は攻撃力が高く扱いやすい候補を優先する。",
-        "HPが減っている場合は安全寄りに行動し、休憩所では回復を優先する。"
+        "HPが減っている場合は安全寄りに行動し、休憩所では回復を優先する。",
+        "ポケットフィニッシュ可能な敵を優先し、それ以外は自分の残HPが危険なときだけ高攻撃力の敵をポケットで一時除外する。"
       ]
     },
     "intermediate": {
@@ -22,12 +58,48 @@
         "min": 3.0,
         "max": 7.0
       },
+      "human_error": {
+        "aim_radius_ratio": 0.02,
+        "power_ratio": 0.05
+      },
+      "pocket_tactics": {
+        "minimum_alignment": 0.55,
+        "minimum_score_advantage": 0.5,
+        "self_pocket_risk_weight": 3.0,
+        "control_attack_weight": 4.0,
+        "finisher_bonus": 7.0
+      },
+      "route_policy": {
+        "low_hp_rest_threshold": 25,
+        "force_low_hp_rest": true,
+        "avoid_unactionable_shop": true
+      },
+      "stage_choice_policy": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0
+      },
+      "relic_policy": {
+        "low_hp_ratio": 0.5,
+        "minimum_average_attack": 2.0,
+        "low_hp_priority": [
+          "Emergency Repair Kit",
+          "Guard Core"
+        ],
+        "attack_priority": [
+          "Power Core",
+          "Impact Accelerator",
+          "Bank Shot"
+        ]
+      },
       "instructions": [
         "生存中の敵から、低HPまたは高攻撃力の敵を優先して狙う。",
         "通常はdirectを使い、直射が不利な配置や反射後の当たりが明確な場合はbankを使う。",
         "複数の敵が一直線に並ぶ場合は、後続への連鎖衝突も考慮する。",
         "ボールのattack、mass、pierceと敵配置を比較して使用ボールを選ぶ。",
-        "HPが40%未満なら休憩所で回復し、それ以外は有効な強化を優先する。"
+        "HPが40%未満なら休憩所で回復し、それ以外は有効な強化を優先する。",
+        "通常ダメージとポケット到達経路を比較し、フィニッシュ可能か、次の総被ダメージを大きく減らせる場合にポケットを選ぶ。"
       ]
     },
     "advanced": {
@@ -37,12 +109,48 @@
         "min": 1.0,
         "max": 8.0
       },
+      "human_error": {
+        "aim_radius_ratio": 0.02,
+        "power_ratio": 0.02
+      },
+      "pocket_tactics": {
+        "minimum_alignment": 0.35,
+        "minimum_score_advantage": 0.0,
+        "self_pocket_risk_weight": 2.5,
+        "control_attack_weight": 4.5,
+        "finisher_bonus": 8.0
+      },
+      "route_policy": {
+        "low_hp_rest_threshold": 25,
+        "force_low_hp_rest": true,
+        "avoid_unactionable_shop": true
+      },
+      "stage_choice_policy": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0
+      },
+      "relic_policy": {
+        "low_hp_ratio": 0.5,
+        "minimum_average_attack": 2.0,
+        "low_hp_priority": [
+          "Emergency Repair Kit",
+          "Guard Core"
+        ],
+        "attack_priority": [
+          "Power Core",
+          "Impact Accelerator",
+          "Bank Shot"
+        ]
+      },
       "instructions": [
         "全ての生存中の敵、壁、ボール能力を比較し、撃破数と被害軽減の期待値が高い標的を選ぶ。",
         "directと1回反射のbankを比較し、壁反射による背後取りや連鎖衝突を積極的に利用する。",
         "低HPの確実な撃破、高攻撃力の敵の排除、複数ヒットを状況に応じて優先順位付けする。",
         "距離、反射経路、対象数に合わせて1～8のパワーを使い分ける。",
-        "ボール選択、報酬、強化、回復、進路をラン全体の期待値で判断する。"
+        "ボール選択、報酬、強化、回復、進路をラン全体の期待値で判断する。",
+        "各ポケットへの押し出し経路、フィニッシュ可否、防げる敵攻撃量、自ボール落下時の5%ダメージを比較し、damageとpocketの期待値が高い方を選ぶ。"
       ]
     }
   }

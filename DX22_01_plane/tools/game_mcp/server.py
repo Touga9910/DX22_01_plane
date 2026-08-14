@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from bridge_store import GameBridgeError, GameBridgeStore
 from shot_planner import (
     PlayerProfileController,
+    build_tactical_shot_context,
     build_server_instructions,
     ensure_enemy_target_ids,
     load_player_profiles,
@@ -26,6 +27,595 @@ DEFAULT_BRIDGE_DIRECTORY = PROJECT_ROOT / "runtime" / "game_mcp"
 DEFAULT_PLAYER_PROFILES_PATH = (
     Path(__file__).resolve().parent / "player_profiles.json"
 )
+DEFAULT_LOW_HP_RELIC_PRIORITY = (
+    "Emergency Repair Kit",
+    "Guard Core",
+)
+DEFAULT_ATTACK_RELIC_PRIORITY = (
+    "Power Core",
+    "Impact Accelerator",
+    "Bank Shot",
+)
+VALID_WANTED_REWARDS = (
+    "money",
+    "new_ball",
+    "ball_upgrade",
+    "hp_recovery",
+    "relic",
+)
+NEED_SIGNAL_PRIORITY = (
+    "hp_recovery",
+    "relic",
+    "ball_upgrade",
+    "new_ball",
+    "money",
+)
+
+
+def _rest_heal_available(state: dict[str, Any]) -> bool:
+    rest_heal = state.get("rest_heal", {})
+    if not isinstance(rest_heal, dict):
+        return True
+    return bool(rest_heal.get("available", True))
+
+
+def _shop_has_actionable_purchase(state: dict[str, Any]) -> bool:
+    player = state.get("player", {})
+    money = int(player.get("money", 0)) if isinstance(player, dict) else 0
+    relics = state.get("relics", [])
+    if isinstance(relics, list):
+        for relic in relics:
+            if not isinstance(relic, dict):
+                continue
+            if (
+                not bool(relic.get("owned", False))
+                and int(relic.get("price", 0)) <= money
+            ):
+                return True
+    deck_rule = state.get("deck_rule", {})
+    return bool(
+        isinstance(deck_rule, dict)
+        and deck_rule.get("can_remove", False)
+    )
+
+
+def resolve_mcp_route_choice(
+    state: dict[str, Any],
+    requested_route_index: int,
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    route_options = state.get("route_options", [])
+    if not isinstance(route_options, list):
+        route_options = []
+    options = [
+        option
+        for option in route_options
+        if isinstance(option, dict)
+        and isinstance(option.get("route_index"), int)
+    ]
+    requested = next(
+        (
+            option
+            for option in options
+            if option["route_index"] == requested_route_index
+        ),
+        None,
+    )
+    if requested is None:
+        raise GameBridgeError(
+            "route_indexは現在のroute_optionsから選んでください。"
+        )
+
+    policy = profile.get("route_policy", {})
+    if not isinstance(policy, dict):
+        policy = {}
+    low_hp_threshold = max(
+        0,
+        int(policy.get("low_hp_rest_threshold", 25)),
+    )
+    force_low_hp_rest = bool(
+        policy.get("force_low_hp_rest", True)
+    )
+    avoid_unactionable_shop = bool(
+        policy.get("avoid_unactionable_shop", True)
+    )
+    player = state.get("player", {})
+    current_hp = (
+        int(player.get("current_hp", 0))
+        if isinstance(player, dict)
+        else 0
+    )
+    maximum_hp = (
+        int(player.get("max_hp", current_hp))
+        if isinstance(player, dict)
+        else current_hp
+    )
+    rest_options = [
+        option
+        for option in options
+        if option.get("destination") == "rest"
+    ]
+    rest_heal_available = _rest_heal_available(state)
+    battle_options = [
+        option
+        for option in options
+        if option.get("destination") == "battle"
+    ]
+    effective = requested
+    reason = "requested_route_allowed"
+
+    if (
+        force_low_hp_rest
+        and current_hp <= low_hp_threshold
+        and current_hp < maximum_hp
+        and rest_heal_available
+        and rest_options
+    ):
+        effective = rest_options[0]
+        reason = "low_hp_rest_priority"
+    elif (
+        avoid_unactionable_shop
+        and requested.get("destination") == "shop"
+        and not _shop_has_actionable_purchase(state)
+    ):
+        if (
+            current_hp < maximum_hp
+            and rest_heal_available
+            and rest_options
+        ):
+            effective = rest_options[0]
+            reason = "unactionable_shop_redirected_to_rest"
+        elif battle_options:
+            effective = battle_options[0]
+            reason = "unactionable_shop_redirected_to_battle"
+        else:
+            reason = "unactionable_shop_only_available_route"
+
+    return {
+        "requested_route_index": requested_route_index,
+        "effective_route_index": int(effective["route_index"]),
+        "effective_destination": str(
+            effective.get("destination", "unknown")
+        ),
+        "overridden": (
+            int(effective["route_index"]) != requested_route_index
+        ),
+        "reason": reason,
+        "current_hp": current_hp,
+        "low_hp_rest_threshold": low_hp_threshold,
+        "shop_actionable": _shop_has_actionable_purchase(state),
+        "rest_heal_available": rest_heal_available,
+    }
+
+
+def _relic_priority_names(
+    policy: dict[str, Any],
+    key: str,
+    default: tuple[str, ...],
+) -> tuple[str, ...]:
+    configured = policy.get(key)
+    if not isinstance(configured, list):
+        return default
+    names = tuple(
+        name
+        for name in configured
+        if isinstance(name, str) and name
+    )
+    return names or default
+
+
+def _average_deck_attack(state: dict[str, Any]) -> float | None:
+    attacks: list[float] = []
+    deck_balls = state.get("deck_balls", [])
+    if isinstance(deck_balls, list):
+        for ball in deck_balls:
+            if not isinstance(ball, dict):
+                continue
+            status = ball.get("status", {})
+            if not isinstance(status, dict):
+                continue
+            attack = status.get("attack")
+            if (
+                isinstance(attack, (int, float))
+                and not isinstance(attack, bool)
+                and math.isfinite(float(attack))
+            ):
+                attacks.append(float(attack))
+    if not attacks:
+        return None
+
+    relic_effects = state.get("relic_effects", {})
+    attack_bonus = 0.0
+    if isinstance(relic_effects, dict):
+        configured_bonus = relic_effects.get(
+            "all_ball_attack_bonus",
+            0,
+        )
+        if (
+            isinstance(configured_bonus, (int, float))
+            and not isinstance(configured_bonus, bool)
+            and math.isfinite(float(configured_bonus))
+        ):
+            attack_bonus = float(configured_bonus)
+    return sum(attacks) / len(attacks) + attack_bonus
+
+
+def resolve_mcp_relic_choice(
+    state: dict[str, Any],
+    requested_relic_index: int,
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    relics = state.get("relics", [])
+    if not isinstance(relics, list):
+        relics = []
+    catalog = [
+        relic
+        for relic in relics
+        if isinstance(relic, dict)
+        and isinstance(relic.get("index"), int)
+    ]
+    requested = next(
+        (
+            relic
+            for relic in catalog
+            if relic["index"] == requested_relic_index
+        ),
+        None,
+    )
+    if requested is None:
+        raise GameBridgeError(
+            "relic_indexは現在のrelicsから選んでください。"
+        )
+
+    player = state.get("player", {})
+    if not isinstance(player, dict):
+        player = {}
+    money = max(0, int(player.get("money", 0)))
+    current_hp = max(0, int(player.get("current_hp", 0)))
+    maximum_hp = max(0, int(player.get("max_hp", current_hp)))
+    hp_ratio = (
+        current_hp / maximum_hp
+        if maximum_hp > 0
+        else 0.0
+    )
+
+    policy = profile.get("relic_policy", {})
+    if not isinstance(policy, dict):
+        policy = {}
+    low_hp_ratio = min(
+        1.0,
+        max(0.0, float(policy.get("low_hp_ratio", 0.5))),
+    )
+    minimum_average_attack = max(
+        0.0,
+        float(policy.get("minimum_average_attack", 2.0)),
+    )
+    low_hp_priority = _relic_priority_names(
+        policy,
+        "low_hp_priority",
+        DEFAULT_LOW_HP_RELIC_PRIORITY,
+    )
+    attack_priority = _relic_priority_names(
+        policy,
+        "attack_priority",
+        DEFAULT_ATTACK_RELIC_PRIORITY,
+    )
+    affordable = [
+        relic
+        for relic in catalog
+        if not bool(relic.get("owned", False))
+        and int(relic.get("price", 0)) <= money
+    ]
+
+    def first_available(
+        priority_names: tuple[str, ...],
+    ) -> dict[str, Any] | None:
+        for name in priority_names:
+            for relic in affordable:
+                if relic.get("name") == name:
+                    return relic
+        return None
+
+    average_attack = _average_deck_attack(state)
+    effective = requested
+    reason = "requested_relic_allowed"
+    if (
+        current_hp < maximum_hp
+        and hp_ratio <= low_hp_ratio
+        and (survival_relic := first_available(low_hp_priority))
+        is not None
+    ):
+        effective = survival_relic
+        reason = "low_hp_survival_priority"
+    elif (
+        average_attack is not None
+        and average_attack < minimum_average_attack
+        and (attack_relic := first_available(attack_priority))
+        is not None
+    ):
+        effective = attack_relic
+        reason = "low_attack_priority"
+
+    return {
+        "requested_relic_index": requested_relic_index,
+        "requested_relic_name": str(requested.get("name", "")),
+        "effective_relic_index": int(effective["index"]),
+        "effective_relic_name": str(effective.get("name", "")),
+        "overridden": (
+            int(effective["index"]) != requested_relic_index
+        ),
+        "reason": reason,
+        "current_hp": current_hp,
+        "maximum_hp": maximum_hp,
+        "hp_ratio": hp_ratio,
+        "low_hp_ratio": low_hp_ratio,
+        "average_deck_attack": average_attack,
+        "minimum_average_attack": minimum_average_attack,
+    }
+
+
+def _has_upgradeable_ball(state: dict[str, Any]) -> bool:
+    deck_balls = state.get("deck_balls", [])
+    return bool(
+        isinstance(deck_balls, list)
+        and any(
+            isinstance(ball, dict)
+            and bool(ball.get("can_upgrade", False))
+            for ball in deck_balls
+        )
+    )
+
+
+def _shop_has_affordable_relic(state: dict[str, Any]) -> bool:
+    player = state.get("player", {})
+    money = int(player.get("money", 0)) if isinstance(player, dict) else 0
+    relics = state.get("relics", [])
+    return bool(
+        isinstance(relics, list)
+        and any(
+            isinstance(relic, dict)
+            and not bool(relic.get("owned", False))
+            and int(relic.get("price", 0)) <= money
+            for relic in relics
+        )
+    )
+
+
+def build_stage_choice_context(
+    state: dict[str, Any],
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    route_options = state.get("route_options", [])
+    if not isinstance(route_options, list):
+        route_options = []
+    routes = [
+        option
+        for option in route_options
+        if isinstance(option, dict)
+        and isinstance(option.get("route_index"), int)
+    ]
+    battle_routes = [
+        int(route["route_index"])
+        for route in routes
+        if route.get("destination") == "battle"
+    ]
+    rest_routes = [
+        int(route["route_index"])
+        for route in routes
+        if route.get("destination") == "rest"
+    ]
+    shop_routes = [
+        int(route["route_index"])
+        for route in routes
+        if route.get("destination") == "shop"
+    ]
+
+    player = state.get("player", {})
+    if not isinstance(player, dict):
+        player = {}
+    current_hp = max(0, int(player.get("current_hp", 0)))
+    maximum_hp = max(0, int(player.get("max_hp", current_hp)))
+    hp_ratio = (
+        current_hp / maximum_hp
+        if maximum_hp > 0
+        else 0.0
+    )
+    money = max(0, int(player.get("money", 0)))
+    deck_balls = state.get("deck_balls", [])
+    deck_size = len(deck_balls) if isinstance(deck_balls, list) else 0
+    upgradeable = _has_upgradeable_ball(state)
+    affordable_relic = _shop_has_affordable_relic(state)
+    catalog_balls = state.get("catalog_balls", [])
+    new_ball_available = bool(
+        isinstance(catalog_balls, list) and catalog_balls
+    )
+
+    settings = profile.get("stage_choice_policy", {})
+    if not isinstance(settings, dict):
+        settings = {}
+    low_hp_ratio = min(
+        1.0,
+        max(0.0, float(settings.get("low_hp_ratio", 0.5))),
+    )
+    money_reserve = max(
+        0,
+        int(settings.get("money_reserve", 20)),
+    )
+    target_deck_size = max(
+        1,
+        int(settings.get("target_deck_size", 8)),
+    )
+    minimum_average_attack = max(
+        0.0,
+        float(settings.get("minimum_average_attack", 2.0)),
+    )
+    average_attack = _average_deck_attack(state)
+    rest_heal_available = _rest_heal_available(state)
+
+    reward_route_matches = {
+        "money": battle_routes,
+        "new_ball": (
+            battle_routes if new_ball_available else []
+        ),
+        "ball_upgrade": (
+            [*rest_routes, *battle_routes]
+            if upgradeable
+            else []
+        ),
+        "hp_recovery": (
+            rest_routes
+            if current_hp < maximum_hp and rest_heal_available
+            else []
+        ),
+        "relic": shop_routes if affordable_relic else [],
+    }
+    need_signals = {
+        "money": money < money_reserve,
+        "new_ball": (
+            new_ball_available and deck_size < target_deck_size
+        ),
+        "ball_upgrade": (
+            upgradeable
+            and average_attack is not None
+            and average_attack < minimum_average_attack
+        ),
+        "hp_recovery": (
+            current_hp < maximum_hp
+            and rest_heal_available
+            and hp_ratio <= low_hp_ratio
+        ),
+        "relic": affordable_relic,
+    }
+    return {
+        "wanted_reward_values": list(VALID_WANTED_REWARDS),
+        "recommended_wanted_rewards": (
+            build_dynamic_wanted_reward_order(
+                list(VALID_WANTED_REWARDS),
+                need_signals,
+            )
+        ),
+        "reward_route_matches": reward_route_matches,
+        "need_signals": need_signals,
+        "status": {
+            "current_hp": current_hp,
+            "maximum_hp": maximum_hp,
+            "hp_ratio": hp_ratio,
+            "money": money,
+            "deck_size": deck_size,
+            "average_deck_attack": average_attack,
+            "has_upgradeable_ball": upgradeable,
+            "has_affordable_relic": affordable_relic,
+            "rest_heal_available": rest_heal_available,
+        },
+        "thresholds": {
+            "low_hp_ratio": low_hp_ratio,
+            "money_reserve": money_reserve,
+            "target_deck_size": target_deck_size,
+            "minimum_average_attack": minimum_average_attack,
+        },
+    }
+
+
+def build_dynamic_wanted_reward_order(
+    requested_order: list[str],
+    need_signals: dict[str, Any],
+) -> list[str]:
+    needed = [
+        reward
+        for reward in NEED_SIGNAL_PRIORITY
+        if bool(need_signals.get(reward, False))
+    ]
+    return [
+        *needed,
+        *(
+            reward
+            for reward in requested_order
+            if reward not in needed
+        ),
+    ]
+
+
+def resolve_mcp_stage_choice(
+    state: dict[str, Any],
+    wanted_rewards: list[str],
+    profile: dict[str, Any],
+    requested_route_index: int = -1,
+) -> dict[str, Any]:
+    if (
+        len(wanted_rewards) != len(VALID_WANTED_REWARDS)
+        or len(set(wanted_rewards)) != len(VALID_WANTED_REWARDS)
+        or set(wanted_rewards) != set(VALID_WANTED_REWARDS)
+    ):
+        raise GameBridgeError(
+            "wanted_rewardsはmoney、new_ball、ball_upgrade、"
+            "hp_recovery、relicを重複なしで各1回、"
+            "欲しい順に指定してください。"
+        )
+
+    context = build_stage_choice_context(state, profile)
+    reward_route_matches = context["reward_route_matches"]
+    effective_wanted_rewards = build_dynamic_wanted_reward_order(
+        wanted_rewards,
+        context["need_signals"],
+    )
+    selected_reward = ""
+    priority_route_index = -1
+    skipped_rewards: list[str] = []
+    for reward in effective_wanted_rewards:
+        matching_routes = reward_route_matches.get(reward, [])
+        if not matching_routes:
+            skipped_rewards.append(reward)
+            continue
+        selected_reward = reward
+        priority_route_index = (
+            requested_route_index
+            if requested_route_index in matching_routes
+            else int(matching_routes[0])
+        )
+        break
+
+    route_options = state.get("route_options", [])
+    if not isinstance(route_options, list):
+        route_options = []
+    offered_indices = [
+        int(option["route_index"])
+        for option in route_options
+        if isinstance(option, dict)
+        and isinstance(option.get("route_index"), int)
+    ]
+    if priority_route_index < 0:
+        if requested_route_index in offered_indices:
+            priority_route_index = requested_route_index
+        elif offered_indices:
+            priority_route_index = offered_indices[0]
+        else:
+            raise GameBridgeError(
+                "現在選択できるroute_optionsがありません。"
+            )
+
+    route_policy = resolve_mcp_route_choice(
+        state,
+        priority_route_index,
+        profile,
+    )
+    route_policy.update(
+        {
+            "wanted_rewards": list(wanted_rewards),
+            "effective_wanted_rewards": effective_wanted_rewards,
+            "matched_wanted_reward": selected_reward or None,
+            "skipped_wanted_rewards": skipped_rewards,
+            "priority_route_index": priority_route_index,
+            "ai_requested_route_index": requested_route_index,
+            "stage_choice_context": context,
+        }
+    )
+    if route_policy["reason"] == "requested_route_allowed":
+        route_policy["reason"] = (
+            "wanted_reward_route_selected"
+            if selected_reward
+            else "fallback_route_selected"
+        )
+    return route_policy
 
 
 class GameToolResult(BaseModel):
@@ -170,7 +760,16 @@ def create_server(
     )
     def get_game_state() -> GameToolResult:
         state = ensure_enemy_target_ids(store.read_state())
-        state["mcp_control"] = profile_controller.snapshot()
+        profile = profile_controller.snapshot()
+        state["mcp_control"] = profile
+        state["shot_tactics"] = build_tactical_shot_context(
+            state,
+            profile,
+        )
+        state["stage_choice"] = build_stage_choice_context(
+            state,
+            profile,
+        )
         return GameToolResult(result=state)
 
     @mcp.tool(
@@ -338,35 +937,69 @@ def create_server(
     )
     def start_new_run() -> GameToolResult:
         return GameToolResult(
-            result=store.submit_command("start_new_run")
+            result=store.submit_command(
+                "start_new_run",
+                {
+                    "controller_profile": (
+                        profile_controller.level
+                    ),
+                },
+            )
         )
 
     @mcp.tool(
         title="次の行き先を選択",
         description=(
-            "ステージ選択画面で、戦闘・休憩所・ショップの"
-            "いずれかへ移動します。"
+            "ステージ選択画面で、get_game_stateの"
+            "route_optionsに提示された3ノードから1つを選びます。"
+            "wanted_rewardsにmoney、new_ball、ball_upgrade、"
+            "hp_recovery、relicの5つを、現在欲しい順で"
+            "それぞれ1回ずつ指定します。サーバーは先頭から"
+            "現在のroute_optionsと照合し、対応ステージがない、"
+            "またはそこで希望報酬を得られない場合は次順位へ"
+            "フォールバックします。route_indexは同種ノードが"
+            "複数ある場合の希望位置で、省略できます。"
+            "受け取った順位は現在のneed_signalsで再評価し、"
+            "必要な項目をHP回復、レリック、ボール強化、"
+            "新ボール、Moneyの優先度で前へ移動します。"
+            "HP25以下で休憩所がある場合は休憩を優先し、"
+            "購入もボール削除もできないショップは選択しません。"
+            "安全ポリシーで選択が補正された場合は、応答の"
+            "route_policyに要求値・実行値・理由が入ります。"
         ),
         annotations=local_write,
         structured_output=True,
     )
     def choose_destination(
-        destination: Literal["battle", "rest", "shop"],
-        stage_type: Literal[
-            "normal",
-            "midboss",
-            "boss",
-        ] = "normal",
+        wanted_rewards: list[
+            Literal[
+                "money",
+                "new_ball",
+                "ball_upgrade",
+                "hp_recovery",
+                "relic",
+            ]
+        ],
+        route_index: int = -1,
     ) -> GameToolResult:
-        return GameToolResult(
-            result=store.submit_command(
-                "choose_destination",
-                {
-                    "destination": destination,
-                    "stage_type": stage_type,
-                },
-            )
+        state = store.read_state()
+        route_policy = resolve_mcp_stage_choice(
+            state,
+            list(wanted_rewards),
+            profile_controller.snapshot(),
+            route_index,
         )
+        result = store.submit_command(
+            "choose_destination",
+            {
+                "route_index": route_policy[
+                    "effective_route_index"
+                ],
+                "route_policy": route_policy,
+            },
+        )
+        result["route_policy"] = route_policy
+        return GameToolResult(result=result)
 
     @mcp.tool(
         title="使用するボールを選択",
@@ -401,6 +1034,17 @@ def create_server(
             "撃てません。shot_type=directは直射、bankはtable.wallsを"
             "使った1回反射です。bankでwall_index=-1なら有効な壁から"
             "最短経路を自動選択します。初心者はdirectだけを使用できます。"
+            "最終的な照準とパワーには、mcp_control.human_errorの"
+            "設定に基づくプレイヤーレベル別の誤差が加わります。"
+            "実際に適用された値は応答のshot_plan.human_errorで確認できます。"
+            "shot_goal=autoは通常攻撃と全ポケット経路を比較し、"
+            "フィニッシュ、防げる敵攻撃、軌道成立度、自ボールの"
+            "ポケットダメージを評価して自動選択します。"
+            "damageは敵中心へ通常攻撃、pocketは敵を"
+            "table.pocketsの指定位置へ押す接触点を計算します。"
+            "pocket_index=-1なら対象に最も近いポケットを選びます。"
+            "通常ランではautoを使い、damage/pocketの固定は"
+            "特定行動の検証時だけにしてください。"
         ),
         annotations=local_write,
         structured_output=True,
@@ -411,6 +1055,8 @@ def create_server(
         target_enemy_id: str = "",
         shot_type: Literal["direct", "bank"] = "direct",
         wall_index: int = -1,
+        shot_goal: Literal["auto", "damage", "pocket"] = "auto",
+        pocket_index: int = -1,
     ) -> GameToolResult:
         state = ensure_enemy_target_ids(store.read_state())
         resolved_target_id = resolve_target_id_argument(
@@ -424,7 +1070,13 @@ def create_server(
             shot_type,
             wall_index,
             profile_controller.snapshot(),
+            shot_goal=shot_goal,
+            pocket_index=pocket_index,
         )
+        shot_plan["arguments"]["telemetry"] = {
+            "controller_profile": profile_controller.level,
+            **shot_plan["shot_plan"],
+        }
         result = store.submit_command(
             "fire_shot",
             shot_plan["arguments"],
@@ -435,7 +1087,8 @@ def create_server(
     @mcp.tool(
         title="プレイヤーを回復",
         description=(
-            "休憩所でプレイヤーHPを全回復します。"
+            "休憩所でプレイヤーHPを最大HPの25%回復します。"
+            "回復量は切り上げ、最大HPを超える分は切り捨てます。"
             "HPが減っている場合だけ成功します。"
             "HPが40%未満なら最優先で使い、強化可能なボールがなくHPが減っている場合は、"
             "休憩ボーナスを捨てないためのフォールバックとして使います。"
@@ -500,6 +1153,10 @@ def create_server(
             "ショップでrelicsのindexを指定し、表示価格を支払って"
             "未所持のレリックを購入します。購入前にget_game_stateで"
             "Money、価格、ownedを確認します。"
+            "購入直前に最新のHPとdeck_ballsの平均attackを再確認し、"
+            "低HPでは回復・防御系、攻撃不足では攻撃系の"
+            "購入可能なレリックへ自動補正します。"
+            "判定結果はrelic_policyに含まれます。"
         ),
         annotations=local_write,
         structured_output=True,
@@ -509,12 +1166,23 @@ def create_server(
             raise GameBridgeError(
                 "relic_indexは0以上で指定してください。"
             )
-        return GameToolResult(
-            result=store.submit_command(
-                "buy_relic",
-                {"relic_index": relic_index},
-            )
+        state = store.read_state()
+        relic_policy = resolve_mcp_relic_choice(
+            state,
+            relic_index,
+            profile_controller.snapshot(),
         )
+        result = store.submit_command(
+            "buy_relic",
+            {
+                "relic_index": relic_policy[
+                    "effective_relic_index"
+                ],
+                "relic_policy": relic_policy,
+            },
+        )
+        result["relic_policy"] = relic_policy
+        return GameToolResult(result=result)
 
     @mcp.tool(
         title="戦闘へ進む",
@@ -532,11 +1200,15 @@ def create_server(
             "midboss",
             "boss",
         ] = "normal",
+        override_stage_schedule: bool = False,
     ) -> GameToolResult:
         return GameToolResult(
             result=store.submit_command(
                 "continue_to_battle",
-                {"stage_type": stage_type},
+                {
+                    "stage_type": stage_type,
+                    "override_stage_schedule": override_stage_schedule,
+                },
             )
         )
 
