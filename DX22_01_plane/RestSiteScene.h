@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Scene.h"
-#include "Component.h"
 
 #include <string>
 #include <vector>
+
+class GameObject;
 
 class RestSiteScene : public Scene
 {
@@ -21,7 +22,7 @@ private:
 	void Init();
 	void Uninit();
 
-	std::vector<Component*> m_MySceneObjects;
+	std::vector<GameObject*> m_SceneGameObjects;
 	int m_SelectedAction = 0;
 	int m_SelectedBall = 0;
 	bool m_ActionUsed = false;

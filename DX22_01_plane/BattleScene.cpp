@@ -10,15 +10,22 @@
 #include "Collision.h"
 
 #include "Ground.h"
+#include "GroundRenderComponent.h"
+#include "GameObject.h"
+#include "TagComponent.h"
 #include "TableFrame.h"
+#include "TableFrameCollisionComponent.h"
+#include "TableFrameRenderComponent.h"
+#include "PocketFactory.h"
+#include "Pocket.h"
 //#include "Arrow.h"
-#include "Pole.h"
-#include "SkyBox.h"
 
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <typeinfo>
 #include <unordered_map>
 
 using namespace DirectX::SimpleMath;
@@ -38,23 +45,37 @@ void BattleScene::Init()
 	std::cout << "オブジェクトを生成開始\n" << std::endl;
 
 	// オブジェクトを作成
-	PlayerBall* ball = BallFactory::CreatePlayer(*Game::GetInstance());
-	m_MySceneObjects.emplace_back(ball);
-	m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Ground>());
-	//m_MySceneObjects.emplace_back(Game::GetInstance()->AddObject<Arrow>());	//矢印
-	Pole* pole = Game::GetInstance()->AddObject<Pole>();
-	m_MySceneObjects.emplace_back(pole);	//ポール
+	Game* game = Game::GetInstance();
+	PlayerBall* ball = BallFactory::CreatePlayer(*game);
+	m_SceneGameObjects.emplace_back(ball->GetGameObject());
 
+	GameObject* groundObject = game->CreateGameObject(typeid(Ground).name());
+	groundObject->AddComponent<TagComponent>(GameObjectTag::Ground);
+	groundObject->AddComponent<GroundRenderComponent>();
+	Ground* ground = groundObject->AddComponent<Ground>();
+	m_SceneGameObjects.emplace_back(groundObject);
 
-	TableFrame* tableFrame = Game::GetInstance()->AddObject<TableFrame>();
-	m_MySceneObjects.emplace_back(tableFrame);
-	m_MySceneObjects.emplace_back(
-		Game::GetInstance()->AddObject<SkyBox>());
+	GameObject* tableFrameObject =
+		game->CreateGameObject(typeid(TableFrame).name());
+	tableFrameObject->AddComponent<TagComponent>(GameObjectTag::Rail);
+	tableFrameObject->AddComponent<TableFrameCollisionComponent>();
+	tableFrameObject->AddComponent<TableFrameRenderComponent>();
+	TableFrame* tableFrame = tableFrameObject->AddComponent<TableFrame>();
+	m_SceneGameObjects.emplace_back(tableFrameObject);
+
+	for (const Collision::Sphere& pocketSphere :
+		tableFrame->GetPocketSpheres())
+	{
+		Pocket* pocket = PocketFactory::Create(
+			*game,
+			pocketSphere.center,
+			pocketSphere.radius);
+		m_SceneGameObjects.emplace_back(pocket->GetGameObject());
+	}
 
 	// ========================================================
 	// エネミー（EnemyBall）の出現処理
 	// ========================================================
-	Game* game = Game::GetInstance();
 	const StageData* stageData = game->GetCurrentStageOverride();
 	const bool usesMcpStageOverride = stageData != nullptr;
 	std::vector<StageData> stages;
@@ -113,7 +134,7 @@ void BattleScene::Init()
 
 			EnemyBall* enemy =
 				BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
-			m_MySceneObjects.emplace_back(enemy);
+			m_SceneGameObjects.emplace_back(enemy->GetGameObject());
 		}
 
 		Game::GetInstance()->OnBattleStageStarted(adjustedStage);
@@ -125,58 +146,56 @@ void BattleScene::Init()
 	/*
 	{
 		// UI（背景）
-		Texture2D* pt1 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt1 = Texture2DFactory::Create(*Game::GetInstance());
 		pt1->SetTexture("assets/texture/ui_back.png");	// 画像指定
 		pt1->SetPosition(-475.0f, -300.0f, 0.0f);		// 位置指定
 		pt1->SetScale(270.0f, 75.0f, 0.0f);				// 大きさ指定
-		m_MySceneObjects.emplace_back(pt1);//m_MySceneObjects[4]
+		m_SceneGameObjects.emplace_back(pt1->GetGameObject());
 
 		// UI（「パー」）
-		Texture2D* pt2 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt2 = Texture2DFactory::Create(*Game::GetInstance());
 		pt2->SetTexture("assets/texture/ui_string.png");// 画像指定
 		pt2->SetPosition(-575.0f, -240.0f, 0.0f);		// 位置指定
 		pt2->SetScale(60.0f, 45.0f, 0.0f);				// 大きさ指定
 		pt2->SetUV(1, 1, 2, 1);							// UV指定
-		m_MySceneObjects.emplace_back(pt2);//m_MySceneObjects[5]
+		m_SceneGameObjects.emplace_back(pt2->GetGameObject());
 
 		// UI（「打目」）
-		Texture2D* pt3 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt3 = Texture2DFactory::Create(*Game::GetInstance());
 		pt3->SetTexture("assets/texture/ui_string.png");// 画像指定
 		pt3->SetPosition(-400.0f, -305.0f, 0.0f);		// 位置指定
 		pt3->SetScale(105.0f, 63.0f, 0.0f);				// 大きさ指定
 		pt3->SetUV(2, 1, 2, 1);							// UV指定
-		m_MySceneObjects.emplace_back(pt3);//m_MySceneObjects[6]
+		m_SceneGameObjects.emplace_back(pt3->GetGameObject());
 
 		// UI（パーの数値）
-		Texture2D* pt4 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt4 = Texture2DFactory::Create(*Game::GetInstance());
 		pt4->SetTexture("assets/texture/ui_number.png");// 画像指定
 		pt4->SetPosition(-510.0f, -245.0f, 0.0f);		// 位置指定
 		pt4->SetScale(65.0f, 45.0f, 0.0f);				// 大きさ指定
 		pt4->SetUV((float)(m_Par + 1), 1, 10, 1);			// UV指定
-		m_MySceneObjects.emplace_back(pt4);//m_MySceneObjects[7]
+		m_SceneGameObjects.emplace_back(pt4->GetGameObject());
 
 		// UI（現在打数の数値 一の位）
-		Texture2D* pt5 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt5 = Texture2DFactory::Create(*Game::GetInstance());
 		pt5->SetTexture("assets/texture/ui_number.png");// 画像指定
 		pt5->SetPosition(-485.0f, -300.0f, 0.0f);		// 位置指定
 		pt5->SetScale(95.0f, 72.0f, 0.0f);				// 大きさ指定
 		pt5->SetUV(2, 1, 10, 1);				// UV指定
-		m_MySceneObjects.emplace_back(pt5);//m_MySceneObjects[8]
+		m_SceneGameObjects.emplace_back(pt5->GetGameObject());
 
 		// UI（現在打数の数値 十の位）
-		Texture2D* pt6 = Game::GetInstance()->AddObject<Texture2D>();
+		Texture2D* pt6 = Texture2DFactory::Create(*Game::GetInstance());
 		pt6->SetTexture("assets/texture/ui_number.png");// 画像指定
 		pt6->SetPosition(-556.0f, -300.0f, 0.0f);		// 位置指定
 		pt6->SetScale(95.0f, 72.0f, 0.0f);				// 大きさ指定
 		pt6->SetUV(1, 1, 10, 1);				// UV指定
-		m_MySceneObjects.emplace_back(pt6);//m_MySceneObjects[8]
+		m_SceneGameObjects.emplace_back(pt6->GetGameObject());
 	}
 	*/
 
-	//Arrow* arrow = dynamic_cast<Arrow*>(m_MySceneObjects[2]);//矢印
 	ball->SetState(PlayerBall::State::Simulation);	//ボールを物理挙動させる
 	//arrow->SetState(0);	//矢印非表示
-	pole->SetPosition(200.0f,-25.0f,0.0f);	//ポールを設定
 }
 
 //更新
@@ -290,7 +309,7 @@ void BattleScene::ReloadEnemyStatusFromJson()
 	}
 
 	std::vector<EnemyBall*> enemies =
-		Game::GetInstance()->GetObjects<EnemyBall>();
+		Game::GetInstance()->GetComponents<EnemyBall>();
 
 	for (EnemyBall* enemy : enemies)
 	{

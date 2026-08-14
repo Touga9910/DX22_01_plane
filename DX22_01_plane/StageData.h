@@ -31,8 +31,7 @@ struct EnemySpawnData
     DirectX::SimpleMath::Vector3 position =
         DirectX::SimpleMath::Vector3::Zero;
 
-    // JSONでは省略可能。現在はenemy_normalを共通の敵として使い、
-    // 将来ステージごとの敵種別が必要になったときだけ指定できる。
+    // JSONでは省略可能。省略時はenemy_normalを使用する。
     std::string enemyId = "enemy_normal";
     EnemyData enemyData;
 };

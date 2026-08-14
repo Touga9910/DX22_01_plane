@@ -1,19 +1,16 @@
 ﻿#pragma once
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <random>
+#include <unordered_map>
 #include <vector>
 #include <string>
-#include <typeinfo>
 
 //オブジェクト情報のあるファイルをインクルード
-//#include "TestPlane.h"
-//#include "TestCube.h"
-//#include "TestGolfFlag.h"
-//#include "TestModel.h"
 //#include "
 // .h"
 //#include "Ground.h"
@@ -27,26 +24,21 @@
 #include"RestSiteScene.h"
 #include"ShopScene.h"
 
-#include"SkyBox.h"
 
 #include "input.h"
+#include "Camera.h"
 #include "BallStatus.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
 #include "StageSelector.h"
 #include "GameObject.h"
-#include "SphereColliderComponent.h"
 #include "TagComponent.h"
+#include "json/json.hpp"
 
 class EnemyBall;
 struct EnemyData;
 class GameMcpBridge;
-class Ground;
 class PlayerBall;
-class Pocket;
-class Pole;
-class TableFrame;
-class Texture2D;
 
 enum class SceneType {
 	Title,
@@ -63,6 +55,8 @@ enum class RelicType
 	AllBallAttackUp,
 	AllBallDefenseUp,
 	CollisionAttackUp,
+	BankShot,
+	EmergencyRepairKit,
 	Count
 };
 
@@ -72,6 +66,12 @@ struct RelicDefinition
 	const char* name;
 	const char* description;
 	int price;
+};
+
+struct BalanceValidationVariant
+{
+	std::string id;
+	bool disableDynamicBalance = true;
 };
 
 inline constexpr std::array<
@@ -94,6 +94,18 @@ inline constexpr std::array<
 		RelicType::CollisionAttackUp,
 		"Impact Accelerator",
 		"Damage to enemies gains +1 after player-enemy or enemy-enemy hits. Resets each shot.",
+		20
+	},
+	{
+		RelicType::BankShot,
+		"Bank Shot",
+		"After hitting a wall, the first direct hit against an enemy deals double damage.",
+		20
+	},
+	{
+		RelicType::EmergencyRepairKit,
+		"Emergency Repair Kit",
+		"Recover 1 HP after a shot with at least 3 ball-to-ball contacts.",
 		20
 	}
 }};
@@ -127,9 +139,6 @@ private:
 	// カメラ
 	Camera&  m_Camera = Camera::GetInstance();
 
-	// スカイボックス
-	SkyBox* m_SkyBox = nullptr;
-
 	//オブジェクト配列
 	std::vector<std::unique_ptr<GameObject>> m_GameObjects;
 
@@ -138,6 +147,9 @@ private:
 	BallStatus m_DefaultPlayerStatus{ 10, 1, 0 };
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	PlayerRunStatus m_PlayerRunStatus{};
+	float m_RestHealRatio = 0.25f;
+	int m_RestHealCooldownBattles = 2;
+	int m_RestHealCooldownRemaining = 0;
 	StageSelector m_StageSelector;
 	std::optional<StageData> m_McpNextStageOverride;
 	std::optional<StageData> m_McpCurrentStageOverride;
@@ -148,6 +160,8 @@ private:
 	int m_CurrentShotCollisionAttackBonus = 0;
 	int m_CurrentShotPlayerEnemyCollisionCount = 0;
 	int m_CurrentShotEnemyEnemyCollisionCount = 0;
+	bool m_CurrentShotBankShotReady = false;
+	bool m_CurrentShotBankShotConsumed = false;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
@@ -174,13 +188,68 @@ private:
 	float m_AutoMaxShotPower = 8.0f;
 	float m_AutoAimJitterDegrees = 1.5f;
 	std::mt19937 m_AutoRandomEngine{ std::random_device{}() };
+	unsigned int m_AutoRandomSeed = 20260727u;
 	std::vector<std::uint64_t> m_AutoPendingBallAdjustments;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
+	nlohmann::json m_PendingShotTelemetry = nlohmann::json::object();
+	std::uint32_t m_RunRandomSeed = 0;
+	std::uint32_t m_StageSelectionSeed = 0;
+	std::uint32_t m_RouteSelectionSeed = 0;
+	std::uint32_t m_RouteSelectionCounter = 0;
+	std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
+	std::deque<EnemyBall*> m_PocketedEnemyQueue;
+	StageType m_CurrentBattleStageType = StageType::Normal;
+	float m_PlayerPocketDamageRatio = 0.05f;
+	float m_NormalPocketFinisherRatio = 0.30f;
+	float m_MidBossPocketFinisherRatio = 0.20f;
+	float m_BossPocketFinisherRatio = 0.10f;
+	float m_PlayerPocketReturnHalfWidth = 12.0f;
+	float m_PlayerPocketReturnHalfDepth = 8.0f;
+	float m_EnemyPocketReturnX = 0.0f;
+	float m_EnemyPocketReturnTopEdgeOffset = 10.0f;
+
+	// Fixed-condition balance validation. When enabled, the run seed is fixed
+	// and DDA can be forcibly disabled so before/after builds are comparable.
+	bool m_BalanceValidationEnabled = false;
+	bool m_BalanceValidationDisableDynamicBalance = true;
+	bool m_BalanceValidationCurrentDisableDynamicBalance = true;
+	bool m_BalanceValidationFixedStageSchedule = true;
+	std::uint32_t m_BalanceValidationSeed = 20260807u;
+	std::vector<std::uint32_t> m_BalanceValidationSeeds{ 20260807u };
+	std::uint32_t m_BalanceValidationRunCounter = 0;
+	std::uint32_t m_BalanceValidationSeedIndex = 0;
+	std::uint32_t m_BalanceValidationVariantIndex = 0;
+	std::string m_BalanceValidationExperimentId = "fixed_baseline";
+	std::string m_BalanceValidationCurrentVariantId = "dda_off";
+	std::vector<BalanceValidationVariant> m_BalanceValidationVariants{
+		{ "dda_off", true },
+		{ "dda_on", false },
+	};
+	int m_BalanceValidationMaximumClearedStages = 30;
+
+	// Baseline difficulty is fixed for the run. DDA remains a separate assist.
+	std::string m_BaselineDifficultyProfile = "normal";
+	float m_BaselineEnemyHpMultiplier = 1.0f;
+	int m_BaselineEnemyAttackDelta = 0;
+	bool m_ProgressionScalingEnabled = true;
+	int m_ProgressionAttackStart = 20;
+	int m_ProgressionAttackInterval = 5;
+	int m_ProgressionAttackStep = 1;
+	int m_ProgressionAttackMaximumDelta = 8;
+
+	// Encounter threat costs are logged separately from raw enemy count.
+	std::unordered_map<std::string, float> m_EnemyThreatCosts;
+	std::unordered_map<std::string, float> m_StageThreatTargets;
+	float m_StageDataLayoutThreatMultiplier = 1.0f;
+	float m_DenseLayoutThreatMultiplier = 1.25f;
+	float m_McpLayoutThreatMultiplier = 1.0f;
 
 	// Dynamic difficulty adjustment (DDA). The result of one battle is
 	// applied to enemies spawned in the following battle.
+	bool m_DynamicBalanceConfiguredEnabled = true;
 	bool m_DynamicBalanceEnabled = true;
 	bool m_DynamicBalanceAppliedEnabled = true;
+	int m_DynamicBalanceInitialLevel = 0;
 	int m_DynamicBalanceLevel = 0;
 	int m_DynamicBalanceAppliedLevel = 0;
 	int m_DynamicBalanceMinLevel = -3;
@@ -188,6 +257,7 @@ private:
 	int m_DynamicBalanceHpStep = 1;
 	int m_DynamicBalanceAttackStep = 1;
 	int m_DynamicBalanceLevelsPerAttackStep = 2;
+	bool m_DynamicBalancePositiveAttackScalingEnabled = false;
 	int m_DynamicBalanceMinEnemyHp = 1;
 	int m_DynamicBalanceMaxEnemyHp = 100;
 	int m_DynamicBalanceMinEnemyAttack = 0;
@@ -252,7 +322,8 @@ private:
 	/// </summary>
 	void ApplyPlayerRunStatusTo(PlayerBall* player);
 	void ApplyRelicModifiersTo(PlayerBall* player);
-	void ResetShotRelicAttackBonus(PlayerBall* player = nullptr);
+	void ResetShotRelicState(PlayerBall* player = nullptr);
+	void ApplyEndOfShotRelicEffects(PlayerBall* player);
 	void SaveDebugSnapshot();
 	void CaptureCurrentPlayerStatus();
 	void DrawNextPlayerBall();
@@ -266,6 +337,23 @@ private:
 	void LoadDynamicBalanceConfig(
 		const std::string& filePath =
 			"assets/data/dynamic_balance.json");
+	void LoadDifficultyProfileConfig(
+		const std::string& filePath =
+			"assets/data/difficulty_profiles.json");
+	void LoadBalanceValidationConfig(
+		const std::string& filePath =
+			"assets/data/balance_validation.json");
+	void LoadEncounterBalanceConfig(
+		const std::string& filePath =
+			"assets/data/encounter_balance.json");
+	void LoadPocketRulesConfig(
+		const std::string& filePath =
+			"assets/data/pocket_rules.json");
+	void RestoreNextPocketedEnemy();
+	DirectX::SimpleMath::Vector3 FindEnemyPocketReturnPosition(
+		const EnemyBall* returningEnemy) const;
+	void ResetDynamicBalanceRunState();
+	StageType GetScheduledStageType() const;
 	void FinishDynamicBalanceShot();
 	void EvaluateDynamicBalanceStage(bool cleared);
 	bool UpdateBalanceAutoPlay();
@@ -278,6 +366,7 @@ private:
 	int FindBalanceAutoPendingRemovalBall() const;
 	void RemoveBalanceAutoPendingBall(std::uint64_t instanceId);
 	void PruneBalanceAutoPendingBalls();
+	void RemoveDestroyedGameObjects();
 
 public:
 	Game(); // コンストラクタ
@@ -292,12 +381,10 @@ public:
 	GameObject* CreateGameObject(const std::string& name);
 
 	void ChangeScene(SceneType sceneType);	//シーンを変更
-	void DeleteObject(Object* pt);		//オブジェクトを削除する
-	void DeleteComponent(Component* component);
-	void DeleteAllObject();				//オブジェクトを全て削除する
+	void DeleteGameObject(GameObject* gameObject);
+	void DeleteAllGameObjects();
 
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
-	static SkyBox* GetSkyBox();
 
 	GameState GetGameState() const { return m_GameState; }
 	void SetGameState(GameState state) { m_GameState = state; }
@@ -306,18 +393,21 @@ public:
 		return m_BalanceAutoPlayEnabled;
 	}
 
-	bool ContainsObject(const Object* pt) const;
+	bool ContainsGameObject(const GameObject* gameObject) const;
 	bool ContainsComponent(const Component* component) const;
 
 	void LoadPlayerStatusFromJson(
 		const std::string& filePath = "assets/data/player_status.json",
 		const std::string& deckFilePath = "assets/data/player_deck.json");
 	void ResetPlayerRuntimeStatus();
-	void StartNewRun();
+	void StartNewRun(
+		const std::string& controllerType = std::string(),
+		const std::string& controllerProfile = std::string());
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
 	void CompleteCurrentStage();
-	void StartNextBattle(StageType stageType = StageType::Normal);
+	void StartNextBattle();
+	void StartNextBattle(StageType stageType);
 	void OnBattleStageStarted(const StageData& stage);
 	const StageData* GetCurrentStageOverride() const
 	{
@@ -326,8 +416,26 @@ public:
 			: nullptr;
 	}
 	void OnPlayerShotFired(PlayerBall* player);
+	void NotifyPlayerWallCollision();
+	int ConsumeBankShotDamageMultiplier();
 	void NotifyDamageBallCollision(DamageBallCollisionType collisionType);
+	void NotifyPlayerDamage(
+		const std::string& source,
+		int damage,
+		const std::string& sourceId = std::string());
+	void HandleEnemyPocket(EnemyBall* enemy);
+	DirectX::SimpleMath::Vector3 FindPlayerPocketReturnPosition(
+		const PlayerBall* player);
+	float GetCurrentPocketFinisherRatio() const;
+	bool IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const;
+	int GetPocketQueueIndex(const EnemyBall* enemy) const;
+	int GetPlayerPocketDamageAmount() const;
+	void RecordBalanceEvent(
+		const std::string& eventType,
+		const nlohmann::json& details = nlohmann::json::object());
 	void NotifyDynamicBalanceHit();
+	int CalculateDynamicBalanceAttackModifier(int level) const;
+	int CalculateProgressionAttackModifier() const;
 	void ApplyDynamicBalanceToEnemyData(EnemyData& enemyData) const;
 	void SetDynamicBalance(
 		bool enabled,
@@ -335,6 +443,10 @@ public:
 		int requestedLevel,
 		bool hasRequestedLevel);
 	void NotifyBalanceAutoFullHpEnemySurvived();
+	std::uint32_t GetNextRouteRandomSeed()
+	{
+		return m_RouteSelectionSeed + m_RouteSelectionCounter++;
+	}
 	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
 	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
 
@@ -342,36 +454,8 @@ public:
 	/// 敵が全滅しているかどうかを判定する関数
 	bool AreAllEnemiesDefeated() const;
 
-	//オブジェクトを追加する（※テンプレート関数）
-	template<typename T> T* AddObject()
-	{
-		static_assert(std::is_base_of_v<Component, T>,
-			"T must inherit from Component");
-
-		GameObject* gameObject = CreateGameObject(typeid(T).name());
-		T* component = gameObject->AddComponent<T>();
-
-		GameObjectTag tag = GameObjectTag::None;
-		if constexpr (std::is_same_v<T, Ground>) tag = GameObjectTag::Ground;
-		else if constexpr (std::is_same_v<T, TableFrame>) tag = GameObjectTag::Rail;
-		else if constexpr (std::is_same_v<T, Pocket>) tag = GameObjectTag::Pocket;
-		else if constexpr (std::is_same_v<T, Pole>) tag = GameObjectTag::Goal;
-		else if constexpr (std::is_same_v<T, Texture2D>) tag = GameObjectTag::ScreenUi;
-
-		if (tag != GameObjectTag::None)
-		{
-			gameObject->AddComponent<TagComponent>(tag);
-		}
-
-		if constexpr (std::is_same_v<T, Pocket>)
-		{
-			gameObject->AddComponent<SphereColliderComponent>(2.0f, true);
-		}
-		return component;
-	}
-
-	//オブジェクトを取得する
-	template<typename T>std::vector<T*> GetObjects()
+	// Finds all components of the requested type in the world.
+	template<typename T> std::vector<T*> GetComponents()
 	{
 		static_assert(std::is_base_of_v<Component, T>,
 			"T must inherit from Component");
@@ -379,6 +463,11 @@ public:
 		std::vector<T*>res;
 		for (auto& gameObject : m_Instance->m_GameObjects)
 		{
+			if (gameObject->IsDestroyRequested())
+			{
+				continue;
+			}
+
 			if (T* component = gameObject->GetComponent<T>())
 			{
 				res.emplace_back(component);
@@ -397,6 +486,11 @@ public:
 		std::vector<GameObject*> result;
 		for (auto& gameObject : m_Instance->m_GameObjects)
 		{
+			if (gameObject->IsDestroyRequested())
+			{
+				continue;
+			}
+
 			if (gameObject->HasComponent<T>())
 			{
 				result.push_back(gameObject.get());
@@ -410,6 +504,11 @@ public:
 		std::vector<GameObject*> result;
 		for (auto& gameObject : m_Instance->m_GameObjects)
 		{
+			if (gameObject->IsDestroyRequested())
+			{
+				continue;
+			}
+
 			TagComponent* tagComponent = gameObject->GetComponent<TagComponent>();
 			if (tagComponent != nullptr && tagComponent->GetTag() == tag)
 			{
@@ -419,20 +518,27 @@ public:
 		return result;
 	}
 
-	//オブジェクトを追加する.座標指定版
-	template<typename T> T* AddObjectWithPosition(DirectX::SimpleMath::Vector3 pos)
-	{
-		T* component = AddObject<T>();
-		component->SetInitPosition(pos);
-		return component;
-	}
-
 	int GetPlayerMoney() const
 	{
 		return m_PlayerRunStatus.money;
 	}
 	int GetPlayerCurrentHp() const { return m_PlayerRunStatus.currentHp; }
 	int GetPlayerMaxHp() const { return m_PlayerRunStatus.maxHp; }
+	int GetRestHealAmount() const;
+	int GetRestHealPercent() const;
+	int GetRestHealCooldownBattles() const
+	{
+		return m_RestHealCooldownBattles;
+	}
+	int GetRestHealCooldownRemaining() const
+	{
+		return m_RestHealCooldownRemaining;
+	}
+	bool CanRestHeal() const
+	{
+		return m_RestHealCooldownRemaining <= 0 &&
+			m_PlayerRunStatus.currentHp < m_PlayerRunStatus.maxHp;
+	}
 	int GetClearedStageCount() const { return m_ClearedStageCount; }
 	int GetPlayerProgress() const { return m_PlayerRunStatus.progress; }
 	const std::string& GetSelectedStageId() const
@@ -480,6 +586,16 @@ public:
 	int GetCurrentShotEnemyEnemyCollisionCount() const
 	{
 		return m_CurrentShotEnemyEnemyCollisionCount;
+	}
+	int GetCurrentShotBallCollisionCount() const
+	{
+		return m_CurrentShotPlayerEnemyCollisionCount +
+			m_CurrentShotEnemyEnemyCollisionCount;
+	}
+	bool IsCurrentShotBankShotReady() const
+	{
+		return m_CurrentShotBankShotReady &&
+			!m_CurrentShotBankShotConsumed;
 	}
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
 	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;

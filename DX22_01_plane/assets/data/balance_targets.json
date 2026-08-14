@@ -1,5 +1,13 @@
 {
   "minimum_sample_count": 30,
+  "minimum_sample_count_by_stage_type": {
+    "normal": 30,
+    "midBoss": 15,
+    "boss": 10
+  },
+  "boss_revaluation": {
+    "minimum_reached_runs": 10
+  },
   "adjustment_score_threshold": 60.0,
   "balanced_score_threshold": 80.0,
   "metrics": {
@@ -7,31 +15,36 @@
       "min": 0.65,
       "max": 0.80,
       "tolerance": 0.25,
-      "weight": 0.40
+      "weight": 0.40,
+      "hard_gate": true
     },
     "median_shots": {
       "min": 4.0,
       "max": 7.0,
       "tolerance": 5.0,
-      "weight": 0.25
+      "weight": 0.25,
+      "hard_gate": true
     },
     "average_remaining_hp_ratio": {
       "min": 0.30,
       "max": 0.65,
       "tolerance": 0.35,
-      "weight": 0.15
+      "weight": 0.15,
+      "hard_gate": true
     },
     "no_hit_shot_rate": {
       "min": 0.00,
       "max": 0.20,
       "tolerance": 0.40,
-      "weight": 0.10
+      "weight": 0.10,
+      "hard_gate": true
     },
     "average_collision_effect": {
       "min": 1.0,
       "max": 3.0,
       "tolerance": 3.0,
-      "weight": 0.10
+      "weight": 0.10,
+      "hard_gate": true
     }
   }
 }

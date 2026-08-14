@@ -1,44 +1,46 @@
 #pragma once
 
+#include "SimpleMath.h"
+
+#include <array>
+
 namespace TableConfig
 {
-    // ==========================
-    // ビリヤード台全体の外形サイズ
-    // レールを含めたサイズ
-    // ==========================
-    static const float TABLE_OUTER_WIDTH = 145.0f;   // X方向
-    static const float TABLE_OUTER_DEPTH = 80.0f;  // Z方向
+    static constexpr float TABLE_OUTER_WIDTH = 145.0f;
+    static constexpr float TABLE_OUTER_DEPTH = 80.0f;
+    static constexpr float RAIL_WIDTH = 4.0f;
+    static constexpr float POCKET_RADIUS = 3.0f;
+    static constexpr float POCKET_MOUTH_HALF_WIDTH = 4.5f;
+    static constexpr float FIELD_HEIGHT = 1.0f;
+    static constexpr float RAIL_TOP_OFFSET = 0.05f;
 
-    // ==========================
-    // レール・ポケット
-    // ==========================
-    static const float RAIL_WIDTH = 4.0f;
-    static const float POCKET_RADIUS = 2.0f;
-
-    // ==========================
-    // 高さ
-    // ==========================
-    static const float FIELD_HEIGHT = 1.0f;
-    static const float RAIL_TOP_OFFSET = 0.05f;
-
-    // ==========================
-    // 実際にボールが転がる地面サイズ
-    // TableFrame全体 - レール幅 * 2
-    // ==========================
-    static float GetFieldWidth()
+    inline float GetFieldWidth()
     {
         return TABLE_OUTER_WIDTH - RAIL_WIDTH * 2.0f;
     }
 
-    static float GetFieldDepth()
+    inline float GetFieldDepth()
     {
         return TABLE_OUTER_DEPTH - RAIL_WIDTH * 2.0f;
     }
 
-    /// <summary>
-	/// X方向の幅とZ方向の奥行きのどちらが長いかを判定する関数
-    /// </summary>
-    static bool IsDepthLongSide()
+    inline std::array<DirectX::SimpleMath::Vector3, 6>
+        GetPocketCenters()
+    {
+        const float halfWidth = GetFieldWidth() * 0.5f;
+        const float halfDepth = GetFieldDepth() * 0.5f;
+        const float y = 0.05f;
+        return {
+            DirectX::SimpleMath::Vector3(-halfWidth, y, halfDepth),
+            DirectX::SimpleMath::Vector3(0.0f, y, halfDepth),
+            DirectX::SimpleMath::Vector3(halfWidth, y, halfDepth),
+            DirectX::SimpleMath::Vector3(-halfWidth, y, -halfDepth),
+            DirectX::SimpleMath::Vector3(0.0f, y, -halfDepth),
+            DirectX::SimpleMath::Vector3(halfWidth, y, -halfDepth),
+        };
+    }
+
+    inline bool IsDepthLongSide()
     {
         return GetFieldDepth() >= GetFieldWidth();
     }

@@ -3,6 +3,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 #include "imgui/imgui.h"
 
 RestSiteScene::RestSiteScene()
@@ -17,10 +18,10 @@ RestSiteScene::~RestSiteScene()
 
 void RestSiteScene::Init()
 {
-	Texture2D* background = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* background = Texture2DFactory::Create(*Game::GetInstance());
 	background->SetTexture("assets/texture/background1.png");
 	background->SetScale(1280.0f, 720.0f, 0.0f);
-	m_MySceneObjects.emplace_back(background);
+	m_SceneGameObjects.emplace_back(background->GetGameObject());
 }
 
 void RestSiteScene::Update()
@@ -76,7 +77,10 @@ void RestSiteScene::Update()
 		if (Game::GetInstance()->RestHeal())
 		{
 			m_ActionUsed = true;
-			m_Message = "HP fully restored.";
+			m_Message = "Recovered up to " +
+				std::to_string(
+					Game::GetInstance()->GetRestHealPercent()) +
+				"% of max HP.";
 		}
 		else
 		{
@@ -105,7 +109,18 @@ void RestSiteScene::DrawUI()
 	ImGui::Text("HP %d / %d", Game::GetInstance()->GetPlayerCurrentHp(), Game::GetInstance()->GetPlayerMaxHp());
 	ImGui::TextUnformatted("Choose one free action during this visit.");
 	ImGui::Separator();
-	ImGui::Text("%s Rest - Fully restore HP", m_SelectedAction == 0 ? ">" : " ");
+	ImGui::Text(
+		"%s Rest - Restore %d%% of max HP (+%d)",
+		m_SelectedAction == 0 ? ">" : " ",
+		Game::GetInstance()->GetRestHealPercent(),
+		Game::GetInstance()->GetRestHealAmount());
+	if (!Game::GetInstance()->CanRestHeal() &&
+		Game::GetInstance()->GetRestHealCooldownRemaining() > 0)
+	{
+		ImGui::Text(
+			"    Heal cooldown: %d battle(s) remaining",
+			Game::GetInstance()->GetRestHealCooldownRemaining());
+	}
 	ImGui::Text("%s Upgrade - Next fixed level (max +2)", m_SelectedAction == 1 ? ">" : " ");
 	ImGui::Text("%s Leave", m_SelectedAction == 2 ? ">" : " ");
 
@@ -148,9 +163,9 @@ void RestSiteScene::DrawUI()
 
 void RestSiteScene::Uninit()
 {
-	for (Component* component : m_MySceneObjects)
+	for (GameObject* gameObject : m_SceneGameObjects)
 	{
-		Game::GetInstance()->DeleteComponent(component);
+		Game::GetInstance()->DeleteGameObject(gameObject);
 	}
-	m_MySceneObjects.clear();
+	m_SceneGameObjects.clear();
 }

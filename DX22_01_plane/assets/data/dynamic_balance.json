@@ -6,6 +6,14 @@
   "hp_step_per_level": 1,
   "attack_step": 1,
   "levels_per_attack_step": 2,
+  "positive_attack_scaling_enabled": false,
+  "progression_scaling": {
+    "enabled": true,
+    "attack_start_progress": 20,
+    "attack_interval": 5,
+    "attack_step": 1,
+    "maximum_attack_delta": 8
+  },
   "minimum_enemy_hp": 1,
   "maximum_enemy_hp": 100,
   "minimum_enemy_attack": 0,

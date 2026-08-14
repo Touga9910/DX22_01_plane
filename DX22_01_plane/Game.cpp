@@ -12,6 +12,7 @@
 #include "PlayerBallDataLoader.h"
 #include "StageDataLoader.h"
 #include "EnemyData.h"
+#include "TableConfig.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -23,6 +24,9 @@
 #include <iomanip>
 #include <limits>
 #include <random>
+#include <stdexcept>
+
+using DirectX::SimpleMath::Vector3;
 
 Game* Game::m_Instance;//ゲームインスタンス
 
@@ -38,6 +42,9 @@ namespace
 		static_cast<int>(sizeof(kClearRewardNames) / sizeof(kClearRewardNames[0]));
 	constexpr int kExtraRewardMoney = 10;
 	constexpr int kAutoShopRemoveCost = 15;
+	constexpr int kBankShotDamageMultiplier = 2;
+	constexpr int kEmergencyRepairContactThreshold = 3;
+	constexpr int kEmergencyRepairHealAmount = 1;
 
 	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
 	{
@@ -124,10 +131,8 @@ namespace
 			return;
 		}
 
-		const Transform transform = ball->GetMutableTransform();
-
 		file << "[" << typeName << " " << index << "]\n";
-		WriteVector3(file, "Position", transform.position);
+		WriteVector3(file, "Position", ball->GetPosition());
 		WriteVector3(file, "Velocity", ball->GetVelocity());
 		file << "HP = " << ball->GetHP() << " / " << ball->GetMaxHP() << "\n";
 		file << "Radius = " << ball->GetRadius() << "\n";
@@ -147,7 +152,7 @@ Game::Game()
 Game::~Game()
 {
 	delete m_Scene;
-	DeleteAllObject();
+	DeleteAllGameObjects();
 }
 
 // 初期化
@@ -168,7 +173,11 @@ void Game::Init()
 
 	m_Instance->LoadPlayerStatusFromJson();
 	m_Instance->LoadBalanceAutoPlayConfig();
+	m_Instance->LoadDifficultyProfileConfig();
 	m_Instance->LoadDynamicBalanceConfig();
+	m_Instance->LoadBalanceValidationConfig();
+	m_Instance->LoadEncounterBalanceConfig();
+	m_Instance->LoadPocketRulesConfig();
 
 	// 最初のシーンを読み込む
 	m_Instance->m_Scene = new TitleScene;
@@ -180,6 +189,8 @@ void Game::Init()
 // 更新
 void Game::Update()
 {
+	m_Instance->RemoveDestroyedGameObjects();
+
 	// 入力処理を更新
 	Input::Update();
 
@@ -210,6 +221,7 @@ void Game::Update()
 
 	// シーンを更新
 	m_Instance->m_Scene->Update();
+	m_Instance->RemoveDestroyedGameObjects();
 
 	// カメラを更新
 	m_Instance->m_Camera.Update();
@@ -229,17 +241,7 @@ void Game::Update()
 	{
 		gameObject->LateUpdate();
 	}
-	// 死亡フラグ（HP0など）が立っているオブジェクトを自動的に削除
-	std::erase_if(m_Instance->m_GameObjects, [](const std::unique_ptr<GameObject>& o) {
-		if (o && o->IsDead()) {
-			o->Uninit(); // 削除される前に終了処理を呼ぶ
-			return true; // 配列から削除する
-		}
-		return false;    // 残す
-		});
-
-	// 要素が減った場合はメモリを詰める（既存の処理をここに集約）
-	m_Instance->m_GameObjects.shrink_to_fit();
+	m_Instance->RemoveDestroyedGameObjects();
 
 	// ゲーム状態を更新（全ボールの停止検知など）
 	switch (m_Instance->m_GameState)
@@ -248,9 +250,13 @@ void Game::Update()
 		if (m_Instance->AreAllBallsStopped())
 		{
 			const std::vector<PlayerBall*> players =
-				m_Instance->GetObjects<PlayerBall>();
+				m_Instance->GetComponents<PlayerBall>();
 			const std::vector<EnemyBall*> enemies =
-				m_Instance->GetObjects<EnemyBall>();
+				m_Instance->GetComponents<EnemyBall>();
+			if (!players.empty())
+			{
+				m_Instance->ApplyEndOfShotRelicEffects(players[0]);
+			}
 			const int playerHp =
 				players.empty() || players[0] == nullptr
 				? m_Instance->m_PlayerRunStatus.currentHp
@@ -294,12 +300,6 @@ void Game::Update()
 // 描画
 void Game::Draw()
 {
-	SkyBox* sky = Game::GetInstance()->GetSkyBox();
-	if (sky)
-	{
-		sky->Draw(&m_Instance->m_Camera);
-	}
-
 	Renderer::DrawStart();
 
 	for (auto& gameObject : m_Instance->m_GameObjects)
@@ -375,13 +375,13 @@ void Game::Draw()
 	ImGui::SameLine();
 	ImGui::TextUnformatted("debug_state_snapshot.txt");
 
-	std::vector<PlayerBall*> players = m_Instance->GetObjects<PlayerBall>();
+	std::vector<PlayerBall*> players = m_Instance->GetComponents<PlayerBall>();
 	for (int i = 0; i < players.size(); i++)
 	{
 		players[i]->DrawImGui();
 	}
 
-	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
+	std::vector<EnemyBall*> enemies = m_Instance->GetComponents<EnemyBall>();
 	for (int i = 0; i < enemies.size(); i++)
 	{
 		std::string label = "EnemyBall " + std::to_string(i);
@@ -431,9 +431,9 @@ void Game::Uninit()
 		}
 
 		const std::vector<PlayerBall*> players =
-			m_Instance->GetObjects<PlayerBall>();
+			m_Instance->GetComponents<PlayerBall>();
 		const std::vector<EnemyBall*> enemies =
-			m_Instance->GetObjects<EnemyBall>();
+			m_Instance->GetComponents<EnemyBall>();
 		const int playerHp =
 			players.empty() || players[0] == nullptr
 			? m_Instance->m_PlayerRunStatus.currentHp
@@ -560,35 +560,31 @@ void Game::ChangeScene(SceneType sceneType)
 	}
 }
 
-// オブジェクトを削除
-void Game::DeleteObject(Object* pt)
+void Game::DeleteGameObject(GameObject* gameObject)
 {
-	DeleteComponent(pt);
+	if (ContainsGameObject(gameObject))
+	{
+		gameObject->Destroy();
+	}
 }
 
-void Game::DeleteComponent(Component* component)
+void Game::RemoveDestroyedGameObjects()
 {
-	if (component == nullptr) return;
-
-	// 1. 所有元のGameObjectがm_GameObjectsに存在するか確認する
-	GameObject* owner = component->GetGameObject();
-	auto it = std::find_if(m_Instance->m_GameObjects.begin(), m_Instance->m_GameObjects.end(),
-		[owner](const std::unique_ptr<GameObject>& element) {
-			return element.get() == owner;
+	const std::size_t removedCount = std::erase_if(
+		m_GameObjects,
+		[](const std::unique_ptr<GameObject>& gameObject) {
+			return gameObject != nullptr &&
+				gameObject->IsDestroyRequested();
 		});
 
-	// 2. 存在しない（すでに削除済み）場合は何もしない
-	if (it == m_Instance->m_GameObjects.end()) return;
-
-	// 3. 存在する場合のみ安全に削除する
-	m_Instance->m_GameObjects.erase(it);
-
-	// ※終了処理のループ中にshrink_to_fit()を高頻度で呼ぶと、メモリ再確保で不安定になる。
-	// 削除直後ではなく、ゲーム全体のUpdateの最後などで呼ぶのが安全。
+	if (removedCount > 0)
+	{
+		m_GameObjects.shrink_to_fit();
+	}
 }
 
 // オブジェクトをすべて削除
-void Game::DeleteAllObject()
+void Game::DeleteAllGameObjects()
 {
 	// 終了処理
 	for (auto& o : m_Instance->m_GameObjects)
@@ -599,29 +595,14 @@ void Game::DeleteAllObject()
 	m_Instance->m_GameObjects.shrink_to_fit();
 }
 
-SkyBox* Game::GetSkyBox()
+bool Game::ContainsGameObject(const GameObject* gameObject) const
 {
+	if (gameObject == nullptr) return false;
+
+	for (const auto& ownedGameObject : m_GameObjects)
 	{
-		if (m_Instance)
-		{
-			return m_Instance->m_SkyBox;
-		}
-		return nullptr;
-	}
-}
-
-bool Game::ContainsObject(const Object* pt) const
-{
-	return ContainsComponent(pt);
-}
-
-bool Game::ContainsComponent(const Component* component) const
-{
-	if (component == nullptr) return false;
-
-	for (const auto& gameObject : m_GameObjects)
-	{
-		if (gameObject.get() == component->GetGameObject())
+		if (ownedGameObject.get() == gameObject &&
+			!ownedGameObject->IsDestroyRequested())
 		{
 			return true;
 		}
@@ -632,7 +613,7 @@ bool Game::ContainsComponent(const Component* component) const
 
 bool Game::AreAllEnemiesDefeated() const
 {
-	std::vector<EnemyBall*> enemies = m_Instance->GetObjects<EnemyBall>();
+	std::vector<EnemyBall*> enemies = m_Instance->GetComponents<EnemyBall>();
 
 	// 敵が1体もいない場合はクリア扱いにしない
 	if (enemies.empty())
@@ -683,8 +664,8 @@ bool Game::AreAllBallsStopped() const
 
 void Game::ProcessEnemyAttack()
 {
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
-	std::vector<EnemyBall*> enemies = GetObjects<EnemyBall>();
+	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
+	std::vector<EnemyBall*> enemies = GetComponents<EnemyBall>();
 
 	if (players.empty())
 	{
@@ -698,10 +679,10 @@ void Game::ProcessEnemyAttack()
 	{
 		if (enemy != nullptr && enemy->IsDefeated())
 		{
-			DeleteComponent(enemy);
+			DeleteGameObject(enemy->GetGameObject());
 		}
 	}
-	enemies = GetObjects<EnemyBall>();
+	enemies = GetComponents<EnemyBall>();
 
 	PlayerBall* player = players[0];
 
@@ -716,12 +697,21 @@ void Game::ProcessEnemyAttack()
 		{
 			continue;
 		}
+		if (enemy->IsPocketed())
+		{
+			continue;
+		}
 
 		EnemyAttackComponent* attack =
 			enemy->GetGameObject()->GetComponent<EnemyAttackComponent>();
 		if (attack != nullptr)
 		{
+			const int hpBefore = player->GetHP();
 			attack->Attack(player);
+			NotifyPlayerDamage(
+				"enemy_attack",
+				(std::max)(0, hpBefore - player->GetHP()),
+				enemy->GetEnemyId());
 		}
 	}
 
@@ -733,7 +723,216 @@ void Game::ProcessEnemyAttack()
 	}
 	else
 	{
+		RestoreNextPocketedEnemy();
 		m_GameState = GameState::TurnEnd;
+	}
+}
+
+float Game::GetCurrentPocketFinisherRatio() const
+{
+	switch (m_CurrentBattleStageType)
+	{
+	case StageType::MidBoss:
+		return m_MidBossPocketFinisherRatio;
+	case StageType::Boss:
+		return m_BossPocketFinisherRatio;
+	case StageType::Normal:
+	default:
+		return m_NormalPocketFinisherRatio;
+	}
+}
+
+bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
+{
+	if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed() ||
+		enemy->GetMaxHP() <= 0)
+	{
+		return false;
+	}
+	const float hpRatio = static_cast<float>(enemy->GetHP()) /
+		static_cast<float>(enemy->GetMaxHP());
+	return hpRatio <= GetCurrentPocketFinisherRatio() + 0.0001f;
+}
+
+int Game::GetPlayerPocketDamageAmount() const
+{
+	return (std::max)(1, static_cast<int>(std::ceil(
+		static_cast<float>(m_PlayerRunStatus.maxHp) *
+		m_PlayerPocketDamageRatio)));
+}
+
+void Game::HandleEnemyPocket(EnemyBall* enemy)
+{
+	if (enemy == nullptr || enemy->IsPocketed())
+	{
+		return;
+	}
+	const bool wasAlreadyDefeated = enemy->IsDefeated();
+	const int hpBefore = enemy->GetHP();
+	const int maxHp = (std::max)(1, enemy->GetMaxHP());
+	const float hpRatio = static_cast<float>(hpBefore) /
+		static_cast<float>(maxHp);
+	const float finisherRatio = GetCurrentPocketFinisherRatio();
+	if (wasAlreadyDefeated || hpRatio <= finisherRatio + 0.0001f)
+	{
+		enemy->Defeat();
+		enemy->RemoveFromFieldAfterPocket();
+		RecordBalanceEvent(
+			"enemy_pocket_finisher",
+			{
+				{ "enemy_id", enemy->GetEnemyId() },
+				{ "stage_type", ToString(m_CurrentBattleStageType) },
+				{ "hp_before", hpBefore },
+				{ "max_hp", maxHp },
+				{ "hp_ratio", hpRatio },
+				{ "finisher_ratio", finisherRatio },
+				{ "already_defeated", wasAlreadyDefeated },
+			});
+		return;
+	}
+
+	enemy->EnterPocketQueue();
+	m_PocketedEnemyQueue.push_back(enemy);
+	RecordBalanceEvent(
+		"enemy_pocket_controlled",
+		{
+			{ "enemy_id", enemy->GetEnemyId() },
+			{ "stage_type", ToString(m_CurrentBattleStageType) },
+			{ "hp", hpBefore },
+			{ "max_hp", maxHp },
+			{ "hp_ratio", hpRatio },
+			{ "finisher_ratio", finisherRatio },
+			{ "queue_size", m_PocketedEnemyQueue.size() },
+		});
+}
+
+int Game::GetPocketQueueIndex(const EnemyBall* enemy) const
+{
+	for (std::size_t index = 0;
+		index < m_PocketedEnemyQueue.size();
+		index++)
+	{
+		if (m_PocketedEnemyQueue[index] == enemy)
+		{
+			return static_cast<int>(index);
+		}
+	}
+	return -1;
+}
+
+Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
+{
+	std::uniform_real_distribution<float> xDistribution(
+		-m_PlayerPocketReturnHalfWidth,
+		m_PlayerPocketReturnHalfWidth);
+	std::uniform_real_distribution<float> zDistribution(
+		-m_PlayerPocketReturnHalfDepth,
+		m_PlayerPocketReturnHalfDepth);
+	const float playerRadius = player != nullptr && player->GetBall() != nullptr
+		? player->GetBall()->GetRadius()
+		: 2.4f;
+
+	for (int attempt = 0; attempt < 24; attempt++)
+	{
+		const Vector3 candidate(
+			xDistribution(m_PocketRandomEngine),
+			TableConfig::FIELD_HEIGHT,
+			zDistribution(m_PocketRandomEngine));
+		bool blocked = false;
+		for (BallComponent* ball : GetComponents<BallComponent>())
+		{
+			if (ball == nullptr || ball->GetGameObject() == nullptr ||
+				!ball->GetGameObject()->IsActive() ||
+				(player != nullptr && ball == player->GetBall()))
+			{
+				continue;
+			}
+			Vector3 difference = candidate - ball->GetPosition();
+			difference.y = 0.0f;
+			const float clearance = playerRadius + ball->GetRadius() + 0.5f;
+			if (difference.LengthSquared() < clearance * clearance)
+			{
+				blocked = true;
+				break;
+			}
+		}
+		if (!blocked)
+		{
+			return candidate;
+		}
+	}
+	return Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f);
+}
+
+Vector3 Game::FindEnemyPocketReturnPosition(
+	const EnemyBall* returningEnemy) const
+{
+	const float baseZ = TableConfig::GetFieldDepth() * 0.5f -
+		m_EnemyPocketReturnTopEdgeOffset;
+	const float radius = returningEnemy != nullptr
+		? returningEnemy->GetRadius()
+		: 2.4f;
+	const float spacing = radius * 2.0f + 1.0f;
+	const std::array<int, 9> offsets{ 0, -1, 1, -2, 2, -3, 3, -4, 4 };
+	for (int offset : offsets)
+	{
+		const Vector3 candidate(
+			m_EnemyPocketReturnX + static_cast<float>(offset) * spacing,
+			TableConfig::FIELD_HEIGHT,
+			baseZ);
+		bool blocked = false;
+		for (BallComponent* ball : m_Instance->GetComponents<BallComponent>())
+		{
+			if (ball == nullptr || ball->GetGameObject() == nullptr ||
+				!ball->GetGameObject()->IsActive() ||
+				(returningEnemy != nullptr &&
+					ball == returningEnemy->GetBall()))
+			{
+				continue;
+			}
+			Vector3 difference = candidate - ball->GetPosition();
+			difference.y = 0.0f;
+			const float clearance = radius + ball->GetRadius() + 0.5f;
+			if (difference.LengthSquared() < clearance * clearance)
+			{
+				blocked = true;
+				break;
+			}
+		}
+		if (!blocked)
+		{
+			return candidate;
+		}
+	}
+	return Vector3(
+		m_EnemyPocketReturnX,
+		TableConfig::FIELD_HEIGHT,
+		baseZ);
+}
+
+void Game::RestoreNextPocketedEnemy()
+{
+	while (!m_PocketedEnemyQueue.empty())
+	{
+		EnemyBall* enemy = m_PocketedEnemyQueue.front();
+		m_PocketedEnemyQueue.pop_front();
+		if (enemy == nullptr || !ContainsComponent(enemy) ||
+			enemy->IsDefeated() || !enemy->IsPocketed())
+		{
+			continue;
+		}
+		const Vector3 returnPosition =
+			FindEnemyPocketReturnPosition(enemy);
+		enemy->ReturnFromPocket(returnPosition);
+		RecordBalanceEvent(
+			"enemy_pocket_returned",
+			{
+				{ "enemy_id", enemy->GetEnemyId() },
+				{ "position_x", returnPosition.x },
+				{ "position_z", returnPosition.z },
+				{ "remaining_queue_size", m_PocketedEnemyQueue.size() },
+			});
+		break;
 	}
 }
 
@@ -742,7 +941,7 @@ void Game::ProcessGameOver()
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
-		GetObjects<EnemyBall>();
+		GetComponents<EnemyBall>();
 	BalanceLogger& logger = BalanceLogger::GetInstance();
 	logger.EndShot(
 		m_PlayerRunStatus.currentHp,
@@ -753,12 +952,24 @@ void Game::ProcessGameOver()
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
 		CountDefeatedEnemies(enemies));
+	EvaluateDynamicBalanceStage(false);
+	RecordBalanceEvent(
+		"dynamic_balance_evaluation",
+		{
+			{ "battle_result", "game_over" },
+			{ "result", m_DynamicBalanceLastResult },
+			{ "reason", m_DynamicBalanceLastReason },
+			{ "level_change", m_DynamicBalanceLastLevelChange },
+			{ "next_level", m_DynamicBalanceLevel },
+			{ "remaining_hp_ratio", m_DynamicBalanceLastHpRatio },
+			{ "no_hit_rate", m_DynamicBalanceLastNoHitRate },
+			{ "shots_per_enemy", m_DynamicBalanceLastShotsPerEnemy },
+		});
 	logger.EndRun(
 		"game_over",
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
 		m_ClearedStageCount);
-	EvaluateDynamicBalanceStage(false);
 
 	ChangeScene(SceneType::Result);
 	m_GameState = GameState::AimingDirection;
@@ -769,7 +980,7 @@ void Game::StartClearReward()
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
-		GetObjects<EnemyBall>();
+		GetComponents<EnemyBall>();
 	BalanceLogger& logger = BalanceLogger::GetInstance();
 	logger.EndShot(
 		m_PlayerRunStatus.currentHp,
@@ -781,6 +992,18 @@ void Game::StartClearReward()
 		m_PlayerRunStatus.maxHp,
 		CountDefeatedEnemies(enemies));
 	EvaluateDynamicBalanceStage(true);
+	RecordBalanceEvent(
+		"dynamic_balance_evaluation",
+		{
+			{ "battle_result", "clear" },
+			{ "result", m_DynamicBalanceLastResult },
+			{ "reason", m_DynamicBalanceLastReason },
+			{ "level_change", m_DynamicBalanceLastLevelChange },
+			{ "next_level", m_DynamicBalanceLevel },
+			{ "remaining_hp_ratio", m_DynamicBalanceLastHpRatio },
+			{ "no_hit_rate", m_DynamicBalanceLastNoHitRate },
+			{ "shots_per_enemy", m_DynamicBalanceLastShotsPerEnemy },
+		});
 
 	// 敵全滅報酬を所持Moneyへ加算する
 	CollectStageRewardMoney();
@@ -790,7 +1013,7 @@ void Game::StartClearReward()
 	{
 		if (enemy != nullptr && enemy->IsDefeated())
 		{
-			DeleteComponent(enemy);
+			DeleteGameObject(enemy->GetGameObject());
 		}
 	}
 
@@ -800,6 +1023,79 @@ void Game::StartClearReward()
 	m_RewardMessage = "Choose one clear reward.";
 	m_ClearedStageCount++;
 	m_PlayerRunStatus.progress = m_ClearedStageCount + 1;
+	if (m_RestHealCooldownRemaining > 0)
+	{
+		m_RestHealCooldownRemaining--;
+		RecordBalanceEvent(
+			"rest_heal_cooldown_advanced",
+			{
+				{ "remaining_battles", m_RestHealCooldownRemaining },
+				{ "cleared_stage_count", m_ClearedStageCount },
+			});
+	}
+	if (m_BalanceValidationEnabled &&
+		m_BalanceValidationMaximumClearedStages > 0 &&
+		m_ClearedStageCount >=
+			m_BalanceValidationMaximumClearedStages)
+	{
+		RecordBalanceEvent(
+			"balance_validation_run_completed",
+			{
+				{ "reason", "maximum_cleared_stages_reached" },
+				{ "cleared_stage_count", m_ClearedStageCount },
+				{ "maximum_cleared_stages",
+					m_BalanceValidationMaximumClearedStages },
+			});
+		logger.EndRun(
+			"validation_complete",
+			m_PlayerRunStatus.currentHp,
+			m_PlayerRunStatus.maxHp,
+			m_ClearedStageCount);
+		ChangeScene(SceneType::Result);
+		m_GameState = GameState::AimingDirection;
+		return;
+	}
+	nlohmann::json newBallCandidates = nlohmann::json::array();
+	for (int index = 0; index < m_PlayerDeck.GetCatalogCount(); index++)
+	{
+		const PlayerBallData* ball = m_PlayerDeck.GetCatalogBall(index);
+		if (ball != nullptr)
+		{
+			newBallCandidates.push_back(
+				{
+					{ "catalog_index", index },
+					{ "ball_id", ball->definitionId },
+				});
+		}
+	}
+	nlohmann::json upgradeCandidates = nlohmann::json::array();
+	for (int index = 0;
+		index < m_PlayerDeck.GetRewardTargetCount();
+		index++)
+	{
+		const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(index);
+		if (ball != nullptr && ball->CanUpgrade())
+		{
+			upgradeCandidates.push_back(
+				{
+					{ "deck_index", index },
+					{ "instance_id", ball->instanceId },
+					{ "ball_id", ball->definitionId },
+					{ "upgrade_level", ball->upgradeLevel },
+				});
+		}
+	}
+	RecordBalanceEvent(
+		"clear_reward_offered",
+		{
+			{
+				"reward_types",
+				{ "new_ball", "upgrade_ball", "extra_money" }
+			},
+			{ "new_ball_candidates", std::move(newBallCandidates) },
+			{ "upgrade_candidates", std::move(upgradeCandidates) },
+			{ "extra_money_amount", kExtraRewardMoney },
+		});
 	m_GameState = GameState::ClearReward;
 }
 
@@ -809,6 +1105,25 @@ void Game::CompleteCurrentStage()
 	{
 		StartClearReward();
 	}
+}
+
+StageType Game::GetScheduledStageType() const
+{
+	const int floor = (std::max)(1, m_PlayerRunStatus.progress);
+	if (floor % 10 == 0)
+	{
+		return StageType::Boss;
+	}
+	if (floor % 5 == 0)
+	{
+		return StageType::MidBoss;
+	}
+	return StageType::Normal;
+}
+
+void Game::StartNextBattle()
+{
+	StartNextBattle(GetScheduledStageType());
 }
 
 void Game::StartNextBattle(StageType stageType)
@@ -905,19 +1220,38 @@ void Game::UpdateClearReward()
 	}
 
 	bool rewardApplied = false;
+	nlohmann::json rewardDetails =
+	{
+		{ "money_before", m_PlayerRunStatus.money },
+	};
 	switch (m_SelectedRewardIndex)
 	{
 	case 0:
+		if (const PlayerBallData* selected =
+			m_PlayerDeck.GetCatalogBall(m_SelectedRewardBallIndex))
+		{
+			rewardDetails["reward"] = "new_ball";
+			rewardDetails["ball_id"] = selected->definitionId;
+		}
 		rewardApplied = m_PlayerDeck.AddCatalogBall(m_SelectedRewardBallIndex);
 		m_RewardMessage = rewardApplied ? "A new ball was added to the deck." : "No ball is available.";
 		break;
 	case 1:
+		if (const PlayerBallData* selected =
+			m_PlayerDeck.GetRewardTarget(m_SelectedRewardBallIndex))
+		{
+			rewardDetails["reward"] = "upgrade_ball";
+			rewardDetails["ball_id"] = selected->definitionId;
+			rewardDetails["instance_id"] = selected->instanceId;
+			rewardDetails["upgrade_level_before"] = selected->upgradeLevel;
+		}
 		rewardApplied = RestUpgradeBall(m_SelectedRewardBallIndex);
 		m_RewardMessage = rewardApplied
 			? "The selected ball reached its next upgrade level."
 			: "This ball is already +2.";
 		break;
 	case 2:
+		rewardDetails["reward"] = "extra_money";
 		m_PlayerRunStatus.money += kExtraRewardMoney;
 		rewardApplied = true;
 		m_RewardMessage = "Received 10 extra Money.";
@@ -928,6 +1262,9 @@ void Game::UpdateClearReward()
 
 	if (rewardApplied)
 	{
+		rewardDetails["money_after"] = m_PlayerRunStatus.money;
+		rewardDetails["controller"] = "human";
+		RecordBalanceEvent("clear_reward_choice", rewardDetails);
 		m_IsClearRewardChosen = true;
 	}
 }
@@ -936,6 +1273,8 @@ void Game::BeginBallSelection()
 	m_CurrentShotCollisionAttackBonus = 0;
 	m_CurrentShotPlayerEnemyCollisionCount = 0;
 	m_CurrentShotEnemyEnemyCollisionCount = 0;
+	m_CurrentShotBankShotReady = false;
+	m_CurrentShotBankShotConsumed = false;
 
 	if (!m_PlayerDeck.PrepareOffer())
 	{
@@ -1013,7 +1352,7 @@ void Game::UpdateBallSelection()
 
 void Game::ApplySelectedBallPreview()
 {
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
 	if (players.empty() || players[0] == nullptr)
 	{
 		return;
@@ -1063,8 +1402,9 @@ void Game::DrawBallSelectionUI()
 			ball->status.mass,
 			ball->status.radius);
 		ImGui::Text(
-			"Pierce:%s",
-			ball->status.abilities.pierce ? "Yes" : "No");
+			"Pierce:%s  Anchor:%s",
+			ball->status.abilities.pierce ? "Yes" : "No",
+			ball->status.abilities.anchor ? "Yes" : "No");
 
 		if (ImGui::RadioButton(
 			"Use",
@@ -1195,6 +1535,9 @@ void Game::LoadPlayerStatusFromJson(
 	m_DefaultPlayerRunStatus = NormalizePlayerRunStatus(
 		loadResult.defaultRunStatus
 	);
+	m_RestHealRatio = loadResult.restHealRatio;
+	m_RestHealCooldownBattles = loadResult.restHealCooldownBattles;
+	m_PlayerDeck.SetCatalog(loadResult.ballDefinitions);
 
 	std::vector<PlayerBallData> defaultDeck =
 		PlayerBallDataLoader::LoadDeck(
@@ -1217,13 +1560,101 @@ void Game::ResetPlayerRuntimeStatus()
 	m_CurrentShotPlayerEnemyCollisionCount = 0;
 	m_CurrentShotEnemyEnemyCollisionCount = 0;
 	m_ClearedStageCount = 0;
+	m_RestHealCooldownRemaining = 0;
 	m_AutoPendingBallAdjustments.clear();
+	m_PocketedEnemyQueue.clear();
 	m_McpCurrentStageOverride.reset();
 }
 
-void Game::StartNewRun()
+void Game::ResetDynamicBalanceRunState()
+{
+	m_DynamicBalanceEnabled = m_DynamicBalanceConfiguredEnabled;
+	m_DynamicBalanceLevel = std::clamp(
+		m_DynamicBalanceInitialLevel,
+		m_DynamicBalanceMinLevel,
+		m_DynamicBalanceMaxLevel);
+	m_DynamicBalanceAppliedEnabled = false;
+	m_DynamicBalanceAppliedLevel = m_DynamicBalanceLevel;
+	m_DynamicBalanceStageActive = false;
+	m_DynamicBalanceShotActive = false;
+	m_DynamicBalanceCurrentShotHit = false;
+	m_DynamicBalanceStageShots = 0;
+	m_DynamicBalanceStageNoHitShots = 0;
+	m_DynamicBalanceStageEnemyCount = 0;
+	m_DynamicBalanceLastLevelChange = 0;
+	m_DynamicBalanceLastHpRatio = 1.0f;
+	m_DynamicBalanceLastNoHitRate = 0.0f;
+	m_DynamicBalanceLastShotsPerEnemy = 0.0f;
+	m_DynamicBalanceLastResult = "not_evaluated";
+	m_DynamicBalanceLastReason = "No battle has been evaluated in this run.";
+}
+
+void Game::StartNewRun(
+	const std::string& controllerType,
+	const std::string& controllerProfile)
 {
 	ResetPlayerRuntimeStatus();
+	ResetDynamicBalanceRunState();
+	m_PendingShotTelemetry = nlohmann::json::object();
+	if (m_BalanceValidationEnabled)
+	{
+		const std::uint32_t seedCount =
+			static_cast<std::uint32_t>(
+				(std::max)(std::size_t{ 1 },
+					m_BalanceValidationSeeds.size()));
+		const std::uint32_t variantCount =
+			static_cast<std::uint32_t>(
+				(std::max)(std::size_t{ 1 },
+					m_BalanceValidationVariants.size()));
+		m_BalanceValidationSeedIndex =
+			m_BalanceValidationSeeds.empty()
+			? 0
+			: m_BalanceValidationRunCounter % seedCount;
+		m_BalanceValidationVariantIndex =
+			(m_BalanceValidationRunCounter / seedCount) % variantCount;
+		if (!m_BalanceValidationVariants.empty())
+		{
+			const BalanceValidationVariant& variant =
+				m_BalanceValidationVariants[
+					m_BalanceValidationVariantIndex];
+			m_BalanceValidationCurrentVariantId = variant.id;
+			m_BalanceValidationCurrentDisableDynamicBalance =
+				variant.disableDynamicBalance;
+		}
+		else
+		{
+			m_BalanceValidationCurrentVariantId =
+				m_BalanceValidationExperimentId;
+			m_BalanceValidationCurrentDisableDynamicBalance =
+				m_BalanceValidationDisableDynamicBalance;
+		}
+		m_RunRandomSeed = m_BalanceValidationSeeds.empty()
+			? m_BalanceValidationSeed
+			: m_BalanceValidationSeeds[m_BalanceValidationSeedIndex];
+		m_BalanceValidationRunCounter++;
+		if (m_BalanceValidationCurrentDisableDynamicBalance)
+		{
+			m_DynamicBalanceEnabled = false;
+			m_DynamicBalanceAppliedEnabled = false;
+			m_DynamicBalanceLevel = 0;
+			m_DynamicBalanceAppliedLevel = 0;
+		}
+	}
+	else if (m_BalanceAutoPlayEnabled)
+	{
+		m_RunRandomSeed =
+			m_AutoRandomSeed + static_cast<std::uint32_t>(m_AutoRunCount);
+	}
+	else
+	{
+		m_RunRandomSeed = std::random_device{}();
+	}
+	m_StageSelectionSeed = m_RunRandomSeed ^ 0x9e3779b9u;
+	m_RouteSelectionSeed = m_RunRandomSeed ^ 0x85ebca6bu;
+	m_RouteSelectionCounter = 0;
+	m_StageSelector.Seed(m_StageSelectionSeed);
+	m_AutoRandomEngine.seed(m_RunRandomSeed ^ 0xc2b2ae35u);
+	m_PocketRandomEngine.seed(m_RunRandomSeed ^ 0x27d4eb2fu);
 
 	std::vector<BalanceBallSnapshot> deck;
 	deck.reserve(static_cast<size_t>(
@@ -1242,6 +1673,7 @@ void Game::StartNewRun()
 
 		BalanceBallSnapshot snapshot;
 		snapshot.id = ball->definitionId;
+		snapshot.instanceId = ball->instanceId;
 		snapshot.upgradeLevel = ball->upgradeLevel;
 		snapshot.attack = ball->status.attack;
 		snapshot.defense = ball->status.defense;
@@ -1251,14 +1683,66 @@ void Game::StartNewRun()
 		snapshot.friction = ball->status.friction;
 		snapshot.split = ball->status.abilities.split;
 		snapshot.pierce = ball->status.abilities.pierce;
+		snapshot.anchor = ball->status.abilities.anchor;
 		deck.push_back(std::move(snapshot));
 	}
+
+	const std::string effectiveControllerType =
+		!controllerType.empty()
+		? controllerType
+		: (m_BalanceAutoPlayEnabled ? "autoplay" : "human");
+	const nlohmann::json runContext =
+	{
+		{ "controller_profile", controllerProfile },
+		{
+			"randomness",
+			{
+				{ "run_seed", m_RunRandomSeed },
+				{ "autoplay_seed", m_RunRandomSeed ^ 0xc2b2ae35u },
+				{ "stage_selection_seed", m_StageSelectionSeed },
+				{ "route_selection_seed", m_RouteSelectionSeed },
+			}
+		},
+		{
+			"validation",
+			{
+				{ "enabled", m_BalanceValidationEnabled },
+				{ "experiment_id", m_BalanceValidationExperimentId },
+				{ "variant_id", m_BalanceValidationCurrentVariantId },
+				{ "variant_index", m_BalanceValidationVariantIndex },
+				{ "variant_count", m_BalanceValidationVariants.size() },
+				{ "maximum_cleared_stages",
+					m_BalanceValidationMaximumClearedStages },
+				{
+					"dynamic_balance_forced_off",
+					m_BalanceValidationEnabled &&
+					m_BalanceValidationCurrentDisableDynamicBalance
+				},
+				{ "fixed_stage_schedule", m_BalanceValidationFixedStageSchedule },
+				{ "seed_suite_index", m_BalanceValidationSeedIndex },
+				{ "seed_suite_size", m_BalanceValidationSeeds.size() },
+			}
+		},
+		{
+			"baseline_difficulty",
+			{
+				{ "profile", m_BaselineDifficultyProfile },
+				{ "enemy_hp_multiplier", m_BaselineEnemyHpMultiplier },
+				{ "enemy_attack_delta", m_BaselineEnemyAttackDelta },
+			}
+		},
+		{ "dynamic_balance_enabled_at_start", m_DynamicBalanceEnabled },
+		{ "dynamic_balance_level_at_start", m_DynamicBalanceLevel },
+		{ "initial_money", m_PlayerRunStatus.money },
+		{ "initial_progress", m_PlayerRunStatus.progress },
+	};
 
 	BalanceLogger::GetInstance().BeginRun(
 		m_PlayerRunStatus.maxHp,
 		m_PlayerRunStatus.currentHp,
 		deck,
-		m_BalanceAutoPlayEnabled ? "autoplay" : "human");
+		effectiveControllerType,
+		runContext);
 }
 
 void Game::LoadBalanceAutoPlayConfig(
@@ -1306,6 +1790,7 @@ void Game::LoadBalanceAutoPlayConfig(
 
 		const unsigned int randomSeed =
 			config.value("random_seed", 20260727u);
+		m_AutoRandomSeed = randomSeed;
 		m_AutoRandomEngine.seed(randomSeed);
 
 		std::cout
@@ -1339,8 +1824,12 @@ void Game::LoadDynamicBalanceConfig(
 		nlohmann::json config;
 		file >> config;
 
+		m_DynamicBalanceConfiguredEnabled =
+			config.value(
+				"enabled",
+				m_DynamicBalanceConfiguredEnabled);
 		m_DynamicBalanceEnabled =
-			config.value("enabled", m_DynamicBalanceEnabled);
+			m_DynamicBalanceConfiguredEnabled;
 		m_DynamicBalanceMinLevel =
 			config.value("minimum_level", m_DynamicBalanceMinLevel);
 		m_DynamicBalanceMaxLevel =
@@ -1351,10 +1840,13 @@ void Game::LoadDynamicBalanceConfig(
 				m_DynamicBalanceMinLevel,
 				m_DynamicBalanceMaxLevel);
 		}
-		m_DynamicBalanceLevel = std::clamp(
-			config.value("initial_level", m_DynamicBalanceLevel),
+		m_DynamicBalanceInitialLevel = std::clamp(
+			config.value(
+				"initial_level",
+				m_DynamicBalanceInitialLevel),
 			m_DynamicBalanceMinLevel,
 			m_DynamicBalanceMaxLevel);
+		m_DynamicBalanceLevel = m_DynamicBalanceInitialLevel;
 		m_DynamicBalanceHpStep =
 			(std::max)(0, config.value(
 				"hp_step_per_level",
@@ -1367,6 +1859,39 @@ void Game::LoadDynamicBalanceConfig(
 			(std::max)(1, config.value(
 				"levels_per_attack_step",
 				m_DynamicBalanceLevelsPerAttackStep));
+		m_DynamicBalancePositiveAttackScalingEnabled =
+			config.value(
+				"positive_attack_scaling_enabled",
+				m_DynamicBalancePositiveAttackScalingEnabled);
+		const nlohmann::json progression = config.value(
+			"progression_scaling",
+			nlohmann::json::object());
+		if (progression.is_object())
+		{
+			m_ProgressionScalingEnabled = progression.value(
+				"enabled",
+				m_ProgressionScalingEnabled);
+			m_ProgressionAttackStart = (std::max)(
+				1,
+				progression.value(
+					"attack_start_progress",
+					m_ProgressionAttackStart));
+			m_ProgressionAttackInterval = (std::max)(
+				1,
+				progression.value(
+					"attack_interval",
+					m_ProgressionAttackInterval));
+			m_ProgressionAttackStep = (std::max)(
+				0,
+				progression.value(
+					"attack_step",
+					m_ProgressionAttackStep));
+			m_ProgressionAttackMaximumDelta = (std::max)(
+				0,
+				progression.value(
+					"maximum_attack_delta",
+					m_ProgressionAttackMaximumDelta));
+		}
 		m_DynamicBalanceMinEnemyHp =
 			(std::max)(1, config.value(
 				"minimum_enemy_hp",
@@ -1436,6 +1961,297 @@ void Game::LoadDynamicBalanceConfig(
 	{
 		std::cerr
 			<< "[DynamicBalance] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::LoadDifficultyProfileConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout << "[DifficultyProfile] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+		const std::string selected = config.value(
+			"selected_profile",
+			std::string("normal"));
+		const nlohmann::json& profiles = config.at("profiles");
+		if (!profiles.contains(selected) ||
+			!profiles[selected].is_object())
+		{
+			throw std::runtime_error(
+				"selected_profile does not exist in profiles");
+		}
+		const nlohmann::json& profile = profiles[selected];
+		m_BaselineDifficultyProfile = selected;
+		m_BaselineEnemyHpMultiplier = std::clamp(
+			profile.value("enemy_hp_multiplier", 1.0f),
+			0.25f,
+			4.0f);
+		m_BaselineEnemyAttackDelta = std::clamp(
+			profile.value("enemy_attack_delta", 0),
+			-10,
+			10);
+		std::cout << "[DifficultyProfile] " << selected
+			<< " / HP x" << m_BaselineEnemyHpMultiplier
+			<< " / ATK " << m_BaselineEnemyAttackDelta
+			<< std::endl;
+	}
+	catch (const std::exception& error)
+	{
+		std::cerr << "[DifficultyProfile] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::LoadBalanceValidationConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout << "[BalanceValidation] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+		m_BalanceValidationEnabled =
+			config.value("enabled", false);
+		m_BalanceValidationDisableDynamicBalance =
+			config.value("disable_dynamic_balance", true);
+		m_BalanceValidationFixedStageSchedule =
+			config.value("fixed_stage_schedule", true);
+		m_BalanceValidationSeed =
+			config.value("random_seed", 20260807u);
+		m_BalanceValidationSeeds.clear();
+		if (config.contains("random_seeds") &&
+			config["random_seeds"].is_array())
+		{
+			for (const nlohmann::json& seed : config["random_seeds"])
+			{
+				if (seed.is_number_unsigned() || seed.is_number_integer())
+				{
+					const long long value = seed.get<long long>();
+					if (value >= 0 && value <= 0xffffffffll)
+					{
+						m_BalanceValidationSeeds.push_back(
+							static_cast<std::uint32_t>(value));
+					}
+				}
+			}
+		}
+		if (m_BalanceValidationSeeds.empty())
+		{
+			m_BalanceValidationSeeds.push_back(
+				m_BalanceValidationSeed);
+		}
+		m_BalanceValidationExperimentId = config.value(
+			"experiment_id",
+			std::string("fixed_baseline"));
+		m_BalanceValidationMaximumClearedStages = (std::max)(
+			0,
+			config.value(
+				"maximum_cleared_stages_per_run",
+				m_BalanceValidationMaximumClearedStages));
+		m_BalanceValidationVariants.clear();
+		if (config.contains("variants") &&
+			config["variants"].is_array())
+		{
+			for (const nlohmann::json& variant : config["variants"])
+			{
+				if (!variant.is_object())
+				{
+					continue;
+				}
+				const std::string id = variant.value(
+					"id",
+					std::string());
+				if (id.empty())
+				{
+					continue;
+				}
+				m_BalanceValidationVariants.push_back({
+					id,
+					variant.value(
+						"disable_dynamic_balance",
+						m_BalanceValidationDisableDynamicBalance),
+				});
+			}
+		}
+		if (m_BalanceValidationVariants.empty())
+		{
+			m_BalanceValidationVariants.push_back({
+				m_BalanceValidationExperimentId,
+				m_BalanceValidationDisableDynamicBalance,
+			});
+		}
+		m_BalanceValidationVariantIndex = 0;
+		m_BalanceValidationCurrentVariantId =
+			m_BalanceValidationVariants.front().id;
+		m_BalanceValidationCurrentDisableDynamicBalance =
+			m_BalanceValidationVariants.front().disableDynamicBalance;
+		if (m_BalanceValidationEnabled &&
+			config.contains("baseline_profile") &&
+			config["baseline_profile"].is_string())
+		{
+			const std::string requestedProfile =
+				config["baseline_profile"].get<std::string>();
+			if (requestedProfile != m_BaselineDifficultyProfile)
+			{
+				std::cout
+					<< "[BalanceValidation] baseline_profile is "
+					<< requestedProfile
+					<< "; set the same selected_profile in "
+					<< "difficulty_profiles.json to apply it."
+					<< std::endl;
+			}
+		}
+		std::cout << "[BalanceValidation] "
+			<< (m_BalanceValidationEnabled ? "Enabled" : "Disabled")
+			<< " / Seed=" << m_BalanceValidationSeed
+			<< " / Experiment=" << m_BalanceValidationExperimentId
+			<< " / Variants=" << m_BalanceValidationVariants.size()
+			<< std::endl;
+	}
+	catch (const nlohmann::json::exception& error)
+	{
+		std::cerr << "[BalanceValidation] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::LoadEncounterBalanceConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout << "[EncounterBalance] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+		m_EnemyThreatCosts.clear();
+		m_StageThreatTargets.clear();
+		const nlohmann::json enemyCosts = config.value(
+			"enemy_costs",
+			nlohmann::json::object());
+		for (auto iterator = enemyCosts.begin();
+			iterator != enemyCosts.end(); ++iterator)
+		{
+			if (iterator.value().is_number())
+			{
+				m_EnemyThreatCosts[iterator.key()] =
+					(std::max)(0.0f, iterator.value().get<float>());
+			}
+		}
+		const nlohmann::json stageTargets = config.value(
+			"stage_target_budgets",
+			nlohmann::json::object());
+		for (auto iterator = stageTargets.begin();
+			iterator != stageTargets.end(); ++iterator)
+		{
+			if (iterator.value().is_number())
+			{
+				m_StageThreatTargets[iterator.key()] =
+					(std::max)(0.0f, iterator.value().get<float>());
+			}
+		}
+		const nlohmann::json layouts = config.value(
+			"layout_multipliers",
+			nlohmann::json::object());
+		m_StageDataLayoutThreatMultiplier =
+			(std::max)(0.1f, layouts.value("stage_data", 1.0f));
+		m_DenseLayoutThreatMultiplier =
+			(std::max)(0.1f, layouts.value("dense_auto_layout", 1.25f));
+		m_McpLayoutThreatMultiplier =
+			(std::max)(0.1f, layouts.value("mcp_override", 1.0f));
+	}
+	catch (const nlohmann::json::exception& error)
+	{
+		std::cerr << "[EncounterBalance] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::LoadPocketRulesConfig(const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
+	{
+		std::cout << "[PocketRules] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+		m_PlayerPocketDamageRatio = std::clamp(
+			config.value("player_max_hp_damage_ratio",
+				m_PlayerPocketDamageRatio),
+			0.0f,
+			1.0f);
+		const nlohmann::json finishers = config.value(
+			"enemy_finisher_hp_ratios",
+			nlohmann::json::object());
+		m_NormalPocketFinisherRatio = std::clamp(
+			finishers.value("normal", m_NormalPocketFinisherRatio),
+			0.0f,
+			1.0f);
+		m_MidBossPocketFinisherRatio = std::clamp(
+			finishers.value("midboss", m_MidBossPocketFinisherRatio),
+			0.0f,
+			1.0f);
+		m_BossPocketFinisherRatio = std::clamp(
+			finishers.value("boss", m_BossPocketFinisherRatio),
+			0.0f,
+			1.0f);
+		const nlohmann::json playerReturn = config.value(
+			"player_return_region",
+			nlohmann::json::object());
+		m_PlayerPocketReturnHalfWidth = (std::max)(
+			0.0f,
+			playerReturn.value(
+				"half_width", m_PlayerPocketReturnHalfWidth));
+		m_PlayerPocketReturnHalfDepth = (std::max)(
+			0.0f,
+			playerReturn.value(
+				"half_depth", m_PlayerPocketReturnHalfDepth));
+		const nlohmann::json enemyReturn = config.value(
+			"enemy_return",
+			nlohmann::json::object());
+		const nlohmann::json enemyReturnPosition = enemyReturn.value(
+			"position",
+			nlohmann::json::object());
+		m_EnemyPocketReturnX = enemyReturnPosition.value(
+			"x", m_EnemyPocketReturnX);
+		m_EnemyPocketReturnTopEdgeOffset = (std::max)(
+			0.0f,
+			enemyReturnPosition.value(
+				"z_from_top_edge",
+				m_EnemyPocketReturnTopEdgeOffset));
+	}
+	catch (const nlohmann::json::exception& error)
+	{
+		std::cerr << "[PocketRules] Invalid config: "
 			<< error.what() << std::endl;
 	}
 }
@@ -1684,7 +2500,9 @@ bool Game::UpdateBalanceAutoPlay()
 		if (IsBalanceAutoHealNeeded() && RestHeal())
 		{
 			std::cout
-				<< "[BalanceAutoPlay] RestSite: HP fully restored"
+				<< "[BalanceAutoPlay] RestSite: recovered "
+				<< GetRestHealPercent()
+				<< "% of max HP"
 				<< std::endl;
 		}
 		else
@@ -1766,7 +2584,7 @@ bool Game::UpdateBalanceAutoPlay()
 		m_GameState == GameState::AimingDirection)
 	{
 		std::vector<PlayerBall*> players =
-			GetObjects<PlayerBall>();
+			GetComponents<PlayerBall>();
 		if (players.empty() ||
 			players[0] == nullptr ||
 			!players[0]->IsIdle() ||
@@ -1786,6 +2604,12 @@ bool Game::UpdateBalanceAutoPlay()
 	}
 
 	return false;
+}
+
+bool Game::ContainsComponent(const Component* component) const
+{
+	return component != nullptr &&
+		ContainsGameObject(component->GetGameObject());
 }
 
 void Game::SelectBalanceAutoBall()
@@ -1840,9 +2664,9 @@ void Game::SelectBalanceAutoBall()
 bool Game::FireBalanceAutoShot()
 {
 	std::vector<PlayerBall*> players =
-		GetObjects<PlayerBall>();
+		GetComponents<PlayerBall>();
 	std::vector<EnemyBall*> enemies =
-		GetObjects<EnemyBall>();
+		GetComponents<EnemyBall>();
 
 	if (players.empty() || players[0] == nullptr)
 	{
@@ -1862,7 +2686,8 @@ bool Game::FireBalanceAutoShot()
 
 	for (EnemyBall* target : enemies)
 	{
-		if (target == nullptr || target->IsDefeated())
+		if (target == nullptr || target->IsDefeated() ||
+			target->IsPocketed())
 		{
 			continue;
 		}
@@ -1882,7 +2707,8 @@ bool Game::FireBalanceAutoShot()
 		{
 			if (other == nullptr ||
 				other == target ||
-				other->IsDefeated())
+				other->IsDefeated() ||
+				other->IsPocketed())
 			{
 				continue;
 			}
@@ -1977,11 +2803,21 @@ void Game::ApplyBalanceAutoReward()
 	if (FindBalanceAutoPendingRemovalBall() >= 0 &&
 		m_PlayerRunStatus.money < kAutoShopRemoveCost)
 	{
+		const int moneyBefore = m_PlayerRunStatus.money;
 		m_SelectedRewardIndex = 2;
 		m_PlayerRunStatus.money += kExtraRewardMoney;
 		m_RewardMessage =
 			"Auto Play: saved Money for a pending ball removal.";
 		m_IsClearRewardChosen = true;
+		RecordBalanceEvent(
+			"clear_reward_choice",
+			{
+				{ "controller", "autoplay" },
+				{ "reward", "extra_money" },
+				{ "reason", "save_for_ball_removal" },
+				{ "money_before", moneyBefore },
+				{ "money_after", m_PlayerRunStatus.money },
+			});
 		return;
 	}
 
@@ -1998,30 +2834,36 @@ void Game::ApplyBalanceAutoReward()
 			m_RewardMessage =
 				"Auto Play: added a new ball.";
 			m_IsClearRewardChosen = true;
+			RecordBalanceEvent(
+				"clear_reward_choice",
+				{
+					{ "controller", "autoplay" },
+					{ "reward", "new_ball" },
+					{ "catalog_index", index },
+				});
 			return;
 		}
 	}
 
+	const int moneyBefore = m_PlayerRunStatus.money;
 	m_SelectedRewardIndex = 2;
 	m_PlayerRunStatus.money += kExtraRewardMoney;
 	m_RewardMessage =
 		"Auto Play: received extra Money.";
 	m_IsClearRewardChosen = true;
+	RecordBalanceEvent(
+		"clear_reward_choice",
+		{
+			{ "controller", "autoplay" },
+			{ "reward", "extra_money" },
+			{ "money_before", moneyBefore },
+			{ "money_after", m_PlayerRunStatus.money },
+		});
 }
 
 StageType Game::GetBalanceAutoStageType() const
 {
-	const int progress =
-		(std::max)(1, m_PlayerRunStatus.progress);
-	if (progress % 10 == 0)
-	{
-		return StageType::Boss;
-	}
-	if (progress % 5 == 0)
-	{
-		return StageType::MidBoss;
-	}
-	return StageType::Normal;
+	return GetScheduledStageType();
 }
 
 bool Game::IsBalanceAutoHealNeeded() const
@@ -2090,8 +2932,7 @@ bool Game::IsBallAdjustmentCandidate(
 
 bool Game::HasAvailableRestBenefit() const
 {
-	if (m_PlayerRunStatus.currentHp <
-		m_PlayerRunStatus.maxHp)
+	if (CanRestHeal())
 	{
 		return true;
 	}
@@ -2149,6 +2990,8 @@ void Game::PruneBalanceAutoPendingBalls()
 
 void Game::OnBattleStageStarted(const StageData& stage)
 {
+	m_CurrentBattleStageType = stage.stageType;
+	m_PocketedEnemyQueue.clear();
 	m_DynamicBalanceAppliedEnabled = m_DynamicBalanceEnabled;
 	m_DynamicBalanceAppliedLevel = m_DynamicBalanceLevel;
 	m_DynamicBalanceStageActive = true;
@@ -2180,13 +3023,146 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		enemies.push_back(std::move(snapshot));
 	}
 
+	nlohmann::json deckJson = nlohmann::json::array();
+	for (int index = 0;
+		index < m_PlayerDeck.GetRewardTargetCount();
+		index++)
+	{
+		const PlayerBallData* ball =
+			m_PlayerDeck.GetRewardTarget(index);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+		deckJson.push_back(
+			{
+				{ "instance_id", ball->instanceId },
+				{ "id", ball->definitionId },
+				{ "upgrade_level", ball->upgradeLevel },
+				{ "attack", GetEffectivePlayerBallAttack(ball) },
+				{ "defense", GetEffectivePlayerBallDefense(ball) },
+			});
+	}
+
+	nlohmann::json relicsJson = nlohmann::json::array();
+	for (const RelicDefinition& relic : RelicCatalog)
+	{
+		if (HasRelic(relic.type))
+		{
+			relicsJson.push_back(relic.name);
+		}
+	}
+
+	const int appliedHpModifier =
+		m_DynamicBalanceAppliedEnabled
+		? m_DynamicBalanceAppliedLevel * m_DynamicBalanceHpStep
+		: 0;
+	const int appliedAttackModifier =
+		m_DynamicBalanceAppliedEnabled
+		? CalculateDynamicBalanceAttackModifier(
+			m_DynamicBalanceAppliedLevel)
+		: 0;
+	const int progressionAttackModifier =
+		CalculateProgressionAttackModifier();
+	const std::string layoutSource =
+		m_McpCurrentStageOverride.has_value()
+		? "mcp_override"
+		: (stage.enemies.size() >= 4
+			? "dense_auto_layout"
+			: "stage_data");
+	float baseThreatBudget = 0.0f;
+	for (const EnemySpawnData& spawn : stage.enemies)
+	{
+		const auto cost = m_EnemyThreatCosts.find(spawn.enemyId);
+		baseThreatBudget += cost != m_EnemyThreatCosts.end()
+			? cost->second
+			: 10.0f;
+	}
+	const float layoutThreatMultiplier =
+		layoutSource == "dense_auto_layout"
+		? m_DenseLayoutThreatMultiplier
+		: (layoutSource == "mcp_override"
+			? m_McpLayoutThreatMultiplier
+			: m_StageDataLayoutThreatMultiplier);
+	const float actualThreatBudget =
+		std::round(baseThreatBudget * layoutThreatMultiplier * 100.0f) /
+		100.0f;
+	const auto targetThreat = m_StageThreatTargets.find(stage.id);
+	const nlohmann::json stageContext =
+	{
+		{ "progress", m_PlayerRunStatus.progress },
+		{ "par", stage.par },
+		{ "money", m_PlayerRunStatus.money },
+		{ "layout_source", layoutSource },
+		{ "deck", std::move(deckJson) },
+		{ "owned_relics", std::move(relicsJson) },
+		{
+			"baseline_difficulty",
+			{
+				{ "profile", m_BaselineDifficultyProfile },
+				{ "enemy_hp_multiplier", m_BaselineEnemyHpMultiplier },
+				{ "enemy_attack_delta", m_BaselineEnemyAttackDelta },
+			}
+		},
+		{
+			"encounter_threat",
+			{
+				{ "base_budget", baseThreatBudget },
+				{ "layout_multiplier", layoutThreatMultiplier },
+				{ "actual_budget", actualThreatBudget },
+				{
+					"target_budget",
+					targetThreat != m_StageThreatTargets.end()
+						? nlohmann::json(targetThreat->second)
+						: nlohmann::json(nullptr)
+				},
+				{
+					"deviation_from_target",
+					targetThreat != m_StageThreatTargets.end()
+						? nlohmann::json(
+							actualThreatBudget - targetThreat->second)
+						: nlohmann::json(nullptr)
+				},
+			}
+		},
+		{
+			"dynamic_balance",
+			{
+				{ "enabled", m_DynamicBalanceAppliedEnabled },
+				{ "applied_level", m_DynamicBalanceAppliedLevel },
+				{ "enemy_hp_modifier", appliedHpModifier },
+				{ "enemy_attack_modifier", appliedAttackModifier },
+			}
+		},
+		{
+			"progression_scaling",
+			{
+				{ "enabled", m_ProgressionScalingEnabled },
+				{ "progress", m_PlayerRunStatus.progress },
+				{ "enemy_attack_modifier", progressionAttackModifier },
+				{ "attack_start_progress", m_ProgressionAttackStart },
+				{ "attack_interval", m_ProgressionAttackInterval },
+				{ "maximum_attack_delta",
+					m_ProgressionAttackMaximumDelta },
+			}
+		},
+		{
+			"assist_mode",
+			{
+				{ "enabled", m_DynamicBalanceAppliedEnabled },
+				{ "applied_level", m_DynamicBalanceAppliedLevel },
+			}
+		},
+	};
+
 	BalanceLogger::GetInstance().BeginStage(
 		stage.id,
 		ToString(stage.stageType),
 		stage.difficulty,
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
-		enemies);
+		enemies,
+		stageContext);
 }
 
 bool Game::RestHeal()
@@ -2197,17 +3173,52 @@ bool Game::RestHeal()
 	{
 		return false;
 	}
-	if (m_PlayerRunStatus.currentHp >= m_PlayerRunStatus.maxHp)
+	if (!CanRestHeal())
 	{
 		return false;
 	}
 
-	m_PlayerRunStatus.currentHp = m_PlayerRunStatus.maxHp;
+	const int hpBefore = m_PlayerRunStatus.currentHp;
+	const int configuredHealAmount = GetRestHealAmount();
+	m_PlayerRunStatus.currentHp = (std::min)(
+		m_PlayerRunStatus.maxHp,
+		hpBefore + configuredHealAmount);
+	const int actualHealAmount =
+		m_PlayerRunStatus.currentHp - hpBefore;
 	if (restSite != nullptr)
 	{
 		restSite->MarkActionUsed();
 	}
+	m_RestHealCooldownRemaining = m_RestHealCooldownBattles;
+	RecordBalanceEvent(
+		"rest_heal",
+		{
+			{ "hp_before", hpBefore },
+			{ "hp_after", m_PlayerRunStatus.currentHp },
+			{ "heal_amount", actualHealAmount },
+			{ "configured_heal_amount", configuredHealAmount },
+			{ "heal_ratio", m_RestHealRatio },
+			{ "cooldown_battles", m_RestHealCooldownBattles },
+			{ "cooldown_remaining", m_RestHealCooldownRemaining },
+			{ "capped_at_max_hp",
+				actualHealAmount < configuredHealAmount },
+			{ "source_scene", GetSceneDebugName(m_Scene) },
+		});
 	return true;
+}
+
+int Game::GetRestHealAmount() const
+{
+	return (std::max)(
+		1,
+		static_cast<int>(std::ceil(
+			static_cast<float>(m_PlayerRunStatus.maxHp) *
+			m_RestHealRatio)));
+}
+
+int Game::GetRestHealPercent() const
+{
+	return static_cast<int>(std::lround(m_RestHealRatio * 100.0f));
 }
 
 bool Game::RestUpgradeBall(int ballIndex)
@@ -2226,6 +3237,8 @@ bool Game::RestUpgradeBall(int ballIndex)
 	}
 
 	const std::uint64_t instanceId = ball->instanceId;
+	const std::string ballId = ball->definitionId;
+	const int upgradeLevelBefore = ball->upgradeLevel;
 	const BallUpgradeStep& upgrade = ball->upgradeTable[ball->upgradeLevel];
 	ball->status.attack = upgrade.attack;
 	ball->status.defense = upgrade.defense;
@@ -2236,18 +3249,43 @@ bool Game::RestUpgradeBall(int ballIndex)
 	{
 		restSite->MarkActionUsed();
 	}
+	RecordBalanceEvent(
+		"ball_upgraded",
+		{
+			{ "instance_id", instanceId },
+			{ "ball_id", ballId },
+			{ "upgrade_level_before", upgradeLevelBefore },
+			{ "upgrade_level_after", ball->upgradeLevel },
+			{ "attack_after", ball->status.attack },
+			{ "defense_after", ball->status.defense },
+			{ "source_scene", GetSceneDebugName(m_Scene) },
+		});
 	return true;
 }
 
 bool Game::BuyShopBall(int catalogIndex, int cost)
 {
 	cost = (std::max)(0, cost);
+	const PlayerBallData* catalogBall =
+		m_PlayerDeck.GetCatalogBall(catalogIndex);
+	const std::string ballId =
+		catalogBall != nullptr ? catalogBall->definitionId : std::string();
+	const int moneyBefore = m_PlayerRunStatus.money;
 	if (m_PlayerRunStatus.money < cost || !m_PlayerDeck.AddCatalogBall(catalogIndex))
 	{
 		return false;
 	}
 
 	m_PlayerRunStatus.money -= cost;
+	RecordBalanceEvent(
+		"shop_ball_purchased",
+		{
+			{ "catalog_index", catalogIndex },
+			{ "ball_id", ballId },
+			{ "cost", cost },
+			{ "money_before", moneyBefore },
+			{ "money_after", m_PlayerRunStatus.money },
+		});
 	return true;
 }
 
@@ -2268,6 +3306,8 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 		return false;
 	}
 	const std::uint64_t instanceId = ball->instanceId;
+	const std::string ballId = ball->definitionId;
+	const int moneyBefore = m_PlayerRunStatus.money;
 
 	if (!m_PlayerDeck.RemoveRewardTarget(ballIndex))
 	{
@@ -2276,6 +3316,16 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 
 	m_PlayerRunStatus.money -= cost;
 	RemoveBalanceAutoPendingBall(instanceId);
+	RecordBalanceEvent(
+		"shop_ball_removed",
+		{
+			{ "instance_id", instanceId },
+			{ "ball_id", ballId },
+			{ "cost", cost },
+			{ "money_before", moneyBefore },
+			{ "money_after", m_PlayerRunStatus.money },
+			{ "deck_count_after", m_PlayerDeck.GetRewardTargetCount() },
+		});
 	return true;
 }
 
@@ -2293,14 +3343,24 @@ bool Game::BuyRelic(int relicIndex)
 		return false;
 	}
 
+	const int moneyBefore = m_PlayerRunStatus.money;
 	m_PlayerRunStatus.money -= cost;
 	m_OwnedRelics[static_cast<std::size_t>(relic->type)] = true;
 
-	const std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	const std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
 	for (PlayerBall* player : players)
 	{
 		ApplyRelicModifiersTo(player);
 	}
+	RecordBalanceEvent(
+		"relic_purchased",
+		{
+			{ "relic_index", relicIndex },
+			{ "relic_name", relic->name },
+			{ "cost", cost },
+			{ "money_before", moneyBefore },
+			{ "money_after", m_PlayerRunStatus.money },
+		});
 
 	return true;
 }
@@ -2364,12 +3424,10 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 	if (selectedBall->status.radius > 0.0f && player->GetBall() != nullptr)
 	{
 		const float visualScale = selectedBall->status.radius;
-		Transform& transform = player->GetBall()->GetMutableTransform();
-		transform.scale = DirectX::SimpleMath::Vector3(
+		player->GetBall()->SetScale(DirectX::SimpleMath::Vector3(
 			visualScale,
 			visualScale,
-			visualScale);
-		player->GetBall()->SynchronizeComponents();
+			visualScale));
 	}
 
 	ApplyPlayerRunStatusTo(player);
@@ -2404,15 +3462,48 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 		GetRelicDefenseBonus());
 }
 
-void Game::ResetShotRelicAttackBonus(PlayerBall* player)
+void Game::ResetShotRelicState(PlayerBall* player)
 {
 	m_CurrentShotCollisionAttackBonus = 0;
 	m_CurrentShotPlayerEnemyCollisionCount = 0;
 	m_CurrentShotEnemyEnemyCollisionCount = 0;
+	m_CurrentShotBankShotReady = false;
+	m_CurrentShotBankShotConsumed = false;
 	if (player != nullptr)
 	{
 		ApplyRelicModifiersTo(player);
 	}
+}
+
+void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
+{
+	if (player == nullptr ||
+		!HasRelic(RelicType::EmergencyRepairKit) ||
+		GetCurrentShotBallCollisionCount() <
+			kEmergencyRepairContactThreshold)
+	{
+		return;
+	}
+
+	const int hpBefore = player->GetHP();
+	const int hpAfter = (std::min)(
+		player->GetMaxHP(),
+		hpBefore + kEmergencyRepairHealAmount);
+	if (hpAfter <= hpBefore)
+	{
+		return;
+	}
+
+	player->SetHP(hpAfter);
+	CapturePlayerStatusFrom(player);
+	RecordBalanceEvent(
+		"emergency_repair_triggered",
+		{
+			{ "ball_collision_count", GetCurrentShotBallCollisionCount() },
+			{ "heal_amount", hpAfter - hpBefore },
+			{ "hp_before", hpBefore },
+			{ "hp_after", hpAfter },
+		});
 }
 
 void Game::CapturePlayerStatusFrom(const PlayerBall* player)
@@ -2442,7 +3533,7 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 }
 void Game::CaptureCurrentPlayerStatus()
 {
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
 	if (players.empty())
 	{
 		return;
@@ -2472,7 +3563,7 @@ int Game::CalculateStageRewardMoney() const
 	int totalRewardMoney = BASE_CLEAR_MONEY;
 
 	std::vector<EnemyBall*> enemies =
-		m_Instance->GetObjects<EnemyBall>();
+		m_Instance->GetComponents<EnemyBall>();
 
 	for (EnemyBall* enemy : enemies)
 	{
@@ -2505,6 +3596,7 @@ void Game::CollectStageRewardMoney()
 	m_CurrentStageRewardMoney =
 		CalculateStageRewardMoney();
 
+	const int moneyBefore = m_PlayerRunStatus.money;
 	m_PlayerRunStatus.money +=
 		m_CurrentStageRewardMoney;
 
@@ -2517,11 +3609,18 @@ void Game::CollectStageRewardMoney()
 		"Stage Reward: +" +
 		std::to_string(m_CurrentStageRewardMoney) +
 		" Money";
+	RecordBalanceEvent(
+		"stage_money_reward",
+		{
+			{ "amount", m_CurrentStageRewardMoney },
+			{ "money_before", moneyBefore },
+			{ "money_after", m_PlayerRunStatus.money },
+		});
 }
 
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
-	ResetShotRelicAttackBonus(player);
+	ResetShotRelicState(player);
 	if (player != nullptr && player->GetBall() != nullptr)
 	{
 		player->GetBall()->ResetShotAbilityState();
@@ -2560,7 +3659,37 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		const DirectX::SimpleMath::Vector3 velocity =
 			player->GetVelocity();
 		const std::vector<EnemyBall*> enemies =
-			GetObjects<EnemyBall>();
+			GetComponents<EnemyBall>();
+		nlohmann::json offers = nlohmann::json::array();
+		for (int index = 0;
+			index < m_PlayerDeck.GetOfferCount();
+			index++)
+		{
+			const PlayerBallData* offer =
+				m_PlayerDeck.GetOffer(index);
+			if (offer == nullptr)
+			{
+				continue;
+			}
+			offers.push_back(
+				{
+					{ "offer_index", index },
+					{ "instance_id", offer->instanceId },
+					{ "id", offer->definitionId },
+					{ "upgrade_level", offer->upgradeLevel },
+					{ "held", m_PlayerDeck.WasHeldOffer(index) },
+				});
+		}
+		nlohmann::json shotContext =
+		{
+			{ "selected_offer_index", m_SelectedOfferIndex },
+			{ "held_offer_index", m_SelectedHoldIndex },
+			{ "selected_instance_id", currentBall->instanceId },
+			{ "effective_attack", player->GetAttack() },
+			{ "effective_defense", player->GetDefense() },
+			{ "offers", std::move(offers) },
+			{ "mcp_telemetry", m_PendingShotTelemetry },
+		};
 
 		BalanceLogger::GetInstance().BeginShot(
 			currentBall->definitionId,
@@ -2574,20 +3703,47 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			velocity.z,
 			player->GetHP(),
 			CountAliveEnemies(enemies),
-			CountDefeatedEnemies(enemies));
+			CountDefeatedEnemies(enemies),
+			shotContext);
+		m_PendingShotTelemetry = nlohmann::json::object();
 	}
 
 	m_PlayerDeck.MarkCurrentUsed();
 }
 
-void Game::NotifyDamageBallCollision(
-	DamageBallCollisionType collisionType)
+void Game::NotifyPlayerWallCollision()
 {
-	if (!HasRelic(RelicType::CollisionAttackUp))
+	if (!HasRelic(RelicType::BankShot) ||
+		m_CurrentShotBankShotConsumed)
 	{
 		return;
 	}
 
+	m_CurrentShotBankShotReady = true;
+}
+
+int Game::ConsumeBankShotDamageMultiplier()
+{
+	if (!HasRelic(RelicType::BankShot) ||
+		!m_CurrentShotBankShotReady ||
+		m_CurrentShotBankShotConsumed)
+	{
+		return 1;
+	}
+
+	m_CurrentShotBankShotReady = false;
+	m_CurrentShotBankShotConsumed = true;
+	RecordBalanceEvent(
+		"bank_shot_triggered",
+		{
+			{ "damage_multiplier", kBankShotDamageMultiplier },
+		});
+	return kBankShotDamageMultiplier;
+}
+
+void Game::NotifyDamageBallCollision(
+	DamageBallCollisionType collisionType)
+{
 	if (collisionType == DamageBallCollisionType::PlayerEnemy)
 	{
 		m_CurrentShotPlayerEnemyCollisionCount++;
@@ -2597,12 +3753,35 @@ void Game::NotifyDamageBallCollision(
 		m_CurrentShotEnemyEnemyCollisionCount++;
 	}
 
+	if (!HasRelic(RelicType::CollisionAttackUp))
+	{
+		return;
+	}
+
 	m_CurrentShotCollisionAttackBonus++;
-	const std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	const std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
 	for (PlayerBall* player : players)
 	{
 		ApplyRelicModifiersTo(player);
 	}
+}
+
+void Game::NotifyPlayerDamage(
+	const std::string& source,
+	int damage,
+	const std::string& sourceId)
+{
+	BalanceLogger::GetInstance().RecordPlayerDamage(
+		source,
+		damage,
+		sourceId);
+}
+
+void Game::RecordBalanceEvent(
+	const std::string& eventType,
+	const nlohmann::json& details)
+{
+	BalanceLogger::GetInstance().RecordEvent(eventType, details);
 }
 
 void Game::NotifyDynamicBalanceHit()
@@ -2617,6 +3796,19 @@ void Game::NotifyDynamicBalanceHit()
 void Game::ApplyDynamicBalanceToEnemyData(
 	EnemyData& enemyData) const
 {
+	enemyData.status.maxHp = std::clamp(
+		static_cast<int>(std::lround(
+			static_cast<double>(enemyData.status.maxHp) *
+			static_cast<double>(m_BaselineEnemyHpMultiplier))),
+		m_DynamicBalanceMinEnemyHp,
+		m_DynamicBalanceMaxEnemyHp);
+	enemyData.status.attack = std::clamp(
+		enemyData.status.attack +
+			m_BaselineEnemyAttackDelta +
+			CalculateProgressionAttackModifier(),
+		m_DynamicBalanceMinEnemyAttack,
+		m_DynamicBalanceMaxEnemyAttack);
+
 	const bool effectiveEnabled =
 		m_DynamicBalanceStageActive
 			? m_DynamicBalanceAppliedEnabled
@@ -2633,12 +3825,8 @@ void Game::ApplyDynamicBalanceToEnemyData(
 	const int hpDelta =
 		effectiveLevel *
 		m_DynamicBalanceHpStep;
-	const int attackLevel =
-		effectiveLevel /
-		m_DynamicBalanceLevelsPerAttackStep;
 	const int attackDelta =
-		attackLevel *
-		m_DynamicBalanceAttackStep;
+		CalculateDynamicBalanceAttackModifier(effectiveLevel);
 
 	enemyData.status.maxHp = std::clamp(
 		enemyData.status.maxHp + hpDelta,
@@ -2650,12 +3838,48 @@ void Game::ApplyDynamicBalanceToEnemyData(
 		m_DynamicBalanceMaxEnemyAttack);
 }
 
+int Game::CalculateProgressionAttackModifier() const
+{
+	if (!m_ProgressionScalingEnabled ||
+		m_PlayerRunStatus.progress < m_ProgressionAttackStart ||
+		m_ProgressionAttackStep <= 0)
+	{
+		return 0;
+	}
+	const int tier = 1 +
+		(m_PlayerRunStatus.progress - m_ProgressionAttackStart) /
+		m_ProgressionAttackInterval;
+	return (std::min)(
+		m_ProgressionAttackMaximumDelta,
+		tier * m_ProgressionAttackStep);
+}
+
+int Game::CalculateDynamicBalanceAttackModifier(int level) const
+{
+	if (level > 0 && !m_DynamicBalancePositiveAttackScalingEnabled)
+	{
+		return 0;
+	}
+	return (level / m_DynamicBalanceLevelsPerAttackStep) *
+		m_DynamicBalanceAttackStep;
+}
+
 void Game::SetDynamicBalance(
 	bool enabled,
 	bool resetLevel,
 	int requestedLevel,
 	bool hasRequestedLevel)
 {
+	if (m_BalanceValidationEnabled &&
+		m_BalanceValidationCurrentDisableDynamicBalance)
+	{
+		m_DynamicBalanceEnabled = false;
+		m_DynamicBalanceLevel = 0;
+		m_DynamicBalanceLastReason =
+			"Assist mode is locked off by balance validation mode.";
+		m_DynamicBalanceLastLevelChange = 0;
+		return;
+	}
 	m_DynamicBalanceEnabled = enabled;
 	if (hasRequestedLevel)
 	{
@@ -2723,7 +3947,7 @@ void Game::DiscardCurrentPlayerBall()
 		return;
 	}
 
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
+	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
 	if (!players.empty() && players[0] != nullptr)
 	{
 		CapturePlayerStatusFrom(players[0]);
@@ -2751,8 +3975,8 @@ void Game::SaveDebugSnapshot()
 	file << "AreAllEnemiesDefeated = " << (AreAllEnemiesDefeated() ? "true" : "false") << "\n";
 	file << "\n";
 
-	std::vector<PlayerBall*> players = GetObjects<PlayerBall>();
-	std::vector<EnemyBall*> enemies = GetObjects<EnemyBall>();
+	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
+	std::vector<EnemyBall*> enemies = GetComponents<EnemyBall>();
 
 	file << "[BallCounts]\n";
 	file << "PlayerRunCurrentHp = "

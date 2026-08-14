@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "experiment_id": "paired_dda_5x2",
+  "random_seed": 20260807,
+  "random_seeds": [
+    20260807,
+    20260817,
+    20260827,
+    20260906,
+    20260916
+  ],
+  "disable_dynamic_balance": true,
+  "variants": [
+    {
+      "id": "dda_off",
+      "disable_dynamic_balance": true
+    },
+    {
+      "id": "dda_on",
+      "disable_dynamic_balance": false
+    }
+  ],
+  "minimum_runs_per_variant": 5,
+  "minimum_paired_seeds": 5,
+  "maximum_cleared_stages_per_run": 30,
+  "fixed_stage_schedule": true,
+  "baseline_profile": "normal",
+  "required_controller_profiles": [
+    "beginner",
+    "intermediate",
+    "advanced"
+  ],
+  "minimum_runs_per_profile": 30
+}

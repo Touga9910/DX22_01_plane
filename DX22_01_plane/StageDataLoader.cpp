@@ -59,6 +59,8 @@ namespace
                 abilities.value("split", status.abilities.split);
             status.abilities.pierce =
                 abilities.value("pierce", status.abilities.pierce);
+            status.abilities.anchor =
+                abilities.value("anchor", status.abilities.anchor);
         }
 
         return status;

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <random>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include "StageData.h"
@@ -17,6 +18,7 @@ class StageSelector
 {
 public:
     StageSelector();
+	void Seed(std::uint32_t seed) { m_RandomEngine.seed(seed); }
 
     const StageData* SelectStage(
         const std::vector<StageData>& stages,

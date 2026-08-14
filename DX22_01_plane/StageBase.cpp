@@ -21,12 +21,6 @@ PlayerBall* StageBase::GetPlayerBall() const {
     return nullptr;
 }
 
-/*
-Arrow* StageBase::GetArrow() const {
-    return dynamic_cast<Arrow*>(m_MySceneObjects[2]);
-}
-*/
-
 void StageBase::Update()
 {
     RemoveInvalidSceneObjectRefs();
@@ -64,9 +58,9 @@ void StageBase::UpdateStrokeUI()
 
     std::vector<Texture2D*> textures;
 
-    for (Component* component : m_MySceneObjects)
+    for (GameObject* gameObject : m_SceneGameObjects)
     {
-        if (Texture2D* tex = dynamic_cast<Texture2D*>(component))
+        if (Texture2D* tex = gameObject->GetComponent<Texture2D>())
         {
             textures.push_back(tex);
         }
@@ -87,15 +81,18 @@ void StageBase::UpdateStrokeUI()
 }
 
 void StageBase::Uninit() {
-    for (Component* component : m_MySceneObjects) { Game::GetInstance()->DeleteComponent(component); }
-    m_MySceneObjects.clear();
+    for (GameObject* gameObject : m_SceneGameObjects)
+    {
+        Game::GetInstance()->DeleteGameObject(gameObject);
+    }
+    m_SceneGameObjects.clear();
 }
 
 void StageBase::RemoveInvalidSceneObjectRefs()
 {
     Game* game = Game::GetInstance();
 
-    std::erase_if(m_MySceneObjects, [game](Component* component) {
-        return !game->ContainsComponent(component);
+    std::erase_if(m_SceneGameObjects, [game](GameObject* gameObject) {
+        return !game->ContainsGameObject(gameObject);
         });
 }

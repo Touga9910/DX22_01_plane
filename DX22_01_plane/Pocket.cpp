@@ -1,54 +1,65 @@
-﻿#include "Pocket.h"
+#include "Pocket.h"
 
 #include "GameObject.h"
 #include "SphereColliderComponent.h"
+#include "TransformComponent.h"
+
+#include <algorithm>
 
 using namespace DirectX::SimpleMath;
 
-void Pocket::Init()
+Pocket::Pocket(float initialRadius)
+    : m_InitialRadius((std::max)(0.0f, initialRadius))
 {
 }
 
-void Pocket::Update()
+void Pocket::Awake()
 {
-}
+    GameObject* owner = GetGameObject();
+    if (owner == nullptr)
+    {
+        return;
+    }
 
-void Pocket::Draw(Camera* cam)
-{
-    // ポケットの見た目は TableFrame 側の黒い円で描画しているため、
-    // Pocket クラスでは描画しない
-}
+    m_ColliderComponent = owner->GetComponent<SphereColliderComponent>();
+    if (m_ColliderComponent == nullptr)
+    {
+        owner->Destroy();
+        return;
+    }
 
-void Pocket::Uninit()
-{
+    m_ColliderComponent->SetRadius(m_InitialRadius);
+    m_ColliderComponent->SetTrigger(true);
 }
 
 void Pocket::SetPosition(const Vector3& position)
 {
-    // Object::GetPosition() を使う可能性もあるため、両方に入れておく
-    m_Position = position;
-    m_Transform.position = position;
+    if (TransformComponent* transform = GetTransform())
+    {
+        transform->SetPosition(position);
+    }
 }
 
 void Pocket::SetRadius(float radius)
 {
-    m_Radius = radius;
+    m_InitialRadius = (std::max)(0.0f, radius);
 
-	if (GameObject* owner = GetGameObject())
-	{
-		if (SphereColliderComponent* collider =
-			owner->GetComponent<SphereColliderComponent>())
-		{
-			collider->SetRadius(radius);
-		}
-	}
+    if (m_ColliderComponent != nullptr)
+    {
+        m_ColliderComponent->SetRadius(m_InitialRadius);
+    }
 }
 
 Collision::Sphere Pocket::GetSphere() const
 {
-    Collision::Sphere sphere;
-    sphere.center = m_Transform.position;
-    sphere.radius = m_Radius;
+    if (m_ColliderComponent != nullptr)
+    {
+        return m_ColliderComponent->GetSphere();
+    }
 
-    return sphere;
+    const TransformComponent* transform = GetTransform();
+    return {
+        transform != nullptr ? transform->GetPosition() : Vector3::Zero,
+        m_InitialRadius
+    };
 }

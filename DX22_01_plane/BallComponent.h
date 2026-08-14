@@ -6,17 +6,17 @@
 #include "Collision.h"
 #include "Component.h"
 #include "SphereColliderComponent.h"
-#include "transform.h"
 
 #include <functional>
 #include <string>
+
+class BallCollisionComponent;
 
 // Common ball mechanics attached beside player/enemy controller components.
 class BallComponent final : public Component
 {
 public:
     void Awake() override;
-    void LateUpdate() override;
 
     void Damage(int damage);
     void TakeDamage(int damage);
@@ -41,11 +41,8 @@ public:
     }
     bool HasSplitAbility() const { return GetStatus().abilities.split; }
     bool HasPierceAbility() const { return GetStatus().abilities.pierce; }
-    void ResetShotAbilityState()
-    {
-        m_PierceConsumed = false;
-        m_PiercedBall = nullptr;
-    }
+    bool HasAnchorAbility() const { return GetStatus().abilities.anchor; }
+    void ResetShotAbilityState();
 
     void SetHP(int hp);
     void SetMaxHP(int maxHp);
@@ -53,6 +50,8 @@ public:
 
     void UpdatePhysics();
     void ResetToInitialPosition();
+    void ResetAtPosition(
+        const DirectX::SimpleMath::Vector3& position);
     void OnPocketHit();
 
     void SetInitialPosition(const DirectX::SimpleMath::Vector3& position)
@@ -63,15 +62,18 @@ public:
     DirectX::SimpleMath::Vector3 GetVelocity() const { return m_PhysicsComponent->GetVelocity(); }
     DirectX::SimpleMath::Quaternion GetRollingRotation() const { return m_PhysicsComponent->GetRollingRotation(); }
     float GetRadius() const { return m_PhysicsComponent->GetRadius(); }
-    DirectX::SimpleMath::Vector3 GetPosition() const { return m_Transform.position; }
+    DirectX::SimpleMath::Vector3 GetPosition() const;
+    DirectX::SimpleMath::Quaternion GetRotation() const;
+    DirectX::SimpleMath::Vector3 GetScale() const;
+    void SetPosition(const DirectX::SimpleMath::Vector3& position);
+    void Translate(const DirectX::SimpleMath::Vector3& movement);
+    void SetRotation(const DirectX::SimpleMath::Quaternion& rotation);
+    void SetScale(const DirectX::SimpleMath::Vector3& scale);
 
     void SetRadius(float radius);
-    Collision::Sphere GetSphere() const { return { m_Transform.position, GetRadius() }; }
+    Collision::Sphere GetSphere() const { return { GetPosition(), GetRadius() }; }
     bool IsStopped() const { return m_PhysicsComponent->IsStopped(); }
 
-    void LoadModel(const char* modelFilePath, const char* textureDirectory);
-    void BeginDraw();
-    void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix);
     void DrawImGui(const std::string& label);
 
     void UpdateRadius();
@@ -89,7 +91,6 @@ public:
 
     void Destroy();
 
-    Transform& GetMutableTransform() { return m_Transform; }
     DirectX::SimpleMath::Vector3& GetMutableVelocity() { return m_PhysicsComponent->Velocity(); }
     DirectX::SimpleMath::Vector3& GetMutableAcceleration() { return m_PhysicsComponent->Acceleration(); }
     DirectX::SimpleMath::Quaternion& GetMutableRollingRotation() { return m_PhysicsComponent->RollingRotation(); }
@@ -103,11 +104,9 @@ private:
     BallPhysicsComponent* m_PhysicsComponent = nullptr;
     SphereColliderComponent* m_ColliderComponent = nullptr;
     BallRenderComponent* m_RenderComponent = nullptr;
+    BallCollisionComponent* m_BallCollisionComponent = nullptr;
 
-    Transform m_Transform;
     std::function<void()> m_PocketHandler;
     std::function<void()> m_DefeatHandler;
 
-    bool m_PierceConsumed = false;
-    const BallComponent* m_PiercedBall = nullptr;
 };

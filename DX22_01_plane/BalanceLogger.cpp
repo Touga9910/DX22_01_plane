@@ -30,7 +30,8 @@ void BalanceLogger::BeginRun(
 	int playerMaxHp,
 	int playerCurrentHp,
 	const std::vector<BalanceBallSnapshot>& deck,
-	const std::string& controllerType)
+	const std::string& controllerType,
+	const json& runContext)
 {
 	if (m_RunActive)
 	{
@@ -54,6 +55,7 @@ void BalanceLogger::BeginRun(
 		deckJson.push_back(
 			{
 				{ "id", ball.id },
+				{ "instance_id", ball.instanceId },
 				{ "upgrade_level", ball.upgradeLevel },
 				{ "attack", ball.attack },
 				{ "defense", ball.defense },
@@ -66,6 +68,7 @@ void BalanceLogger::BeginRun(
 					{
 						{ "split", ball.split },
 						{ "pierce", ball.pierce },
+						{ "anchor", ball.anchor },
 					}
 				},
 			});
@@ -73,10 +76,41 @@ void BalanceLogger::BeginRun(
 
 	m_Root =
 	{
-		{ "schema_version", 1 },
+		{ "schema_version", 2 },
 		{ "run_id", runId },
 		{ "started_at", MakeUtcTimestamp() },
 		{ "controller_type", controllerType },
+		{
+			"controller",
+			{
+				{ "type", controllerType },
+				{
+					"profile",
+					runContext.value("controller_profile", std::string())
+				},
+			}
+		},
+		{ "run_context", runContext },
+		{ "configuration", MakeConfigurationSnapshot() },
+		{
+			"build",
+			{
+				{ "compiled_date", __DATE__ },
+				{ "compiled_time", __TIME__ },
+#if defined(_MSC_VER)
+				{ "compiler", "msvc" },
+				{ "compiler_version", _MSC_VER },
+#elif defined(__clang__)
+				{ "compiler", "clang" },
+				{ "compiler_version", __clang_version__ },
+#elif defined(__GNUC__)
+				{ "compiler", "gcc" },
+				{ "compiler_version", __VERSION__ },
+#else
+				{ "compiler", "unknown" },
+#endif
+			}
+		},
 		{
 			"initial_player",
 			{
@@ -86,6 +120,7 @@ void BalanceLogger::BeginRun(
 			}
 		},
 		{ "stages", json::array() },
+		{ "events", json::array() },
 	};
 
 	m_CurrentStageIndex = NoStage;
@@ -105,7 +140,8 @@ void BalanceLogger::BeginStage(
 	int difficulty,
 	int playerCurrentHp,
 	int playerMaxHp,
-	const std::vector<BalanceEnemySnapshot>& enemies)
+	const std::vector<BalanceEnemySnapshot>& enemies,
+	const json& stageContext)
 {
 	if (!m_RunActive)
 	{
@@ -155,6 +191,7 @@ void BalanceLogger::BeginStage(
 		{ "stage_id", stageId },
 		{ "stage_type", stageType },
 		{ "difficulty", difficulty },
+		{ "stage_context", stageContext },
 		{ "started_at", MakeUtcTimestamp() },
 		{ "elapsed_from_run_start_ms", m_StageStartedMs - m_RunStartedMs },
 		{
@@ -167,6 +204,7 @@ void BalanceLogger::BeginStage(
 			}
 		},
 		{ "shots", json::array() },
+		{ "damage_events", json::array() },
 	};
 
 	m_Root["stages"].push_back(std::move(stage));
@@ -189,7 +227,8 @@ void BalanceLogger::BeginShot(
 	float velocityZ,
 	int playerHp,
 	int enemiesAlive,
-	int enemiesDefeatedTotal)
+	int enemiesDefeatedTotal,
+	const json& shotContext)
 {
 	json* stage = GetCurrentStage();
 	if (stage == nullptr || m_ShotActive)
@@ -200,6 +239,11 @@ void BalanceLogger::BeginShot(
 	m_ShotStartedMs = GetEpochMilliseconds();
 	m_PlayerEnemyHitCount = 0;
 	m_EnemyEnemyHitCount = 0;
+	m_PlayerEnemyDamage = 0;
+	m_EnemyEnemyDamage = 0;
+	m_PlayerEnemyDamageObserved = false;
+	m_EnemyEnemyDamageObserved = false;
+	m_HasCurrentDamageCollision = false;
 	m_DefeatedAtShotStart = enemiesDefeatedTotal;
 
 	m_PendingShot =
@@ -217,6 +261,8 @@ void BalanceLogger::BeginShot(
 		{ "velocity", { velocityX, velocityY, velocityZ } },
 		{ "player_hp_before", playerHp },
 		{ "enemies_alive_before", enemiesAlive },
+		{ "shot_context", shotContext },
+		{ "enemy_damage_events", json::array() },
 		{
 			"controller_type",
 			m_Root.value("controller_type", "human")
@@ -227,24 +273,131 @@ void BalanceLogger::BeginShot(
 }
 
 void BalanceLogger::RecordDamageCollision(
-	BalanceCollisionType collisionType)
+	BalanceCollisionType collisionType,
+	int damageToFirstEnemy,
+	int damageToSecondEnemy)
 {
 	if (!m_ShotActive)
 	{
 		return;
 	}
+	m_CurrentDamageCollisionType = collisionType;
+	m_HasCurrentDamageCollision = true;
 
 	switch (collisionType)
 	{
 	case BalanceCollisionType::PlayerEnemy:
 		m_PlayerEnemyHitCount++;
+		if (damageToFirstEnemy >= 0 || damageToSecondEnemy >= 0)
+		{
+			m_PlayerEnemyDamageObserved = true;
+			m_PlayerEnemyDamage +=
+				(std::max)(0, damageToFirstEnemy) +
+				(std::max)(0, damageToSecondEnemy);
+		}
 		break;
 	case BalanceCollisionType::EnemyEnemy:
 		m_EnemyEnemyHitCount++;
+		if (damageToFirstEnemy >= 0 || damageToSecondEnemy >= 0)
+		{
+			m_EnemyEnemyDamageObserved = true;
+			m_EnemyEnemyDamage +=
+				(std::max)(0, damageToFirstEnemy) +
+				(std::max)(0, damageToSecondEnemy);
+		}
 		break;
 	default:
 		break;
 	}
+}
+
+void BalanceLogger::RecordEnemyDamage(
+	const std::string& enemyId,
+	int damage)
+{
+	if (!m_ShotActive || !m_HasCurrentDamageCollision)
+	{
+		return;
+	}
+
+	const int safeDamage = (std::max)(0, damage);
+	const char* source = "player_enemy_collision";
+	if (m_CurrentDamageCollisionType ==
+		BalanceCollisionType::PlayerEnemy)
+	{
+		m_PlayerEnemyDamageObserved = true;
+		m_PlayerEnemyDamage += safeDamage;
+	}
+	else
+	{
+		source = "enemy_enemy_collision";
+		m_EnemyEnemyDamageObserved = true;
+		m_EnemyEnemyDamage += safeDamage;
+	}
+
+	m_PendingShot["enemy_damage_events"].push_back(
+		{
+			{ "source", source },
+			{ "enemy_id", enemyId },
+			{ "damage", safeDamage },
+		});
+}
+
+void BalanceLogger::RecordPlayerDamage(
+	const std::string& source,
+	int damage,
+	const std::string& sourceId)
+{
+	json* stage = GetCurrentStage();
+	if (stage == nullptr || damage <= 0)
+	{
+		return;
+	}
+
+	json event =
+	{
+		{ "recorded_at", MakeUtcTimestamp() },
+		{
+			"elapsed_from_run_start_ms",
+			GetEpochMilliseconds() - m_RunStartedMs
+		},
+		{ "source", source },
+		{ "damage", damage },
+	};
+	if (!sourceId.empty())
+	{
+		event["source_id"] = sourceId;
+	}
+	(*stage)["damage_events"].push_back(std::move(event));
+	Save();
+}
+
+void BalanceLogger::RecordEvent(
+	const std::string& eventType,
+	const json& details)
+{
+	if (!m_RunActive || eventType.empty())
+	{
+		return;
+	}
+
+	json event =
+	{
+		{ "event_type", eventType },
+		{ "recorded_at", MakeUtcTimestamp() },
+		{
+			"elapsed_from_run_start_ms",
+			GetEpochMilliseconds() - m_RunStartedMs
+		},
+		{ "details", details },
+	};
+	if (m_StageActive && m_CurrentStageIndex != NoStage)
+	{
+		event["stage_index"] =
+			static_cast<int>(m_CurrentStageIndex) + 1;
+	}
+	m_Root["events"].push_back(std::move(event));
+	Save();
 }
 
 void BalanceLogger::EndShot(
@@ -269,6 +422,22 @@ void BalanceLogger::EndShot(
 		m_PlayerEnemyHitCount;
 	m_PendingShot["enemy_enemy_hit_count"] =
 		m_EnemyEnemyHitCount;
+	const bool playerEnemyDamageKnown =
+		m_PlayerEnemyHitCount == 0 || m_PlayerEnemyDamageObserved;
+	const bool enemyEnemyDamageKnown =
+		m_EnemyEnemyHitCount == 0 || m_EnemyEnemyDamageObserved;
+	m_PendingShot["player_enemy_damage"] =
+		playerEnemyDamageKnown
+		? json(m_PlayerEnemyDamage)
+		: json(nullptr);
+	m_PendingShot["enemy_enemy_damage"] =
+		enemyEnemyDamageKnown
+		? json(m_EnemyEnemyDamage)
+		: json(nullptr);
+	m_PendingShot["total_enemy_damage"] =
+		playerEnemyDamageKnown && enemyEnemyDamageKnown
+		? json(m_PlayerEnemyDamage + m_EnemyEnemyDamage)
+		: json(nullptr);
 	m_PendingShot["total_damage_collision_count"] =
 		m_PlayerEnemyHitCount + m_EnemyEnemyHitCount;
 	m_PendingShot["collision_effect"] = collisionEffect;
@@ -284,6 +453,7 @@ void BalanceLogger::EndShot(
 	(*stage)["shots"].push_back(std::move(m_PendingShot));
 	m_PendingShot = json{};
 	m_ShotActive = false;
+	m_HasCurrentDamageCollision = false;
 
 	Save();
 }
@@ -319,6 +489,10 @@ void BalanceLogger::EndStage(
 	int noHitShotCount = 0;
 	int totalPlayerEnemyHits = 0;
 	int totalEnemyEnemyHits = 0;
+	int totalPlayerEnemyDamage = 0;
+	int totalEnemyEnemyDamage = 0;
+	int totalPlayerDamageTaken = 0;
+	bool stageEnemyDamageKnown = true;
 	double totalShotScore = 0.0;
 
 	for (const json& shot : shots)
@@ -334,8 +508,33 @@ void BalanceLogger::EndStage(
 			shot.value("player_enemy_hit_count", 0);
 		totalEnemyEnemyHits +=
 			shot.value("enemy_enemy_hit_count", 0);
+		if (shot.contains("player_enemy_damage") &&
+			shot["player_enemy_damage"].is_number_integer())
+		{
+			totalPlayerEnemyDamage +=
+				shot["player_enemy_damage"].get<int>();
+		}
+		else
+		{
+			stageEnemyDamageKnown = false;
+		}
+		if (shot.contains("enemy_enemy_damage") &&
+			shot["enemy_enemy_damage"].is_number_integer())
+		{
+			totalEnemyEnemyDamage +=
+				shot["enemy_enemy_damage"].get<int>();
+		}
+		else
+		{
+			stageEnemyDamageKnown = false;
+		}
 		totalShotScore +=
 			shot.value("shot_score", 0.0);
+	}
+	for (const json& damageEvent : (*stage)["damage_events"])
+	{
+		totalPlayerDamageTaken +=
+			damageEvent.value("damage", 0);
 	}
 
 	const int totalShots = static_cast<int>(shots.size());
@@ -362,6 +561,25 @@ void BalanceLogger::EndStage(
 		{ "enemies_defeated", enemiesDefeatedTotal },
 		{ "player_enemy_hit_count", totalPlayerEnemyHits },
 		{ "enemy_enemy_hit_count", totalEnemyEnemyHits },
+		{
+			"player_enemy_damage",
+			stageEnemyDamageKnown
+				? json(totalPlayerEnemyDamage)
+				: json(nullptr)
+		},
+		{
+			"enemy_enemy_damage",
+			stageEnemyDamageKnown
+				? json(totalEnemyEnemyDamage)
+				: json(nullptr)
+		},
+		{
+			"total_enemy_damage",
+			stageEnemyDamageKnown
+				? json(totalPlayerEnemyDamage + totalEnemyEnemyDamage)
+				: json(nullptr)
+		},
+		{ "player_damage_taken", totalPlayerDamageTaken },
 		{ "no_hit_shot_count", noHitShotCount },
 		{
 			"no_hit_shot_rate",
@@ -567,4 +785,70 @@ double BalanceLogger::CalculateShotScore(int collisionEffect)
 		(1.0 - std::exp(
 			-static_cast<double>(safeCollisionEffect) / 2.0));
 	return RoundToTwoDecimals(score);
+}
+
+json BalanceLogger::MakeConfigurationSnapshot()
+{
+	static const std::filesystem::path paths[] =
+	{
+		"assets/data/stage_01.json",
+		"assets/data/enemy_data.json",
+		"assets/data/player_status.json",
+		"assets/data/player_deck.json",
+		"assets/data/dynamic_balance.json",
+		"assets/data/difficulty_profiles.json",
+		"assets/data/balance_validation.json",
+		"assets/data/encounter_balance.json",
+		"assets/data/pocket_rules.json",
+		"assets/data/balance_autoplay.json",
+		"assets/data/balance_targets.json",
+		"tools/game_mcp/player_profiles.json",
+	};
+
+	json files = json::array();
+	for (const std::filesystem::path& path : paths)
+	{
+		files.push_back(MakeFileFingerprint(path));
+	}
+	return { { "files", std::move(files) } };
+}
+
+json BalanceLogger::MakeFileFingerprint(
+	const std::filesystem::path& path)
+{
+	json result =
+	{
+		{ "path", path.generic_string() },
+		{ "exists", false },
+	};
+
+	std::ifstream file(path, std::ios::binary);
+	if (!file)
+	{
+		return result;
+	}
+
+	constexpr std::uint64_t fnvOffset = 14695981039346656037ull;
+	constexpr std::uint64_t fnvPrime = 1099511628211ull;
+	std::uint64_t hash = fnvOffset;
+	std::uint64_t size = 0;
+	char buffer[4096];
+	while (file)
+	{
+		file.read(buffer, sizeof(buffer));
+		const std::streamsize count = file.gcount();
+		for (std::streamsize index = 0; index < count; index++)
+		{
+			hash ^= static_cast<unsigned char>(buffer[index]);
+			hash *= fnvPrime;
+		}
+		size += static_cast<std::uint64_t>(count);
+	}
+
+	std::ostringstream hashStream;
+	hashStream << std::hex << std::setw(16) << std::setfill('0') << hash;
+	result["exists"] = true;
+	result["size_bytes"] = size;
+	result["fnv1a64"] = hashStream.str();
+	return result;
 }

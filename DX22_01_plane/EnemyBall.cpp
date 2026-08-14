@@ -1,6 +1,8 @@
 ﻿#include "EnemyBall.h"
 
 #include "Camera.h"
+#include "BallRenderComponent.h"
+#include "BalanceLogger.h"
 #include "Game.h"
 #include "Ground.h"
 #include "PlayerBall.h"
@@ -13,7 +15,22 @@ using namespace DirectX::SimpleMath;
 
 void EnemyBall::Awake()
 {
-    m_Ball = GetGameObject()->AddComponent<BallComponent>();
+    GameObject* owner = GetGameObject();
+    if (owner == nullptr)
+    {
+        return;
+    }
+
+    m_Ball = owner->GetComponent<BallComponent>();
+    m_RenderComponent = owner->GetComponent<BallRenderComponent>();
+    if (m_Ball == nullptr || m_RenderComponent == nullptr)
+    {
+        owner->Destroy();
+        return;
+    }
+
+    m_Ball->SetPocketHandler([this]() { OnPocketHit(); });
+
     if (m_InitialData.has_value())
     {
         Init(*m_InitialData);
@@ -32,6 +49,10 @@ void EnemyBall::Draw()
 
 void EnemyBall::OnDestroy()
 {
+    if (m_Ball != nullptr)
+    {
+        m_Ball->SetPocketHandler({});
+    }
     Uninit();
 }
 
@@ -48,20 +69,22 @@ void EnemyBall::Init(const EnemyData& data)
 
     SetStatus(m_EnemyData.status);             // ステータスを反映
 
-    m_Ball->LoadModel(
+    m_RenderComponent->LoadModel(
         m_EnemyData.modelFilePath.c_str(),
         m_EnemyData.textureDirectory.c_str()
     );
 
-    m_Ball->GetMutableTransform().position = m_EnemyData.initPosition; // 初期位置を反映
-    m_Ball->GetMutableTransform().scale = m_EnemyData.scale;        // スケールを反映
+    m_Ball->SetPosition(m_EnemyData.initPosition); // 初期位置を反映
+    m_Ball->SetScale(m_EnemyData.scale);           // スケールを反映
     m_Ball->UpdateRadius();                                  // スケールに合わせて半径を更新
 
-    std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+    std::vector<Ground*> grounds = Game::GetInstance()->GetComponents<Ground>();
     if (!grounds.empty())
     {
         // Groundがある場合は、台の高さに合わせてY座標を補正する
-        m_Ball->GetMutableTransform().position.y = grounds[0]->GetFieldHeight();
+        Vector3 position = m_Ball->GetPosition();
+        position.y = grounds[0]->GetFieldHeight();
+        m_Ball->SetPosition(position);
     }
 
     m_Ball->GetMutableVelocity() = Vector3::Zero;             // 速度を初期化
@@ -73,6 +96,11 @@ void EnemyBall::Init(const EnemyData& data)
 
 void EnemyBall::Update()
 {
+    if (m_Ball == nullptr || m_IsPocketed)
+    {
+        return;
+    }
+
     m_CurrentFrame++;
 
     // --- 摩擦・減速の計算 (PlayerBallの挙動と合わせる場合) ---
@@ -97,26 +125,28 @@ void EnemyBall::Update()
 
 void EnemyBall::Draw(Camera* cam)
 {
+    if (cam == nullptr || m_Ball == nullptr || m_IsPocketed)
+    {
+        return;
+    }
+
     cam->SetCamera();
 
-    m_Ball->BeginDraw();
+    m_RenderComponent->BeginDraw();
 
     // 行列の作成（BallComponentが計算した m_Ball->GetMutableRollingRotation() を適用）
-    Matrix rDirection = Matrix::CreateFromYawPitchRoll(
-        m_Ball->GetMutableTransform().rotation.y,
-        m_Ball->GetMutableTransform().rotation.x,
-        m_Ball->GetMutableTransform().rotation.z
-    );
+    Matrix rDirection = Matrix::CreateFromQuaternion(
+        m_Ball->GetRotation());
     Matrix rRolling = Matrix::CreateFromQuaternion(m_Ball->GetMutableRollingRotation());
     Matrix r = rDirection * rRolling;
 
-    Matrix t = Matrix::CreateTranslation(m_Ball->GetMutableTransform().position);
-    Matrix s = Matrix::CreateScale(m_Ball->GetMutableTransform().scale);
+    Matrix t = Matrix::CreateTranslation(m_Ball->GetPosition());
+    Matrix s = Matrix::CreateScale(m_Ball->GetScale());
 
     Matrix worldmtx = s * r * t;
 
     // BallComponentの共通描画関数を呼び出す
-    m_Ball->DrawMesh(worldmtx);
+    m_RenderComponent->DrawMesh(worldmtx);
 }
 
 void EnemyBall::Uninit()
@@ -126,10 +156,27 @@ void EnemyBall::Uninit()
 
 void EnemyBall::Defeat()
 {
-    m_Ball->Defeat();
+    if (m_Ball == nullptr)
+    {
+        return;
+    }
 
-    // 敵専用の倒された時の処理を書くならここ
-    // 例：撃破エフェクト、スコア加算、ドロップ抽選など
+    m_Ball->Defeat();
+}
+
+void EnemyBall::RemoveFromFieldAfterPocket()
+{
+    if (m_Ball == nullptr)
+    {
+        return;
+    }
+
+    m_Ball->GetMutableVelocity() = Vector3::Zero;
+    m_Ball->GetMutableAcceleration() = Vector3::Zero;
+    if (GameObject* owner = GetGameObject())
+    {
+        owner->SetActive(false);
+    }
 }
 
 void EnemyBall::ApplyHotReloadData(const EnemyData& data)
@@ -150,7 +197,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     ApplyStatusKeepHpRate(data.status);
 
     // スケールも反映
-    m_Ball->GetMutableTransform().scale = data.scale;
+    m_Ball->SetScale(data.scale);
     m_Ball->UpdateRadius();
 
     std::cout << "[HotReload] Enemy updated: "
@@ -198,6 +245,70 @@ void EnemyBall::ApplyStatusValuesOnly(const BallStatus& status)
 {
     // HPや撃破状態を初期化せず、ステータス構造体だけを差し替える
     m_Ball->ApplyStatusValuesOnly(status);
+}
+
+void EnemyBall::OnPocketHit()
+{
+    if (m_Ball == nullptr || m_IsPocketed)
+    {
+        return;
+    }
+    Game::GetInstance()->HandleEnemyPocket(this);
+}
+
+void EnemyBall::EnterPocketQueue()
+{
+    if (m_Ball == nullptr || IsDefeated() || m_IsPocketed)
+    {
+        return;
+    }
+    m_IsPocketed = true;
+    m_Ball->ResetAtPosition(Vector3(0.0f, -1000.0f, 0.0f));
+    if (GameObject* owner = GetGameObject())
+    {
+        owner->SetActive(false);
+    }
+}
+
+void EnemyBall::ReturnFromPocket(const Vector3& position)
+{
+    if (m_Ball == nullptr || IsDefeated())
+    {
+        return;
+    }
+    m_Ball->ResetAtPosition(position);
+    m_IsPocketed = false;
+    if (GameObject* owner = GetGameObject())
+    {
+        owner->SetActive(true);
+    }
+}
+
+void EnemyBall::TakeDamage(int damage)
+{
+	if (m_Ball == nullptr)
+	{
+		return;
+	}
+	const int hpBefore = m_Ball->GetHP();
+	const bool wasDefeated = m_Ball->IsDefeated();
+	const Vector3 collisionVelocity =
+		m_Ball->GetMutableVelocity();
+	const Vector3 collisionAcceleration =
+		m_Ball->GetMutableAcceleration();
+	m_Ball->TakeDamage(damage);
+
+	// Normal damage defeat remains visible and physical until all balls stop.
+	// Pocket removal is handled separately and is immediate.
+	if (!wasDefeated && m_Ball->IsDefeated())
+	{
+		m_Ball->GetMutableVelocity() = collisionVelocity;
+		m_Ball->GetMutableAcceleration() = collisionAcceleration;
+	}
+
+	BalanceLogger::GetInstance().RecordEnemyDamage(
+		m_EnemyData.id,
+		(std::max)(0, hpBefore - m_Ball->GetHP()));
 }
 
 void EnemyBall::DrawImGui(const std::string& label)

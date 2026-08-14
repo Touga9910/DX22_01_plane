@@ -1,21 +1,25 @@
 #pragma once
 
-#include "Object.h"
 #include "Collision.h"
+#include "Component.h"
 
-class Pocket : public Object
+class SphereColliderComponent;
+
+// Pocket gameplay marker. Its trigger shape is composed with a
+// SphereColliderComponent on the same GameObject.
+class Pocket final : public Component
 {
-private:
-    float m_Radius = 2.0f;
-
 public:
-    void Init() override;
-    void Update() override;
-    void Draw(Camera* cam) override;
-    void Uninit() override;
+    explicit Pocket(float initialRadius = 2.0f);
+
+    void Awake() override;
 
     void SetPosition(const DirectX::SimpleMath::Vector3& position);
     void SetRadius(float radius);
 
     Collision::Sphere GetSphere() const;
+
+private:
+    float m_InitialRadius = 2.0f;
+    SphereColliderComponent* m_ColliderComponent = nullptr;
 };

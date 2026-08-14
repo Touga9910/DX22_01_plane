@@ -3,6 +3,7 @@
 #include "EnemyBall.h"
 #include "Game.h"
 #include "PlayerBall.h"
+#include "Pocket.h"
 #include "StageDataLoader.h"
 #include "TableFrame.h"
 #include "TableConfig.h"
@@ -257,6 +258,7 @@ namespace
 				{ "friction", ball.status.friction },
 				{ "pierce", ball.status.abilities.pierce },
 				{ "split", ball.status.abilities.split },
+				{ "anchor", ball.status.abilities.anchor },
 			} },
 		};
 	}
@@ -448,9 +450,20 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "field_width", TableConfig::GetFieldWidth() },
 		{ "field_depth", TableConfig::GetFieldDepth() },
 		{ "walls", nlohmann::json::array() },
+		{ "pockets", nlohmann::json::array() },
+	};
+	state["rest_heal"] = {
+		{ "heal_ratio", game.m_RestHealRatio },
+		{ "heal_percent", game.GetRestHealPercent() },
+		{ "configured_heal_amount", game.GetRestHealAmount() },
+		{ "capped_at_max_hp", true },
+		{ "available", game.CanRestHeal() },
+		{ "cooldown_battles", game.GetRestHealCooldownBattles() },
+		{ "cooldown_remaining",
+			game.GetRestHealCooldownRemaining() },
 	};
 	const std::vector<TableFrame*> tableFrames =
-		game.GetObjects<TableFrame>();
+		game.GetComponents<TableFrame>();
 	for (const TableFrame* tableFrame : tableFrames)
 	{
 		if (tableFrame == nullptr)
@@ -466,6 +479,58 @@ nlohmann::json GameMcpBridge::BuildState(
 			});
 		}
 	}
+	const std::vector<Pocket*> pockets = game.GetComponents<Pocket>();
+	for (std::size_t pocketIndex = 0;
+		pocketIndex < pockets.size();
+		pocketIndex++)
+	{
+		const Pocket* pocket = pockets[pocketIndex];
+		if (pocket == nullptr)
+		{
+			continue;
+		}
+		const Collision::Sphere sphere = pocket->GetSphere();
+		state["table"]["pockets"].push_back({
+			{ "index", pocketIndex },
+			{ "position", VectorToJson(sphere.center) },
+			{ "radius", sphere.radius },
+		});
+	}
+
+	state["pocket_rules"] = {
+		{ "player", {
+			{ "max_hp_damage_ratio", game.m_PlayerPocketDamageRatio },
+			{ "damage_amount", game.GetPlayerPocketDamageAmount() },
+			{ "damage_ignores_defense", true },
+			{ "return_region", {
+				{ "center", VectorToJson(
+					DirectX::SimpleMath::Vector3(
+						0.0f, TableConfig::FIELD_HEIGHT, 0.0f)) },
+				{ "half_width", game.m_PlayerPocketReturnHalfWidth },
+				{ "half_depth", game.m_PlayerPocketReturnHalfDepth },
+			} },
+		} },
+		{ "enemy", {
+			{ "high_hp_result", "skip_attack_then_queue_return" },
+			{ "returns_per_turn", 1 },
+			{ "return_position", VectorToJson(
+				DirectX::SimpleMath::Vector3(
+					game.m_EnemyPocketReturnX,
+					TableConfig::FIELD_HEIGHT,
+					TableConfig::GetFieldDepth() * 0.5f -
+						game.m_EnemyPocketReturnTopEdgeOffset)) },
+			{ "finisher_hp_ratios", {
+				{ "normal", game.m_NormalPocketFinisherRatio },
+				{ "midboss", game.m_MidBossPocketFinisherRatio },
+				{ "boss", game.m_BossPocketFinisherRatio },
+			} },
+			{ "current_stage_type",
+				StageTypeToMcpString(game.m_CurrentBattleStageType) },
+			{ "current_finisher_hp_ratio",
+				game.GetCurrentPocketFinisherRatio() },
+			{ "return_queue_size", game.m_PocketedEnemyQueue.size() },
+		} },
+	};
 
 	state["stage_layout_control"] = {
 		{ "application_timing", "next_battle_spawn" },
@@ -482,7 +547,7 @@ nlohmann::json GameMcpBridge::BuildState(
 	};
 
 	const std::vector<PlayerBall*> players =
-		game.GetObjects<PlayerBall>();
+		game.GetComponents<PlayerBall>();
 	const PlayerBall* player =
 		players.empty() ? nullptr : players[0];
 	state["player"] = {
@@ -548,6 +613,26 @@ nlohmann::json GameMcpBridge::BuildState(
 			game.GetCurrentShotEnemyEnemyCollisionCount()
 		},
 		{
+			"current_shot_ball_collisions",
+			game.GetCurrentShotBallCollisionCount()
+		},
+		{
+			"bank_shot_ready",
+			game.IsCurrentShotBankShotReady()
+		},
+		{
+			"bank_shot_damage_multiplier",
+			game.HasRelic(RelicType::BankShot) ? 2 : 1
+		},
+		{
+			"emergency_repair_contact_threshold",
+			game.HasRelic(RelicType::EmergencyRepairKit) ? 3 : 0
+		},
+		{
+			"emergency_repair_heal_amount",
+			game.HasRelic(RelicType::EmergencyRepairKit) ? 1 : 0
+		},
+		{
 			"applies_to_collision_pairs",
 			nlohmann::json::array(
 				{ "player_enemy", "enemy_enemy" })
@@ -556,7 +641,7 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["enemies"] = nlohmann::json::array();
 	const std::vector<EnemyBall*> enemies =
-		game.GetObjects<EnemyBall>();
+		game.GetComponents<EnemyBall>();
 	for (std::size_t enemyIndex = 0;
 		enemyIndex < enemies.size();
 		enemyIndex++)
@@ -575,7 +660,20 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "attack", enemy->GetAttack() },
 			{ "defense", enemy->GetDefense() },
 			{ "defeated", enemy->IsDefeated() },
+			{ "pocketed", enemy->IsPocketed() },
+			{ "can_attack_this_turn",
+				!enemy->IsDefeated() && !enemy->IsPocketed() },
+			{ "pocket_queue_index",
+				game.GetPocketQueueIndex(enemy) },
+			{ "hp_ratio",
+				enemy->GetMaxHP() <= 0
+					? 0.0f
+					: static_cast<float>(enemy->GetHP()) /
+						static_cast<float>(enemy->GetMaxHP()) },
+			{ "pocket_finisher_eligible",
+				game.IsEnemyPocketFinisherEligible(enemy) },
 			{ "stopped", enemy->IsStopped() },
+			{ "radius", enemy->GetRadius() },
 			{ "position", VectorToJson(enemy->GetPosition()) },
 			{ "velocity", VectorToJson(enemy->GetVelocity()) },
 		});
@@ -688,11 +786,11 @@ nlohmann::json GameMcpBridge::BuildState(
 			: 0;
 	const int dynamicAttackDelta =
 		game.m_DynamicBalanceEnabled
-			? (game.m_DynamicBalanceLevel /
-				game.m_DynamicBalanceLevelsPerAttackStep) *
-				game.m_DynamicBalanceAttackStep
+			? game.CalculateDynamicBalanceAttackModifier(
+				game.m_DynamicBalanceLevel)
 			: 0;
 	state["dynamic_balance"] = {
+		{ "role", "assist_mode" },
 		{ "enabled", game.m_DynamicBalanceEnabled },
 		{ "current_battle_enabled",
 			game.m_DynamicBalanceAppliedEnabled },
@@ -727,8 +825,45 @@ nlohmann::json GameMcpBridge::BuildState(
 				game.m_DynamicBalanceLastShotsPerEnemy },
 		} },
 	};
+	state["progression_scaling"] = {
+		{ "enabled", game.m_ProgressionScalingEnabled },
+		{ "current_progress", game.m_PlayerRunStatus.progress },
+		{ "next_enemy_attack_delta",
+			game.CalculateProgressionAttackModifier() },
+		{ "attack_start_progress", game.m_ProgressionAttackStart },
+		{ "attack_interval", game.m_ProgressionAttackInterval },
+		{ "attack_step", game.m_ProgressionAttackStep },
+		{ "maximum_attack_delta",
+			game.m_ProgressionAttackMaximumDelta },
+	};
+	state["baseline_difficulty"] = {
+		{ "profile", game.m_BaselineDifficultyProfile },
+		{ "enemy_hp_multiplier", game.m_BaselineEnemyHpMultiplier },
+		{ "enemy_attack_delta", game.m_BaselineEnemyAttackDelta },
+	};
+	state["balance_validation"] = {
+		{ "enabled", game.m_BalanceValidationEnabled },
+		{ "experiment_id", game.m_BalanceValidationExperimentId },
+		{ "variant_id", game.m_BalanceValidationCurrentVariantId },
+		{ "variant_index", game.m_BalanceValidationVariantIndex },
+		{ "variant_count", game.m_BalanceValidationVariants.size() },
+		{ "run_seed", game.m_RunRandomSeed },
+		{ "stage_selection_seed", game.m_StageSelectionSeed },
+		{ "route_selection_seed", game.m_RouteSelectionSeed },
+		{ "seed_suite_index", game.m_BalanceValidationSeedIndex },
+		{ "seed_suite_size", game.m_BalanceValidationSeeds.size() },
+		{ "maximum_cleared_stages",
+			game.m_BalanceValidationMaximumClearedStages },
+		{ "cleared_stage_count", game.m_ClearedStageCount },
+		{
+			"dynamic_balance_forced_off",
+			game.m_BalanceValidationEnabled &&
+			game.m_BalanceValidationCurrentDisableDynamicBalance
+		},
+	};
 
 	state["available_actions"] = nlohmann::json::array();
+	state["route_options"] = nlohmann::json::array();
 	state["available_actions"].push_back("set_dynamic_balance");
 	state["available_actions"].push_back("set_next_stage_layout");
 	if (game.m_McpNextStageOverride.has_value())
@@ -744,6 +879,23 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 	else if (scene == "stage_select")
 	{
+		StageSelectScene* stageSelect =
+			dynamic_cast<StageSelectScene*>(game.m_Scene);
+		if (stageSelect != nullptr)
+		{
+			for (int routeIndex = 0;
+				routeIndex < stageSelect->GetRouteNodeCount();
+				routeIndex++)
+			{
+				state["route_options"].push_back({
+					{ "route_index", routeIndex },
+					{ "destination",
+						stageSelect->GetRouteIdAt(routeIndex) },
+					{ "display_name",
+						stageSelect->GetRouteDisplayNameAt(routeIndex) },
+				});
+			}
+		}
 		state["available_actions"].push_back(
 			"choose_destination");
 	}
@@ -753,9 +905,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			dynamic_cast<RestSiteScene*>(game.m_Scene);
 		const bool actionUsed =
 			restSite != nullptr && restSite->HasUsedAction();
-		const bool canHeal =
-			game.m_PlayerRunStatus.currentHp <
-			game.m_PlayerRunStatus.maxHp;
+		const bool canHeal = game.CanRestHeal();
 		bool canUpgrade = false;
 		for (int index = 0;
 			index < game.m_PlayerDeck.GetRewardTargetCount();
@@ -775,6 +925,13 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "must_claim_available_bonus_before_continue", true },
 			{ "action_used", actionUsed },
 			{ "bonus_available", bonusAvailable },
+			{ "heal_ratio", game.m_RestHealRatio },
+			{ "heal_percent", game.GetRestHealPercent() },
+			{ "configured_heal_amount", game.GetRestHealAmount() },
+			{ "heal_cooldown_battles",
+				game.GetRestHealCooldownBattles() },
+			{ "heal_cooldown_remaining",
+				game.GetRestHealCooldownRemaining() },
 			{ "priority", nlohmann::json::array({
 				"heal_if_hp_below_40_percent",
 				"upgrade_any_available_deck_ball",
@@ -1156,7 +1313,11 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A new run can only start from the title or result scene.");
 		}
 		game.m_BalanceAutoPlayEnabled = false;
-		game.StartNewRun();
+		game.StartNewRun(
+			"mcp",
+			arguments.value(
+				"controller_profile",
+				std::string("unknown")));
 		game.ChangeScene(SceneType::Select);
 		game.m_GameState = GameState::AimingDirection;
 		return CommandResult(true, "Started a new run.");
@@ -1170,32 +1331,32 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"A destination can only be chosen from stage select.");
 		}
-		const std::string destination =
-			arguments.value(
-				"destination",
-				std::string());
-		if (destination == "rest")
+		StageSelectScene* stageSelect =
+			dynamic_cast<StageSelectScene*>(game.m_Scene);
+		if (stageSelect == nullptr)
 		{
-			game.ChangeScene(SceneType::RestSite);
-			return CommandResult(true, "Moved to the rest site.");
+			return CommandResult(
+				false,
+				"Route options are unavailable in the current scene.");
 		}
-		if (destination == "shop")
+		const int routeIndex = arguments.value("route_index", -1);
+		if (routeIndex < 0 ||
+			routeIndex >= stageSelect->GetRouteNodeCount())
 		{
-			game.ChangeScene(SceneType::Shop);
-			return CommandResult(true, "Moved to the shop.");
+			return CommandResult(
+				false,
+				"route_index must identify one of the current route_options.");
 		}
-		if (destination == "battle")
+		const std::string selectedDestination =
+			stageSelect->GetRouteIdAt(routeIndex);
+		if (!stageSelect->ChooseRoute(routeIndex, "mcp"))
 		{
-			game.StartNextBattle(
-				ParseStageType(
-					arguments.value(
-						"stage_type",
-						std::string("normal"))));
-			return CommandResult(true, "Started the next battle.");
+			return CommandResult(false, "Failed to enter the selected route.");
 		}
 		return CommandResult(
-			false,
-			"destination must be battle, rest, or shop.");
+			true,
+			"Entered route option " + std::to_string(routeIndex) +
+			" (" + selectedDestination + ").");
 	}
 
 	if (action == "select_ball")
@@ -1235,7 +1396,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A shot can only be fired while aiming in battle.");
 		}
 		const std::vector<PlayerBall*> players =
-			game.GetObjects<PlayerBall>();
+			game.GetComponents<PlayerBall>();
 		if (players.empty() ||
 			players[0] == nullptr ||
 			!players[0]->IsIdle() ||
@@ -1276,6 +1437,11 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			directionX / length,
 			0.0f,
 			directionZ / length);
+		game.m_PendingShotTelemetry =
+			arguments.contains("telemetry") &&
+			arguments["telemetry"].is_object()
+			? arguments["telemetry"]
+			: nlohmann::json::object();
 		players[0]->FireAutomatedShot(direction * power);
 		return CommandResult(true, "Fired the requested shot.");
 	}
@@ -1294,7 +1460,11 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"Player HP is already full or healing is unavailable.");
 		}
-		return CommandResult(true, "Restored player HP.");
+		return CommandResult(
+			true,
+			"Recovered up to " +
+			std::to_string(game.GetRestHealPercent()) +
+			"% of maximum player HP, capped at maximum HP.");
 	}
 
 	if (action == "upgrade_ball")
@@ -1408,11 +1578,17 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 					"Choose heal or upgrade_ball before leaving the rest site.");
 			}
 		}
-		game.StartNextBattle(
-			ParseStageType(
-				arguments.value(
+		if (arguments.value("override_stage_schedule", false))
+		{
+			game.StartNextBattle(
+				ParseStageType(arguments.value(
 					"stage_type",
 					std::string("normal"))));
+		}
+		else
+		{
+			game.StartNextBattle();
+		}
 		return CommandResult(true, "Started the next battle.");
 	}
 
@@ -1426,6 +1602,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A clear reward is not currently available.");
 		}
 
+		const int moneyBefore = game.m_PlayerRunStatus.money;
 		const std::string reward =
 			arguments.value("reward", std::string());
 		bool applied = false;
@@ -1477,6 +1654,15 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		game.m_IsClearRewardChosen = true;
 		game.m_RewardMessage =
 			"External AI selected the clear reward.";
+		game.RecordBalanceEvent(
+			"clear_reward_choice",
+			{
+				{ "controller", "mcp" },
+				{ "reward", reward },
+				{ "selected_index", game.m_SelectedRewardBallIndex },
+				{ "money_before", moneyBefore },
+				{ "money_after", game.m_PlayerRunStatus.money },
+			});
 		return CommandResult(true, "Applied the requested clear reward.");
 	}
 

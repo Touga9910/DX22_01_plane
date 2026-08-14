@@ -3,6 +3,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 #include "imgui/imgui.h"
 
 ShopScene::ShopScene()
@@ -17,10 +18,10 @@ ShopScene::~ShopScene()
 
 void ShopScene::Init()
 {
-	Texture2D* background = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* background = Texture2DFactory::Create(*Game::GetInstance());
 	background->SetTexture("assets/texture/background2.png");
 	background->SetScale(1280.0f, 720.0f, 0.0f);
-	m_MySceneObjects.emplace_back(background);
+	m_SceneGameObjects.emplace_back(background->GetGameObject());
 }
 
 void ShopScene::Update()
@@ -142,11 +143,19 @@ void ShopScene::DrawUI()
 			const PlayerBallData* ball = Game::GetInstance()->GetShopBall(index);
 			if (ball != nullptr)
 			{
-				ImGui::Text("%s %s  ATK:%d DEF:%d",
+				ImGui::Text("%s %s  ATK:%d DEF:%d  MASS:%.1f",
 					index == m_SelectedBuyBall ? ">" : " ",
 					ball->definitionId.c_str(),
 					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
-					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
+					Game::GetInstance()->GetEffectivePlayerBallDefense(ball),
+					ball->status.mass);
+				ImGui::Text("    BOUNCE:%.2f  FRICTION:%.2f  RADIUS:%.1f",
+					ball->status.restitution,
+					ball->status.friction,
+					ball->status.radius);
+				ImGui::Text("    PIERCE:%s  ANCHOR:%s",
+					ball->status.abilities.pierce ? "Yes" : "No",
+					ball->status.abilities.anchor ? "Yes" : "No");
 			}
 		}
 	}
@@ -205,9 +214,9 @@ void ShopScene::DrawUI()
 
 void ShopScene::Uninit()
 {
-	for (Component* component : m_MySceneObjects)
+	for (GameObject* gameObject : m_SceneGameObjects)
 	{
-		Game::GetInstance()->DeleteComponent(component);
+		Game::GetInstance()->DeleteGameObject(gameObject);
 	}
-	m_MySceneObjects.clear();
+	m_SceneGameObjects.clear();
 }

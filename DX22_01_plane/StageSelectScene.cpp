@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 #include "imgui/imgui.h"
 
 namespace
@@ -32,11 +33,26 @@ namespace
 			return "Unknown";
 		}
 	}
+
+	const char* GetRouteId(StageRouteType routeType)
+	{
+		switch (routeType)
+		{
+		case StageRouteType::Battle:
+			return "battle";
+		case StageRouteType::Shop:
+			return "shop";
+		case StageRouteType::RestSite:
+			return "rest";
+		default:
+			return "unknown";
+		}
+	}
 }
 
 // コンストラクタ
 StageSelectScene::StageSelectScene()
-	: m_RandomEngine(std::random_device{}())
+	: m_RandomEngine(Game::GetInstance()->GetNextRouteRandomSeed())
 {
 	Init();
 }
@@ -54,12 +70,12 @@ void StageSelectScene::Init()
 	RollRouteNodes();
 
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
 	pt->SetRotation(0.0f, 0.0f, 0.0f);
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
-	m_MySceneObjects.emplace_back(pt);
+	m_SceneGameObjects.emplace_back(pt->GetGameObject());
 
 }
 
@@ -77,7 +93,7 @@ void StageSelectScene::Update()
 
 	if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
 	{
-		EnterRoute(m_RouteNodes[m_SelectedNode]);
+		ChooseRoute(m_SelectedNode, "human");
 	}
 }
 
@@ -100,9 +116,53 @@ void StageSelectScene::RollRouteNodes()
 	}
 }
 
-void StageSelectScene::EnterRoute(StageRouteType routeType)
+int StageSelectScene::GetRouteNodeCount() const
 {
+	return static_cast<int>(m_RouteNodes.size());
+}
+
+const char* StageSelectScene::GetRouteIdAt(int routeIndex) const
+{
+	if (routeIndex < 0 || routeIndex >= GetRouteNodeCount())
+	{
+		return "unknown";
+	}
+	return GetRouteId(m_RouteNodes[routeIndex]);
+}
+
+const char* StageSelectScene::GetRouteDisplayNameAt(int routeIndex) const
+{
+	if (routeIndex < 0 || routeIndex >= GetRouteNodeCount())
+	{
+		return "Unknown";
+	}
+	return GetRouteName(m_RouteNodes[routeIndex]);
+}
+
+bool StageSelectScene::ChooseRoute(
+	int routeIndex,
+	const std::string& controllerType)
+{
+	if (routeIndex < 0 || routeIndex >= GetRouteNodeCount())
+	{
+		return false;
+	}
+
+	const StageRouteType routeType = m_RouteNodes[routeIndex];
 	Game* game = Game::GetInstance();
+	nlohmann::json offeredRoutes = nlohmann::json::array();
+	for (const StageRouteType offeredRoute : m_RouteNodes)
+	{
+		offeredRoutes.push_back(GetRouteName(offeredRoute));
+	}
+	game->RecordBalanceEvent(
+		"route_choice",
+		{
+			{ "controller", controllerType },
+			{ "offered_routes", std::move(offeredRoutes) },
+			{ "selected_index", routeIndex },
+			{ "selected_route", GetRouteName(routeType) },
+		});
 	switch (routeType)
 	{
 	case StageRouteType::Battle:
@@ -115,8 +175,9 @@ void StageSelectScene::EnterRoute(StageRouteType routeType)
 		game->ChangeScene(SceneType::RestSite);
 		break;
 	default:
-		break;
+		return false;
 	}
+	return true;
 }
 
 void StageSelectScene::DrawUI()
@@ -155,8 +216,8 @@ void StageSelectScene::DrawUI()
 void StageSelectScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
-	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteComponent(o);
+	for (GameObject* gameObject : m_SceneGameObjects) {
+		Game::GetInstance()->DeleteGameObject(gameObject);
 	}
-	m_MySceneObjects.clear();
+	m_SceneGameObjects.clear();
 }

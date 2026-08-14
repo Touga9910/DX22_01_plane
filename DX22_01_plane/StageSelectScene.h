@@ -1,10 +1,12 @@
 ﻿#pragma once
 #include "Scene.h"
-#include "Component.h"
 
 #include <array>
 #include <random>
+#include <string>
 #include <vector>
+
+class GameObject;
 
 enum class StageRouteType
 {
@@ -19,7 +21,7 @@ class StageSelectScene : public Scene
 private:
 	static constexpr int kNodeCount = 3;
 
-	std::vector<Component*> m_MySceneObjects; // このシーンが所有するGameObject内の代表Component
+	std::vector<GameObject*> m_SceneGameObjects;
 
 	std::array<StageRouteType, kNodeCount> m_RouteNodes{};
 	std::mt19937 m_RandomEngine;
@@ -28,7 +30,6 @@ private:
 	void Init(); // 初期化
 	void Uninit(); // 終了処理
 	void RollRouteNodes();
-	void EnterRoute(StageRouteType routeType);
 
 public:
 	StageSelectScene(); // コンストラクタ
@@ -36,5 +37,9 @@ public:
 
 	void Update(); // 更新
 	void DrawUI() override;
+	int GetRouteNodeCount() const;
+	const char* GetRouteIdAt(int routeIndex) const;
+	const char* GetRouteDisplayNameAt(int routeIndex) const;
+	bool ChooseRoute(int routeIndex, const std::string& controllerType);
 };
 

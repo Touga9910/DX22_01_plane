@@ -1,6 +1,7 @@
 #include "BallFactory.h"
 
 #include "BallComponent.h"
+#include "BallCollisionComponent.h"
 #include "BallPhysicsComponent.h"
 #include "BallRenderComponent.h"
 #include "BallStatusComponent.h"
@@ -23,9 +24,13 @@ namespace
 
         object->AddComponent<TagComponent>(tag);
         object->AddComponent<BallStatusComponent>();
-        object->AddComponent<BallPhysicsComponent>();
-        object->AddComponent<SphereColliderComponent>(2.0f, false);
+        BallPhysicsComponent* physics =
+            object->AddComponent<BallPhysicsComponent>();
+        object->AddComponent<SphereColliderComponent>(
+            physics->Radius(),
+            false);
         object->AddComponent<BallRenderComponent>();
+        object->AddComponent<BallCollisionComponent>();
         object->AddComponent<BallComponent>();
 
         return object;

@@ -1,13 +1,14 @@
 ﻿#pragma once
 #include "Scene.h"
-#include "Component.h"
 #include <vector>
+
+class GameObject;
 
 // TitleSceneクラス
 class TitleScene : public Scene
 {
 private:
-	std::vector<Component*> m_MySceneObjects; // このシーンが所有するGameObject内の代表Component
+	std::vector<GameObject*> m_SceneGameObjects;
 
 	int m_CursolPos = 0;	//カーソルの位置
 

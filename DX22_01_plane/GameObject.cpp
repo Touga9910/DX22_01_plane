@@ -33,13 +33,18 @@ void GameObject::Uninit()
 // 有効なコンポーネントを毎フレーム更新する
 void GameObject::Update()
 {
-    if (!m_IsActive)
+    if (!m_IsActive || m_DestroyRequested)
     {
         return;
     }
 
     for (const auto& component : m_Components)
     {
+        if (m_DestroyRequested)
+        {
+            break;
+        }
+
         if (!component->IsEnabled())
         {
             continue;
@@ -59,13 +64,18 @@ void GameObject::Update()
 // 通常のUpdate後にコンポーネントを更新する
 void GameObject::LateUpdate()
 {
-    if (!m_IsActive)
+    if (!m_IsActive || m_DestroyRequested)
     {
         return;
     }
 
     for (const auto& component : m_Components)
     {
+        if (m_DestroyRequested)
+        {
+            break;
+        }
+
         if (component->IsEnabled())
         {
             component->LateUpdate();
@@ -76,13 +86,18 @@ void GameObject::LateUpdate()
 // 描画機能を持つコンポーネントを実行する
 void GameObject::Draw()
 {
-    if (!m_IsActive)
+    if (!m_IsActive || m_DestroyRequested)
     {
         return;
     }
 
     for (const auto& component : m_Components)
     {
+        if (m_DestroyRequested)
+        {
+            break;
+        }
+
         if (component->IsEnabled())
         {
             component->Draw();
@@ -98,13 +113,18 @@ void GameObject::Destroy()
 
 void GameObject::FixedUpdate()
 {
-	if (!m_IsActive)
+	if (!m_IsActive || m_DestroyRequested)
 	{
 		return;
 	}
 
 	for (const auto& component : m_Components)
 	{
+		if (m_DestroyRequested)
+		{
+			break;
+		}
+
 		if (component->IsEnabled())
 		{
 			component->FixedUpdate();

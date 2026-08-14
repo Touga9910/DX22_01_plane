@@ -15,6 +15,7 @@ public:
     // デッキ初期化
     // -------------------------
     void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
+    void SetCatalog(const std::vector<PlayerBallData>& catalog);
     void Reset();
     void ResetToDefault();
 
@@ -76,6 +77,7 @@ private:
 
 private:
     std::vector<PlayerBallData> m_DefaultDeck;      // 初期デッキ
+    std::vector<PlayerBallData> m_Catalog;          // ショップで購入できるボール定義
     std::vector<PlayerBallData> m_DrawPile;         // 山札
     std::vector<PlayerBallData> m_DiscardPile;      // 捨て札
     std::vector<PlayerBallData> m_OfferedBalls;     // 今回提示しているボール

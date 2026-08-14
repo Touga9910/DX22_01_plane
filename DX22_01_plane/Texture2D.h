@@ -1,59 +1,48 @@
 #pragma once
-#include "Object.h"
-#include "VertexBuffer.h"
+
+#include <memory>
+#include <vector>
+
+#include "Component.h"
 #include "IndexBuffer.h"
-#include "Texture.h"
 #include "Material.h"
+#include "Shader.h"
+#include "Texture.h"
+#include "VertexBuffer.h"
 
-//-----------------------------------------------------------------------------
-// Texture2Dクラス
-//-----------------------------------------------------------------------------
-class Texture2D : public Object
+// Draws a 2D texture in screen space.
+class Texture2D final : public Component
 {
-private:
-	// 頂点データ
-	std::vector<VERTEX_3D> m_Vertices;
+public:
+	void Awake() override;
+	void Draw() override;
 
-	//インデックスデータ
+	void SetTexture(const char* imageName);
+
+	void SetPosition(float x, float y, float z);
+	void SetPosition(const DirectX::SimpleMath::Vector3& position);
+
+	// Rotation values are specified in degrees.
+	void SetRotation(float x, float y, float z);
+	void SetRotation(const DirectX::SimpleMath::Vector3& rotationDegrees);
+
+	void SetScale(float x, float y, float z);
+	void SetScale(const DirectX::SimpleMath::Vector3& scale);
+
+	void SetUV(float numberU, float numberV, float splitX, float splitY);
+
+private:
+	std::vector<VERTEX_3D> m_Vertices;
 	std::vector<unsigned int> m_Indices;
 
+	IndexBuffer m_IndexBuffer;
+	VertexBuffer<VERTEX_3D> m_VertexBuffer;
+	Shader m_Shader;
+	Texture m_Texture;
+	std::unique_ptr<Material> m_Material;
 
-	// 描画の為の情報（メッシュに関わる情報）
-	IndexBuffer m_IndexBuffer; // インデックスバッファ
-	VertexBuffer<VERTEX_3D> m_VertexBuffer; // 頂点バッファ
-
-	// 描画の為の情報（見た目に関わる部分）
-	Texture m_Texture; // テクスチャ
-	std::unique_ptr<Material> m_Material; //マテリアル
-
-	// UV座標の情報
-	float m_NumU = 1;
-	float m_NumV = 1;
-	float m_SplitX = 1;
-	float m_SplitY = 1;
-
-public:
-	void Init();
-	void Update();
-	void Draw(Camera* cam);
-	void Uninit();
-
-	// テクスチャを指定
-	void SetTexture(const char* imgname);
-
-	// 位置を指定
-	void SetPosition(const float& x, const float& y, const float& z);
-	void SetPosition(const DirectX::SimpleMath::Vector3& pos);
-
-	// 角度を指定
-	void SetRotation(const float& x, const float& y, const float& z);
-	void SetRotation(const DirectX::SimpleMath::Vector3& rot);
-
-	// 大きさを指定
-	void SetScale(const float& x, const float& y, const float& z);
-	void SetScale(const DirectX::SimpleMath::Vector3& scl);
-
-	// UV座標を指定
-	void SetUV(const float& nu, const float& nv, const float& sx, const float& sy);
+	float m_NumU = 1.0f;
+	float m_NumV = 1.0f;
+	float m_SplitX = 1.0f;
+	float m_SplitY = 1.0f;
 };
-

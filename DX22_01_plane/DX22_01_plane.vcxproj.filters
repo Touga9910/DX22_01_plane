@@ -87,9 +87,6 @@
     <ClCompile Include="Shader.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
     </ClCompile>
-    <ClCompile Include="Object.cpp">
-      <Filter>ソース ファイル\オブジェクト関連</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
@@ -116,12 +113,6 @@
     </ClCompile>
     <ClCompile Include="AssimpPerse.cpp">
       <Filter>ソース ファイル\オブジェクト関連</Filter>
-    </ClCompile>
-    <ClCompile Include="TestModel.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
-    <ClCompile Include="TestGolfFlag.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClCompile>
     <ClCompile Include="utility.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
@@ -162,9 +153,6 @@
     <ClCompile Include="StageSelectScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
-    <ClCompile Include="SkyBox.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
     <ClCompile Include="imgui\imgui_impl_win32.cpp">
       <Filter>ソース ファイル\IMgui</Filter>
     </ClCompile>
@@ -201,10 +189,19 @@
     <ClCompile Include="Ground.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
+    <ClCompile Include="GroundRenderComponent.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
     <ClCompile Include="TrajectoryModel.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
     <ClCompile Include="TableFrame.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="TableFrameCollisionComponent.cpp">
+      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClCompile>
+    <ClCompile Include="TableFrameRenderComponent.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
     <ClCompile Include="Pocket.cpp">
@@ -222,19 +219,22 @@
     <ClCompile Include="PlayerBallDataLoader.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Pole.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClCompile>
     <ClCompile Include="Component.cpp">
       <Filter>ソース ファイル\コンポーネント</Filter>
     </ClCompile>
     <ClCompile Include="GameObject.cpp">
       <Filter>ソース ファイル\コンポーネント</Filter>
     </ClCompile>
-    <ClCompile Include="RigidbodyComponent.cpp">
+    <ClCompile Include="BallFactory.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="BallCollisionComponent.cpp">
       <Filter>ソース ファイル\コンポーネント</Filter>
     </ClCompile>
-    <ClCompile Include="BallFactory.cpp">
+    <ClCompile Include="PocketFactory.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture2DFactory.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="BallRenderComponent.cpp">
@@ -245,18 +245,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TestCube.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
-    <ClInclude Include="TestGolfFlag.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
-    <ClInclude Include="TestModel.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
-    <ClInclude Include="TestPlane.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
     <ClInclude Include="Game.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
@@ -314,9 +302,6 @@
     <ClInclude Include="IndexBuffer.h">
       <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
     </ClInclude>
-    <ClInclude Include="Object.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
-    </ClInclude>
     <ClInclude Include="Texture.h">
       <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
     </ClInclude>
@@ -344,14 +329,8 @@
     <ClInclude Include="Texture2D.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
-    <ClInclude Include="Pole.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
-    </ClInclude>
     <ClInclude Include="StageSelectScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
-    </ClInclude>
-    <ClInclude Include="SkyBox.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト</Filter>
     </ClInclude>
     <ClInclude Include="imgui\imgui_impl_win32.h">
       <Filter>ソース ファイル\IMgui</Filter>
@@ -377,9 +356,6 @@
     <ClInclude Include="imgui\imstb_truetype.h">
       <Filter>ソース ファイル\IMgui</Filter>
     </ClInclude>
-    <ClInclude Include="transform.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連</Filter>
-    </ClInclude>
     <ClInclude Include="BallStatus.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
@@ -401,6 +377,9 @@
     <ClInclude Include="Ground.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
+    <ClInclude Include="GroundRenderComponent.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
     <ClInclude Include="TrajectoryModel.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
@@ -408,6 +387,12 @@
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="TableFrame.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="TableFrameCollisionComponent.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
+    </ClInclude>
+    <ClInclude Include="TableFrameRenderComponent.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="StageBase.h">
@@ -443,10 +428,16 @@
     <ClInclude Include="TransformComponent.h">
       <Filter>ヘッダー ファイル\コンポーネント</Filter>
     </ClInclude>
-    <ClInclude Include="RigidbodyComponent.h">
+    <ClInclude Include="BallFactory.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="BallCollisionComponent.h">
       <Filter>ヘッダー ファイル\コンポーネント</Filter>
     </ClInclude>
-    <ClInclude Include="BallFactory.h">
+    <ClInclude Include="PocketFactory.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture2DFactory.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="BallComponent.h">

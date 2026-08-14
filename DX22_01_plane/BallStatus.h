@@ -4,6 +4,7 @@ struct BallAbilities
 {
 	bool split = false;
 	bool pierce = false;
+	bool anchor = false;
 };
 
 struct BallStatus

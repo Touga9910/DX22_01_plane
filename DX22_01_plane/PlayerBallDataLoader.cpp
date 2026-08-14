@@ -17,6 +17,7 @@ namespace
 			const json& abilitiesJson = statusJson["abilities"];
 			status.abilities.split = abilitiesJson.value("split", status.abilities.split);
 			status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
+			status.abilities.anchor = abilitiesJson.value("anchor", status.abilities.anchor);
 		}
 	}
 
@@ -122,6 +123,15 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 			result.defaultRunStatus.maxHp = result.defaultBallStatus.maxHp;
 			result.defaultRunStatus.currentHp =
 				root.value("currentHp", result.defaultRunStatus.maxHp);
+			result.restHealRatio = std::clamp(
+				root.value("restHealRatio", result.restHealRatio),
+				0.01f,
+				1.0f);
+			result.restHealCooldownBattles = (std::max)(
+				0,
+				root.value(
+					"restHealCooldownBattles",
+					result.restHealCooldownBattles));
 
 			if (root.contains("balls") && root["balls"].is_array())
 			{
@@ -165,6 +175,8 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 		{
 			result.defaultBallStatus = fallbackBallStatus;
 			result.defaultRunStatus = fallbackRunStatus;
+			result.restHealRatio = 0.25f;
+			result.restHealCooldownBattles = 2;
 			result.ballDefinitions.clear();
 		}
 	}

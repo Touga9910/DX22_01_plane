@@ -5,7 +5,7 @@
       "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
       "textureDirectory": "assets/model/GolfBall",
       "status": {
-        "maxHp": 2,
+        "maxHp": 3,
         "attack": 1,
         "defense": 0,
         "mass": 1.0,
@@ -30,7 +30,7 @@
       "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
       "textureDirectory": "assets/model/GolfBall",
       "status": {
-        "maxHp": 2,
+        "maxHp": 5,
         "attack": 2,
         "defense": 0,
         "mass": 1.0,
@@ -49,6 +49,81 @@
       },
       "rewardMoney": 10,
       "rewardExp": 5
+    },
+    {
+      "id": "enemy_tank",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 15,
+        "attack": 1,
+        "defense": 0,
+        "mass": 2.2,
+        "radius": 2.8,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.8,
+        "y": 2.8,
+        "z": 2.8
+      },
+      "rewardMoney": 10,
+      "rewardExp": 8
+    },
+    {
+      "id": "enemy_striker",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 4,
+        "attack": 3,
+        "defense": 0,
+        "mass": 1.2,
+        "radius": 2.5,
+        "restitution": 0.9,
+        "friction": 0.018,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.5,
+        "y": 2.5,
+        "z": 2.5
+      },
+      "rewardMoney": 12,
+      "rewardExp": 8
+    },
+    {
+      "id": "enemy_boss_core",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 15,
+        "attack": 1,
+        "defense": 0,
+        "mass": 3.5,
+        "radius": 3.2,
+        "restitution": 0.55,
+        "friction": 0.03,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 3.2,
+        "y": 3.2,
+        "z": 3.2
+      },
+      "rewardMoney": 20,
+      "rewardExp": 15
     }
   ]
 }

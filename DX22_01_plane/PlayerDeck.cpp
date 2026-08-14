@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <random>
-#include <unordered_set>
 
 void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
 {
@@ -12,6 +11,16 @@ void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
     for (PlayerBallData& ball : m_DefaultDeck)
     {
         ball.instanceId = m_NextInstanceId++;
+    }
+}
+
+void PlayerDeck::SetCatalog(const std::vector<PlayerBallData>& catalog)
+{
+    m_Catalog = catalog;
+    for (PlayerBallData& ball : m_Catalog)
+    {
+        ball.instanceId = 0;
+        ball.status = NormalizeStatus(ball.status);
     }
 }
 
@@ -381,13 +390,7 @@ PlayerBallData* PlayerDeck::GetRewardTarget(int index)
 
 int PlayerDeck::GetCatalogCount() const
 {
-    std::unordered_set<std::string> definitionIds;
-    for (const PlayerBallData& ball : m_DefaultDeck)
-    {
-        definitionIds.insert(ball.definitionId);
-    }
-
-    return static_cast<int>(definitionIds.size());
+    return static_cast<int>(m_Catalog.size());
 }
 
 const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
@@ -397,23 +400,9 @@ const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
         return nullptr;
     }
 
-    std::unordered_set<std::string> visitedIds;
-    for (const PlayerBallData& ball : m_DefaultDeck)
-    {
-        if (!visitedIds.insert(ball.definitionId).second)
-        {
-            continue;
-        }
-
-        if (index == 0)
-        {
-            return &ball;
-        }
-
-        index--;
-    }
-
-    return nullptr;
+    return index < static_cast<int>(m_Catalog.size())
+        ? &m_Catalog[static_cast<std::size_t>(index)]
+        : nullptr;
 }
 
 bool PlayerDeck::AddCatalogBall(int index)

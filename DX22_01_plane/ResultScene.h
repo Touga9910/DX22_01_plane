@@ -1,13 +1,14 @@
 ﻿#pragma once
 #include "Scene.h"
-#include "Component.h"
 #include <vector>
+
+class GameObject;
 
 // ResultSceneクラス
 class ResultScene : public Scene
 {
 private:
-	std::vector<Component*> m_MySceneObjects; // このシーンが所有するGameObject内の代表Component
+	std::vector<GameObject*> m_SceneGameObjects;
 
 	void Init(); // 初期化
 	void Uninit(); // 終了処理

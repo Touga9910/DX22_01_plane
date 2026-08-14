@@ -2,6 +2,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 
 // コンストラクタ
 ResultScene::ResultScene()
@@ -19,25 +20,25 @@ ResultScene::~ResultScene()
 void ResultScene::Init()
 {
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
 	pt->SetTexture("assets/texture/background2.png");
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
-	m_MySceneObjects.emplace_back(pt);
+	m_SceneGameObjects.emplace_back(pt->GetGameObject());
 
 	//リザルト文字列オブジェクトを作成
-	Texture2D* pt2 = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt2 = Texture2DFactory::Create(*Game::GetInstance());
 	pt2->SetTexture("assets/texture/resultString.png");
 	pt2->SetScale(700.0f, 100.0f, 0.0f);
 	pt2->SetUV(1, 1, 1, 13);//縦1横13分割の、左から1番目上から5番目を指定
-	m_MySceneObjects.emplace_back(pt2);
+	m_SceneGameObjects.emplace_back(pt2->GetGameObject());
 
 	/*
 	// 人オブジェクトを作成
-	Texture2D* pt3 = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt3 = Texture2DFactory::Create(*Game::GetInstance());
 	pt3->SetTexture("assets/texture/golf_jou_man.png");
 	pt3->SetPosition(-300.0f, 0.0f, 0.0f);
 	pt3->SetScale(361.0f, 400.0f, 0.0f);
-	m_MySceneObjects.emplace_back(pt3);
+	m_SceneGameObjects.emplace_back(pt3->GetGameObject());
 	*/
 
 }
@@ -56,17 +57,18 @@ void ResultScene::Update()
 void ResultScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
-	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteComponent(o);
+	for (GameObject* gameObject : m_SceneGameObjects) {
+		Game::GetInstance()->DeleteGameObject(gameObject);
 	}
-	m_MySceneObjects.clear();
+	m_SceneGameObjects.clear();
 }
 
 // スコアを設定
 void ResultScene::SetScore(int c)
 {
 	// リザルト文字列オブジェクト
-	Texture2D* stringObj = dynamic_cast<Texture2D*>(m_MySceneObjects[1]);
+	Texture2D* stringObj =
+		m_SceneGameObjects[1]->GetComponent<Texture2D>();
 
 	switch (c)
 	{

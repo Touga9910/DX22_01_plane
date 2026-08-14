@@ -3,6 +3,7 @@
 #include "Game.h"
 #include "Input.h"
 #include "Texture2D.h"
+#include "Texture2DFactory.h"
 
 // コンストラクタ
 TitleScene::TitleScene()
@@ -20,19 +21,19 @@ TitleScene::~TitleScene()
 void TitleScene::Init()
 {
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
 	pt->SetRotation(0.0f, 0.0f, 0.0f);
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
-	m_MySceneObjects.emplace_back(pt);
+	m_SceneGameObjects.emplace_back(pt->GetGameObject());
 
-	Texture2D* pt2 = Game::GetInstance()->AddObject<Texture2D>();
+	Texture2D* pt2 = Texture2DFactory::Create(*Game::GetInstance());
 	pt2->SetTexture("assets/texture/titlerogo.png");
 	pt2->SetPosition(0.0f, 100.0f, 0.0f);
 	pt2->SetRotation(0.0f, 0.0f, 0.0f);
 	pt2->SetScale(700.0f, 150.0f, 0.0f);
-	m_MySceneObjects.emplace_back(pt2);
+	m_SceneGameObjects.emplace_back(pt2->GetGameObject());
 }
 
 // 更新
@@ -80,8 +81,8 @@ void TitleScene::Update()
 void TitleScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
-	for (auto& o : m_MySceneObjects) {
-		Game::GetInstance()->DeleteComponent(o);
+	for (GameObject* gameObject : m_SceneGameObjects) {
+		Game::GetInstance()->DeleteGameObject(gameObject);
 	}
-	m_MySceneObjects.clear();
+	m_SceneGameObjects.clear();
 }

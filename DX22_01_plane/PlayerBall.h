@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "BallComponent.h"
+#include "BallRenderComponent.h"
 #include "Texture.h"
 #include "MeshRenderer.h"
 #include "StaticMesh.h"
@@ -136,7 +137,8 @@ private:
 
 	void LoadModel(const char* modelFilePath, const char* textureDirectory)
 	{
-		m_Ball->LoadModel(modelFilePath, textureDirectory);
+		m_RenderComponent->LoadModel(modelFilePath, textureDirectory);
+		m_Ball->UpdateRadius();
 	}
 	void SetInitialPosition(const DirectX::SimpleMath::Vector3& position)
 	{
@@ -147,7 +149,7 @@ private:
 	void ResetToInitialPosition() { m_Ball->ResetToInitialPosition(); }
 	void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix)
 	{
-		m_Ball->DrawMesh(worldMatrix);
+		m_RenderComponent->DrawMesh(worldMatrix);
 	}
 	void Damage(int damage) { m_Ball->Damage(damage); }
 
@@ -158,7 +160,6 @@ private:
 	void UpdateDebugMove();
 	void UpdateStopByFriction();
 	void CheckFallRespawn();
-	void CheckCupIn();
 
 	//=======================================
 	// 軌跡更新
@@ -200,6 +201,7 @@ private:
 
 private:
 	BallComponent* m_Ball = nullptr;
+	BallRenderComponent* m_RenderComponent = nullptr;
 
 	//=======================================
 	// 弾道予測用の簡易メッシュ

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Scene.h"
-#include "Component.h"
 
 #include <string>
 #include <vector>
+
+class GameObject;
 
 class ShopScene : public Scene
 {
@@ -22,7 +23,7 @@ private:
 	static constexpr int kBallPrice = 20;
 	static constexpr int kRemovePrice = 15;
 
-	std::vector<Component*> m_MySceneObjects;
+	std::vector<GameObject*> m_SceneGameObjects;
 	int m_SelectedAction = 0;
 	int m_SelectedBuyBall = 0;
 	int m_SelectedRemoveBall = 0;

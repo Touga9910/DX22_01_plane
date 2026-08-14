@@ -11,6 +11,8 @@ struct PlayerBallDataLoadResult
 {
 	BallStatus defaultBallStatus{};
 	PlayerRunStatus defaultRunStatus{};
+	float restHealRatio = 0.25f;
+	int restHealCooldownBattles = 2;
 	std::vector<PlayerBallData> ballDefinitions;
 };
 

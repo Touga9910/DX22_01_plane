@@ -3,6 +3,7 @@
 #include "json/json.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -16,6 +17,7 @@ enum class BalanceCollisionType
 struct BalanceBallSnapshot
 {
 	std::string id;
+	std::uint64_t instanceId = 0;
 	int upgradeLevel = 0;
 	int attack = 0;
 	int defense = 0;
@@ -25,6 +27,7 @@ struct BalanceBallSnapshot
 	float friction = 0.0f;
 	bool split = false;
 	bool pierce = false;
+	bool anchor = false;
 };
 
 struct BalanceEnemySnapshot
@@ -51,7 +54,8 @@ public:
 		int playerMaxHp,
 		int playerCurrentHp,
 		const std::vector<BalanceBallSnapshot>& deck,
-		const std::string& controllerType);
+		const std::string& controllerType,
+		const nlohmann::json& runContext = nlohmann::json::object());
 
 	void BeginStage(
 		const std::string& stageId,
@@ -59,7 +63,8 @@ public:
 		int difficulty,
 		int playerCurrentHp,
 		int playerMaxHp,
-		const std::vector<BalanceEnemySnapshot>& enemies);
+		const std::vector<BalanceEnemySnapshot>& enemies,
+		const nlohmann::json& stageContext = nlohmann::json::object());
 
 	void BeginShot(
 		const std::string& ballId,
@@ -73,9 +78,23 @@ public:
 		float velocityZ,
 		int playerHp,
 		int enemiesAlive,
-		int enemiesDefeatedTotal);
+		int enemiesDefeatedTotal,
+		const nlohmann::json& shotContext = nlohmann::json::object());
 
-	void RecordDamageCollision(BalanceCollisionType collisionType);
+	void RecordDamageCollision(
+		BalanceCollisionType collisionType,
+		int damageToFirstEnemy = -1,
+		int damageToSecondEnemy = -1);
+	void RecordPlayerDamage(
+		const std::string& source,
+		int damage,
+		const std::string& sourceId = std::string());
+	void RecordEnemyDamage(
+		const std::string& enemyId,
+		int damage);
+	void RecordEvent(
+		const std::string& eventType,
+		const nlohmann::json& details = nlohmann::json::object());
 
 	void EndShot(
 		int playerHp,
@@ -109,6 +128,9 @@ private:
 	static std::string MakeUtcTimestamp();
 	static std::string MakeRunId();
 	static double CalculateShotScore(int collisionEffect);
+	static nlohmann::json MakeConfigurationSnapshot();
+	static nlohmann::json MakeFileFingerprint(
+		const std::filesystem::path& path);
 
 private:
 	static constexpr std::size_t NoStage =
@@ -125,6 +147,13 @@ private:
 
 	int m_PlayerEnemyHitCount = 0;
 	int m_EnemyEnemyHitCount = 0;
+	int m_PlayerEnemyDamage = 0;
+	int m_EnemyEnemyDamage = 0;
+	bool m_PlayerEnemyDamageObserved = false;
+	bool m_EnemyEnemyDamageObserved = false;
+	BalanceCollisionType m_CurrentDamageCollisionType =
+		BalanceCollisionType::PlayerEnemy;
+	bool m_HasCurrentDamageCollision = false;
 	int m_DefeatedAtShotStart = 0;
 
 	bool m_RunActive = false;

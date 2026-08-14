@@ -4,7 +4,6 @@
 #include "TableFrame.h"
 #include "Camera.h"
 #include "Application.h"
-#include "Pole.h"
 #include "imgui/imgui.h"
 #include "GameObject.h"
 
@@ -16,7 +15,20 @@ using namespace DirectX::SimpleMath;
 
 void PlayerBall::Awake()
 {
-	m_Ball = GetGameObject()->AddComponent<BallComponent>();
+	GameObject* owner = GetGameObject();
+	if (owner == nullptr)
+	{
+		return;
+	}
+
+	m_Ball = owner->GetComponent<BallComponent>();
+	m_RenderComponent = owner->GetComponent<BallRenderComponent>();
+	if (m_Ball == nullptr || m_RenderComponent == nullptr)
+	{
+		owner->Destroy();
+		return;
+	}
+
 	m_Ball->SetPocketHandler([this]() { OnPocketHit(); });
 	m_Ball->SetDefeatHandler([this]() { Defeat(); });
 	Init();
@@ -51,31 +63,33 @@ void PlayerBall::Init()
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
 
-	m_Ball->GetMutableTransform().position.x = 0.0f;    // 初期X座標
-	m_Ball->GetMutableTransform().position.z = 0.0f;    // 初期Z座標
-	m_Ball->GetMutableTransform().position.y = 1.0f;    // 仮の初期Y座標
+	m_Ball->SetPosition(Vector3(0.0f, 1.0f, 0.0f));
 
-	SetInitialPosition(m_Ball->GetMutableTransform().position);
+	SetInitialPosition(m_Ball->GetPosition());
 
 	//スケールを調整
 	const float visualScale = m_Ball->GetStatus().radius > 0.0f
 		? m_Ball->GetStatus().radius
 		: 2.4f;
-	m_Ball->GetMutableTransform().scale = Vector3(
+	m_Ball->SetScale(Vector3(
 		visualScale,
 		visualScale,
-		visualScale);
+		visualScale));
 	UpdateRadius();
 
 	// ★ Groundから台の高さを取得して合わせる
-	std::vector<Ground*> grounds = Game::GetInstance()->GetObjects<Ground>();
+	std::vector<Ground*> grounds = Game::GetInstance()->GetComponents<Ground>();
 	if (grounds.size() > 0)
 	{
-		m_Ball->GetMutableTransform().position.y = grounds[0]->GetFieldHeight();
+		Vector3 position = m_Ball->GetPosition();
+		position.y = grounds[0]->GetFieldHeight();
+		m_Ball->SetPosition(position);
 	}
 	else
 	{
-		m_Ball->GetMutableTransform().position.y = 1.0f; // 万が一Groundが無い時の保険
+		Vector3 position = m_Ball->GetPosition();
+		position.y = 1.0f;
+		m_Ball->SetPosition(position);
 	}
 
 	//最初に速度を与える
@@ -83,7 +97,7 @@ void PlayerBall::Init()
 	m_Ball->GetMutableVelocity() = Vector3::Zero;
 
 	// 軌跡の初期位置を今のボールの位置にする
-	m_LastTrailPos = m_Ball->GetMutableTransform().position;
+	m_LastTrailPos = m_Ball->GetPosition();
 	m_TrajectoryPositions.clear();
 
 	// デフォルトモデルを設定
@@ -128,7 +142,8 @@ void PlayerBall::Draw(Camera* cam)
 	//カメラを選択する
 	cam->SetCamera();
 
-	m_Ball->BeginDraw();
+	m_RenderComponent->BeginDraw();
+	const Vector3 ballScale = m_Ball->GetScale();
 
 	for (const auto& trailPoint : m_TrajectoryPositions)
 	{
@@ -148,33 +163,24 @@ void PlayerBall::Draw(Camera* cam)
 		Matrix r = Matrix::Identity;    // 回転なし
 		Matrix t = Matrix::CreateTranslation(pos);
 		Matrix s = Matrix::CreateScale(
-			m_Ball->GetMutableTransform().scale.x * currentScale,
-			m_Ball->GetMutableTransform().scale.y * currentScale,
-			m_Ball->GetMutableTransform().scale.z * currentScale);
+			ballScale.x * currentScale,
+			ballScale.y * currentScale,
+			ballScale.z * currentScale);
 
 		Matrix worldmtx = s * r * t;
 		DrawMesh(worldmtx);
 	}
 
 	// 本来の向き（移動方向などを表す回転）
-	Matrix rDirection = Matrix::CreateFromYawPitchRoll(
-		m_Ball->GetMutableTransform().rotation.y,
-		m_Ball->GetMutableTransform().rotation.x,
-		m_Ball->GetMutableTransform().rotation.z);
+	Matrix rDirection = Matrix::CreateFromQuaternion(m_Ball->GetRotation());
 
 	// 転がりの回転
 	Matrix rRolling = Matrix::CreateFromQuaternion(m_Ball->GetMutableRollingRotation());
 
 	// 3. 行列の合成：転がり(rRolling)を適用した後に、本来の向き(rDirection)を合わせる
 	Matrix r = rDirection * rRolling;
-	Matrix t = Matrix::CreateTranslation(
-		m_Ball->GetMutableTransform().position.x,
-		m_Ball->GetMutableTransform().position.y,
-		m_Ball->GetMutableTransform().position.z);
-	Matrix s = Matrix::CreateScale(
-		m_Ball->GetMutableTransform().scale.x,
-		m_Ball->GetMutableTransform().scale.y,
-		m_Ball->GetMutableTransform().scale.z);
+	Matrix t = Matrix::CreateTranslation(m_Ball->GetPosition());
+	Matrix s = Matrix::CreateScale(ballScale);
 
 	Matrix worldmtx = s * r * t;
 	DrawMesh(worldmtx);
@@ -198,15 +204,28 @@ void PlayerBall::Defeat()
 
 void PlayerBall::OnPocketHit()
 {
-	// HPを減らす処理
-	TakeDamage(1);
+	const int hpBefore = GetHP();
+	const int pocketDamage =
+		Game::GetInstance()->GetPlayerPocketDamageAmount();
+	const int hpAfter = (std::max)(0, hpBefore - pocketDamage);
+	m_Ball->SetHP(hpAfter);
+	Game::GetInstance()->NotifyPlayerDamage(
+		"pocket",
+		(std::max)(0, hpBefore - hpAfter));
+	Game::GetInstance()->CapturePlayerStatusFrom(this);
+	if (hpAfter <= 0)
+	{
+		m_Ball->Defeat();
+		return;
+	}
 
-	// 初期位置に戻す
-	ResetToInitialPosition();
+	const Vector3 returnPosition =
+		Game::GetInstance()->FindPlayerPocketReturnPosition(this);
+	m_Ball->ResetAtPosition(returnPosition);
 
 	m_TrajectoryPositions.clear();
 	m_PrePositions.clear();
-	m_LastTrailPos = m_Ball->GetMutableTransform().position;
+	m_LastTrailPos = m_Ball->GetPosition();
 	m_StopCount = 0;
 	m_Ball->GetMutableRollingRotation() = DirectX::SimpleMath::Quaternion::Identity;
 	m_State = State::Idle;
@@ -223,7 +242,6 @@ void PlayerBall::UpdateSimulation()
 	UpdateDebugMove();          // デバッグ用のWASD加速を反映する
 	UpdateStopByFriction();     // 摩擦による減速と停止判定を行う
 	CheckFallRespawn();         // 落下していたらリスポーンする
-	CheckCupIn();               // カップに入ったか確認する
 
 	if (m_State == State::Simulation)
 	{
@@ -273,32 +291,18 @@ void PlayerBall::UpdateStopByFriction()
 
 void PlayerBall::CheckFallRespawn()
 {
-	if (m_Ball->GetMutableTransform().position.y >= -100.0f) return;       // 一定以下に落ちていなければ何もしない
+	if (m_Ball->GetPosition().y >= -100.0f) return;       // 一定以下に落ちていなければ何もしない
 
-	m_Ball->GetMutableTransform().position = Vector3(0.0f, 50.0f, 0.0f);   // リスポーン位置へ戻す
+	m_Ball->SetPosition(Vector3(0.0f, 50.0f, 0.0f));      // リスポーン位置へ戻す
 	m_Ball->GetMutableVelocity() = Vector3::Zero;                          // 落下時の速度を消す
 	m_TrajectoryPositions.clear();                       // 落下前の軌跡を消す
-}
-
-void PlayerBall::CheckCupIn()
-{
-	auto poles = Game::GetInstance()->GetObjects<Pole>(); // シーン内のポールを取得する
-	if (poles.empty()) return;                           // ポールがない場合は判定しない
-
-	Collision::Sphere ballSphere = { m_Ball->GetMutableTransform().position, m_Ball->GetRadius() };
-	Collision::Sphere poleSphere = { poles[0]->GetPosition(), 0.5f };
-
-	if (Collision::CheckHit(ballSphere, poleSphere))
-	{
-		m_State = State::Goal;                            // 接触していればゴール状態にする
-	}
 }
 
 void PlayerBall::AddTrailPoint()
 {
 	const float stepSize = 1.5f;                         // 軌跡を追加する間隔
 
-	Vector3 toCurrent = m_Ball->GetMutableTransform().position - m_LastTrailPos;
+	Vector3 toCurrent = m_Ball->GetPosition() - m_LastTrailPos;
 	float dist = toCurrent.Length();              // 最後の軌跡点から現在位置までの距離
 
 	if (dist < stepSize) return;                         // 間隔未満なら軌跡は追加しない
@@ -393,7 +397,7 @@ void PlayerBall::UpdateAim()
 	bool previewChanged =
 		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
-		(m_Ball->GetMutableTransform().position - m_LastPreviewPosition).LengthSquared() > 0.01f;
+		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f;
 
 	if (m_PreTrajectoryDirty || previewChanged || m_PrePositions.empty())
 	{
@@ -401,7 +405,7 @@ void PlayerBall::UpdateAim()
 
 		m_LastPreviewAimAngle = m_AimAngle;
 		m_LastPreviewShotPower = m_ShotPower;
-		m_LastPreviewPosition = m_Ball->GetMutableTransform().position;
+		m_LastPreviewPosition = m_Ball->GetPosition();
 		m_PreTrajectoryDirty = false;
 	}
 }
@@ -527,7 +531,8 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 	}
 
 	// レイのパラメータtを計算して、床面（y=ボールの高さ）との交点を求める
-	float t = (m_Ball->GetMutableTransform().position.y - nearPoint.y) / ray.y;
+	const Vector3 ballPosition = m_Ball->GetPosition();
+	float t = (ballPosition.y - nearPoint.y) / ray.y;
 
 	// tが負の場合は、レイが床面の下方向を向いているので失敗とする
 	if (t < 0.0f)
@@ -537,7 +542,7 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 
 	// 床面の交点を計算して、aimPositionに格納する
 	aimPosition = nearPoint + ray * t;
-	aimPosition.y = m_Ball->GetMutableTransform().position.y;
+	aimPosition.y = ballPosition.y;
 	return true;
 }
 
@@ -549,7 +554,7 @@ void PlayerBall::UpdateAimDirectionFromMouse()
 		return;
 	}
 
-	Vector3 aimVector = aimPosition - m_Ball->GetMutableTransform().position;
+	Vector3 aimVector = aimPosition - m_Ball->GetPosition();
 	aimVector.y = 0.0f;                           // 水平方向だけで角度を決める
 	if (aimVector.LengthSquared() <= 0.0001f)
 	{
@@ -660,14 +665,14 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 		m_TrajectoryModel = std::make_unique<BallTrajectoryModel>();
 	}
 
-	Vector3 simPosition = m_Ball->GetMutableTransform().position;
+	Vector3 simPosition = m_Ball->GetPosition();
 	Vector3 simVelocity = initialVelocity;
 	Vector3 simAcceleration;
 
 	std::vector<Collision::Segment> walls;
-	std::vector<TableFrame*> frames = Game::GetInstance()->GetObjects<TableFrame>();
+	std::vector<TableFrame*> frames = Game::GetInstance()->GetComponents<TableFrame>();
 
-	float fieldHeight = m_Ball->GetMutableTransform().position.y;
+	float fieldHeight = m_Ball->GetPosition().y;
 
 	for (TableFrame* frame : frames)
 	{
@@ -692,7 +697,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 
 	m_PrePositions.push_back({ simPosition, 0, 1.0f });
 
-	std::vector<BallComponent*> balls = Game::GetInstance()->GetObjects<BallComponent>();
+	std::vector<BallComponent*> balls = Game::GetInstance()->GetComponents<BallComponent>();
 	bool previewPierceAvailable = m_Ball->HasPierceAbility();
 	BallComponent* previewPiercedBall = nullptr;
 
