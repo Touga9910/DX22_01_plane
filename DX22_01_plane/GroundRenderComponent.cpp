@@ -1,4 +1,4 @@
-#include "GroundRenderComponent.h"
+﻿#include "GroundRenderComponent.h"
 
 #include "Camera.h"
 #include "Game.h"
@@ -56,7 +56,8 @@ void GroundRenderComponent::Awake()
 
     m_Shader.Create("shader/litTextureVS.hlsl", "shader/litTexturePS.hlsl");
 
-    const bool textureLoaded = m_Texture.Load("assets/texture/field.jpg");
+    const bool textureLoaded =
+        m_Texture.Load("assets/texture/billiard_felt.png");
     assert(textureLoaded);
 
     m_Material = std::make_unique<Material>();

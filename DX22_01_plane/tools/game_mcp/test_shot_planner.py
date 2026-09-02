@@ -12,6 +12,7 @@ from shot_planner import (
     evaluate_tactical_shot_options,
     load_player_profiles,
     plan_targeted_shot,
+    recommend_shot_power,
     resolve_target_id_argument,
 )
 
@@ -133,6 +134,50 @@ class ShotPlannerTests(unittest.TestCase):
         self.assertEqual(
             plan["shot_plan"]["shot_type"],
             "direct",
+        )
+
+    def test_recommended_power_increases_with_target_distance(self) -> None:
+        near_state = self.make_state()
+        far_state = self.make_state()
+        far_state["enemies"][0]["position"]["z"] = 70.0
+
+        near = recommend_shot_power(
+            near_state,
+            "enemy:0",
+            "direct",
+            self.profiles["intermediate"],
+        )
+        far = recommend_shot_power(
+            far_state,
+            "enemy:0",
+            "direct",
+            self.profiles["intermediate"],
+        )
+
+        self.assertGreater(
+            far["recommended_power"],
+            near["recommended_power"],
+        )
+        self.assertGreaterEqual(near["recommended_power"], 3.0)
+        self.assertLessEqual(far["recommended_power"], 7.0)
+
+    def test_bank_power_accounts_for_longer_path(self) -> None:
+        direct = recommend_shot_power(
+            self.make_state(),
+            "enemy:0",
+            "direct",
+            self.profiles["intermediate"],
+        )
+        bank = recommend_shot_power(
+            self.make_state(),
+            "enemy:0",
+            "bank",
+            self.profiles["intermediate"],
+        )
+
+        self.assertGreater(
+            bank["recommended_power"],
+            direct["recommended_power"],
         )
 
     def test_bank_shot_uses_reflected_target_geometry(self) -> None:

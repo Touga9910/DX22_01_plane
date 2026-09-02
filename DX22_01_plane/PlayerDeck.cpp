@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <random>
+#include <utility>
 
 void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
 {
@@ -20,8 +21,13 @@ void PlayerDeck::SetCatalog(const std::vector<PlayerBallData>& catalog)
     for (PlayerBallData& ball : m_Catalog)
     {
         ball.instanceId = 0;
-        ball.status = NormalizeStatus(ball.status);
+        ball.status = NormalizeBallStatus(ball.status);
     }
+}
+
+void PlayerDeck::Seed(std::uint32_t seed)
+{
+    m_RandomEngine.seed(seed);
 }
 
 void PlayerDeck::Reset()
@@ -89,7 +95,7 @@ void PlayerDeck::ResetToDefault()
     ShuffleDrawPile();
 }
 
-bool PlayerDeck::PrepareOffer()
+bool PlayerDeck::PrepareOffer(int offerSize)
 {
     if (m_CurrentBall.has_value())
     {
@@ -111,8 +117,8 @@ bool PlayerDeck::PrepareOffer()
         m_HeldBall.reset();
     }
 
-    constexpr int OFFER_SIZE = 3;
-    while (static_cast<int>(m_OfferedBalls.size()) < OFFER_SIZE)
+    offerSize = (std::max)(1, offerSize);
+    while (static_cast<int>(m_OfferedBalls.size()) < offerSize)
     {
         PlayerBallData drawnBall;
         if (!DrawOneFromPile(drawnBall))
@@ -120,7 +126,7 @@ bool PlayerDeck::PrepareOffer()
             break;
         }
 
-        drawnBall.status = NormalizeStatus(drawnBall.status);
+        drawnBall.status = NormalizeBallStatus(drawnBall.status);
         m_OfferedBalls.push_back(std::move(drawnBall));
     }
 
@@ -143,13 +149,13 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
     }
 
     m_CurrentBall = std::move(m_OfferedBalls[selectedIndex]);
-    m_CurrentBall->status = NormalizeStatus(m_CurrentBall->status);
+    m_CurrentBall->status = NormalizeBallStatus(m_CurrentBall->status);
 
     m_HeldBall.reset();
     if (heldIndex >= 0)
     {
         m_HeldBall = std::move(m_OfferedBalls[heldIndex]);
-        m_HeldBall->status = NormalizeStatus(m_HeldBall->status);
+        m_HeldBall->status = NormalizeBallStatus(m_HeldBall->status);
     }
 
     // 選択・保持されなかったボールは捨て札へ送る。
@@ -183,7 +189,7 @@ bool PlayerDeck::DrawNext()
     }
 
     m_CurrentBall = std::move(drawnBall);
-    m_CurrentBall->status = NormalizeStatus(m_CurrentBall->status); // ステータス値を安全な範囲に補正
+    m_CurrentBall->status = NormalizeBallStatus(m_CurrentBall->status); // ステータス値を安全な範囲に補正
     m_IsCurrentBallUsed = false;                                  // 引いた直後は未使用扱い
 
     return true;
@@ -336,56 +342,8 @@ const PlayerBallData* PlayerDeck::GetRewardTarget(int index) const
 
 PlayerBallData* PlayerDeck::GetRewardTarget(int index)
 {
-    // 範囲外の負数は無効扱いにする
-    if (index < 0)
-    {
-        return nullptr;
-    }
-
-    // 先頭は現在ボールを報酬対象として扱う
-    if (m_CurrentBall.has_value())
-    {
-        if (index == 0)
-        {
-            return &(*m_CurrentBall);
-        }
-
-        index--;
-    }
-
-    // 次に保持中のボールを参照する
-    if (m_HeldBall.has_value())
-    {
-        if (index == 0)
-        {
-            return &(*m_HeldBall);
-        }
-
-        index--;
-    }
-
-    // 次に提示中のボールを参照する
-    if (index < static_cast<int>(m_OfferedBalls.size()))
-    {
-        return &m_OfferedBalls[index];
-    }
-
-    index -= static_cast<int>(m_OfferedBalls.size());
-
-    // 次に山札内のボールを参照する
-    if (index < static_cast<int>(m_DrawPile.size()))
-    {
-        return &m_DrawPile[index];
-    }
-
-    // 最後に捨て札内のボールを参照する
-    index -= static_cast<int>(m_DrawPile.size());
-    if (index < static_cast<int>(m_DiscardPile.size()))
-    {
-        return &m_DiscardPile[index];
-    }
-
-    return nullptr;
+    return const_cast<PlayerBallData*>(
+        std::as_const(*this).GetRewardTarget(index));
 }
 
 int PlayerDeck::GetCatalogCount() const
@@ -415,7 +373,7 @@ bool PlayerDeck::AddCatalogBall(int index)
 
     PlayerBallData addedBall = *catalogBall;
     addedBall.instanceId = m_NextInstanceId++;
-    addedBall.status = NormalizeStatus(addedBall.status);
+    addedBall.status = NormalizeBallStatus(addedBall.status);
     m_DrawPile.push_back(std::move(addedBall));
     return true;
 }
@@ -495,19 +453,8 @@ bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)
 
 void PlayerDeck::ShuffleDrawPile()
 {
-    // 毎回同じ順番にならないように、乱数で山札をシャッフルする
-    static std::mt19937 rng(std::random_device{}());
-    std::shuffle(m_DrawPile.begin(), m_DrawPile.end(), rng);
-}
-
-BallStatus PlayerDeck::NormalizeStatus(BallStatus status)
-{
-    // 不正な値でゲーム処理が壊れないように、ステータスを安全な範囲へ補正する
-    status.maxHp = (std::max)(1, status.maxHp);                 // HPは最低1
-    status.mass = (std::max)(0.0001f, status.mass);            // 質量は0にしない
-    status.radius = (std::max)(0.0f, status.radius);             // 半径は負数にしない
-    status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);  // 反発係数は0〜1に制限
-    status.friction = (std::max)(0.0f, status.friction);           // 摩擦は負数にしない
-
-    return status;
+    std::shuffle(
+        m_DrawPile.begin(),
+        m_DrawPile.end(),
+        m_RandomEngine);
 }

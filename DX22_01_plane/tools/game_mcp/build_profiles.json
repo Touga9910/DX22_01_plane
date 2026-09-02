@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "default_profile": "standard",
+  "profiles": {
+    "standard": {
+      "label": "標準型",
+      "new_ball_priority": ["player_standard", "player_heavy", "player_pierce", "player_bounce", "player_anchor"],
+      "upgrade_priority": ["player_standard", "player_heavy", "player_pierce", "player_bounce", "player_anchor"],
+      "reward_priority": ["ball_upgrade", "new_ball", "relic", "hp_recovery", "money"],
+      "ball_score_weights": {
+        "attack": 100.0,
+        "defense": 3.0,
+        "mass": 1.0,
+        "restitution": 2.0,
+        "pierce_bonus": 5.0,
+        "anchor_bonus": 0.0,
+        "definition_bonus": {"player_standard": 250.0}
+      },
+      "stage_choice_policy": {
+        "target_deck_size": 8,
+        "need_priority": ["hp_recovery", "relic", "ball_upgrade", "new_ball", "money"]
+      },
+      "relic_policy": {
+        "attack_priority": ["Power Core", "Impact Accelerator", "Bank Shot"],
+        "low_hp_priority": ["Emergency Repair Kit", "Guard Core"]
+      },
+      "shot_policy": {"bank_mode": "with_relic", "bank_every_n_shots": 3},
+      "instructions": ["標準ボールを優先して取得・強化し、安定した直接ダメージを基準にする。"]
+    },
+    "heavy": {
+      "label": "重量衝突型",
+      "new_ball_priority": ["player_heavy", "player_standard", "player_anchor", "player_pierce", "player_bounce"],
+      "upgrade_priority": ["player_heavy", "player_standard", "player_anchor", "player_pierce", "player_bounce"],
+      "reward_priority": ["new_ball", "ball_upgrade", "relic", "hp_recovery", "money"],
+      "ball_score_weights": {
+        "attack": 70.0,
+        "defense": 4.0,
+        "mass": 18.0,
+        "restitution": 1.0,
+        "pierce_bonus": 0.0,
+        "anchor_bonus": 0.0,
+        "definition_bonus": {"player_heavy": 300.0}
+      },
+      "stage_choice_policy": {
+        "target_deck_size": 8,
+        "need_priority": ["hp_recovery", "new_ball", "ball_upgrade", "relic", "money"]
+      },
+      "relic_policy": {
+        "attack_priority": ["Impact Accelerator", "Power Core", "Bank Shot"],
+        "low_hp_priority": ["Guard Core", "Emergency Repair Kit"]
+      },
+      "pocket_tactics": {"control_attack_weight": 3.0},
+      "shot_policy": {"bank_mode": "with_relic", "bank_every_n_shots": 2},
+      "instructions": ["heavyを優先し、質量を使った敵同士の連鎖衝突と複数接触を狙う。"]
+    },
+    "pierce": {
+      "label": "貫通整列型",
+      "new_ball_priority": ["player_pierce", "player_standard", "player_heavy", "player_bounce", "player_anchor"],
+      "upgrade_priority": ["player_pierce", "player_standard", "player_heavy", "player_bounce", "player_anchor"],
+      "reward_priority": ["new_ball", "ball_upgrade", "relic", "hp_recovery", "money"],
+      "ball_score_weights": {
+        "attack": 65.0,
+        "defense": 2.0,
+        "mass": 1.0,
+        "restitution": 1.0,
+        "pierce_bonus": 180.0,
+        "anchor_bonus": 0.0,
+        "definition_bonus": {"player_pierce": 320.0}
+      },
+      "stage_choice_policy": {
+        "target_deck_size": 8,
+        "need_priority": ["hp_recovery", "new_ball", "ball_upgrade", "relic", "money"]
+      },
+      "relic_policy": {
+        "attack_priority": ["Power Core", "Impact Accelerator", "Bank Shot"],
+        "low_hp_priority": ["Emergency Repair Kit", "Guard Core"]
+      },
+      "pocket_tactics": {"minimum_score_advantage": 1.0},
+      "shot_policy": {"bank_mode": "never", "bank_every_n_shots": 3},
+      "instructions": ["pierceを優先し、複数の敵が並ぶ直射経路で貫通能力を活用する。"]
+    },
+    "bounce": {
+      "label": "反射型",
+      "new_ball_priority": ["player_bounce", "player_standard", "player_heavy", "player_pierce", "player_anchor"],
+      "upgrade_priority": ["player_bounce", "player_standard", "player_heavy", "player_pierce", "player_anchor"],
+      "reward_priority": ["new_ball", "relic", "ball_upgrade", "hp_recovery", "money"],
+      "ball_score_weights": {
+        "attack": 55.0,
+        "defense": 2.0,
+        "mass": 0.0,
+        "restitution": 140.0,
+        "pierce_bonus": 0.0,
+        "anchor_bonus": 0.0,
+        "definition_bonus": {"player_bounce": 350.0}
+      },
+      "stage_choice_policy": {
+        "target_deck_size": 8,
+        "need_priority": ["hp_recovery", "new_ball", "relic", "ball_upgrade", "money"]
+      },
+      "relic_policy": {
+        "attack_priority": ["Bank Shot", "Impact Accelerator", "Power Core"],
+        "low_hp_priority": ["Emergency Repair Kit", "Guard Core"]
+      },
+      "pocket_tactics": {"minimum_alignment": 0.45},
+      "shot_policy": {"bank_mode": "always", "bank_every_n_shots": 1},
+      "instructions": ["bounceとBank Shotを優先し、反射後の初回接触ダメージを積極的に使う。"]
+    },
+    "anchor": {
+      "label": "防御制御型",
+      "new_ball_priority": ["player_anchor", "player_standard", "player_heavy", "player_pierce", "player_bounce"],
+      "upgrade_priority": ["player_anchor", "player_standard", "player_heavy", "player_pierce", "player_bounce"],
+      "reward_priority": ["new_ball", "ball_upgrade", "hp_recovery", "relic", "money"],
+      "ball_score_weights": {
+        "attack": 45.0,
+        "defense": 90.0,
+        "mass": 10.0,
+        "restitution": 0.0,
+        "pierce_bonus": 0.0,
+        "anchor_bonus": 220.0,
+        "definition_bonus": {"player_anchor": 350.0}
+      },
+      "stage_choice_policy": {
+        "target_deck_size": 8,
+        "need_priority": ["hp_recovery", "new_ball", "ball_upgrade", "relic", "money"]
+      },
+      "relic_policy": {
+        "attack_priority": ["Guard Core", "Emergency Repair Kit", "Impact Accelerator"],
+        "low_hp_priority": ["Guard Core", "Emergency Repair Kit"]
+      },
+      "pocket_tactics": {
+        "minimum_score_advantage": 0.0,
+        "control_attack_weight": 5.5,
+        "self_pocket_risk_weight": 2.0
+      },
+      "shot_policy": {"bank_mode": "never", "bank_every_n_shots": 3},
+      "instructions": ["anchor、防御レリック、敵ポケット制御を優先し、受ける攻撃回数を減らす。"]
+    }
+  }
+}

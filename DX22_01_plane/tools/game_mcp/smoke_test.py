@@ -169,6 +169,7 @@ async def inspect_server(
                     {
                         "target_id": target_enemy["target_id"],
                         "power": 7.0,
+                        "power_mode": "manual",
                         "shot_type": "direct",
                     },
                 )

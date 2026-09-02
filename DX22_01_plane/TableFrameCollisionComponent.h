@@ -1,11 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "Collision.h"
 #include "Component.h"
 
 #include <vector>
 
-// Owns the local collision walls of the table frame.
+// テーブル枠のローカル座標における衝突壁を所有する。
 class TableFrameCollisionComponent final : public Component
 {
 public:

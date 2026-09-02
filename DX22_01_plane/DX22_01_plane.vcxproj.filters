@@ -96,6 +96,24 @@
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
+    <ClCompile Include="GameAutoPlay.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBalanceConfig.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="GameProgression.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePresentation.cpp">
+      <Filter>ソース ファイル\表示関連</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSaveManager.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSaveSystem.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
     <ClCompile Include="GameMcpBridge.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
@@ -141,11 +159,17 @@
     <ClCompile Include="ResultScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
+    <ClCompile Include="RunStatisticsTracker.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="RestSiteScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
     </ClCompile>
     <ClCompile Include="ShopScene.cpp">
       <Filter>ソース ファイル\シーン関連</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsManager.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Texture2D.cpp">
       <Filter>ソース ファイル\表示関連</Filter>
@@ -179,6 +203,12 @@
     </ClCompile>
     <ClCompile Include="PlayerBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerRunAnalysis.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="MenuSelection.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="EnemyBall.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ボール関連</Filter>
@@ -248,6 +278,18 @@
     <ClInclude Include="Game.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
+    <ClInclude Include="GamePresentation.h">
+      <Filter>ヘッダー ファイル\表示関連</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSaveManager.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTypes.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
+    <ClInclude Include="GameEvent.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
     <ClInclude Include="GameMcpBridge.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
@@ -311,6 +353,9 @@
     <ClInclude Include="TitleScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
+    <ClInclude Include="UiText.h">
+      <Filter>ヘッダー ファイル\表示関連</Filter>
+    </ClInclude>
     <ClInclude Include="BattleScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
@@ -320,11 +365,20 @@
     <ClInclude Include="ResultScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
+    <ClInclude Include="RunResultSnapshot.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="RunStatisticsTracker.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="RestSiteScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
     </ClInclude>
     <ClInclude Include="ShopScene.h">
       <Filter>ヘッダー ファイル\シーン関連</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsManager.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Texture2D.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
@@ -410,6 +464,9 @@
     <ClInclude Include="PlayerBallData.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerBallText.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
     <ClInclude Include="PlayerDeck.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
@@ -418,6 +475,12 @@
     </ClInclude>
     <ClInclude Include="PlayerRunStatus.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerRunAnalysis.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="MenuSelection.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Component.h">
       <Filter>ヘッダー ファイル\コンポーネント</Filter>

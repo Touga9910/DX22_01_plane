@@ -14,15 +14,15 @@ READ_RETRY_DELAYS_SECONDS = (0.01, 0.02, 0.04, 0.08)
 
 
 class GameBridgeError(RuntimeError):
-    """Base error returned to an MCP tool caller."""
+    """MCPツールの呼び出し元へ返す基底エラー。"""
 
 
 class GameNotRunningError(GameBridgeError):
-    """The game has not published a usable live state."""
+    """ゲームが利用可能なライブ状態をまだ公開していない。"""
 
 
 class GameCommandBusyError(GameBridgeError):
-    """A previous state-changing command is still pending."""
+    """前回の状態変更コマンドがまだ保留中である。"""
 
 
 class GameBridgeStore:
@@ -122,9 +122,9 @@ class GameBridgeStore:
                             allow_retry=True,
                         )
                     except GameBridgeError:
-                        # The C++ process may be replacing the result file.
-                        # Keep polling until the command deadline instead of
-                        # surfacing a transient bridge read as a tool error.
+                        # C++プロセスが結果ファイルを置換している可能性がある。
+                        # 一時的なブリッジ読込失敗をツールエラーとして返さず、
+                        # コマンドの期限まではポーリングを続ける。
                         result = None
                     if (
                         isinstance(result, dict)

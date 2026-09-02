@@ -329,7 +329,13 @@ bool GameMcpBridge::Initialize(
 				1,
 				config.value(
 					"state_publish_interval_frames",
-					10));
+					60));
+		m_CommandPollIntervalFrames =
+			(std::max)(
+				1,
+				config.value(
+					"command_poll_interval_frames",
+					6));
 		m_BridgeDirectory =
 			config.value(
 				"bridge_directory",
@@ -373,7 +379,9 @@ bool GameMcpBridge::Initialize(
 
 	std::filesystem::remove(GetCommandPath(), error);
 	m_FramesUntilPublish = 0;
+	m_FramesUntilCommandPoll = 0;
 	PublishState(game, true);
+	m_FramesUntilPublish = m_PublishIntervalFrames;
 
 	std::cout
 		<< "[GameMcpBridge] Enabled at "
@@ -389,7 +397,12 @@ void GameMcpBridge::Update(Game& game)
 		return;
 	}
 
-	ProcessPendingCommand(game);
+	m_FramesUntilCommandPoll--;
+	if (m_FramesUntilCommandPoll <= 0)
+	{
+		ProcessPendingCommand(game);
+		m_FramesUntilCommandPoll = m_CommandPollIntervalFrames;
+	}
 
 	m_FramesUntilPublish--;
 	if (m_FramesUntilPublish <= 0)
@@ -458,9 +471,6 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "configured_heal_amount", game.GetRestHealAmount() },
 		{ "capped_at_max_hp", true },
 		{ "available", game.CanRestHeal() },
-		{ "cooldown_battles", game.GetRestHealCooldownBattles() },
-		{ "cooldown_remaining",
-			game.GetRestHealCooldownRemaining() },
 	};
 	const std::vector<TableFrame*> tableFrames =
 		game.GetComponents<TableFrame>();
@@ -561,6 +571,19 @@ nlohmann::json GameMcpBridge::BuildState(
 				: player->GetMaxHP() },
 		{ "money", game.m_PlayerRunStatus.money },
 		{ "progress", game.m_PlayerRunStatus.progress },
+		{ "pocketed", player != nullptr && player->IsPocketed() },
+	};
+	const RunResultSnapshot& runStatistics = game.m_RunStatistics.GetState();
+	state["run_progress"] = {
+		{ "phase", ToString(game.m_RunPhase) },
+		{ "area_progress", game.m_AreaProgress },
+		{ "area_goal", Game::kNormalRouteAreaGoal },
+		{ "total_battles", runStatistics.totalBattles },
+		{ "midboss_challenges", runStatistics.midBossChallenges },
+		{ "midboss_defeats", runStatistics.midBossDefeats },
+		{ "final_boss_reached", runStatistics.finalBossReached },
+		{ "final_boss_defeated", runStatistics.finalBossDefeated },
+		{ "final_boss_id", runStatistics.finalBossId },
 	};
 	if (player != nullptr)
 	{
@@ -590,9 +613,23 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "name", relic->name },
 			{ "description", relic->description },
 			{ "price", relic->price },
+			{ "rarity", ToString(relic->rarity) },
+			{ "midboss_weight", relic->midBossWeight },
+			{ "shop_weight", relic->shopWeight },
 			{ "owned", game.HasRelic(relic->type) },
+			{ "shop_offered", game.IsShopRelicOffered(index) },
+			{ "midboss_offered", std::find(
+				game.m_MidBossRelicOffers.begin(),
+				game.m_MidBossRelicOffers.end(), index) !=
+				game.m_MidBossRelicOffers.end() },
 		});
 	}
+	state["relic_selection"] = {
+		{ "shop_offer_count", game.GetShopRelicOfferCount() },
+		{ "shop_purchase_used", game.m_ShopRelicPurchased },
+		{ "midboss_active", game.m_IsMidBossRelicSelectionActive },
+		{ "midboss_offer_count", game.GetMidBossRelicOfferCount() },
+	};
 	state["relic_effects"] = {
 		{ "all_ball_attack_bonus", game.GetRelicAttackBonus() },
 		{ "all_ball_defense_bonus", game.GetRelicDefenseBonus() },
@@ -709,8 +746,19 @@ nlohmann::json GameMcpBridge::BuildState(
 			game.m_PlayerDeck.GetRewardTarget(index);
 		if (ball != nullptr)
 		{
+			nlohmann::json ballJson =
+				BallDataToJson(*ball, index);
+			const int upgradeCost =
+				game.GetClearRewardUpgradeCost(index);
+			ballJson["clear_reward_upgrade_cost"] =
+				upgradeCost >= 0
+				? nlohmann::json(upgradeCost)
+				: nlohmann::json(nullptr);
+			ballJson["clear_reward_upgrade_affordable"] =
+				upgradeCost >= 0 &&
+				game.m_PlayerRunStatus.money >= upgradeCost;
 			state["deck_balls"].push_back(
-				BallDataToJson(*ball, index));
+				std::move(ballJson));
 		}
 	}
 
@@ -828,6 +876,13 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["progression_scaling"] = {
 		{ "enabled", game.m_ProgressionScalingEnabled },
 		{ "current_progress", game.m_PlayerRunStatus.progress },
+		{ "next_enemy_hp_delta",
+			game.CalculateProgressionHpModifier() },
+		{ "hp_start_progress", game.m_ProgressionHpStart },
+		{ "hp_interval", game.m_ProgressionHpInterval },
+		{ "hp_step", game.m_ProgressionHpStep },
+		{ "maximum_hp_delta",
+			game.m_ProgressionHpMaximumDelta },
 		{ "next_enemy_attack_delta",
 			game.CalculateProgressionAttackModifier() },
 		{ "attack_start_progress", game.m_ProgressionAttackStart },
@@ -854,6 +909,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "seed_suite_size", game.m_BalanceValidationSeeds.size() },
 		{ "maximum_cleared_stages",
 			game.m_BalanceValidationMaximumClearedStages },
+		{ "endurance_mode", game.m_BalanceValidationEnduranceMode },
 		{ "cleared_stage_count", game.m_ClearedStageCount },
 		{
 			"dynamic_balance_forced_off",
@@ -928,10 +984,6 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "heal_ratio", game.m_RestHealRatio },
 			{ "heal_percent", game.GetRestHealPercent() },
 			{ "configured_heal_amount", game.GetRestHealAmount() },
-			{ "heal_cooldown_battles",
-				game.GetRestHealCooldownBattles() },
-			{ "heal_cooldown_remaining",
-				game.GetRestHealCooldownRemaining() },
 			{ "priority", nlohmann::json::array({
 				"heal_if_hp_below_40_percent",
 				"upgrade_any_available_deck_ball",
@@ -956,10 +1008,12 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 	else if (scene == "shop")
 	{
-		for (int index = 0; index < game.GetRelicCount(); index++)
+		for (int offerIndex = 0;
+			offerIndex < game.GetShopRelicOfferCount(); offerIndex++)
 		{
-			const RelicDefinition* relic = game.GetRelic(index);
+			const RelicDefinition* relic = game.GetShopRelicOffer(offerIndex);
 			if (relic != nullptr &&
+				!game.m_ShopRelicPurchased &&
 				!game.HasRelic(relic->type) &&
 				game.m_PlayerRunStatus.money >= relic->price)
 			{
@@ -992,7 +1046,19 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	if (game.m_GameState == GameState::ClearReward)
 	{
-		if (game.m_IsClearRewardChosen)
+		state["clear_reward_rule"] = {
+			{ "upgrade_requires_money", true },
+			{ "upgrade_cost_by_current_level", {
+				{ "0", 15 },
+				{ "1", 30 },
+			} },
+			{ "rest_site_upgrade_requires_money", false },
+		};
+		if (game.m_IsMidBossRelicSelectionActive)
+		{
+			state["available_actions"].push_back("choose_relic");
+		}
+		else if (game.m_IsClearRewardChosen)
 		{
 			state["available_actions"].push_back(
 				"continue_after_reward");
@@ -1040,6 +1106,16 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			"arguments",
 			nlohmann::json::object());
 	const std::string scene = GetSceneName(game.m_Scene);
+	auto recordBuildDecision = [&game, &arguments]()
+	{
+		if (arguments.contains("decision_context") &&
+			arguments["decision_context"].is_object())
+		{
+			game.RecordBalanceEvent(
+				"mcp_build_decision",
+				arguments["decision_context"]);
+		}
+	};
 
 	if (action == "set_dynamic_balance")
 	{
@@ -1313,11 +1389,56 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A new run can only start from the title or result scene.");
 		}
 		game.m_BalanceAutoPlayEnabled = false;
+		std::optional<std::uint32_t> forcedRandomSeed;
+		if (arguments.contains("run_seed"))
+		{
+			if (!arguments["run_seed"].is_number_unsigned() &&
+				!arguments["run_seed"].is_number_integer())
+			{
+				return CommandResult(false, "run_seed must be an integer.");
+			}
+			const long long seed = arguments["run_seed"].get<long long>();
+			if (seed < 0 || seed > 0xffffffffll)
+			{
+				return CommandResult(
+					false,
+					"run_seed must be between 0 and 4294967295.");
+			}
+			forcedRandomSeed = static_cast<std::uint32_t>(seed);
+		}
+		const std::string forcedValidationVariant = arguments.value(
+			"validation_variant",
+			std::string());
+		if (!forcedValidationVariant.empty())
+		{
+			const bool found = std::any_of(
+				game.m_BalanceValidationVariants.begin(),
+				game.m_BalanceValidationVariants.end(),
+				[&forcedValidationVariant](
+					const BalanceValidationVariant& variant)
+				{
+					return variant.id == forcedValidationVariant;
+				});
+			if (!found)
+			{
+				return CommandResult(
+					false,
+					"validation_variant does not exist.");
+			}
+		}
 		game.StartNewRun(
 			"mcp",
 			arguments.value(
 				"controller_profile",
-				std::string("unknown")));
+				std::string("unknown")),
+			arguments.value(
+				"build_profile",
+				std::string("unknown")),
+			arguments.value(
+				"build_profile_settings_hash",
+				std::string()),
+			forcedRandomSeed,
+			forcedValidationVariant);
 		game.ChangeScene(SceneType::Select);
 		game.m_GameState = GameState::AimingDirection;
 		return CommandResult(true, "Started a new run.");
@@ -1383,6 +1504,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			game.m_SelectedHoldIndex = -1;
 		}
 		game.ApplySelectedBallPreview();
+		recordBuildDecision();
 		return CommandResult(true, "Selected the requested ball.");
 	}
 
@@ -1490,6 +1612,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"The ball was not found or cannot be upgraded.");
 		}
+		recordBuildDecision();
 		return CommandResult(true, "Upgraded the requested ball.");
 	}
 
@@ -1545,16 +1668,46 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"The requested relic is already owned.");
 		}
-		if (!game.BuyRelic(relicIndex))
+		if (!game.IsShopRelicOffered(relicIndex))
 		{
 			return CommandResult(
 				false,
-				"The requested relic could not be purchased. Check money.");
+				"The requested relic is not one of this shop's offers.");
 		}
+		if (!game.BuyShopRelic(relicIndex))
+		{
+			return CommandResult(
+				false,
+				"The requested relic could not be purchased. Check money and the one-purchase limit.");
+		}
+		recordBuildDecision();
 
 		return CommandResult(
 			true,
 			std::string("Purchased relic: ") + relic->name + ".");
+	}
+
+	if (action == "choose_relic")
+	{
+		if (game.m_GameState != GameState::ClearReward ||
+			!game.m_IsMidBossRelicSelectionActive)
+		{
+			return CommandResult(
+				false,
+				"A midboss relic choice is not currently available.");
+		}
+		const int relicIndex = arguments.value("relic_index", -1);
+		const RelicDefinition* relic = game.GetRelic(relicIndex);
+		if (relic == nullptr || !game.AcquireMidBossRelic(relicIndex))
+		{
+			return CommandResult(
+				false,
+				"Choose an unowned relic from the current midboss offers.");
+		}
+		recordBuildDecision();
+		return CommandResult(
+			true,
+			std::string("Acquired midboss relic: ") + relic->name + ".");
 	}
 
 	if (action == "continue_to_battle")
@@ -1578,24 +1731,22 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 					"Choose heal or upgrade_ball before leaving the rest site.");
 			}
 		}
-		if (arguments.value("override_stage_schedule", false))
+		if (scene == "rest_site")
 		{
-			game.StartNextBattle(
-				ParseStageType(arguments.value(
-					"stage_type",
-					std::string("normal"))));
+			game.LeaveRestSite();
 		}
 		else
 		{
-			game.StartNextBattle();
+			game.LeaveShop();
 		}
-		return CommandResult(true, "Started the next battle.");
+		return CommandResult(true, "Completed the area and returned to the route.");
 	}
 
 	if (action == "choose_reward")
 	{
 		if (game.m_GameState != GameState::ClearReward ||
-			game.m_IsClearRewardChosen)
+			game.m_IsClearRewardChosen ||
+			game.m_IsMidBossRelicSelectionActive)
 		{
 			return CommandResult(
 				false,
@@ -1606,6 +1757,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		const std::string reward =
 			arguments.value("reward", std::string());
 		bool applied = false;
+		int chargedUpgradeCost = 0;
 		if (reward == "new_ball")
 		{
 			const int catalogIndex =
@@ -1625,8 +1777,20 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				FindDeckBallIndex(
 					game.m_PlayerDeck,
 					instanceId);
+			const int upgradeCost = ballIndex >= 0
+				? game.GetClearRewardUpgradeCost(ballIndex)
+				: -1;
+			if (upgradeCost >= 0 &&
+				game.m_PlayerRunStatus.money < upgradeCost)
+			{
+				return CommandResult(
+					false,
+					"Not enough Money for the requested clear-reward upgrade.");
+			}
 			applied = ballIndex >= 0 &&
-				game.RestUpgradeBall(ballIndex);
+				game.ApplyClearRewardUpgrade(
+					ballIndex,
+					chargedUpgradeCost);
 			game.m_SelectedRewardIndex = 1;
 			game.m_SelectedRewardBallIndex = ballIndex;
 		}
@@ -1654,15 +1818,21 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		game.m_IsClearRewardChosen = true;
 		game.m_RewardMessage =
 			"External AI selected the clear reward.";
+		nlohmann::json rewardDetails = {
+			{ "controller", "mcp" },
+			{ "reward", reward },
+			{ "selected_index", game.m_SelectedRewardBallIndex },
+			{ "money_before", moneyBefore },
+			{ "money_after", game.m_PlayerRunStatus.money },
+		};
+		if (reward == "upgrade_ball")
+		{
+			rewardDetails["upgrade_cost"] = chargedUpgradeCost;
+		}
 		game.RecordBalanceEvent(
 			"clear_reward_choice",
-			{
-				{ "controller", "mcp" },
-				{ "reward", reward },
-				{ "selected_index", game.m_SelectedRewardBallIndex },
-				{ "money_before", moneyBefore },
-				{ "money_after", game.m_PlayerRunStatus.money },
-			});
+			rewardDetails);
+		recordBuildDecision();
 		return CommandResult(true, "Applied the requested clear reward.");
 	}
 
@@ -1675,8 +1845,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"Choose a clear reward before continuing.");
 		}
-		game.ChangeScene(SceneType::Select);
-		game.m_GameState = GameState::AimingDirection;
+		game.ContinueAfterClearReward();
 		return CommandResult(true, "Returned to stage select.");
 	}
 
@@ -1723,6 +1892,7 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 	}
 
 	PublishState(game, true);
+	m_FramesUntilPublish = m_PublishIntervalFrames;
 	result["schema_version"] = 1;
 	result["command_id"] = commandId;
 	result["action"] =

@@ -1,8 +1,8 @@
-"""Generate a guarded balance adjustment plan with the OpenAI Responses API.
+"""OpenAI Responses APIを使い、安全策付きのバランス調整計画を生成する。
 
-This module reads local run logs, reduces them to balance metrics, asks a
-generative model for a structured proposal, and validates every proposed
-change locally before it can be applied.
+このモジュールはローカルのランログを読み込み、バランス指標へ縮約し、
+生成モデルへ構造化された提案を要求する。提案された全変更は、
+適用可能になる前にローカルで検証する。
 """
 
 from __future__ import annotations
@@ -97,6 +97,31 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Apply the locally validated AI plan after creating a backup.",
     )
+    configuration_group = parser.add_mutually_exclusive_group()
+    configuration_group.add_argument(
+        "--latest-configuration",
+        action="store_true",
+        help=(
+            "Use only the newest configuration cohort. This is the default "
+            "when no configuration fingerprint is specified."
+        ),
+    )
+    configuration_group.add_argument(
+        "--configuration-fingerprint",
+        help=(
+            "Use only one configuration-suite fingerprint or an "
+            "unambiguous prefix."
+        ),
+    )
+    parser.add_argument(
+        "--controller-profile",
+        choices=("beginner", "intermediate", "advanced"),
+        help="Include only this MCP player profile.",
+    )
+    parser.add_argument(
+        "--build-profile",
+        help="Include only this MCP build profile.",
+    )
     parser.add_argument(
         "--mock-response",
         type=Path,
@@ -105,7 +130,7 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def collect_ball_performance(log_directory: Path) -> list[dict[str, Any]]:
+def collect_ball_performance(log_paths: list[Path]) -> list[dict[str, Any]]:
     totals: dict[str, dict[str, float]] = defaultdict(
         lambda: {
             "shot_count": 0.0,
@@ -117,10 +142,7 @@ def collect_ball_performance(log_directory: Path) -> list[dict[str, Any]]:
         }
     )
 
-    if not log_directory.exists():
-        return []
-
-    for log_path in sorted(log_directory.glob("run_*.json")):
+    for log_path in log_paths:
         try:
             run = load_json(log_path)
         except (OSError, json.JSONDecodeError):
@@ -183,7 +205,6 @@ def build_ai_input(
     targets: dict[str, Any],
     policy: dict[str, Any],
     enemy_data: dict[str, Any],
-    log_directory: Path,
 ) -> dict[str, Any]:
     current_enemies = [
         {
@@ -240,7 +261,19 @@ def build_ai_input(
         "current_enemies": current_enemies,
         "eligible_targets": allowed_targets,
         "stage_evaluations": guardrail_plan["stage_evaluations"],
-        "ball_performance_context": collect_ball_performance(log_directory),
+        "selected_configuration": guardrail_plan["source"].get(
+            "configuration_fingerprint",
+            "",
+        ),
+        "ball_performance_context": collect_ball_performance(
+            [
+                Path(path)
+                for path in guardrail_plan["source"].get(
+                    "selected_log_files",
+                    [],
+                )
+            ]
+        ),
     }
 
 
@@ -551,6 +584,13 @@ def main() -> int:
             policy,
             args.enemies,
             enemy_data,
+            configuration_fingerprint=args.configuration_fingerprint,
+            latest_configuration=(
+                args.latest_configuration
+                or args.configuration_fingerprint is None
+            ),
+            controller_profile=args.controller_profile,
+            build_profile=args.build_profile,
         )
 
         ai_output: dict[str, Any] | None = None
@@ -561,7 +601,6 @@ def main() -> int:
                 targets,
                 policy,
                 enemy_data,
-                args.logs,
             )
             if args.mock_response is not None:
                 ai_output = load_json(args.mock_response)

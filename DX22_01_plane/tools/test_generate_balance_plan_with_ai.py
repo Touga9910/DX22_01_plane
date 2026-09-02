@@ -11,6 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from adjust_balance_from_logs import apply_plan, build_adjustment_plan
+from analyze_balance_logs import configuration_fingerprint
 from generate_balance_plan_with_ai import (
     build_ai_input,
     build_ai_plan,
@@ -93,7 +94,13 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def write_easy_run(log_directory: Path, index: int) -> None:
+def write_easy_run(
+    log_directory: Path,
+    index: int,
+    *,
+    configuration_hash: str = "current-enemy-data",
+    ball_id: str = "player_standard",
+) -> None:
     write_json(
         log_directory / f"run_{index:03d}.json",
         {
@@ -107,7 +114,7 @@ def write_easy_run(log_directory: Path, index: int) -> None:
                     },
                     "shots": [
                         {
-                            "ball_id": "player_standard",
+                            "ball_id": ball_id,
                             "collision_effect": 1,
                             "player_enemy_hit_count": 1,
                             "enemies_defeated": 1,
@@ -120,6 +127,20 @@ def write_easy_run(log_directory: Path, index: int) -> None:
                     },
                 }
             ],
+            "configuration": {
+                "files": [
+                    {
+                        "path": "assets/data/enemy_data.json",
+                        "exists": True,
+                        "fnv1a64": configuration_hash,
+                    },
+                    {
+                        "path": "assets/data/player_status.json",
+                        "exists": True,
+                        "fnv1a64": "player-status",
+                    },
+                ],
+            },
         },
     )
 
@@ -154,7 +175,6 @@ class GenerativeBalanceTests(unittest.TestCase):
                 TARGETS,
                 POLICY,
                 ENEMY_DATA,
-                log_directory,
             )
             request = build_openai_request(ai_input, AI_CONFIG)
 
@@ -165,6 +185,95 @@ class GenerativeBalanceTests(unittest.TestCase):
                 "json_schema",
             )
             self.assertTrue(request["text"]["format"]["strict"])
+
+    def test_adjustment_and_ai_context_use_only_latest_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            log_directory = root / "logs"
+            enemy_file = root / "enemy_data.json"
+            write_json(enemy_file, ENEMY_DATA)
+            for index in range(3):
+                write_easy_run(
+                    log_directory,
+                    index,
+                    configuration_hash="old-config",
+                    ball_id="old_ball",
+                )
+            for index in range(3, 6):
+                write_easy_run(
+                    log_directory,
+                    index,
+                    configuration_hash="latest-config",
+                    ball_id="latest_ball",
+                )
+
+            guardrail_plan = build_adjustment_plan(
+                log_directory,
+                TARGETS,
+                POLICY,
+                enemy_file,
+                json.loads(json.dumps(ENEMY_DATA)),
+            )
+            ai_input = build_ai_input(
+                guardrail_plan,
+                TARGETS,
+                POLICY,
+                ENEMY_DATA,
+            )
+
+            selection = guardrail_plan["source"]["run_selection"]
+            self.assertEqual(selection["matched_file_count"], 3)
+            self.assertEqual(selection["excluded_file_count"], 3)
+            self.assertEqual(
+                selection["latest_configuration_requested"],
+                True,
+            )
+            self.assertEqual(
+                [
+                    item["ball_id"]
+                    for item in ai_input["ball_performance_context"]
+                ],
+                ["latest_ball"],
+            )
+
+    def test_multiple_configuration_cohorts_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            log_directory = root / "logs"
+            enemy_file = root / "enemy_data.json"
+            write_json(enemy_file, ENEMY_DATA)
+            fingerprints_by_prefix: dict[str, str] = {}
+            ambiguous_prefix = ""
+            for index in range(100):
+                write_easy_run(
+                    log_directory,
+                    index,
+                    configuration_hash=f"config-{index}",
+                )
+                run = json.loads(
+                    (log_directory / f"run_{index:03d}.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                fingerprint = configuration_fingerprint(run)
+                prefix = fingerprint[:1]
+                if prefix in fingerprints_by_prefix:
+                    ambiguous_prefix = prefix
+                    break
+                fingerprints_by_prefix[prefix] = fingerprint
+
+            self.assertTrue(ambiguous_prefix)
+
+            with self.assertRaisesRegex(ValueError, "multiple cohorts"):
+                build_adjustment_plan(
+                    log_directory,
+                    TARGETS,
+                    POLICY,
+                    enemy_file,
+                    json.loads(json.dumps(ENEMY_DATA)),
+                    configuration_fingerprint=ambiguous_prefix,
+                    latest_configuration=False,
+                )
 
     def test_mock_ai_plan_is_validated_backed_up_and_applied(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

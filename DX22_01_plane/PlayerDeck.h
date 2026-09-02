@@ -4,7 +4,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <random>
 #include <vector>
+
+class GameSaveManager;
 
 class PlayerDeck
 {
@@ -16,13 +19,14 @@ public:
     // -------------------------
     void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
     void SetCatalog(const std::vector<PlayerBallData>& catalog);
+    void Seed(std::uint32_t seed);
     void Reset();
     void ResetToDefault();
 
     // -------------------------
     // ボール提示・選択・保持
     // -------------------------
-    bool PrepareOffer();
+    bool PrepareOffer(int offerSize = 3);
     bool SelectOffer(int selectedIndex, int heldIndex);
 
     int GetOfferCount() const { return static_cast<int>(m_OfferedBalls.size()); }
@@ -71,9 +75,10 @@ public:
     bool RemoveRewardTarget(int index);
 
 private:
+    friend class GameSaveManager;
+
     bool DrawOneFromPile(PlayerBallData& result);
     void ShuffleDrawPile();
-    static BallStatus NormalizeStatus(BallStatus status);
 
 private:
     std::vector<PlayerBallData> m_DefaultDeck;      // 初期デッキ
@@ -86,4 +91,5 @@ private:
     int m_PreviousHeldOfferIndex = -1;              // 提示内で前回から保持されていた位置
     bool m_IsCurrentBallUsed = false;               // 現在ボールを使用済みかどうか
     std::uint64_t m_NextInstanceId = 1;              // 同名ボールを区別するランタイムID
+    std::mt19937 m_RandomEngine{ std::random_device{}() };
 };

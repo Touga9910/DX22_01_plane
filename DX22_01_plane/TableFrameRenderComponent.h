@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 #include "IndexBuffer.h"
@@ -9,8 +9,8 @@
 #include <memory>
 #include <vector>
 
-// Owns the frame mesh and GPU resources. Current continuous-rail geometry
-// contains no embedded pocket centers; Pocket is an independent component.
+// 枠のメッシュとGPUリソースを所有する。現在の連続レール形状には
+// ポケット中心を埋め込まず、Pocketを独立したコンポーネントとして扱う。
 class TableFrameRenderComponent final : public Component
 {
 public:

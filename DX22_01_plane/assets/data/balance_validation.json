@@ -10,6 +10,22 @@
     20260906,
     20260916
   ],
+  "seed_suites": {
+    "tuning": [
+      20260807,
+      20260817,
+      20260827,
+      20260906,
+      20260916
+    ],
+    "holdout": [
+      20261006,
+      20261016,
+      20261026,
+      20261105,
+      20261115
+    ]
+  },
   "disable_dynamic_balance": true,
   "variants": [
     {
@@ -24,7 +40,8 @@
   "minimum_runs_per_variant": 5,
   "minimum_paired_seeds": 5,
   "maximum_cleared_stages_per_run": 30,
-  "fixed_stage_schedule": true,
+  "endurance_mode": false,
+  "fixed_stage_schedule": false,
   "baseline_profile": "normal",
   "required_controller_profiles": [
     "beginner",

@@ -14,7 +14,46 @@ def load(path: str) -> dict:
         return json.load(source)
 
 
+def load_game_sources() -> str:
+    return "\n".join(
+        (ROOT / name).read_text(encoding="utf-8")
+        for name in (
+            "Game.cpp",
+            "GameAutoPlay.cpp",
+            "GameBalanceConfig.cpp",
+            "GameProgression.cpp",
+        )
+    )
+
+
 class BalanceConfigurationTests(unittest.TestCase):
+    def test_build_profile_is_a_logged_run_condition(self) -> None:
+        profiles = load("tools/game_mcp/build_profiles.json")
+        logger_source = (ROOT / "BalanceLogger.cpp").read_text(
+            encoding="utf-8"
+        )
+        game_source = load_game_sources()
+        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(profiles["schema_version"], 1)
+        self.assertEqual(
+            set(profiles["profiles"]),
+            {"standard", "heavy", "pierce", "bounce", "anchor"},
+        )
+        self.assertIn('{ "schema_version", 3 }', logger_source)
+        self.assertIn(
+            '"tools/game_mcp/build_profiles.json"',
+            logger_source,
+        )
+        self.assertIn('{ "build_profile", buildProfile }', game_source)
+        self.assertIn(
+            '{ "build_profile_settings_hash", buildProfileSettingsHash }',
+            game_source,
+        )
+        self.assertIn('"mcp_build_decision"', bridge_source)
+
     def test_mcp_enemy_state_supports_aim_error(self) -> None:
         bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
             encoding="utf-8"
@@ -55,7 +94,7 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertNotIn('{ "offered_routes", nullptr }', bridge_source)
 
     def test_new_run_resets_dynamic_balance_state(self) -> None:
-        game_source = (ROOT / "Game.cpp").read_text(encoding="utf-8")
+        game_source = load_game_sources()
 
         self.assertIn("ResetDynamicBalanceRunState();", game_source)
         self.assertIn(
@@ -67,10 +106,13 @@ class BalanceConfigurationTests(unittest.TestCase):
             game_source,
         )
 
-    def test_positive_dynamic_balance_scales_hp_only(self) -> None:
+    def test_dynamic_balance_is_assist_only(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
-        game_source = (ROOT / "Game.cpp").read_text(encoding="utf-8")
+        game_source = load_game_sources()
 
+        self.assertEqual(dynamic["initial_level"], 0)
+        self.assertEqual(dynamic["maximum_level"], 0)
+        self.assertLess(dynamic["minimum_level"], 0)
         self.assertFalse(dynamic["positive_attack_scaling_enabled"])
         self.assertIn(
             "level > 0 && !m_DynamicBalancePositiveAttackScalingEnabled",
@@ -83,11 +125,25 @@ class BalanceConfigurationTests(unittest.TestCase):
 
     def test_player_hp_and_rest_heal_ratio(self) -> None:
         player = load("assets/data/player_status.json")
+        cooldown_sources = "\n".join(
+            (ROOT / name).read_text(encoding="utf-8")
+            for name in (
+                "Game.h",
+                "Game.cpp",
+                "GameBalanceConfig.cpp",
+                "GameProgression.cpp",
+                "GameMcpBridge.cpp",
+                "GameSaveManager.cpp",
+                "PlayerBallDataLoader.h",
+                "PlayerBallDataLoader.cpp",
+            )
+        )
 
         self.assertEqual(player["status"]["maxHp"], 50)
         self.assertEqual(player["currentHp"], 50)
         self.assertEqual(player["restHealRatio"], 0.25)
-        self.assertEqual(player["restHealCooldownBattles"], 2)
+        self.assertNotIn("restHealCooldownBattles", player)
+        self.assertNotIn("resthealcooldown", cooldown_sources.lower())
         self.assertEqual(
             math.ceil(
                 player["status"]["maxHp"] * player["restHealRatio"]
@@ -100,31 +156,47 @@ class BalanceConfigurationTests(unittest.TestCase):
     def test_late_progression_and_validation_run_cap(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
         validation = load("assets/data/balance_validation.json")
-        game_source = (ROOT / "Game.cpp").read_text(encoding="utf-8")
+        game_source = load_game_sources()
         status_source = (ROOT / "BallStatusComponent.h").read_text(
             encoding="utf-8"
         )
 
         progression = dynamic["progression_scaling"]
         self.assertTrue(progression["enabled"])
+        self.assertEqual(progression["hp_start_progress"], 10)
+        self.assertEqual(progression["hp_interval"], 5)
+        self.assertEqual(progression["hp_step"], 1)
+        self.assertEqual(progression["maximum_hp_delta"], 4)
         self.assertEqual(progression["attack_start_progress"], 20)
         self.assertEqual(progression["attack_interval"], 5)
         self.assertEqual(progression["maximum_attack_delta"], 8)
         self.assertEqual(validation["maximum_cleared_stages_per_run"], 30)
+        self.assertFalse(validation["endurance_mode"])
+        self.assertIn("m_BalanceValidationEnduranceMode", game_source)
         self.assertIn('"validation_complete"', game_source)
         self.assertIn(
-            "const int finalDamage = (std::max)(1, damage - GetDefense());",
+            "return (std::max)(1, damage - GetDefense());",
+            status_source,
+        )
+        self.assertIn(
+            "const int finalDamage = CalculateDamageTaken(damage);",
             status_source,
         )
 
     def test_pocket_rules_and_mcp_contract(self) -> None:
         pocket = load("assets/data/pocket_rules.json")
-        game_source = (ROOT / "Game.cpp").read_text(encoding="utf-8")
+        game_source = load_game_sources()
         bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
             encoding="utf-8"
         )
 
-        self.assertEqual(pocket["player_max_hp_damage_ratio"], 0.05)
+        self.assertEqual(pocket["player_max_hp_damage_ratio"], 0.04)
+        self.assertEqual(
+            math.ceil(
+                50 * pocket["player_max_hp_damage_ratio"]
+            ),
+            2,
+        )
         self.assertEqual(
             pocket["enemy_finisher_hp_ratios"],
             {"normal": 0.30, "midboss": 0.20, "boss": 0.10},
@@ -162,9 +234,10 @@ class BalanceConfigurationTests(unittest.TestCase):
             actual *= float(encounter["layout_multipliers"][layout])
             self.assertAlmostEqual(actual, float(targets[stage["id"]]))
 
-    def test_effective_hp_targets_at_dynamic_balance_plus_two(self) -> None:
+    def test_effective_hp_targets_with_progression_scaling(self) -> None:
         enemies = load("assets/data/enemy_data.json")
         stages = load("assets/data/stage_01.json")
+        dynamic = load("assets/data/dynamic_balance.json")
         enemy_by_id = {
             enemy["id"]: enemy
             for enemy in enemies["enemies"]
@@ -187,21 +260,34 @@ class BalanceConfigurationTests(unittest.TestCase):
                 attack,
             )
 
-        def effective_hp(stage_id: str) -> int:
+        progression = dynamic["progression_scaling"]
+
+        def hp_delta(progress: int) -> int:
+            if progress < progression["hp_start_progress"]:
+                return 0
+            tier = 1 + (
+                progress - progression["hp_start_progress"]
+            ) // progression["hp_interval"]
+            return min(
+                progression["maximum_hp_delta"],
+                tier * progression["hp_step"],
+            )
+
+        def effective_hp(stage_id: str, progress: int) -> int:
             return sum(
                 enemy_by_id[
                     spawn.get("enemyId", "enemy_normal")
-                ]["status"]["maxHp"] + 2
+                ]["status"]["maxHp"] + hp_delta(progress)
                 for spawn in stage_by_id[stage_id]["enemies"]
             )
 
         normal_average = (
-            effective_hp("normal_003")
-            + effective_hp("normal_004")
+            effective_hp("normal_003", 15)
+            + effective_hp("normal_004", 15)
         ) / 2
         midboss_average = (
-            effective_hp("midboss_001")
-            + effective_hp("midboss_002")
+            effective_hp("midboss_001", 15)
+            + effective_hp("midboss_002", 15)
         ) / 2
         self.assertGreaterEqual(normal_average, 24)
         self.assertLessEqual(normal_average, 28)
@@ -209,7 +295,7 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertLessEqual(midboss_average, 36)
 
         for boss_id in ("boss_001", "boss_002"):
-            boss_hp = effective_hp(boss_id)
+            boss_hp = effective_hp(boss_id, 10)
             self.assertGreaterEqual(boss_hp, 38)
             self.assertLessEqual(boss_hp, 45)
             boss_enemy_ids = {
@@ -231,6 +317,50 @@ class BalanceConfigurationTests(unittest.TestCase):
             ["dda_off", "dda_on"],
         )
         self.assertEqual(validation["minimum_paired_seeds"], 5)
+        self.assertEqual(
+            set(validation["seed_suites"]),
+            {"tuning", "holdout"},
+        )
+        self.assertFalse(
+            set(validation["seed_suites"]["tuning"])
+            & set(validation["seed_suites"]["holdout"])
+        )
+
+    def test_stage_and_run_balance_targets_are_separated(self) -> None:
+        targets = load("assets/data/balance_targets.json")
+
+        self.assertEqual(targets["schema_version"], 3)
+        self.assertTrue(targets["statistical_decision"]["enabled"])
+        self.assertIn("difficulty_spikes", targets["diagnostics"])
+        stage_targets = targets["stage_type_targets"]
+        self.assertEqual(
+            set(stage_targets),
+            {"normal", "midBoss", "boss"},
+        )
+        self.assertLess(
+            stage_targets["normal"]["metrics"]["median_shots"]["max"],
+            stage_targets["boss"]["metrics"]["median_shots"]["min"],
+        )
+
+        run_targets = targets["run_targets"]
+        self.assertEqual(run_targets["default_profile"], "intermediate")
+        self.assertEqual(
+            set(run_targets["profile_overrides"]),
+            {"beginner", "advanced"},
+        )
+        self.assertAlmostEqual(
+            sum(
+                float(metric["weight"])
+                for metric in run_targets["metrics"].values()
+            ),
+            1.0,
+        )
+        for metric in run_targets["metrics"].values():
+            self.assertLessEqual(metric["min"], metric["max"])
+            self.assertIn(
+                metric["difficulty_direction"],
+                {"easier", "harder", "neutral"},
+            )
 
 
 if __name__ == "__main__":

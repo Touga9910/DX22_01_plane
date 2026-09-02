@@ -10,9 +10,10 @@ float4 main(in PS_IN input)  : SV_Target
     if(Material.TextureEnable)
     {
     
-    // SampleŠÖ”¨ƒeƒNƒXƒ`ƒƒ‚©‚çŠY“–‚ÌUVˆÊ’u‚ÌƒsƒNƒZƒ‹F‚ğæ‚Á‚Ä—ˆ‚é
+    // Sampleé–¢æ•°â†’ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‹ã‚‰è©²å½“ã®UVä½ç½®ã®ãƒ”ã‚¯ã‚»ãƒ«è‰²ã‚’å–ã£ã¦æ¥ã‚‹
         color = g_Texture.Sample(g_SamplerState, input.tex);
         color *= input.col;
+        color.rgb *= Material.Diffuse.rgb;
         //color = input.col;
     }
     else

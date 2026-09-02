@@ -1,12 +1,12 @@
-"""Create and optionally apply conservative enemy-status balance changes.
+"""敵ステータスに対する保守的なバランス変更を作成し、必要に応じて適用する。
 
-Run from the game project directory:
+ゲームプロジェクトのディレクトリから実行する:
     python tools/adjust_balance_from_logs.py
     python tools/adjust_balance_from_logs.py --apply
 
-The default command only writes a proposal. ``--apply`` verifies that the
-enemy JSON has not changed since analysis, creates a backup, and then applies
-the proposed changes.
+既定のコマンドは提案の書き出しだけを行う。``--apply``を指定すると、
+分析後に敵JSONが変更されていないことを検証し、バックアップを作成してから
+提案された変更を適用する。
 """
 
 from __future__ import annotations
@@ -21,9 +21,12 @@ from pathlib import Path
 from typing import Any
 
 from analyze_balance_logs import (
+    RunFilters,
+    apply_boss_revaluation_gate,
     calculate_stage_report,
-    collect_stage_records,
+    collect_filtered_stage_records,
     load_json,
+    resolve_stage_metric_targets,
 )
 
 
@@ -55,6 +58,31 @@ def parse_arguments() -> argparse.Namespace:
         "--apply",
         action="store_true",
         help="Apply the generated plan after making a timestamped backup.",
+    )
+    configuration_group = parser.add_mutually_exclusive_group()
+    configuration_group.add_argument(
+        "--latest-configuration",
+        action="store_true",
+        help=(
+            "Use only the newest configuration cohort. This is the default "
+            "when no configuration fingerprint is specified."
+        ),
+    )
+    configuration_group.add_argument(
+        "--configuration-fingerprint",
+        help=(
+            "Use only one configuration-suite fingerprint or an "
+            "unambiguous prefix."
+        ),
+    )
+    parser.add_argument(
+        "--controller-profile",
+        choices=("beginner", "intermediate", "advanced"),
+        help="Include only this MCP player profile.",
+    )
+    parser.add_argument(
+        "--build-profile",
+        help="Include only this MCP build profile.",
     )
     return parser.parse_args()
 
@@ -92,7 +120,10 @@ def choose_adjustment_field(
 ) -> tuple[str | None, float]:
     metrics = stage_report["metrics"]
     judgement = stage_report["judgement"]
-    metric_targets = targets["metrics"]
+    metric_targets = resolve_stage_metric_targets(
+        targets,
+        str(stage_report.get("stage_type", "unknown")),
+    )
 
     if judgement == "too_easy":
         clear_pressure = positive_distance(
@@ -142,8 +173,8 @@ def choose_adjustment_field(
     else:
         return None, 0.0
 
-    # Attack primarily controls how much HP remains. Max HP primarily controls
-    # stage length. Clear rate contributes to both because either can cause it.
+    # 攻撃力は主にプレイヤーの残HPを、最大HPは主にステージの長さを左右する。
+    # どちらもクリア率へ影響するため、クリア率は両方の判断材料に含める。
     attack_pressure = remaining_hp_pressure + clear_pressure * 0.5
     max_hp_pressure = (
         shot_pressure +
@@ -152,7 +183,7 @@ def choose_adjustment_field(
     )
 
     if attack_pressure <= 0.0 and max_hp_pressure <= 0.0:
-        # Do not alter combat stats when the only problem is aiming/no-hit rate.
+        # 問題が照準またはノーヒット率だけの場合は、戦闘ステータスを変更しない。
         return None, 0.0
     if attack_pressure >= max_hp_pressure:
         return "attack", attack_pressure
@@ -186,8 +217,46 @@ def build_adjustment_plan(
     policy: dict[str, Any],
     enemy_file: Path,
     enemy_data: dict[str, Any],
+    *,
+    configuration_fingerprint: str | None = None,
+    latest_configuration: bool = True,
+    controller_profile: str | None = None,
+    build_profile: str | None = None,
 ) -> dict[str, Any]:
-    grouped, analyzed_file_count = collect_stage_records(log_directory)
+    normalized_fingerprint = (
+        configuration_fingerprint.strip().lower()
+        if configuration_fingerprint
+        else ""
+    )
+    filters = RunFilters(
+        controller_types=("mcp",)
+        if controller_profile or build_profile
+        else (),
+        controller_profiles=(controller_profile,)
+        if controller_profile
+        else (),
+        build_profiles=(build_profile,) if build_profile else (),
+        configuration_fingerprints=(normalized_fingerprint,)
+        if normalized_fingerprint
+        else (),
+    )
+    grouped, analyzed_file_count, run_selection, selected_runs = (
+        collect_filtered_stage_records(
+            log_directory,
+            filters=filters,
+            latest_configuration=(
+                latest_configuration and not normalized_fingerprint
+            ),
+        )
+    )
+    selected_configurations = run_selection[
+        "selected_configuration_fingerprints"
+    ]
+    if len(selected_configurations) > 1:
+        raise ValueError(
+            "Configuration fingerprint matched multiple cohorts; use a "
+            "longer, unambiguous fingerprint."
+        )
     stage_reports = {
         key: calculate_stage_report(
             key[0],
@@ -197,6 +266,12 @@ def build_adjustment_plan(
         )
         for key, records in grouped.items()
     }
+    boss_revaluation = apply_boss_revaluation_gate(
+        list(stage_reports.values()),
+        grouped,
+        analyzed_file_count,
+        targets,
+    )
 
     votes: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(
         lambda: defaultdict(list)
@@ -348,7 +423,7 @@ def build_adjustment_plan(
         )
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": utc_now(),
         "mode": "proposal",
         "source": {
@@ -358,6 +433,15 @@ def build_adjustment_plan(
             "ignored_stage_count": ignored_stage_count,
             "enemy_status_file": str(enemy_file),
             "enemy_status_sha256": file_sha256(enemy_file),
+            "configuration_fingerprint": next(
+                iter(selected_configurations),
+                "",
+            ),
+            "selected_log_files": [
+                str(log_path) for log_path, _, _ in selected_runs
+            ],
+            "run_selection": run_selection,
+            "boss_revaluation": boss_revaluation,
         },
         "safety": {
             "minimum_stage_sample_count": int(
@@ -366,6 +450,7 @@ def build_adjustment_plan(
             "minimum_enemy_confidence": minimum_confidence,
             "maximum_step_per_iteration": max_step,
             "requires_explicit_apply": True,
+            "requires_single_configuration": True,
         },
         "summary": {
             "proposed_change_count": len(changes),
@@ -446,9 +531,22 @@ def main() -> int:
             policy,
             args.enemies,
             enemy_data,
+            configuration_fingerprint=args.configuration_fingerprint,
+            latest_configuration=(
+                args.latest_configuration
+                or args.configuration_fingerprint is None
+            ),
+            controller_profile=args.controller_profile,
+            build_profile=args.build_profile,
         )
         write_json(args.output, plan)
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+    except (
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
         print(f"Failed to generate adjustment plan: {error}")
         return 1
 

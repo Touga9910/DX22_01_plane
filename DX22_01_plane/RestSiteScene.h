@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Scene.h"
+#include "MenuSelection.h"
 
 #include <string>
 #include <vector>
@@ -23,7 +24,7 @@ private:
 	void Uninit();
 
 	std::vector<GameObject*> m_SceneGameObjects;
-	int m_SelectedAction = 0;
+	MenuSelection m_Menu;
 	int m_SelectedBall = 0;
 	bool m_ActionUsed = false;
 	std::string m_Message;

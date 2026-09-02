@@ -1,4 +1,5 @@
 #pragma once
+#include	<limits>
 #include	<vector>
 #include	<wrl/client.h>
 #include	"renderer.h"
@@ -19,15 +20,15 @@ public:
 		m_VertexBuffer.Reset();
 
 		// デバイス取得
-		ID3D11Device* device = nullptr;
-		device = Renderer::GetDevice();
+		ID3D11Device* device = Renderer::GetDevice();
 		assert(device); //deviceは存在することを確認
 
 		// 頂点バッファ作成（Renderer.cppから移転）
 		D3D11_BUFFER_DESC bd = {};
 		// Modifyメソッドで書き換えるため、USAGE_DYNAMIC と CPU_ACCESS_WRITE を指定
 		bd.Usage = D3D11_USAGE_DYNAMIC;
-		bd.ByteWidth = (UINT)(sizeof(T) * vertices.size());
+		assert(vertices.size() <= (std::numeric_limits<UINT>::max)() / sizeof(T));
+		bd.ByteWidth = static_cast<UINT>(sizeof(T) * vertices.size());
 		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		bd.MiscFlags = 0;
@@ -46,8 +47,7 @@ public:
 	void SetGPU()
 	{
 		// デバイスコンテキスト取得
-		ID3D11DeviceContext* devicecontext = nullptr;
-		devicecontext = Renderer::GetDeviceContext();
+		ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();
 
 		// 頂点バッファをセットする
 		unsigned int stride = sizeof(T);

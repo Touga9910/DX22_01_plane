@@ -1,4 +1,4 @@
-#include "BalanceLogger.h"
+﻿#include "BalanceLogger.h"
 
 #include <algorithm>
 #include <chrono>
@@ -76,7 +76,7 @@ void BalanceLogger::BeginRun(
 
 	m_Root =
 	{
-		{ "schema_version", 2 },
+		{ "schema_version", 3 },
 		{ "run_id", runId },
 		{ "started_at", MakeUtcTimestamp() },
 		{ "controller_type", controllerType },
@@ -87,6 +87,16 @@ void BalanceLogger::BeginRun(
 				{
 					"profile",
 					runContext.value("controller_profile", std::string())
+				},
+				{
+					"build_profile",
+					runContext.value("build_profile", std::string())
+				},
+				{
+					"build_profile_settings_hash",
+					runContext.value(
+						"build_profile_settings_hash",
+						std::string())
 				},
 			}
 		},
@@ -127,6 +137,7 @@ void BalanceLogger::BeginRun(
 	m_StageActive = false;
 	m_ShotActive = false;
 	m_RunActive = true;
+	m_SavePending = true;
 
 	Save();
 
@@ -211,6 +222,7 @@ void BalanceLogger::BeginStage(
 	m_CurrentStageIndex = m_Root["stages"].size() - 1;
 	m_StageActive = true;
 	m_ShotActive = false;
+	m_SavePending = true;
 
 	Save();
 }
@@ -235,6 +247,10 @@ void BalanceLogger::BeginShot(
 	{
 		return;
 	}
+
+	// 前回のショット後に記録されたダメージイベントと進行イベントを書き出す。
+	// 個々のイベントごとに文書全体を書き直さず、ログの永続性を保つ。
+	Save();
 
 	m_ShotStartedMs = GetEpochMilliseconds();
 	m_PlayerEnemyHitCount = 0;
@@ -369,7 +385,7 @@ void BalanceLogger::RecordPlayerDamage(
 		event["source_id"] = sourceId;
 	}
 	(*stage)["damage_events"].push_back(std::move(event));
-	Save();
+	m_SavePending = true;
 }
 
 void BalanceLogger::RecordEvent(
@@ -397,7 +413,7 @@ void BalanceLogger::RecordEvent(
 			static_cast<int>(m_CurrentStageIndex) + 1;
 	}
 	m_Root["events"].push_back(std::move(event));
-	Save();
+	m_SavePending = true;
 }
 
 void BalanceLogger::EndShot(
@@ -454,6 +470,7 @@ void BalanceLogger::EndShot(
 	m_PendingShot = json{};
 	m_ShotActive = false;
 	m_HasCurrentDamageCollision = false;
+	m_SavePending = true;
 
 	Save();
 }
@@ -597,6 +614,7 @@ void BalanceLogger::EndStage(
 
 	m_StageActive = false;
 	m_CurrentStageIndex = NoStage;
+	m_SavePending = true;
 	Save();
 }
 
@@ -643,6 +661,7 @@ void BalanceLogger::EndRun(
 		{ "remaining_hp_ratio", RoundToTwoDecimals(hpRatio) },
 	};
 
+	m_SavePending = true;
 	Save();
 	m_RunActive = false;
 	m_StageActive = false;
@@ -652,7 +671,7 @@ void BalanceLogger::EndRun(
 
 void BalanceLogger::Save()
 {
-	if (!m_RunActive || m_LogPath.empty())
+	if (!m_RunActive || m_LogPath.empty() || !m_SavePending)
 	{
 		return;
 	}
@@ -706,7 +725,10 @@ void BalanceLogger::Save()
 		std::cerr
 			<< "[BalanceLogger] Failed to replace log file: "
 			<< error.message() << std::endl;
+		return;
 	}
+
+	m_SavePending = false;
 }
 
 json* BalanceLogger::GetCurrentStage()
@@ -803,6 +825,7 @@ json BalanceLogger::MakeConfigurationSnapshot()
 		"assets/data/balance_autoplay.json",
 		"assets/data/balance_targets.json",
 		"tools/game_mcp/player_profiles.json",
+		"tools/game_mcp/build_profiles.json",
 	};
 
 	json files = json::array();

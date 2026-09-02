@@ -39,10 +39,12 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 	{
 		return;
 	}
+	const std::vector<Pocket*> pockets =
+		Game::GetInstance()->GetComponents<Pocket>();
 
-	// A ball can already overlap a pocket after another ball resolves its
-	// collision first. Handle that state before applying this frame's motion.
-	if (CheckPocketHitAlongMovement(GetPosition()))
+	// 別のボールが先に衝突を解決した結果、すでにポケットと重なっている場合がある。
+	// このフレームの移動を適用する前に、その状態を処理する。
+	if (CheckPocketHitAlongMovement(GetPosition(), pockets))
 	{
 		return;
 	}
@@ -78,7 +80,8 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 		// 必要な分割数（速度が遅ければ1回、速ければ自動で増える）
 		int subSteps = (std::max)(1, static_cast<int>(std::ceil(moveDistance / maxStep)));
 
-		std::vector<BallComponent*> balls = Game::GetInstance()->GetComponents<BallComponent>();
+		const std::vector<BallComponent*> balls =
+			Game::GetInstance()->GetComponents<BallComponent>();
 		for (BallComponent* other : balls)
 		{
 			if (other == m_BallComponent) continue;
@@ -105,9 +108,9 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 
 			// 少しだけ移動させる
 			Translate(stepVelocity);
-			// Check the swept path, not only the final frame position. This
-			// prevents fast balls from passing completely through a pocket.
-			if (CheckPocketHitAlongMovement(movementStart))
+			// フレーム終端の位置だけでなく、移動中に通過した経路も調べる。
+			// これにより、高速なボールがポケットを完全にすり抜けることを防ぐ。
+			if (CheckPocketHitAlongMovement(movementStart, pockets))
 			{
 				return;
 			}
@@ -168,7 +171,6 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 			}
 
 			// ボール同士の衝突判定（二重処理防止版）
-			std::vector<BallComponent*> balls = Game::GetInstance()->GetComponents<BallComponent>();
 			bool foundSelf = false;  // 自分を見つけたかのフラグ
 
 			for (BallComponent* other : balls)
@@ -231,12 +233,14 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 						myPlayer != nullptr &&
 						otherEnemy != nullptr &&
 						HasPierceAbility() &&
-						!m_PierceConsumed;
+						m_PierceUseCount <
+							Game::GetInstance()->GetPierceMaximumUses();
 					const bool otherPlayerPiercesMe =
 						otherPlayer != nullptr &&
 						myEnemy != nullptr &&
 						other->HasPierceAbility() &&
-						!otherCollision->m_PierceConsumed;
+						otherCollision->m_PierceUseCount <
+							Game::GetInstance()->GetPierceMaximumUses();
 					const bool piercesThisCollision =
 						myPlayerPiercesOther ||
 						otherPlayerPiercesMe;
@@ -255,23 +259,24 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 					{
 						if (piercesThisCollision)
 						{
-							constexpr float PierceSpeedRetention = 0.75f;
+							const float pierceSpeedRetention =
+								Game::GetInstance()->GetPierceSpeedRetention();
 							if (myPlayerPiercesOther)
 							{
-								m_PierceConsumed = true;
+								m_PierceUseCount++;
 								m_PiercedBall = other;
 								m_PhysicsComponent->Velocity() *=
-									PierceSpeedRetention;
+									pierceSpeedRetention;
 								stepVelocity =
 									m_PhysicsComponent->Velocity() /
 									static_cast<float>(subSteps);
 							}
 							else
 							{
-								otherCollision->m_PierceConsumed = true;
+								otherCollision->m_PierceUseCount++;
 								otherCollision->m_PiercedBall = m_BallComponent;
 								otherCollision->m_PhysicsComponent->Velocity() *=
-									PierceSpeedRetention;
+									pierceSpeedRetention;
 							}
 						}
 						else
@@ -302,9 +307,17 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 								static_cast<float>(subSteps);
 						}
 
+						// Physics separation remains active in every state, but a
+						// contact is an attack only while a shot is being resolved.
+						if (Game::GetInstance()->GetGameState() !=
+							GameState::BallsMoving)
+						{
+							continue;
+						}
+
 						// ==========================================================
 						// ==========================================================
-						// Apply collision damage
+						// 衝突ダメージを適用する
 						// ==========================================================
 						int damageToThis = other->GetAttack();
 						int damageToOther = GetAttack();
@@ -332,6 +345,17 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 								{
 									damageToThis *= bankShotMultiplier;
 								}
+								const int relicDamageBonus =
+									Game::GetInstance()->
+										ConsumePlayerEnemyRelicDamageBonus();
+								if (myPlayer != nullptr)
+								{
+									damageToOther += relicDamageBonus;
+								}
+								else
+								{
+									damageToThis += relicDamageBonus;
+								}
 							}
 						}
 						if (isEnemyEnemyCollision)
@@ -350,6 +374,18 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 							otherEnemy != nullptr &&
 							myPlayer != nullptr &&
 							otherEnemy->GetHP() == otherEnemy->GetMaxHP();
+						const int myEnemyHpBefore =
+							myEnemy != nullptr ? myEnemy->GetHP() : 0;
+						const int otherEnemyHpBefore =
+							otherEnemy != nullptr ? otherEnemy->GetHP() : 0;
+						const bool myEnemyWasDefeated =
+							myEnemy != nullptr && myEnemy->IsDefeated();
+						const bool otherEnemyWasDefeated =
+							otherEnemy != nullptr && otherEnemy->IsDefeated();
+						const Vector3 myEnemyFeedbackPosition =
+							myEnemy != nullptr ? myEnemy->GetPosition() : Vector3::Zero;
+						const Vector3 otherEnemyFeedbackPosition =
+							otherEnemy != nullptr ? otherEnemy->GetPosition() : Vector3::Zero;
 
 						if (isPlayerEnemyCollision)
 						{
@@ -368,6 +404,18 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 						if (myEnemy != nullptr)
 						{
 							myEnemy->TakeDamage(damageToThis);
+							const int appliedDamage = (std::max)(
+								0,
+								myEnemyHpBefore - myEnemy->GetHP());
+							if (!myEnemyWasDefeated &&
+								(appliedDamage > 0 || myEnemy->IsDefeated()))
+							{
+								Game::GetInstance()->NotifyCombatFeedback(
+									myEnemyFeedbackPosition,
+									appliedDamage,
+									myEnemy->IsDefeated(),
+									isEnemyEnemyCollision);
+							}
 							if (myEnemyWasFullHp &&
 								!myEnemy->IsDefeated())
 							{
@@ -379,6 +427,18 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 						if (otherEnemy != nullptr)
 						{
 							otherEnemy->TakeDamage(damageToOther);
+							const int appliedDamage = (std::max)(
+								0,
+								otherEnemyHpBefore - otherEnemy->GetHP());
+							if (!otherEnemyWasDefeated &&
+								(appliedDamage > 0 || otherEnemy->IsDefeated()))
+							{
+								Game::GetInstance()->NotifyCombatFeedback(
+									otherEnemyFeedbackPosition,
+									appliedDamage,
+									otherEnemy->IsDefeated(),
+									isEnemyEnemyCollision);
+							}
 							if (otherEnemyWasFullHp &&
 								!otherEnemy->IsDefeated())
 							{
@@ -387,8 +447,8 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 							}
 						}
 
-						// Anchor balls transfer the collision first, then stop at
-						// the resolved contact position.
+						// アンカー球は先に衝突の力を相手へ伝え、
+						// 接触解決後の位置で停止する。
 						if (isPlayerEnemyCollision)
 						{
 							if (myPlayer != nullptr &&
@@ -397,6 +457,7 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 								m_PhysicsComponent->Velocity() = Vector3::Zero;
 								m_PhysicsComponent->Acceleration() = Vector3::Zero;
 								stepVelocity = Vector3::Zero;
+								Game::GetInstance()->NotifyAnchorStopped();
 							}
 							else if (otherPlayer != nullptr &&
 								other->HasAnchorAbility())
@@ -405,6 +466,7 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 									Vector3::Zero;
 								otherCollision->m_PhysicsComponent->Acceleration() =
 									Vector3::Zero;
+								Game::GetInstance()->NotifyAnchorStopped();
 							}
 						}
 
@@ -425,9 +487,9 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 				}
 			}
 
-			// Wall and ball collision resolution can change the position after
-			// the first trigger check, so verify the completed substep as well.
-			if (CheckPocketHitAlongMovement(movementStart))
+			// 壁やボールとの衝突解決によって、最初のトリガー判定後に位置が変わる場合があるため、
+			// サブステップ完了後の位置でも再確認する。
+			if (CheckPocketHitAlongMovement(movementStart, pockets))
 			{
 				return;
 			}
@@ -438,7 +500,7 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 		// Groundが無い時の保険
 		const Vector3 movementStart = GetPosition();
 		Translate(m_PhysicsComponent->Velocity());
-		if (CheckPocketHitAlongMovement(movementStart))
+		if (CheckPocketHitAlongMovement(movementStart, pockets))
 		{
 			return;
 		}
@@ -447,7 +509,7 @@ void BallCollisionComponent::ResolveMovementAndCollisions(
 
 void BallCollisionComponent::ResetShotAbilityState()
 {
-	m_PierceConsumed = false;
+	m_PierceUseCount = 0;
 	m_PiercedBall = nullptr;
 }
 
@@ -484,14 +546,15 @@ bool BallCollisionComponent::HasPierceAbility() const
 }
 
 bool BallCollisionComponent::CheckPocketHitAlongMovement(
-	const Vector3& movementStart)
+	const Vector3& movementStart,
+	const std::vector<Pocket*>& pockets)
 {
 	if (m_BallComponent == nullptr)
 	{
 		return false;
 	}
-	// A normally defeated enemy remains physical until the shot stops and can
-	// still fall into a pocket. A defeated player does not need pocket logic.
+	// 通常ダメージで倒れた敵はショット停止まで物理判定が残り、
+	// その間にポケットへ落ちる可能性がある。敗北したプレイヤーにはポケット処理を行わない。
 	if (m_BallComponent->IsDefeated() &&
 		GetGameObject()->GetComponent<EnemyBall>() == nullptr)
 	{
@@ -500,8 +563,6 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 
 	Vector3 segmentStart = movementStart;
 	Vector3 segmentEnd = GetPosition();
-	const std::vector<Pocket*> pockets =
-		Game::GetInstance()->GetComponents<Pocket>();
 	for (Pocket* pocket : pockets)
 	{
 		if (pocket == nullptr || pocket->GetGameObject() == nullptr ||
@@ -511,8 +572,8 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 		}
 
 		const Collision::Sphere pocketSphere = pocket->GetSphere();
-		// Pocket gameplay is two-dimensional. Project the swept segment to
-		// the table height so visual/model Y offsets cannot suppress a hit.
+		// ポケットのゲーム判定は二次元で行う。移動線分をテーブルの高さへ投影し、
+		// 描画モデルのY方向のずれによって判定が失われないようにする。
 		segmentStart.y = pocketSphere.center.y;
 		segmentEnd.y = pocketSphere.center.y;
 		const float triggerRadius =

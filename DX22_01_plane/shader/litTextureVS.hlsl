@@ -4,32 +4,32 @@ PS_IN main(in VS_IN input)
 {
     PS_IN output;
 
-	//positoin=============================
-	// ƒ[ƒ‹ƒhAƒrƒ…[AƒvƒƒWƒFƒNƒVƒ‡ƒ“s—ñ‚ğŠ|‚¯‡‚í‚¹‚ÄÀ•W•ÏŠ·‚ğs‚¤
+	// ä½ç½®================================
+	// ãƒ¯ãƒ¼ãƒ«ãƒ‰ã€ãƒ“ãƒ¥ãƒ¼ã€ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ã‚·ãƒ§ãƒ³è¡Œåˆ—ã‚’æ›ã‘åˆã‚ã›ã¦åº§æ¨™å¤‰æ›ã‚’è¡Œã†
 	matrix wvp;
 	wvp = mul(World, View);
 	wvp = mul(wvp, Projection);
     output.pos = mul(input.pos, wvp);
 	
-	//color=============================
-	// –@üƒxƒNƒgƒ‹‚Ì•ÏŠ·‚Æ³‹K‰»‚ğs‚¤
-	// “ü—Í‚³‚ê‚½–@ü‚ğƒ[ƒ‹ƒh‹óŠÔ‚É•ÏŠ·‚µA³‹K‰»‚·‚é
-    float4 normal = float4(input.nrm.xyz, 0.0);	//“ü—Í–@ü‚ğfloat4‚É•ÏŠ·(w=0)
-    float4 worldNormal = mul(normal, World);	//–@ü‚ğƒ[ƒ‹ƒh‹óŠÔ‚É•ÏŠ·
-    worldNormal = normalize(worldNormal);		//–@üƒxƒNƒgƒ‹‚ğ³‹K‰»
+	// è‰²==================================
+	// æ³•ç·šãƒ™ã‚¯ãƒˆãƒ«ã®å¤‰æ›ã¨æ­£è¦åŒ–ã‚’è¡Œã†
+	// å…¥åŠ›ã•ã‚ŒãŸæ³•ç·šã‚’ãƒ¯ãƒ¼ãƒ«ãƒ‰ç©ºé–“ã«å¤‰æ›ã—ã€æ­£è¦åŒ–ã™ã‚‹
+    float4 normal = float4(input.nrm.xyz, 0.0);	//å…¥åŠ›æ³•ç·šã‚’float4ã«å¤‰æ›(w=0)
+    float4 worldNormal = mul(normal, World);	//æ³•ç·šã‚’ãƒ¯ãƒ¼ãƒ«ãƒ‰ç©ºé–“ã«å¤‰æ›
+    worldNormal = normalize(worldNormal);		//æ³•ç·šãƒ™ã‚¯ãƒˆãƒ«ã‚’æ­£è¦åŒ–
 	
-	// ŒõŒ¹•ûŒü‚Æ–@üƒxƒNƒgƒ‹‚Ì“àÏ‚ğŒvZ‚µ‚ÄŠgUŒõ‚ğ‹‚ß‚é
-    float d = -dot(Light.Direction.xyz, worldNormal.xyz);	//Œõ‚Ì•ûŒü‚Æ–@ü‚Ì“àÏ‚ğŒvZ
+	// å…‰æºæ–¹å‘ã¨æ³•ç·šãƒ™ã‚¯ãƒˆãƒ«ã®å†…ç©ã‚’è¨ˆç®—ã—ã¦æ‹¡æ•£å…‰ã‚’æ±‚ã‚ã‚‹
+    float d = -dot(Light.Direction.xyz, worldNormal.xyz);	//å…‰ã®æ–¹å‘ã¨æ³•ç·šã®å†…ç©ã‚’è¨ˆç®—
 	
-    d = saturate(d);	// d‚Ì’l‚ğ0`‚P‚ÉƒNƒ‰ƒ“ƒv
+    d = saturate(d);	// dã®å€¤ã‚’0ï½ï¼‘ã«ã‚¯ãƒ©ãƒ³ãƒ—
 	
-    output.col.xyz = input.col.xyz * d * Light.Diffuse.xyz; // ŠgUŒõ‚Ì‰e‹¿‚ğæZ
-    output.col.xyz += input.col.xyz * Light.Ambient.xyz; // ƒAƒ“ƒrƒGƒ“ƒgŒõ‚ğ‰ÁZ
-    output.col.xyz += Material.Emission.xyz;	//Emiision‚ğ‰ÁZ
-    output.col.a = input.col.a * Material.Diffuse.a; // ƒAƒ‹ƒtƒ@’l‚Éƒ}ƒeƒŠƒAƒ‹‚Ì’l‚ğ‚©‚¯‚é
+    output.col.xyz = input.col.xyz * d * Light.Diffuse.xyz; // æ‹¡æ•£å…‰ã®å½±éŸ¿ã‚’ä¹—ç®—
+    output.col.xyz += input.col.xyz * Light.Ambient.xyz; // ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆå…‰ã‚’åŠ ç®—
+    output.col.xyz += Material.Emission.xyz;	// è‡ªå·±ç™ºå…‰è‰²ã‚’åŠ ç®—
+    output.col.a = input.col.a * Material.Diffuse.a; // ã‚¢ãƒ«ãƒ•ã‚¡å€¤ã«ãƒãƒ†ãƒªã‚¢ãƒ«ã®å€¤ã‚’ã‹ã‘ã‚‹
 	
-	//texture=============================
-	// ƒeƒNƒXƒ`ƒƒÀ•W‚Í‚»‚Ì‚Ü‚Üg—p
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£==========================
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã¯ãã®ã¾ã¾ä½¿ç”¨
     output.tex = input.tex;
 	
     return output;

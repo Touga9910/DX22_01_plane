@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Collision.h"
 #include "Component.h"
@@ -9,8 +9,8 @@
 class TableFrameCollisionComponent;
 class TableFrameRenderComponent;
 
-// Public table-frame gameplay API. Geometry and rendering are supplied by
-// sibling components on the same GameObject.
+// テーブル枠がゲームプレイ向けに公開するAPI。
+// 形状と描画は、同じGameObjectにある別コンポーネントが提供する。
 class TableFrame final : public Component
 {
 public:

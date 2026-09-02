@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 #include "Material.h"
@@ -10,11 +10,12 @@
 #include <memory>
 #include <vector>
 
-// Ball model resources and mesh drawing are isolated from ball control/physics.
+// ボールの制御や物理処理から、モデルリソースとメッシュ描画を分離する。
 class BallRenderComponent final : public Component
 {
 public:
     void LoadModel(const char* modelFilePath, const char* textureDirectory);
+    void SetTint(const DirectX::SimpleMath::Color& color);
     void BeginDraw();
     void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix);
 

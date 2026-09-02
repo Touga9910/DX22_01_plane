@@ -3,34 +3,56 @@
 #include "Input.h"
 #include "Texture2D.h"
 #include "Texture2DFactory.h"
+#include "UiText.h"
 #include "imgui/imgui.h"
 
 namespace
 {
 	// 各枠の抽選比率。値を変更するだけで出現確率を調整できる。
-	constexpr int kBattleWeight = 6;
-	constexpr int kShopWeight = 2;
-	constexpr int kRestSiteWeight = 2;
+	// Facilities are 12% each. The remaining 76% keeps the existing
+	// normal-battle-to-midboss ratio of 5:1.
+	constexpr int kNormalBattleWeight = 95;
+	constexpr int kMidBossWeight = 19;
+	constexpr int kShopWeight = 18;
+	constexpr int kRestSiteWeight = 18;
 
 	static_assert(
-		kBattleWeight + kShopWeight + kRestSiteWeight > 0,
+		kNormalBattleWeight + kMidBossWeight +
+		kShopWeight + kRestSiteWeight > 0,
 		"At least one route weight must be greater than zero.");
 	static_assert(
-		kBattleWeight >= 0 && kShopWeight >= 0 && kRestSiteWeight >= 0,
+		kNormalBattleWeight >= 0 && kMidBossWeight >= 0 &&
+		kShopWeight >= 0 && kRestSiteWeight >= 0,
 		"Route weights must not be negative.");
 
 	const char* GetRouteName(StageRouteType routeType)
 	{
 		switch (routeType)
 		{
-		case StageRouteType::Battle:
-			return "Battle";
+		case StageRouteType::NormalBattle: return "Normal Battle";
+		case StageRouteType::MidBoss: return "Mid Boss";
 		case StageRouteType::Shop:
 			return "Shop";
 		case StageRouteType::RestSite:
 			return "Rest Site";
+		case StageRouteType::FinalBoss: return "Final Boss";
 		default:
 			return "Unknown";
+		}
+	}
+
+	const char* GetLocalizedRouteName(StageRouteType routeType)
+	{
+		switch (routeType)
+		{
+		case StageRouteType::NormalBattle: return UiText::RouteBattle;
+		case StageRouteType::MidBoss:
+			return RelicUtf8(u8"\u4e2d\u30dc\u30b9");
+		case StageRouteType::Shop: return UiText::RouteShop;
+		case StageRouteType::RestSite: return UiText::RouteRest;
+		case StageRouteType::FinalBoss:
+			return RelicUtf8(u8"\u6700\u7d42\u30dc\u30b9");
+		default: return "Unknown";
 		}
 	}
 
@@ -38,12 +60,13 @@ namespace
 	{
 		switch (routeType)
 		{
-		case StageRouteType::Battle:
-			return "battle";
+		case StageRouteType::NormalBattle: return "battle";
+		case StageRouteType::MidBoss: return "midboss";
 		case StageRouteType::Shop:
 			return "shop";
 		case StageRouteType::RestSite:
 			return "rest";
+		case StageRouteType::FinalBoss: return "final_boss";
 		default:
 			return "unknown";
 		}
@@ -82,13 +105,14 @@ void StageSelectScene::Init()
 // 更新
 void StageSelectScene::Update()
 {
+	const int nodeCount = GetRouteNodeCount();
 	if (Input::GetKeyTrigger(VK_S) || Input::GetKeyTrigger(VK_DOWN))
 	{
-		m_SelectedNode = (m_SelectedNode + 1) % kNodeCount;
+		m_SelectedNode = (m_SelectedNode + 1) % nodeCount;
 	}
 	if (Input::GetKeyTrigger(VK_W) || Input::GetKeyTrigger(VK_UP))
 	{
-		m_SelectedNode = (m_SelectedNode + kNodeCount - 1) % kNodeCount;
+		m_SelectedNode = (m_SelectedNode + nodeCount - 1) % nodeCount;
 	}
 
 	if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
@@ -99,9 +123,16 @@ void StageSelectScene::Update()
 
 void StageSelectScene::RollRouteNodes()
 {
-	const std::array<int, 3> weights =
+	if (Game::GetInstance()->IsFinalBossRoute())
 	{
-		kBattleWeight,
+		m_RouteNodes.fill(StageRouteType::FinalBoss);
+		return;
+	}
+
+	const std::array<int, 4> weights =
+	{
+		kNormalBattleWeight,
+		kMidBossWeight,
 		kShopWeight,
 		kRestSiteWeight
 	};
@@ -118,7 +149,9 @@ void StageSelectScene::RollRouteNodes()
 
 int StageSelectScene::GetRouteNodeCount() const
 {
-	return static_cast<int>(m_RouteNodes.size());
+	return Game::GetInstance()->IsFinalBossRoute()
+		? 1
+		: static_cast<int>(m_RouteNodes.size());
 }
 
 const char* StageSelectScene::GetRouteIdAt(int routeIndex) const
@@ -162,17 +195,25 @@ bool StageSelectScene::ChooseRoute(
 			{ "offered_routes", std::move(offeredRoutes) },
 			{ "selected_index", routeIndex },
 			{ "selected_route", GetRouteName(routeType) },
+			{ "area_progress", game->GetAreaProgress() },
+			{ "run_phase", ToString(game->GetRunPhase()) },
 		});
 	switch (routeType)
 	{
-	case StageRouteType::Battle:
-		game->StartNextBattle();
+	case StageRouteType::NormalBattle:
+		game->StartNextBattle(StageType::Normal);
+		break;
+	case StageRouteType::MidBoss:
+		game->StartNextBattle(StageType::MidBoss);
 		break;
 	case StageRouteType::Shop:
 		game->ChangeScene(SceneType::Shop);
 		break;
 	case StageRouteType::RestSite:
 		game->ChangeScene(SceneType::RestSite);
+		break;
+	case StageRouteType::FinalBoss:
+		game->StartNextBattle(StageType::Boss);
 		break;
 	default:
 		return false;
@@ -187,28 +228,37 @@ void StageSelectScene::DrawUI()
 	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
 
-	ImGui::Begin("Route Select", nullptr, flags);
-	ImGui::Text("Floor %d", Game::GetInstance()->GetClearedStageCount() + 1);
-	ImGui::Text("HP %d / %d    Money %d    Deck %d",
+	ImGui::Begin(UiText::RouteWindow, nullptr, flags);
+	ImGui::Text(
+		RelicUtf8(u8"\u901a\u5e38\u30a8\u30ea\u30a2 %d / %d"),
+		Game::GetInstance()->GetAreaProgress(),
+		Game::GetInstance()->GetNormalRouteAreaGoal());
+	ImGui::Text(
+		RelicUtf8(u8"\u30d5\u30a7\u30fc\u30ba: %s"),
+		ToString(Game::GetInstance()->GetRunPhase()));
+	ImGui::Text(UiText::RunStatusFormat,
 		Game::GetInstance()->GetPlayerCurrentHp(),
 		Game::GetInstance()->GetPlayerMaxHp(),
 		Game::GetInstance()->GetPlayerMoney(),
 		Game::GetInstance()->GetDeckBallCount());
 	ImGui::Separator();
-	ImGui::TextUnformatted("Choose the next node");
+	ImGui::TextUnformatted(UiText::ChooseNode);
 
-	for (int index = 0; index < kNodeCount; index++)
+	for (int index = 0; index < GetRouteNodeCount(); index++)
 	{
 		ImGui::Text(
 			"%s %s",
 			index == m_SelectedNode ? ">" : " ",
-			GetRouteName(m_RouteNodes[index]));
+			GetLocalizedRouteName(m_RouteNodes[index]));
 	}
-	ImGui::TextUnformatted("Next battle stage: Random");
+	ImGui::TextUnformatted(
+		Game::GetInstance()->IsFinalBossRoute()
+		? RelicUtf8(u8"\u3053\u306e\u5148\u306f\u6700\u7d42\u30dc\u30b9\u3067\u3059\u3002")
+		: UiText::NextBattleRandom);
 
 	ImGui::Separator();
-	ImGui::TextUnformatted("W/S or UP/DOWN : Select");
-	ImGui::TextUnformatted("ENTER or SPACE : Enter node");
+	ImGui::TextUnformatted(UiText::RouteSelectControls);
+	ImGui::TextUnformatted(UiText::RouteEnterControls);
 	ImGui::End();
 }
 

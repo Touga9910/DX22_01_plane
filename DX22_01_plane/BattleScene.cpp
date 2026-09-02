@@ -327,6 +327,8 @@ void BattleScene::ReloadEnemyStatusFromJson()
 
 		enemy->ApplyHotReloadData(it->second);
 	}
+	Game::GetInstance()->InvalidateDebugCombatForecast(
+		"エネミーステータス再読込");
 
 	std::cout << "[HotReload] 敵ステータスを更新しました" << std::endl;
 }

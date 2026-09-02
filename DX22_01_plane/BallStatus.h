@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 struct BallAbilities
 {
 	bool split = false;
@@ -18,3 +20,13 @@ struct BallStatus
 	float friction = 0.02f;
 	BallAbilities abilities;
 };
+
+inline BallStatus NormalizeBallStatus(BallStatus status)
+{
+	status.maxHp = (std::max)(1, status.maxHp);
+	status.mass = (std::max)(0.0001f, status.mass);
+	status.radius = (std::max)(0.0f, status.radius);
+	status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);
+	status.friction = (std::max)(0.0f, status.friction);
+	return status;
+}

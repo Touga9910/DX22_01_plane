@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -9,9 +9,9 @@
 
 class Game;
 
-// Exchanges a bounded game-state snapshot and one pending command with a
-// local MCP server. The game remains the authority that validates and applies
-// every state-changing command.
+// 制限されたゲーム状態のスナップショットと、保留中のコマンド1件を
+// ローカルMCPサーバーと交換する。状態変更コマンドの検証と適用に関する
+// 最終的な決定権は、ゲーム側が保持する。
 class GameMcpBridge
 {
 public:
@@ -41,8 +41,10 @@ private:
 private:
 	bool m_Enabled = false;
 	bool m_AllowWriteActions = true;
-	int m_PublishIntervalFrames = 10;
+	int m_PublishIntervalFrames = 60;
 	int m_FramesUntilPublish = 0;
+	int m_CommandPollIntervalFrames = 6;
+	int m_FramesUntilCommandPoll = 0;
 	std::uint64_t m_StateSequence = 0;
 	std::string m_LastCommandId;
 	std::vector<std::string> m_StageEnemyIds;

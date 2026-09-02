@@ -62,6 +62,7 @@ void PlayerBall::Init()
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
+	m_RenderComponent->SetTint(Color(0.18f, 0.58f, 1.0f, 1.0f));
 
 	m_Ball->SetPosition(Vector3(0.0f, 1.0f, 0.0f));
 
@@ -77,7 +78,7 @@ void PlayerBall::Init()
 		visualScale));
 	UpdateRadius();
 
-	// ★ Groundから台の高さを取得して合わせる
+	// Groundから台の高さを取得して合わせる
 	std::vector<Ground*> grounds = Game::GetInstance()->GetComponents<Ground>();
 	if (grounds.size() > 0)
 	{
@@ -204,6 +205,12 @@ void PlayerBall::Defeat()
 
 void PlayerBall::OnPocketHit()
 {
+	if (m_Ball == nullptr || m_IsPocketed)
+	{
+		return;
+	}
+
+	const Vector3 pocketPosition = GetPosition();
 	const int hpBefore = GetHP();
 	const int pocketDamage =
 		Game::GetInstance()->GetPlayerPocketDamageAmount();
@@ -211,6 +218,14 @@ void PlayerBall::OnPocketHit()
 	m_Ball->SetHP(hpAfter);
 	Game::GetInstance()->NotifyPlayerDamage(
 		"pocket",
+		(std::max)(0, hpBefore - hpAfter),
+		std::string(),
+		hpBefore,
+		hpAfter);
+	Game::GetInstance()->NotifyPocketFeedback(
+		pocketPosition,
+		true,
+		false,
 		(std::max)(0, hpBefore - hpAfter));
 	Game::GetInstance()->CapturePlayerStatusFrom(this);
 	if (hpAfter <= 0)
@@ -219,9 +234,38 @@ void PlayerBall::OnPocketHit()
 		return;
 	}
 
-	const Vector3 returnPosition =
-		Game::GetInstance()->FindPlayerPocketReturnPosition(this);
-	m_Ball->ResetAtPosition(returnPosition);
+	EnterPocketQueue();
+}
+
+void PlayerBall::EnterPocketQueue()
+{
+	if (m_Ball == nullptr || IsDefeated() || m_IsPocketed)
+	{
+		return;
+	}
+
+	m_IsPocketed = true;
+	m_Ball->ResetAtPosition(Vector3(0.0f, -1000.0f, 0.0f));
+	m_State = State::Idle;
+	if (GameObject* owner = GetGameObject())
+	{
+		owner->SetActive(false);
+	}
+}
+
+void PlayerBall::ReturnFromPocket(const Vector3& position)
+{
+	if (m_Ball == nullptr || IsDefeated() || !m_IsPocketed)
+	{
+		return;
+	}
+
+	m_Ball->ResetAtPosition(position);
+	m_IsPocketed = false;
+	if (GameObject* owner = GetGameObject())
+	{
+		owner->SetActive(true);
+	}
 
 	m_TrajectoryPositions.clear();
 	m_PrePositions.clear();
@@ -285,6 +329,7 @@ void PlayerBall::UpdateStopByFriction()
 	if (m_StopCount > 10)
 	{
 		m_Ball->GetMutableVelocity() = Vector3::Zero;            // 完全停止として速度を0にする
+		m_Ball->GetMutableAcceleration() = Vector3::Zero;
 		m_State = State::Idle;                 // ショット待ち状態へ戻す
 	}
 }
@@ -399,7 +444,12 @@ void PlayerBall::UpdateAim()
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
 		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f;
 
-	if (m_PreTrajectoryDirty || previewChanged || m_PrePositions.empty())
+	constexpr int kPreviewRefreshCooldownFrames = 1;
+	const bool immediateRefresh =
+		m_PreTrajectoryDirty || m_PrePositions.empty();
+	const bool delayedRefresh =
+		previewChanged && m_PreviewRefreshFramesRemaining <= 0;
+	if (immediateRefresh || delayedRefresh)
 	{
 		GeneratePreTrajectory(GetShotVector());
 
@@ -407,6 +457,16 @@ void PlayerBall::UpdateAim()
 		m_LastPreviewShotPower = m_ShotPower;
 		m_LastPreviewPosition = m_Ball->GetPosition();
 		m_PreTrajectoryDirty = false;
+		m_PreviewRefreshFramesRemaining =
+			kPreviewRefreshCooldownFrames;
+	}
+	else if (previewChanged)
+	{
+		--m_PreviewRefreshFramesRemaining;
+	}
+	else
+	{
+		m_PreviewRefreshFramesRemaining = 0;
 	}
 }
 
@@ -1079,7 +1139,7 @@ void PlayerBall::DrawImGui()
 	// PlayerBall固有の情報を追加
 	if (ImGui::CollapsingHeader("PlayerBall Detail"))
 	{
-		// ▼ "PlayerBall Detail" ヘッダー内の既存表示の後に追加 ▼
+		// ▼ プレイヤーボール詳細ヘッダー内の既存表示の後に追加 ▼
 
 		// エイム情報
 		ImGui::SliderFloat("Aim Angle", &m_AimAngle, -3.14159265f, 3.14159265f);

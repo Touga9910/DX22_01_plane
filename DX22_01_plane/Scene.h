@@ -1,7 +1,7 @@
-#pragma once
+﻿#pragma once
 #include <memory>
 
-// Base scene class.
+// 各シーンの基底クラス。
 class Scene
 {
 public:

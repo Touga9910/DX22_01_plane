@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 #include "IndexBuffer.h"
@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-// Owns the unit ground mesh and all GPU resources required to draw it.
+// 単位地面メッシュと、描画に必要なGPUリソースを所有する。
 class GroundRenderComponent final : public Component
 {
 public:

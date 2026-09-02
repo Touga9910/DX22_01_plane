@@ -50,13 +50,51 @@ MCPサーバーだけに適用され、再起動時は起動オプションま�
 指示文、壁反射の許可、推奨パワー範囲を調整する場合はこのファイルを編集し、
 MCPサーバーを再起動してください。
 
+## ビルド別収集方針
+
+操作精度を表す`player_level`とは別に、取得・強化・射撃戦術を表す
+`build_profile`を指定できます。用意されている方針は`standard`、
+`heavy`、`pierce`、`bounce`、`anchor`です。
+
+```bat
+tools\game_mcp\start_game_mcp.cmd --player-level intermediate --build-profile pierce
+```
+
+接続後はタイトルまたはリザルト画面で`set_build_profile`を使って
+切り替えられます。ラン途中の切り替えは比較条件が混ざるため拒否されます。
+優先する新規ボール・強化対象・報酬・レリック・反射・ポケット制御は
+`tools/game_mcp/build_profiles.json`にあり、変更時はMCPサーバーを
+再起動してください。設定内容はSHA-256とともにランログへ残ります。
+
+固定条件の自動収集は次のように実行します。
+
+```bat
+tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_runs.py --profile intermediate --build-profile pierce --runs 10
+```
+
+調整前後を同じ乱数条件で比較する場合は、`--run-seed` を繰り返し指定し、
+`--validation-variant` でDDAなどの検証条件を固定します。
+
+```bat
+tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_runs.py --profile intermediate --build-profile standard --runs 2 --run-seed 20260807 --run-seed 20260817 --validation-variant dda_off
+```
+
+シードは指定順に使われ、ラン数のほうが多い場合は循環します。
+`start_new_run` からも任意の `run_seed` と `validation_variant` を渡せます。
+固定シード時はステージ・経路・ポケット配置・山札シャッフルと、
+MCPの人間的ショット誤差が再現されます。
+
+収集AIはビルド方針に従って経路、報酬、新規ボール、強化、レリック、
+射撃種別を選び、判断理由もログへ送ります。MCPサーバーと収集AIで設定
+ハッシュが異なる場合は、比較不能なログを作らず開始前に停止します。
+
 ### 人間的なショット誤差
 
 MCPが計算した理想照準に対し、`player_profiles.json`の
 `human_error` を使って毎ショットに少量の誤差を加えます。
 
 - `aim_radius_ratio`: 敵ボール半径に対する左右の照準誤差上限
-- `power_ratio`: AIが指定したパワーに対する誤差上限
+- `power_ratio`: 自動計算またはmanual指定したパワーに対する誤差上限
 
 誤差は0付近が出やすい三角分布で、設定した±上限内に収まります。
 既定値の照準誤差は全レベルで半径の±2%、パワー誤差は
@@ -67,11 +105,11 @@ MCPが計算した理想照準に対し、`player_profiles.json`の
 ## 動的バランス調整
 
 既定で有効です。各戦闘の勝敗、残HP率、ショット数、敵に一度も
-当たらなかったショットの割合をゲーム側で評価し、難易度レベルを
-`-3`～`+3`の範囲で1段階ずつ変更します。補正は戦闘途中ではなく、
-次の戦闘で生成される敵へ適用されます。正方向のレベルはHPだけを
-増加させ、敵数に比例して総攻撃力が急増しないよう攻撃力は増やしません。
-負方向では救済としてHPを下げ、レベル-2以下では攻撃力も下げます。
+当たらなかったショットの割合をゲーム側で評価し、救済レベルを
+`-3`～`0`の範囲で1段階ずつ変更します。補正は戦闘途中ではなく、
+次の戦闘で生成される敵へ適用されます。好成績時は救済を基準値0へ
+戻すだけで、基準より敵を強くしません。負方向ではHPを下げ、
+レベル-2以下では攻撃力も下げます。
 
 現在値は`get_game_state`の`dynamic_balance`で確認できます。
 
@@ -90,9 +128,10 @@ MCPが計算した理想照準に対し、`player_profiles.json`の
 再起動してください。MCPの行動指示ではなく、ゲーム本体の設定なので、
 動的調整のルールを変更する場合に編集する場所はこのJSONです。
 
-DDAのON/OFFとは別に、進行度20から敵攻撃力を+1、以後5進行度ごとに
-+1する後半スケーリングがあります（最大+8）。これはDDA OFFの
-固定条件でもランが永続しないための基礎難易度曲線です。
+DDAのON/OFFとは別に、進行度10から敵HPを+1、以後5進行度ごとに
++1して最大+4、進行度20から敵攻撃力を+1、以後5進行度ごとに
++1して最大+8とする後半スケーリングがあります。これはDDA OFFの
+固定条件でも後半ビルドへ基礎難易度が追従するための曲線です。
 `get_game_state.progression_scaling`で現在の補正値を確認できます。
 
 ## ステージ配置のバランス調整
@@ -124,6 +163,13 @@ DDAのON/OFFとは別に、進行度20から敵攻撃力を+1、以後5進行度
 旧ゲーム実行ファイルが`target_id`をまだ公開していない場合も、
 MCPサーバーが敵の列挙順から同じ形式のIDを補完します。
 
+パワーは`power_mode=auto`が既定です。対象までの距離と直射・反射を
+現在のプレイヤーレベルの推奨範囲へ割り当てるため、近距離は弱く、
+遠距離や反射経路は強くなります。通常プレイでは`power`を省略します。
+固定パワーを検証するときだけ`power_mode=manual`と`power=1～8`を
+同時に指定します。実際の選択理由と補正値は応答およびログの
+`shot_plan.power_policy`で確認できます。
+
 - `shot_type=direct`: 対象へ直接照準します。
 - `shot_type=bank`: 壁で1回反射して対象を狙います。
 - `wall_index=-1`: `table.walls` から有効な最短反射経路を自動選択します。
@@ -137,7 +183,7 @@ MCPサーバーが敵の列挙順から同じ形式のIDを補完します。
 `get_game_state.table.pockets`に6個のポケット位置、
 `pocket_rules`に現在の処理とフィニッシュしきい値が公開されます。
 
-- 自ボールが入ると最大HPの5%ダメージ（切り上げ、防御無視）を受け、中央付近へランダム復帰
+- 自ボールが入ると最大HPの4%ダメージ（切り上げ、防御無視）を受け、中央付近へランダム復帰
 - 敵が通常戦30%、中ボス戦20%、ボス戦10%以下で入るとフィニッシュ
 - しきい値よりHPが多い敵はそのターンの攻撃を行わず復帰キューへ入る
 - 復帰キューの敵は敵攻撃フェーズ終了時に1体ずつ固定返却エリアへ戻る
@@ -148,7 +194,7 @@ MCPサーバーが敵の列挙順から同じ形式のIDを補完します。
 ポケットまでの距離、自ボールの接触後軌道と落下ダメージを使います。
 
 `fire_shot`は`shot_goal=auto`が既定値です。実行直前の状態と
-指定パワーで全ポケット経路を再評価し、damageまたはpocketを
+距離から自動計算したパワーで全ポケット経路を再評価し、damageまたはpocketを
 自動選択します。通常ランではautoを使います。
 
 `shot_goal=damage` は敵中心への通常攻撃、
@@ -208,6 +254,7 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 
 - `get_game_state`
 - `set_player_level`
+- `set_build_profile`
 - `set_dynamic_balance`
 - `set_next_stage_layout`
 - `clear_next_stage_layout`
@@ -219,18 +266,24 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 - `upgrade_ball`
 - `remove_ball`
 - `buy_relic`
+- `choose_relic`
 - `continue_to_battle`
 - `choose_reward`
 - `continue_after_reward`
 
 ボール操作の条件は`get_game_state`で確認できます。
 
-- `choose_destination`: `wanted_rewards`に`money`、`new_ball`、`ball_upgrade`、`hp_recovery`、`relic`の5種を欲しい順で指定。希望に合う`route_options`がなければ次順位へ自動フォールバック。`route_index`は同種ノードが複数ある場合の位置指定として任意
-- MCP経路ポリシー: HP25以下で回復可能な休憩所があれば休憩へ補正。回復クールダウン中は強制しない。購入もボール削除もできないショップは、回復可能な休憩または戦闘へ補正し、理由を`route_policy`へ記録
-- `heal`: 休憩所で最大HPの25%を回復（切り上げ、最大HP上限）。回復後は2戦クリアするまで再回復不可
+- `choose_destination`: `wanted_rewards`に`money`、`new_ball`、`ball_upgrade`、`hp_recovery`、`relic`を欲しい順で指定。省略時は既定順を使用し、一部だけ指定した場合は不足項目を自動補完。希望に合う`route_options`がなければ次順位へ自動フォールバック。`route_index`は同種ノードが複数ある場合の位置指定として任意
+- `get_game_state.run_progress`: `phase`、`area_progress`、15エリアの`area_goal`、総戦闘数、中ボス戦績、最終ボス到達・撃破状態を公開
+- 通常ルートの候補1枠は通常戦闘63.33%、中ボス12.67%、ショップ12%、休憩所12%（戦闘内の比率は5:1）。15エリア後は保証休憩を経て`final_boss`一択になり、撃破後は報酬選択を行わずResultへ移行
+- MCP経路ポリシー: HP25以下で回復可能な休憩所があれば休憩へ補正。購入もボール削除もできないショップは、回復可能な休憩または戦闘へ補正し、理由を`route_policy`へ記録
+- `heal`: 休憩所で最大HPの25%を回復（切り上げ、最大HP上限）。HPが減っていれば、訪れた各休憩所で回復可能
 - `upgrade_ball`: 休憩所で`deck_balls[].can_upgrade`が`true`の任意のボールを1段階強化
 - `remove_ball`: ショップで15 Moneyを支払い任意のボールを削除（デッキの最小数は5個）
-- `buy_relic`: ショップで`relics[].index`を指定して未所持のレリックを購入。購入直前のHPとデッキ平均attackを確認し、低HP時はEmergency Repair Kit→Guard Core、平均attackが基準未満ならPower Core→Impact Accelerator→Bank Shotの順で購入可能な対象へ自動補正
+- `buy_relic`: ショップ入店時に抽選された`relics[].shop_offered=true`の3候補から1つを購入。1回の入店で購入できるレリックは1つまで。購入直前のHPとデッキ平均attackを確認し、購入可能な候補内で低HP時は回復・防御系、攻撃不足時は攻撃系を優先
+- `choose_relic`: 中ボス撃破後、`relics[].midboss_offered=true`の3候補から1つを無料獲得。この選択を終えてから通常の`choose_reward`を行う
+
+`relics[]`は`rarity`、`midboss_weight`、`shop_weight`、`price`を公開します。現在は全レリックが同価格・同ウェイトですが、後から抽選率とショップ価格を個別に調整できます。
 
 `player_profiles.json`の`relic_policy`で、低HP判定の
 `low_hp_ratio`（既定0.5）、攻撃不足判定の

@@ -4,8 +4,11 @@
 #include "Component.h"
 #include "SimpleMath.h"
 
+#include <vector>
+
 class BallComponent;
 class BallPhysicsComponent;
+class Pocket;
 
 class BallCollisionComponent final : public Component
 {
@@ -23,12 +26,13 @@ private:
     int GetAttack() const;
     bool HasPierceAbility() const;
     bool CheckPocketHitAlongMovement(
-        const DirectX::SimpleMath::Vector3& movementStart);
+        const DirectX::SimpleMath::Vector3& movementStart,
+        const std::vector<Pocket*>& pockets);
     void OnPocketHit();
 
 private:
     BallComponent* m_BallComponent = nullptr;
     BallPhysicsComponent* m_PhysicsComponent = nullptr;
-    bool m_PierceConsumed = false;
+    int m_PierceUseCount = 0;
     const BallComponent* m_PiercedBall = nullptr;
 };

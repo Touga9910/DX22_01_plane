@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Scene.h"
+#include "MenuSelection.h"
 
 #include <string>
 #include <vector>
@@ -24,7 +25,7 @@ private:
 	static constexpr int kRemovePrice = 15;
 
 	std::vector<GameObject*> m_SceneGameObjects;
-	int m_SelectedAction = 0;
+	MenuSelection m_Menu;
 	int m_SelectedBuyBall = 0;
 	int m_SelectedRemoveBall = 0;
 	int m_SelectedRelic = 0;

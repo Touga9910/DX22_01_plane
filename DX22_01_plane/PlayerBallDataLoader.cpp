@@ -1,4 +1,4 @@
-#include "PlayerBallDataLoader.h"
+﻿#include "PlayerBallDataLoader.h"
 
 #include "json/json.hpp"
 
@@ -42,20 +42,9 @@ namespace
 		return status;
 	}
 
-	BallStatus NormalizeBallStatus(BallStatus status)
-	{
-		status.maxHp = (std::max)(1, status.maxHp);
-		status.mass = (std::max)(0.0001f, status.mass);
-		status.radius = (std::max)(0.0f, status.radius);
-		status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);
-		status.friction = (std::max)(0.0f, status.friction);
-
-		return status;
-	}
-
 	void LoadUpgradeTableFromJson(PlayerBallData& ballData, const json& ballJson)
 	{
-		// Provide a two-level fallback when the JSON has no upgrade table.
+		// JSONに強化表がない場合は、2段階分の既定値を用意する。
 		ballData.upgradeTable[0] =
 			BallUpgradeStep{ ballData.status.attack + 1, ballData.status.defense + 1 };
 		ballData.upgradeTable[1] =
@@ -84,14 +73,6 @@ namespace
 		}
 	}
 
-	PlayerRunStatus NormalizePlayerRunStatus(PlayerRunStatus status)
-	{
-		status.maxHp = (std::max)(1, status.maxHp);
-		status.currentHp = std::clamp(status.currentHp, 0, status.maxHp);
-		status.progress = (std::max)(1, status.progress);
-
-		return status;
-	}
 }
 
 PlayerBallDataLoadResult PlayerBallDataLoader::Load(
@@ -127,12 +108,6 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 				root.value("restHealRatio", result.restHealRatio),
 				0.01f,
 				1.0f);
-			result.restHealCooldownBattles = (std::max)(
-				0,
-				root.value(
-					"restHealCooldownBattles",
-					result.restHealCooldownBattles));
-
 			if (root.contains("balls") && root["balls"].is_array())
 			{
 				for (const json& ballJson : root["balls"])
@@ -176,7 +151,6 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 			result.defaultBallStatus = fallbackBallStatus;
 			result.defaultRunStatus = fallbackRunStatus;
 			result.restHealRatio = 0.25f;
-			result.restHealCooldownBattles = 2;
 			result.ballDefinitions.clear();
 		}
 	}
@@ -242,7 +216,7 @@ std::vector<PlayerBallData> PlayerBallDataLoader::LoadDeck(
 						continue;
 					}
 
-					// A repeated ID represents another copy of the same ball.
+					// 同じIDの重複は、同種ボールの別個体として扱う。
 					deck.push_back(*definition);
 				}
 			}
@@ -265,7 +239,7 @@ std::vector<PlayerBallData> PlayerBallDataLoader::LoadDeck(
 		std::cerr << "[PlayerDeck] Could not open " << filePath << '\n';
 	}
 
-	// Keep the game playable when the deck file is missing or has no valid IDs.
+	// デッキファイルがない場合や有効なIDを含まない場合でも、ゲームを開始可能にする。
 	if (deck.empty() && !ballDefinitions.empty())
 	{
 		std::cerr

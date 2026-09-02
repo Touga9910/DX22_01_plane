@@ -12,6 +12,8 @@ struct DifficultyRange
     int max = 1;
 };
 
+class GameSaveManager;
+
 DifficultyRange GetDifficultyRange(int progress);
 
 class StageSelector
@@ -27,5 +29,6 @@ public:
         const std::string& lastStageId);
 
 private:
+    friend class GameSaveManager;
     std::mt19937 m_RandomEngine;
 };

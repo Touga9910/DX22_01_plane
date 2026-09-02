@@ -74,6 +74,25 @@ void EnemyBall::Init(const EnemyData& data)
         m_EnemyData.textureDirectory.c_str()
     );
 
+    Color enemyTint(0.95f, 0.18f, 0.16f, 1.0f);
+    if (m_EnemyData.id == "enemy_strong")
+    {
+        enemyTint = Color(1.0f, 0.34f, 0.10f, 1.0f);
+    }
+    else if (m_EnemyData.id == "enemy_tank")
+    {
+        enemyTint = Color(0.66f, 0.20f, 0.82f, 1.0f);
+    }
+    else if (m_EnemyData.id == "enemy_striker")
+    {
+        enemyTint = Color(1.0f, 0.58f, 0.08f, 1.0f);
+    }
+    else if (m_EnemyData.id == "enemy_boss_core")
+    {
+        enemyTint = Color(0.92f, 0.08f, 0.42f, 1.0f);
+    }
+    m_RenderComponent->SetTint(enemyTint);
+
     m_Ball->SetPosition(m_EnemyData.initPosition); // 初期位置を反映
     m_Ball->SetScale(m_EnemyData.scale);           // スケールを反映
     m_Ball->UpdateRadius();                                  // スケールに合わせて半径を更新
@@ -298,12 +317,13 @@ void EnemyBall::TakeDamage(int damage)
 		m_Ball->GetMutableAcceleration();
 	m_Ball->TakeDamage(damage);
 
-	// Normal damage defeat remains visible and physical until all balls stop.
-	// Pocket removal is handled separately and is immediate.
+	// 通常ダメージで倒れた敵は、全ボールが止まるまで表示と物理判定を残す。
+	// ポケットによる除外は別処理とし、即座に反映する。
 	if (!wasDefeated && m_Ball->IsDefeated())
 	{
 		m_Ball->GetMutableVelocity() = collisionVelocity;
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
+		Game::GetInstance()->NotifyEnemyDefeated(m_EnemyData.id);
 	}
 
 	BalanceLogger::GetInstance().RecordEnemyDamage(

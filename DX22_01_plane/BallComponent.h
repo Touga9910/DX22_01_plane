@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "BallPhysicsComponent.h"
 #include "BallRenderComponent.h"
@@ -12,7 +12,7 @@
 
 class BallCollisionComponent;
 
-// Common ball mechanics attached beside player/enemy controller components.
+// プレイヤーおよび敵の制御コンポーネントと併用する、ボール共通処理。
 class BallComponent final : public Component
 {
 public:
@@ -33,6 +33,10 @@ public:
     int GetMaxHP() const { return m_StatusComponent->GetMaxHp(); }
     int GetAttack() const { return m_StatusComponent->GetAttack(); }
     int GetDefense() const { return m_StatusComponent->GetDefense(); }
+    int CalculateDamageTaken(int damage) const
+    {
+        return m_StatusComponent->CalculateDamageTaken(damage);
+    }
     void SetCombatModifiers(int attackModifier, int defenseModifier)
     {
         m_StatusComponent->SetCombatModifiers(

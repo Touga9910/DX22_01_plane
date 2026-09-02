@@ -159,4 +159,5 @@ private:
 	bool m_RunActive = false;
 	bool m_StageActive = false;
 	bool m_ShotActive = false;
+	bool m_SavePending = false;
 };

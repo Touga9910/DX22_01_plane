@@ -1,23 +1,10 @@
-#include	<filesystem>
-#include	<string>
+#include	"utility.h"
+
+#include	<system_error>
+#include	<vector>
 #include	<Windows.h>
 
 namespace utility {
-    // std::string 用のディレクトリ取得関数
-    std::filesystem::path get_directory(const std::string& path) {
-        return std::filesystem::path(path).parent_path();
-    }
-
-    // std::u8string 用のディレクトリ取得関数
-    std::filesystem::path get_directory(const std::u8string& path) {
-        return std::filesystem::path(path).parent_path();
-    }
-
-    // std::wstring 用のディレクトリ取得関数
-    std::filesystem::path get_directory(const std::wstring& path) {
-        return std::filesystem::path(path).parent_path();
-    }
-
 	// ワイド文字(utf16)をｓ－ｊｉｓに
 	std::string wide_to_multi_winapi(std::wstring const& src)
 	{

@@ -19,19 +19,13 @@ public:
 
     void ApplyStatusValuesOnly(const BallStatus& status)
     {
-        m_Status = status;
-        m_Status.maxHp = (std::max)(1, m_Status.maxHp);
-        m_Status.mass = (std::max)(0.0001f, m_Status.mass);
-        m_Status.radius = (std::max)(0.0f, m_Status.radius);
-        m_Status.restitution = std::clamp(m_Status.restitution, 0.0f, 1.0f);
-        m_Status.friction = (std::max)(0.0f, m_Status.friction);
+        m_Status = NormalizeBallStatus(status);
         m_CurrentHp = std::clamp(m_CurrentHp, 0, m_Status.maxHp);
     }
 
     void Synchronize(const BallStatus& status, int currentHp, bool defeated)
     {
-        m_Status = status;
-        m_Status.maxHp = (std::max)(1, m_Status.maxHp);
+        m_Status = NormalizeBallStatus(status);
         m_CurrentHp = std::clamp(currentHp, 0, m_Status.maxHp);
         m_IsDefeated = defeated;
     }
@@ -67,10 +61,15 @@ public:
         m_CurrentHp = 0;
     }
 
+    int CalculateDamageTaken(int damage) const
+    {
+        return (std::max)(1, damage - GetDefense());
+    }
+
     bool ApplyDamage(int damage)
     {
         if (m_IsDefeated) return false;
-        const int finalDamage = (std::max)(1, damage - GetDefense());
+        const int finalDamage = CalculateDamageTaken(damage);
         m_CurrentHp -= finalDamage;
         if (m_CurrentHp <= 0)
         {

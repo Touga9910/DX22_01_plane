@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstdint>
@@ -12,7 +12,7 @@ struct BallUpgradeStep
 	int defense = 0;
 };
 
-// Runtime data for one ball in the player's deck.
+// プレイヤーのデッキに含まれる、ボール1個分の実行時データ。
 struct PlayerBallData
 {
 	static constexpr int MaxUpgradeLevel = 2;

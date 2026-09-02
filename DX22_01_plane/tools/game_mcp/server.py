@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import random
 from pathlib import Path
 from typing import Any, Literal
 
@@ -11,6 +12,15 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from bridge_store import GameBridgeError, GameBridgeStore
+from build_decision import (
+    build_decision_snapshot,
+    evaluate_risk_tradeoff,
+)
+from build_profiles import (
+    BuildProfileController,
+    compose_control_profile,
+    load_build_profiles,
+)
 from shot_planner import (
     PlayerProfileController,
     build_tactical_shot_context,
@@ -18,6 +28,7 @@ from shot_planner import (
     ensure_enemy_target_ids,
     load_player_profiles,
     plan_targeted_shot,
+    recommend_shot_power,
     resolve_target_id_argument,
 )
 
@@ -26,6 +37,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BRIDGE_DIRECTORY = PROJECT_ROOT / "runtime" / "game_mcp"
 DEFAULT_PLAYER_PROFILES_PATH = (
     Path(__file__).resolve().parent / "player_profiles.json"
+)
+DEFAULT_BUILD_PROFILES_PATH = (
+    Path(__file__).resolve().parent / "build_profiles.json"
 )
 DEFAULT_LOW_HP_RELIC_PRIORITY = (
     "Emergency Repair Kit",
@@ -63,12 +77,23 @@ def _shop_has_actionable_purchase(state: dict[str, Any]) -> bool:
     player = state.get("player", {})
     money = int(player.get("money", 0)) if isinstance(player, dict) else 0
     relics = state.get("relics", [])
-    if isinstance(relics, list):
+    selection = state.get("relic_selection", {})
+    in_shop = state.get("scene") == "shop"
+    purchase_used = in_shop and bool(
+        selection.get("shop_purchase_used", False)
+        if isinstance(selection, dict)
+        else False
+    )
+    if isinstance(relics, list) and not purchase_used:
         for relic in relics:
             if not isinstance(relic, dict):
                 continue
             if (
                 not bool(relic.get("owned", False))
+                and (
+                    not in_shop
+                    or bool(relic.get("shop_offered", False))
+                )
                 and int(relic.get("price", 0)) <= money
             ):
                 return True
@@ -139,7 +164,8 @@ def resolve_mcp_route_choice(
     battle_options = [
         option
         for option in options
-        if option.get("destination") == "battle"
+        if option.get("destination")
+        in {"battle", "midboss", "final_boss"}
     ]
     effective = requested
     reason = "requested_route_allowed"
@@ -253,6 +279,7 @@ def resolve_mcp_relic_choice(
         for relic in relics
         if isinstance(relic, dict)
         and isinstance(relic.get("index"), int)
+        and bool(relic.get("shop_offered", True))
     ]
     requested = next(
         (
@@ -304,6 +331,7 @@ def resolve_mcp_relic_choice(
         relic
         for relic in catalog
         if not bool(relic.get("owned", False))
+        and bool(relic.get("shop_offered", True))
         and int(relic.get("price", 0)) <= money
     ]
 
@@ -370,11 +398,16 @@ def _shop_has_affordable_relic(state: dict[str, Any]) -> bool:
     player = state.get("player", {})
     money = int(player.get("money", 0)) if isinstance(player, dict) else 0
     relics = state.get("relics", [])
+    in_shop = state.get("scene") == "shop"
     return bool(
         isinstance(relics, list)
         and any(
             isinstance(relic, dict)
             and not bool(relic.get("owned", False))
+            and (
+                not in_shop
+                or bool(relic.get("shop_offered", False))
+            )
             and int(relic.get("price", 0)) <= money
             for relic in relics
         )
@@ -397,7 +430,8 @@ def build_stage_choice_context(
     battle_routes = [
         int(route["route_index"])
         for route in routes
-        if route.get("destination") == "battle"
+        if route.get("destination")
+        in {"battle", "midboss", "final_boss"}
     ]
     rest_routes = [
         int(route["route_index"])
@@ -492,6 +526,7 @@ def build_stage_choice_context(
             build_dynamic_wanted_reward_order(
                 list(VALID_WANTED_REWARDS),
                 need_signals,
+                settings.get("need_priority"),
             )
         ),
         "reward_route_matches": reward_route_matches,
@@ -519,12 +554,24 @@ def build_stage_choice_context(
 def build_dynamic_wanted_reward_order(
     requested_order: list[str],
     need_signals: dict[str, Any],
+    need_priority: list[str] | tuple[str, ...] | None = None,
 ) -> list[str]:
+    priority = (
+        list(need_priority)
+        if need_priority
+        else list(NEED_SIGNAL_PRIORITY)
+    )
     needed = [
         reward
-        for reward in NEED_SIGNAL_PRIORITY
+        for reward in priority
         if bool(need_signals.get(reward, False))
     ]
+    needed.extend(
+        reward
+        for reward in requested_order
+        if bool(need_signals.get(reward, False))
+        and reward not in needed
+    )
     return [
         *needed,
         *(
@@ -535,28 +582,53 @@ def build_dynamic_wanted_reward_order(
     ]
 
 
+def complete_wanted_reward_order(
+    wanted_rewards: list[str] | None,
+) -> list[str]:
+    requested = list(wanted_rewards or [])
+    invalid = [
+        reward
+        for reward in requested
+        if reward not in VALID_WANTED_REWARDS
+    ]
+    if invalid:
+        raise GameBridgeError(
+            "wanted_rewardsにはmoney、new_ball、ball_upgrade、"
+            "hp_recovery、relicだけを指定してください。"
+        )
+
+    completed: list[str] = []
+    for reward in requested:
+        if reward not in completed:
+            completed.append(reward)
+    completed.extend(
+        reward
+        for reward in VALID_WANTED_REWARDS
+        if reward not in completed
+    )
+    return completed
+
+
 def resolve_mcp_stage_choice(
     state: dict[str, Any],
-    wanted_rewards: list[str],
+    wanted_rewards: list[str] | None,
     profile: dict[str, Any],
     requested_route_index: int = -1,
 ) -> dict[str, Any]:
-    if (
-        len(wanted_rewards) != len(VALID_WANTED_REWARDS)
-        or len(set(wanted_rewards)) != len(VALID_WANTED_REWARDS)
-        or set(wanted_rewards) != set(VALID_WANTED_REWARDS)
-    ):
-        raise GameBridgeError(
-            "wanted_rewardsはmoney、new_ball、ball_upgrade、"
-            "hp_recovery、relicを重複なしで各1回、"
-            "欲しい順に指定してください。"
-        )
+    requested_wanted_rewards = list(wanted_rewards or [])
+    completed_wanted_rewards = complete_wanted_reward_order(
+        wanted_rewards
+    )
 
     context = build_stage_choice_context(state, profile)
     reward_route_matches = context["reward_route_matches"]
+    stage_choice_policy = profile.get("stage_choice_policy", {})
+    if not isinstance(stage_choice_policy, dict):
+        stage_choice_policy = {}
     effective_wanted_rewards = build_dynamic_wanted_reward_order(
-        wanted_rewards,
+        completed_wanted_rewards,
         context["need_signals"],
+        stage_choice_policy.get("need_priority"),
     )
     selected_reward = ""
     priority_route_index = -1
@@ -600,7 +672,11 @@ def resolve_mcp_stage_choice(
     )
     route_policy.update(
         {
-            "wanted_rewards": list(wanted_rewards),
+            "wanted_rewards": completed_wanted_rewards,
+            "requested_wanted_rewards": requested_wanted_rewards,
+            "wanted_rewards_completed": (
+                requested_wanted_rewards != completed_wanted_rewards
+            ),
             "effective_wanted_rewards": effective_wanted_rewards,
             "matched_wanted_reward": selected_reward or None,
             "skipped_wanted_rewards": skipped_rewards,
@@ -707,6 +783,26 @@ def parse_arguments() -> argparse.Namespace:
         ),
         help="Path to the player-level behavior profiles JSON.",
     )
+    parser.add_argument(
+        "--build-profile",
+        choices=("standard", "heavy", "pierce", "bounce", "anchor"),
+        default=os.environ.get(
+            "GAME_MCP_BUILD_PROFILE",
+            "standard",
+        ),
+        help="AI build policy, independent from player skill.",
+    )
+    parser.add_argument(
+        "--build-profiles",
+        type=Path,
+        default=Path(
+            os.environ.get(
+                "GAME_MCP_BUILD_PROFILES",
+                str(DEFAULT_BUILD_PROFILES_PATH),
+            )
+        ),
+        help="Path to the build-policy profiles JSON.",
+    )
     return parser.parse_args()
 
 
@@ -716,15 +812,37 @@ def create_server(
     port: int,
     player_profiles: dict[str, dict[str, Any]],
     initial_player_level: str,
+    build_profiles: dict[str, dict[str, Any]] | None = None,
+    initial_build_profile: str | None = None,
 ) -> FastMCP:
+    if build_profiles is None:
+        build_profiles, default_build_profile = load_build_profiles(
+            DEFAULT_BUILD_PROFILES_PATH
+        )
+    else:
+        default_build_profile = "standard"
+    if initial_build_profile is None:
+        initial_build_profile = default_build_profile
     profile_controller = PlayerProfileController(
         player_profiles,
         initial_player_level,
     )
+    build_profile_controller = BuildProfileController(
+        build_profiles,
+        initial_build_profile,
+    )
+    deterministic_shot_random: random.Random | None = None
+
+    def control_profile() -> dict[str, Any]:
+        return compose_control_profile(
+            profile_controller.snapshot(),
+            build_profile_controller.snapshot(),
+        )
+
     mcp = FastMCP(
         "dx22-game-control",
         instructions=build_server_instructions(
-            profile_controller.snapshot()
+            control_profile()
         ),
         host=host,
         port=port,
@@ -752,7 +870,8 @@ def create_server(
         description=(
             "現在のシーン、プレイヤー、敵、ボール候補と、"
             "現在実行可能な操作を取得します。mcp_controlには現在の"
-            "プレイヤーレベルと行動方針が含まれます。"
+            "プレイヤーレベルと行動方針が含まれます。build_decisionには"
+            "複数ビルドの完成度・確信度と、候補別スコア内訳が含まれます。"
             "操作の前に必ず使用します。"
         ),
         annotations=read_only,
@@ -760,8 +879,13 @@ def create_server(
     )
     def get_game_state() -> GameToolResult:
         state = ensure_enemy_target_ids(store.read_state())
-        profile = profile_controller.snapshot()
+        profile = control_profile()
         state["mcp_control"] = profile
+        state["build_decision"] = build_decision_snapshot(
+            state,
+            build_profiles,
+            build_profile_controller.profile_id,
+        )
         state["shot_tactics"] = build_tactical_shot_context(
             state,
             profile,
@@ -771,6 +895,43 @@ def create_server(
             profile,
         )
         return GameToolResult(result=state)
+
+    @mcp.tool(
+        title="ビルド完成のためのリスクを評価",
+        description=(
+            "HP消費や敵強化を伴う将来の選択について、期待する"
+            "ビルド利益と生存リスクを比較します。benefit_scoreは"
+            "候補評価の上昇量、enemy_strength_increaseは0.0～1.0を"
+            "目安に指定します。実際のゲーム状態は変更しません。"
+        ),
+        annotations=read_only,
+        structured_output=True,
+    )
+    def evaluate_build_risk(
+        benefit_score: float,
+        hp_cost: int = 0,
+        enemy_strength_increase: float = 0.0,
+        floors_to_recovery: int = 1,
+    ) -> GameToolResult:
+        if hp_cost < 0:
+            raise GameBridgeError("hp_costは0以上で指定してください。")
+        if enemy_strength_increase < 0.0:
+            raise GameBridgeError(
+                "enemy_strength_increaseは0以上で指定してください。"
+            )
+        if floors_to_recovery < 0:
+            raise GameBridgeError(
+                "floors_to_recoveryは0以上で指定してください。"
+            )
+        return GameToolResult(
+            result=evaluate_risk_tradeoff(
+                store.read_state(),
+                benefit_score,
+                hp_cost,
+                enemy_strength_increase,
+                floors_to_recovery,
+            )
+        )
 
     @mcp.tool(
         title="プレイヤーレベルを設定",
@@ -791,6 +952,7 @@ def create_server(
         ],
     ) -> GameToolResult:
         profile = profile_controller.set_level(player_level)
+        composed = control_profile()
         return GameToolResult(
             result={
                 "ok": True,
@@ -798,7 +960,45 @@ def create_server(
                     f"プレイヤーレベルを{profile['label']}に"
                     "変更しました。"
                 ),
-                "mcp_control": profile,
+                "mcp_control": composed,
+            }
+        )
+
+    @mcp.tool(
+        title="ビルド方針を設定",
+        description=(
+            "次のランで使用するビルド方針を設定します。standard、"
+            "heavy、pierce、bounce、anchorから選択します。"
+            "操作精度を決めるplayer_levelとは独立しています。"
+            "ラン途中の方針変更はログ比較を壊すため拒否されます。"
+        ),
+        annotations=local_write,
+        structured_output=True,
+    )
+    def set_build_profile(
+        build_profile: Literal[
+            "standard",
+            "heavy",
+            "pierce",
+            "bounce",
+            "anchor",
+        ],
+    ) -> GameToolResult:
+        state = store.read_state()
+        if state.get("scene") not in {"title", "result"}:
+            raise GameBridgeError(
+                "build_profileはタイトルまたはリザルト画面で"
+                "変更してください。"
+            )
+        selected = build_profile_controller.set_profile(build_profile)
+        return GameToolResult(
+            result={
+                "ok": True,
+                "message": (
+                    f"ビルド方針を{selected.get('label', build_profile)}に"
+                    "変更しました。"
+                ),
+                "mcp_control": control_profile(),
             }
         )
 
@@ -935,26 +1135,45 @@ def create_server(
         annotations=destructive_write,
         structured_output=True,
     )
-    def start_new_run() -> GameToolResult:
-        return GameToolResult(
-            result=store.submit_command(
-                "start_new_run",
-                {
-                    "controller_profile": (
-                        profile_controller.level
-                    ),
-                },
+    def start_new_run(
+        run_seed: int | None = None,
+        validation_variant: str = "",
+    ) -> GameToolResult:
+        nonlocal deterministic_shot_random
+        if run_seed is not None and not 0 <= run_seed <= 0xFFFFFFFF:
+            raise GameBridgeError(
+                "run_seedは0以上4294967295以下で指定してください。"
             )
-        )
+        build_profile = build_profile_controller.snapshot()
+        arguments: dict[str, Any] = {
+            "controller_profile": profile_controller.level,
+            "build_profile": build_profile["id"],
+            "build_profile_settings_hash": (
+                build_profile["settings_hash"]
+            ),
+        }
+        if run_seed is not None:
+            arguments["run_seed"] = run_seed
+        if validation_variant:
+            arguments["validation_variant"] = validation_variant
+        result = store.submit_command("start_new_run", arguments)
+        if result.get("ok", False):
+            deterministic_shot_random = (
+                random.Random(run_seed ^ 0xC2B2AE35)
+                if run_seed is not None
+                else None
+            )
+        return GameToolResult(result=result)
 
     @mcp.tool(
         title="次の行き先を選択",
         description=(
             "ステージ選択画面で、get_game_stateの"
-            "route_optionsに提示された3ノードから1つを選びます。"
+            "route_optionsに提示された1～3ノードから1つを選びます。"
             "wanted_rewardsにmoney、new_ball、ball_upgrade、"
-            "hp_recovery、relicの5つを、現在欲しい順で"
-            "それぞれ1回ずつ指定します。サーバーは先頭から"
+            "hp_recovery、relicを現在欲しい順で指定できます。"
+            "省略した場合は既定順を使用し、一部だけ指定した場合は"
+            "不足項目をサーバーが補完します。サーバーは先頭から"
             "現在のroute_optionsと照合し、対応ステージがない、"
             "またはそこで希望報酬を得られない場合は次順位へ"
             "フォールバックします。route_indexは同種ノードが"
@@ -979,14 +1198,14 @@ def create_server(
                 "hp_recovery",
                 "relic",
             ]
-        ],
+        ] | None = None,
         route_index: int = -1,
     ) -> GameToolResult:
         state = store.read_state()
         route_policy = resolve_mcp_stage_choice(
             state,
-            list(wanted_rewards),
-            profile_controller.snapshot(),
+            wanted_rewards,
+            control_profile(),
             route_index,
         )
         result = store.submit_command(
@@ -1010,7 +1229,10 @@ def create_server(
         annotations=local_write,
         structured_output=True,
     )
-    def select_ball(offer_index: int) -> GameToolResult:
+    def select_ball(
+        offer_index: int,
+        decision_reason: str = "",
+    ) -> GameToolResult:
         if offer_index < 0:
             raise GameBridgeError(
                 "offer_indexは0以上で指定してください。"
@@ -1018,15 +1240,28 @@ def create_server(
         return GameToolResult(
             result=store.submit_command(
                 "select_ball",
-                {"offer_index": offer_index},
+                {
+                    "offer_index": offer_index,
+                    "decision_context": {
+                        "action": "select_ball",
+                        "reason": decision_reason,
+                        "build_profile": (
+                            build_profile_controller.profile_id
+                        ),
+                    },
+                },
             )
         )
 
     @mcp.tool(
         title="ショットを実行",
         description=(
-            "戦闘の照準待ち中に、enemies[].target_idと1～8のパワーを"
-            "指定して撃ちます。target_idは敵個体ごとに一意です。"
+            "戦闘の照準待ち中に、enemies[].target_idを指定して撃ちます。"
+            "power_mode=autoでは対象までの距離、直射・反射、現在の"
+            "プレイヤーレベルからパワーを毎回自動計算します。"
+            "powerは省略でき、auto時に指定しても使用しません。"
+            "manualは固定値の検証専用で、powerに1～8を指定します。"
+            "target_idは敵個体ごとに一意です。"
             "旧クライアントがtarget_enemy_idだけを公開している場合は、"
             "その引数へ同じtarget_idの値を指定できます。"
             "標的指定は必須で、サーバーが敵の"
@@ -1050,31 +1285,64 @@ def create_server(
         structured_output=True,
     )
     def fire_shot(
-        power: float,
+        power: float | None = None,
+        power_mode: Literal["auto", "manual"] = "auto",
         target_id: str = "",
         target_enemy_id: str = "",
         shot_type: Literal["direct", "bank"] = "direct",
         wall_index: int = -1,
         shot_goal: Literal["auto", "damage", "pocket"] = "auto",
         pocket_index: int = -1,
+        ball_selection_reason: str = "",
     ) -> GameToolResult:
         state = ensure_enemy_target_ids(store.read_state())
         resolved_target_id = resolve_target_id_argument(
             target_id,
             target_enemy_id,
         )
+        profile = control_profile()
+        power_policy = recommend_shot_power(
+            state,
+            resolved_target_id,
+            shot_type,
+            profile,
+        )
+        power_policy["power_mode"] = power_mode
+        power_policy["requested_power"] = power
+        if power_mode == "manual":
+            if power is None:
+                raise GameBridgeError(
+                    "power_mode=manualではpowerを指定してください。"
+                )
+            effective_power = power
+            power_policy["reason"] = "manual_power"
+        else:
+            effective_power = float(
+                power_policy["recommended_power"]
+            )
+            if power is not None:
+                power_policy["reason"] = (
+                    "distance_adaptive_power_requested_value_ignored"
+                )
+        power_policy["effective_power"] = effective_power
         shot_plan = plan_targeted_shot(
             state,
             resolved_target_id,
-            power,
+            effective_power,
             shot_type,
             wall_index,
-            profile_controller.snapshot(),
+            profile,
+            deterministic_shot_random,
             shot_goal=shot_goal,
             pocket_index=pocket_index,
         )
+        shot_plan["shot_plan"]["power_policy"] = power_policy
+        build_profile = build_profile_controller.snapshot()
         shot_plan["arguments"]["telemetry"] = {
             "controller_profile": profile_controller.level,
+            "build_profile": build_profile["id"],
+            "build_profile_settings_hash": build_profile["settings_hash"],
+            "ball_selection_reason": ball_selection_reason,
             **shot_plan["shot_plan"],
         }
         result = store.submit_command(
@@ -1111,7 +1379,10 @@ def create_server(
         annotations=local_write,
         structured_output=True,
     )
-    def upgrade_ball(instance_id: int) -> GameToolResult:
+    def upgrade_ball(
+        instance_id: int,
+        decision_reason: str = "",
+    ) -> GameToolResult:
         if instance_id <= 0:
             raise GameBridgeError(
                 "instance_idは正の整数で指定してください。"
@@ -1119,7 +1390,16 @@ def create_server(
         return GameToolResult(
             result=store.submit_command(
                 "upgrade_ball",
-                {"instance_id": instance_id},
+                {
+                    "instance_id": instance_id,
+                    "decision_context": {
+                        "action": "upgrade_ball",
+                        "reason": decision_reason,
+                        "build_profile": (
+                            build_profile_controller.profile_id
+                        ),
+                    },
+                },
             )
         )
 
@@ -1151,7 +1431,8 @@ def create_server(
         title="レリックを購入",
         description=(
             "ショップでrelicsのindexを指定し、表示価格を支払って"
-            "未所持のレリックを購入します。購入前にget_game_stateで"
+            "shop_offeredがtrueの未所持レリックを購入します。"
+            "購入は1回の入店につき1つまでです。購入前にget_game_stateで"
             "Money、価格、ownedを確認します。"
             "購入直前に最新のHPとdeck_ballsの平均attackを再確認し、"
             "低HPでは回復・防御系、攻撃不足では攻撃系の"
@@ -1170,7 +1451,7 @@ def create_server(
         relic_policy = resolve_mcp_relic_choice(
             state,
             relic_index,
-            profile_controller.snapshot(),
+            control_profile(),
         )
         result = store.submit_command(
             "buy_relic",
@@ -1179,10 +1460,51 @@ def create_server(
                     "effective_relic_index"
                 ],
                 "relic_policy": relic_policy,
+                "decision_context": {
+                    "action": "buy_relic",
+                    "reason": relic_policy["reason"],
+                    "build_profile": (
+                        build_profile_controller.profile_id
+                    ),
+                },
             },
         )
         result["relic_policy"] = relic_policy
         return GameToolResult(result=result)
+
+    @mcp.tool(
+        title="中ボスレリックを選択",
+        description=(
+            "中ボス撃破後、relicsのmidboss_offeredがtrueの"
+            "3候補から1つを無料で獲得します。"
+            "通常のクリア報酬より先に実行します。"
+        ),
+        annotations=local_write,
+        structured_output=True,
+    )
+    def choose_relic(
+        relic_index: int,
+        decision_reason: str = "",
+    ) -> GameToolResult:
+        if relic_index < 0:
+            raise GameBridgeError(
+                "relic_indexは0以上で指定してください。"
+            )
+        return GameToolResult(
+            result=store.submit_command(
+                "choose_relic",
+                {
+                    "relic_index": relic_index,
+                    "decision_context": {
+                        "action": "choose_relic",
+                        "reason": decision_reason,
+                        "build_profile": (
+                            build_profile_controller.profile_id
+                        ),
+                    },
+                },
+            )
+        )
 
     @mcp.tool(
         title="戦闘へ進む",
@@ -1218,7 +1540,9 @@ def create_server(
             "クリア報酬画面で新規ボール、既存ボール強化、"
             "追加Moneyのいずれかを選択します。新規ボールには"
             "catalog_index、強化にはinstance_idが必要です。"
-            "強化ではdeck_ballsのcan_upgradeがtrueのボールを指定します。"
+            "強化ではdeck_ballsのcan_upgradeがtrueかつ"
+            "clear_reward_upgrade_affordableがtrueのボールを指定します。"
+            "0から+1は15 Money、+1から+2は30 Moneyを消費します。"
         ),
         annotations=local_write,
         structured_output=True,
@@ -1231,6 +1555,7 @@ def create_server(
         ],
         catalog_index: int = -1,
         instance_id: int = 0,
+        decision_reason: str = "",
     ) -> GameToolResult:
         return GameToolResult(
             result=store.submit_command(
@@ -1239,6 +1564,13 @@ def create_server(
                     "reward": reward,
                     "catalog_index": catalog_index,
                     "instance_id": instance_id,
+                    "decision_context": {
+                        "action": "choose_reward",
+                        "reason": decision_reason,
+                        "build_profile": (
+                            build_profile_controller.profile_id
+                        ),
+                    },
                 },
             )
         )
@@ -1266,6 +1598,9 @@ def main() -> None:
     player_profiles = load_player_profiles(
         args.player_profiles.resolve()
     )
+    build_profiles, default_build_profile = load_build_profiles(
+        args.build_profiles.resolve()
+    )
     store = GameBridgeStore(
         args.bridge_directory,
         args.command_timeout_seconds,
@@ -1277,6 +1612,8 @@ def main() -> None:
         args.port,
         player_profiles,
         args.player_level,
+        build_profiles,
+        args.build_profile or default_build_profile,
     )
     print(
         "DX22 Game MCP server: "
@@ -1287,6 +1624,11 @@ def main() -> None:
         "Player level: "
         f"{args.player_level} "
         f"(profiles: {args.player_profiles.resolve()})"
+    )
+    print(
+        "Build profile: "
+        f"{args.build_profile} "
+        f"(profiles: {args.build_profiles.resolve()})"
     )
     server.run(transport="streamable-http")
 

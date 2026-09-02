@@ -121,6 +121,5 @@
     }
   ],
   "currentHp": 50,
-  "restHealRatio": 0.25,
-  "restHealCooldownBattles": 2
+  "restHealRatio": 0.25
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "player_max_hp_damage_ratio": 0.05,
+  "player_max_hp_damage_ratio": 0.04,
   "player_return_region": {
     "half_width": 12.0,
     "half_depth": 8.0

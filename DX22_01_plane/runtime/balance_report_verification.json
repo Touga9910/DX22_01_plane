@@ -1,0 +1,2223 @@
+{
+  "schema_version": 7,
+  "generated_at": "2026-08-30T12:04:12Z",
+  "analyzed_file_count": 36,
+  "evaluated_stage_count": 8,
+  "targets_file": "assets\\data\\balance_targets.json",
+  "run_selection": {
+    "discovered_file_count": 200,
+    "readable_file_count": 200,
+    "invalid_file_count": 0,
+    "matched_file_count": 36,
+    "excluded_file_count": 164,
+    "excluded_by_condition": {
+      "configuration_fingerprint": 164
+    },
+    "requested_filters": {
+      "controller_types": [],
+      "controller_profiles": [],
+      "build_profiles": [],
+      "experiment_ids": [],
+      "validation_variants": [],
+      "dynamic_balance_enabled": null,
+      "configuration_fingerprints": []
+    },
+    "effective_filters": {
+      "controller_types": [],
+      "controller_profiles": [],
+      "build_profiles": [],
+      "experiment_ids": [],
+      "validation_variants": [],
+      "dynamic_balance_enabled": null,
+      "configuration_fingerprints": [
+        "3d6c7f36bf0a4efab8d5d713f04135c3210fcc93f5cf0173818b24356da7542b"
+      ]
+    },
+    "latest_configuration_requested": true,
+    "resolved_latest_configuration_fingerprint": "3d6c7f36bf0a4efab8d5d713f04135c3210fcc93f5cf0173818b24356da7542b",
+    "resolved_latest_configuration_source": "logs\\balance\\run_20260828_220420_793.json",
+    "observed_configuration_fingerprints": {
+      "0042f76071493aa30d2da0cf9b9e4b41c2cc23b6872fe9dcf65e2437698fbbab": 30,
+      "23a6a1aa17217e1160ec05a2f4fbc1a3d052d673f5f9ae95f4fd393dfcd6b45f": 1,
+      "2d067a81fb4d168a62185d4ace9d7e9bdc6a4624c9c52da11dcfad270183f984": 3,
+      "3d6c7f36bf0a4efab8d5d713f04135c3210fcc93f5cf0173818b24356da7542b": 36,
+      "3decd965bcbf2701e8674986f419c41df921dee04262a2c354a9a691330b7208": 14,
+      "4990b10e0172adb46af823c02e2f5c41e33ca433193df072b1ea946ff281702e": 4,
+      "4e92b37480db2eb6c7f5980be95f6d1bd61e0114a9504d7e1a0ed5b855cc932f": 5,
+      "58857a9daf1f71228976c4a82c3a2a4ad1fb04205eb6e84a1239ae5512f014dd": 1,
+      "71c268881f489ae70865356e79d6b3e4c0e26ad9a88858328da6b39a4f0ad9c4": 5,
+      "8bcb65e5025484f11b96faaa0c727f6e99bfc9ff31afb6a92ea99246c5d3f66b": 3,
+      "cdeca2289b4de6cfc1132eb523fa8c10b7d5ccccbe6c0f42ffae2f877fee92ec": 17,
+      "cfafb88e7ac37c69050059573e2a9ca1c960fd7d0378d422b63cb71a7151f660": 2,
+      "f69637d2ddf8d3488363a51a304f11b1bdaf9e3ab31af02e1545c5cd1ad75a73": 1,
+      "missing": 78
+    },
+    "selected_configuration_fingerprints": {
+      "3d6c7f36bf0a4efab8d5d713f04135c3210fcc93f5cf0173818b24356da7542b": 36
+    },
+    "selected_build_profiles": {
+      "missing": 25,
+      "standard": 11
+    },
+    "selected_build_profile_settings_hashes": {
+      "5b1723e22f2bb431868cb1d7545b837ec9d26fff94476ce150ae45ea9f9f1a57": 11,
+      "missing": 25
+    },
+    "warning": ""
+  },
+  "run_balance": {
+    "sample_count": 36,
+    "balance_sample_count": 5,
+    "minimum_sample_count": 30,
+    "excluded_incomplete_run_count": 31,
+    "selected_controller_profiles": [
+      "intermediate"
+    ],
+    "selected_build_profiles": [
+      "standard"
+    ],
+    "target_scope": {
+      "level": "run",
+      "profile": "intermediate",
+      "used_default_profile": false
+    },
+    "result_counts": {
+      "application_exit": 24,
+      "game_over": 3,
+      "missing": 7,
+      "validation_complete": 2
+    },
+    "milestones": {
+      "first_boss_reached_count": 5,
+      "first_boss_cleared_count": 5,
+      "second_boss_reached_count": 4,
+      "average_bosses_cleared": 2.0
+    },
+    "metrics": {
+      "first_boss_reach_rate": 1.0,
+      "first_boss_clear_rate": 1.0,
+      "second_boss_reach_rate": 0.8,
+      "median_reached_progress": 30.0,
+      "terminal_run_rate": 0.1389
+    },
+    "metric_scores": {
+      "first_boss_reach_rate": 0.0,
+      "first_boss_clear_rate": 0.0,
+      "second_boss_reach_rate": 0.0,
+      "median_reached_progress": 0.0,
+      "terminal_run_rate": 0.0
+    },
+    "metric_status": {
+      "first_boss_reach_rate": {
+        "status": "above_target",
+        "in_range": false,
+        "hard_gate": true,
+        "statistical_gate": true,
+        "difficulty_direction": "easier",
+        "target_min": 0.35,
+        "target_max": 0.65,
+        "distance_from_range": 0.35,
+        "confidence_interval": {
+          "lower": 0.5655,
+          "upper": 1.0,
+          "confidence_level": 0.95,
+          "sample_count": 5
+        },
+        "statistical_status": "inconclusive"
+      },
+      "first_boss_clear_rate": {
+        "status": "above_target",
+        "in_range": false,
+        "hard_gate": true,
+        "statistical_gate": true,
+        "difficulty_direction": "easier",
+        "target_min": 0.2,
+        "target_max": 0.5,
+        "distance_from_range": 0.5,
+        "confidence_interval": {
+          "lower": 0.5655,
+          "upper": 1.0,
+          "confidence_level": 0.95,
+          "sample_count": 5
+        },
+        "statistical_status": "above_target"
+      },
+      "second_boss_reach_rate": {
+        "status": "above_target",
+        "in_range": false,
+        "hard_gate": false,
+        "statistical_gate": false,
+        "difficulty_direction": "easier",
+        "target_min": 0.08,
+        "target_max": 0.3,
+        "distance_from_range": 0.5,
+        "confidence_interval": {
+          "lower": 0.3755,
+          "upper": 0.9638,
+          "confidence_level": 0.95,
+          "sample_count": 5
+        },
+        "statistical_status": "above_target"
+      },
+      "median_reached_progress": {
+        "status": "above_target",
+        "in_range": false,
+        "hard_gate": true,
+        "statistical_gate": true,
+        "difficulty_direction": "easier",
+        "target_min": 8.0,
+        "target_max": 16.0,
+        "distance_from_range": 14.0,
+        "confidence_interval": {
+          "lower": 19.0,
+          "upper": 30.0,
+          "confidence_level": 0.95,
+          "sample_count": 5
+        },
+        "statistical_status": "above_target"
+      },
+      "terminal_run_rate": {
+        "status": "below_target",
+        "in_range": false,
+        "hard_gate": true,
+        "statistical_gate": false,
+        "difficulty_direction": "neutral",
+        "target_min": 0.95,
+        "target_max": 1.0,
+        "distance_from_range": 0.8111,
+        "confidence_interval": {
+          "lower": 0.0608,
+          "upper": 0.2866,
+          "confidence_level": 0.95,
+          "sample_count": 36
+        },
+        "statistical_status": "below_target"
+      }
+    },
+    "out_of_range_metrics": [
+      "first_boss_reach_rate",
+      "first_boss_clear_rate",
+      "second_boss_reach_rate",
+      "median_reached_progress",
+      "terminal_run_rate"
+    ],
+    "statistically_out_of_range_metrics": [
+      "first_boss_clear_rate",
+      "second_boss_reach_rate",
+      "median_reached_progress",
+      "terminal_run_rate"
+    ],
+    "hard_gate": {
+      "passed": false,
+      "failed_metrics": [
+        "first_boss_clear_rate",
+        "median_reached_progress",
+        "terminal_run_rate"
+      ],
+      "inconclusive_metrics": [
+        "first_boss_reach_rate"
+      ]
+    },
+    "statistical_decision": {
+      "enabled": true,
+      "confidence_level": 0.95,
+      "inconclusive_metrics": [
+        "first_boss_reach_rate"
+      ],
+      "additional_samples_recommended": 10,
+      "maximum_sample_count": 60
+    },
+    "balance_score": 0.0,
+    "difficulty_bias": 0.9,
+    "judgement": "insufficient_data",
+    "adjustment_required": false,
+    "adjustment_priority": 0.0
+  },
+  "system_metrics": {
+    "schema_version": 1,
+    "sample_count": 36,
+    "coverage": {
+      "event_log_run_count": 36,
+      "shot_selection_run_count": 26,
+      "monetary_event_run_count": 21,
+      "pocket_schema_run_count": 36
+    },
+    "build": {
+      "reward_decisions": {
+        "offer_count": 170,
+        "choice_count": 165,
+        "completion_rate": 0.9706,
+        "offered_by_type": {
+          "extra_money": 170,
+          "new_ball": 170,
+          "upgrade_ball": 170
+        },
+        "chosen_by_type": {
+          "extra_money": 71,
+          "new_ball": 13,
+          "upgrade_ball": 81
+        },
+        "selection_rate_when_offered": {
+          "extra_money": 0.4176,
+          "new_ball": 0.0765,
+          "upgrade_ball": 0.4765
+        },
+        "dominant_reward_type": "upgrade_ball",
+        "dominant_selection_rate": 0.4765,
+        "dead_reward_types_minimum_five_offers": []
+      },
+      "new_ball_choices": {
+        "offered_by_ball_id": {
+          "player_anchor": 170,
+          "player_bounce": 170,
+          "player_heavy": 170,
+          "player_pierce": 170,
+          "player_standard": 170
+        },
+        "acquired_by_ball_id": {
+          "player_anchor": 4,
+          "player_standard": 8
+        },
+        "selection_rate_when_offered": {
+          "player_anchor": 0.0235,
+          "player_bounce": 0.0,
+          "player_heavy": 0.0,
+          "player_pierce": 0.0,
+          "player_standard": 0.0471
+        },
+        "average_offer_progress_by_ball_id": {
+          "player_anchor": 0.0,
+          "player_bounce": 0.0,
+          "player_heavy": 0.0,
+          "player_pierce": 0.0,
+          "player_standard": 0.0
+        },
+        "average_acquisition_progress_by_ball_id": {
+          "player_anchor": 0.0,
+          "player_standard": 0.0
+        }
+      },
+      "new_ball_acquisitions_by_ball_id": {
+        "player_anchor": 4,
+        "player_standard": 8
+      },
+      "upgrades": {
+        "count": 98,
+        "by_ball_id": {
+          "player_anchor": 8,
+          "player_heavy": 24,
+          "player_pierce": 23,
+          "player_standard": 43
+        },
+        "by_source_scene": {
+          "BATTLE": 81,
+          "REST_SITE": 17
+        }
+      },
+      "ball_usage": {
+        "mapped_shot_count": 645,
+        "unmapped_shot_count": 0,
+        "shots_by_ball_id": {
+          "player_anchor": 6,
+          "player_heavy": 221,
+          "player_pierce": 36,
+          "player_standard": 382
+        },
+        "shot_share_by_ball_id": {
+          "player_anchor": 0.0093,
+          "player_heavy": 0.3426,
+          "player_pierce": 0.0558,
+          "player_standard": 0.5922
+        }
+      },
+      "relics": {
+        "purchase_count": 33,
+        "runs_with_purchase": 9,
+        "purchases_by_name": {
+          "Bank Shot": 5,
+          "Emergency Repair Kit": 4,
+          "Guard Core": 6,
+          "Impact Accelerator": 5,
+          "Power Core": 6,
+          "バンクショット": 2,
+          "攻撃コア": 1,
+          "緊急修理キット": 2,
+          "衝撃加速装置": 1,
+          "防御コア": 1
+        },
+        "effect_triggers_by_name": {
+          "Bank Shot": 27,
+          "Emergency Repair Kit": 109
+        }
+      },
+      "final_deck": {
+        "observed_run_count": 33,
+        "average_size": 6.3636,
+        "average_upgrade_level": 0.4667,
+        "average_copies_by_ball_id": {
+          "player_anchor": 0.1212,
+          "player_heavy": 2.0,
+          "player_pierce": 1.9697,
+          "player_standard": 2.2727
+        }
+      }
+    },
+    "economy": {
+      "stage_money_earned": 2475,
+      "extra_money_earned": 710,
+      "total_money_earned": 3185,
+      "relic_money_spent": 660,
+      "average_money_earned_per_run": 151.6667,
+      "average_money_spent_per_run": 31.4286,
+      "average_final_money": 119.5238,
+      "median_final_money": 55.0,
+      "shop_visit_count": 29,
+      "shop_purchase_count": 34,
+      "shop_visits_without_purchase": 3,
+      "shop_purchase_rate_per_visit": 1.1724,
+      "relic_purchases_per_shop_visit": 1.1379,
+      "rest": {
+        "heal_count": 33,
+        "total_hp_recovered": 429,
+        "wasted_healing": 0
+      }
+    },
+    "routes": {
+      "decision_count": 194,
+      "candidate_slots_by_route": {
+        "Battle": 394,
+        "Rest Site": 106,
+        "Shop": 82
+      },
+      "decisions_offering_route": {
+        "Battle": 192,
+        "Rest Site": 84,
+        "Shop": 76
+      },
+      "selected_by_route": {
+        "Battle": 116,
+        "Rest Site": 49,
+        "Shop": 29
+      },
+      "selection_rate_when_offered": {
+        "Battle": 0.6042,
+        "Rest Site": 0.5833,
+        "Shop": 0.3816
+      },
+      "controller_counts": {
+        "human": 52,
+        "mcp": 142
+      },
+      "invalid_selection_count": 0
+    },
+    "pockets": {
+      "enemy": {
+        "controlled_count": 89,
+        "returned_count": 89,
+        "unreturned_control_count": 0,
+        "live_finisher_count": 16,
+        "post_defeat_finisher_count": 204,
+        "tactical_event_count": 105,
+        "control_return_rate": 1.0,
+        "tactical_events_per_100_shots": 16.28,
+        "by_stage_type": {
+          "boss": {
+            "controlled": 10,
+            "post_defeat_finisher": 23
+          },
+          "midBoss": {
+            "controlled": 12,
+            "live_finisher": 11,
+            "post_defeat_finisher": 23
+          },
+          "normal": {
+            "controlled": 67,
+            "live_finisher": 5,
+            "post_defeat_finisher": 158
+          },
+          "unknown": {
+            "returned": 89
+          }
+        },
+        "by_enemy_id": {
+          "enemy_boss_core": {
+            "controlled": 8,
+            "post_defeat_finisher": 2,
+            "returned": 8
+          },
+          "enemy_normal": {
+            "controlled": 66,
+            "live_finisher": 9,
+            "post_defeat_finisher": 128,
+            "returned": 66
+          },
+          "enemy_striker": {
+            "post_defeat_finisher": 6
+          },
+          "enemy_strong": {
+            "controlled": 5,
+            "live_finisher": 2,
+            "post_defeat_finisher": 63,
+            "returned": 5
+          },
+          "enemy_tank": {
+            "controlled": 10,
+            "live_finisher": 5,
+            "post_defeat_finisher": 5,
+            "returned": 10
+          }
+        }
+      },
+      "player": {
+        "pocket_count": 135,
+        "total_damage": 270,
+        "average_damage": 2.0,
+        "pockets_per_100_shots": 20.93
+      },
+      "runs_using_tactical_pocket": 19,
+      "tactical_pocket_run_rate": 0.5278,
+      "total_shot_count": 645
+    }
+  },
+  "diagnostics": {
+    "schema_version": 1,
+    "failure_taxonomy": {
+      "game_over_count": 3,
+      "primary_reason_counts": {
+        "combat_attrition": 1,
+        "player_pocket": 2
+      },
+      "overlapping_label_counts": {
+        "combat_attrition": 1,
+        "player_pocket": 2
+      },
+      "damage_by_source": {
+        "enemy_attack": 7,
+        "pocket": 4
+      },
+      "game_over_by_progress": {
+        "19": 1,
+        "20": 1,
+        "30": 1
+      },
+      "game_over_by_stage_type": {
+        "boss": 2,
+        "normal": 1
+      },
+      "examples": [
+        {
+          "run_id": "run_20260816_142729_204",
+          "progress": 20,
+          "stage_type": "boss",
+          "primary_reason": "player_pocket",
+          "labels": [
+            "player_pocket"
+          ],
+          "total_shots": 2,
+          "maximum_single_damage_ratio": 0.04
+        },
+        {
+          "run_id": "run_20260816_145135_024",
+          "progress": 19,
+          "stage_type": "normal",
+          "primary_reason": "combat_attrition",
+          "labels": [
+            "combat_attrition"
+          ],
+          "total_shots": 1,
+          "maximum_single_damage_ratio": 0.02
+        },
+        {
+          "run_id": "run_20260827_124945_746",
+          "progress": 30,
+          "stage_type": "boss",
+          "primary_reason": "player_pocket",
+          "labels": [
+            "player_pocket"
+          ],
+          "total_shots": 1,
+          "maximum_single_damage_ratio": 0.04
+        }
+      ],
+      "classification_notes": [
+        "Reasons are telemetry-derived indicators, not proof of player intent.",
+        "A failed run may have multiple overlapping labels."
+      ]
+    },
+    "difficulty_curve": {
+      "minimum_samples_per_floor": 5,
+      "floors": [
+        {
+          "progress": 1,
+          "stage_types": {
+            "normal": 22
+          },
+          "sample_count": 22,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0955,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.9045
+        },
+        {
+          "progress": 2,
+          "stage_types": {
+            "normal": 16
+          },
+          "sample_count": 16,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1062,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.8
+        },
+        {
+          "progress": 3,
+          "stage_types": {
+            "normal": 13
+          },
+          "sample_count": 13,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1477,
+          "median_shots": 4.0,
+          "average_remaining_hp_ratio": 0.6738
+        },
+        {
+          "progress": 4,
+          "stage_types": {
+            "normal": 10
+          },
+          "sample_count": 10,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.118,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.602
+        },
+        {
+          "progress": 5,
+          "stage_types": {
+            "midBoss": 7
+          },
+          "sample_count": 7,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1857,
+          "median_shots": 5.0,
+          "average_remaining_hp_ratio": 0.4429
+        },
+        {
+          "progress": 6,
+          "stage_types": {
+            "normal": 7
+          },
+          "sample_count": 7,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0943,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.3971
+        },
+        {
+          "progress": 7,
+          "stage_types": {
+            "normal": 6
+          },
+          "sample_count": 6,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1167,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.4233
+        },
+        {
+          "progress": 8,
+          "stage_types": {
+            "normal": 6
+          },
+          "sample_count": 6,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0767,
+          "median_shots": 2.5,
+          "average_remaining_hp_ratio": 0.4033
+        },
+        {
+          "progress": 9,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.096,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.292
+        },
+        {
+          "progress": 10,
+          "stage_types": {
+            "boss": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.196,
+          "median_shots": 7.0,
+          "average_remaining_hp_ratio": 0.332
+        },
+        {
+          "progress": 11,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1,
+          "median_shots": 2.0,
+          "average_remaining_hp_ratio": 0.3
+        },
+        {
+          "progress": 12,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.104,
+          "median_shots": 2.0,
+          "average_remaining_hp_ratio": 0.316
+        },
+        {
+          "progress": 13,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.12,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.264
+        },
+        {
+          "progress": 14,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.088,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.404
+        },
+        {
+          "progress": 15,
+          "stage_types": {
+            "midBoss": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.18,
+          "median_shots": 5.0,
+          "average_remaining_hp_ratio": 0.232
+        },
+        {
+          "progress": 16,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.092,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.268
+        },
+        {
+          "progress": 17,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.072,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.32
+        },
+        {
+          "progress": 18,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.132,
+          "median_shots": 4.0,
+          "average_remaining_hp_ratio": 0.264
+        },
+        {
+          "progress": 19,
+          "stage_types": {
+            "normal": 5
+          },
+          "sample_count": 5,
+          "failure_rate": 0.2,
+          "average_damage_ratio": 0.024,
+          "median_shots": 1.0,
+          "average_remaining_hp_ratio": 0.256
+        },
+        {
+          "progress": 20,
+          "stage_types": {
+            "boss": 4
+          },
+          "sample_count": 4,
+          "failure_rate": 0.25,
+          "average_damage_ratio": 0.19,
+          "median_shots": 6.0,
+          "average_remaining_hp_ratio": 0.22
+        },
+        {
+          "progress": 21,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0667,
+          "median_shots": 2.0,
+          "average_remaining_hp_ratio": 0.42
+        },
+        {
+          "progress": 22,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1333,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.3067
+        },
+        {
+          "progress": 23,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.1,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.24
+        },
+        {
+          "progress": 24,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0733,
+          "median_shots": 2.0,
+          "average_remaining_hp_ratio": 0.4533
+        },
+        {
+          "progress": 25,
+          "stage_types": {
+            "midBoss": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.16,
+          "median_shots": 6.0,
+          "average_remaining_hp_ratio": 0.2933
+        },
+        {
+          "progress": 26,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0667,
+          "median_shots": 2.0,
+          "average_remaining_hp_ratio": 0.4267
+        },
+        {
+          "progress": 27,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.0867,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.3733
+        },
+        {
+          "progress": 28,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.12,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.3667
+        },
+        {
+          "progress": 29,
+          "stage_types": {
+            "normal": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.0,
+          "average_damage_ratio": 0.08,
+          "median_shots": 3.0,
+          "average_remaining_hp_ratio": 0.32
+        },
+        {
+          "progress": 30,
+          "stage_types": {
+            "boss": 3
+          },
+          "sample_count": 3,
+          "failure_rate": 0.3333,
+          "average_damage_ratio": 0.1467,
+          "median_shots": 5.0,
+          "average_remaining_hp_ratio": 0.2733
+        }
+      ],
+      "detected_spikes": [
+        {
+          "from_progress": 9,
+          "to_progress": 10,
+          "reasons": [
+            "shot_count_jump"
+          ],
+          "deltas": {
+            "failure_rate": 0.0,
+            "average_damage_ratio": 0.1,
+            "median_shots": 4.0,
+            "average_remaining_hp_ratio": 0.04
+          }
+        },
+        {
+          "from_progress": 18,
+          "to_progress": 19,
+          "reasons": [
+            "failure_rate_jump"
+          ],
+          "deltas": {
+            "failure_rate": 0.2,
+            "average_damage_ratio": -0.108,
+            "median_shots": -3.0,
+            "average_remaining_hp_ratio": -0.008
+          }
+        }
+      ]
+    },
+    "dda_usage": {
+      "evaluation_count": 175,
+      "level_change_count": 0,
+      "level_change_rate": 0.0,
+      "level_changes": {
+        "0": 175
+      },
+      "results": {
+        "clear": 172,
+        "game_over": 3
+      }
+    }
+  },
+  "human_feedback": {
+    "schema_version": 1,
+    "feedback_count": 0,
+    "excluded_feedback_count": 0,
+    "linked_run_count": 0,
+    "average_ratings": {
+      "decision_clarity": 0.0,
+      "control_feel": 0.0,
+      "result_trust": 0.0,
+      "enjoyment": 0.0
+    },
+    "player_profiles": {},
+    "issue_tags": {},
+    "invalid_files": [],
+    "note": "Human ratings complement automated telemetry and are not included in automatic parameter changes."
+  },
+  "boss_revaluation": {
+    "eligible": false,
+    "reached_run_count": 5,
+    "minimum_reached_runs": 10,
+    "reach_rate": 0.1389,
+    "strength_adjustment_locked": true
+  },
+  "stages": [
+    {
+      "stage_id": "boss_001",
+      "stage_type": "boss",
+      "difficulty": 3,
+      "sample_count": 6,
+      "minimum_sample_count": 10,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "boss",
+        "used_stage_type_override": true
+      },
+      "clear_count": 4,
+      "total_shot_count": 28,
+      "metrics": {
+        "clear_rate": 0.6667,
+        "median_shots": 5.5,
+        "average_remaining_hp_ratio": 0.365,
+        "no_hit_shot_rate": 0.0,
+        "average_collision_effect": 2.2857
+      },
+      "metric_scores": {
+        "clear_rate": 100.0,
+        "median_shots": 78.57,
+        "average_remaining_hp_ratio": 100.0,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.55,
+          "target_max": 0.8,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.3,
+            "upper": 0.9032,
+            "confidence_level": 0.95,
+            "sample_count": 6
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "below_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 7.0,
+          "target_max": 12.0,
+          "distance_from_range": 1.5,
+          "confidence_interval": {
+            "lower": 1.0,
+            "upper": 7.0,
+            "confidence_level": 0.95,
+            "sample_count": 6
+          },
+          "statistical_status": "inconclusive"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.1,
+          "target_max": 0.5,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.212,
+            "upper": 0.518,
+            "confidence_level": 0.95,
+            "sample_count": 4
+          },
+          "statistical_status": "inconclusive"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0,
+            "upper": 0.1206,
+            "confidence_level": 0.95,
+            "sample_count": 28
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.5668,
+            "upper": 3.0046,
+            "confidence_level": 0.95,
+            "sample_count": 28
+          },
+          "statistical_status": "inconclusive"
+        }
+      },
+      "out_of_range_metrics": [
+        "median_shots"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_remaining_hp_ratio",
+          "average_collision_effect"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_remaining_hp_ratio",
+          "average_collision_effect"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "mcp": 6
+        },
+        "controller_profile": {
+          "intermediate": 6
+        },
+        "build_profile": {
+          "standard": 6
+        },
+        "baseline_profile": {
+          "normal": 6
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 6
+        },
+        "validation_sample_count": 6
+      },
+      "balance_score": 94.64,
+      "difficulty_bias": 0.0536,
+      "judgement": "insufficient_boss_reach",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0,
+      "boss_strength_evaluation": {
+        "eligible": false,
+        "reached_run_count": 5,
+        "minimum_reached_runs": 10
+      }
+    },
+    {
+      "stage_id": "boss_002",
+      "stage_type": "boss",
+      "difficulty": 3,
+      "sample_count": 6,
+      "minimum_sample_count": 10,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "boss",
+        "used_stage_type_override": true
+      },
+      "clear_count": 6,
+      "total_shot_count": 37,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 6.5,
+        "average_remaining_hp_ratio": 0.3167,
+        "no_hit_shot_rate": 0.0,
+        "average_collision_effect": 2.3514
+      },
+      "metric_scores": {
+        "clear_rate": 42.86,
+        "median_shots": 92.86,
+        "average_remaining_hp_ratio": 100.0,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.55,
+          "target_max": 0.8,
+          "distance_from_range": 0.2,
+          "confidence_interval": {
+            "lower": 0.6097,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 6
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "below_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 7.0,
+          "target_max": 12.0,
+          "distance_from_range": 0.5,
+          "confidence_interval": {
+            "lower": 4.0,
+            "upper": 7.0,
+            "confidence_level": 0.95,
+            "sample_count": 6
+          },
+          "statistical_status": "inconclusive"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.1,
+          "target_max": 0.5,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.2531,
+            "upper": 0.3802,
+            "confidence_level": 0.95,
+            "sample_count": 6
+          },
+          "statistical_status": "within_target"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0,
+            "upper": 0.0941,
+            "confidence_level": 0.95,
+            "sample_count": 37
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.5987,
+            "upper": 3.104,
+            "confidence_level": 0.95,
+            "sample_count": 37
+          },
+          "statistical_status": "inconclusive"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate",
+        "median_shots"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_collision_effect"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_collision_effect"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "mcp": 6
+        },
+        "controller_profile": {
+          "intermediate": 6
+        },
+        "build_profile": {
+          "standard": 6
+        },
+        "baseline_profile": {
+          "normal": 6
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 6
+        },
+        "validation_sample_count": 6
+      },
+      "balance_score": 75.36,
+      "difficulty_bias": 0.2464,
+      "judgement": "insufficient_boss_reach",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0,
+      "boss_strength_evaluation": {
+        "eligible": false,
+        "reached_run_count": 5,
+        "minimum_reached_runs": 10
+      }
+    },
+    {
+      "stage_id": "midboss_001",
+      "stage_type": "midBoss",
+      "difficulty": 3,
+      "sample_count": 12,
+      "minimum_sample_count": 15,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "midBoss",
+        "used_stage_type_override": true
+      },
+      "clear_count": 12,
+      "total_shot_count": 68,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 5.0,
+        "average_remaining_hp_ratio": 0.36,
+        "no_hit_shot_rate": 0.0,
+        "average_collision_effect": 1.2353
+      },
+      "metric_scores": {
+        "clear_rate": 66.67,
+        "median_shots": 100.0,
+        "average_remaining_hp_ratio": 100.0,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.7,
+          "target_max": 0.9,
+          "distance_from_range": 0.1,
+          "confidence_interval": {
+            "lower": 0.7575,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 12
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 5.0,
+          "target_max": 8.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 5.0,
+            "upper": 6.0,
+            "confidence_level": 0.95,
+            "sample_count": 12
+          },
+          "statistical_status": "within_target"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.2,
+          "target_max": 0.6,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.27,
+            "upper": 0.45,
+            "confidence_level": 0.95,
+            "sample_count": 12
+          },
+          "statistical_status": "within_target"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0,
+            "upper": 0.0535,
+            "confidence_level": 0.95,
+            "sample_count": 68
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.0984,
+            "upper": 1.3722,
+            "confidence_level": 0.95,
+            "sample_count": 68
+          },
+          "statistical_status": "within_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "human": 2,
+          "mcp": 10
+        },
+        "controller_profile": {
+          "intermediate": 10
+        },
+        "build_profile": {
+          "standard": 10
+        },
+        "baseline_profile": {
+          "normal": 12
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 12
+        },
+        "validation_sample_count": 12
+      },
+      "balance_score": 86.67,
+      "difficulty_bias": 0.1333,
+      "judgement": "insufficient_data",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    },
+    {
+      "stage_id": "midboss_002",
+      "stage_type": "midBoss",
+      "difficulty": 3,
+      "sample_count": 3,
+      "minimum_sample_count": 15,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "midBoss",
+        "used_stage_type_override": true
+      },
+      "clear_count": 3,
+      "total_shot_count": 15,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 5.0,
+        "average_remaining_hp_ratio": 0.2733,
+        "no_hit_shot_rate": 0.0,
+        "average_collision_effect": 1.9333
+      },
+      "metric_scores": {
+        "clear_rate": 66.67,
+        "median_shots": 100.0,
+        "average_remaining_hp_ratio": 100.0,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.7,
+          "target_max": 0.9,
+          "distance_from_range": 0.1,
+          "confidence_interval": {
+            "lower": 0.4385,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 3
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 5.0,
+          "target_max": 8.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 5.0,
+            "upper": 5.0,
+            "confidence_level": 0.95,
+            "sample_count": 3
+          },
+          "statistical_status": "within_target"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.2,
+          "target_max": 0.6,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0356,
+            "upper": 0.5111,
+            "confidence_level": 0.95,
+            "sample_count": 3
+          },
+          "statistical_status": "inconclusive"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0,
+            "upper": 0.2039,
+            "confidence_level": 0.95,
+            "sample_count": 15
+          },
+          "statistical_status": "inconclusive"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.3145,
+            "upper": 2.5521,
+            "confidence_level": 0.95,
+            "sample_count": 15
+          },
+          "statistical_status": "within_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio",
+          "no_hit_shot_rate"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio",
+          "no_hit_shot_rate"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "mcp": 3
+        },
+        "controller_profile": {
+          "intermediate": 3
+        },
+        "build_profile": {
+          "standard": 3
+        },
+        "baseline_profile": {
+          "normal": 3
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 3
+        },
+        "validation_sample_count": 3
+      },
+      "balance_score": 86.67,
+      "difficulty_bias": 0.1333,
+      "judgement": "insufficient_data",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    },
+    {
+      "stage_id": "normal_001",
+      "stage_type": "normal",
+      "difficulty": 1,
+      "sample_count": 23,
+      "minimum_sample_count": 30,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "normal",
+        "used_stage_type_override": true
+      },
+      "clear_count": 23,
+      "total_shot_count": 76,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 3.0,
+        "average_remaining_hp_ratio": 0.8974,
+        "no_hit_shot_rate": 0.0789,
+        "average_collision_effect": 1.4605
+      },
+      "metric_scores": {
+        "clear_rate": 92.0,
+        "median_shots": 100.0,
+        "average_remaining_hp_ratio": 75.65,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.85,
+          "target_max": 0.98,
+          "distance_from_range": 0.02,
+          "confidence_interval": {
+            "lower": 0.8569,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 23
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 3.0,
+          "target_max": 5.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 3.0,
+            "upper": 3.0,
+            "confidence_level": 0.95,
+            "sample_count": 23
+          },
+          "statistical_status": "within_target"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.4,
+          "target_max": 0.8,
+          "distance_from_range": 0.0974,
+          "confidence_interval": {
+            "lower": 0.8672,
+            "upper": 0.9276,
+            "confidence_level": 0.95,
+            "sample_count": 23
+          },
+          "statistical_status": "above_target"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0367,
+            "upper": 0.1617,
+            "confidence_level": 0.95,
+            "sample_count": 76
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.2077,
+            "upper": 1.7134,
+            "confidence_level": 0.95,
+            "sample_count": 76
+          },
+          "statistical_status": "within_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate",
+        "average_remaining_hp_ratio"
+      ],
+      "statistically_out_of_range_metrics": [
+        "average_remaining_hp_ratio"
+      ],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [
+          "average_remaining_hp_ratio"
+        ],
+        "inconclusive_metrics": [
+          "clear_rate"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "human": 14,
+          "mcp": 9
+        },
+        "controller_profile": {
+          "intermediate": 9
+        },
+        "build_profile": {
+          "standard": 9
+        },
+        "baseline_profile": {
+          "normal": 23
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 23
+        },
+        "validation_sample_count": 23
+      },
+      "balance_score": 93.15,
+      "difficulty_bias": 0.0685,
+      "judgement": "insufficient_data",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    },
+    {
+      "stage_id": "normal_002",
+      "stage_type": "normal",
+      "difficulty": 1,
+      "sample_count": 25,
+      "minimum_sample_count": 30,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "normal",
+        "used_stage_type_override": true
+      },
+      "clear_count": 25,
+      "total_shot_count": 101,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 3.0,
+        "average_remaining_hp_ratio": 0.7424,
+        "no_hit_shot_rate": 0.0891,
+        "average_collision_effect": 1.5842
+      },
+      "metric_scores": {
+        "clear_rate": 92.0,
+        "median_shots": 100.0,
+        "average_remaining_hp_ratio": 100.0,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.85,
+          "target_max": 0.98,
+          "distance_from_range": 0.02,
+          "confidence_interval": {
+            "lower": 0.8668,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 25
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 3.0,
+          "target_max": 5.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 3.0,
+            "upper": 4.0,
+            "confidence_level": 0.95,
+            "sample_count": 25
+          },
+          "statistical_status": "within_target"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.4,
+          "target_max": 0.8,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.667,
+            "upper": 0.8178,
+            "confidence_level": 0.95,
+            "sample_count": 25
+          },
+          "statistical_status": "inconclusive"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0476,
+            "upper": 0.1607,
+            "confidence_level": 0.95,
+            "sample_count": 101
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 1.328,
+            "upper": 1.8403,
+            "confidence_level": 0.95,
+            "sample_count": 101
+          },
+          "statistical_status": "within_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "human": 11,
+          "mcp": 14
+        },
+        "controller_profile": {
+          "intermediate": 14
+        },
+        "build_profile": {
+          "standard": 14
+        },
+        "baseline_profile": {
+          "normal": 25
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 25
+        },
+        "validation_sample_count": 25
+      },
+      "balance_score": 96.8,
+      "difficulty_bias": 0.032,
+      "judgement": "insufficient_data",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    },
+    {
+      "stage_id": "normal_003",
+      "stage_type": "normal",
+      "difficulty": 2,
+      "sample_count": 58,
+      "minimum_sample_count": 30,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "normal",
+        "used_stage_type_override": true
+      },
+      "clear_count": 57,
+      "total_shot_count": 198,
+      "metrics": {
+        "clear_rate": 0.9828,
+        "median_shots": 3.0,
+        "average_remaining_hp_ratio": 0.3986,
+        "no_hit_shot_rate": 0.0101,
+        "average_collision_effect": 2.4798
+      },
+      "metric_scores": {
+        "clear_rate": 98.9,
+        "median_shots": 100.0,
+        "average_remaining_hp_ratio": 99.65,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 100.0
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.85,
+          "target_max": 0.98,
+          "distance_from_range": 0.0028,
+          "confidence_interval": {
+            "lower": 0.9086,
+            "upper": 0.9969,
+            "confidence_level": 0.95,
+            "sample_count": 58
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 3.0,
+          "target_max": 5.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 3.0,
+            "upper": 4.0,
+            "confidence_level": 0.95,
+            "sample_count": 58
+          },
+          "statistical_status": "within_target"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "below_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.4,
+          "target_max": 0.8,
+          "distance_from_range": 0.0014,
+          "confidence_interval": {
+            "lower": 0.3486,
+            "upper": 0.4486,
+            "confidence_level": 0.95,
+            "sample_count": 57
+          },
+          "statistical_status": "inconclusive"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0028,
+            "upper": 0.0361,
+            "confidence_level": 0.95,
+            "sample_count": 198
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 2.2063,
+            "upper": 2.7533,
+            "confidence_level": 0.95,
+            "sample_count": 198
+          },
+          "statistical_status": "within_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate",
+        "average_remaining_hp_ratio"
+      ],
+      "statistically_out_of_range_metrics": [],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "average_remaining_hp_ratio"
+        ],
+        "additional_samples_recommended": 2,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "human": 8,
+          "mcp": 50
+        },
+        "controller_profile": {
+          "intermediate": 50
+        },
+        "build_profile": {
+          "standard": 50
+        },
+        "baseline_profile": {
+          "normal": 58
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 58
+        },
+        "validation_sample_count": 58
+      },
+      "balance_score": 99.51,
+      "difficulty_bias": 0.0039,
+      "judgement": "inconclusive",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    },
+    {
+      "stage_id": "normal_004",
+      "stage_type": "normal",
+      "difficulty": 3,
+      "sample_count": 43,
+      "minimum_sample_count": 30,
+      "target_scope": {
+        "level": "stage_type",
+        "stage_type": "normal",
+        "used_stage_type_override": true
+      },
+      "clear_count": 43,
+      "total_shot_count": 103,
+      "metrics": {
+        "clear_rate": 1.0,
+        "median_shots": 2.0,
+        "average_remaining_hp_ratio": 0.3591,
+        "no_hit_shot_rate": 0.0097,
+        "average_collision_effect": 4.068
+      },
+      "metric_scores": {
+        "clear_rate": 92.0,
+        "median_shots": 75.0,
+        "average_remaining_hp_ratio": 89.77,
+        "no_hit_shot_rate": 100.0,
+        "average_collision_effect": 64.4
+      },
+      "metric_status": {
+        "clear_rate": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.85,
+          "target_max": 0.98,
+          "distance_from_range": 0.02,
+          "confidence_interval": {
+            "lower": 0.918,
+            "upper": 1.0,
+            "confidence_level": 0.95,
+            "sample_count": 43
+          },
+          "statistical_status": "inconclusive"
+        },
+        "median_shots": {
+          "status": "below_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 3.0,
+          "target_max": 5.0,
+          "distance_from_range": 1.0,
+          "confidence_interval": {
+            "lower": 2.0,
+            "upper": 3.0,
+            "confidence_level": 0.95,
+            "sample_count": 43
+          },
+          "statistical_status": "inconclusive"
+        },
+        "average_remaining_hp_ratio": {
+          "status": "below_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.4,
+          "target_max": 0.8,
+          "distance_from_range": 0.0409,
+          "confidence_interval": {
+            "lower": 0.3153,
+            "upper": 0.4028,
+            "confidence_level": 0.95,
+            "sample_count": 43
+          },
+          "statistical_status": "inconclusive"
+        },
+        "no_hit_shot_rate": {
+          "status": "within_target",
+          "in_range": true,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 0.0,
+          "target_max": 0.2,
+          "distance_from_range": 0.0,
+          "confidence_interval": {
+            "lower": 0.0017,
+            "upper": 0.053,
+            "confidence_level": 0.95,
+            "sample_count": 103
+          },
+          "statistical_status": "within_target"
+        },
+        "average_collision_effect": {
+          "status": "above_target",
+          "in_range": false,
+          "hard_gate": true,
+          "statistical_gate": true,
+          "target_min": 1.0,
+          "target_max": 3.0,
+          "distance_from_range": 1.068,
+          "confidence_interval": {
+            "lower": 3.3961,
+            "upper": 4.7398,
+            "confidence_level": 0.95,
+            "sample_count": 103
+          },
+          "statistical_status": "above_target"
+        }
+      },
+      "out_of_range_metrics": [
+        "clear_rate",
+        "median_shots",
+        "average_remaining_hp_ratio",
+        "average_collision_effect"
+      ],
+      "statistically_out_of_range_metrics": [
+        "average_collision_effect"
+      ],
+      "hard_gate": {
+        "passed": false,
+        "failed_metrics": [
+          "average_collision_effect"
+        ],
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_remaining_hp_ratio"
+        ]
+      },
+      "statistical_decision": {
+        "enabled": true,
+        "confidence_level": 0.95,
+        "inconclusive_metrics": [
+          "clear_rate",
+          "median_shots",
+          "average_remaining_hp_ratio"
+        ],
+        "additional_samples_recommended": 10,
+        "maximum_sample_count": 60
+      },
+      "condition_breakdown": {
+        "controller_type": {
+          "human": 1,
+          "mcp": 42
+        },
+        "controller_profile": {
+          "intermediate": 42
+        },
+        "build_profile": {
+          "standard": 42
+        },
+        "baseline_profile": {
+          "normal": 43
+        },
+        "assist_mode": {
+          "enabled:False/level:0": 43
+        },
+        "validation_sample_count": 43
+      },
+      "balance_score": 85.46,
+      "difficulty_bias": 0.1147,
+      "judgement": "inconclusive",
+      "adjustment_required": false,
+      "adjustment_priority": 0.0
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Audit fixed-condition balance logs for reproducible regression runs."""
+"""再現可能な回帰ランのため、固定条件のバランスログを監査する。"""
 
 from __future__ import annotations
 

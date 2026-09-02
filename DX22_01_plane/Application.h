@@ -28,11 +28,17 @@ public:
         return m_hWnd;
     }
 
+    static void SetDisplayMode(uint32_t width, uint32_t height, bool fullscreen);
+    static bool IsFullscreen() { return m_IsFullscreen; }
+
 private:
     static HINSTANCE   m_hInst;        // インスタンスハンドル
     static HWND        m_hWnd;         // ウィンドウハンドル
     static uint32_t    m_Width;        // ウィンドウの横幅
     static uint32_t    m_Height;       // ウィンドウの縦幅
+    static uint32_t    m_WindowedWidth;
+    static uint32_t    m_WindowedHeight;
+    static bool        m_IsFullscreen;
 
     static bool InitApp(); //初期化
     static void UninitApp(); //終了処理

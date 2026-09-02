@@ -116,7 +116,7 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "ポケット撃破を優先候補にし、条件外でも次の敵攻撃が"
         "危険ならポケットへ入れてそのターンの攻撃を防ぐ"
         "選択肢を検討してください。プレイヤーボールも落ちる経路は"
-        "最大HPの5%ダメージを受けるため、残HPと利得を比較してください。"
+        "最大HPの4%ダメージを受けるため、残HPと利得を比較してください。"
         "ショット後はボールが停止してfire_shotが再び利用可能になるまで"
         "状態を確認してください。"
         "ステージ選択ではplayer、deck_balls、relics、"
@@ -135,7 +135,9 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "get_game_stateのmcp_controlに現在のplayer_levelと行動方針が"
         "含まれるため、毎回それに従ってください。"
         "ショットにはサーバー側でプレイヤーレベル別の"
-        "少量の照準誤差とパワー誤差が自動的に加わります。"
+        "距離適応パワーと、少量の照準・パワー誤差が自動的に"
+        "加わります。通常はfire_shotのpower_mode=autoを使用し、"
+        "manualはパワー固定の検証時だけにしてください。"
         "dynamic_balanceには自動難易度の現在レベル、次戦の敵補正、"
         "直近の評価理由が含まれます。自動評価はゲーム側が行うため、"
         "ユーザーから依頼されていない限り戦闘ごとに手動変更しないでください。"
@@ -185,12 +187,11 @@ def evaluate_tactical_shot_options(
     profile: dict[str, Any],
     pocket_index: int = -1,
 ) -> dict[str, Any]:
-    """Compare direct damage with every feasible pocket route.
+    """直接ダメージと、実行可能なすべてのポケット経路を比較する。
 
-    This is intentionally an estimate rather than a second physics engine. It
-    scores information the game already publishes: finisher eligibility,
-    prevented enemy attack, approach geometry, travel distance, and the risk
-    that the player's post-contact path overlaps a pocket.
+    第2の物理エンジンを作るのではなく、意図的に概算として扱う。
+    ゲームがすでに公開している、フィニッシュ可否、防止できる敵攻撃、
+    接近形状、移動距離、接触後のプレイヤー経路がポケットと重なる危険性を採点する。
     """
     ensure_enemy_target_ids(state)
     target = _find_live_enemy(state, target_id)
@@ -252,7 +253,7 @@ def evaluate_tactical_shot_options(
         float(
             state.get("pocket_rules", {})
             .get("player", {})
-            .get("damage_amount", math.ceil(player_max_hp * 0.05))
+            .get("damage_amount", math.ceil(player_max_hp * 0.04))
         ),
     )
     hp_urgency = min(
@@ -501,6 +502,91 @@ def build_tactical_shot_context(
             "fire_shotでshot_goal=autoを使うと、実行時の"
             "パワーと最新状態でdamage/pocketを再評価します。"
         ),
+    }
+
+
+def recommend_shot_power(
+    state: dict[str, Any],
+    target_id: str,
+    shot_type: str,
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    ensure_enemy_target_ids(state)
+    if shot_type not in VALID_SHOT_TYPES:
+        raise GameBridgeError(
+            "shot_typeはdirectまたはbankを指定してください。"
+        )
+
+    recommended = profile.get("recommended_power", {})
+    if not isinstance(recommended, dict):
+        recommended = {}
+    minimum_power = _finite_number(
+        recommended.get("min", 3.0),
+        "mcp_control.recommended_power.min",
+    )
+    maximum_power = _finite_number(
+        recommended.get("max", 7.0),
+        "mcp_control.recommended_power.max",
+    )
+    if (
+        not 1.0 <= minimum_power <= 8.0
+        or not 1.0 <= maximum_power <= 8.0
+        or minimum_power > maximum_power
+    ):
+        raise GameBridgeError(
+            "recommended_powerは1以上8以下かつmin<=maxに"
+            "してください。"
+        )
+
+    player_position = _xz_position(
+        state.get("player", {}).get("position"),
+        "player.position",
+    )
+    target = _find_live_enemy(state, target_id)
+    target_position = _xz_position(
+        target.get("position"),
+        "target.position",
+    )
+    direct_distance = _distance(player_position, target_position)
+    table = state.get("table", {})
+    if not isinstance(table, dict):
+        table = {}
+    field_width = max(
+        1.0,
+        _finite_number(
+            table.get("field_width", 137.0),
+            "table.field_width",
+        ),
+    )
+    field_depth = max(
+        1.0,
+        _finite_number(
+            table.get("field_depth", 72.0),
+            "table.field_depth",
+        ),
+    )
+    reference_distance = max(
+        20.0,
+        math.hypot(field_width, field_depth) * 0.5,
+    )
+    path_multiplier = 1.25 if shot_type == "bank" else 1.0
+    estimated_path_distance = direct_distance * path_multiplier
+    distance_ratio = min(
+        1.0,
+        max(0.0, estimated_path_distance / reference_distance),
+    )
+    power = minimum_power + (
+        maximum_power - minimum_power
+    ) * distance_ratio
+    return {
+        "recommended_power": round(power, 3),
+        "minimum_power": minimum_power,
+        "maximum_power": maximum_power,
+        "direct_distance": round(direct_distance, 3),
+        "estimated_path_distance": round(estimated_path_distance, 3),
+        "reference_distance": round(reference_distance, 3),
+        "distance_ratio": round(distance_ratio, 4),
+        "reason": "distance_adaptive_power",
     }
 
 

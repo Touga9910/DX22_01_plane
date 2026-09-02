@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Component.h"
 #include "Renderer.h"
@@ -8,8 +8,8 @@
 
 class GroundRenderComponent;
 
-// Ground-specific configuration and public gameplay API.
-// Rendering is provided by GroundRenderComponent on the same GameObject.
+// 地面固有の設定と、ゲームプレイ用の公開APIを扱う。
+// 描画は同じGameObjectのGroundRenderComponentが担当する。
 class Ground final : public Component
 {
 public:

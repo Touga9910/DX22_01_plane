@@ -69,18 +69,47 @@ def _run_summary(run: dict[str, Any]) -> dict[str, float]:
     }
 
 
+def _controller_values(run: dict[str, Any]) -> tuple[str, str]:
+    controller = run.get("controller", {})
+    if not isinstance(controller, dict):
+        controller = {}
+    context = run.get("run_context", {})
+    if not isinstance(context, dict):
+        context = {}
+    return (
+        str(controller.get(
+            "profile",
+            context.get("controller_profile", ""),
+        )),
+        str(controller.get(
+            "build_profile",
+            context.get("build_profile", ""),
+        )),
+    )
+
+
 def build_report(
     log_directory: Path,
     config: dict[str, Any],
+    controller_profile: str = "",
+    build_profile: str = "",
+    seed_suite: str = "tuning",
 ) -> dict[str, Any]:
     experiment_id = str(
         config.get("experiment_id", "paired_dda_5x2")
     )
     variants = _variant_definitions(config)
     variant_ids = [str(variant["id"]) for variant in variants]
+    seed_suites = config.get("seed_suites", {})
+    if not isinstance(seed_suites, dict):
+        seed_suites = {}
+    configured_seeds = seed_suites.get(
+        seed_suite,
+        config.get("random_seeds", []),
+    )
     expected_seeds = {
         int(seed)
-        for seed in config.get("random_seeds", [])
+        for seed in configured_seeds
         if isinstance(seed, int) and seed >= 0
     }
     minimum_runs = int(config.get("minimum_runs_per_variant", 5))
@@ -96,6 +125,14 @@ def build_report(
             run = load_json(path)
         except (OSError, ValueError, json.JSONDecodeError):
             invalid_log_files.append(str(path))
+            continue
+        run_controller_profile, run_build_profile = _controller_values(run)
+        if (
+            controller_profile
+            and run_controller_profile != controller_profile
+        ):
+            continue
+        if build_profile and run_build_profile != build_profile:
             continue
         context = run.get("run_context", {})
         validation = (
@@ -225,6 +262,12 @@ def build_report(
         .replace("+00:00", "Z"),
         "status": status,
         "experiment_id": experiment_id,
+        "seed_suite": seed_suite,
+        "available_seed_suites": sorted(seed_suites),
+        "cohort": {
+            "controller_profile": controller_profile,
+            "build_profile": build_profile,
+        },
         "expected_seeds": sorted(expected_seeds),
         "variant_order": variant_ids,
         "minimum_runs_per_variant": minimum_runs,
@@ -245,10 +288,34 @@ def main() -> int:
     parser.add_argument("--logs", type=Path, default=DEFAULT_LOG_DIRECTORY)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_FILE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_FILE)
+    parser.add_argument(
+        "--controller-profile",
+        default="",
+        help="Compare only one MCP player-skill profile.",
+    )
+    parser.add_argument(
+        "--build-profile",
+        default="",
+        help="Compare only one MCP build profile.",
+    )
+    parser.add_argument(
+        "--seed-suite",
+        default="tuning",
+        help=(
+            "Named seed suite from balance_validation.json. Falls back "
+            "to random_seeds for legacy configurations."
+        ),
+    )
     args = parser.parse_args()
     try:
         config = load_json(args.config)
-        report = build_report(args.logs, config)
+        report = build_report(
+            args.logs,
+            config,
+            controller_profile=args.controller_profile,
+            build_profile=args.build_profile,
+            seed_suite=args.seed_suite,
+        )
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"Failed to compare paired runs: {error}")
         return 1

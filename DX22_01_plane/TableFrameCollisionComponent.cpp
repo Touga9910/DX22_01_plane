@@ -1,4 +1,4 @@
-#include "TableFrameCollisionComponent.h"
+﻿#include "TableFrameCollisionComponent.h"
 
 #include "TableConfig.h"
 
@@ -13,7 +13,7 @@ void TableFrameCollisionComponent::Awake()
     const float mouth = TableConfig::POCKET_MOUTH_HALF_WIDTH;
     constexpr float y = 0.0f;
 
-    // Top and bottom rails leave openings at both corners and the center.
+    // 上下のレールは、両端と中央にポケット用の開口部を設ける。
     AddWall(
         Vector3(-fieldHalfWidth + mouth, y, fieldHalfDepth),
         Vector3(-mouth, y, fieldHalfDepth));
@@ -27,7 +27,7 @@ void TableFrameCollisionComponent::Awake()
         Vector3(mouth, y, -fieldHalfDepth),
         Vector3(fieldHalfWidth - mouth, y, -fieldHalfDepth));
 
-    // Side rails leave the corner pocket openings exposed.
+    // 左右のレールは、コーナーポケットの開口部を塞がない。
     AddWall(
         Vector3(-fieldHalfWidth, y, -fieldHalfDepth + mouth),
         Vector3(-fieldHalfWidth, y, fieldHalfDepth - mouth));

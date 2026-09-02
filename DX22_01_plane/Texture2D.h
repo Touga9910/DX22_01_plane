@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #include "Texture.h"
 #include "VertexBuffer.h"
 
-// Draws a 2D texture in screen space.
+// スクリーン空間へ2Dテクスチャを描画する。
 class Texture2D final : public Component
 {
 public:
@@ -22,7 +22,7 @@ public:
 	void SetPosition(float x, float y, float z);
 	void SetPosition(const DirectX::SimpleMath::Vector3& position);
 
-	// Rotation values are specified in degrees.
+	// 回転値は度数法で指定する。
 	void SetRotation(float x, float y, float z);
 	void SetRotation(const DirectX::SimpleMath::Vector3& rotationDegrees);
 

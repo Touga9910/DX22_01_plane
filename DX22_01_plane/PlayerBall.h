@@ -66,13 +66,17 @@ public:
 	//=======================================
 	void Defeat();
 	void OnPocketHit();
+	void EnterPocketQueue();
+	void ReturnFromPocket(
+		const DirectX::SimpleMath::Vector3& position);
 
 	//=======================================
 	// 状態管理
 	//=======================================
 	void SetState(State state) { m_State = state; }
 	State GetState() const { return m_State; }
-	bool IsIdle() const { return m_State == State::Idle; }
+	bool IsIdle() const { return !m_IsPocketed && m_State == State::Idle; }
+	bool IsPocketed() const { return m_IsPocketed; }
 
 	//=======================================
 	// ステータス系
@@ -99,6 +103,10 @@ public:
 	int GetMaxHP() const { return m_Ball->GetMaxHP(); }
 	int GetAttack() const { return m_Ball->GetAttack(); }
 	int GetDefense() const { return m_Ball->GetDefense(); }
+	int CalculateDamageTaken(int damage) const
+	{
+		return m_Ball->CalculateDamageTaken(damage);
+	}
 	bool IsDefeated() const { return m_Ball->IsDefeated(); }
 	bool IsStopped() const { return m_Ball->IsStopped(); }
 	DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
@@ -202,6 +210,7 @@ private:
 private:
 	BallComponent* m_Ball = nullptr;
 	BallRenderComponent* m_RenderComponent = nullptr;
+	bool m_IsPocketed = false;
 
 	//=======================================
 	// 弾道予測用の簡易メッシュ
@@ -275,6 +284,7 @@ private:
 	std::vector<TrailPoint> m_PrePositions;
 
 	bool m_PreTrajectoryDirty = true;
+	int m_PreviewRefreshFramesRemaining = 0;
 	float m_LastPreviewAimAngle = 99999.0f;
 	float m_LastPreviewShotPower = -1.0f;
 

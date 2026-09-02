@@ -1,4 +1,4 @@
-#include "TableFrameRenderComponent.h"
+﻿#include "TableFrameRenderComponent.h"
 
 #include "Camera.h"
 #include "Game.h"
@@ -66,7 +66,7 @@ void TableFrameRenderComponent::BuildMesh()
     const float mouth = TableConfig::POCKET_MOUTH_HALF_WIDTH;
     const float y = TableConfig::RAIL_TOP_OFFSET;
     const Color railColor(0.45f, 0.22f, 0.08f, 1.0f);
-    const Color pocketColor(0.025f, 0.025f, 0.025f, 1.0f);
+    const Color pocketColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     AddQuad(-fieldHalfWidth + mouth, fieldHalfDepth, -mouth, outerHalfDepth, y, railColor);
     AddQuad(mouth, fieldHalfDepth, fieldHalfWidth - mouth, outerHalfDepth, y, railColor);
@@ -80,8 +80,8 @@ void TableFrameRenderComponent::BuildMesh()
         m_PocketCenters.push_back(center);
         AddPocketDisc(
             center,
-            TableConfig::POCKET_RADIUS,
-            y + 0.01f,
+            TableConfig::POCKET_RADIUS * 1.45f,
+            y + 0.02f,
             pocketColor);
     }
 }
@@ -124,8 +124,8 @@ void TableFrameRenderComponent::AddPocketDisc(
         m_Vertices.push_back(edge0);
         m_Vertices.push_back(edge1);
         m_Indices.push_back(startIndex);
-        m_Indices.push_back(startIndex + 1);
         m_Indices.push_back(startIndex + 2);
+        m_Indices.push_back(startIndex + 1);
     }
 }
 

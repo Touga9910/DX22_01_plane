@@ -1,4 +1,4 @@
-#include "BallRenderComponent.h"
+﻿#include "BallRenderComponent.h"
 
 #include "Renderer.h"
 
@@ -43,6 +43,20 @@ void BallRenderComponent::BeginDraw()
 {
     m_Shader.SetGPU();
     m_MeshRenderer.BeforeDraw();
+}
+
+void BallRenderComponent::SetTint(const Color& color)
+{
+    for (const std::unique_ptr<Material>& material : m_Materials)
+    {
+        if (material == nullptr)
+        {
+            continue;
+        }
+
+        material->SetDiffuse(color);
+        material->Update();
+    }
 }
 
 void BallRenderComponent::DrawMesh(const Matrix& worldMatrix)

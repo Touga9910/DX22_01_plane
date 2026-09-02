@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bridge_store import GameBridgeError, GameBridgeStore
+from bridge_store import GameBridgeStore
 from server import (
     build_dynamic_wanted_reward_order,
     build_stage_choice_context,
@@ -41,7 +41,7 @@ class ServerSchemaTests(unittest.TestCase):
             tool for tool in tools if tool.name == "fire_shot"
         )
         properties = fire_shot.inputSchema["properties"]
-        required = fire_shot.inputSchema["required"]
+        required = fire_shot.inputSchema.get("required", [])
         self.assertIn("target_id", properties)
         self.assertIn("target_enemy_id", properties)
         self.assertIn("shot_goal", properties)
@@ -51,7 +51,61 @@ class ServerSchemaTests(unittest.TestCase):
             {"auto", "damage", "pocket"},
         )
         self.assertEqual(properties["shot_goal"]["default"], "auto")
-        self.assertIn("power", required)
+        self.assertIn("power", properties)
+        self.assertNotIn("power", required)
+        self.assertIn("power_mode", properties)
+        self.assertEqual(properties["power_mode"]["default"], "auto")
+        self.assertIn("ball_selection_reason", properties)
+
+    def test_build_profile_tool_exposes_supported_builds(self) -> None:
+        tools = self._list_tools()
+        set_build_profile = next(
+            tool for tool in tools if tool.name == "set_build_profile"
+        )
+        profile_schema = set_build_profile.inputSchema["properties"][
+            "build_profile"
+        ]
+        self.assertEqual(
+            set(profile_schema["enum"]),
+            {"standard", "heavy", "pierce", "bounce", "anchor"},
+        )
+        self.assertIn(
+            "build_profile",
+            set_build_profile.inputSchema["required"],
+        )
+
+    def test_build_risk_tool_is_read_only_and_exposes_risk_inputs(self) -> None:
+        tools = self._list_tools()
+        risk_tool = next(
+            tool for tool in tools if tool.name == "evaluate_build_risk"
+        )
+        properties = risk_tool.inputSchema["properties"]
+        self.assertIn("benefit_score", properties)
+        self.assertIn("hp_cost", properties)
+        self.assertIn("enemy_strength_increase", properties)
+        self.assertIn("floors_to_recovery", properties)
+        self.assertTrue(risk_tool.annotations.readOnlyHint)
+
+    def test_start_new_run_accepts_deterministic_validation_inputs(self) -> None:
+        tools = self._list_tools()
+        start_new_run = next(
+            tool for tool in tools if tool.name == "start_new_run"
+        )
+        properties = start_new_run.inputSchema["properties"]
+        self.assertIn("run_seed", properties)
+        self.assertIn("validation_variant", properties)
+        self.assertNotIn(
+            "run_seed",
+            start_new_run.inputSchema.get("required", []),
+        )
+
+    def test_build_decision_tools_accept_reason_telemetry(self) -> None:
+        tools = {tool.name: tool for tool in self._list_tools()}
+        for tool_name in ("select_ball", "upgrade_ball", "choose_reward"):
+            self.assertIn(
+                "decision_reason",
+                tools[tool_name].inputSchema["properties"],
+            )
 
     def test_dynamic_balance_tool_exposes_runtime_controls(
         self,
@@ -69,15 +123,15 @@ class ServerSchemaTests(unittest.TestCase):
         self.assertIn("level", properties)
         self.assertIn("enabled", required)
 
-    def test_choose_destination_requires_wanted_reward_order(self) -> None:
+    def test_choose_destination_allows_omitted_wanted_rewards(self) -> None:
         tools = self._list_tools()
         choose_destination = next(
             tool for tool in tools if tool.name == "choose_destination"
         )
         properties = choose_destination.inputSchema["properties"]
-        required = choose_destination.inputSchema["required"]
+        required = choose_destination.inputSchema.get("required", [])
         self.assertIn("wanted_rewards", properties)
-        self.assertIn("wanted_rewards", required)
+        self.assertNotIn("wanted_rewards", required)
         self.assertIn("route_index", properties)
         self.assertNotIn("route_index", required)
         self.assertNotIn("destination", properties)
@@ -122,12 +176,9 @@ class ServerSchemaTests(unittest.TestCase):
         self.assertTrue(decision["overridden"])
         self.assertEqual(decision["reason"], "low_hp_rest_priority")
 
-    def test_low_hp_route_policy_respects_heal_cooldown(self) -> None:
+    def test_low_hp_route_policy_skips_unavailable_heal(self) -> None:
         state = self._route_state(22)
-        state["rest_heal"] = {
-            "available": False,
-            "cooldown_remaining": 1,
-        }
+        state["rest_heal"] = {"available": False}
         decision = resolve_mcp_route_choice(
             state,
             1,
@@ -263,6 +314,30 @@ class ServerSchemaTests(unittest.TestCase):
             ],
         )
 
+    def test_build_need_priority_orders_simultaneous_needs(self) -> None:
+        effective = build_dynamic_wanted_reward_order(
+            self._wanted_rewards(),
+            {
+                "money": False,
+                "new_ball": True,
+                "ball_upgrade": True,
+                "hp_recovery": False,
+                "relic": True,
+            },
+            [
+                "hp_recovery",
+                "new_ball",
+                "relic",
+                "ball_upgrade",
+                "money",
+            ],
+        )
+
+        self.assertEqual(
+            effective[:3],
+            ["new_ball", "relic", "ball_upgrade"],
+        )
+
     def test_current_needs_override_stale_requested_order(
         self,
     ) -> None:
@@ -334,13 +409,48 @@ class ServerSchemaTests(unittest.TestCase):
         self.assertEqual(decision["effective_route_index"], 2)
         self.assertEqual(decision["reason"], "low_hp_rest_priority")
 
-    def test_stage_choice_rejects_incomplete_want_order(self) -> None:
-        with self.assertRaises(GameBridgeError):
-            resolve_mcp_stage_choice(
-                self._stage_choice_state(["battle", "rest", "shop"]),
-                ["money", "relic"],
-                self._route_profile(),
-            )
+    def test_stage_choice_completes_incomplete_want_order(self) -> None:
+        decision = resolve_mcp_stage_choice(
+            self._stage_choice_state(["battle", "rest", "shop"]),
+            ["money", "relic"],
+            self._route_profile(),
+        )
+
+        self.assertEqual(
+            decision["wanted_rewards"],
+            [
+                "money",
+                "relic",
+                "new_ball",
+                "ball_upgrade",
+                "hp_recovery",
+            ],
+        )
+        self.assertTrue(decision["wanted_rewards_completed"])
+
+    def test_stage_choice_defaults_omitted_want_order(self) -> None:
+        for route_index in range(3):
+            with self.subTest(route_index=route_index):
+                decision = resolve_mcp_stage_choice(
+                    self._stage_choice_state(
+                        ["battle", "battle", "battle"]
+                    ),
+                    None,
+                    self._route_profile(),
+                    requested_route_index=route_index,
+                )
+
+                self.assertEqual(
+                    decision["effective_route_index"],
+                    route_index,
+                )
+                self.assertEqual(
+                    decision["requested_wanted_rewards"],
+                    [],
+                )
+                self.assertTrue(
+                    decision["wanted_rewards_completed"]
+                )
 
     @staticmethod
     def _relic_state(
@@ -502,6 +612,16 @@ class ServerSchemaTests(unittest.TestCase):
         self.assertIn("can_upgrade", upgrade_ball.description)
         self.assertIn("最低5個", remove_ball.description)
 
+        choose_reward = next(
+            tool for tool in tools if tool.name == "choose_reward"
+        )
+        self.assertIn(
+            "clear_reward_upgrade_affordable",
+            choose_reward.description,
+        )
+        self.assertIn("15 Money", choose_reward.description)
+        self.assertIn("30 Money", choose_reward.description)
+
     def test_buy_relic_accepts_catalog_index(self) -> None:
         tools = self._list_tools()
         buy_relic = next(
@@ -513,6 +633,14 @@ class ServerSchemaTests(unittest.TestCase):
         self.assertIn("relic_index", required)
         self.assertIn("HP", buy_relic.description)
         self.assertIn("平均attack", buy_relic.description)
+
+        choose_relic = next(
+            tool for tool in tools if tool.name == "choose_relic"
+        )
+        self.assertIn(
+            "relic_index", choose_relic.inputSchema["properties"]
+        )
+        self.assertIn("midboss_offered", choose_relic.description)
 
 
 if __name__ == "__main__":

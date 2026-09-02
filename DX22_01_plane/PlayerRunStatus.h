@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <algorithm>
 #include <string>
 
 struct PlayerRunStatus
@@ -34,3 +35,11 @@ private:
     std::string selectedStageId;
     std::string lastStageId;
 };
+
+inline PlayerRunStatus NormalizePlayerRunStatus(PlayerRunStatus status)
+{
+    status.maxHp = (std::max)(1, status.maxHp);
+    status.currentHp = std::clamp(status.currentHp, 0, status.maxHp);
+    status.progress = (std::max)(1, status.progress);
+    return status;
+}

@@ -28,6 +28,11 @@
 #include "input.h"
 #include "Camera.h"
 #include "BallStatus.h"
+#include "GameTypes.h"
+#include "GameEvent.h"
+#include "RunResultSnapshot.h"
+#include "RunStatisticsTracker.h"
+#include "SettingsManager.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
 #include "StageSelector.h"
@@ -38,96 +43,9 @@
 class EnemyBall;
 struct EnemyData;
 class GameMcpBridge;
+class GamePresentation;
+class GameSaveManager;
 class PlayerBall;
-
-enum class SceneType {
-	Title,
-	Select,
-	Battle,
-	RestSite,
-	Shop,
-	Result,
-	Max
-};
-
-enum class RelicType
-{
-	AllBallAttackUp,
-	AllBallDefenseUp,
-	CollisionAttackUp,
-	BankShot,
-	EmergencyRepairKit,
-	Count
-};
-
-struct RelicDefinition
-{
-	RelicType type;
-	const char* name;
-	const char* description;
-	int price;
-};
-
-struct BalanceValidationVariant
-{
-	std::string id;
-	bool disableDynamicBalance = true;
-};
-
-inline constexpr std::array<
-	RelicDefinition,
-	static_cast<std::size_t>(RelicType::Count)> RelicCatalog =
-{{
-	{
-		RelicType::AllBallAttackUp,
-		"Power Core",
-		"All owned balls gain +1 ATK.",
-		20
-	},
-	{
-		RelicType::AllBallDefenseUp,
-		"Guard Core",
-		"All owned balls gain +1 DEF.",
-		20
-	},
-	{
-		RelicType::CollisionAttackUp,
-		"Impact Accelerator",
-		"Damage to enemies gains +1 after player-enemy or enemy-enemy hits. Resets each shot.",
-		20
-	},
-	{
-		RelicType::BankShot,
-		"Bank Shot",
-		"After hitting a wall, the first direct hit against an enemy deals double damage.",
-		20
-	},
-	{
-		RelicType::EmergencyRepairKit,
-		"Emergency Repair Kit",
-		"Recover 1 HP after a shot with at least 3 ball-to-ball contacts.",
-		20
-	}
-}};
-
-enum class DamageBallCollisionType
-{
-	PlayerEnemy,
-	EnemyEnemy
-};
-
-// ゲーム全体のターン進行状態
-enum class GameState {
-	AimingDirection,	// 方向選択中
-	AimingPower,		// パワー選択中
-	ConfirmShot,		// ショット確認・弾道表示中
-	BallsMoving,		// ボール移動中
-	EnemyAttack,		// 敵の攻撃中
-	TurnEnd,			// ターン終了（翌フレームに AimingDirection へ自動遷移）
-
-	ClearReward,		// クリア時の報酬表示
-	GameOver,			// ゲームオーバー
-};
 
 class Game
 {
@@ -148,8 +66,6 @@ private:
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	PlayerRunStatus m_PlayerRunStatus{};
 	float m_RestHealRatio = 0.25f;
-	int m_RestHealCooldownBattles = 2;
-	int m_RestHealCooldownRemaining = 0;
 	StageSelector m_StageSelector;
 	std::optional<StageData> m_McpNextStageOverride;
 	std::optional<StageData> m_McpCurrentStageOverride;
@@ -162,6 +78,11 @@ private:
 	int m_CurrentShotEnemyEnemyCollisionCount = 0;
 	bool m_CurrentShotBankShotReady = false;
 	bool m_CurrentShotBankShotConsumed = false;
+	int m_CurrentShotWallCollisionCount = 0;
+	int m_CurrentShotBounceDamageBonus = 0;
+	bool m_CurrentShotAnchorStopped = false;
+	float m_CurrentShotLaunchPower = 0.0f;
+	bool m_BountyRewardClaimed = false;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
@@ -175,13 +96,22 @@ private:
 	bool m_IsStageRewardCollected = false; // 二重取得防止
 	std::string m_RewardMessage;           // 購入結果などの表示
 	bool m_IsClearRewardChosen = false;
+	bool m_IsMidBossRelicSelectionActive = false;
+	int m_SelectedRelicOfferIndex = 0;
+	std::vector<int> m_MidBossRelicOffers;
+	std::vector<int> m_ShopRelicOffers;
+	bool m_ShopRelicPurchased = false;
 	int m_ClearedStageCount = 0;
+	static constexpr int kNormalRouteAreaGoal = 15;
+	int m_AreaProgress = 0;
+	RunPhase m_RunPhase = RunPhase::NormalRoute;
 
 	// バランスログ収集用の自動プレイ設定
 	bool m_BalanceAutoPlayEnabled = false;
 	bool m_AutoRestartAfterGameOver = true;
 	int m_AutoDecisionDelayFrames = 20;
 	int m_AutoDecisionFrame = 0;
+	int m_AllBallsStoppedFrameCount = 0;
 	int m_AutoRunCount = 0;
 	int m_AutoMaxRuns = 0;
 	float m_AutoMinShotPower = 4.0f;
@@ -191,15 +121,17 @@ private:
 	unsigned int m_AutoRandomSeed = 20260727u;
 	std::vector<std::uint64_t> m_AutoPendingBallAdjustments;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
+	std::unique_ptr<GamePresentation> m_GamePresentation;
 	nlohmann::json m_PendingShotTelemetry = nlohmann::json::object();
 	std::uint32_t m_RunRandomSeed = 0;
 	std::uint32_t m_StageSelectionSeed = 0;
 	std::uint32_t m_RouteSelectionSeed = 0;
 	std::uint32_t m_RouteSelectionCounter = 0;
 	std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
+	std::mt19937 m_RelicRandomEngine{ std::random_device{}() };
 	std::deque<EnemyBall*> m_PocketedEnemyQueue;
 	StageType m_CurrentBattleStageType = StageType::Normal;
-	float m_PlayerPocketDamageRatio = 0.05f;
+	float m_PlayerPocketDamageRatio = 0.04f;
 	float m_NormalPocketFinisherRatio = 0.30f;
 	float m_MidBossPocketFinisherRatio = 0.20f;
 	float m_BossPocketFinisherRatio = 0.10f;
@@ -208,12 +140,13 @@ private:
 	float m_EnemyPocketReturnX = 0.0f;
 	float m_EnemyPocketReturnTopEdgeOffset = 10.0f;
 
-	// Fixed-condition balance validation. When enabled, the run seed is fixed
-	// and DDA can be forcibly disabled so before/after builds are comparable.
+	// 固定条件でバランスを検証する。有効時はランのシードを固定し、
+	// DDAを強制的に無効化できるため、変更前後のビルドを比較できる。
 	bool m_BalanceValidationEnabled = false;
 	bool m_BalanceValidationDisableDynamicBalance = true;
 	bool m_BalanceValidationCurrentDisableDynamicBalance = true;
 	bool m_BalanceValidationFixedStageSchedule = true;
+	bool m_BalanceValidationEnduranceMode = false;
 	std::uint32_t m_BalanceValidationSeed = 20260807u;
 	std::vector<std::uint32_t> m_BalanceValidationSeeds{ 20260807u };
 	std::uint32_t m_BalanceValidationRunCounter = 0;
@@ -227,25 +160,28 @@ private:
 	};
 	int m_BalanceValidationMaximumClearedStages = 30;
 
-	// Baseline difficulty is fixed for the run. DDA remains a separate assist.
+	// 基準難易度はラン中に固定し、DDAは独立した救済機能として扱う。
 	std::string m_BaselineDifficultyProfile = "normal";
 	float m_BaselineEnemyHpMultiplier = 1.0f;
 	int m_BaselineEnemyAttackDelta = 0;
 	bool m_ProgressionScalingEnabled = true;
+	int m_ProgressionHpStart = 10;
+	int m_ProgressionHpInterval = 5;
+	int m_ProgressionHpStep = 1;
+	int m_ProgressionHpMaximumDelta = 4;
 	int m_ProgressionAttackStart = 20;
 	int m_ProgressionAttackInterval = 5;
 	int m_ProgressionAttackStep = 1;
 	int m_ProgressionAttackMaximumDelta = 8;
 
-	// Encounter threat costs are logged separately from raw enemy count.
+	// エンカウントの脅威度コストは、単純な敵数とは分けてログへ記録する。
 	std::unordered_map<std::string, float> m_EnemyThreatCosts;
 	std::unordered_map<std::string, float> m_StageThreatTargets;
 	float m_StageDataLayoutThreatMultiplier = 1.0f;
 	float m_DenseLayoutThreatMultiplier = 1.25f;
 	float m_McpLayoutThreatMultiplier = 1.0f;
 
-	// Dynamic difficulty adjustment (DDA). The result of one battle is
-	// applied to enemies spawned in the following battle.
+	// 動的難易度調整（DDA）。1戦の結果を、次の戦闘で生成する敵へ適用する。
 	bool m_DynamicBalanceConfiguredEnabled = true;
 	bool m_DynamicBalanceEnabled = true;
 	bool m_DynamicBalanceAppliedEnabled = true;
@@ -280,13 +216,81 @@ private:
 	float m_DynamicBalanceLastShotsPerEnemy = 0.0f;
 	std::string m_DynamicBalanceLastResult = "not_evaluated";
 	std::string m_DynamicBalanceLastReason = "No battle has been evaluated.";
+	bool m_IsRestoringRunSave = false;
+	std::string m_SaveLoadMessage;
+	int m_SaveLoadMessageFrames = 0;
+	RunStatisticsTracker m_RunStatistics{};
+	SettingsManager m_SettingsManager{};
+	bool m_RunActive = false;
+	bool m_IsPaused = false;
+	bool m_PauseConfirmTitle = false;
+	bool m_PendingDisplayApply = false;
+	RunResultSnapshot m_LastRunResult{};
+
+	struct DebugEnemyCombatSnapshot
+	{
+		std::string id;
+		int currentHp = 0;
+		int maxHp = 0;
+		int attack = 0;
+		int damageBeforeMinimum = 0;
+		int expectedDamage = 0;
+		bool minimumDamageApplied = false;
+		bool defeated = false;
+		bool pocketed = false;
+		bool canAttack = false;
+		std::string state;
+	};
+
+	struct DebugCombatForecastSnapshot
+	{
+		bool hasPlayer = false;
+		int playerCurrentHp = 0;
+		int playerMaxHp = 0;
+		int playerDefense = 0;
+		int theoreticalDamage = 0;
+		int expectedDamage = 0;
+		int overkillDamage = 0;
+		int attackerCount = 0;
+		int hpAfterAttack = 0;
+		bool lethal = false;
+		std::vector<DebugEnemyCombatSnapshot> enemies;
+		std::uint64_t updateRevision = 0;
+		std::string updateReason = "initial";
+	};
+
+	struct DebugPlayerDamageRecord
+	{
+		std::uint64_t sequence = 0;
+		std::string source;
+		std::string sourceId;
+		int damage = 0;
+		int hpBefore = -1;
+		int hpAfter = -1;
+	};
+
+	DebugCombatForecastSnapshot m_DebugCombatForecast{};
+	bool m_DebugCombatForecastDirty = true;
+	std::string m_DebugCombatForecastPendingReason = "initial";
+	std::deque<DebugPlayerDamageRecord> m_DebugPlayerDamageHistory;
+	std::uint64_t m_DebugDamageSequence = 0;
+	bool m_DebugLastEnemyAttackComparisonValid = false;
+	int m_DebugLastEnemyAttackPredictedDamage = 0;
+	int m_DebugLastEnemyAttackActualDamage = 0;
+	bool m_DebugShowDefeatedEnemies = true;
+	bool m_DebugShowPocketedEnemies = true;
+	bool m_DebugOnlyAttackers = false;
+	int m_DebugEnemySortMode = 0;
 
 	friend class GameMcpBridge;
+	friend class GamePresentation;
+	friend class GameSaveManager;
 
 	/// <summary>
 	/// 全てのボールが停止しているかどうかを判定する関数
 	/// </summary>
 	bool AreAllBallsStopped() const;
+	bool TryRecoverClearedBattle(const char* source);
 
 	/// <summary>
 	/// 敵の攻撃処理を行う関数
@@ -322,6 +326,9 @@ private:
 	/// </summary>
 	void ApplyPlayerRunStatusTo(PlayerBall* player);
 	void ApplyRelicModifiersTo(PlayerBall* player);
+	std::vector<int> RollRelicOffers(int count, bool midBoss);
+	bool GrantRelic(int relicIndex, const char* source);
+	bool IsCurrentBall(const char* definitionId) const;
 	void ResetShotRelicState(PlayerBall* player = nullptr);
 	void ApplyEndOfShotRelicEffects(PlayerBall* player);
 	void SaveDebugSnapshot();
@@ -350,6 +357,7 @@ private:
 		const std::string& filePath =
 			"assets/data/pocket_rules.json");
 	void RestoreNextPocketedEnemy();
+	void RestorePocketedPlayer();
 	DirectX::SimpleMath::Vector3 FindEnemyPocketReturnPosition(
 		const EnemyBall* returningEnemy) const;
 	void ResetDynamicBalanceRunState();
@@ -360,13 +368,40 @@ private:
 	bool FireBalanceAutoShot();
 	void SelectBalanceAutoBall();
 	void ApplyBalanceAutoReward();
+	int GetClearRewardUpgradeCost(int ballIndex) const;
+	bool ApplyClearRewardUpgrade(int ballIndex, int& chargedCost);
 	StageType GetBalanceAutoStageType() const;
 	bool IsBalanceAutoHealNeeded() const;
+	int FindBalanceAutoRelicToBuy() const;
+	int FindBalanceAutoWeakestBall() const;
+	int FindBalanceAutoMissingCatalogBall() const;
+	int FindBalanceAutoUpgradeTarget() const;
+	bool HasBalanceAutoShopAction() const;
 	int FindBalanceAutoPendingUpgradeableBall() const;
 	int FindBalanceAutoPendingRemovalBall() const;
 	void RemoveBalanceAutoPendingBall(std::uint64_t instanceId);
 	void PruneBalanceAutoPendingBalls();
 	void RemoveDestroyedGameObjects();
+	bool SaveRunCheckpoint(
+		SceneType sceneType,
+		bool sceneAlreadyActive,
+		bool showNotification);
+	void SetSaveLoadMessage(const std::string& message);
+	bool CanPause() const;
+	bool SaveAndReturnToTitle();
+	void DrawPauseUI();
+	void FinalizeRunResult(bool completed);
+	void CompleteNormalRouteArea(const char* areaType);
+	void EnterNextRouteAfterArea();
+	void CompleteFinalBossRun();
+	void PublishGameEvent(const GameEvent& event);
+	void RefreshDebugCombatForecast();
+	void RecordDebugPlayerDamage(
+		const std::string& source,
+		const std::string& sourceId,
+		int damage,
+		int hpBefore,
+		int hpAfter);
 
 public:
 	Game(); // コンストラクタ
@@ -402,10 +437,53 @@ public:
 	void ResetPlayerRuntimeStatus();
 	void StartNewRun(
 		const std::string& controllerType = std::string(),
-		const std::string& controllerProfile = std::string());
+		const std::string& controllerProfile = std::string(),
+		const std::string& buildProfile = std::string(),
+		const std::string& buildProfileSettingsHash = std::string(),
+		std::optional<std::uint32_t> forcedRandomSeed = std::nullopt,
+		const std::string& forcedValidationVariant = std::string());
+	bool HasValidRunSave() const;
+	std::string GetRunSaveSummary() const;
+	const std::string& GetSaveLoadMessage() const
+	{
+		return m_SaveLoadMessage;
+	}
+	bool SaveCurrentRun();
+	bool LoadSavedRun();
+	const RunResultSnapshot& GetRunStatistics() const
+	{
+		return m_RunStatistics.GetState();
+	}
+	bool WasLastRunCompleted() const
+	{
+		return m_LastRunResult.completed;
+	}
+	const RunResultSnapshot& GetLastRunResult() const
+	{
+		return m_LastRunResult;
+	}
+	const GameSettings& GetSettings() const
+	{
+		return m_SettingsManager.Get();
+	}
+	bool IsVibrationEnabled() const
+	{
+		return m_SettingsManager.Get().vibrationEnabled;
+	}
+	bool IsScreenFlashEnabled() const
+	{
+		return m_SettingsManager.Get().screenFlashEnabled;
+	}
+	bool IsCameraShakeEnabled() const
+	{
+		return m_SettingsManager.Get().cameraShakeEnabled;
+	}
 	void ApplyPlayerStatusTo(PlayerBall* player);
 	void CapturePlayerStatusFrom(const PlayerBall* player);
 	void CompleteCurrentStage();
+	void LeaveShop();
+	void LeaveRestSite();
+	void ContinueAfterClearReward();
 	void StartNextBattle();
 	void StartNextBattle(StageType stageType);
 	void OnBattleStageStarted(const StageData& stage);
@@ -417,12 +495,30 @@ public:
 	}
 	void OnPlayerShotFired(PlayerBall* player);
 	void NotifyPlayerWallCollision();
+	void NotifyAnchorStopped();
+	void NotifyEnemyDefeated(const std::string& enemyId);
 	int ConsumeBankShotDamageMultiplier();
+	int ConsumePlayerEnemyRelicDamageBonus();
+	int GetPierceMaximumUses() const;
+	float GetPierceSpeedRetention() const;
 	void NotifyDamageBallCollision(DamageBallCollisionType collisionType);
+	void NotifyCombatFeedback(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		int damage,
+		bool defeated,
+		bool enemyEnemyCollision);
+	void NotifyPocketFeedback(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		bool playerPocket,
+		bool finisher,
+		int damage = 0);
 	void NotifyPlayerDamage(
 		const std::string& source,
 		int damage,
-		const std::string& sourceId = std::string());
+		const std::string& sourceId = std::string(),
+		int hpBefore = -1,
+		int hpAfter = -1);
+	void InvalidateDebugCombatForecast(const char* reason);
 	void HandleEnemyPocket(EnemyBall* enemy);
 	DirectX::SimpleMath::Vector3 FindPlayerPocketReturnPosition(
 		const PlayerBall* player);
@@ -435,6 +531,7 @@ public:
 		const nlohmann::json& details = nlohmann::json::object());
 	void NotifyDynamicBalanceHit();
 	int CalculateDynamicBalanceAttackModifier(int level) const;
+	int CalculateProgressionHpModifier() const;
 	int CalculateProgressionAttackModifier() const;
 	void ApplyDynamicBalanceToEnemyData(EnemyData& enemyData) const;
 	void SetDynamicBalance(
@@ -454,7 +551,7 @@ public:
 	/// 敵が全滅しているかどうかを判定する関数
 	bool AreAllEnemiesDefeated() const;
 
-	// Finds all components of the requested type in the world.
+	// ゲーム空間から、指定した型のコンポーネントをすべて取得する。
 	template<typename T> std::vector<T*> GetComponents()
 	{
 		static_assert(std::is_base_of_v<Component, T>,
@@ -526,20 +623,22 @@ public:
 	int GetPlayerMaxHp() const { return m_PlayerRunStatus.maxHp; }
 	int GetRestHealAmount() const;
 	int GetRestHealPercent() const;
-	int GetRestHealCooldownBattles() const
-	{
-		return m_RestHealCooldownBattles;
-	}
-	int GetRestHealCooldownRemaining() const
-	{
-		return m_RestHealCooldownRemaining;
-	}
 	bool CanRestHeal() const
 	{
-		return m_RestHealCooldownRemaining <= 0 &&
-			m_PlayerRunStatus.currentHp < m_PlayerRunStatus.maxHp;
+		return m_PlayerRunStatus.currentHp < m_PlayerRunStatus.maxHp;
 	}
 	int GetClearedStageCount() const { return m_ClearedStageCount; }
+	int GetAreaProgress() const { return m_AreaProgress; }
+	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
+	RunPhase GetRunPhase() const { return m_RunPhase; }
+	bool IsBossPreparation() const
+	{
+		return m_RunPhase == RunPhase::BossPreparation;
+	}
+	bool IsFinalBossRoute() const
+	{
+		return m_RunPhase == RunPhase::FinalBossReady;
+	}
 	int GetPlayerProgress() const { return m_PlayerRunStatus.progress; }
 	const std::string& GetSelectedStageId() const
 	{
@@ -599,5 +698,49 @@ public:
 	}
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
 	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;
+	int GetBallOfferSize() const
+	{
+		return HasRelic(RelicType::ExpandedBallOffer) ? 4 : 3;
+	}
+	void RollShopRelicOffers();
+	int GetShopRelicOfferCount() const
+	{
+		return static_cast<int>(m_ShopRelicOffers.size());
+	}
+	int GetShopRelicOfferCatalogIndex(int offerIndex) const
+	{
+		return offerIndex >= 0 && offerIndex < GetShopRelicOfferCount()
+			? m_ShopRelicOffers[static_cast<std::size_t>(offerIndex)]
+			: -1;
+	}
+	const RelicDefinition* GetShopRelicOffer(int offerIndex) const
+	{
+		return GetRelic(GetShopRelicOfferCatalogIndex(offerIndex));
+	}
+	bool IsShopRelicOffered(int relicIndex) const;
+	bool HasPurchasedShopRelic() const { return m_ShopRelicPurchased; }
+	bool BuyShopRelicOffer(int offerIndex);
+	bool BuyShopRelic(int relicIndex);
+	void RollMidBossRelicOffers();
+	int GetMidBossRelicOfferCount() const
+	{
+		return static_cast<int>(m_MidBossRelicOffers.size());
+	}
+	int GetMidBossRelicOfferCatalogIndex(int offerIndex) const
+	{
+		return offerIndex >= 0 && offerIndex < GetMidBossRelicOfferCount()
+			? m_MidBossRelicOffers[static_cast<std::size_t>(offerIndex)]
+			: -1;
+	}
+	const RelicDefinition* GetMidBossRelicOffer(int offerIndex) const
+	{
+		return GetRelic(GetMidBossRelicOfferCatalogIndex(offerIndex));
+	}
+	bool IsMidBossRelicSelectionActive() const
+	{
+		return m_IsMidBossRelicSelectionActive;
+	}
+	bool AcquireMidBossRelicOffer(int offerIndex);
+	bool AcquireMidBossRelic(int relicIndex);
 	bool BuyRelic(int relicIndex);
 };

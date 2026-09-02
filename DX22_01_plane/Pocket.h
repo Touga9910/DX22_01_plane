@@ -1,12 +1,12 @@
-#pragma once
+﻿#pragma once
 
 #include "Collision.h"
 #include "Component.h"
 
 class SphereColliderComponent;
 
-// Pocket gameplay marker. Its trigger shape is composed with a
-// SphereColliderComponent on the same GameObject.
+// ポケットのゲームプレイ用マーカー。
+// トリガー形状は同じGameObjectのSphereColliderComponentと組み合わせて構成する。
 class Pocket final : public Component
 {
 public:

@@ -471,12 +471,12 @@ namespace Collision
 			if (t1 < t2)
 			{
 				distance = t1;
-				return  segment.start + t1 * direction;;
+				return segment.start + t1 * direction;
 			}
 			else
 			{
 				distance = t2;
-				return  segment.start + t2 * direction;
+				return segment.start + t2 * direction;
 			}
 		}
 

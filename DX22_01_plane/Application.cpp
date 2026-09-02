@@ -1,20 +1,27 @@
 ﻿#include <chrono>
 #include <thread>
+#include <algorithm>
 #include <stdio.h>
 #include "Application.h"
+
+#pragma execution_character_set("utf-8")
 #include "Game.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"   // ← 追加
 #include "imgui/imgui_impl_dx11.h"    // ← 追加
 #include "Renderer.h"                  // ← 追加（Device取得のため）
 
-const auto ClassName = TEXT("2025 framework ひな型");     //ウィンドウクラス名
-const auto WindowName = TEXT("2025 framework ひな型");    //ウィンドウ名
+// Win32 の ANSI/MBCS 設定に影響されないよう、ウィンドウ関連は Unicode API を使う。
+constexpr wchar_t ClassName[] = L"DX22_01_plane_WindowClass"; // ウィンドウクラス名
+constexpr wchar_t WindowName[] = L"2025 framework ひな型";    // ウィンドウ名
 
 HINSTANCE  Application::m_hInst;   // インスタンスハンドル
 HWND       Application::m_hWnd;    // ウィンドウハンドル
 uint32_t   Application::m_Width;   // ウィンドウの横幅
 uint32_t   Application::m_Height;  // ウィンドウの縦幅
+uint32_t   Application::m_WindowedWidth;
+uint32_t   Application::m_WindowedHeight;
+bool       Application::m_IsFullscreen = false;
 
 // ImGuiのWin32プロシージャハンドラ(マウス対応)
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -26,8 +33,62 @@ Application::Application(uint32_t width, uint32_t height)
 { 
     m_Height = height;
     m_Width = width;
+    m_WindowedWidth = width;
+    m_WindowedHeight = height;
 
     timeBeginPeriod(1); //タイマー精度を1ミリ秒に設定
+}
+
+void Application::SetDisplayMode(
+    uint32_t width,
+    uint32_t height,
+    bool fullscreen)
+{
+    if (m_hWnd == nullptr)
+    {
+        return;
+    }
+
+    m_WindowedWidth = (std::max)(640u, width);
+    m_WindowedHeight = (std::max)(360u, height);
+    m_IsFullscreen = fullscreen;
+
+    if (fullscreen)
+    {
+        MONITORINFO monitorInfo{ sizeof(MONITORINFO) };
+        GetMonitorInfoW(
+            MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST),
+            &monitorInfo);
+        SetWindowLongPtrW(m_hWnd, GWL_STYLE, WS_POPUP | WS_MINIMIZEBOX);
+        SetWindowPos(
+            m_hWnd,
+            HWND_TOP,
+            monitorInfo.rcMonitor.left,
+            monitorInfo.rcMonitor.top,
+            monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+            monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+            SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+        return;
+    }
+
+    const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
+        WS_MINIMIZEBOX;
+    RECT rectangle{
+        0,
+        0,
+        static_cast<LONG>(m_WindowedWidth),
+        static_cast<LONG>(m_WindowedHeight),
+    };
+    AdjustWindowRect(&rectangle, style, FALSE);
+    SetWindowLongPtrW(m_hWnd, GWL_STYLE, style);
+    SetWindowPos(
+        m_hWnd,
+        HWND_NOTOPMOST,
+        100,
+        100,
+        rectangle.right - rectangle.left,
+        rectangle.bottom - rectangle.top,
+        SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 }
 
 //-----------------------------------------------------------------------------
@@ -63,10 +124,11 @@ bool Application::InitApp()
     }
 
     // ウィンドウの設定
-    WNDCLASSEX wc = {};
-    wc.cbSize = sizeof(WNDCLASSEX);
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProc;
+    wc.hInstance = hInst;
     wc.hIcon = LoadIcon(hInst, IDI_APPLICATION);
     wc.hCursor = LoadCursor(hInst, IDC_ARROW);
     wc.hbrBackground = GetSysColorBrush(COLOR_BACKGROUND);
@@ -75,7 +137,7 @@ bool Application::InitApp()
     wc.hIconSm = LoadIcon(hInst, IDI_APPLICATION);
 
     // ウィンドウの登録
-    if (!RegisterClassEx(&wc))
+    if (!RegisterClassExW(&wc))
     {
         return false;
     }
@@ -93,7 +155,7 @@ bool Application::InitApp()
     AdjustWindowRect(&rc, style, FALSE);
 
     // ウィンドウを生成
-    m_hWnd = CreateWindowEx(
+    m_hWnd = CreateWindowExW(
         0,
         //        WS_EX_TOPMOST,
         ClassName,
@@ -135,7 +197,7 @@ void Application::UninitApp()
     // ウィンドウの登録を解除
     if (m_hInst != nullptr)
     {
-        UnregisterClass(ClassName, m_hInst);
+        UnregisterClassW(ClassName, m_hInst);
     }
 
     m_hInst = nullptr;
@@ -163,6 +225,19 @@ void Application::MainLoop()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+    // プレイヤー向けImGui表示に必要な日本語グリフを読み込む。
+    // 対応するWindows環境に同梱されるフォントを使い、
+    // UIがデバッグ用のASCIIフォントへ依存しないようにする。
+    ImFont* japaneseFont = io.Fonts->AddFontFromFileTTF(
+        "C:/Windows/Fonts/meiryo.ttc",
+        18.0f,
+        nullptr,
+        io.Fonts->GetGlyphRangesJapanese());
+    if (japaneseFont != nullptr)
+    {
+        io.FontDefault = japaneseFont;
+    }
 
     ImGui_ImplWin32_Init(m_hWnd);
     ImGui_ImplDX11_Init(Renderer::GetDevice(), Renderer::GetDeviceContext());
@@ -244,19 +319,19 @@ void Application::MainLoop()
                currentFps = fpsCounter;
 
                // タイトルバーに表示するための文字列を作成
-               TCHAR titleBuffer[256];
+               wchar_t titleBuffer[256];
 
                // 現在のウィンドウ名とFPSを組み合わせた文字列を作成
-               sprintf_s(
+               swprintf_s(
                    titleBuffer,
                    256,
-                   TEXT("%s [FPS: %d]"),
+                   L"%ls [FPS: %d]",
                    WindowName, // 元のタイトル名
                    currentFps
                );
 
                // ウィンドウのタイトルバーを更新
-               SetWindowText(m_hWnd, titleBuffer);
+               SetWindowTextW(m_hWnd, titleBuffer);
 
                // カウンタと時間をリセット
                fpsCounter = 0;
@@ -282,8 +357,6 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
         return true;
 
-    static bool isFullscreen = false;
-    static bool isMessageBoxShowed = false;
     switch (uMsg)
     {
     case WM_DESTROY:// ウィンドウ破棄のメッセージ
@@ -292,50 +365,17 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
     case WM_CLOSE:  // 「x」ボタンが押されたら
     {
-        int res = MessageBoxA(NULL, "終了しますか？", "確認", MB_OKCANCEL);
+        int res = MessageBoxW(NULL, L"終了しますか？", L"確認", MB_OKCANCEL);
         if (res == IDOK) {
             DestroyWindow(hWnd);  // 「WM_DESTROY」メッセージを送る
         }
     }
     break;
 
-    case WM_KEYDOWN: //キー入力があったメッセージ
-        if (LOWORD(wParam) == VK_ESCAPE)
-        { //入力されたキーがESCAPEなら
-            PostMessage(hWnd, WM_CLOSE, wParam, lParam);//「WM_CLOSE」を送る
-        }
-
-        else if (LOWORD(wParam) == VK_F11)
-        {
-            isFullscreen = !isFullscreen;
-            if (isFullscreen) {
-                //フルスクリーンに切り替え
-                //g_pSwapChain->SetFullscreenState(TRUE, NULL);
-                //ShowWindow(hWnd, SW_MAXIMIZE);
-
-                // 疑似フルスクリーンモードに変更
-                SetWindowLongPtr(hWnd, GWL_STYLE, WS_POPUP | WS_MINIMIZEBOX); // ウィンドウ枠を削除
-                // ディスプレイ解像度を取得
-                int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-                int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-                SetWindowPos(hWnd, HWND_TOP, 0, 0, screenWidth, screenHeight, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-            }
-            else {
-                //ウィンドウモードに戻す
-                //g_pSwapChain->SetFullscreenState(FALSE, NULL);
-                //ShowWindow(hWnd, SW_RESTORE);
-
-                // 通常ウィンドウに戻す
-                SetWindowLongPtr(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW); // ウィンドウ枠を戻す
-                SetWindowPos(hWnd, HWND_TOP, 100, 100, m_Width, m_Height, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
-            }
-        }
-        break;
-
     case WM_ACTIVATE:
         if (wParam == WA_INACTIVE) {
             // フルスクリーン表示かつメッセージボックス非表示なら
-            if (isFullscreen && !isMessageBoxShowed)
+            if (m_IsFullscreen)
             {
                 // ウインドウを最小化する（タスク切替時に背後に残る問題対策）
                 ShowWindow(hWnd, SW_MINIMIZE);

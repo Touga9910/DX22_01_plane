@@ -10,9 +10,11 @@ class GameObject;
 
 enum class StageRouteType
 {
-	Battle,
+	NormalBattle,
+	MidBoss,
 	Shop,
-	RestSite
+	RestSite,
+	FinalBoss
 };
 
 // StageSelectSceneクラス

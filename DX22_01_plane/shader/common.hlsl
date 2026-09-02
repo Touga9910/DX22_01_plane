@@ -1,5 +1,5 @@
-//“ñ‚Â‚Ìhlslƒtƒ@ƒCƒ‹‚Ì‹¤’Ê“_‚ğ‚Ü‚Æ‚ß‚½‚à‚ÌB
-//‚±‚ê’P‘Ì‚Å“®‚­‚±‚Æ‚Í‚È‚¢iƒGƒ“ƒgƒŠƒ|ƒCƒ“ƒg‚ª‚È‚¢‚©‚ç“®‚©‚È‚¢j‚Ì‚ÅAƒrƒ‹ƒh‚©‚çœŠO‚µ‚È‚¢‚ÆƒGƒ‰[‚ªo‚é
+//äºŒã¤ã®hlslãƒ•ã‚¡ã‚¤ãƒ«ã®å…±é€šç‚¹ã‚’ã¾ã¨ã‚ãŸã‚‚ã®ã€‚
+//ã“ã‚Œå˜ä½“ã§å‹•ãã“ã¨ã¯ãªã„ï¼ˆã‚¨ãƒ³ãƒˆãƒªãƒã‚¤ãƒ³ãƒˆãŒãªã„ã‹ã‚‰å‹•ã‹ãªã„ï¼‰ã®ã§ã€ãƒ“ãƒ«ãƒ‰ã‹ã‚‰é™¤å¤–ã—ãªã„ã¨ã‚¨ãƒ©ãƒ¼ãŒå‡ºã‚‹
 
 cbuffer WorldBuffer : register(b0)
 {
@@ -31,22 +31,22 @@ struct PS_IN
 
 struct LIGHT
 {
-    bool Enable;        // g—p‚·‚é‚©”Û‚©
-    bool3 Dummy;        // PADDING
-    float4 Direction;   // •ûŒü
-    float4 Diffuse;     // ŠgU”½Ë—p‚ÌŒõ‚Ì‹­‚³
-    float4 Ambient;     // ŠÂ‹«Œõ—p‚ÌŒõ‚Ì‹­‚³
+    bool Enable;        // ä½¿ç”¨ã™ã‚‹ã‹å¦ã‹
+    bool3 Dummy;        // ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆèª¿æ•´ç”¨
+    float4 Direction;   // æ–¹å‘
+    float4 Diffuse;     // æ‹¡æ•£åå°„ç”¨ã®å…‰ã®å¼·ã•
+    float4 Ambient;     // ç’°å¢ƒå…‰ç”¨ã®å…‰ã®å¼·ã•
 };
 
-cbuffer LightBuffer : register(b3)  //O”Ô–Ú‚Ì’è”ƒoƒbƒtƒ@‚ÉŒõŒ¹î•ñ
+cbuffer LightBuffer : register(b3)  //ä¸‰ç•ªç›®ã®å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«å…‰æºæƒ…å ±
 {
     LIGHT Light;
 }
 
 struct MATERIAL
 {
-    float4 Ambient; // ŠÂ‹«Œõ—p‚ÌŒõ‚Ì‹­‚³
-    float4 Diffuse; // ŠgU”½Ë—p‚ÌŒõ‚Ì‹­‚³
+    float4 Ambient; // ç’°å¢ƒå…‰ç”¨ã®å…‰ã®å¼·ã•
+    float4 Diffuse; // æ‹¡æ•£åå°„ç”¨ã®å…‰ã®å¼·ã•
     float4 Specular;
     float4 Emission;
     float Shininess;
@@ -54,12 +54,12 @@ struct MATERIAL
     bool2 Dummy;
 };
 
-cbuffer MaterialBuffer : register(b4) //l”Ô–Ú‚Ì’è”ƒoƒbƒtƒ@‚Éƒ}ƒeƒŠƒAƒ‹î•ñ
+cbuffer MaterialBuffer : register(b4) //å››ç•ªç›®ã®å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«ãƒãƒ†ãƒªã‚¢ãƒ«æƒ…å ±
 {
     MATERIAL Material;
 }
 
-cbuffer TextureBuffer : register(b5) //ŒÜ”Ô–Ú‚Ì’è”ƒoƒbƒtƒ@‚ÉUVî•ñ
+cbuffer TextureBuffer : register(b5) //äº”ç•ªç›®ã®å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«UVæƒ…å ±
 {
     matrix matrixTex;
 }
