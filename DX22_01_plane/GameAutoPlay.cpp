@@ -66,8 +66,10 @@ bool Game::UpdateBalanceAutoPlay()
 	if (m_DebugMode || m_DebugEditorOpen) return false;
 	if (Input::GetKeyTrigger(VK_F8))
 	{
-		m_BalanceAutoPlayEnabled =
-			!m_BalanceAutoPlayEnabled;
+		const bool startAutoPlay = !m_BalanceAutoPlayEnabled;
+		m_BalanceAutoPlayEnabled = startAutoPlay;
+		m_AutoStopAfterCurrentRunRequested =
+			startAutoPlay && m_AutoStopAfterCurrentRunDefault;
 		m_AutoDecisionFrame = 0;
 
 		std::cout
@@ -75,6 +77,16 @@ bool Game::UpdateBalanceAutoPlay()
 			<< (m_BalanceAutoPlayEnabled ? "ON" : "OFF")
 			<< std::endl;
 	}
+	if (m_BalanceAutoPlayEnabled && Input::GetKeyTrigger(VK_F9))
+	{
+		m_AutoStopAfterCurrentRunRequested =
+			!m_AutoStopAfterCurrentRunRequested;
+		std::cout
+			<< "[BalanceAutoPlay] Stop at run end: "
+			<< (m_AutoStopAfterCurrentRunRequested ? "ON" : "OFF")
+			<< std::endl;
+	}
+
 	if (!m_BalanceAutoPlayEnabled || m_Scene == nullptr)
 	{
 		return false;
@@ -117,6 +129,15 @@ bool Game::UpdateBalanceAutoPlay()
 
 	if (dynamic_cast<ResultScene*>(m_Scene) != nullptr)
 	{
+		if (m_AutoStopAfterCurrentRunRequested)
+		{
+			m_BalanceAutoPlayEnabled = false;
+			m_AutoStopAfterCurrentRunRequested = false;
+			std::cout
+				<< "[BalanceAutoPlay] Stopped at terminal result"
+				<< std::endl;
+			return false;
+		}
 		if (!m_AutoRestartAfterGameOver)
 		{
 			m_BalanceAutoPlayEnabled = false;

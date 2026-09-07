@@ -952,8 +952,12 @@ void Game::Draw()
 			? "Stop Balance Auto Play"
 			: "Start Balance Auto Play"))
 	{
-		m_Instance->m_BalanceAutoPlayEnabled =
+		const bool startAutoPlay =
 			!m_Instance->m_BalanceAutoPlayEnabled;
+		m_Instance->m_BalanceAutoPlayEnabled = startAutoPlay;
+		m_Instance->m_AutoStopAfterCurrentRunRequested =
+			startAutoPlay &&
+			m_Instance->m_AutoStopAfterCurrentRunDefault;
 		m_Instance->m_AutoDecisionFrame = 0;
 	}
 	ImGui::EndDisabled();
@@ -964,6 +968,22 @@ void Game::Draw()
 		m_Instance->m_AutoMaxRuns > 0
 			? " (limited)"
 			: " (unlimited)");
+	ImGui::BeginDisabled(!m_Instance->m_BalanceAutoPlayEnabled);
+	if (ImGui::Button(
+		m_Instance->m_AutoStopAfterCurrentRunRequested
+			? "Continue After This Run (F9)"
+			: "Stop At This Run End (F9)"))
+	{
+		m_Instance->m_AutoStopAfterCurrentRunRequested =
+			!m_Instance->m_AutoStopAfterCurrentRunRequested;
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::TextUnformatted(
+		m_Instance->m_AutoStopAfterCurrentRunRequested
+			? "Stops on game over / game clear"
+			: "Continuous runs");
+
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
 		m_Instance->SaveDebugSnapshot();

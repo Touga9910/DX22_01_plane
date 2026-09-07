@@ -464,6 +464,10 @@ nlohmann::json GameMcpBridge::BuildState(
 			game.m_PlayerRunStatus.GetSelectedStageId() },
 		{ "autoplay_enabled",
 			game.m_BalanceAutoPlayEnabled },
+		{ "autoplay_stop_after_current_run",
+			game.m_AutoStopAfterCurrentRunRequested },
+		{ "autoplay_stop_after_current_run_default",
+			game.m_AutoStopAfterCurrentRunDefault },
 		{ "bridge", {
 			{ "write_actions_enabled", m_AllowWriteActions },
 			{ "single_pending_command", true },

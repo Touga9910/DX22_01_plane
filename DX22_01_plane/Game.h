@@ -124,6 +124,8 @@ private:
 	// バランスログ収集用の自動プレイ設定
 	bool m_BalanceAutoPlayEnabled = false;
 	bool m_AutoRestartAfterGameOver = true;
+	bool m_AutoStopAfterCurrentRunDefault = false;
+	bool m_AutoStopAfterCurrentRunRequested = false;
 	int m_AutoDecisionDelayFrames = 20;
 	int m_AutoDecisionFrame = 0;
 	int m_AllBallsStoppedFrameCount = 0;

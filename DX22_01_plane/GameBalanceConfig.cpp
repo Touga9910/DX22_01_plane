@@ -357,6 +357,11 @@ void Game::LoadBalanceAutoPlayConfig(
 			config.value("enabled", false);
 		m_AutoRestartAfterGameOver =
 			config.value("restart_after_game_over", true);
+		m_AutoStopAfterCurrentRunDefault =
+			config.value("stop_after_current_run", false);
+		m_AutoStopAfterCurrentRunRequested =
+			m_BalanceAutoPlayEnabled &&
+			m_AutoStopAfterCurrentRunDefault;
 		m_AutoDecisionDelayFrames =
 			(std::max)(
 				1,
