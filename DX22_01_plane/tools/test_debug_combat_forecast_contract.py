@@ -24,7 +24,7 @@ class DebugCombatForecastContractTests(unittest.TestCase):
         self.assertIn("if (!m_DebugCombatForecastDirty)", game)
         self.assertNotIn(
             'InvalidateDebugCombatForecast("シーン変更")',
-            game[game.index("void Game::Update()") : game.index("void Game::Draw()")],
+            game[game.index("void Game::Update(") : game.index("void Game::Draw()")],
         )
 
     def test_damage_changes_invalidate_the_cached_forecast(self) -> None:

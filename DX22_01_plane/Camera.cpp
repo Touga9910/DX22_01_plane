@@ -2,6 +2,7 @@
 #include "Camera.h"
 #include "Application.h"
 #include "input.h"
+#include "imgui/imgui.h"
 
 using namespace DirectX::SimpleMath;
 
@@ -41,6 +42,11 @@ void Camera::Init()
 //=======================================
 void Camera::Update()
 {
+	if (ImGui::GetCurrentContext() != nullptr && !ImGui::GetIO().WantCaptureMouse &&
+		GetForegroundWindow() == Application::GetWindow())
+	{
+		m_TargetDistanceY -= ImGui::GetIO().MouseWheel * 10.0f;
+	}
 
 	if (Input::GetKeyPress(VK_O)) // Oキーでズームイン（カメラを下げる）
 	{

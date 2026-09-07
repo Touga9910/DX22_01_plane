@@ -1,0 +1,116 @@
+[
+  {
+    "build": "standard",
+    "upgrade_parameters_level": 0,
+    "controller": "mcp",
+    "status": "win",
+    "shots": 11,
+    "final_hp": 40,
+    "boss_hp": 0,
+    "direct_damage": 16,
+    "fixed_damage": 44,
+    "breaks": 3,
+    "fixed_damage_ratio": 0.7333333333333333,
+    "planning_ms_mean": 658.7835545454545,
+    "planning_ms_max": 744.0988,
+    "kinds": {
+      "bank": 3,
+      "direct": 2,
+      "neutral_push": 6
+    },
+    "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+    "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+  },
+  {
+    "build": "heavy",
+    "upgrade_parameters_level": 0,
+    "controller": "mcp",
+    "status": "win",
+    "shots": 8,
+    "final_hp": 41,
+    "boss_hp": 0,
+    "direct_damage": 21,
+    "fixed_damage": 39,
+    "breaks": 2,
+    "fixed_damage_ratio": 0.65,
+    "planning_ms_mean": 530.532,
+    "planning_ms_max": 628.1478,
+    "kinds": {
+      "neutral_center": 2,
+      "bank": 1,
+      "neutral_push": 2,
+      "setup": 1,
+      "direct": 2
+    },
+    "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+    "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+  },
+  {
+    "build": "pierce",
+    "upgrade_parameters_level": 0,
+    "controller": "mcp",
+    "status": "win",
+    "shots": 11,
+    "final_hp": 40,
+    "boss_hp": 0,
+    "direct_damage": 12,
+    "fixed_damage": 48,
+    "breaks": 3,
+    "fixed_damage_ratio": 0.8,
+    "planning_ms_mean": 606.0559818181817,
+    "planning_ms_max": 900.2776,
+    "kinds": {
+      "neutral_center": 3,
+      "bank": 5,
+      "direct": 1,
+      "neutral_push": 2
+    },
+    "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+    "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+  },
+  {
+    "build": "bounce",
+    "upgrade_parameters_level": 0,
+    "controller": "mcp",
+    "status": "win",
+    "shots": 11,
+    "final_hp": 40,
+    "boss_hp": 0,
+    "direct_damage": 8,
+    "fixed_damage": 52,
+    "breaks": 4,
+    "fixed_damage_ratio": 0.8666666666666667,
+    "planning_ms_mean": 857.6044818181817,
+    "planning_ms_max": 1224.7194,
+    "kinds": {
+      "bank": 2,
+      "direct": 3,
+      "neutral_push": 6
+    },
+    "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+    "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+  },
+  {
+    "build": "anchor",
+    "upgrade_parameters_level": 0,
+    "controller": "mcp",
+    "status": "win",
+    "shots": 25,
+    "final_hp": 26,
+    "boss_hp": 0,
+    "direct_damage": 20,
+    "fixed_damage": 40,
+    "breaks": 5,
+    "fixed_damage_ratio": 0.6666666666666666,
+    "planning_ms_mean": 293.75563600000004,
+    "planning_ms_max": 362.9101,
+    "kinds": {
+      "neutral_center": 5,
+      "setup": 4,
+      "reposition": 11,
+      "direct": 5
+    },
+    "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+    "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+  }
+]

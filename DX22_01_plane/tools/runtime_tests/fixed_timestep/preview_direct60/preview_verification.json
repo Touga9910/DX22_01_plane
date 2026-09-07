@@ -1,0 +1,32 @@
+[
+  {
+    "case": "standard_chain",
+    "direct_points": 4,
+    "full_points": 71,
+    "object_guide": true,
+    "matched": true,
+    "max_error": 0,
+    "milliseconds": 14.5188,
+    "ticks": 159
+  },
+  {
+    "case": "pierce_line",
+    "direct_points": 6,
+    "full_points": 72,
+    "object_guide": true,
+    "matched": true,
+    "max_error": 0,
+    "milliseconds": 17.173,
+    "ticks": 158
+  },
+  {
+    "case": "bounce_wall",
+    "direct_points": 10,
+    "full_points": 59,
+    "object_guide": false,
+    "matched": true,
+    "max_error": 0,
+    "milliseconds": 8.474,
+    "ticks": 66
+  }
+]

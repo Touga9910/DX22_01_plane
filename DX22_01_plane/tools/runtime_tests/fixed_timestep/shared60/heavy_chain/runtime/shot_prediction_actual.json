@@ -1,0 +1,82 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 50,
+      "id": 1671321131424,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        -44.935020446777344,
+        1.0,
+        -20.657136917114258
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "defeated": true,
+      "enemy_id": "enemy_strong",
+      "hp": 0,
+      "id": 1671321127584,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        50.11288833618164,
+        1.0,
+        -7.994145393371582
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 3,
+      "id": 1671321128608,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        11.018131256103516,
+        1.0,
+        20.293283462524414
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 5,
+      "id": 1671321130656,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -35.0,
+        1.0,
+        -18.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "enemy_enemy_contacts": 1,
+  "player_enemy_contacts": 2
+}

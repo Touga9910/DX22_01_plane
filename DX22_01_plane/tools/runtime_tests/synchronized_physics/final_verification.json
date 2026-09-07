@@ -1,0 +1,322 @@
+{
+  "phase": 2,
+  "physics_model": "synchronized_discrete_v1",
+  "build": "Debug x64, 0 warnings, 0 errors",
+  "exe_sha256": "5933efe9d4552abcc64c0e09939e7b89868287132923b9493a0e029970d60370",
+  "source_sha256": {
+    "SynchronizedBallStepper.h": "d8353dd85674c914a23ba4d682bfad917a2dbd46e892410b11e02dd0948d68d0",
+    "BallPhysicsWorld.h": "3b67d620ace72c8a3fa5d727d7b64a587471d387577acabd561ade2bde2edcc8",
+    "BallPhysicsWorld.cpp": "01ed0d96a3fd4168d115bdd1adc1e193f4c6ffdcf0a6c93506ca0bf54c31be8e",
+    "BallCollisionComponent.h": "ee861e0011fbaac442bffe073fe568c43da951bc7fc53d5364bf00f7e4be31f5",
+    "BallCollisionComponent.cpp": "4f2da3e0d45b3da4a4407c859b837eab5ec7457092f52bfc9d9db8c0f4ffd70b",
+    "BallComponent.h": "15de7d047341a3e6e7074b2eb3c54c4c0dc320353d0d0372c50989215d072c96",
+    "BallComponent.cpp": "d69f7b1110956aaae7e004d4ebbc456bb7b664ba456379dd72d184cd1f8fa475",
+    "PlayerBall.h": "791ede78f8491211a1c294305894caf12e43d72adefe7af080a95b98107a2543",
+    "PlayerBall.cpp": "ed3cb54dc40e9715e7aa5247aa37881dbcb69651a12ce11cbff397e212342390",
+    "EnemyBall.cpp": "776e2c627ff840f09529539c22cfc43d0d1f79c426049ad1e0c4f4c461ee31e9",
+    "Game.h": "580575d44a2199cec2a83782c411423e3708250f120e8aa0aeac451aeb30518b",
+    "Game.cpp": "e56115700645b7574206d7648c570947348ead2b4857085732e6e29e0859da54",
+    "GameMcpBridge.cpp": "6ad93dc7d8b656da1086d0f81e9788204e9e5aabb03bb789ebc5449f0d99b9c0",
+    "GameBalanceConfig.cpp": "7e98ea938a110ce0167d5ec051817783c421fa6ed0a0c84f3111e44c8e97d6c1",
+    "DX22_01_plane.vcxproj": "f00cda46c625e2bb32920617e3f61702cb410206eb9de1e1149f42ffb2c1f41a"
+  },
+  "existing_python_tests": 183,
+  "shared_step_cpp_tests": "passed",
+  "captured_shots": 20,
+  "capture_labels": [
+    "synchronized60",
+    "synchronized30",
+    "synchronized_reverse",
+    "synchronized_mixed",
+    "synchronized_mixed_reverse"
+  ],
+  "comparisons": [
+    {
+      "reference": "synchronized60",
+      "cases": [
+        {
+          "case": "standard_chain",
+          "matched": true,
+          "observed_max_steps": 2,
+          "damage_contacts": 3
+        },
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "observed_max_steps": 2,
+          "damage_contacts": 3
+        },
+        {
+          "case": "pierce_line",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 2
+        },
+        {
+          "case": "bounce_wall",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 0
+        },
+        {
+          "case": "anchor_contact",
+          "matched": true,
+          "observed_max_steps": 2,
+          "damage_contacts": 2
+        },
+        {
+          "case": "standard_pocket",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 0
+        }
+      ]
+    },
+    {
+      "reference": "synchronized60",
+      "cases": [
+        {
+          "case": "standard_chain",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 3
+        },
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 3
+        },
+        {
+          "case": "pierce_line",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 2
+        },
+        {
+          "case": "bounce_wall",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 0
+        },
+        {
+          "case": "anchor_contact",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 2
+        },
+        {
+          "case": "standard_pocket",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 0
+        }
+      ]
+    },
+    {
+      "reference": "synchronized_mixed",
+      "ignore_target_order": true,
+      "ignore_enemy_attack_order": true,
+      "cases": [
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "observed_max_steps": 3,
+          "damage_contacts": 4
+        }
+      ]
+    }
+  ],
+  "legacy_changes": {
+    "reference": "fixed60",
+    "cases": [
+      {
+        "case": "standard_chain",
+        "before": {
+          "player_hp": 46,
+          "player_position": {
+            "x": 12.560940742492676,
+            "y": 1.0,
+            "z": 19.32390785217285
+          },
+          "damage": 7,
+          "contacts": 3,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 1,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 46,
+          "player_position": {
+            "x": 12.432852745056152,
+            "y": 1.0,
+            "z": 19.21788787841797
+          },
+          "damage": 7,
+          "contacts": 3,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 1,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.16627317860161595
+      },
+      {
+        "case": "heavy_chain",
+        "before": {
+          "player_hp": 46,
+          "player_position": {
+            "x": -44.7779426574707,
+            "y": 1.0,
+            "z": -20.409074783325195
+          },
+          "damage": 7,
+          "contacts": 3,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 1,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 46,
+          "player_position": {
+            "x": -44.935020446777344,
+            "y": 1.0,
+            "z": -20.657136917114258
+          },
+          "damage": 7,
+          "contacts": 3,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 1,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.2936124215925548
+      },
+      {
+        "case": "pierce_line",
+        "before": {
+          "player_hp": 44,
+          "player_position": {
+            "x": 2.9233973026275635,
+            "y": 1.0,
+            "z": 15.473453521728516
+          },
+          "damage": 2,
+          "contacts": 2,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 44,
+          "player_position": {
+            "x": 2.8526816368103027,
+            "y": 1.0,
+            "z": 15.475622177124023
+          },
+          "damage": 2,
+          "contacts": 2,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.0707489113570164
+      },
+      {
+        "case": "bounce_wall",
+        "before": {
+          "player_hp": 42,
+          "player_position": {
+            "x": 6.666143417358398,
+            "y": 1.0,
+            "z": -5.938277721405029
+          },
+          "damage": 0,
+          "contacts": 0,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 42,
+          "player_position": {
+            "x": 6.666143417358398,
+            "y": 1.0,
+            "z": -5.938277721405029
+          },
+          "damage": 0,
+          "contacts": 0,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.0
+      },
+      {
+        "case": "anchor_contact",
+        "before": {
+          "player_hp": 47,
+          "player_position": {
+            "x": 15.448831558227539,
+            "y": 1.0,
+            "z": 6.1795334815979
+          },
+          "damage": 6,
+          "contacts": 2,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 0,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 47,
+          "player_position": {
+            "x": 15.231966972351074,
+            "y": 1.0,
+            "z": 6.0927863121032715
+          },
+          "damage": 6,
+          "contacts": 2,
+          "enemy_enemy_contacts": 1,
+          "enemies_defeated": 0,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.23357080301848618
+      },
+      {
+        "case": "standard_pocket",
+        "before": {
+          "player_hp": 42,
+          "player_position": {
+            "x": 6.666143417358398,
+            "y": 1.0,
+            "z": -5.938277721405029
+          },
+          "damage": 0,
+          "contacts": 0,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": null
+        },
+        "after": {
+          "player_hp": 42,
+          "player_position": {
+            "x": 6.666143417358398,
+            "y": 1.0,
+            "z": -5.938277721405029
+          },
+          "damage": 0,
+          "contacts": 0,
+          "enemy_enemy_contacts": 0,
+          "enemies_defeated": 0,
+          "substep_limit_count": 0
+        },
+        "player_stop_distance_change": 0.0
+      }
+    ]
+  },
+  "data_unchanged": true,
+  "impact_formula_unchanged": true,
+  "remaining": [
+    "shared_simulation_prediction",
+    "ccd_toi",
+    "new_boss"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "action": "fire_boss_shot",
+  "command_id": "1256d39b6f8b4d34aa90202b3f7f6d4a",
+  "completed_at_unix_ms": 1788485276029,
+  "message": "Fired the selected boss plan.",
+  "ok": true,
+  "schema_version": 1,
+  "state_sequence": 1074
+}

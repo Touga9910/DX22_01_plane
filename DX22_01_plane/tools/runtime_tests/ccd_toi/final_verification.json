@@ -1,0 +1,401 @@
+{
+  "completed_at": "2026-09-04",
+  "stage": 4,
+  "physics_model": "synchronized_ccd_toi_v1",
+  "exe_path": "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - コピー\\DX22_01_plane\\x64\\Debug\\DX22_01_plane.exe",
+  "exe_sha256": "bd488a8426434ea159fa47df1c647f0335a1ba1b0ef4a6d5228d379eb1bf436b",
+  "source_sha256": {
+    "BallCcdGeometry.h": "0def853834b814fdca3a7585ac72cb1d14a96871330ba8fbe1491e8756bdcd95",
+    "ContinuousBallStepper.h": "69c517f113e985fc1460161cf230f06cf998ae09d7347ec21dff6d767dbfe248",
+    "BallPhysicsRules.h": "0f4564605a2267f73bb539e991969323b91317dbdbcdf85f852f187fdf7aef71",
+    "BallPhysicsWorld.h": "a58c840397b3ed340fb2f59ca50be23e156dac70dd223d685af255faa589d4eb",
+    "BallPhysicsWorld.cpp": "0379bd621ddd055744f4deb970ae014be5dc7fe2157cfbd6bdd8a938413e56f5",
+    "BallCollisionComponent.h": "43b63c332a63d07b60c6fe21b19486beb794bcfc84a6e702903e403bf2981400",
+    "BallCollisionComponent.cpp": "3af91088bde85aed632cced235a78bfec05aba56cbbb68643fa56fe7c9ce16cd",
+    "BallShotPrediction.cpp": "44327e860df7993e49195234111d870b886661a433998223bcf9642d152b48b3",
+    "GameProgression.cpp": "1434c78c8a3f7ebf6645d6ac47a75dee9fbfd618321fae1b4c191f1a95525bd5",
+    "GameMcpBridge.cpp": "17d062bd909ffeb8109ea6af3fb768d1b88bb60568fda936a939c5453917605e",
+    "DX22_01_plane.vcxproj": "995d4b34a24ad3e02a77173b2112469d8e42918b0f05fad9f8b7aba5a39de133",
+    "DX22_01_plane.vcxproj.filters": "ee64cc0aee086fe21bc649d1ac74810922a437f32b35b2eed82ead498be7405f"
+  },
+  "captures": [
+    {
+      "label": "ccd60",
+      "render_hz": 60,
+      "cases": [
+        {
+          "case": "standard_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 12.4832,
+          "ticks": 159,
+          "substeps": 171,
+          "path_points": 71,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 11.3924,
+          "ticks": 169,
+          "substeps": 184,
+          "path_points": 113,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "pierce_line",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 11.1175,
+          "ticks": 158,
+          "substeps": 166,
+          "path_points": 72,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "bounce_wall",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 4.2335,
+          "ticks": 66,
+          "substeps": 70,
+          "path_points": 59,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "anchor_contact",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 8.7022,
+          "ticks": 130,
+          "substeps": 134,
+          "path_points": 4,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "standard_pocket",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 0.7527,
+          "ticks": 14,
+          "substeps": 15,
+          "path_points": 5,
+          "path_truncated": false,
+          "world_unchanged": true
+        }
+      ]
+    },
+    {
+      "label": "ccd30",
+      "render_hz": 30,
+      "cases": [
+        {
+          "case": "standard_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 13.0951,
+          "ticks": 159,
+          "substeps": 171,
+          "path_points": 71,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 13.053,
+          "ticks": 169,
+          "substeps": 184,
+          "path_points": 113,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "pierce_line",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 10.7369,
+          "ticks": 158,
+          "substeps": 166,
+          "path_points": 72,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "bounce_wall",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 4.1913,
+          "ticks": 66,
+          "substeps": 70,
+          "path_points": 59,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "anchor_contact",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 8.9513,
+          "ticks": 130,
+          "substeps": 134,
+          "path_points": 4,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "standard_pocket",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 1.0605,
+          "ticks": 14,
+          "substeps": 15,
+          "path_points": 5,
+          "path_truncated": false,
+          "world_unchanged": true
+        }
+      ]
+    },
+    {
+      "label": "ccd_reverse",
+      "render_hz": 60,
+      "cases": [
+        {
+          "case": "standard_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 10.8565,
+          "ticks": 159,
+          "substeps": 171,
+          "path_points": 71,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "heavy_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 13.7216,
+          "ticks": 169,
+          "substeps": 184,
+          "path_points": 113,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "pierce_line",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 10.2863,
+          "ticks": 158,
+          "substeps": 166,
+          "path_points": 72,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "bounce_wall",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 4.259,
+          "ticks": 66,
+          "substeps": 70,
+          "path_points": 59,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "anchor_contact",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 9.0247,
+          "ticks": 130,
+          "substeps": 134,
+          "path_points": 4,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "standard_pocket",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 0.7809,
+          "ticks": 14,
+          "substeps": 15,
+          "path_points": 5,
+          "path_truncated": false,
+          "world_unchanged": true
+        }
+      ]
+    },
+    {
+      "label": "ccd_variants30",
+      "render_hz": 30,
+      "cases": [
+        {
+          "case": "weak_standard_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 5.8083,
+          "ticks": 81,
+          "substeps": 85,
+          "path_points": 22,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "weak_heavy_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 5.8466,
+          "ticks": 85,
+          "substeps": 91,
+          "path_points": 33,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "weak_pierce_line",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 5.5963,
+          "ticks": 80,
+          "substeps": 83,
+          "path_points": 27,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "weak_bounce_wall",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 10.7891,
+          "ticks": 166,
+          "substeps": 168,
+          "path_points": 113,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "weak_anchor_contact",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 3.4308,
+          "ticks": 47,
+          "substeps": 49,
+          "path_points": 11,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "upgraded_standard_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 8.4886,
+          "ticks": 120,
+          "substeps": 127,
+          "path_points": 42,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "upgraded_heavy_chain",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 10.3789,
+          "ticks": 149,
+          "substeps": 161,
+          "path_points": 74,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "upgraded_pierce_line",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 9.6207,
+          "ticks": 127,
+          "substeps": 131,
+          "path_points": 98,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "upgraded_bounce_wall",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 6.5603,
+          "ticks": 103,
+          "substeps": 107,
+          "path_points": 97,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "upgraded_anchor_contact",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 5.5042,
+          "ticks": 80,
+          "substeps": 83,
+          "path_points": 6,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "fatal_pocket",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 0.3091,
+          "ticks": 4,
+          "substeps": 4,
+          "path_points": 5,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "frontal_guard",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 1.0815,
+          "ticks": 27,
+          "substeps": 33,
+          "path_points": 19,
+          "path_truncated": false,
+          "world_unchanged": true
+        },
+        {
+          "case": "pocket_damage",
+          "matched": true,
+          "max_error": 0.0,
+          "milliseconds": 0.8493,
+          "ticks": 16,
+          "substeps": 19,
+          "path_points": 8,
+          "path_truncated": false,
+          "world_unchanged": true
+        }
+      ]
+    }
+  ],
+  "prediction_shots": 31,
+  "fps_comparison": "fixed_timestep/ccd30/comparison.json",
+  "creation_order_comparison": "fixed_timestep/ccd_reverse/comparison.json",
+  "stage3_changes": "fixed_timestep/ccd60/legacy_changes.json",
+  "python_tests_passed": 183,
+  "cpp_ccd_runtime": "passed",
+  "build_log": "tools/ccd_toi_build.log",
+  "limitations": [
+    "Sequential solver for equal-time contact clusters, bounded at 256 iterations",
+    "No full-run balance or release-performance benchmark",
+    "Prediction ends before post-shot healing/respawn/enemy turn",
+    "Mouse UI not interactively verified in these automated captures"
+  ]
+}

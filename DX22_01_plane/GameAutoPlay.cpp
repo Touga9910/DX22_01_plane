@@ -63,15 +63,27 @@ namespace
 
 bool Game::UpdateBalanceAutoPlay()
 {
+	if (m_DebugMode || m_DebugEditorOpen) return false;
 	if (Input::GetKeyTrigger(VK_F8))
 	{
-		m_BalanceAutoPlayEnabled =
-			!m_BalanceAutoPlayEnabled;
+		const bool startAutoPlay = !m_BalanceAutoPlayEnabled;
+		m_BalanceAutoPlayEnabled = startAutoPlay;
+		m_AutoStopAfterCurrentRunRequested =
+			startAutoPlay && m_AutoStopAfterCurrentRunDefault;
 		m_AutoDecisionFrame = 0;
 
 		std::cout
 			<< "[BalanceAutoPlay] "
 			<< (m_BalanceAutoPlayEnabled ? "ON" : "OFF")
+			<< std::endl;
+	}
+	if (m_BalanceAutoPlayEnabled && Input::GetKeyTrigger(VK_F9))
+	{
+		m_AutoStopAfterCurrentRunRequested =
+			!m_AutoStopAfterCurrentRunRequested;
+		std::cout
+			<< "[BalanceAutoPlay] Stop at run end: "
+			<< (m_AutoStopAfterCurrentRunRequested ? "ON" : "OFF")
 			<< std::endl;
 	}
 
@@ -117,6 +129,15 @@ bool Game::UpdateBalanceAutoPlay()
 
 	if (dynamic_cast<ResultScene*>(m_Scene) != nullptr)
 	{
+		if (m_AutoStopAfterCurrentRunRequested)
+		{
+			m_BalanceAutoPlayEnabled = false;
+			m_AutoStopAfterCurrentRunRequested = false;
+			std::cout
+				<< "[BalanceAutoPlay] Stopped at terminal result"
+				<< std::endl;
+			return false;
+		}
 		if (!m_AutoRestartAfterGameOver)
 		{
 			m_BalanceAutoPlayEnabled = false;
@@ -345,6 +366,14 @@ bool Game::ContainsComponent(const Component* component) const
 
 void Game::SelectBalanceAutoBall()
 {
+    const auto bossChoices = EvaluateBossShots();
+    if (bossChoices.contains("recommended") && !bossChoices["recommended"].is_null())
+    {
+        m_SelectedOfferIndex = bossChoices["recommended"]["offer_index"].get<int>();
+        if (m_SelectedHoldIndex == m_SelectedOfferIndex) m_SelectedHoldIndex = -1;
+        ApplySelectedBallPreview();
+        return;
+    }
 	const int offerCount = m_PlayerDeck.GetOfferCount();
 	if (offerCount <= 0)
 	{
@@ -396,6 +425,10 @@ void Game::SelectBalanceAutoBall()
 
 bool Game::FireBalanceAutoShot()
 {
+    const auto bossChoices = EvaluateBossShots();
+    if (bossChoices.contains("recommended") && !bossChoices["recommended"].is_null())
+        return FireBossPlannedShot(bossChoices["recommended"]["candidate_id"].get<std::string>(),
+            bossChoices["state_key"].get<std::string>());
 	std::vector<PlayerBall*> players =
 		GetComponents<PlayerBall>();
 	std::vector<EnemyBall*> enemies =
@@ -764,11 +797,6 @@ bool Game::IsBalanceAutoHealNeeded() const
 
 int Game::FindBalanceAutoRelicToBuy() const
 {
-	const bool isInShop = dynamic_cast<ShopScene*>(m_Scene) != nullptr;
-	if (isInShop && m_ShopRelicPurchased)
-	{
-		return -1;
-	}
 	const auto isCandidate = [this](int index)
 	{
 		return dynamic_cast<ShopScene*>(m_Scene) == nullptr ||
@@ -1101,7 +1129,7 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		const BallStatus& status = spawn.enemyData.status;
 		BalanceEnemySnapshot snapshot;
 		snapshot.id = spawn.enemyData.id;
-		snapshot.maxHp = status.maxHp;
+		snapshot.maxHp = spawn.enemyData.maxHp;
 		snapshot.attack = status.attack;
 		snapshot.defense = status.defense;
 		snapshot.mass = status.mass;

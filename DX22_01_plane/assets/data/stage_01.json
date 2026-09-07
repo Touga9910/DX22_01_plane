@@ -6,8 +6,20 @@
       "difficulty": 1,
       "par": 4,
       "enemies": [
-        { "position": [-30.0, 1.0, 12.0] },
-        { "position": [30.0, 1.0, 12.0] }
+        {
+          "position": [
+            -30.0,
+            1.0,
+            12.0
+          ]
+        },
+        {
+          "position": [
+            30.0,
+            1.0,
+            12.0
+          ]
+        }
       ]
     },
     {
@@ -16,9 +28,27 @@
       "difficulty": 1,
       "par": 4,
       "enemies": [
-        { "position": [-42.0, 1.0, -14.0] },
-        { "position": [0.0, 1.0, 20.0] },
-        { "position": [42.0, 1.0, -14.0] }
+        {
+          "position": [
+            -42.0,
+            1.0,
+            -14.0
+          ]
+        },
+        {
+          "position": [
+            0.0,
+            1.0,
+            20.0
+          ]
+        },
+        {
+          "position": [
+            42.0,
+            1.0,
+            -14.0
+          ]
+        }
       ]
     },
     {
@@ -27,10 +57,35 @@
       "difficulty": 2,
       "par": 5,
       "enemies": [
-        { "enemyId": "enemy_strong", "position": [-48.0, 1.0, 18.0] },
-        { "position": [-18.0, 1.0, -18.0] },
-        { "position": [18.0, 1.0, -18.0] },
-        { "position": [48.0, 1.0, 18.0] }
+        {
+          "enemyId": "enemy_strong",
+          "position": [
+            -48.0,
+            1.0,
+            18.0
+          ]
+        },
+        {
+          "position": [
+            -18.0,
+            1.0,
+            -18.0
+          ]
+        },
+        {
+          "position": [
+            18.0,
+            1.0,
+            -18.0
+          ]
+        },
+        {
+          "position": [
+            48.0,
+            1.0,
+            18.0
+          ]
+        }
       ]
     },
     {
@@ -39,11 +94,43 @@
       "difficulty": 3,
       "par": 6,
       "enemies": [
-        { "enemyId": "enemy_strong", "position": [-50.0, 1.0, -20.0] },
-        { "position": [-25.0, 1.0, 16.0] },
-        { "position": [0.0, 1.0, -20.0] },
-        { "position": [25.0, 1.0, 16.0] },
-        { "enemyId": "enemy_strong", "position": [50.0, 1.0, -20.0] }
+        {
+          "enemyId": "enemy_strong",
+          "position": [
+            -50.0,
+            1.0,
+            -20.0
+          ]
+        },
+        {
+          "position": [
+            -25.0,
+            1.0,
+            16.0
+          ]
+        },
+        {
+          "position": [
+            0.0,
+            1.0,
+            -20.0
+          ]
+        },
+        {
+          "position": [
+            25.0,
+            1.0,
+            16.0
+          ]
+        },
+        {
+          "enemyId": "enemy_strong",
+          "position": [
+            50.0,
+            1.0,
+            -20.0
+          ]
+        }
       ]
     },
     {
@@ -52,9 +139,28 @@
       "difficulty": 3,
       "par": 6,
       "enemies": [
-        { "enemyId": "enemy_tank", "position": [-35.0, 1.0, 18.0] },
-        { "position": [0.0, 1.0, 22.0] },
-        { "position": [35.0, 1.0, 18.0] }
+        {
+          "enemyId": "enemy_midboss_guard",
+          "position": [
+            0.0,
+            1.0,
+            20.0
+          ]
+        },
+        {
+          "position": [
+            -32.0,
+            1.0,
+            8.0
+          ]
+        },
+        {
+          "position": [
+            32.0,
+            1.0,
+            8.0
+          ]
+        }
       ]
     },
     {
@@ -63,10 +169,28 @@
       "difficulty": 3,
       "par": 6,
       "enemies": [
-        { "enemyId": "enemy_tank", "position": [-40.0, 1.0, -16.0] },
-        { "enemyId": "enemy_strong", "position": [-14.0, 1.0, 20.0] },
-        { "position": [14.0, 1.0, 20.0] },
-        { "position": [40.0, 1.0, -16.0] }
+        {
+          "enemyId": "enemy_midboss_pocket",
+          "position": [
+            0.0,
+            1.0,
+            22.0
+          ]
+        },
+        {
+          "position": [
+            -36.0,
+            1.0,
+            10.0
+          ]
+        },
+        {
+          "position": [
+            36.0,
+            1.0,
+            10.0
+          ]
+        }
       ]
     },
     {
@@ -75,11 +199,14 @@
       "difficulty": 3,
       "par": 7,
       "enemies": [
-        { "enemyId": "enemy_boss_core", "position": [-48.0, 1.0, 20.0] },
-        { "enemyId": "enemy_strong", "position": [-24.0, 1.0, -20.0] },
-        { "position": [0.0, 1.0, 22.0] },
-        { "enemyId": "enemy_strong", "position": [24.0, 1.0, -20.0] },
-        { "position": [48.0, 1.0, 20.0] }
+        {
+          "enemyId": "enemy_boss_core",
+          "position": [
+            0.0,
+            1.0,
+            20.0
+          ]
+        }
       ]
     },
     {
@@ -88,11 +215,14 @@
       "difficulty": 3,
       "par": 7,
       "enemies": [
-        { "enemyId": "enemy_boss_core", "position": [-52.0, 1.0, -18.0] },
-        { "enemyId": "enemy_striker", "position": [-30.0, 1.0, 18.0] },
-        { "enemyId": "enemy_strong", "position": [0.0, 1.0, -22.0] },
-        { "enemyId": "enemy_striker", "position": [30.0, 1.0, 18.0] },
-        { "enemyId": "enemy_strong", "position": [52.0, 1.0, -18.0] }
+        {
+          "enemyId": "enemy_boss_core",
+          "position": [
+            0.0,
+            1.0,
+            20.0
+          ]
+        }
       ]
     }
   ]

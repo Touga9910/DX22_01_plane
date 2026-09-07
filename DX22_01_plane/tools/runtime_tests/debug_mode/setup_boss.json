@@ -1,0 +1,120 @@
+{
+  "armor": 0,
+  "break_shots": 1,
+  "deck": [
+    {
+      "definition_id": "player_heavy",
+      "instance_id": 1,
+      "status": {
+        "abilities": {
+          "anchor": false,
+          "pierce": false,
+          "split": false
+        },
+        "anchorBrakeMultiplier": 1.0,
+        "anchorKnockbackImmune": false,
+        "anchorStopSpeedSquared": 0.029999999329447746,
+        "attack": 2,
+        "defense": 0,
+        "friction": 0.019999999552965164,
+        "knockbackTransfer": 1.2999999523162842,
+        "mass": 6.0,
+        "pierceMaxUses": 1,
+        "pierceSpeedRetention": 0.75,
+        "radius": 2.4000000953674316,
+        "restitution": 0.800000011920929
+      },
+      "upgrade_level": 2,
+      "upgrade_model_version": 2,
+      "upgrade_table": [
+        {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.2999999523162842,
+          "mass": 6.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        }
+      ]
+    }
+  ],
+  "enemies": [
+    {
+      "hp": 30,
+      "id": "enemy_boss_core",
+      "max_hp": 60,
+      "status": {
+        "abilities": {
+          "anchor": false,
+          "pierce": false,
+          "split": false
+        },
+        "anchorBrakeMultiplier": 1.0,
+        "anchorKnockbackImmune": false,
+        "anchorStopSpeedSquared": 0.029999999329447746,
+        "attack": 1,
+        "defense": 0,
+        "friction": 0.029999999329447746,
+        "knockbackTransfer": 1.0,
+        "mass": 18.0,
+        "pierceMaxUses": 1,
+        "pierceSpeedRetention": 0.75,
+        "radius": 6.0,
+        "restitution": 0.550000011920929
+      },
+      "x": 0.0,
+      "z": 20.0
+    }
+  ],
+  "hp": 13,
+  "max_hp": 50,
+  "money": 321,
+  "player_x": 0.0,
+  "player_z": -10.0,
+  "relics": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "seed": 20260904,
+  "version": 1
+}

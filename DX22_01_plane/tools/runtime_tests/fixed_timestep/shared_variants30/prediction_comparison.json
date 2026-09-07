@@ -1,0 +1,145 @@
+[
+  {
+    "case": "weak_standard_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 4.8183,
+    "ticks": 81,
+    "substeps": 168,
+    "path_points": 28,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "weak_heavy_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 5.4286,
+    "ticks": 85,
+    "substeps": 192,
+    "path_points": 40,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "weak_pierce_line",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 4.781,
+    "ticks": 81,
+    "substeps": 162,
+    "path_points": 32,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "weak_bounce_wall",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 12.3116,
+    "ticks": 166,
+    "substeps": 392,
+    "path_points": 135,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "weak_anchor_contact",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 2.2809,
+    "ticks": 47,
+    "substeps": 75,
+    "path_points": 14,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "upgraded_standard_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 10.3569,
+    "ticks": 120,
+    "substeps": 334,
+    "path_points": 55,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "upgraded_heavy_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 14.8188,
+    "ticks": 149,
+    "substeps": 568,
+    "path_points": 115,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "upgraded_pierce_line",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 10.4845,
+    "ticks": 127,
+    "substeps": 374,
+    "path_points": 149,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "upgraded_bounce_wall",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 20.9776,
+    "ticks": 104,
+    "substeps": 688,
+    "path_points": 302,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "upgraded_anchor_contact",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 5.095,
+    "ticks": 80,
+    "substeps": 164,
+    "path_points": 14,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "fatal_pocket",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 1.4518,
+    "ticks": 4,
+    "substeps": 54,
+    "path_points": 27,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "frontal_guard",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 1.4887,
+    "ticks": 27,
+    "substeps": 76,
+    "path_points": 27,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "pocket_damage",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 1.5641,
+    "ticks": 16,
+    "substeps": 64,
+    "path_points": 28,
+    "path_truncated": false,
+    "world_unchanged": true
+  }
+]

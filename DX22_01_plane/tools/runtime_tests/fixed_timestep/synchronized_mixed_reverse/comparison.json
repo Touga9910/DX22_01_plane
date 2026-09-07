@@ -1,0 +1,13 @@
+{
+  "reference": "synchronized_mixed",
+  "ignore_target_order": true,
+  "ignore_enemy_attack_order": true,
+  "cases": [
+    {
+      "case": "heavy_chain",
+      "matched": true,
+      "observed_max_steps": 3,
+      "damage_contacts": 4
+    }
+  ]
+}

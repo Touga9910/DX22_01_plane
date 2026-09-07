@@ -1,0 +1,72 @@
+{
+  "action": "fire_boss_shot",
+  "command_id": "3447e3b5b6e94d11aa6a42a4ce8c6a5f",
+  "completed_at_unix_ms": 1788485993729,
+  "message": "Fired the selected boss plan.",
+  "ok": true,
+  "schema_version": 1,
+  "state_sequence": 25,
+  "shot_plan": {
+    "model": "boss_shared_ccd_v1",
+    "boss_evaluation": {
+      "candidate_id": "1:0:22",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_standard",
+      "direction": {
+        "x": -0.6995449066162109,
+        "y": 0.0,
+        "z": 0.7145887017250061
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 1,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 4,
+        "neutral_boss_hits": 1,
+        "next_push_opportunity_estimate": 0.49032407999038696,
+        "opportunity_improvement": 0.10447311401367188,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 1,
+      "power": 3.999999761581421,
+      "prediction_complete": true,
+      "score": 6.812689781188965,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 3.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 4.0,
+        "heavy_push": 0.0,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.19999998807907104,
+        "safety": -1.0,
+        "setup": 1.0126895904541016,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 15.0777587890625,
+        "y": 1.0,
+        "z": -19.13322639465332
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -2.7981793880462646,
+        "y": 0.0,
+        "z": 2.8583545684814453
+      }
+    },
+    "deterministic": true,
+    "legacy_tool_compatibility": true
+  }
+}

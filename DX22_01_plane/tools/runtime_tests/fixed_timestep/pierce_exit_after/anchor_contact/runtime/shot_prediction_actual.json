@@ -1,0 +1,106 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 50,
+      "id": 1765043794192,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        15.171921730041504,
+        1.0,
+        6.06876802444458
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 1,
+      "id": 1765043782160,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        45.169334411621094,
+        1.0,
+        18.067768096923828
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 3,
+      "id": 1765043787792,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -58.050682067871094,
+        1.0,
+        -9.140254974365234
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 5,
+      "id": 1765043785744,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -35.0,
+        1.0,
+        -18.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "enemy_enemy_contacts": 1,
+  "player_enemy_contacts": 1
+}

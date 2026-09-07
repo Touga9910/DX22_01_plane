@@ -13,7 +13,7 @@ def source(name: str) -> str:
 
 class SaveSystemContractTests(unittest.TestCase):
     def test_save_document_is_versioned_checked_and_atomically_committed(self) -> None:
-        manager = source("GameSaveManager.cpp")
+        manager = source("GameSaveManager.cpp") + source("PlayerBallSaveData.h")
 
         self.assertIn("constexpr int kSchemaVersion = 1", manager)
         self.assertIn("CalculateChecksum(payload)", manager)
@@ -21,7 +21,7 @@ class SaveSystemContractTests(unittest.TestCase):
         self.assertIn("MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH", manager)
 
     def test_run_deck_relic_and_random_state_are_persisted(self) -> None:
-        manager = source("GameSaveManager.cpp")
+        manager = source("GameSaveManager.cpp") + source("PlayerBallSaveData.h")
 
         for key in (
             '"current_hp"',

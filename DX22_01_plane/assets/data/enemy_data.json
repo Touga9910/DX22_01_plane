@@ -105,11 +105,11 @@
       "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
       "textureDirectory": "assets/model/GolfBall",
       "status": {
-        "maxHp": 20,
+        "maxHp": 60,
         "attack": 1,
         "defense": 0,
-        "mass": 3.5,
-        "radius": 3.2,
+        "mass": 18.0,
+        "radius": 6.0,
         "restitution": 0.55,
         "friction": 0.03,
         "abilities": {
@@ -118,12 +118,68 @@
         }
       },
       "scale": {
-        "x": 3.2,
-        "y": 3.2,
-        "z": 3.2
+        "x": 6.0,
+        "y": 6.0,
+        "z": 6.0
       },
       "rewardMoney": 20,
       "rewardExp": 15
+    },
+    {
+      "id": "enemy_midboss_guard",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 12,
+        "attack": 1,
+        "defense": 0,
+        "mass": 2.2,
+        "radius": 3.0,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 3.0,
+        "y": 3.0,
+        "z": 3.0
+      },
+      "rewardMoney": 15,
+      "rewardExp": 8,
+      "gimmick": {
+        "frontalDamageMultiplier": 0.5
+      }
+    },
+    {
+      "id": "enemy_midboss_pocket",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 18,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.6,
+        "radius": 3.0,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 3.0,
+        "y": 3.0,
+        "z": 3.0
+      },
+      "rewardMoney": 15,
+      "rewardExp": 8,
+      "gimmick": {
+        "pocketDamageRatio": 0.45
+      }
     }
   ]
 }

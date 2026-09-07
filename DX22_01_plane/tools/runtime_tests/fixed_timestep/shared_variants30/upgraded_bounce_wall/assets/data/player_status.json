@@ -1,0 +1,158 @@
+{
+  "status": {
+    "attack": 1,
+    "defense": 0,
+    "mass": 1.0,
+    "radius": 2.4,
+    "restitution": 0.8,
+    "friction": 0.02,
+    "abilities": {
+      "split": false,
+      "pierce": false,
+      "anchor": false
+    }
+  },
+  "balls": [
+    {
+      "id": "player_standard",
+      "status": {
+        "attack": 2,
+        "defense": 0,
+        "mass": 2.0,
+        "radius": 2.4,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false,
+          "anchor": false
+        }
+      },
+      "upgrades": [
+        {
+          "attack": 3,
+          "defense": 1
+        },
+        {
+          "attack": 5,
+          "defense": 2
+        }
+      ]
+    },
+    {
+      "id": "player_heavy",
+      "status": {
+        "attack": 2,
+        "defense": 0,
+        "mass": 4.0,
+        "radius": 2.4,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false,
+          "anchor": false
+        },
+        "knockbackTransfer": 1.0
+      },
+      "upgrades": [
+        {
+          "mass": 5.0,
+          "knockbackTransfer": 1.15
+        },
+        {
+          "mass": 6.0,
+          "knockbackTransfer": 1.3
+        }
+      ]
+    },
+    {
+      "id": "player_pierce",
+      "status": {
+        "attack": 1,
+        "defense": 0,
+        "mass": 2.0,
+        "radius": 2.4,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": true,
+          "anchor": false
+        },
+        "pierceMaxUses": 1,
+        "pierceSpeedRetention": 0.75
+      },
+      "upgrades": [
+        {
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.85
+        },
+        {
+          "pierceMaxUses": 3,
+          "pierceSpeedRetention": 0.95
+        }
+      ]
+    },
+    {
+      "id": "player_bounce",
+      "status": {
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.5,
+        "radius": 2.2,
+        "restitution": 1.0,
+        "friction": 0.006,
+        "abilities": {
+          "split": false,
+          "pierce": false,
+          "anchor": false
+        }
+      },
+      "upgrades": [
+        {
+          "restitution": 0.95,
+          "friction": 0.008
+        },
+        {
+          "restitution": 1.0,
+          "friction": 0.006
+        }
+      ]
+    },
+    {
+      "id": "player_anchor",
+      "status": {
+        "attack": 2,
+        "defense": 2,
+        "mass": 6.0,
+        "radius": 2.6,
+        "restitution": 0.35,
+        "friction": 0.06,
+        "abilities": {
+          "split": false,
+          "pierce": false,
+          "anchor": true
+        },
+        "anchorBrakeMultiplier": 1.0,
+        "anchorStopSpeedSquared": 0.03,
+        "anchorKnockbackImmune": false
+      },
+      "upgrades": [
+        {
+          "anchorBrakeMultiplier": 1.4,
+          "anchorStopSpeedSquared": 0.06,
+          "anchorKnockbackImmune": true
+        },
+        {
+          "anchorBrakeMultiplier": 1.8,
+          "anchorStopSpeedSquared": 0.1,
+          "anchorKnockbackImmune": true
+        }
+      ]
+    }
+  ],
+  "currentHp": 50,
+  "restHealRatio": 0.25,
+  "maxHp": 50
+}

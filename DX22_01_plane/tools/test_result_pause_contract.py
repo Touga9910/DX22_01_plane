@@ -52,13 +52,10 @@ class ResultPauseContractTests(unittest.TestCase):
         self.assertIn("CompleteFinalBossRun", game)
         self.assertIn("m_BalanceValidationEnduranceMode", game)
         self.assertIn("GameSaveManager::Remove()", game)
-        for weight in (
-            "kNormalBattleWeight = 95",
-            "kMidBossWeight = 19",
-            "kShopWeight = 18",
-            "kRestSiteWeight = 18",
-        ):
-            self.assertIn(weight, routes)
+        self.assertIn("GetRunMap().Available()", routes)
+        self.assertIn("ChooseMapNode(nodeId)", routes)
+        self.assertIn('"run_map"', save_manager)
+        self.assertIn("RunMap::Restore", save_manager)
         self.assertIn("StageRouteType::FinalBoss", routes)
         self.assertIn('"area_progress"', save_manager)
         self.assertIn('"run_phase"', save_manager)

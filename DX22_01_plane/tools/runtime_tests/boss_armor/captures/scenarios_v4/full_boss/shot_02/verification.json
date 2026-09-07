@@ -1,0 +1,29 @@
+{
+  "matched": true,
+  "max_error": 0,
+  "milliseconds": 2.5073,
+  "ticks": 30,
+  "direction": [
+    14.32218416361457,
+    -6.417886302126991
+  ],
+  "power": 1.3431467012967908,
+  "boss": {
+    "armor": 1,
+    "boss_id": "enemy_boss_core",
+    "break_ball_refreshes_break": false,
+    "break_shots_remaining": 0,
+    "break_started_this_shot": false,
+    "damage_order": "directional_then_defense_then_armor_ceil_min1",
+    "direct_damage_multiplier": 0.25,
+    "hp": 56,
+    "is_broken": false,
+    "max_armor": 2,
+    "max_hp": 60,
+    "phase": 1,
+    "pocket_immune": true,
+    "target_id": "enemy:0",
+    "trigger_shot_consumes_break": false
+  },
+  "player_hp": 48
+}

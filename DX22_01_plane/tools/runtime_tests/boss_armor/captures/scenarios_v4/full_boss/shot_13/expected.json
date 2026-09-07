@@ -1,0 +1,114 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 38,
+      "id": 2935404860432,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        39.09432601928711,
+        1.0,
+        -21.945640563964844
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": true,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "enemy_boss_core",
+      "hp": 20,
+      "id": 2935404853520,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -4.253814697265625,
+        1.0,
+        29.22286033630371
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2935404859664,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -24.0,
+        1.0,
+        -8.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2935404860176,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        54.5236930847168,
+        1.0,
+        -27.660247802734375
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "complete": true,
+  "enemy_enemy_contacts": 0,
+  "milliseconds": 3.7674,
+  "path_points": 10,
+  "path_truncated": false,
+  "physics_model": "synchronized_ccd_toi_v1",
+  "player_enemy_contacts": 0,
+  "substeps": 44,
+  "ticks": 43,
+  "world_unchanged": true
+}

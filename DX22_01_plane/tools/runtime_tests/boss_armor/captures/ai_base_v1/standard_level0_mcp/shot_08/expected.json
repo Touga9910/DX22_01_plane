@@ -1,0 +1,114 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 43,
+      "id": 1986215255344,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        29.475215911865234,
+        1.0,
+        -0.21696799993515015
+      ],
+      "velocity": [
+        -0.11449895054101944,
+        0.0,
+        0.12515968084335327
+      ]
+    },
+    {
+      "active": true,
+      "armor": 0,
+      "boss": true,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 1,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "enemy_boss_core",
+      "hp": 18,
+      "id": 1986215258672,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -5.629922389984131,
+        1.0,
+        29.03437614440918
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": false,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": true,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 1986215251504,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 1986215252016,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        10.032248497009277,
+        1.0,
+        9.58654499053955
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "complete": true,
+  "enemy_enemy_contacts": 0,
+  "milliseconds": 11.2567,
+  "path_points": 94,
+  "path_truncated": false,
+  "physics_model": "synchronized_ccd_toi_v1",
+  "player_enemy_contacts": 1,
+  "substeps": 133,
+  "ticks": 122,
+  "world_unchanged": true
+}

@@ -1,0 +1,77 @@
+{
+  "tool_count": 19,
+  "has_choose_relic": true,
+  "fire_shot_schema": {
+    "properties": {
+      "power": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Power"
+      },
+      "power_mode": {
+        "default": "auto",
+        "enum": [
+          "auto",
+          "manual"
+        ],
+        "title": "Power Mode",
+        "type": "string"
+      },
+      "target_id": {
+        "default": "",
+        "title": "Target Id",
+        "type": "string"
+      },
+      "target_enemy_id": {
+        "default": "",
+        "title": "Target Enemy Id",
+        "type": "string"
+      },
+      "shot_type": {
+        "default": "auto",
+        "enum": [
+          "auto",
+          "direct",
+          "bank"
+        ],
+        "title": "Shot Type",
+        "type": "string"
+      },
+      "wall_index": {
+        "default": -1,
+        "title": "Wall Index",
+        "type": "integer"
+      },
+      "shot_goal": {
+        "default": "auto",
+        "enum": [
+          "auto",
+          "damage",
+          "pocket"
+        ],
+        "title": "Shot Goal",
+        "type": "string"
+      },
+      "pocket_index": {
+        "default": -1,
+        "title": "Pocket Index",
+        "type": "integer"
+      },
+      "ball_selection_reason": {
+        "default": "",
+        "title": "Ball Selection Reason",
+        "type": "string"
+      }
+    },
+    "title": "fire_shotArguments",
+    "type": "object"
+  },
+  "fire_shot_description": "照準待ち中にenemies[].target_idを指定して撃ちます。先にget_game_stateのbuild_shot_choicesでボールと標的を比較し、select_ball後は状態を再取得してください。shot_type=autoは直射と1回反射を比較し、direct/bankは経路を固定します。power_mode=autoでは、現在のボールの摩擦・質量・貫通回数・減速、敵配置とHP、レリックから接触点とパワーを再評価します。貫通の後続命中、敵同士の衝突、反射の増加ダメージ、アンカーの接触時停止と被害軽減をビルド別の評価軸で採点します。shot_goal=autoは通常攻撃・連鎖接触・ポケット制御を比較します。damage/pocketやmanualのpower指定は検証用の制約です。推定値はshot_plan.build_evaluationに記録され、実行にはプレイヤーレベル別の照準・パワー誤差が加わります。任意の空間座標は指定できず、生存中の敵に接触する経路が必要です。初心者は直射のみ。wall_index=-1は候補の壁を比較します。旧target_enemy_idには同じtarget_idを指定できます。"
+}

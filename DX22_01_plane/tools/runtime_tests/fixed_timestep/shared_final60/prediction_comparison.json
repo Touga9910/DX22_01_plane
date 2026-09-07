@@ -1,0 +1,68 @@
+[
+  {
+    "case": "standard_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 17.2086,
+    "ticks": 159,
+    "substeps": 673,
+    "path_points": 117,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "heavy_chain",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 20.0848,
+    "ticks": 169,
+    "substeps": 766,
+    "path_points": 201,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "pierce_line",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 16.9478,
+    "ticks": 158,
+    "substeps": 640,
+    "path_points": 123,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "bounce_wall",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 17.8226,
+    "ticks": 66,
+    "substeps": 666,
+    "path_points": 310,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "anchor_contact",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 10.7419,
+    "ticks": 130,
+    "substeps": 372,
+    "path_points": 14,
+    "path_truncated": false,
+    "world_unchanged": true
+  },
+  {
+    "case": "standard_pocket",
+    "matched": true,
+    "max_error": 0.0,
+    "milliseconds": 1.6944,
+    "ticks": 14,
+    "substeps": 65,
+    "path_points": 27,
+    "path_truncated": false,
+    "world_unchanged": true
+  }
+]

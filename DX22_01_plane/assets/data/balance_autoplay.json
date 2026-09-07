@@ -1,6 +1,7 @@
 {
   "enabled": false,
   "restart_after_game_over": true,
+  "stop_after_current_run": false,
   "decision_delay_frames": 20,
   "max_runs": 0,
   "min_shot_power": 4.0,

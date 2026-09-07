@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include "utility.h"
@@ -12,7 +12,10 @@ struct EnemyData
     std::string modelFilePath = "assets/model/GolfBall/golf_ball.obj";
     std::string textureDirectory = "assets/model/GolfBall";
 
+    int maxHp = 3;
     BallStatus status;
+    float frontalDamageMultiplier = 1.0f;
+    float pocketDamageRatio = 0.0f;
 
     DirectX::SimpleMath::Vector3 initPosition =
         DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);

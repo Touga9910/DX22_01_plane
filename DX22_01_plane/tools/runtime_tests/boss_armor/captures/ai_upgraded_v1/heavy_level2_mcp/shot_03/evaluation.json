@@ -1,0 +1,826 @@
+{
+  "choices": [
+    {
+      "candidate_id": "0:14",
+      "contact_kind": "neutral_center",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.950025737285614,
+        "y": 0.0,
+        "z": -0.31217160820961
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 9.045506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 11.639280319213867,
+        "y": 1.0,
+        "z": 29.104507446289062
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -5.7001543045043945,
+        "y": 0.0,
+        "z": -1.8730297088623047
+      }
+    },
+    {
+      "candidate_id": "0:44",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9652121067047119,
+        "y": 0.0,
+        "z": -0.26146799325942993
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.000000476837158,
+      "prediction_complete": true,
+      "score": 9.045506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000004172325134,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": -57.004798889160156,
+        "y": 1.0,
+        "z": 29.83302116394043
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -5.79127311706543,
+        "y": 0.0,
+        "z": -1.5688080787658691
+      }
+    },
+    {
+      "candidate_id": "0:47",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9666423797607422,
+        "y": 0.0,
+        "z": -0.2561298906803131
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 9.045506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 12.012444496154785,
+        "y": 1.0,
+        "z": -5.285058498382568
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -5.799854278564453,
+        "y": 0.0,
+        "z": -1.5367794036865234
+      }
+    },
+    {
+      "candidate_id": "0:16",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9761041402816772,
+        "y": 0.0,
+        "z": -0.21730324625968933
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 4,
+        "neutral_boss_hits": 1,
+        "next_push_opportunity_estimate": 0.5689707398414612,
+        "opportunity_improvement": 0.41807204484939575,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 1
+      },
+      "offer_index": 0,
+      "power": 4.0,
+      "prediction_complete": true,
+      "score": 8.259330749511719,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 4.0,
+        "heavy_push": 0.30000001192092896,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.20000000298023224,
+        "safety": -1.0,
+        "setup": 2.6593308448791504,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 7.287117004394531,
+        "y": 1.0,
+        "z": 32.114070892333984
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -3.904416561126709,
+        "y": 0.0,
+        "z": -0.8692129850387573
+      }
+    },
+    {
+      "candidate_id": "0:20",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9770211577415466,
+        "y": 0.0,
+        "z": -0.21314269304275513
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 4,
+        "neutral_boss_hits": 1,
+        "next_push_opportunity_estimate": 0.43594908714294434,
+        "opportunity_improvement": 0.2850503921508789,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 1
+      },
+      "offer_index": 0,
+      "power": 5.999999523162842,
+      "prediction_complete": true,
+      "score": 7.361201286315918,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 4.0,
+        "heavy_push": 0.30000001192092896,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.29999998211860657,
+        "safety": -1.0,
+        "setup": 1.8612010478973389,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": -24.67325782775879,
+        "y": 1.0,
+        "z": 16.939451217651367
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -5.862126350402832,
+        "y": 0.0,
+        "z": -1.2788560390472412
+      }
+    },
+    {
+      "candidate_id": "0:17",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.976104199886322,
+        "y": 0.0,
+        "z": -0.21730324625968933
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 4,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 4,
+        "neutral_boss_hits": 1,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 5.999999523162842,
+      "prediction_complete": true,
+      "score": 7.245506286621094,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 5.0,
+        "fatal": 0.0,
+        "fixed_damage": 4.0,
+        "heavy_push": 0.30000001192092896,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.29999998211860657,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 28.549182891845703,
+        "y": 1.0,
+        "z": -16.58913230895996
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -5.856624603271484,
+        "y": 0.0,
+        "z": -1.3038194179534912
+      }
+    },
+    {
+      "candidate_id": "0:13",
+      "contact_kind": "neutral_center",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.950025737285614,
+        "y": 0.0,
+        "z": -0.31217160820961
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 1
+      },
+      "offer_index": 0,
+      "power": 4.0,
+      "prediction_complete": true,
+      "score": 6.645506858825684,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.20000000298023224,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": -8.688039779663086,
+        "y": 1.0,
+        "z": -2.3265655040740967
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -3.800102949142456,
+        "y": 0.0,
+        "z": -1.24868643283844
+      }
+    },
+    {
+      "candidate_id": "0:43",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9652121663093567,
+        "y": 0.0,
+        "z": -0.2614680230617523
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 1
+      },
+      "offer_index": 0,
+      "power": 4.0,
+      "prediction_complete": true,
+      "score": 6.645506858825684,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.20000000298023224,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 58.63090896606445,
+        "y": 1.0,
+        "z": 3.0799243450164795
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -3.8608486652374268,
+        "y": 0.0,
+        "z": -1.0458720922470093
+      }
+    },
+    {
+      "candidate_id": "0:46",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9666423797607422,
+        "y": 0.0,
+        "z": -0.2561298906803131
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 1
+      },
+      "offer_index": 0,
+      "power": 4.0,
+      "prediction_complete": true,
+      "score": 6.645506858825684,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.20000000298023224,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 62.98860549926758,
+        "y": 1.0,
+        "z": -2.213134527206421
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -3.8665695190429688,
+        "y": 0.0,
+        "z": -1.0245195627212524
+      }
+    },
+    {
+      "candidate_id": "0:32",
+      "contact_kind": "neutral_center",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.928342878818512,
+        "y": 0.0,
+        "z": -0.371724933385849
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 3
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 6.545506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 35.44259262084961,
+        "y": 1.0,
+        "z": 16.080398559570312
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -5.570057392120361,
+        "y": 0.0,
+        "z": -2.230349540710449
+      }
+    },
+    {
+      "candidate_id": "0:35",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9557035565376282,
+        "y": 0.0,
+        "z": -0.29433098435401917
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 6.545506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": -8.204095840454102,
+        "y": 1.0,
+        "z": -1.5997810363769531
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -5.734221458435059,
+        "y": 0.0,
+        "z": -1.7659859657287598
+      }
+    },
+    {
+      "candidate_id": "0:38",
+      "contact_kind": "neutral_push",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.9597921371459961,
+        "y": 0.0,
+        "z": -0.28071168065071106
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 0,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 6.545506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 0.0,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": -28.019559860229492,
+        "y": 1.0,
+        "z": -25.25276756286621
+      },
+      "target_id": "break_ball:1",
+      "velocity": {
+        "x": -5.758752822875977,
+        "y": 0.0,
+        "z": -1.6842701435089111
+      }
+    }
+  ],
+  "deterministic": true,
+  "evaluated": 93,
+  "incomplete_rejected": 0,
+  "limitations": "One shot simulated exactly. Next-push opportunity and enemy-turn damage are estimates; respawn positions are not simulated. No aim jitter.",
+  "maximum_candidates_per_offer": 128,
+  "milliseconds": 682.6088,
+  "model": "boss_shared_ccd_v1",
+  "offer_choices": [
+    {
+      "candidate_id": "0:14",
+      "contact_kind": "neutral_center",
+      "definition_id": "player_heavy",
+      "direction": {
+        "x": -0.950025737285614,
+        "y": 0.0,
+        "z": -0.31217160820961
+      },
+      "instance_id": 1,
+      "metrics": {
+        "anchor_stopped": false,
+        "armor_removed": 0,
+        "boss_killed": false,
+        "break_started": false,
+        "direct_damage": 2,
+        "enemy_chain_contacts": 0,
+        "expected_enemy_turn_damage": 1.0,
+        "fixed_damage": 8,
+        "neutral_boss_hits": 2,
+        "next_push_opportunity_estimate": 0.0,
+        "opportunity_improvement": -0.15089869499206543,
+        "pierce_followup_contacts": 0.0,
+        "player_hp_loss": 0.0,
+        "wall_contacts": 2
+      },
+      "offer_index": 0,
+      "power": 6.0,
+      "prediction_complete": true,
+      "score": 9.045506477355957,
+      "score_breakdown": {
+        "anchor_position": 0.0,
+        "armor": 0.0,
+        "bounce": 0.0,
+        "direct_damage": 2.5,
+        "fatal": 0.0,
+        "fixed_damage": 8.0,
+        "heavy_push": 0.6000000238418579,
+        "kill": 0.0,
+        "pierce": 0.0,
+        "power": -0.30000001192092896,
+        "safety": -1.0,
+        "setup": -0.7544934749603271,
+        "start_break": 0.0,
+        "wasted_break": 0.0
+      },
+      "stop_position": {
+        "x": 11.639280319213867,
+        "y": 1.0,
+        "z": 29.104507446289062
+      },
+      "target_id": "break_ball:0",
+      "velocity": {
+        "x": -5.7001543045043945,
+        "y": 0.0,
+        "z": -1.8730297088623047
+      }
+    }
+  ],
+  "recommended": {
+    "candidate_id": "0:14",
+    "contact_kind": "neutral_center",
+    "definition_id": "player_heavy",
+    "direction": {
+      "x": -0.950025737285614,
+      "y": 0.0,
+      "z": -0.31217160820961
+    },
+    "instance_id": 1,
+    "metrics": {
+      "anchor_stopped": false,
+      "armor_removed": 0,
+      "boss_killed": false,
+      "break_started": false,
+      "direct_damage": 2,
+      "enemy_chain_contacts": 0,
+      "expected_enemy_turn_damage": 1.0,
+      "fixed_damage": 8,
+      "neutral_boss_hits": 2,
+      "next_push_opportunity_estimate": 0.0,
+      "opportunity_improvement": -0.15089869499206543,
+      "pierce_followup_contacts": 0.0,
+      "player_hp_loss": 0.0,
+      "wall_contacts": 2
+    },
+    "offer_index": 0,
+    "power": 6.0,
+    "prediction_complete": true,
+    "score": 9.045506477355957,
+    "score_breakdown": {
+      "anchor_position": 0.0,
+      "armor": 0.0,
+      "bounce": 0.0,
+      "direct_damage": 2.5,
+      "fatal": 0.0,
+      "fixed_damage": 8.0,
+      "heavy_push": 0.6000000238418579,
+      "kill": 0.0,
+      "pierce": 0.0,
+      "power": -0.30000001192092896,
+      "safety": -1.0,
+      "setup": -0.7544934749603271,
+      "start_break": 0.0,
+      "wasted_break": 0.0
+    },
+    "stop_position": {
+      "x": 11.639280319213867,
+      "y": 1.0,
+      "z": 29.104507446289062
+    },
+    "target_id": "break_ball:0",
+    "velocity": {
+      "x": -5.7001543045043945,
+      "y": 0.0,
+      "z": -1.8730297088623047
+    }
+  },
+  "state_key": "7523053562537296252"
+}

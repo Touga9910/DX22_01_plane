@@ -44,7 +44,6 @@ namespace
             return status;
         }
 
-        status.maxHp = value.value("maxHp", status.maxHp);
         status.attack = value.value("attack", status.attack);
         status.defense = value.value("defense", status.defense);
         status.mass = value.value("mass", status.mass);
@@ -84,13 +83,20 @@ namespace
 
         if (value.contains("status"))
         {
-            data.status = LoadBallStatus(value["status"]);
+            data.status = NormalizeBallStatus(LoadBallStatus(value["status"]));
+            data.maxHp = (std::max)(1, value["status"].value("maxHp", data.maxHp));
         }
         if (value.contains("scale"))
         {
             data.scale = LoadVector3(value["scale"], data.scale);
         }
 
+        if (value.contains("gimmick") && value["gimmick"].is_object())
+        {
+            const auto& gimmick = value["gimmick"];
+            data.frontalDamageMultiplier = std::clamp(gimmick.value("frontalDamageMultiplier", 1.0f), 0.0f, 1.0f);
+            data.pocketDamageRatio = std::clamp(gimmick.value("pocketDamageRatio", 0.0f), 0.0f, 1.0f);
+        }
         return data;
     }
 
@@ -280,6 +286,7 @@ std::vector<StageData> StageDataLoader::LoadAll(
                 ParseStageType(stageJson["stageType"].get<std::string>());
             stage.difficulty = stageJson["difficulty"].get<int>();
             stage.par = stageJson.value("par", stage.par);
+            stage.preserveLayout = stageJson.value("preserveLayout", false);
 
             const json& enemyArray = stageJson["enemies"];
             for (size_t enemyIndex = 0;

@@ -1,0 +1,106 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 29,
+      "id": 2935404860432,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        -4.129091739654541,
+        1.0,
+        20.667943954467773
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 0,
+      "boss": true,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 2,
+      "break_started_this_shot": false,
+      "defeated": true,
+      "enemy_id": "enemy_boss_core",
+      "hp": 0,
+      "id": 2935404853520,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -4.327295780181885,
+        1.0,
+        29.265899658203125
+      ],
+      "velocity": [
+        -0.007342338562011719,
+        0.0,
+        -0.00011377187183825299
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2935404859664,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -24.0,
+        1.0,
+        -8.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2935404860176,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        63.362552642822266,
+        1.0,
+        -26.379732131958008
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "enemy_enemy_contacts": 0,
+  "player_enemy_contacts": 2
+}

@@ -1,0 +1,74 @@
+{
+  "source_sha256": {
+    "BallShotPrediction.h": "78173bcc5f4c0aebb2a27d7cc56cdc438e6c0a1db5c03ea60caad2c1362f6028",
+    "BallShotPrediction.cpp": "00a008f3c852c81d856430cf5a6f944122df44abaab3323d05ad2ce3cae9ffb6",
+    "PlayerBall.cpp": "1f5d2e0914548149378de2512b916b0e93a070b8882523dcb3d612673597d738",
+    "tools/test_shared_prediction_runtime.cpp": "ae94ba558e6a351c212f44d5e084e1d8a1d87bb0dabc967b1209880428fd4dee"
+  },
+  "exe_sha256": "032bdec33c4453d1b5f6fbf57308c7d6de894a6f545df4c8cd7d8517d0894c67",
+  "runtime_cases": [
+    {
+      "case": "standard_chain",
+      "preview_points": 7,
+      "full_points": 71,
+      "reflections": 4,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 14.159,
+      "ticks": 159
+    },
+    {
+      "case": "heavy_chain",
+      "preview_points": 7,
+      "full_points": 113,
+      "reflections": 5,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 15.6516,
+      "ticks": 169
+    },
+    {
+      "case": "pierce_line",
+      "preview_points": 23,
+      "full_points": 72,
+      "reflections": 3,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 14.8996,
+      "ticks": 158
+    },
+    {
+      "case": "bounce_wall",
+      "preview_points": 18,
+      "full_points": 59,
+      "reflections": 3,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 7.4843,
+      "ticks": 66
+    },
+    {
+      "case": "anchor_contact",
+      "preview_points": 4,
+      "full_points": 4,
+      "reflections": 1,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 12.4893,
+      "ticks": 130
+    },
+    {
+      "case": "standard_pocket",
+      "preview_points": 5,
+      "full_points": 5,
+      "reflections": 0,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.064,
+      "ticks": 14
+    }
+  ],
+  "ai_evaluation_unchanged": true,
+  "python_tests_passed": 90,
+  "visual_screen_checked": false
+}

@@ -1,0 +1,186 @@
+{
+  "exe_sha256": "5933efe9d4552abcc64c0e09939e7b89868287132923b9493a0e029970d60370",
+  "render_hz": 30,
+  "results": [
+    {
+      "case": "heavy_chain",
+      "ball": "heavy",
+      "direction": [
+        20,
+        8
+      ],
+      "power": 8,
+      "elapsed_seconds": 3.6410000000614673,
+      "final_player": {
+        "attack": 2,
+        "ball": {
+          "can_upgrade": true,
+          "definition_id": "player_heavy",
+          "index": 0,
+          "instance_id": 1,
+          "next_upgrade": {
+            "abilities": {
+              "anchor": false,
+              "pierce": false,
+              "split": false
+            },
+            "anchorBrakeMultiplier": 1.0,
+            "anchorKnockbackImmune": false,
+            "anchorStopSpeedSquared": 0.029999999329447746,
+            "attack": 2,
+            "defense": 0,
+            "friction": 0.019999999552965164,
+            "knockbackTransfer": 1.149999976158142,
+            "mass": 5.0,
+            "pierceMaxUses": 1,
+            "pierceSpeedRetention": 0.75,
+            "radius": 2.4000000953674316,
+            "restitution": 0.800000011920929
+          },
+          "status": {
+            "anchor": false,
+            "anchorBrakeMultiplier": 1.0,
+            "anchorKnockbackImmune": false,
+            "anchorStopSpeedSquared": 0.029999999329447746,
+            "attack": 2,
+            "defense": 0,
+            "friction": 0.019999999552965164,
+            "knockbackTransfer": 1.0,
+            "mass": 4.0,
+            "pierce": false,
+            "pierceMaxUses": 1,
+            "pierceSpeedRetention": 0.75,
+            "radius": 2.4000000953674316,
+            "restitution": 0.800000011920929,
+            "split": false
+          },
+          "upgrade_level": 0
+        },
+        "current_hp": 44,
+        "defense": 0,
+        "idle": true,
+        "max_hp": 50,
+        "money": 0,
+        "pocketed": false,
+        "position": {
+          "x": -15.601297378540039,
+          "y": 1.0,
+          "z": 8.786985397338867
+        },
+        "progress": 1,
+        "radius": 2.4000000953674316,
+        "velocity": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        }
+      },
+      "final_enemies": [
+        {
+          "attack": 2,
+          "can_attack_this_turn": true,
+          "defeated": false,
+          "defense": 0,
+          "enemy_id": "enemy_strong",
+          "friction": 0.019999999552965164,
+          "frontal_damage_multiplier": 1.0,
+          "hp": 5,
+          "hp_ratio": 1.0,
+          "mass": 1.0,
+          "max_hp": 5,
+          "pocket_damage_ratio": 0.0,
+          "pocket_finisher_eligible": false,
+          "pocket_queue_index": -1,
+          "pocketed": false,
+          "position": {
+            "x": -35.0,
+            "y": 1.0,
+            "z": -18.0
+          },
+          "radius": 2.5999999046325684,
+          "restitution": 0.800000011920929,
+          "stopped": true,
+          "target_id": "enemy:0",
+          "velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          }
+        },
+        {
+          "attack": 3,
+          "can_attack_this_turn": true,
+          "defeated": false,
+          "defense": 0,
+          "enemy_id": "enemy_striker",
+          "friction": 0.017999999225139618,
+          "frontal_damage_multiplier": 1.0,
+          "hp": 2,
+          "hp_ratio": 0.5,
+          "mass": 1.2000000476837158,
+          "max_hp": 4,
+          "pocket_damage_ratio": 0.0,
+          "pocket_finisher_eligible": false,
+          "pocket_queue_index": -1,
+          "pocketed": false,
+          "position": {
+            "x": -23.327669143676758,
+            "y": 1.0,
+            "z": -9.877156257629395
+          },
+          "radius": 2.5,
+          "restitution": 0.8999999761581421,
+          "stopped": true,
+          "target_id": "enemy:1",
+          "velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          }
+        },
+        {
+          "attack": 1,
+          "can_attack_this_turn": true,
+          "defeated": false,
+          "defense": 0,
+          "enemy_id": "enemy_tank",
+          "friction": 0.02500000037252903,
+          "frontal_damage_multiplier": 1.0,
+          "hp": 10,
+          "hp_ratio": 0.5,
+          "mass": 2.200000047683716,
+          "max_hp": 20,
+          "pocket_damage_ratio": 0.0,
+          "pocket_finisher_eligible": false,
+          "pocket_queue_index": -1,
+          "pocketed": false,
+          "position": {
+            "x": -21.49664306640625,
+            "y": 1.0,
+            "z": 3.484741687774658
+          },
+          "radius": 2.799999952316284,
+          "restitution": 0.6499999761581421,
+          "stopped": true,
+          "target_id": "enemy:2",
+          "velocity": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          }
+        }
+      ],
+      "physics_clock": {
+        "dropped_seconds": 0.31806406666666664,
+        "frequency_hz": 60,
+        "max_steps_per_frame": 8,
+        "model": "synchronized_discrete_v1",
+        "steps_last_frame": 3,
+        "substep_limit_count": 0,
+        "substeps_last_tick": 1,
+        "tick": 226
+      },
+      "game_state": "aiming_direction"
+    }
+  ]
+}

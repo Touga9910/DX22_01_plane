@@ -52,7 +52,8 @@ public:
     void SetMaxHP(int maxHp);
     void ApplyStatusValuesOnly(const BallStatus& status);
 
-    void UpdatePhysics();
+    void BeginPhysicsStep();
+    void FinishPhysicsStep();
     void ResetToInitialPosition();
     void ResetAtPosition(
         const DirectX::SimpleMath::Vector3& position);

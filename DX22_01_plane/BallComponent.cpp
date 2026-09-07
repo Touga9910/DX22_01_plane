@@ -220,21 +220,14 @@ void BallComponent::Defeat()
 	}
 }
 
-void BallComponent::UpdatePhysics()
+void BallComponent::BeginPhysicsStep()
 {
 	m_PhysicsComponent->OldPosition() = GetPosition();
-
-	// 壁の当たり判定についての処理（動的サブステップ方式）//
-
-	// Y方向（上下）には絶対に動かないようにする
 	m_PhysicsComponent->Velocity().y = 0.0f;
+}
 
-	if (m_BallCollisionComponent == nullptr)
-	{
-		return;
-	}
-
-	m_BallCollisionComponent->ResolveMovementAndCollisions(*this);
+void BallComponent::FinishPhysicsStep()
+{
 	// ==========================
 	// ボールの転がり回転の計算
 	// ==========================

@@ -7,23 +7,13 @@
 #include "StaticMesh.h"
 #include "utility.h"
 #include "Material.h"
-#include "TrajectoryModel.h"
+#include <cstdint>
 #include "Mesh.h"
 
 #include <vector>
 #include <memory>
 
 class Camera;
-
-//=======================================
-// 弾道予測の描画モデルタイプ
-//=======================================
-enum class TrajectoryVisualModel
-{
-	Sphere,
-	Cylinder,
-	Quad
-};
 
 //=======================================
 // 軌跡の1点分の情報
@@ -58,6 +48,7 @@ public:
 	//=======================================
 	void Awake() override;
 	void Update() override;
+	void FixedUpdate() override;
 	void Draw() override;
 	void OnDestroy() override;
 
@@ -118,20 +109,6 @@ public:
 	//=======================================
 	void GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity);
 
-	void SetTrajectoryModel(std::unique_ptr<ITrajectoryModel> model)
-	{
-		m_TrajectoryModel = std::move(model);
-	}
-
-	void SetTrajectoryVisualModel(TrajectoryVisualModel model)
-	{
-		m_TrajectoryVisualModel = model;
-	}
-
-	TrajectoryVisualModel GetTrajectoryVisualModel() const
-	{
-		return m_TrajectoryVisualModel;
-	}
 
 	//=======================================
 	// デバッグUI
@@ -153,8 +130,6 @@ private:
 		m_Ball->SetInitialPosition(position);
 	}
 	void UpdateRadius() { m_Ball->UpdateRadius(); }
-	void UpdatePhysics() { m_Ball->UpdatePhysics(); }
-	void ResetToInitialPosition() { m_Ball->ResetToInitialPosition(); }
 	void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix)
 	{
 		m_RenderComponent->DrawMesh(worldMatrix);
@@ -265,6 +240,8 @@ private:
 	//=======================================
 	State m_State = State::Idle;
 	int m_StopCount = 0;
+	bool m_SkipSimulationOnNextFixedUpdate = false;
+	DirectX::SimpleMath::Vector3 m_DebugMoveInput = DirectX::SimpleMath::Vector3::Zero;
 
 	//=======================================
 	// フレーム管理
@@ -291,8 +268,8 @@ private:
 	DirectX::SimpleMath::Vector3 m_LastPreviewPosition =
 		DirectX::SimpleMath::Vector3(99999.0f, 99999.0f, 99999.0f);
 
-	std::unique_ptr<ITrajectoryModel> m_TrajectoryModel;
-	TrajectoryVisualModel m_TrajectoryVisualModel = TrajectoryVisualModel::Quad;
+	std::uint64_t m_LastPreviewWorldKey = 0;
+	bool m_PreviewComplete = false;
 
 	//=======================================
 	// 弾道予測描画

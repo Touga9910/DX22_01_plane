@@ -1,0 +1,9 @@
+{
+  "action": "fire_shot",
+  "command_id": "f4064b29ef3b4e4c94cb273dd17cff45",
+  "completed_at_unix_ms": 1788432245032,
+  "message": "The player ball is not ready to fire.",
+  "ok": false,
+  "schema_version": 1,
+  "state_sequence": 8
+}

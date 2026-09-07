@@ -1,6 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClInclude Include="BallCcdGeometry.h" />
+    <ClInclude Include="ContinuousBallStepper.h" />
+    <ClInclude Include="BallPhysicsRules.h" />
+    <ClInclude Include="ShotRelicRules.h" />
+    <ClInclude Include="BallShotPrediction.h" />
+    <ClCompile Include="BallShotPrediction.cpp" />
+  </ItemGroup>
+  <ItemGroup>
     <Filter Include="ソース ファイル">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
@@ -102,7 +110,13 @@
     <ClCompile Include="GameBalanceConfig.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
+    <ClCompile Include="GameDebugMode.cpp" />
+    <ClCompile Include="GameStageEditor.cpp" />
+    <ClCompile Include="StageLayoutEditor.cpp" />
     <ClCompile Include="GameProgression.cpp">
+      <Filter>ソース ファイル\根幹処理関連</Filter>
+    </ClCompile>
+    <ClCompile Include="ProgressionProfile.cpp">
       <Filter>ソース ファイル\根幹処理関連</Filter>
     </ClCompile>
     <ClCompile Include="GamePresentation.cpp">
@@ -222,9 +236,6 @@
     <ClCompile Include="GroundRenderComponent.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
-    <ClCompile Include="TrajectoryModel.cpp">
-      <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
-    </ClCompile>
     <ClCompile Include="TableFrame.cpp">
       <Filter>ソース ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClCompile>
@@ -278,6 +289,9 @@
     <ClInclude Include="Game.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
+    <ClInclude Include="DebugBattleSetup.h" />
+    <ClInclude Include="StageLayoutEditor.h" />
+    <ClInclude Include="EnemyText.h" />
     <ClInclude Include="GamePresentation.h">
       <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
@@ -285,6 +299,9 @@
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
     <ClInclude Include="GameTypes.h">
+      <Filter>ヘッダー ファイル\根幹処理関連</Filter>
+    </ClInclude>
+    <ClInclude Include="ProgressionProfile.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
     </ClInclude>
     <ClInclude Include="GameEvent.h">
@@ -413,6 +430,15 @@
     <ClInclude Include="BallStatus.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
+    <ClInclude Include="BallStatusJson.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="BallMechanics.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBallSaveData.h">
+      <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
     <ClInclude Include="EnemyData.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
     </ClInclude>
@@ -432,9 +458,6 @@
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="GroundRenderComponent.h">
-      <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
-    </ClInclude>
-    <ClInclude Include="TrajectoryModel.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\表示オブジェクト\ステージ関連</Filter>
     </ClInclude>
     <ClInclude Include="Pocket.h">
@@ -463,6 +486,12 @@
     </ClInclude>
     <ClInclude Include="PlayerBallData.h">
       <Filter>ヘッダー ファイル\オブジェクト関連\オブジェクトの設定</Filter>
+    </ClInclude>
+    <ClInclude Include="GameUi.h">
+      <Filter>ヘッダー ファイル\表示関連</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerBallUI.h">
+      <Filter>ヘッダー ファイル\表示関連</Filter>
     </ClInclude>
     <ClInclude Include="PlayerBallText.h">
       <Filter>ヘッダー ファイル\根幹処理関連</Filter>
@@ -501,9 +530,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Texture2DFactory.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="BallComponent.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="BallPhysicsComponent.h">

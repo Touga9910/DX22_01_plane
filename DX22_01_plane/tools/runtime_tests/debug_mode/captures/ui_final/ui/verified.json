@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "normal_save_unchanged": true,
+  "normal_defaults_restored": true,
+  "mouse_added_pierce_level2_and_saved": true,
+  "resume_kept_live_deck": true,
+  "restart_applied_edited_deck": true,
+  "same_conditions_repeated": true,
+  "screenshot_files": [
+    "added_ball.png",
+    "battle.png",
+    "editor.png",
+    "edit_battle.png",
+    "loaded.png",
+    "restarted.png",
+    "returned_title.png",
+    "same_conditions.png",
+    "saved.png",
+    "title.png",
+    "victory.png"
+  ]
+}

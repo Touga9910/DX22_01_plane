@@ -1,0 +1,22 @@
+{
+  "action": "propose_stage_layout",
+  "command_id": "39de587e579042928d5bfdbe28f07aac",
+  "completed_at_unix_ms": 1788513926138,
+  "message": "Proposal ready for visual review. Draft and files are unchanged until accepted in the editor.",
+  "ok": true,
+  "report": {
+    "errors": [],
+    "metrics": {
+      "enemy_count": 4,
+      "minimum_enemy_gap": 16.740659713745117,
+      "minimum_player_gap": 17.360679626464844,
+      "nearby_collision_pairs": 0,
+      "note": "幾何的な目安。貫通は開始位置からの同方向の並び、重量は表面間8以内の組数。勝率・実際の衝突やアンカーの有効性は試遊で確認してください。",
+      "pierce_aligned_pairs": 0,
+      "total_base_hp": 12
+    },
+    "valid": true
+  },
+  "schema_version": 1,
+  "state_sequence": 5281
+}

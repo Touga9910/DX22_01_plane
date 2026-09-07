@@ -12,9 +12,9 @@ namespace UiText
 	inline const char* const TitleWindow = Utf8(u8"\u30e9\u30f3\u30e1\u30cb\u30e5\u30fc");
 	inline const char* const NewRun = Utf8(u8"\u65b0\u3057\u3044\u30e9\u30f3");
 	inline const char* const ContinueRun = Utf8(u8"\u7d9a\u304d\u304b\u3089");
-	inline const char* const OverwriteConfirm = Utf8(u8"\u73fe\u5728\u306e\u30bb\u30fc\u30d6\u30c7\u30fc\u30bf\u3092\u4e0a\u66f8\u304d\u3057\u307e\u3059\u3002\u3082\u3046\u4e00\u5ea6ENTER\u3092\u62bc\u3059\u3068\u958b\u59cb\u3057\u307e\u3059\u3002");
+	inline const char* const OverwriteConfirm = Utf8(u8"\u65e2\u5b58\u306e\u30bb\u30fc\u30d6\u304c\u3042\u308a\u307e\u3059\u3002\u300c\u4e0a\u66f8\u304d\u3057\u3066\u65b0\u3057\u304f\u59cb\u3081\u308b\u300d\u3067\u958b\u59cb\u3057\u307e\u3059\u3002");
 	inline const char* const TitleControls = Utf8(u8"W/S\u30fb\u4e0a\u4e0b\u30ad\u30fc\uff1a\u9078\u629e\u3000ENTER\uff1a\u6c7a\u5b9a");
-	inline const char* const ManualSaveHint = Utf8(u8"F6\uff1a\u5b89\u5168\u306a\u753b\u9762\u3067\u624b\u52d5\u30bb\u30fc\u30d6");
+	inline const char* const ManualSaveHint = Utf8(u8"\u4e0a\u90e8\u306e\u300c\u30bb\u30fc\u30d6\u300d\u304b\u3089\u4fdd\u5b58\u3067\u304d\u307e\u3059\uff08F6\u3082\u4f7f\u7528\u53ef\u80fd\uff09\u3002");
 
 	inline const char* const RouteWindow = Utf8(u8"\u30eb\u30fc\u30c8\u9078\u629e");
 	inline const char* const FloorFormat = Utf8(u8"\u30d5\u30ed\u30a2 %d");
@@ -81,8 +81,8 @@ namespace UiText
 	inline const char* const RewardNewBall = Utf8(u8"\u65b0\u3057\u3044\u30dc\u30fc\u30eb");
 	inline const char* const RewardUpgrade = Utf8(u8"\u6240\u6301\u30dc\u30fc\u30eb\u3092\u5f37\u5316\uff080\u2192+1: 15\u3001+1\u2192+2: 30\u30de\u30cd\u30fc\uff09");
 	inline const char* const RewardExtraMoney = Utf8(u8"\u8ffd\u52a0\u30de\u30cd\u30fc\uff08+10\uff09");
-	inline const char* const NewBallSelect = Utf8(u8"\u65b0\u3057\u3044\u30dc\u30fc\u30eb\uff08\u5de6\u53f3\u30ad\u30fc\u3067\u9078\u629e\uff09");
-	inline const char* const UpgradeBallSelect = Utf8(u8"\u5f37\u5316\u3059\u308b\u30dc\u30fc\u30eb\uff08\u5de6\u53f3\u30ad\u30fc\u3067\u9078\u629e\uff09");
+	inline const char* const NewBallSelect = Utf8(u8"\u8ffd\u52a0\u3059\u308b\u30dc\u30fc\u30eb\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u9078\u629e");
+	inline const char* const UpgradeBallSelect = Utf8(u8"\u5f37\u5316\u3059\u308b\u500b\u4f53\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u9078\u629e");
 	inline const char* const ClearControls = Utf8(u8"\u4e0a\u4e0b\u30ad\u30fc\uff1a\u5831\u916c\u3000\u5de6\u53f3\u30ad\u30fc\uff1a\u30dc\u30fc\u30eb\u3000ENTER\u30fbSPACE\uff1a\u7372\u5f97");
 	inline const char* const NextRouteControls = Utf8(u8"ENTER\u30fbSPACE\uff1a\u6b21\u306e\u30eb\u30fc\u30c8\u3092\u9078\u629e");
 	inline const char* const NewBallAdded = Utf8(u8"\u65b0\u3057\u3044\u30dc\u30fc\u30eb\u3092\u30c7\u30c3\u30ad\u3078\u8ffd\u52a0\u3057\u307e\u3057\u305f\u3002");

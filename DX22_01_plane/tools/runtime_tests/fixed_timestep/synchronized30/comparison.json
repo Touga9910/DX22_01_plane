@@ -1,0 +1,41 @@
+{
+  "reference": "synchronized60",
+  "cases": [
+    {
+      "case": "standard_chain",
+      "matched": true,
+      "observed_max_steps": 2,
+      "damage_contacts": 3
+    },
+    {
+      "case": "heavy_chain",
+      "matched": true,
+      "observed_max_steps": 2,
+      "damage_contacts": 3
+    },
+    {
+      "case": "pierce_line",
+      "matched": true,
+      "observed_max_steps": 3,
+      "damage_contacts": 2
+    },
+    {
+      "case": "bounce_wall",
+      "matched": true,
+      "observed_max_steps": 3,
+      "damage_contacts": 0
+    },
+    {
+      "case": "anchor_contact",
+      "matched": true,
+      "observed_max_steps": 2,
+      "damage_contacts": 2
+    },
+    {
+      "case": "standard_pocket",
+      "matched": true,
+      "observed_max_steps": 3,
+      "damage_contacts": 0
+    }
+  ]
+}

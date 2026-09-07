@@ -1,0 +1,22 @@
+{
+  "build": "bounce",
+  "upgrade_parameters_level": 0,
+  "controller": "mcp",
+  "status": "win",
+  "shots": 11,
+  "final_hp": 40,
+  "boss_hp": 0,
+  "direct_damage": 8,
+  "fixed_damage": 52,
+  "breaks": 4,
+  "fixed_damage_ratio": 0.8666666666666667,
+  "planning_ms_mean": 857.6044818181817,
+  "planning_ms_max": 1224.7194,
+  "kinds": {
+    "bank": 2,
+    "direct": 3,
+    "neutral_push": 6
+  },
+  "fixture": "HP50, boss60/Armor2, five identical balls, no relics, seed20260904",
+  "note": "Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate."
+}

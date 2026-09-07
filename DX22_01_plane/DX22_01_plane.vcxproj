@@ -139,10 +139,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BallCcdGeometry.h" />
+    <ClInclude Include="ContinuousBallStepper.h" />
+    <ClInclude Include="BallPhysicsRules.h" />
+    <ClInclude Include="ShotRelicRules.h" />
+    <ClInclude Include="BallShotPrediction.h" />
+    <ClInclude Include="BossCombatRules.h" />
+    <ClInclude Include="BreakBall.h" />
+    <ClCompile Include="BreakBall.cpp" />
+    <ClCompile Include="BallShotPrediction.cpp">
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="AssimpPerse.cpp" />
     <ClCompile Include="BallComponent.cpp" />
     <ClCompile Include="BallCollisionComponent.cpp" />
+    <ClCompile Include="BallPhysicsWorld.cpp" />
     <ClCompile Include="BallFactory.cpp" />
     <ClCompile Include="BallRenderComponent.cpp" />
     <ClCompile Include="BalanceLogger.cpp" />
@@ -153,10 +169,15 @@
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameAutoPlay.cpp" />
+    <ClCompile Include="GameBossAI.cpp"><Optimization>MaxSpeed</Optimization><BasicRuntimeChecks>Default</BasicRuntimeChecks></ClCompile>
     <ClCompile Include="GameBalanceConfig.cpp" />
+    <ClCompile Include="GameDebugMode.cpp" />
+    <ClCompile Include="GameStageEditor.cpp" />
+    <ClCompile Include="StageLayoutEditor.cpp" />
     <ClCompile Include="GameMcpBridge.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameProgression.cpp" />
+    <ClCompile Include="ProgressionProfile.cpp" />
     <ClCompile Include="GamePresentation.cpp" />
     <ClCompile Include="GameSaveManager.cpp" />
     <ClCompile Include="GameSaveSystem.cpp" />
@@ -201,10 +222,6 @@
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Texture2DFactory.cpp" />
     <ClCompile Include="TitleScene.cpp" />
-    <ClCompile Include="TrajectoryModel.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -213,10 +230,12 @@
     <ClInclude Include="BallComponent.h" />
     <ClInclude Include="BallCollisionComponent.h" />
     <ClInclude Include="BallFactory.h" />
-    <ClInclude Include="BallComponent.h" />
     <ClInclude Include="BallPhysicsComponent.h" />
     <ClInclude Include="BallRenderComponent.h" />
     <ClInclude Include="BallStatus.h" />
+    <ClInclude Include="BallStatusJson.h" />
+    <ClInclude Include="BallMechanics.h" />
+    <ClInclude Include="PlayerBallSaveData.h" />
     <ClInclude Include="BallStatusComponent.h" />
     <ClInclude Include="BalanceLogger.h" />
     <ClInclude Include="Camera.h" />
@@ -226,7 +245,11 @@
     <ClInclude Include="EnemyAttackComponent.h" />
     <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="DebugBattleSetup.h" />
+    <ClInclude Include="StageLayoutEditor.h" />
+    <ClInclude Include="EnemyText.h" />
     <ClInclude Include="GameTypes.h" />
+    <ClInclude Include="ProgressionProfile.h" />
     <ClInclude Include="GameEvent.h" />
     <ClInclude Include="GameMcpBridge.h" />
     <ClInclude Include="GameObject.h" />
@@ -251,6 +274,8 @@
     <ClInclude Include="MeshRenderer.h" />
     <ClInclude Include="PlayerBallData.h" />
     <ClInclude Include="PlayerBallText.h" />
+    <ClInclude Include="PlayerBallUI.h" />
+    <ClInclude Include="GameUi.h" />
     <ClInclude Include="PlayerDeck.h" />
     <ClInclude Include="PlayerBallDataLoader.h" />
     <ClInclude Include="PlayerRunStatus.h" />
@@ -273,6 +298,10 @@
     <ClInclude Include="StageDataLoader.h" />
     <ClInclude Include="StageSelector.h" />
     <ClInclude Include="StageSelectScene.h" />
+    <ClInclude Include="RunMap.h" />
+    <ClInclude Include="FixedStepClock.h" />
+    <ClInclude Include="BallPhysicsWorld.h" />
+    <ClInclude Include="SynchronizedBallStepper.h" />
     <ClInclude Include="ShopScene.h" />
     <ClInclude Include="SettingsManager.h" />
     <ClInclude Include="StaticMesh.h" />
@@ -287,7 +316,6 @@
     <ClInclude Include="Texture2DFactory.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="UiText.h" />
-    <ClInclude Include="TrajectoryModel.h" />
     <ClInclude Include="TransformComponent.h" />
     <ClInclude Include="utility.h" />
     <ClInclude Include="VertexBuffer.h" />

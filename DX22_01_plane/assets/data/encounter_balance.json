@@ -5,7 +5,9 @@
     "enemy_strong": 24.0,
     "enemy_tank": 62.5,
     "enemy_striker": 28.0,
-    "enemy_boss_core": 71.5
+    "enemy_boss_core": 71.5,
+    "enemy_midboss_guard": 45.0,
+    "enemy_midboss_pocket": 56.0
   },
   "layout_multipliers": {
     "stage_data": 1.0,
@@ -17,9 +19,9 @@
     "normal_002": 36.0,
     "normal_003": 75.0,
     "normal_004": 105.0,
-    "midboss_001": 86.5,
-    "midboss_002": 138.125,
-    "boss_001": 179.375,
-    "boss_002": 219.375
+    "midboss_001": 69.0,
+    "midboss_002": 80.0,
+    "boss_001": 71.5,
+    "boss_002": 71.5
   }
 }

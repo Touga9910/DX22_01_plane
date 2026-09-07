@@ -1,0 +1,268 @@
+{
+  "exe_sha256": "397405e9ba43cfd41b0030647576a7598737879181b7385d8221b1f2f1ab3907",
+  "boss_prediction_shots": 32,
+  "ordinary_prediction_shots": 6,
+  "max_position_velocity_error": 0,
+  "boss_30_vs_60_matched": true,
+  "boss_full_sequence_shots": 20,
+  "boss_full_sequence_attack_fixture": 12,
+  "boss_full_sequence_not_balance_measurement": true,
+  "event_counts": {
+    "break_ball_repositioned": 8,
+    "boss_break_ball_hit": 6,
+    "boss_break_started": 3,
+    "boss_break_ended": 2,
+    "player_pocket_returned": 1,
+    "dynamic_balance_evaluation": 1,
+    "final_boss_defeated": 1
+  },
+  "captures": [
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic_v1\\standard\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 4.7376,
+      "ticks": 79
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic_v1\\heavy\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.598,
+      "ticks": 95
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic_v1\\pierce\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 4.7328,
+      "ticks": 65
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic_v1\\bounce\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.766,
+      "ticks": 98
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic_v1\\anchor\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.0231,
+      "ticks": 14
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic30\\standard\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 4.7277,
+      "ticks": 79
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic30\\heavy\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.4909,
+      "ticks": 95
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic30\\pierce\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.9338,
+      "ticks": 65
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic30\\bounce\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.7118,
+      "ticks": 98
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\basic30\\anchor\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.4421,
+      "ticks": 14
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v1\\neutral_enemy\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 4.7458,
+      "ticks": 40
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v1\\neutral_pocket\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.6979,
+      "ticks": 19
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_01",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.3368,
+      "ticks": 16
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_02",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.5073,
+      "ticks": 30
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_03",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 0.9916,
+      "ticks": 13
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_04",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.1321,
+      "ticks": 24
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_05",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.3816,
+      "ticks": 24
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_06",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.2551,
+      "ticks": 37
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_07",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.9893,
+      "ticks": 25
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_08",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.4691,
+      "ticks": 19
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_09",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.5882,
+      "ticks": 29
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_10",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.0906,
+      "ticks": 22
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_11",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 4.5713,
+      "ticks": 53
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_12",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.8326,
+      "ticks": 44
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_13",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.7674,
+      "ticks": 43
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_14",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.3242,
+      "ticks": 38
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_15",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.9984,
+      "ticks": 22
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_16",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.1563,
+      "ticks": 15
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_17",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.6631,
+      "ticks": 42
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_18",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.2352,
+      "ticks": 28
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_19",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.1219,
+      "ticks": 27
+    },
+    {
+      "path": "tools\\runtime_tests\\boss_armor\\captures\\scenarios_v4\\full_boss\\shot_20",
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 3.4679,
+      "ticks": 18
+    }
+  ],
+  "changed_sources": {
+    "BallCollisionComponent.cpp": "b7da46329a258d22cb9e4b5263a07915f6b2162a23ce710b2fe13ffbb36c1b0a",
+    "BallFactory.cpp": "2e3406b3a1ff317c5593694865fb89f95f900f556ccced92ad90d52707ffdc39",
+    "BallFactory.h": "3b70bf0e1fe9e45238feff5513d31e666d0f0ef78739431c133ab5fc152fd070",
+    "BallPhysicsRules.h": "193a2004630c600bf3de9a264219e19c91d73e6c912aa91ab949c17e8d568e2a",
+    "BallShotPrediction.cpp": "065d115e632a8302d2d3831462bfbb24f9f3e9fa2d36e6e1b3f1033e526c8f87",
+    "BallShotPrediction.h": "1129ca46b07a9a5f862fd5bb0ca0c1f4c7d8cade3e8694063855e621b164df29",
+    "BattleScene.cpp": "24e7740f4df8497116c76a4992a1709291211ad67d04f55eebbda8804d050852",
+    "ContinuousBallStepper.h": "303d349ed1e15b79e4bd0c8514d4e2734dfdf4ed350d878f5e0eb7966adc825f",
+    "DX22_01_plane.vcxproj": "4e5c2b3d15339f1d86bbad8600f0ed0f04529e80747edb7f9fb49bcc0e4f9cb0",
+    "EnemyBall.cpp": "a6a320a1c36477678cad4013ec36f7344b0beaadda87d23155505c65ad2aa98d",
+    "EnemyBall.h": "f7d3a2d28f4d27b3337af534277e2461a7e7f9101f4ae6b0616e2ff50871d22b",
+    "Game.cpp": "2fea8e0b2ecd5e6daa17a758f9f61666ddd558636df16898fd7742e3ad80642f",
+    "GameMcpBridge.cpp": "089187d7fab61f17f8eefd24549574f91eb0204cf932261a7d305a7bde855a4e",
+    "GamePresentation.cpp": "6da4eedd91be98d5ba3dada0c5c54bf12f9637e7f412b8dc3c697f9414b32fde",
+    "GameProgression.cpp": "cf76efaa99974255492361b89b268830e06a05b1965c1e6a75bfab5b8aa67a80",
+    "BossCombatRules.h": "d7df34bd47f78dcc25c2165e2f344661e3cad61f8e264e056086ce074ff4caf2",
+    "BreakBall.h": "239821740a16200e93ff547e467ba40530deb0aad3a8879fc01b9897c2b57b0a",
+    "BreakBall.cpp": "09530b6719db6efb2c122f42c1c2e01e4094195205641ad04ccc8adb32f5b41b",
+    "assets\\data\\enemy_data.json": "dd93a9a5a1ca01151b97531359fa35cdb2d1a0e62ac8a3c919c4b536bd06ecc5",
+    "assets\\data\\stage_01.json": "d224af18cd37df9f5ae53a73af4223f36a3faf92e8fa6b0316bf0cfb6ca18a70",
+    "assets\\data\\encounter_balance.json": "a7783a630ec3d71d834fee135da27118128889e7f571ef8540319863c31171bb"
+  }
+}

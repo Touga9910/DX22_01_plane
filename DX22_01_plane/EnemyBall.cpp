@@ -1,4 +1,6 @@
 ﻿#include "EnemyBall.h"
+#include "BallPhysicsRules.h"
+#include "BallMechanics.h"
 
 #include "Camera.h"
 #include "BallRenderComponent.h"
@@ -10,6 +12,7 @@
 #include "GameObject.h"
 
 #include <iostream>
+#include <cmath>
 
 using namespace DirectX::SimpleMath;
 
@@ -65,8 +68,10 @@ void EnemyBall::Init()
 
 void EnemyBall::Init(const EnemyData& data)
 {
+    m_BossState = {};
     m_EnemyData = data;                        // 読み込んだ敵データを保持
 
+    m_Ball->SetMaxHP(m_EnemyData.maxHp);
     SetStatus(m_EnemyData.status);             // ステータスを反映
 
     m_RenderComponent->LoadModel(
@@ -91,6 +96,8 @@ void EnemyBall::Init(const EnemyData& data)
     {
         enemyTint = Color(0.92f, 0.08f, 0.42f, 1.0f);
     }
+    if (m_EnemyData.frontalDamageMultiplier < 1.0f) enemyTint = Color(0.15f, 0.7f, 0.9f, 1.0f);
+    else if (m_EnemyData.pocketDamageRatio > 0.0f) enemyTint = Color(0.3f, 0.85f, 0.4f, 1.0f);
     m_RenderComponent->SetTint(enemyTint);
 
     m_Ball->SetPosition(m_EnemyData.initPosition); // 初期位置を反映
@@ -113,7 +120,7 @@ void EnemyBall::Init(const EnemyData& data)
     m_Ball->ResetDefeated();                            // 撃破状態を解除
 }
 
-void EnemyBall::Update()
+void EnemyBall::FixedUpdate()
 {
     if (m_Ball == nullptr || m_IsPocketed)
     {
@@ -122,24 +129,9 @@ void EnemyBall::Update()
 
     m_CurrentFrame++;
 
-    // --- 摩擦・減速の計算 (PlayerBallの挙動と合わせる場合) ---
-    if (m_Ball->GetMutableVelocity().LengthSquared() > 0.001f)
-    {
-        if (m_Ball->GetMutableVelocity().LengthSquared() < 0.03f)
-        {
-            m_Ball->GetMutableVelocity() = Vector3::Zero;
-        }
-        else
-        {
-            float decelerationPower = m_Ball->GetMutableFriction();   // 摩擦による減速量
-            Vector3 deceleration = -m_Ball->GetMutableVelocity();     // 速度と逆方向に減速させる
-            deceleration.Normalize();
-            m_Ball->GetMutableVelocity() += deceleration * decelerationPower;
-        }
-    }
+    BallPhysicsRules::EnemyFriction(m_Ball->GetMutableVelocity(), m_Ball->GetMutableFriction());
 
-    // --- 物理演算の更新 (BallComponentの壁判定や移動、転がり回転を呼び出す) ---
-    m_Ball->UpdatePhysics();
+    // Movement is performed after EVERY ball has applied friction for this tick.
 }
 
 void EnemyBall::Draw(Camera* cam)
@@ -208,6 +200,9 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 
     // 敵データを更新
     m_EnemyData.status = data.status;
+    m_EnemyData.maxHp = data.maxHp;
+    m_EnemyData.frontalDamageMultiplier = data.frontalDamageMultiplier;
+    m_EnemyData.pocketDamageRatio = data.pocketDamageRatio;
     m_EnemyData.rewardMoney = data.rewardMoney;
     m_EnemyData.rewardExp = data.rewardExp;
     m_EnemyData.scale = data.scale;
@@ -221,7 +216,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 
     std::cout << "[HotReload] Enemy updated: "
         << m_EnemyData.id
-        << " HP: " << m_EnemyData.status.maxHp
+        << " HP: " << m_EnemyData.maxHp
         << " Attack: " << m_EnemyData.status.attack
         << " Defense: " << m_EnemyData.status.defense
         << std::endl;
@@ -232,6 +227,7 @@ void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
     if (m_Ball->IsDefeated())
     {
         // 撃破済みの場合はHP割合を計算せず、ステータス値だけ更新する
+        m_Ball->SetMaxHP(m_EnemyData.maxHp);
         ApplyStatusValuesOnly(status);
         return;
     }
@@ -243,7 +239,8 @@ void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
         hpRate = static_cast<float>(GetHP()) / static_cast<float>(GetMaxHP());
     }
 
-    ApplyStatusValuesOnly(status);             // 最大HPなどのステータスを更新
+    m_Ball->SetMaxHP(m_EnemyData.maxHp);
+    ApplyStatusValuesOnly(status);
 
     int newHp = static_cast<int>(GetMaxHP() * hpRate); // 更新後の最大HPに合わせた現在HP
 
@@ -272,7 +269,7 @@ void EnemyBall::OnPocketHit()
     {
         return;
     }
-    Game::GetInstance()->HandleEnemyPocket(this);
+    if (!IsArmorBoss()) Game::GetInstance()->HandleEnemyPocket(this);
 }
 
 void EnemyBall::EnterPocketQueue()
@@ -315,6 +312,7 @@ void EnemyBall::TakeDamage(int damage)
 		m_Ball->GetMutableVelocity();
 	const Vector3 collisionAcceleration =
 		m_Ball->GetMutableAcceleration();
+    if (IsArmorBoss()) damage = BossCombatRules::DirectDamage(damage, GetDefense(), m_BossState) + GetDefense();
 	m_Ball->TakeDamage(damage);
 
 	// 通常ダメージで倒れた敵は、全ボールが止まるまで表示と物理判定を残す。
@@ -331,7 +329,59 @@ void EnemyBall::TakeDamage(int damage)
 		(std::max)(0, hpBefore - m_Ball->GetHP()));
 }
 
+int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
+{
+    return BallPhysicsRules::DirectionalDamage(damage, GetPosition(), sourcePosition, m_EnemyData.frontalDamageMultiplier);
+}
+
+int EnemyBall::ApplyPocketDamage()
+{
+    if (IsArmorBoss() || IsDefeated() || m_EnemyData.pocketDamageRatio <= 0.0f) return 0;
+    const int hpBefore = GetHP();
+    const int damage = BallMechanics::PocketDamage(GetMaxHP(), m_EnemyData.pocketDamageRatio);
+    SetHP((std::max)(0, hpBefore - damage)); // 割合ダメージは防御・方向軽減を無視する。
+    if (GetHP() == 0)
+    {
+        Defeat();
+        Game::GetInstance()->NotifyEnemyDefeated(GetEnemyId());
+    }
+    const int applied = hpBefore - GetHP();
+    BalanceLogger::GetInstance().RecordEnemyDamage(GetEnemyId(), applied);
+    return applied;
+}
+
 void EnemyBall::DrawImGui(const std::string& label)
 {
     m_Ball->DrawImGui(label); // 共通UIを呼ぶ
+}
+
+void EnemyBall::HitBreakBall(int ballId)
+{
+    if (!IsArmorBoss() || IsDefeated()) return;
+    const int hpBefore = GetHP(), armorBefore = m_BossState.armor;
+    const bool started = m_BossState.HitBreakBall();
+    const Vector3 velocity = GetVelocity();
+    SetHP((std::max)(0, hpBefore - BossCombatRules::BreakBallDamage));
+    if (GetHP() == 0)
+    {
+        Defeat();
+        m_Ball->GetMutableVelocity() = velocity;
+        Game::GetInstance()->NotifyEnemyDefeated(GetEnemyId());
+    }
+    const int damage = hpBefore - GetHP();
+    auto& logger = BalanceLogger::GetInstance();
+    logger.RecordEnemyDamage(GetEnemyId(), damage);
+    logger.RecordEvent("boss_break_ball_hit", {{"ball_id", ballId}, {"boss_id", GetEnemyId()},
+        {"armor_before", armorBefore}, {"armor_after", m_BossState.armor},
+        {"boss_damage", damage}, {"hp_before", hpBefore}, {"hp_after", GetHP()}});
+    if (started) logger.RecordEvent("boss_break_started", {{"boss_id", GetEnemyId()},
+        {"break_shots_remaining", m_BossState.shotsRemaining}, {"trigger_shot_excluded", true}});
+    Game::GetInstance()->NotifyCombatFeedback(GetPosition(), damage, IsDefeated(), false);
+}
+
+void EnemyBall::EndBossShot()
+{
+    if (IsArmorBoss() && !IsDefeated() && m_BossState.EndShot())
+        BalanceLogger::GetInstance().RecordEvent("boss_break_ended",
+            {{"boss_id", GetEnemyId()}, {"armor", m_BossState.armor}});
 }

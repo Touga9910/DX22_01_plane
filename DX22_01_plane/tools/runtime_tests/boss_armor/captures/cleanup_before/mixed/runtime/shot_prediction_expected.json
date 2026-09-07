@@ -1,0 +1,127 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 50,
+      "id": 2771949412000,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        -3.705841541290283,
+        1.0,
+        7.764756202697754
+      ],
+      "velocity": [
+        -0.16399450600147247,
+        0.0,
+        0.01136370562016964
+      ]
+    },
+    {
+      "active": true,
+      "armor": 0,
+      "boss": true,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 2,
+      "break_started_this_shot": true,
+      "defeated": false,
+      "enemy_id": "enemy_boss_core",
+      "hp": 52,
+      "id": 2771949413280,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        0.007129284553229809,
+        1.0,
+        20.1133975982666
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": false,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": true,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2771949412256,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": false,
+      "armor": 2,
+      "boss": false,
+      "break_ball": true,
+      "break_ball_used": true,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 1,
+      "id": 2771949411232,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "complete": true,
+  "enemy_enemy_contacts": 0,
+  "first_enemy_contact_reflections": 0,
+  "milliseconds": 8.987,
+  "path_points": 140,
+  "path_truncated": false,
+  "physics_model": "synchronized_ccd_toi_v1",
+  "player_enemy_contacts": 0,
+  "preview_direct_hit_ball": true,
+  "preview_direct_points": 4,
+  "preview_one_reflection_limited": true,
+  "preview_one_reflection_points": 22,
+  "reflection_path_indices": [
+    3,
+    21,
+    25,
+    77,
+    86,
+    129
+  ],
+  "substeps": 173,
+  "ticks": 165,
+  "world_unchanged": true
+}

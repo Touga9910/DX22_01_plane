@@ -1,0 +1,106 @@
+{
+  "changes": [
+    {
+      "file": "BallCollisionComponent.cpp",
+      "added": 18,
+      "removed": 2,
+      "deleted": false
+    },
+    {
+      "file": "BallCollisionComponent.h",
+      "added": 1,
+      "removed": 0,
+      "deleted": false
+    },
+    {
+      "file": "BallPhysicsWorld.cpp",
+      "added": 8,
+      "removed": 4,
+      "deleted": false
+    },
+    {
+      "file": "BallShotPrediction.cpp",
+      "added": 4,
+      "removed": 16,
+      "deleted": false
+    },
+    {
+      "file": "BallShotPrediction.h",
+      "added": 1,
+      "removed": 5,
+      "deleted": false
+    },
+    {
+      "file": "ContinuousBallStepper.h",
+      "added": 7,
+      "removed": 6,
+      "deleted": false
+    },
+    {
+      "file": "DX22_01_plane.vcxproj",
+      "added": 0,
+      "removed": 6,
+      "deleted": false
+    },
+    {
+      "file": "DX22_01_plane.vcxproj.filters",
+      "added": 0,
+      "removed": 9,
+      "deleted": false
+    },
+    {
+      "file": "PlayerBall.cpp",
+      "added": 1,
+      "removed": 9,
+      "deleted": false
+    },
+    {
+      "file": "PlayerBall.h",
+      "added": 0,
+      "removed": 22,
+      "deleted": false
+    },
+    {
+      "file": "TrajectoryModel.cpp",
+      "added": 0,
+      "removed": 175,
+      "deleted": true
+    },
+    {
+      "file": "TrajectoryModel.h",
+      "added": 0,
+      "removed": 144,
+      "deleted": true
+    },
+    {
+      "file": "tools\\verify_pierce_exit.py",
+      "added": 3,
+      "removed": 2,
+      "deleted": false
+    }
+  ],
+  "lines_added": 43,
+  "lines_removed": 400,
+  "net_lines_removed": 357,
+  "project_entries_unique": true,
+  "boss_candidates_and_physics_unchanged": true,
+  "boss_evaluation_ms_before": 1794.3631,
+  "boss_evaluation_ms_after": 1601.3454,
+  "timing_note": "Single observation under variable load; not an FPS benchmark.",
+  "source_sha256": {
+    "BallCollisionComponent.cpp": "6accb2e1942cfdaf72e5d31ab1e21454603b40cafaa0ba89ad9ac54ec915f13b",
+    "BallCollisionComponent.h": "eba3e204142a467bcfe64070487442400de92954d40bb5db30ecb4abd65c85d5",
+    "BallPhysicsWorld.cpp": "e09d7229d9f3be3bfe7a4434455af26d6e16f612bae478bd49a30e095b48e9c5",
+    "BallShotPrediction.cpp": "cfc977e67a5e1e07f624ffef264d87da4658306dc2c33207f9764f8fcebb7589",
+    "BallShotPrediction.h": "b13dfd3b0e5ea81c6ebe9fbd1de2d856825403f5e13a2b1e6d275709846f6067",
+    "ContinuousBallStepper.h": "6e125957ef884336b853a6e9fbdaed19340d45bf2922364802e4639ebf8498b3",
+    "DX22_01_plane.vcxproj": "4c203f51a3f6e84df03c1446fde534f4b5c8f297d7c1ece98b41de0d96a952a3",
+    "DX22_01_plane.vcxproj.filters": "eca23dddc6af6115c0d6e7915967a411738ecf895b6b396fd38863a9d19eaff6",
+    "PlayerBall.cpp": "2c15bf62217341db30cf4025973e3ed01b0ae89b71529538156e7bdd1c4a27f2",
+    "PlayerBall.h": "aa2cf89f9f5f283dae1e5d6d75f8ed26f4ec11d9e2648cab4265529e119ec352",
+    "tools\\verify_pierce_exit.py": "cf010dc12b4a1d67a13ba91c8107e063a4a917c7528589d29b1f1c087301699c"
+  },
+  "exe_sha256": "137ef393883fc30544faa3b33b5903392731238eb17a867f69cf582132702ebc",
+  "verified_shots": 9,
+  "python_tests": 189
+}

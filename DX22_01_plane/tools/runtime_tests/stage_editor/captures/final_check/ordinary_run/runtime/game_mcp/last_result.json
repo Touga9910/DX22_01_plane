@@ -1,0 +1,9 @@
+{
+  "action": "choose_destination",
+  "command_id": "00ce46b0904f47b8b7b3bf01fb577d1f",
+  "completed_at_unix_ms": 1788513810548,
+  "message": "Entered route option 0 (battle).",
+  "ok": true,
+  "schema_version": 1,
+  "state_sequence": 4
+}

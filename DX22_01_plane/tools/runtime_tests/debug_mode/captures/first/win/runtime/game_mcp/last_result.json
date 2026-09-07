@@ -1,0 +1,9 @@
+{
+  "action": "start_new_run",
+  "command_id": "ed1795bd165340b193cb66a9e1f7e9cc",
+  "completed_at_unix_ms": 1788507322615,
+  "message": "Debug setup is open. Resume or start the battle from its window.",
+  "ok": false,
+  "schema_version": 1,
+  "state_sequence": 104
+}

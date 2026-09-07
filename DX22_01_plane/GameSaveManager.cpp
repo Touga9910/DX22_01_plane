@@ -1,8 +1,9 @@
-#include "GameSaveManager.h"
+﻿#include "GameSaveManager.h"
 
 #pragma execution_character_set("utf-8")
 
 #include "Game.h"
+#include "PlayerBallSaveData.h"
 #include "RestSiteScene.h"
 #include "UiText.h"
 
@@ -107,90 +108,8 @@ namespace
 		return stream.str();
 	}
 
-	json BallToJson(const PlayerBallData& ball)
-	{
-		json upgrades = json::array();
-		for (const BallUpgradeStep& upgrade : ball.upgradeTable)
-		{
-			upgrades.push_back({
-				{ "attack", upgrade.attack },
-				{ "defense", upgrade.defense },
-			});
-		}
-		return {
-			{ "definition_id", ball.definitionId },
-			{ "instance_id", ball.instanceId },
-			{ "upgrade_level", ball.upgradeLevel },
-			{ "upgrade_table", std::move(upgrades) },
-			{ "status", {
-				{ "max_hp", ball.status.maxHp },
-				{ "attack", ball.status.attack },
-				{ "defense", ball.status.defense },
-				{ "mass", ball.status.mass },
-				{ "radius", ball.status.radius },
-				{ "restitution", ball.status.restitution },
-				{ "friction", ball.status.friction },
-				{ "abilities", {
-					{ "split", ball.status.abilities.split },
-					{ "pierce", ball.status.abilities.pierce },
-					{ "anchor", ball.status.abilities.anchor },
-				} },
-			} },
-		};
-	}
-
-	PlayerBallData BallFromJson(const json& value)
-	{
-		PlayerBallData ball;
-		ball.definitionId = value.at("definition_id").get<std::string>();
-		ball.instanceId = value.at("instance_id").get<std::uint64_t>();
-		ball.upgradeLevel = value.at("upgrade_level").get<int>();
-		if (ball.definitionId.empty() || ball.definitionId.size() > 128 ||
-			ball.instanceId == 0 ||
-			ball.upgradeLevel < 0 ||
-			ball.upgradeLevel > PlayerBallData::MaxUpgradeLevel)
-		{
-			throw std::runtime_error(UiText::InvalidSaveData);
-		}
-
-		const json& upgrades = value.at("upgrade_table");
-		if (!upgrades.is_array() ||
-			upgrades.size() != PlayerBallData::MaxUpgradeLevel)
-		{
-			throw std::runtime_error(UiText::InvalidSaveData);
-		}
-		for (int index = 0; index < PlayerBallData::MaxUpgradeLevel; ++index)
-		{
-			ball.upgradeTable[index].attack = upgrades[index].at("attack").get<int>();
-			ball.upgradeTable[index].defense = upgrades[index].at("defense").get<int>();
-		}
-
-		const json& status = value.at("status");
-		ball.status.maxHp = status.at("max_hp").get<int>();
-		ball.status.attack = status.at("attack").get<int>();
-		ball.status.defense = status.at("defense").get<int>();
-		ball.status.mass = status.at("mass").get<float>();
-		ball.status.radius = status.at("radius").get<float>();
-		ball.status.restitution = status.at("restitution").get<float>();
-		ball.status.friction = status.at("friction").get<float>();
-		const json& abilities = status.at("abilities");
-		ball.status.abilities.split = abilities.at("split").get<bool>();
-		ball.status.abilities.pierce = abilities.at("pierce").get<bool>();
-		ball.status.abilities.anchor = abilities.at("anchor").get<bool>();
-
-		if (ball.status.maxHp < 1 || ball.status.maxHp > 100000 ||
-			ball.status.attack < 0 || ball.status.attack > 100000 ||
-			ball.status.defense < 0 || ball.status.defense > 100000 ||
-			!std::isfinite(ball.status.mass) || ball.status.mass <= 0.0f ||
-			!std::isfinite(ball.status.radius) || ball.status.radius < 0.0f ||
-			!std::isfinite(ball.status.restitution) ||
-			ball.status.restitution < 0.0f || ball.status.restitution > 1.0f ||
-			!std::isfinite(ball.status.friction) || ball.status.friction < 0.0f)
-		{
-			throw std::runtime_error(UiText::InvalidSaveData);
-		}
-		return ball;
-	}
+	using PlayerBallSaveData::BallToJson;
+	using PlayerBallSaveData::BallFromJson;
 
 	json BallListToJson(const std::vector<PlayerBallData>& balls)
 	{
@@ -310,6 +229,7 @@ bool GameSaveManager::Save(
 	bool sceneAlreadyActive,
 	std::string& message)
 {
+	if (game.IsDebugMode()) { message = "Debug battles do not overwrite run saves."; return false; }
 	if (SceneToId(resumeScene) == "invalid")
 	{
 		message = UiText::SavingUnavailable;
@@ -317,12 +237,7 @@ bool GameSaveManager::Save(
 	}
 	try
 	{
-		std::uint32_t routeCounter = game.m_RouteSelectionCounter;
-		if (sceneAlreadyActive && resumeScene == SceneType::Select &&
-			routeCounter > 0)
-		{
-			--routeCounter;
-		}
+		const std::uint32_t routeCounter = game.m_RouteSelectionCounter;
 		bool restActionUsed = false;
 		if (sceneAlreadyActive && resumeScene == SceneType::RestSite)
 		{
@@ -352,12 +267,12 @@ bool GameSaveManager::Save(
 		}
 		const PlayerDeck& deck = game.m_PlayerDeck;
 		const json payload = {
+			{ "run_map", game.m_RunMap.Save() },
 			{ "saved_at_utc", MakeUtcTimestamp() },
 			{ "resume_scene", SceneToId(resumeScene) },
 			{ "scene_state", {
 				{ "rest_action_used", restActionUsed },
 				{ "shop_relic_offers", game.m_ShopRelicOffers },
-				{ "shop_relic_purchased", game.m_ShopRelicPurchased },
 			} },
 			{ "run", {
 				{ "max_hp", game.m_PlayerRunStatus.maxHp },
@@ -366,6 +281,7 @@ bool GameSaveManager::Save(
 				{ "progress", game.m_PlayerRunStatus.progress },
 				{ "cleared_stage_count", game.m_ClearedStageCount },
 				{ "area_progress", game.m_AreaProgress },
+				{ "ascension", game.m_ActiveAscension },
 				{ "run_phase", ToString(game.m_RunPhase) },
 				{ "selected_stage_id", game.m_PlayerRunStatus.GetSelectedStageId() },
 				{ "last_stage_id", game.m_PlayerRunStatus.GetLastStageId() },
@@ -467,6 +383,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		SceneType resumeScene =
 			SceneFromId(payload.at("resume_scene").get<std::string>());
 		const json& run = payload.at("run");
+		const int activeAscension = std::clamp(run.value("ascension", 0), 0, ProgressionProfile::MaximumAscension);
 		const json& random = payload.at("random");
 		const json& dynamicBalance = payload.at("dynamic_balance");
 		const json& deckJson = payload.at("deck");
@@ -647,14 +564,11 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 				random.at("relic_state").get<std::string>())
 			: std::mt19937(runSeed ^ 0xd3a2646cu);
 		std::vector<int> shopRelicOffers;
-		bool shopRelicPurchased = false;
 		if (payload.contains("scene_state"))
 		{
 			const json& sceneState = payload.at("scene_state");
 			shopRelicOffers = sceneState.value(
 				"shop_relic_offers", std::vector<int>{});
-			shopRelicPurchased = sceneState.value(
-				"shop_relic_purchased", false);
 			for (int relicIndex : shopRelicOffers)
 			{
 				if (relicIndex < 0 || relicIndex >= game.GetRelicCount())
@@ -674,7 +588,50 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}
 
+		RunMap restoredMap;
+		if (payload.contains("run_map"))
+		{
+			restoredMap = RunMap::Restore(payload.at("run_map"));
+		}
+		else
+		{
+			// Historical choices are unknown. Start the visible map at this checkpoint.
+			restoredMap.Generate(routeSeed, areaProgress, (std::max)(0, Game::kNormalRouteAreaGoal - areaProgress));
+			if (runPhase == RunPhase::BossPreparation || runPhase == RunPhase::FinalBossReady || runPhase == RunPhase::FinalBoss)
+			{
+				restoredMap.Choose(0);
+				if (runPhase != RunPhase::BossPreparation) restoredMap.CompleteActive();
+				if (runPhase == RunPhase::FinalBoss) restoredMap.Choose(1);
+			}
+			else if (resumeScene != SceneType::Select)
+			{
+				restoredMap.MigrateEntry(resumeScene == SceneType::Shop ? StageRouteType::Shop :
+					resumeScene == SceneType::RestSite ? StageRouteType::RestSite : StageRouteType::NormalBattle);
+			}
+		}
+		const RunMapNode* activeMapNode = restoredMap.Node(restoredMap.Active());
+		bool mapSceneValid = false;
+		if (runPhase == RunPhase::NormalRoute)
+		{
+			mapSceneValid = resumeScene == SceneType::Select ? activeMapNode == nullptr && !restoredMap.Available().empty() :
+				activeMapNode != nullptr && (
+					(resumeScene == SceneType::Shop && activeMapNode->type == StageRouteType::Shop) ||
+					(resumeScene == SceneType::RestSite && activeMapNode->type == StageRouteType::RestSite) ||
+					(resumeScene == SceneType::Battle && (activeMapNode->type == StageRouteType::NormalBattle || activeMapNode->type == StageRouteType::MidBoss)));
+		}
+		else if (runPhase == RunPhase::BossPreparation)
+			mapSceneValid = resumeScene == SceneType::RestSite && activeMapNode && activeMapNode->type == StageRouteType::BossPreparation;
+		else if (runPhase == RunPhase::FinalBossReady)
+			mapSceneValid = resumeScene == SceneType::Select && !activeMapNode && restoredMap.Available() == std::vector<int>{restoredMap.AreaCount() * 3 + 1};
+		else if (runPhase == RunPhase::FinalBoss)
+			mapSceneValid = resumeScene == SceneType::Battle && activeMapNode && activeMapNode->type == StageRouteType::FinalBoss;
+		if (restoredMap.CompletedAreas() != areaProgress || !mapSceneValid)
+			throw std::runtime_error(UiText::InvalidSaveData);
+
 		game.StartNewRun("human", "save_load", "", "", runSeed);
+		game.m_ActiveAscension = activeAscension;
+		game.m_RestHealRatio = (std::max)(0.05f, game.m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(activeAscension));
+		game.m_RunMap = std::move(restoredMap);
 		game.m_PlayerRunStatus = std::move(restoredStatus);
 		game.m_ClearedStageCount = clearedStages;
 		game.m_AreaProgress = areaProgress;
@@ -722,7 +679,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		if (resumeScene == SceneType::Shop && !shopRelicOffers.empty())
 		{
 			game.m_ShopRelicOffers = std::move(shopRelicOffers);
-			game.m_ShopRelicPurchased = shopRelicPurchased;
 		}
 		if (migratedToBossPreparation)
 		{

@@ -1,0 +1,9 @@
+{
+  "deck": [
+    "player_standard",
+    "player_heavy",
+    "player_anchor",
+    "player_pierce",
+    "player_bounce"
+  ]
+}

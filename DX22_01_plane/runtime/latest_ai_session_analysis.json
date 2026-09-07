@@ -1,0 +1,285 @@
+{
+  "files": [
+    "run_20260905_222300_302.json",
+    "run_20260905_222452_050.json",
+    "run_20260905_222646_241.json",
+    "run_20260905_222916_069.json",
+    "run_20260905_223123_313.json",
+    "run_20260905_223331_819.json",
+    "run_20260905_223523_707.json",
+    "run_20260905_223717_474.json",
+    "run_20260905_223949_987.json",
+    "run_20260905_224159_921.json",
+    "run_20260905_224410_932.json",
+    "run_20260905_224602_890.json",
+    "run_20260905_224757_214.json",
+    "run_20260905_225027_156.json"
+  ],
+  "run_count": 14,
+  "terminal_run_count": 13,
+  "result_counts": {
+    "completed": 10,
+    "game_over": 3,
+    "application_exit": 1
+  },
+  "clear_rate": 0.7692,
+  "cleared_battles": {
+    "values": [
+      6,
+      8,
+      11,
+      10,
+      9,
+      6,
+      8,
+      11,
+      10,
+      9,
+      6,
+      8,
+      11
+    ],
+    "average": 8.69,
+    "median": 9
+  },
+  "duration_seconds": {
+    "average": 125.76,
+    "median": 126.31
+  },
+  "average_terminal_hp": 21,
+  "shot_count": 523,
+  "total_damage": 2034,
+  "no_hit_rate": 0.0153,
+  "ball_performance": {
+    "player_standard": {
+      "shots": 398,
+      "damage": 1659,
+      "kills": 328,
+      "no_hits": 8
+    },
+    "player_heavy": {
+      "shots": 125,
+      "damage": 375,
+      "kills": 89,
+      "no_hits": 0
+    }
+  },
+  "stage_by_index": {
+    "1": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 59,
+      "shots": 42,
+      "clear_rate": 1.0,
+      "average_damage_taken": 4.54,
+      "average_shots": 3.23
+    },
+    "2": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 62,
+      "shots": 41,
+      "clear_rate": 1.0,
+      "average_damage_taken": 4.77,
+      "average_shots": 3.15
+    },
+    "3": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 113,
+      "shots": 53,
+      "clear_rate": 1.0,
+      "average_damage_taken": 8.69,
+      "average_shots": 4.08
+    },
+    "4": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 166,
+      "shots": 75,
+      "clear_rate": 1.0,
+      "average_damage_taken": 12.77,
+      "average_shots": 5.77
+    },
+    "5": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 118,
+      "shots": 60,
+      "clear_rate": 1.0,
+      "average_damage_taken": 9.08,
+      "average_shots": 4.62
+    },
+    "6": {
+      "attempts": 13,
+      "clears": 13,
+      "damage_taken": 122,
+      "shots": 68,
+      "clear_rate": 1.0,
+      "average_damage_taken": 9.38,
+      "average_shots": 5.23
+    },
+    "7": {
+      "attempts": 10,
+      "clears": 10,
+      "damage_taken": 69,
+      "shots": 40,
+      "clear_rate": 1.0,
+      "average_damage_taken": 6.9,
+      "average_shots": 4.0
+    },
+    "8": {
+      "attempts": 10,
+      "clears": 10,
+      "damage_taken": 107,
+      "shots": 55,
+      "clear_rate": 1.0,
+      "average_damage_taken": 10.7,
+      "average_shots": 5.5
+    },
+    "9": {
+      "attempts": 10,
+      "clears": 7,
+      "damage_taken": 55,
+      "shots": 39,
+      "clear_rate": 0.7,
+      "average_damage_taken": 5.5,
+      "average_shots": 3.9
+    },
+    "10": {
+      "attempts": 5,
+      "clears": 5,
+      "damage_taken": 43,
+      "shots": 27,
+      "clear_rate": 1.0,
+      "average_damage_taken": 8.6,
+      "average_shots": 5.4
+    },
+    "11": {
+      "attempts": 3,
+      "clears": 3,
+      "damage_taken": 20,
+      "shots": 23,
+      "clear_rate": 1.0,
+      "average_damage_taken": 6.67,
+      "average_shots": 7.67
+    }
+  },
+  "stage_by_id": {
+    "normal_001": {
+      "attempts": 15,
+      "clears": 15,
+      "damage_taken": 62,
+      "shots": 48,
+      "clear_rate": 1.0,
+      "average_damage_taken": 4.13,
+      "average_shots": 3.2
+    },
+    "normal_002": {
+      "attempts": 16,
+      "clears": 16,
+      "damage_taken": 80,
+      "shots": 50,
+      "clear_rate": 1.0,
+      "average_damage_taken": 5.0,
+      "average_shots": 3.12
+    },
+    "normal_004": {
+      "attempts": 39,
+      "clears": 39,
+      "damage_taken": 454,
+      "shots": 202,
+      "clear_rate": 1.0,
+      "average_damage_taken": 11.64,
+      "average_shots": 5.18
+    },
+    "normal_003": {
+      "attempts": 32,
+      "clears": 29,
+      "damage_taken": 245,
+      "shots": 132,
+      "clear_rate": 0.9062,
+      "average_damage_taken": 7.66,
+      "average_shots": 4.12
+    },
+    "boss_001": {
+      "attempts": 8,
+      "clears": 8,
+      "damage_taken": 53,
+      "shots": 61,
+      "clear_rate": 1.0,
+      "average_damage_taken": 6.62,
+      "average_shots": 7.62
+    },
+    "midboss_002": {
+      "attempts": 2,
+      "clears": 2,
+      "damage_taken": 20,
+      "shots": 12,
+      "clear_rate": 1.0,
+      "average_damage_taken": 10.0,
+      "average_shots": 6.0
+    },
+    "midboss_001": {
+      "attempts": 2,
+      "clears": 2,
+      "damage_taken": 12,
+      "shots": 8,
+      "clear_rate": 1.0,
+      "average_damage_taken": 6.0,
+      "average_shots": 4.0
+    },
+    "boss_002": {
+      "attempts": 2,
+      "clears": 2,
+      "damage_taken": 8,
+      "shots": 10,
+      "clear_rate": 1.0,
+      "average_damage_taken": 4.0,
+      "average_shots": 5.0
+    }
+  },
+  "reward_choices": {
+    "extra_money": 52,
+    "upgrade_ball": 51
+  },
+  "upgrades": {
+    "player_standard": 76,
+    "player_heavy": 3
+  },
+  "rest_heal_count": 41,
+  "boss_ai_decision_count": 71,
+  "route_choices": {
+    "Normal Battle": 102,
+    "Shop": 30,
+    "Rest Site": 59,
+    "Final Boss": 10,
+    "Mid Boss": 4
+  },
+  "relic_acquisitions": {
+    "緊急修理キット": 7,
+    "防御コア": 5,
+    "精密照準器": 3,
+    "攻撃コア": 7,
+    "バンクショット": 4
+  },
+  "run_seeds": [
+    20260807,
+    20260817,
+    20260827,
+    20260906,
+    20260916,
+    20260807,
+    20260817,
+    20260827,
+    20260906,
+    20260916,
+    20260807,
+    20260817,
+    20260827,
+    20260906
+  ],
+  "configuration_fingerprints": [
+    ""
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "shots": 11,
+  "win": true,
+  "actual_cpp_autoplay": true,
+  "matched_mcp_physics": true,
+  "note": "Verified archived captures after fixing the harness assumption: cleared boss_state may be null."
+}

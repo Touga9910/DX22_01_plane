@@ -1,0 +1,56 @@
+{
+  "balls": [
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 13,
+      "id": 2211367274208,
+      "player": true,
+      "pocketed": false,
+      "position": [
+        -34.34617614746094,
+        1.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "armor": 2,
+      "boss": false,
+      "break_ball": false,
+      "break_ball_used": false,
+      "break_shots_remaining": 0,
+      "break_started_this_shot": false,
+      "defeated": true,
+      "enemy_id": "enemy_normal",
+      "hp": 0,
+      "id": 2211367272928,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        -26.71269989013672,
+        1.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "enemy_enemy_contacts": 0,
+  "player_enemy_contacts": 4
+}

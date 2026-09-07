@@ -1,0 +1,76 @@
+{
+  "physics_cases": [
+    {
+      "case": "standard_chain",
+      "minimum_clearance": 47.29322837896911,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 14.6854,
+      "ticks": 159
+    },
+    {
+      "case": "heavy_chain",
+      "minimum_clearance": 4.986611859546141,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 15.7849,
+      "ticks": 169
+    },
+    {
+      "case": "pierce_line",
+      "minimum_clearance": 13.675551834422318,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 16.4716,
+      "ticks": 158
+    },
+    {
+      "case": "bounce_wall",
+      "minimum_clearance": 28.784634746329118,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.8561,
+      "ticks": 66
+    },
+    {
+      "case": "anchor_contact",
+      "minimum_clearance": 27.10821540495474,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 12.7996,
+      "ticks": 130
+    },
+    {
+      "case": "standard_pocket",
+      "minimum_clearance": 28.584634698645402,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 1.1419,
+      "ticks": 14
+    },
+    {
+      "case": "pierce_low_power",
+      "minimum_clearance": 2.000019073486328,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 2.4057,
+      "ticks": 66
+    },
+    {
+      "case": "pierce_multiple",
+      "minimum_clearance": 2.1312828063964844,
+      "matched": true,
+      "max_error": 0,
+      "milliseconds": 5.1702,
+      "ticks": 79
+    }
+  ],
+  "ordinary_six_unchanged": true,
+  "old_overlap_reproduced": true,
+  "starting_deck": {
+    "player_standard": 6,
+    "player_heavy": 1
+  },
+  "python_tests": 189,
+  "exe_sha256": "dd0dac8445b98b5d6e63731b376a961008fa1654a99e0b65e7d6121446116ead"
+}

@@ -1,0 +1,11 @@
+{
+  "reference": "before_ready",
+  "cases": [
+    {
+      "case": "standard_chain",
+      "matched": true,
+      "observed_max_steps": 3,
+      "damage_contacts": 3
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "action": "start_new_run",
+  "command_id": "3ab034e43df141b983364c72c0894ee8",
+  "completed_at_unix_ms": 1788579079700,
+  "message": "Started a new run.",
+  "ok": true,
+  "schema_version": 1,
+  "state_sequence": 2
+}

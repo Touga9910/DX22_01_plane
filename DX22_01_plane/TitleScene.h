@@ -15,6 +15,7 @@ private:
 	MenuSelection m_Menu;
 	bool m_CanContinue = false;
 	bool m_ConfirmNewRun = false;
+	bool m_ShowProgression = false;
 	std::string m_SaveSummary;
 	std::string m_Message;
 
@@ -27,5 +28,6 @@ public:
 
 	void Update(); // 更新
 	void DrawUI() override;
+	void DrawProgressionUI();
 };
 

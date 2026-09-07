@@ -1,0 +1,90 @@
+{
+  "balls": [
+    {
+      "active": false,
+      "defeated": false,
+      "enemy_id": "",
+      "hp": 48,
+      "id": 2718379646880,
+      "player": true,
+      "pocketed": true,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": false,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 8,
+      "id": 2718379650976,
+      "player": false,
+      "pocketed": true,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": false,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 11,
+      "id": 2718379651744,
+      "player": false,
+      "pocketed": true,
+      "position": [
+        0.0,
+        -1000.0,
+        0.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "active": true,
+      "defeated": false,
+      "enemy_id": "enemy_strong",
+      "hp": 12,
+      "id": 2718379652512,
+      "player": false,
+      "pocketed": false,
+      "position": [
+        30.0,
+        1.0,
+        -15.0
+      ],
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "complete": true,
+  "enemy_enemy_contacts": 1,
+  "milliseconds": 1.0815,
+  "path_points": 19,
+  "path_truncated": false,
+  "physics_model": "synchronized_ccd_toi_v1",
+  "player_enemy_contacts": 2,
+  "substeps": 33,
+  "ticks": 27,
+  "world_unchanged": true
+}

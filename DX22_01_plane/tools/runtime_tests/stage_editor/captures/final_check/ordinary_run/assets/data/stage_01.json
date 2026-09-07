@@ -1,0 +1,45 @@
+{
+  "stages": [
+    {
+      "difficulty": 1,
+      "enemies": [
+        {
+          "enemyId": "enemy_normal",
+          "position": [
+            -30.0,
+            1.0,
+            12.0
+          ]
+        },
+        {
+          "enemyId": "enemy_normal",
+          "position": [
+            -10.0,
+            1.0,
+            20.0
+          ]
+        },
+        {
+          "enemyId": "enemy_normal",
+          "position": [
+            15.0,
+            1.0,
+            -18.0
+          ]
+        },
+        {
+          "enemyId": "enemy_normal",
+          "position": [
+            42.0,
+            1.0,
+            8.0
+          ]
+        }
+      ],
+      "id": "editor_runtime_test",
+      "par": 4,
+      "preserveLayout": true,
+      "stageType": "normal"
+    }
+  ]
+}

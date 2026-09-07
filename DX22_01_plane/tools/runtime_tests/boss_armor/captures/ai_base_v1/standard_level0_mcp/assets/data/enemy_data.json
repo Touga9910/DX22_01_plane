@@ -1,0 +1,185 @@
+{
+  "enemies": [
+    {
+      "id": "enemy_normal",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 3,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.0,
+        "radius": 2.4,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.4,
+        "y": 2.4,
+        "z": 2.4
+      },
+      "rewardMoney": 5,
+      "rewardExp": 0
+    },
+    {
+      "id": "enemy_strong",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 5,
+        "attack": 2,
+        "defense": 0,
+        "mass": 1.0,
+        "radius": 2.6,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.6,
+        "y": 2.6,
+        "z": 2.6
+      },
+      "rewardMoney": 10,
+      "rewardExp": 5
+    },
+    {
+      "id": "enemy_tank",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 20,
+        "attack": 1,
+        "defense": 0,
+        "mass": 2.2,
+        "radius": 2.8,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.8,
+        "y": 2.8,
+        "z": 2.8
+      },
+      "rewardMoney": 10,
+      "rewardExp": 8
+    },
+    {
+      "id": "enemy_striker",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 4,
+        "attack": 3,
+        "defense": 0,
+        "mass": 1.2,
+        "radius": 2.5,
+        "restitution": 0.9,
+        "friction": 0.018,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.5,
+        "y": 2.5,
+        "z": 2.5
+      },
+      "rewardMoney": 12,
+      "rewardExp": 8
+    },
+    {
+      "id": "enemy_boss_core",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 60,
+        "attack": 1,
+        "defense": 0,
+        "mass": 18.0,
+        "radius": 6.0,
+        "restitution": 0.55,
+        "friction": 0.03,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 6.0,
+        "y": 6.0,
+        "z": 6.0
+      },
+      "rewardMoney": 20,
+      "rewardExp": 15
+    },
+    {
+      "id": "enemy_midboss_guard",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 12,
+        "attack": 1,
+        "defense": 0,
+        "mass": 2.2,
+        "radius": 3.0,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 3.0,
+        "y": 3.0,
+        "z": 3.0
+      },
+      "rewardMoney": 15,
+      "rewardExp": 8,
+      "gimmick": {
+        "frontalDamageMultiplier": 0.5
+      }
+    },
+    {
+      "id": "enemy_midboss_pocket",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 18,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.6,
+        "radius": 3.0,
+        "restitution": 0.65,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 3.0,
+        "y": 3.0,
+        "z": 3.0
+      },
+      "rewardMoney": 15,
+      "rewardExp": 8,
+      "gimmick": {
+        "pocketDamageRatio": 0.45
+      }
+    }
+  ]
+}

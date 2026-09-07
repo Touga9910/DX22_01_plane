@@ -1,0 +1,18 @@
+{
+  "paused": {
+    "dropped_seconds": 0.5165096333333333,
+    "frequency_hz": 60,
+    "max_steps_per_frame": 8,
+    "steps_last_frame": 2,
+    "tick": 38
+  },
+  "resumed": {
+    "dropped_seconds": 0.5165096333333333,
+    "frequency_hz": 60,
+    "max_steps_per_frame": 8,
+    "steps_last_frame": 2,
+    "tick": 51
+  },
+  "paused_seconds": 0.8,
+  "passed": true
+}
