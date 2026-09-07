@@ -12,6 +12,8 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from bridge_store import GameBridgeError, GameBridgeStore
+from build_shot_evaluator import build_joint_shot_context
+from boss_shot_policy import evaluate_boss_choices, fire_boss_choice
 from build_decision import (
     build_decision_snapshot,
     evaluate_risk_tradeoff,
@@ -28,6 +30,7 @@ from shot_planner import (
     ensure_enemy_target_ids,
     load_player_profiles,
     plan_targeted_shot,
+    plan_build_shot,
     recommend_shot_power,
     resolve_target_id_argument,
 )
@@ -77,14 +80,8 @@ def _shop_has_actionable_purchase(state: dict[str, Any]) -> bool:
     player = state.get("player", {})
     money = int(player.get("money", 0)) if isinstance(player, dict) else 0
     relics = state.get("relics", [])
-    selection = state.get("relic_selection", {})
     in_shop = state.get("scene") == "shop"
-    purchase_used = in_shop and bool(
-        selection.get("shop_purchase_used", False)
-        if isinstance(selection, dict)
-        else False
-    )
-    if isinstance(relics, list) and not purchase_used:
+    if isinstance(relics, list):
         for relic in relics:
             if not isinstance(relic, dict):
                 continue
@@ -615,6 +612,24 @@ def resolve_mcp_stage_choice(
     profile: dict[str, Any],
     requested_route_index: int = -1,
 ) -> dict[str, Any]:
+    # A map index identifies a particular future path, even when two nodes have
+    # the same destination. Never silently replace an explicit path with a heal.
+    if isinstance(state.get("run_map"), dict) and requested_route_index >= 0:
+        offered = next((option for option in state.get("route_options", [])
+                        if isinstance(option, dict)
+                        and option.get("route_index") == requested_route_index), None)
+        if offered is None:
+            raise GameBridgeError("route_indexは現在のroute_optionsから選んでください。")
+        return {
+            "requested_route_index": requested_route_index,
+            "effective_route_index": requested_route_index,
+            "effective_destination": offered.get("destination", "unknown"),
+            "node_id": offered.get("node_id"),
+            "overridden": False,
+            "reason": "explicit_map_route",
+            "ai_requested_route_index": requested_route_index,
+            "wanted_rewards": list(wanted_rewards or []),
+        }
     requested_wanted_rewards = list(wanted_rewards or [])
     completed_wanted_rewards = complete_wanted_reward_order(
         wanted_rewards
@@ -833,6 +848,26 @@ def create_server(
     )
     deterministic_shot_random: random.Random | None = None
 
+    # Older running game binaries omit enemy physical properties. Use the
+    # matching local data only for missing fields; live fields always win.
+    enemy_physics = {}
+    try:
+        import json
+        with (PROJECT_ROOT / "assets/data/enemy_data.json").open(encoding="utf-8-sig") as source:
+            enemy_physics = {e["id"]: e.get("status", {}) for e in json.load(source).get("enemies", [])}
+    except (OSError, ValueError, KeyError):
+        pass
+
+    def read_control_state() -> dict[str, Any]:
+        state = ensure_enemy_target_ids(store.read_state())
+        for enemy in state.get("enemies", []):
+            source = enemy_physics.get(enemy.get("enemy_id"), {})
+            for key in ("mass", "friction", "restitution"):
+                if key not in enemy and key in source:
+                    enemy[key] = source[key]
+                    enemy["physics_source"] = "local_data_fallback"
+        return state
+
     def control_profile() -> dict[str, Any]:
         return compose_control_profile(
             profile_controller.snapshot(),
@@ -878,7 +913,7 @@ def create_server(
         structured_output=True,
     )
     def get_game_state() -> GameToolResult:
-        state = ensure_enemy_target_ids(store.read_state())
+        state = read_control_state()
         profile = control_profile()
         state["mcp_control"] = profile
         state["build_decision"] = build_decision_snapshot(
@@ -886,15 +921,52 @@ def create_server(
             build_profiles,
             build_profile_controller.profile_id,
         )
-        state["shot_tactics"] = build_tactical_shot_context(
-            state,
-            profile,
-        )
+        if state.get("boss_state"):
+            evaluation = (evaluate_boss_choices(store, state)
+                          if "evaluate_boss_shots" in state.get("available_actions", []) else None)
+            state["boss_shot_choices"] = evaluation
+            state["shot_tactics"] = {"model": "boss_shared_ccd_v1", "use_tool": "fire_boss_shot"}
+            state["build_shot_choices"] = dict(evaluation, choices=evaluation["offer_choices"]) if evaluation else {
+                "model": "boss_shared_ccd_v1", "recommended": None, "choices": []}
+        else:
+            state["shot_tactics"] = build_tactical_shot_context(state, profile)
+            state["build_shot_choices"] = build_joint_shot_context(state, profile)
+        geometric = state["build_shot_choices"]
+        if geometric["recommended"] is not None:
+            # Combat selection uses achievable shots. Keep long-term build
+            # recommendations for acquisition and upgrades separately.
+            state["build_decision"]["offered_ball_choices"] = {
+                "model": geometric["model"],
+                "recommended": dict(geometric["recommended"], index=geometric["recommended"]["offer_index"]),
+                "choices": [dict(c, index=c["offer_index"]) for c in geometric["choices"]],
+            }
         state["stage_choice"] = build_stage_choice_context(
             state,
             profile,
         )
         return GameToolResult(result=state)
+
+    @mcp.tool(
+        title="最終ボスのショット候補を評価",
+        description=("停止中の最終ボス戦を共通CCD/TOIで予測します。ボール候補、中立球の押し込み、"
+                     "Armor破壊、Break中の直接攻撃、次の攻撃位置を比較します。"
+                     "recommended/choicesのcandidate_idとstate_keyをfire_boss_shotへ渡してください。"
+                     "状態を変更しません。次ショットの位置価値は概算です。"),
+        annotations=read_only, structured_output=True,
+    )
+    def evaluate_boss_shots() -> GameToolResult:
+        return GameToolResult(result=evaluate_boss_choices(store, read_control_state()))
+
+    @mcp.tool(
+        title="最終ボスの評価済みショットを実行",
+        description=("評価結果の候補を実行します。必要なボール選択も同時に行います。"
+                     "黄色い球への押し込み、本体攻撃、次の押し込みのための移動が選べます。"
+                     "盤面や候補球が変わった古い評価は拒否します。"
+                     "C++ AIと同じ決定的な評価で、プレイヤーレベル別の照準誤差は加えません。"),
+        annotations=local_write, structured_output=True,
+    )
+    def fire_boss_shot(candidate_id: str, state_key: str) -> GameToolResult:
+        return GameToolResult(result=fire_boss_choice(store, read_control_state(), candidate_id, state_key))
 
     @mcp.tool(
         title="ビルド完成のためのリスクを評価",
@@ -1032,6 +1104,44 @@ def create_server(
                 arguments,
             )
         )
+
+    @mcp.tool(title="ステージエディターを開く", annotations=local_write, structured_output=True)
+    def open_stage_editor() -> GameToolResult:
+        """タイトル画面から配置編集を開きます。通常ランの進行中は利用できません。"""
+        return GameToolResult(result=store.submit_command("open_stage_editor"))
+
+    @mcp.tool(title="ステージ編集状態を取得", annotations=read_only, structured_output=True)
+    def get_stage_editor() -> GameToolResult:
+        """配置のdraft/revision、敵カタログ、盤面寸法、検証結果、AI案を取得します。
+
+        layoutはid, stage_type(normal/midBoss/boss), difficulty, par,
+        enemies:[{enemy_id,x,z}]。評価値は幾何的な目安で、勝率ではありません。
+        """
+        editor = store.read_state().get("stage_editor")
+        if not editor:
+            raise GameBridgeError("タイトル画面でopen_stage_editorを実行してください。")
+        return GameToolResult(result=editor)
+
+    @mcp.tool(title="ステージ配置を検証", annotations=local_write, structured_output=True)
+    def validate_stage_layout(layout: dict[str, Any]) -> GameToolResult:
+        """get_stage_editorのdraftと同じ形式の候補を検証します。配置やファイルは変更しません。
+
+        ゲーム側の共通検証を使用するため、エディターを開いてから呼び出してください。
+        """
+        return GameToolResult(result=store.submit_command("validate_stage_layout", {"layout": layout}))
+
+    @mcp.tool(title="ステージ配置のAI案を提示", annotations=local_write, structured_output=True)
+    def propose_stage_layout(layout: dict[str, Any], expected_revision: int) -> GameToolResult:
+        """get_stage_editorで取得したrevisionを指定し、検証済み候補を黄色の輪で表示します。
+
+        draftと同じ形式のlayoutを送信してください。人が編集中なら古いrevisionを拒否します。
+        配置案は画面で採用・試遊・保存します。このツール自体はdraftやファイルを変更しません。
+        """
+        if expected_revision < 0:
+            raise GameBridgeError("expected_revisionは0以上です。")
+        return GameToolResult(result=store.submit_command("propose_stage_layout", {
+            "layout": layout, "expected_revision": expected_revision,
+        }))
 
     @mcp.tool(
         title="次のステージ配置を設定",
@@ -1176,8 +1286,10 @@ def create_server(
             "不足項目をサーバーが補完します。サーバーは先頭から"
             "現在のroute_optionsと照合し、対応ステージがない、"
             "またはそこで希望報酬を得られない場合は次順位へ"
-            "フォールバックします。route_indexは同種ノードが"
-            "複数ある場合の希望位置で、省略できます。"
+            "フォールバックします。マップ式ではrun_map.nodesのnext_node_idsで先の経路を確認し、"
+            "route_optionsのroute_indexで行き先を明示してください。"
+            "明示したマップ経路はHPや報酬の優先ルールで変更しません。"
+            "route_indexを省略した場合のみ次の自動選択ルールを適用します。"
             "受け取った順位は現在のneed_signalsで再評価し、"
             "必要な項目をHP回復、レリック、ボール強化、"
             "新ボール、Moneyの優先度で前へ移動します。"
@@ -1256,30 +1368,24 @@ def create_server(
     @mcp.tool(
         title="ショットを実行",
         description=(
-            "戦闘の照準待ち中に、enemies[].target_idを指定して撃ちます。"
-            "power_mode=autoでは対象までの距離、直射・反射、現在の"
-            "プレイヤーレベルからパワーを毎回自動計算します。"
-            "powerは省略でき、auto時に指定しても使用しません。"
-            "manualは固定値の検証専用で、powerに1～8を指定します。"
-            "target_idは敵個体ごとに一意です。"
-            "旧クライアントがtarget_enemy_idだけを公開している場合は、"
-            "その引数へ同じtarget_idの値を指定できます。"
-            "標的指定は必須で、サーバーが敵の"
-            "現在位置から照準方向を計算するため、何もない方向へは"
-            "撃てません。shot_type=directは直射、bankはtable.wallsを"
-            "使った1回反射です。bankでwall_index=-1なら有効な壁から"
-            "最短経路を自動選択します。初心者はdirectだけを使用できます。"
-            "最終的な照準とパワーには、mcp_control.human_errorの"
-            "設定に基づくプレイヤーレベル別の誤差が加わります。"
-            "実際に適用された値は応答のshot_plan.human_errorで確認できます。"
-            "shot_goal=autoは通常攻撃と全ポケット経路を比較し、"
-            "フィニッシュ、防げる敵攻撃、軌道成立度、自ボールの"
-            "ポケットダメージを評価して自動選択します。"
-            "damageは敵中心へ通常攻撃、pocketは敵を"
-            "table.pocketsの指定位置へ押す接触点を計算します。"
-            "pocket_index=-1なら対象に最も近いポケットを選びます。"
-            "通常ランではautoを使い、damage/pocketの固定は"
-            "特定行動の検証時だけにしてください。"
+            "Armorボス戦では専用のevaluate_boss_shots/fire_boss_shotを推奨します。"
+            "この旧ツールでもボスまたは中立球のtarget_idから共通物理予測の候補を選び、"
+            "選択中の球で誤差なしに実行します。ボス指定では中立球や位置取りも選びます。"
+            "以下は通常戦・中ボス戦の規則です。照準待ち中にenemies[].target_idを指定して撃ちます。"
+            "先にget_game_stateのbuild_shot_choicesでボールと標的を比較し、"
+            "select_ball後は状態を再取得してください。"
+            "shot_type=autoは直射と1回反射を比較し、direct/bankは経路を固定します。"
+            "power_mode=autoでは、現在のボールの摩擦・質量・貫通回数・減速、"
+            "敵配置とHP、レリックから接触点とパワーを再評価します。"
+            "貫通の後続命中、敵同士の衝突、反射の増加ダメージ、アンカーの"
+            "接触時停止と被害軽減をビルド別の評価軸で採点します。"
+            "shot_goal=autoは通常攻撃・連鎖接触・ポケット制御を比較します。"
+            "damage/pocketやmanualのpower指定は検証用の制約です。"
+            "推定値はshot_plan.build_evaluationに記録され、実行には"
+            "プレイヤーレベル別の照準・パワー誤差が加わります。"
+            "任意の空間座標は指定できず、生存中の敵に接触する経路が必要です。"
+            "初心者は直射のみ。wall_index=-1は候補の壁を比較します。"
+            "旧target_enemy_idには同じtarget_idを指定できます。"
         ),
         annotations=local_write,
         structured_output=True,
@@ -1289,54 +1395,92 @@ def create_server(
         power_mode: Literal["auto", "manual"] = "auto",
         target_id: str = "",
         target_enemy_id: str = "",
-        shot_type: Literal["direct", "bank"] = "direct",
+        shot_type: Literal["auto", "direct", "bank"] = "auto",
         wall_index: int = -1,
         shot_goal: Literal["auto", "damage", "pocket"] = "auto",
         pocket_index: int = -1,
         ball_selection_reason: str = "",
     ) -> GameToolResult:
-        state = ensure_enemy_target_ids(store.read_state())
+        state = read_control_state()
+        if state.get("boss_state"):
+            # Compatibility for clients whose cached tool list predates boss tools.
+            requested = resolve_target_id_argument(target_id, target_enemy_id)
+            allowed = {state["boss_state"]["target_id"]} | {
+                ball["target_id"] for ball in state.get("break_balls", []) if ball.get("active")}
+            if requested not in allowed:
+                raise GameBridgeError("現在のボスまたは有効なブレイク球のtarget_idを指定してください。")
+            if wall_index != -1 or pocket_index != -1:
+                raise GameBridgeError("ボス用候補は壁・ポケット番号の指定に対応していません。専用候補IDを使用してください。")
+            evaluation = evaluate_boss_choices(store, state)
+            selected = next((ball for ball in state.get("offered_balls", []) if ball.get("selected")), {})
+            choices = [choice for choice in evaluation["choices"]
+                       if choice["offer_index"] == selected.get("index")]
+            if requested.startswith("break_ball:"):
+                choices = [choice for choice in choices if choice["target_id"] == requested]
+            if shot_goal == "pocket":
+                raise GameBridgeError("ボス戦ではポケット目標は使用できません。")
+            if shot_type == "bank": choices = [c for c in choices if c["contact_kind"] == "bank"]
+            if shot_type == "direct": choices = [c for c in choices if c["contact_kind"] != "bank"]
+            if power_mode == "manual":
+                if power is None or not math.isfinite(power):
+                    raise GameBridgeError("manualでは有限のpowerを指定してください。")
+                choices = [c for c in choices if abs(c["power"] - power) < 0.001]
+            if not choices:
+                raise GameBridgeError("指定条件に合うボス候補がありません。evaluate_boss_shotsで比較してください。")
+            choice = choices[0]
+            result = fire_boss_choice(store, state, choice["candidate_id"], evaluation["state_key"])
+            result["shot_plan"] = {"model": evaluation["model"], "boss_evaluation": choice,
+                                   "deterministic": True, "legacy_tool_compatibility": True}
+            return GameToolResult(result=result)
         resolved_target_id = resolve_target_id_argument(
             target_id,
             target_enemy_id,
         )
         profile = control_profile()
-        power_policy = recommend_shot_power(
-            state,
-            resolved_target_id,
-            shot_type,
-            profile,
+        shot_plan = plan_build_shot(
+            state, resolved_target_id, profile,
+            power_mode=power_mode, power=power, shot_type=shot_type,
+            wall_index=wall_index, shot_goal=shot_goal,
+            pocket_index=pocket_index, random_source=deterministic_shot_random,
         )
-        power_policy["power_mode"] = power_mode
-        power_policy["requested_power"] = power
-        if power_mode == "manual":
-            if power is None:
-                raise GameBridgeError(
-                    "power_mode=manualではpowerを指定してください。"
-                )
-            effective_power = power
-            power_policy["reason"] = "manual_power"
-        else:
-            effective_power = float(
-                power_policy["recommended_power"]
+        if shot_plan is None:
+            legacy_shot_type = "direct" if shot_type == "auto" else shot_type
+            power_policy = recommend_shot_power(
+                state,
+                resolved_target_id,
+                legacy_shot_type,
+                profile,
             )
-            if power is not None:
-                power_policy["reason"] = (
-                    "distance_adaptive_power_requested_value_ignored"
+            power_policy["power_mode"] = power_mode
+            power_policy["requested_power"] = power
+            if power_mode == "manual":
+                if power is None:
+                    raise GameBridgeError(
+                        "power_mode=manualではpowerを指定してください。"
+                    )
+                effective_power = power
+                power_policy["reason"] = "manual_power"
+            else:
+                effective_power = float(
+                    power_policy["recommended_power"]
                 )
-        power_policy["effective_power"] = effective_power
-        shot_plan = plan_targeted_shot(
-            state,
-            resolved_target_id,
-            effective_power,
-            shot_type,
-            wall_index,
-            profile,
-            deterministic_shot_random,
-            shot_goal=shot_goal,
-            pocket_index=pocket_index,
-        )
-        shot_plan["shot_plan"]["power_policy"] = power_policy
+                if power is not None:
+                    power_policy["reason"] = (
+                        "distance_adaptive_power_requested_value_ignored"
+                    )
+            power_policy["effective_power"] = effective_power
+            shot_plan = plan_targeted_shot(
+                state,
+                resolved_target_id,
+                effective_power,
+                legacy_shot_type,
+                wall_index,
+                profile,
+                deterministic_shot_random,
+                shot_goal=shot_goal,
+                pocket_index=pocket_index,
+            )
+            shot_plan["shot_plan"]["power_policy"] = power_policy
         build_profile = build_profile_controller.snapshot()
         shot_plan["arguments"]["telemetry"] = {
             "controller_profile": profile_controller.level,
@@ -1432,7 +1576,7 @@ def create_server(
         description=(
             "ショップでrelicsのindexを指定し、表示価格を支払って"
             "shop_offeredがtrueの未所持レリックを購入します。"
-            "購入は1回の入店につき1つまでです。購入前にget_game_stateで"
+            "入荷中の未所持レリックを所持金の範囲で複数購入できます。購入前にget_game_stateで"
             "Money、価格、ownedを確認します。"
             "購入直前に最新のHPとdeck_ballsの平均attackを再確認し、"
             "低HPでは回復・防御系、攻撃不足では攻撃系の"

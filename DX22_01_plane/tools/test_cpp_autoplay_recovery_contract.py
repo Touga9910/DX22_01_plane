@@ -27,7 +27,7 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
         damage = collision.index("myEnemy->TakeDamage", gate)
 
         self.assertLess(gate, damage)
-        self.assertIn("continue;", collision[gate:damage])
+        self.assertIn("return;", collision[gate:damage])
 
     def test_stop_requires_stable_frames_and_clears_motion(self) -> None:
         game = source("Game.cpp")
@@ -36,7 +36,8 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
         self.assertIn("m_AllBallsStoppedFrameCount >= 11", game)
         self.assertIn("physics->Velocity() =", game)
         self.assertIn("physics->Acceleration() =", game)
-        self.assertIn("GetMutableAcceleration() = Vector3::Zero", player)
+        self.assertIn("BallPhysicsRules::PlayerFriction", player)
+        self.assertIn("velocity = acceleration = Vector3::Zero", source("BallPhysicsRules.h"))
 
     def test_autoplay_scores_kills_and_pocket_risk(self) -> None:
         autoplay = source("GameAutoPlay.cpp")

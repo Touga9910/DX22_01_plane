@@ -1,4 +1,4 @@
-#include "MenuSelection.h"
+﻿#include "MenuSelection.h"
 
 #include "input.h"
 
@@ -7,6 +7,8 @@
 bool MenuSelection::UpdateVertical(int itemCount, bool allowSpace)
 {
 	m_WasMoved = false;
+	const bool mouseConfirmed = m_MouseConfirmed;
+	m_MouseConfirmed = false;
 	itemCount = (std::max)(1, itemCount);
 	const bool moveUp = Input::GetKeyTrigger(VK_W) ||
 		Input::GetKeyTrigger(VK_UP) ||
@@ -24,7 +26,7 @@ bool MenuSelection::UpdateVertical(int itemCount, bool allowSpace)
 		m_Index = (m_Index + 1) % itemCount;
 		m_WasMoved = true;
 	}
-	return Input::GetKeyTrigger(VK_RETURN) ||
+	return mouseConfirmed || Input::GetKeyTrigger(VK_RETURN) ||
 		(allowSpace && Input::GetKeyTrigger(VK_SPACE)) ||
 		Input::GetButtonTrigger(XINPUT_A);
 }

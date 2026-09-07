@@ -46,7 +46,7 @@ void BalanceLogger::BeginRun(
 	const std::string runId = MakeRunId();
 	m_LogPath =
 		std::filesystem::path("logs") /
-		"balance" /
+		(runContext.value("debug_sandbox", false) ? "debug_battle" : "balance") /
 		(runId + ".json");
 
 	json deckJson = json::array();

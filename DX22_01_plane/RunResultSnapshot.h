@@ -15,6 +15,7 @@ struct RunResultSnapshot
 	int reachedFloor = 1;
 	int areaProgress = 0;
 	int totalBattles = 0;
+	int clearedBattles = 0;
 	int midBossChallenges = 0;
 	int midBossDefeats = 0;
 	bool finalBossReached = false;

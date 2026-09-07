@@ -2,6 +2,7 @@
 
 #include "BallComponent.h"
 #include "EnemyData.h"
+#include "BossCombatRules.h"
 
 #include <string>
 #include <optional>
@@ -23,7 +24,7 @@ public:
     void Awake() override;
     void Init();
     void Init(const EnemyData& data);
-    void Update() override;
+    void FixedUpdate() override;
     void Draw() override;
     void OnDestroy() override;
 
@@ -33,6 +34,22 @@ public:
     void Defeat();
     void RemoveFromFieldAfterPocket();
     void TakeDamage(int damage);
+    bool IsArmorBoss() const { return m_EnemyData.id == "enemy_boss_core"; }
+    const BossCombatRules::State& GetBossState() const { return m_BossState; }
+    void SetDebugBossState(int armor, int breakShots)
+    {
+        if (!IsArmorBoss()) return;
+        m_BossState = {};
+        m_BossState.shotsRemaining = std::clamp(breakShots, 0, BossCombatRules::BreakShots);
+        m_BossState.armor = m_BossState.IsBroken() ? 0 : std::clamp(armor, 1, BossCombatRules::MaxArmor);
+    }
+    void BeginBossShot() { if (IsArmorBoss()) m_BossState.BeginShot(); }
+    void EndBossShot();
+    void HitBreakBall(int ballId);
+    int AdjustCollisionDamage(int damage, const DirectX::SimpleMath::Vector3& sourcePosition) const;
+    int ApplyPocketDamage();
+    float GetPocketDamageRatio() const { return m_EnemyData.pocketDamageRatio; }
+    float GetFrontalDamageMultiplier() const { return m_EnemyData.frontalDamageMultiplier; }
     void OnPocketHit();
     void EnterPocketQueue();
     void ReturnFromPocket(
@@ -83,4 +100,5 @@ private:
     EnemyData m_EnemyData;                                                                     // 敵データ
     DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f); // 敵の初期位置
     bool m_IsPocketed = false;
+    BossCombatRules::State m_BossState;
 };

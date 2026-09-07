@@ -1,4 +1,5 @@
 ﻿#include "PlayerBallDataLoader.h"
+#include "BallStatusJson.h"
 
 #include "json/json.hpp"
 
@@ -10,66 +11,21 @@ using json = nlohmann::json;
 
 namespace
 {
-	void LoadAbilitiesFromJson(BallStatus& status, const json& statusJson)
-	{
-		if (statusJson.contains("abilities") && statusJson["abilities"].is_object())
-		{
-			const json& abilitiesJson = statusJson["abilities"];
-			status.abilities.split = abilitiesJson.value("split", status.abilities.split);
-			status.abilities.pierce = abilitiesJson.value("pierce", status.abilities.pierce);
-			status.abilities.anchor = abilitiesJson.value("anchor", status.abilities.anchor);
-		}
-	}
-
-	BallStatus LoadBallStatusFromJson(const json& statusJson, const BallStatus& defaultStatus)
-	{
-		BallStatus status = defaultStatus;
-
-		if (!statusJson.is_object())
-		{
-			return status;
-		}
-
-		status.maxHp = statusJson.value("maxHp", status.maxHp);
-		status.attack = statusJson.value("attack", status.attack);
-		status.defense = statusJson.value("defense", status.defense);
-		status.mass = statusJson.value("mass", status.mass);
-		status.radius = statusJson.value("radius", status.radius);
-		status.restitution = statusJson.value("restitution", status.restitution);
-		status.friction = statusJson.value("friction", status.friction);
-		LoadAbilitiesFromJson(status, statusJson);
-
-		return status;
-	}
-
 	void LoadUpgradeTableFromJson(PlayerBallData& ballData, const json& ballJson)
 	{
-		// JSONに強化表がない場合は、2段階分の既定値を用意する。
-		ballData.upgradeTable[0] =
-			BallUpgradeStep{ ballData.status.attack + 1, ballData.status.defense + 1 };
-		ballData.upgradeTable[1] =
-			BallUpgradeStep{ ballData.status.attack + 2, ballData.status.defense + 2 };
-
-		if (!ballJson.contains("upgrades") || !ballJson["upgrades"].is_array())
+		BallStatus previous = ballData.status;
+		for (int index = 0; index < PlayerBallData::MaxUpgradeLevel; ++index)
 		{
-			return;
-		}
-
-		const json& upgradesJson = ballJson["upgrades"];
-		const int upgradeCount = (std::min)(
-			static_cast<int>(upgradesJson.size()),
-			PlayerBallData::MaxUpgradeLevel);
-
-		for (int index = 0; index < upgradeCount; index++)
-		{
-			if (!upgradesJson[index].is_object())
+			BallStatus step = previous;
+			step.attack += 1;
+			step.defense += 1;
+			if (ballJson.contains("upgrades") && ballJson["upgrades"].is_array() &&
+				index < static_cast<int>(ballJson["upgrades"].size()) && ballJson["upgrades"][index].is_object())
 			{
-				continue;
+				step = ReadBallStatus(ballJson["upgrades"][index], previous);
 			}
-
-			BallUpgradeStep& step = ballData.upgradeTable[index];
-			step.attack = (std::max)(0, upgradesJson[index].value("attack", step.attack));
-			step.defense = (std::max)(0, upgradesJson[index].value("defense", step.defense));
+			ballData.upgradeTable[index] = NormalizeBallStatus(step);
+			previous = ballData.upgradeTable[index];
 		}
 	}
 
@@ -83,8 +39,6 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 	PlayerBallDataLoadResult result;
 	result.defaultBallStatus = fallbackBallStatus;
 	result.defaultRunStatus = fallbackRunStatus;
-	result.defaultRunStatus.maxHp = result.defaultBallStatus.maxHp;
-	result.defaultRunStatus.currentHp = result.defaultRunStatus.maxHp;
 
 	std::ifstream file(filePath);
 	if (file.is_open())
@@ -97,11 +51,11 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 			if (root.contains("status") && root["status"].is_object())
 			{
 				result.defaultBallStatus =
-					LoadBallStatusFromJson(root["status"], result.defaultBallStatus);
+					ReadBallStatus(root["status"], result.defaultBallStatus);
 			}
 
 			result.defaultBallStatus = NormalizeBallStatus(result.defaultBallStatus);
-			result.defaultRunStatus.maxHp = result.defaultBallStatus.maxHp;
+			result.defaultRunStatus.maxHp = root.value("maxHp", fallbackRunStatus.maxHp);
 			result.defaultRunStatus.currentHp =
 				root.value("currentHp", result.defaultRunStatus.maxHp);
 			result.restHealRatio = std::clamp(
@@ -128,14 +82,14 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 					if (ballJson.contains("status") && ballJson["status"].is_object())
 					{
 						ballData.status = NormalizeBallStatus(
-							LoadBallStatusFromJson(
+							ReadBallStatus(
 								ballJson["status"],
 								result.defaultBallStatus));
 					}
 					else
 					{
 						ballData.status = NormalizeBallStatus(
-							LoadBallStatusFromJson(
+							ReadBallStatus(
 								ballJson,
 								result.defaultBallStatus));
 					}
@@ -163,10 +117,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 		PlayerBallData defaultBall;
 		defaultBall.definitionId = "player_default";
 		defaultBall.status = result.defaultBallStatus;
-		defaultBall.upgradeTable[0] =
-			BallUpgradeStep{ defaultBall.status.attack + 1, defaultBall.status.defense + 1 };
-		defaultBall.upgradeTable[1] =
-			BallUpgradeStep{ defaultBall.status.attack + 2, defaultBall.status.defense + 2 };
+		LoadUpgradeTableFromJson(defaultBall, json::object());
 		result.ballDefinitions.push_back(defaultBall);
 	}
 

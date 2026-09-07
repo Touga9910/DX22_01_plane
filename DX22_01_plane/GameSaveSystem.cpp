@@ -1,4 +1,4 @@
-#include "Game.h"
+﻿#include "Game.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -45,7 +45,7 @@ bool Game::SaveRunCheckpoint(
 	bool sceneAlreadyActive,
 	bool showNotification)
 {
-	if (m_BalanceAutoPlayEnabled || m_BalanceValidationEnabled)
+	if (m_DebugMode || m_BalanceAutoPlayEnabled || m_BalanceValidationEnabled)
 	{
 		return false;
 	}
@@ -64,6 +64,7 @@ bool Game::SaveRunCheckpoint(
 
 bool Game::SaveCurrentRun()
 {
+	if (m_DebugMode) { SetSaveLoadMessage("デバッグ条件は専用画面の「条件を保存」で保存できます。"); return false; }
 	SceneType sceneType = SceneType::Max;
 	if (dynamic_cast<StageSelectScene*>(m_Scene) != nullptr)
 	{

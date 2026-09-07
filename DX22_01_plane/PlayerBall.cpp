@@ -1,4 +1,7 @@
 ﻿#include "PlayerBall.h"
+#include "BallPhysicsRules.h"
+#include "BallShotPrediction.h"
+#include "BallCollisionComponent.h"
 #include "Game.h"
 #include "Ground.h"
 #include "TableFrame.h"
@@ -53,7 +56,6 @@ void PlayerBall::Init()
 {
 	// ステータス設定
 	BallStatus status;
-	status.maxHp = 10;    // 最大HP
 	status.attack = 1;     // 攻撃力
 	status.defense = 0;     // 防御力
 
@@ -62,7 +64,7 @@ void PlayerBall::Init()
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
-	m_RenderComponent->SetTint(Color(0.18f, 0.58f, 1.0f, 1.0f));
+	Game::GetInstance()->ApplyPlayerStatusTo(this);
 
 	m_Ball->SetPosition(Vector3(0.0f, 1.0f, 0.0f));
 
@@ -101,9 +103,6 @@ void PlayerBall::Init()
 	m_LastTrailPos = m_Ball->GetPosition();
 	m_TrajectoryPositions.clear();
 
-	// デフォルトモデルを設定
-	m_TrajectoryModel = std::make_unique<BallTrajectoryModel>();
-
 	// 弾道予測用モデルの初期化（別途）
 	InitTrajectoryVisualModel();
 }
@@ -111,26 +110,35 @@ void PlayerBall::Init()
 void PlayerBall::Update()
 {
 	if (IsDefeated()) return;    // 倒されている場合は更新しない
-
-	m_CurrentFrame++;           // 軌跡の寿命計算で使うフレームを進める
-
-	// 現在の状態に応じて、更新処理を切り替える
-	switch (m_State)
+	// Sample held debug keys once; fixed ticks apply the sampled acceleration.
+	m_DebugMoveInput = Vector3::Zero;
+	if (Input::GetKeyPress(VK_W)) m_DebugMoveInput.z += 4.0f;
+	if (Input::GetKeyPress(VK_S)) m_DebugMoveInput.z -= 4.0f;
+	if (Input::GetKeyPress(VK_A)) m_DebugMoveInput.x -= 4.0f;
+	if (Input::GetKeyPress(VK_D)) m_DebugMoveInput.x += 4.0f;
+	if (m_State == State::Idle && !Game::GetInstance()->IsBalanceAutoPlayEnabled())
 	{
-	case State::Simulation:
-		UpdateSimulation();
-		break;
-
-	case State::Idle:
-		if (!Game::GetInstance()->IsBalanceAutoPlayEnabled())
-		{
-			UpdateAim();
-		}
-		break;
+		UpdateAim();
 	}
+}
 
+void PlayerBall::FixedUpdate()
+{
+	if (IsDefeated() || m_IsPocketed) return;
+	m_CurrentFrame++;           // 軌跡の寿命計算で使うフレームを進める
+	if (m_State == State::Simulation && !m_SkipSimulationOnNextFixedUpdate)
+	{
+		UpdateSimulation();
+	}
+    else if (!m_SkipSimulationOnNextFixedUpdate && m_Ball->HasPierceAbility() &&
+        Game::GetInstance()->GetGameState() == GameState::BallsMoving)
+    {
+        // Another moving enemy can enter a piercer that has already gone idle.
+        UpdateStopByFriction();
+    }
+	m_SkipSimulationOnNextFixedUpdate = false;
 	UpdateTrailLife();           // 軌跡の寿命とフェードを更新する
-	UpdatePhysics();             // BallComponent側の物理更新を行う
+	// Movement is performed for all balls together by BallPhysicsWorld.
 }
 
 void PlayerBall::Draw(Camera* cam)
@@ -296,12 +304,7 @@ void PlayerBall::UpdateSimulation()
 void PlayerBall::UpdateDebugMove()
 {
 	const float moveSpeed = 0.01f;           // デバッグ移動の加速度
-	Vector3 moveInput = Vector3::Zero;   // WASD入力から作る移動方向
-
-	if (Input::GetKeyPress(VK_W)) moveInput.z += 4.0f;
-	if (Input::GetKeyPress(VK_S)) moveInput.z -= 4.0f;
-	if (Input::GetKeyPress(VK_A)) moveInput.x -= 4.0f;
-	if (Input::GetKeyPress(VK_D)) moveInput.x += 4.0f;
+	Vector3 moveInput = m_DebugMoveInput;
 
 	if (moveInput == Vector3::Zero) return;  // 入力がない場合は速度を変えない
 
@@ -311,27 +314,18 @@ void PlayerBall::UpdateDebugMove()
 
 void PlayerBall::UpdateStopByFriction()
 {
-	if (m_Ball->GetMutableVelocity().LengthSquared() < 0.03f)
-	{
-		m_StopCount++;                         // ほぼ停止しているフレーム数を数える
-	}
-	else
-	{
-		m_StopCount = 0;                       // 動いている場合は停止カウントをリセットする
-
-		Vector3 deceleration = -m_Ball->GetMutableVelocity();    // 速度と逆方向に減速させる
-		deceleration.Normalize();             // 摩擦方向だけを使うため正規化する
-
-		m_Ball->GetMutableAcceleration() = deceleration * m_Ball->GetMutableFriction();
-		m_Ball->GetMutableVelocity() += m_Ball->GetMutableAcceleration();
-	}
-
-	if (m_StopCount > 10)
-	{
-		m_Ball->GetMutableVelocity() = Vector3::Zero;            // 完全停止として速度を0にする
-		m_Ball->GetMutableAcceleration() = Vector3::Zero;
-		m_State = State::Idle;                 // ショット待ち状態へ戻す
-	}
+    Vector3 exitDirection;
+    bool exitingPierce = false;
+    if (m_Ball->HasPierceAbility())
+    {
+        const auto* collision = GetGameObject()->GetComponent<BallCollisionComponent>();
+        exitingPierce = collision && collision->TryGetPierceExitDirection(exitDirection);
+    }
+    if (exitingPierce) m_State = State::Simulation;
+    if (m_State != State::Simulation) return;
+    if (BallPhysicsRules::PlayerFriction(m_Ball->GetMutableVelocity(), m_Ball->GetMutableAcceleration(),
+        m_Ball->GetStatus(), m_Ball->GetMutableFriction(), m_StopCount,
+        exitingPierce ? &exitDirection : nullptr)) m_State = State::Idle;
 }
 
 void PlayerBall::CheckFallRespawn()
@@ -397,8 +391,13 @@ void PlayerBall::UpdateAim()
 		ImGui::GetCurrentContext() != nullptr &&
 		ImGui::GetIO().WantCaptureMouse;
 
+	RECT client{};
+	GetClientRect(Application::GetWindow(), &client);
+	const auto mouse = Input::GetMousePosition();
+	const bool mouseInGame = GetForegroundWindow() == Application::GetWindow() &&
+		mouse.x >= 0 && mouse.y >= 0 && mouse.x < client.right && mouse.y < client.bottom;
 	const bool leftPressed =
-		Input::GetKeyTrigger(VK_LBUTTON) && !imguiWantsMouse;
+		Input::GetKeyTrigger(VK_LBUTTON) && !imguiWantsMouse && mouseInGame;
 	const bool leftReleased =
 		Input::GetKeyRelease(VK_LBUTTON);
 	const bool rightPressed =
@@ -408,7 +407,7 @@ void PlayerBall::UpdateAim()
 	{
 		UpdateShotPowerFromMouseDrag();
 
-		if (rightPressed)
+		if (rightPressed || !mouseInGame || imguiWantsMouse)
 		{
 			CancelMousePowerDrag();
 		}
@@ -442,7 +441,8 @@ void PlayerBall::UpdateAim()
 	bool previewChanged =
 		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
-		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f;
+		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f ||
+        m_LastPreviewWorldKey != BallShotPrediction::WorldKey(*Game::GetInstance());
 
 	constexpr int kPreviewRefreshCooldownFrames = 1;
 	const bool immediateRefresh =
@@ -667,6 +667,8 @@ void PlayerBall::CancelMousePowerDrag()
 
 void PlayerBall::FireMouseShot()
 {
+	// Legacy mouse shots move once before friction starts on the next tick.
+	m_SkipSimulationOnNextFixedUpdate = true;
 	m_AimAngle = m_LockedAimAngle;                                  // 固定していた角度を現在角度に反映する
 	Shot(GetShotVector());                                          // 固定方向と現在パワーで速度を設定する
 	m_IsPowerDragging = false;                                      // パワードラッグを終了する
@@ -674,6 +676,7 @@ void PlayerBall::FireMouseShot()
 	m_PrePositions.clear();                                         // ショット開始後は予測線を消す
 	m_PreTrajectoryDirty = true;                                    // 次回停止後に予測線を再計算できるようにする
 	m_StopCount = 0;                                                // 停止判定カウントをリセットする
+    BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
 	Game::GetInstance()->OnPlayerShotFired(this);
 	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
@@ -681,6 +684,7 @@ void PlayerBall::FireMouseShot()
 void PlayerBall::FireAutomatedShot(
 	const DirectX::SimpleMath::Vector3& velocity)
 {
+	m_SkipSimulationOnNextFixedUpdate = false;
 	Shot(velocity);
 	m_IsPowerDragging = false;
 	m_State = State::Simulation;
@@ -689,6 +693,7 @@ void PlayerBall::FireAutomatedShot(
 	m_PreTrajectoryDirty = true;
 	m_StopCount = 0;
 
+    BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
 	Game::GetInstance()->OnPlayerShotFired(this);
 	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
@@ -706,263 +711,21 @@ Vector3 PlayerBall::GetShotVector() const
 
 void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
-	m_PrePositions.clear();
-	m_PreviewHitBall = false;
-	m_PreviewGhostBallPosition = Vector3::Zero;
-	m_PreviewHitBallPosition = Vector3::Zero;
-	m_PreviewObjectBallDirection = Vector3::Zero;
-
-	const int PREDICTION_FRAMES = 2000;
-	const size_t MAX_PREVIEW_POINTS = 1000;
-	const float PREVIEW_POINT_INTERVAL = 1.0f;
-	const float PREVIEW_BALL_HIT_SCALE = 1.0f;
-	const float PREVIEW_SIM_SPEED = m_MaxShotPower;
-
-	m_PrePositions.reserve(MAX_PREVIEW_POINTS);
-
-	if (!m_TrajectoryModel)
-	{
-		m_TrajectoryModel = std::make_unique<BallTrajectoryModel>();
-	}
-
-	Vector3 simPosition = m_Ball->GetPosition();
-	Vector3 simVelocity = initialVelocity;
-	Vector3 simAcceleration;
-
-	std::vector<Collision::Segment> walls;
-	std::vector<TableFrame*> frames = Game::GetInstance()->GetComponents<TableFrame>();
-
-	float fieldHeight = m_Ball->GetPosition().y;
-
-	for (TableFrame* frame : frames)
-	{
-		std::vector<Collision::Segment> frameWalls = frame->GetWalls();
-
-		walls.insert(
-			walls.end(),
-			frameWalls.begin(),
-			frameWalls.end());
-	}
-
-	simPosition.y = fieldHeight;
-	simVelocity.y = 0.0f;
-
-	if (simVelocity.LengthSquared() <= 0.0001f)
-	{
-		return;
-	}
-
-	simVelocity.Normalize();
-	simVelocity *= PREVIEW_SIM_SPEED;
-
-	m_PrePositions.push_back({ simPosition, 0, 1.0f });
-
-	std::vector<BallComponent*> balls = Game::GetInstance()->GetComponents<BallComponent>();
-	bool previewPierceAvailable = m_Ball->HasPierceAbility();
-	BallComponent* previewPiercedBall = nullptr;
-
-	for (int frame = 0; frame < PREDICTION_FRAMES; ++frame)
-	{
-		Vector3 oldPosition = simPosition;
-
-		simVelocity.y = 0.0f;
-		m_TrajectoryModel->SimulateStep(simPosition, simVelocity, simAcceleration);
-		simPosition.y = fieldHeight;
-		simVelocity.y = 0.0f;
-
-		Vector3 frameMove = simPosition - oldPosition;
-		frameMove.y = 0.0f;
-
-		float maxStep = m_Ball->GetRadius() * 0.5f;
-		int subSteps = max(1, (int)ceil(frameMove.Length() / maxStep));
-		Vector3 stepMove = frameMove / (float)subSteps;
-
-		simPosition = oldPosition;
-
-		bool hit = false;
-
-		for (int step = 0; step < subSteps; ++step)
-		{
-			simPosition += stepMove;
-			simPosition.y = fieldHeight;
-
-			for (const auto& wall : walls)
-			{
-				Vector3 contactPoint;
-				float distance = Collision::DistancePointToSegment(simPosition, wall, contactPoint);
-
-				if (distance <= m_Ball->GetRadius())
-				{
-					Vector3 normal = simPosition - contactPoint;
-					normal.y = 0.0f;
-
-					if (normal.LengthSquared() > 0.0001f)
-					{
-						normal.Normalize();
-					}
-					else
-					{
-						Vector3 wallVec = wall.end - wall.start;
-						wallVec.Normalize();
-						normal = Vector3(-wallVec.z, 0.0f, wallVec.x);
-					}
-
-					if (Collision::Dot(stepMove, normal) > 0.0f)
-					{
-						normal = -normal;
-					}
-
-					Vector3 visualContactPoint = contactPoint;
-					Vector3 lineStart = m_PrePositions.back().position;
-					Vector3 lineDir = stepMove;
-					Vector3 wallDir = wall.end - wall.start;
-					lineStart.y = 0.0f;
-					lineDir.y = 0.0f;
-					wallDir.y = 0.0f;
-
-					float cross = lineDir.x * wallDir.z - lineDir.z * wallDir.x;
-					if (fabs(cross) > 0.0001f)
-					{
-						Vector3 toWall = wall.start - lineStart;
-						toWall.y = 0.0f;
-
-						float t = (toWall.x * wallDir.z - toWall.z * wallDir.x) / cross;
-						if (t >= 0.0f)
-						{
-							visualContactPoint = lineStart + lineDir * t;
-						}
-					}
-					visualContactPoint.y = fieldHeight;
-
-					simPosition = contactPoint + normal * m_Ball->GetRadius();
-					simPosition.y = fieldHeight;
-					m_PrePositions.push_back({ visualContactPoint, 0, 1.0f });
-					hit = true;
-					break;
-				}
-			}
-
-			if (hit) break;
-
-			// 対象ボールとの接触点を安定させるため、移動線分と拡張円の交点で判定する。
-			for (BallComponent* other : balls)
-			{
-				if (other == m_Ball) continue;
-				if (other == previewPiercedBall) continue;
-				if (other->IsDefeated()) continue;
-
-				Collision::Sphere otherSphere = other->GetSphere();
-				otherSphere.center.y = fieldHeight;
-
-				float myHitRadius = m_Ball->GetRadius() * PREVIEW_BALL_HIT_SCALE;
-				float otherHitRadius = otherSphere.radius * PREVIEW_BALL_HIT_SCALE;
-				float minDist = myHitRadius + otherHitRadius;
-
-				Vector3 segmentStart = simPosition - stepMove;
-				Vector3 segmentEnd = simPosition;
-				segmentStart.y = fieldHeight;
-				segmentEnd.y = fieldHeight;
-
-				Vector3 segmentMove = segmentEnd - segmentStart;
-				segmentMove.y = 0.0f;
-
-				float a = segmentMove.LengthSquared();
-				if (a <= 0.0001f)
-				{
-					continue;
-				}
-
-				Vector3 toStart = segmentStart - otherSphere.center;
-				toStart.y = 0.0f;
-
-				float b = 2.0f * (toStart.x * segmentMove.x + toStart.z * segmentMove.z);
-				float c = toStart.LengthSquared() - minDist * minDist;
-				float hitT = -1.0f;
-
-				if (c <= 0.0f)
-				{
-					hitT = 0.0f;
-				}
-				else
-				{
-					float discriminant = b * b - 4.0f * a * c;
-					if (discriminant >= 0.0f)
-					{
-						hitT = (-b - std::sqrt(discriminant)) / (2.0f * a);
-					}
-				}
-
-				if (hitT >= 0.0f && hitT <= 1.0f)
-				{
-					Vector3 hitCenter = segmentStart + segmentMove * hitT;
-					hitCenter.y = fieldHeight;
-
-					if (previewPierceAvailable)
-					{
-						constexpr float PierceSpeedRetention = 0.75f;
-						previewPierceAvailable = false;
-						previewPiercedBall = other;
-						simVelocity *= PierceSpeedRetention;
-						stepMove *= PierceSpeedRetention;
-						m_PrePositions.push_back(
-							{ hitCenter, 0, 1.0f });
-						break;
-					}
-
-					Vector3 normal = hitCenter - otherSphere.center;
-					normal.y = 0.0f;
-
-					if (normal.LengthSquared() > 0.0001f)
-					{
-						normal.Normalize();
-					}
-					else
-					{
-						normal = -segmentMove;
-						normal.y = 0.0f;
-
-						if (normal.LengthSquared() > 0.0001f)
-							normal.Normalize();
-						else
-							normal = Vector3::UnitZ;
-					}
-
-					float ghostDistance = m_Ball->GetRadius() + otherSphere.radius;
-					m_PreviewHitBall = true;
-					m_PreviewGhostBallPosition = otherSphere.center + normal * ghostDistance;
-					m_PreviewGhostBallPosition.y = fieldHeight;
-					m_PreviewHitBallPosition = otherSphere.center;
-					m_PreviewHitBallPosition.y = fieldHeight;
-					m_PreviewObjectBallDirection = -normal;
-
-					simPosition = m_PreviewGhostBallPosition;
-					simPosition.y = fieldHeight;
-					m_PrePositions.push_back({ simPosition, 0, 1.0f });
-					hit = true;
-					break;
-				}
-			}
-
-			if (hit) break;
-		}
-
-		if (hit)
-		{
-			break;
-		}
-
-		float distSq = (simPosition - m_PrePositions.back().position).LengthSquared();
-
-		if (distSq > PREVIEW_POINT_INTERVAL * PREVIEW_POINT_INTERVAL)
-		{
-			m_PrePositions.push_back({ simPosition, 0, 1.0f });
-
-			if (m_PrePositions.size() >= MAX_PREVIEW_POINTS)
-			{
-				break;
-			}
-		}
-	}
+    const auto prediction = BallShotPrediction::Predict(*Game::GetInstance(), *this, initialVelocity, true);
+    m_PrePositions.clear();
+    constexpr std::size_t previewReflections = 0;
+    const auto previewPoints = prediction.PreviewPointCount(previewReflections);
+    for (std::size_t i = 0; i < previewPoints; ++i)
+        m_PrePositions.push_back({ prediction.path[i], 0, 1.0f });
+    // Keep the original aiming-only display: no reflected player trajectory,
+    // just a short direction guide for the ball at the first blocking contact.
+    m_PreviewHitBall = prediction.initialContactGuide.hitBall;
+    m_PreviewGhostBallPosition = prediction.initialContactGuide.playerPosition;
+    m_PreviewHitBallPosition = prediction.initialContactGuide.ballPosition;
+    m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
+    m_PreviewComplete = prediction.PreviewReachesLimit(previewReflections) ||
+        (prediction.complete && !prediction.pathTruncated);
+    m_LastPreviewWorldKey = BallShotPrediction::WorldKey(*Game::GetInstance());
 }
 
 void PlayerBall::InitTrajectoryVisualModel()
@@ -1015,27 +778,18 @@ void PlayerBall::DrawTrajectoryLine()
 	const float OBJECT_LINE_THICKNESS = 0.32f;
 	const float OBJECT_LINE_LENGTH = 10.0f;
 
+    float startTrim = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
 	for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
 	{
 		Vector3 start = m_PrePositions[i].position;
 		Vector3 end = m_PrePositions[i + 1].position;
 
-		if (i == 0)
-		{
-			Vector3 lineDir = end - start;
-			lineDir.y = 0.0f;
-
-			float lineLength = lineDir.Length();
-			float startOffset = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
-
-			if (lineLength <= startOffset)
-			{
-				continue;
-			}
-
-			lineDir /= lineLength;
-			start += lineDir * startOffset;
-		}
+        Vector3 direction = end - start;
+        const float length = direction.Length();
+        if (length <= startTrim) { startTrim -= length; continue; }
+        if (startTrim > 0.0f) { start += direction * (startTrim / length); startTrim = 0.0f; }
+        // A dashed tail identifies a bounded/incomplete prediction.
+        if (!m_PreviewComplete && i > m_PrePositions.size() * 3 / 4 && i % 2 == 0) continue;
 
 		DrawGuideSegment(
 			start,

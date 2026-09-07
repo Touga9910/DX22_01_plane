@@ -1,8 +1,11 @@
+﻿#pragma execution_character_set("utf-8")
 #include "RestSiteScene.h"
 
 #include "Game.h"
+#include "GameUi.h"
 #include "Input.h"
 #include "PlayerBallText.h"
+#include "PlayerBallUI.h"
 #include "Texture2D.h"
 #include "Texture2DFactory.h"
 #include "UiText.h"
@@ -98,76 +101,47 @@ void RestSiteScene::Update()
 
 void RestSiteScene::DrawUI()
 {
-	ImGui::SetNextWindowPos(ImVec2(300.0f, 100.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(680.0f, 500.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-	ImGui::Begin(
-		Game::GetInstance()->IsBossPreparation()
-		? RelicUtf8(u8"\u6700\u7d42\u6e96\u5099")
-		: UiText::RestWindow,
-		nullptr,
-		flags);
-	if (Game::GetInstance()->IsBossPreparation())
-	{
-		ImGui::TextColored(
-			ImVec4(1.0f, 0.75f, 0.25f, 1.0f),
-			RelicUtf8(u8"\u3053\u306e\u4f11\u61a9\u306e\u5f8c\u3001\u6700\u7d42\u30dc\u30b9\u3078\u9032\u307f\u307e\u3059"));
-	}
-
-	ImGui::Text("HP %d / %d", Game::GetInstance()->GetPlayerCurrentHp(), Game::GetInstance()->GetPlayerMaxHp());
+	GameUi::PrepareWindow("rest", ImVec2(300, 100), ImVec2(680, 520));
+	Game* game = Game::GetInstance();
+	ImGui::Begin(game->IsBossPreparation() ? "最終準備" : UiText::RestWindow, nullptr, ImGuiWindowFlags_NoCollapse);
+	if (game->IsBossPreparation()) ImGui::TextUnformatted("この休憩の後、最終ボスへ進みます。");
+	ImGui::Text("HP %d / %d", game->GetPlayerCurrentHp(), game->GetPlayerMaxHp());
 	ImGui::TextUnformatted(UiText::ChooseRestAction);
-	ImGui::Separator();
-	ImGui::Text(
-		UiText::RestActionFormat,
-		m_Menu.GetIndex() == 0 ? ">" : " ",
-		Game::GetInstance()->GetRestHealPercent(),
-		Game::GetInstance()->GetRestHealAmount());
-	ImGui::Text(UiText::UpgradeActionFormat, m_Menu.GetIndex() == 1 ? ">" : " ");
-	ImGui::Text(UiText::LeaveRestFormat, m_Menu.GetIndex() == 2 ? ">" : " ");
-
-	if (m_Menu.GetIndex() == 1)
+	ImGui::BeginDisabled(m_ActionUsed || !game->CanRestHeal());
+	const std::string heal = "回復する (最大HPの" + std::to_string(game->GetRestHealPercent()) + "% / " + std::to_string(game->GetRestHealAmount()) + " HP)";
+	if (ImGui::Button(heal.c_str(), ImVec2(-1, 36))) m_Menu.Confirm(0, 3);
+	ImGui::EndDisabled();
+	if (ImGui::RadioButton("ボールを強化", m_Menu.GetIndex() == 1)) m_Menu.SetIndex(1, 3);
+	ImGui::BeginChild("upgrade_targets", ImVec2(0, -95), ImGuiChildFlags_Borders);
+	for (int index = 0; index < game->GetDeckBallCount(); ++index)
 	{
-		ImGui::Separator();
-		ImGui::TextUnformatted(UiText::UpgradeTarget);
-		for (int index = 0; index < Game::GetInstance()->GetDeckBallCount(); index++)
+		const auto* ball = game->GetDeckBall(index);
+		if (ball == nullptr) continue;
+		ImGui::PushID(index);
+		if (PlayerBallUI::Select(*ball, index == m_SelectedBall))
 		{
-			const PlayerBallData* ball = Game::GetInstance()->GetDeckBall(index);
-			if (ball != nullptr)
-			{
-				ImGui::Text(UiText::BallUpgradeStatsFormat,
-					index == m_SelectedBall ? ">" : " ", index,
-					PlayerBallText::GetName(ball->definitionId), ball->upgradeLevel,
-					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
-					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
-				if (index == m_SelectedBall)
-				{
-					ImGui::TextWrapped(
-						"    %s",
-						PlayerBallText::GetDescription(ball->definitionId));
-				}
-				if (ball->CanUpgrade())
-				{
-					const BallUpgradeStep& next = ball->upgradeTable[ball->upgradeLevel];
-					ImGui::Text(UiText::NextStatsFormat, next.attack, next.defense);
-				}
-				else
-				{
-					ImGui::TextUnformatted(UiText::MaxUpgrade);
-				}
-			}
+			m_SelectedBall = index;
+			m_Menu.SetIndex(1, 3);
 		}
-	}
-
-	if (!m_Message.empty())
-	{
+		if (index == m_SelectedBall)
+		{
+			ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
+			ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(*ball).c_str());
+			ImGui::BeginDisabled(m_ActionUsed || !ball->CanUpgrade());
+			if (ImGui::Button("この個体を強化する", ImVec2(-1, 34))) m_Menu.Confirm(1, 3);
+			ImGui::EndDisabled();
+		}
 		ImGui::Separator();
-		ImGui::TextUnformatted(m_Message.c_str());
+		ImGui::PopID();
 	}
-	ImGui::Separator();
-	ImGui::TextUnformatted(UiText::RestControls);
+	ImGui::EndChild();
+	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
+	ImGui::BeginDisabled(!m_ActionUsed && game->HasAvailableRestBenefit());
+	if (ImGui::Button("次へ進む", ImVec2(-1, 36))) m_Menu.Confirm(2, 3);
+	ImGui::EndDisabled();
 	ImGui::End();
 }
+
 
 void RestSiteScene::Uninit()
 {

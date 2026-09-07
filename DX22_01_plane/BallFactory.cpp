@@ -1,4 +1,5 @@
 #include "BallFactory.h"
+#include "BreakBall.h"
 
 #include "BallComponent.h"
 #include "BallCollisionComponent.h"
@@ -35,6 +36,12 @@ namespace
 
         return object;
     }
+}
+
+BreakBall* BallFactory::CreateBreakBall(Game& game, int index)
+{
+    auto* object = CreateBallObject(game, "BreakBall", GameObjectTag::None);
+    return object->AddComponent<BreakBall>(index);
 }
 
 PlayerBall* BallFactory::CreatePlayer(Game& game)

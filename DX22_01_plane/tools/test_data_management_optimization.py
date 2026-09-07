@@ -57,15 +57,14 @@ class DataManagementOptimizationTests(unittest.TestCase):
         )
 
     def test_collision_lists_are_not_rebuilt_inside_substeps(self) -> None:
-        source = read_source("BallCollisionComponent.cpp")
-        resolve = function_body(
-            source,
-            "void BallCollisionComponent::ResolveMovementAndCollisions",
-            "void BallCollisionComponent::ResetShotAbilityState",
-        )
+        source = read_source("BallPhysicsWorld.cpp")
+        resolve = source[source.index("BallPhysicsWorld::Step(Game& game)"):]
 
         self.assertEqual(resolve.count("GetComponents<BallComponent>()"), 1)
         self.assertEqual(resolve.count("GetComponents<Pocket>()"), 1)
+        before_steps = resolve[:resolve.index("ContinuousBallStepper::Step(world)")]
+        self.assertIn("GetComponents<BallComponent>()", before_steps)
+        self.assertIn("GetComponents<Pocket>()", before_steps)
 
     def test_status_normalization_has_one_definition_per_data_type(self) -> None:
         sources = "\n".join(

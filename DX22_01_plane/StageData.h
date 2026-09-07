@@ -42,6 +42,7 @@ struct StageData
     StageType stageType = StageType::Normal;
     int difficulty = 1;
     int par = 4;
+    bool preserveLayout = false; // Authored stages bypass automatic dense arrangement.
 
     std::vector<EnemySpawnData> enemies;
 };

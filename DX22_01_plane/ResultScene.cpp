@@ -1,5 +1,6 @@
 ﻿#include "ResultScene.h"
 #include "Game.h"
+#include "GameUi.h"
 #include "Input.h"
 #include "Texture2D.h"
 #include "Texture2DFactory.h"
@@ -88,16 +89,8 @@ void ResultScene::Update()
 
 void ResultScene::DrawUI()
 {
-	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(
-		ImVec2(
-			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f + 35.0f),
-		ImGuiCond_Always,
-		ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSize(ImVec2(820.0f, 590.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+	GameUi::PrepareWindow(m_ShowAnalysis ? "result_analysis" : "result", ImVec2(230, 95), ImVec2(820, 590));
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse;
 	ImGui::Begin(
 		m_ShowAnalysis ? "ラン分析" : "ランリザルト",
 		nullptr,
@@ -126,6 +119,8 @@ void ResultScene::DrawSummary()
 			? ImVec4(0.35f, 0.95f, 0.55f, 1.0f)
 			: ImVec4(1.0f, 0.48f, 0.38f, 1.0f),
 		statistics.completed ? "ラン完了！" : "ラン終了");
+	ImGui::SameLine();
+	ImGui::TextDisabled("アセンション%d", Game::GetInstance()->GetActiveAscension());
 	ImGui::Separator();
 	if (ImGui::BeginTable("result_summary", 2, ImGuiTableFlags_SizingStretchSame))
 	{
@@ -216,14 +211,20 @@ void ResultScene::DrawSummary()
 	{
 		ImGui::TextDisabled("なし");
 	}
+	const auto& progressionUnlocks = Game::GetInstance()->GetLastProgressionUnlocks();
+	if (!progressionUnlocks.empty())
+	{
+		ImGui::SeparatorText("新しい解放");
+		for (const auto& message : progressionUnlocks) ImGui::BulletText("%s", message.c_str());
+	}
 
 	ImGui::Separator();
 	const char* actions[] = { "ラン分析を見る", "もう一度", "タイトルへ" };
 	for (int index = 0; index < 3; ++index)
 	{
-		ImGui::Text("%s %s", index == m_Menu.GetIndex() ? ">" : " ", actions[index]);
+		if (ImGui::Button(actions[index], ImVec2(-1, 38))) m_Menu.Confirm(index, 3);
 	}
-	ImGui::TextDisabled("W/S・上下キー：選択　ENTER・SPACE：決定");
+	ImGui::TextDisabled("ボタンをクリックして進めます。");
 }
 
 void ResultScene::DrawAnalysis()

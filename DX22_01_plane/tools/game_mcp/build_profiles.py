@@ -5,11 +5,13 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import threading
 from pathlib import Path
 from typing import Any
 
 from bridge_store import GameBridgeError
+from build_shot_evaluator import DEFAULT_WEIGHTS
 
 
 VALID_BUILD_PROFILES = (
@@ -130,6 +132,13 @@ def load_build_profiles(
                 f"{profile_id}.instructionsは空でない文字列配列に"
                 "してください。"
             )
+        weights = profile.get("shot_evaluation", {})
+        if not isinstance(weights, dict) or any(
+            key not in DEFAULT_WEIGHTS or isinstance(value, bool)
+            or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0
+            for key, value in weights.items()
+        ):
+            raise RuntimeError(f"{profile_id}.shot_evaluation must contain known axes and finite nonnegative weights.")
         profiles[profile_id] = copy.deepcopy(profile)
 
     if default_profile not in profiles:

@@ -1,4 +1,7 @@
 ﻿#include "Game.h"
+#include "BallStatusJson.h"
+#include "PlayerBallText.h"
+#include "BallMechanics.h"
 
 #pragma execution_character_set("utf-8")
 #include "Renderer.h"
@@ -244,8 +247,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 	const std::string ballId = ball->definitionId;
 	const int upgradeLevelBefore = ball->upgradeLevel;
 	const BallUpgradeStep& upgrade = ball->upgradeTable[ball->upgradeLevel];
-	ball->status.attack = upgrade.attack;
-	ball->status.defense = upgrade.defense;
+	ball->status = upgrade;
 	ball->upgradeLevel++;
 	ball->status = NormalizeBallStatus(ball->status);
 	RemoveBalanceAutoPendingBall(instanceId);
@@ -262,6 +264,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 			{ "upgrade_level_after", ball->upgradeLevel },
 			{ "attack_after", ball->status.attack },
 			{ "defense_after", ball->status.defense },
+			{ "status_after", WriteBallStatus(ball->status) },
 			{ "source_scene", GetSceneDebugName(m_Scene) },
 		});
 	return true;
@@ -399,6 +402,7 @@ std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 	for (int index = 0; index < GetRelicCount(); index++)
 	{
 		const RelicDefinition* relic = GetRelic(index);
+		if (relic != nullptr && !m_ProgressionProfile.IsRelicUnlocked(relic->type)) continue;
 		const int weight = relic == nullptr
 			? 0
 			: (midBoss ? relic->midBossWeight : relic->shopWeight);
@@ -440,7 +444,6 @@ std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 void Game::RollShopRelicOffers()
 {
 	m_ShopRelicOffers = RollRelicOffers(3, false);
-	m_ShopRelicPurchased = false;
 }
 
 bool Game::IsShopRelicOffered(int relicIndex) const
@@ -458,7 +461,7 @@ bool Game::BuyShopRelicOffer(int offerIndex)
 
 bool Game::BuyShopRelic(int relicIndex)
 {
-	if (m_ShopRelicPurchased || !IsShopRelicOffered(relicIndex))
+	if (!IsShopRelicOffered(relicIndex))
 	{
 		return false;
 	}
@@ -466,7 +469,6 @@ bool Game::BuyShopRelic(int relicIndex)
 	{
 		return false;
 	}
-	m_ShopRelicPurchased = true;
 	return true;
 }
 
@@ -550,6 +552,11 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 	}
 
 	player->SetStatus(selectedBall->status);
+	if (auto* render = player->GetGameObject()->GetComponent<BallRenderComponent>())
+	{
+		const auto color = PlayerBallText::GetColor(selectedBall->definitionId);
+		render->SetTint(DirectX::SimpleMath::Color(color[0], color[1], color[2], 1.0f));
+	}
 
 	// 物理半径だけでなく、描画モデルの大きさも選択したボールへ合わせる。
 	if (selectedBall->status.radius > 0.0f && player->GetBall() != nullptr)
@@ -661,9 +668,7 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 	PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
 	if (currentBall != nullptr)
 	{
-		const int ballMaxHp = currentBall->status.maxHp;
 		currentBall->status = updatedStatus;
-		currentBall->status.maxHp = ballMaxHp;
 	}
 
 	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
@@ -764,12 +769,12 @@ void Game::CollectStageRewardMoney()
 
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
+	ResetFrameTiming();
 	m_AllBallsStoppedFrameCount = 0;
 	ResetShotRelicState(player);
-	if (player != nullptr && player->GetBall() != nullptr)
-	{
-		player->GetBall()->ResetShotAbilityState();
-	}
+    // A new shot starts a new damage episode even for touching enemy pairs.
+    for (auto* ball : GetComponents<BallComponent>()) ball->ResetShotAbilityState();
+    for (auto* enemy : GetComponents<EnemyBall>()) enemy->BeginBossShot();
 
 	// 選択内容はショットした瞬間に確定する。
 	if (!m_PlayerDeck.HasCurrent())
@@ -860,22 +865,9 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 
 void Game::NotifyPlayerWallCollision()
 {
-	m_CurrentShotWallCollisionCount++;
-	if (HasRelic(RelicType::BounceBallSpring) &&
-		IsCurrentBall("player_bounce"))
-	{
-		m_CurrentShotBounceDamageBonus = (std::min)(
-			kBounceRelicMaximumBonus,
-			m_CurrentShotBounceDamageBonus + 1);
-	}
-
-	if (!HasRelic(RelicType::BankShot) ||
-		m_CurrentShotBankShotConsumed)
-	{
-		return;
-	}
-
-	m_CurrentShotBankShotReady = true;
+    auto rules = CaptureShotRelicRules();
+    rules.Wall();
+    CommitShotRelicRules(rules);
 }
 
 bool Game::IsCurrentBall(const char* definitionId) const
@@ -887,52 +879,33 @@ bool Game::IsCurrentBall(const char* definitionId) const
 
 int Game::ConsumePlayerEnemyRelicDamageBonus()
 {
-	int bonus = 0;
-	if (HasRelic(RelicType::StandardBallScope) &&
-		IsCurrentBall("player_standard") &&
-		m_CurrentShotLaunchPower <= 4.0001f &&
-		m_CurrentShotWallCollisionCount == 0)
-	{
-		bonus++;
-	}
-	if (HasRelic(RelicType::HeavyBallCore) &&
-		IsCurrentBall("player_heavy"))
-	{
-		bonus++;
-	}
-	if (HasRelic(RelicType::BounceBallSpring) &&
-		IsCurrentBall("player_bounce"))
-	{
-		bonus += m_CurrentShotBounceDamageBonus;
-		m_CurrentShotBounceDamageBonus = 0;
-	}
-	if (HasRelic(RelicType::AnchorBallChain) &&
-		IsCurrentBall("player_anchor") &&
-		m_CurrentShotAnchorStopped)
-	{
-		bonus++;
-	}
-	return bonus;
+    auto rules = CaptureShotRelicRules();
+    const int bonus = rules.ConsumePlayerEnemyRelicDamageBonus();
+    CommitShotRelicRules(rules);
+    return bonus;
 }
 
 void Game::NotifyAnchorStopped()
 {
-	if (IsCurrentBall("player_anchor"))
-	{
-		m_CurrentShotAnchorStopped = true;
-	}
+    auto rules = CaptureShotRelicRules();
+    rules.Anchor();
+    CommitShotRelicRules(rules);
 }
 
 int Game::GetPierceMaximumUses() const
 {
-	return HasRelic(RelicType::PierceBallCharger) &&
-		IsCurrentBall("player_pierce") ? 2 : 1;
+	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
+	if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+	return ball != nullptr ? BallMechanics::PierceUses(ball->status,
+		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0;
 }
 
 float Game::GetPierceSpeedRetention() const
 {
-	return HasRelic(RelicType::PierceBallCharger) &&
-		IsCurrentBall("player_pierce") ? 1.0f : 0.75f;
+	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
+	if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+	return ball != nullptr ? BallMechanics::PierceRetention(ball->status,
+		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0.75f;
 }
 
 void Game::NotifyEnemyDefeated(const std::string& enemyId)
@@ -956,46 +929,21 @@ void Game::NotifyEnemyDefeated(const std::string& enemyId)
 
 int Game::ConsumeBankShotDamageMultiplier()
 {
-	if (!HasRelic(RelicType::BankShot) ||
-		!m_CurrentShotBankShotReady ||
-		m_CurrentShotBankShotConsumed)
-	{
-		return 1;
-	}
-
-	m_CurrentShotBankShotReady = false;
-	m_CurrentShotBankShotConsumed = true;
-	RecordBalanceEvent(
-		"bank_shot_triggered",
-		{
-			{ "damage_multiplier", kBankShotDamageMultiplier },
-		});
-	return kBankShotDamageMultiplier;
+    auto rules = CaptureShotRelicRules();
+    const int multiplier = rules.ConsumeBankShotDamageMultiplier();
+    CommitShotRelicRules(rules);
+    if (multiplier > 1) RecordBalanceEvent("bank_shot_triggered", {{ "damage_multiplier", multiplier }});
+    return multiplier;
 }
 
 void Game::NotifyDamageBallCollision(
 	DamageBallCollisionType collisionType)
 {
-	if (collisionType == DamageBallCollisionType::PlayerEnemy)
-	{
-		m_CurrentShotPlayerEnemyCollisionCount++;
-	}
-	else
-	{
-		m_CurrentShotEnemyEnemyCollisionCount++;
-	}
-
-	if (!HasRelic(RelicType::CollisionAttackUp))
-	{
-		return;
-	}
-
-	m_CurrentShotCollisionAttackBonus++;
-	const std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
-	for (PlayerBall* player : players)
-	{
-		ApplyRelicModifiersTo(player);
-	}
+    auto rules = CaptureShotRelicRules();
+    rules.Contact(collisionType == DamageBallCollisionType::PlayerEnemy);
+    CommitShotRelicRules(rules);
+    if (HasRelic(RelicType::CollisionAttackUp))
+        for (PlayerBall* player : GetComponents<PlayerBall>()) ApplyRelicModifiersTo(player);
 }
 
 void Game::NotifyCombatFeedback(
@@ -1134,47 +1082,56 @@ void Game::NotifyDynamicBalanceHit()
 void Game::ApplyDynamicBalanceToEnemyData(
 	EnemyData& enemyData) const
 {
-	enemyData.status.maxHp = std::clamp(
+	if (m_DebugMode) return; // 指定した実験値へ難易度補正を重ねない。
+	const bool armorBoss = enemyData.id == "enemy_boss_core";
+	if (!armorBoss) enemyData.maxHp = std::clamp(
 		static_cast<int>(std::lround(
-			static_cast<double>(enemyData.status.maxHp) *
+			static_cast<double>(enemyData.maxHp) *
 			static_cast<double>(m_BaselineEnemyHpMultiplier))) +
 			CalculateProgressionHpModifier(),
 		m_DynamicBalanceMinEnemyHp,
 		m_DynamicBalanceMaxEnemyHp);
-	enemyData.status.attack = std::clamp(
+	if (!armorBoss) enemyData.status.attack = std::clamp(
 		enemyData.status.attack +
 			m_BaselineEnemyAttackDelta +
 			CalculateProgressionAttackModifier(),
 		m_DynamicBalanceMinEnemyAttack,
 		m_DynamicBalanceMaxEnemyAttack);
 
-	const bool effectiveEnabled =
+	const bool effectiveEnabled = !armorBoss && (
 		m_DynamicBalanceStageActive
 			? m_DynamicBalanceAppliedEnabled
-			: m_DynamicBalanceEnabled;
-	if (!effectiveEnabled)
+			: m_DynamicBalanceEnabled);
+
+	if (effectiveEnabled)
 	{
-		return;
+		const int effectiveLevel =
+			m_DynamicBalanceStageActive
+				? m_DynamicBalanceAppliedLevel
+				: m_DynamicBalanceLevel;
+		const int hpDelta =
+			effectiveLevel *
+			m_DynamicBalanceHpStep;
+		const int attackDelta =
+			CalculateDynamicBalanceAttackModifier(effectiveLevel);
+
+		enemyData.maxHp = std::clamp(
+			enemyData.maxHp + hpDelta,
+			m_DynamicBalanceMinEnemyHp,
+			m_DynamicBalanceMaxEnemyHp);
+		enemyData.status.attack = std::clamp(
+			enemyData.status.attack + attackDelta,
+			m_DynamicBalanceMinEnemyAttack,
+			m_DynamicBalanceMaxEnemyAttack);
 	}
 
-	const int effectiveLevel =
-		m_DynamicBalanceStageActive
-			? m_DynamicBalanceAppliedLevel
-			: m_DynamicBalanceLevel;
-	const int hpDelta =
-		effectiveLevel *
-		m_DynamicBalanceHpStep;
-	const int attackDelta =
-		CalculateDynamicBalanceAttackModifier(effectiveLevel);
-
-	enemyData.status.maxHp = std::clamp(
-		enemyData.status.maxHp + hpDelta,
-		m_DynamicBalanceMinEnemyHp,
-		m_DynamicBalanceMaxEnemyHp);
+	// アセンションは救済補正の後に適用し、選択した難易度を保証する。
+	enemyData.maxHp = std::clamp(
+		static_cast<int>(std::lround(enemyData.maxHp * ProgressionProfile::EnemyHpMultiplier(m_ActiveAscension))),
+		m_DynamicBalanceMinEnemyHp, m_DynamicBalanceMaxEnemyHp);
 	enemyData.status.attack = std::clamp(
-		enemyData.status.attack + attackDelta,
-		m_DynamicBalanceMinEnemyAttack,
-		m_DynamicBalanceMaxEnemyAttack);
+		enemyData.status.attack + ProgressionProfile::EnemyAttackBonus(m_ActiveAscension),
+		m_DynamicBalanceMinEnemyAttack, m_DynamicBalanceMaxEnemyAttack);
 }
 
 int Game::CalculateProgressionHpModifier() const
@@ -1391,4 +1348,45 @@ void Game::SaveDebugSnapshot()
 	{
 		WriteBallDebugStatus(file, "EnemyBall", i, enemies[i]->GetBall());
 	}
+}
+
+ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
+{
+    ShotRelicRules rules;
+    rules.relics = m_OwnedRelics;
+    const auto* ball = m_PlayerDeck.GetCurrent();
+    if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+    if (ball != nullptr) rules.ballId = ball->definitionId;
+    rules.launchPower = launchPower;
+    return rules;
+}
+
+ShotRelicRules Game::CaptureShotRelicRules() const
+{
+    auto rules = MakePredictionShotRules(m_CurrentShotLaunchPower);
+    // Live build effects require a committed deck ball, preserving shot lifecycle semantics.
+    if (!m_PlayerDeck.GetCurrent()) rules.ballId.clear();
+    rules.collisionBonus = m_CurrentShotCollisionAttackBonus;
+    rules.playerEnemyContacts = m_CurrentShotPlayerEnemyCollisionCount;
+    rules.enemyEnemyContacts = m_CurrentShotEnemyEnemyCollisionCount;
+    rules.bankReady = m_CurrentShotBankShotReady;
+    rules.bankConsumed = m_CurrentShotBankShotConsumed;
+    rules.wallContacts = m_CurrentShotWallCollisionCount;
+    rules.bounceBonus = m_CurrentShotBounceDamageBonus;
+    rules.anchorStopped = m_CurrentShotAnchorStopped;
+    rules.launchPower = m_CurrentShotLaunchPower;
+    return rules;
+}
+
+void Game::CommitShotRelicRules(const ShotRelicRules& rules)
+{
+    m_CurrentShotCollisionAttackBonus = rules.collisionBonus;
+    m_CurrentShotPlayerEnemyCollisionCount = rules.playerEnemyContacts;
+    m_CurrentShotEnemyEnemyCollisionCount = rules.enemyEnemyContacts;
+    m_CurrentShotBankShotReady = rules.bankReady;
+    m_CurrentShotBankShotConsumed = rules.bankConsumed;
+    m_CurrentShotWallCollisionCount = rules.wallContacts;
+    m_CurrentShotBounceDamageBonus = rules.bounceBonus;
+    m_CurrentShotAnchorStopped = rules.anchorStopped;
+    m_CurrentShotLaunchPower = rules.launchPower;
 }

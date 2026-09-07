@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "Collision.h"
+#include "BallPhysicsRules.h"
 #include "Component.h"
 #include "SimpleMath.h"
 
@@ -15,8 +16,19 @@ class BallCollisionComponent final : public Component
 public:
     void Awake() override;
 
-    void ResolveMovementAndCollisions(BallComponent& ball);
+    void BindBall(BallComponent& ball);
+    bool CanSimulate() const;
+    void ForgetMissingContacts(const std::vector<BallComponent*>& activeBalls);
+    void ResolveEnvironment(
+        const DirectX::SimpleMath::Vector3& movementStart,
+        const std::vector<Collision::Segment>& walls,
+        const DirectX::SimpleMath::Vector3& interiorReference,
+        const std::vector<Pocket*>& pockets);
+    void ResolveBallPair(BallCollisionComponent& other);
     void ResetShotAbilityState();
+    BallPhysicsRules::Body CapturePhysicsBody() const;
+    void CommitPhysicsBody(const BallPhysicsRules::Body& body);
+    bool TryGetPierceExitDirection(DirectX::SimpleMath::Vector3& direction) const;
 
 private:
     DirectX::SimpleMath::Vector3 GetPosition() const;
@@ -34,5 +46,6 @@ private:
     BallComponent* m_BallComponent = nullptr;
     BallPhysicsComponent* m_PhysicsComponent = nullptr;
     int m_PierceUseCount = 0;
-    const BallComponent* m_PiercedBall = nullptr;
+    std::vector<const BallComponent*> m_PiercedBalls;
+    std::vector<const BallComponent*> m_TouchingBalls;
 };

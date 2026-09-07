@@ -1,4 +1,7 @@
 ﻿#include "Game.h"
+#include "BallShotPrediction.h"
+#include "GameUi.h"
+#include "BallMechanics.h"
 
 #pragma execution_character_set("utf-8")
 #include "Renderer.h"
@@ -7,11 +10,14 @@
 #include "GamePresentation.h"
 #include "GameSaveManager.h"
 #include "BallPhysicsComponent.h"
+#include "BallPhysicsWorld.h"
 #include "input.h"
 
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
 #include "PlayerBallText.h"
-#include "EnemyBall.h"   // DrawImGui呼び出しに必要
+#include "PlayerBallUI.h"
+#include "EnemyBall.h"
+#include "BreakBall.h"   // DrawImGui呼び出しに必要
 #include "EnemyAttackComponent.h"
 #include "BallComponent.h"
 #include "PlayerBallDataLoader.h"
@@ -329,6 +335,7 @@ bool Game::CanPause() const
 
 bool Game::SaveAndReturnToTitle()
 {
+	if (m_DebugMode) { m_DebugRequest = 2; return true; }
 	if (m_GameState == GameState::ClearReward && !m_IsClearRewardChosen)
 	{
 		SetSaveLoadMessage(
@@ -390,6 +397,7 @@ void Game::Init()
 	// カメラを初期化
 	m_Instance->m_Camera.Init();
 
+	m_Instance->m_ProgressionProfile.Load();
 	m_Instance->LoadPlayerStatusFromJson();
 	m_Instance->LoadBalanceAutoPlayConfig();
 	m_Instance->LoadDifficultyProfileConfig();
@@ -406,21 +414,28 @@ void Game::Init()
 	m_Instance->m_GamePresentation =
 		std::make_unique<GamePresentation>();
 	m_Instance->m_GamePresentation->Initialize(*m_Instance);
+	// 保存済みの実験条件を直接開くための任意起動引数。
+	if (std::wstring(GetCommandLineW()).find(L"--debug-battle") != std::wstring::npos)
+	{
+		m_Instance->OpenDebugMode();
+		if (m_Instance->LoadDebugPreset()) m_Instance->m_DebugRequest = 1;
+	}
 }
 
 // 更新
-void Game::Update()
+void Game::Update(double elapsedSeconds)
 {
 	m_Instance->RemoveDestroyedGameObjects();
 
 	// 入力処理を更新
 	Input::Update();
+	if (m_Instance->UpdateDebugMode()) return;
 	if (m_Instance->m_PendingDisplayApply)
 	{
 		m_Instance->m_SettingsManager.ApplyDisplaySettings();
 		m_Instance->m_PendingDisplayApply = false;
 	}
-	if (Input::GetKeyTrigger(VK_F11))
+	if (std::exchange(m_Instance->m_MouseFullscreenToggle, false) || Input::GetKeyTrigger(VK_F11))
 	{
 		GameSettings& settings = m_Instance->m_SettingsManager.Edit();
 		settings.fullscreen = !settings.fullscreen;
@@ -428,7 +443,7 @@ void Game::Update()
 		m_Instance->m_SettingsManager.ApplyDisplaySettings();
 		m_Instance->m_SettingsManager.SaveIfDirty();
 	}
-	if (Input::GetKeyTrigger(VK_ESCAPE) &&
+	if ((std::exchange(m_Instance->m_MousePauseToggle, false) || Input::GetKeyTrigger(VK_ESCAPE)) &&
 		m_Instance->CanPause() &&
 		!m_Instance->m_BalanceAutoPlayEnabled)
 	{
@@ -440,8 +455,14 @@ void Game::Update()
 			m_Instance->m_SettingsManager.SaveIfDirty();
 		}
 	}
+	if ((std::exchange(m_Instance->m_MouseSaveRequested, false) || Input::GetKeyTrigger(VK_F6)) &&
+		!m_Instance->m_BalanceAutoPlayEnabled)
+	{
+		m_Instance->SaveCurrentRun();
+	}
 	if (m_Instance->m_IsPaused)
 	{
+		ResetFrameTiming();
 		return;
 	}
 	if (m_Instance->m_RunActive)
@@ -456,12 +477,6 @@ void Game::Update()
 			m_Instance->m_SaveLoadMessage.clear();
 		}
 	}
-	if (Input::GetKeyTrigger(VK_F6) &&
-		!m_Instance->m_BalanceAutoPlayEnabled)
-	{
-		m_Instance->SaveCurrentRun();
-	}
-
 	if (m_Instance->m_GamePresentation != nullptr)
 	{
 		m_Instance->m_GamePresentation->Update(*m_Instance);
@@ -474,6 +489,7 @@ void Game::Update()
 
 	if (m_Instance->UpdateBalanceAutoPlay())
 	{
+		ResetFrameTiming();
 		return;
 	}
 
@@ -482,6 +498,7 @@ void Game::Update()
 	// ==========================
 	if (m_Instance->m_GameState == GameState::ClearReward)
 	{
+		ResetFrameTiming();
 		m_Instance->UpdateClearReward();
 		return;
 	}
@@ -499,16 +516,14 @@ void Game::Update()
 	// カメラを更新
 	m_Instance->m_Camera.Update();
 
-	for (auto& gameObject : m_Instance->m_GameObjects)
-	{
-		gameObject->FixedUpdate();
-	}
-
 	// オブジェクトを更新
 	for (auto& gameObject : m_Instance->m_GameObjects)
 	{
 		gameObject->Update();
 	}
+
+	// Input/AI/MCP have run once. Only physical motion may catch up here.
+	m_Instance->UpdateFixedPhysics(elapsedSeconds);
 
 	for (auto& gameObject : m_Instance->m_GameObjects)
 	{
@@ -524,12 +539,7 @@ void Game::Update()
 	switch (m_Instance->m_GameState)
 	{
 	case GameState::BallsMoving:
-		if (!m_Instance->AreAllBallsStopped())
-		{
-			m_Instance->m_AllBallsStoppedFrameCount = 0;
-			break;
-		}
-		m_Instance->m_AllBallsStoppedFrameCount++;
+		// The 11-tick settling counter is advanced only by fixed physics.
 		if (m_Instance->m_AllBallsStoppedFrameCount >= 11)
 		{
 			m_Instance->m_AllBallsStoppedFrameCount = 0;
@@ -569,6 +579,9 @@ void Game::Update()
 				CountAliveEnemies(enemies),
 				CountDefeatedEnemies(enemies));
 			m_Instance->FinishDynamicBalanceShot();
+            for (auto* enemy : enemies) enemy->EndBossShot();
+            if (!m_Instance->AreAllEnemiesDefeated())
+                for (auto* neutral : m_Instance->GetComponents<BreakBall>()) neutral->Reposition();
 
 			if (m_Instance->AreAllEnemiesDefeated())
 			{
@@ -600,6 +613,53 @@ void Game::Update()
 
 }
 
+void Game::ResetFrameTiming()
+{
+	if (m_Instance != nullptr)
+	{
+		m_Instance->m_PhysicsClock.Reset();
+		m_Instance->m_ResetPhysicsElapsed = true;
+		m_Instance->m_PhysicsStepsLastFrame = 0;
+	}
+}
+
+void Game::UpdateFixedPhysics(double elapsedSeconds)
+{
+	m_PhysicsStepsLastFrame = 0;
+	if (m_ResetPhysicsElapsed)
+	{
+		// Start a new time interval without simulating time before this scene/shot.
+		elapsedSeconds = FixedStepClock::StepSeconds;
+		m_ResetPhysicsElapsed = false;
+	}
+	const int steps = m_PhysicsClock.Advance(elapsedSeconds);
+	for (int step = 0; step < steps; ++step)
+	{
+		const GameState previousState = m_GameState;
+		for (auto& gameObject : m_GameObjects)
+		{
+			gameObject->FixedUpdate();
+		}
+		const auto physicsResult = BallPhysicsWorld::Step(*this);
+		m_PhysicsSubstepsLastTick = physicsResult.substeps;
+		if (physicsResult.limitReached) ++m_PhysicsSubstepLimitCount;
+		++m_PhysicsTickCount;
+		++m_PhysicsStepsLastFrame;
+		if (m_GameState == GameState::BallsMoving)
+		{
+			m_AllBallsStoppedFrameCount = AreAllBallsStopped()
+				? m_AllBallsStoppedFrameCount + 1 : 0;
+		}
+		if (m_GameState != previousState || m_AllBallsStoppedFrameCount >= 11)
+		{
+			if (previousState == GameState::BallsMoving) BallShotPrediction::WriteVerificationActual(*this);
+			// Finish the shot / handle death once, outside the catch-up loop.
+			m_PhysicsClock.Reset();
+			break;
+		}
+	}
+}
+
 // 描画
 void Game::Draw()
 {
@@ -610,14 +670,16 @@ void Game::Draw()
 		gameObject->Draw();
 	}
 
+	ImGui::BeginDisabled(m_Instance->m_IsPaused || m_Instance->m_DebugEditorOpen);
 	if (m_Instance->m_Scene != nullptr)
 	{
 		m_Instance->m_Scene->DrawUI();
 	}
 
-	ImGui::SetNextWindowPos(ImVec2(20.0f, 70.0f), ImGuiCond_Once);
-	ImGui::SetNextWindowSize(ImVec2(570.0f, 620.0f), ImGuiCond_Once);
-	ImGui::Begin("Ball Debugger");
+	if (GameUi::showDebugger)
+	{
+	GameUi::PrepareWindow("debugger", ImVec2(20, 70), ImVec2(570, 620));
+	ImGui::Begin("Ball Debugger", &GameUi::showDebugger);
 	const std::vector<PlayerBall*> players =
 		m_Instance->GetComponents<PlayerBall>();
 	const std::vector<EnemyBall*> enemies =
@@ -884,6 +946,7 @@ void Game::Draw()
 		ImGui::Text("Current Ball ID = none");
 	}
 
+	ImGui::BeginDisabled(m_Instance->m_DebugMode);
 	if (ImGui::Button(
 		m_Instance->m_BalanceAutoPlayEnabled
 			? "Stop Balance Auto Play"
@@ -893,6 +956,7 @@ void Game::Draw()
 			!m_Instance->m_BalanceAutoPlayEnabled;
 		m_Instance->m_AutoDecisionFrame = 0;
 	}
+	ImGui::EndDisabled();
 	ImGui::SameLine();
 	ImGui::Text(
 		"F8 / Runs: %d%s",
@@ -900,7 +964,6 @@ void Game::Draw()
 		m_Instance->m_AutoMaxRuns > 0
 			? " (limited)"
 			: " (unlimited)");
-
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
 		m_Instance->SaveDebugSnapshot();
@@ -926,6 +989,8 @@ void Game::Draw()
 
 	ImGui::End();
 
+	}
+
 	if (dynamic_cast<BattleScene*>(m_Instance->m_Scene) != nullptr &&
 		m_Instance->m_PlayerDeck.GetOfferCount() > 0)
 	{
@@ -940,19 +1005,23 @@ void Game::Draw()
 		m_Instance->DrawClearRewardUI();
 	}
 
+	ImGui::EndDisabled();
+
 	if (m_Instance->m_GamePresentation != nullptr)
 	{
 		m_Instance->m_GamePresentation->Draw(*m_Instance);
 	}
 
-	if (m_Instance->m_IsPaused)
+	m_Instance->DrawDebugMode();
+	if (m_Instance->m_IsPaused && !m_Instance->m_DebugEditorOpen)
 	{
 		m_Instance->DrawPauseUI();
 	}
 
 	if (!m_Instance->m_SaveLoadMessage.empty())
 	{
-		ImGui::SetNextWindowPos(ImVec2(20.0f, 675.0f), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(GameUi::MainPosition(20.0f, ImGui::GetMainViewport()->WorkSize.y - 40.0f), ImGuiCond_Always);
+		ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
 		ImGui::SetNextWindowBgAlpha(0.88f);
 		const ImGuiWindowFlags saveNoticeFlags =
 			ImGuiWindowFlags_NoDecoration |
@@ -964,22 +1033,14 @@ void Game::Draw()
 		ImGui::End();
 	}
 
-	// ImGuiの描画内容を確定
-	ImGui::Render();
-
-	// DirectX11でImGuiを描画
-	ImGui_ImplDX11_RenderDrawData(
-		ImGui::GetDrawData()
-	);
-
-	// 最後に画面を表示
-	Renderer::DrawEnd();
+	// Application owns ImGui rendering and presentation, including detached windows.
 }
 
 void Game::DrawPauseUI()
 {
 	GameSettings& settings = m_SettingsManager.Edit();
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
 	ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
 	ImGui::SetNextWindowBgAlpha(0.61f);
@@ -996,17 +1057,8 @@ void Game::DrawPauseUI()
 	ImGui::End();
 	ImGui::PopStyleVar(2);
 
-	ImGui::SetNextWindowPos(
-		ImVec2(
-			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
-		ImGuiCond_Always,
-		ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSize(ImVec2(610.0f, 650.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoCollapse;
+	GameUi::PrepareWindow("pause", ImVec2(335, 35), ImVec2(610, 650));
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse;
 	ImGui::Begin("ポーズ", nullptr, flags);
 
 	if (ImGui::Button("ポーズ解除", ImVec2(-1.0f, 42.0f)))
@@ -1082,7 +1134,11 @@ void Game::DrawPauseUI()
 	}
 
 	ImGui::SeparatorText("ランを中断");
-	if (!m_PauseConfirmTitle)
+	if (m_DebugMode)
+	{
+		if (ImGui::Button("デバッグを終了してタイトルへ", ImVec2(-1, 40))) m_DebugRequest = 2;
+	}
+	else if (!m_PauseConfirmTitle)
 	{
 		if (ImGui::Button("セーブしてタイトルへ戻る", ImVec2(-1.0f, 40.0f)))
 		{
@@ -1192,6 +1248,7 @@ GameObject* Game::CreateGameObject(const std::string& name)
 // シーンを切り替える
 void Game::ChangeScene(SceneType sceneType)
 {
+	ResetFrameTiming();
 	int score = 0;
 
 	if (m_Instance->m_Scene != nullptr)
@@ -1233,6 +1290,7 @@ void Game::ChangeScene(SceneType sceneType)
 	switch (sceneType)
 	{
 	case SceneType::Title:
+		if (m_DebugMode) EndDebugMode();
 		m_Instance->m_Scene = new TitleScene;
 		break;
 
@@ -1479,12 +1537,14 @@ float Game::GetCurrentPocketFinisherRatio() const
 
 bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 {
+    if (enemy && enemy->IsArmorBoss()) return false;
 	if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed() ||
 		enemy->GetMaxHP() <= 0)
 	{
 		return false;
 	}
-	const float hpRatio = static_cast<float>(enemy->GetHP()) /
+	const int pocketDamage = BallMechanics::PocketDamage(enemy->GetMaxHP(), enemy->GetPocketDamageRatio());
+	const float hpRatio = static_cast<float>((std::max)(0, enemy->GetHP() - pocketDamage)) /
 		static_cast<float>(enemy->GetMaxHP());
 	return hpRatio <= GetCurrentPocketFinisherRatio() + 0.0001f;
 }
@@ -1498,6 +1558,7 @@ int Game::GetPlayerPocketDamageAmount() const
 
 void Game::HandleEnemyPocket(EnemyBall* enemy)
 {
+    if (enemy && enemy->IsArmorBoss()) return;
 	if (enemy == nullptr || enemy->IsPocketed())
 	{
 		return;
@@ -1505,11 +1566,19 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 	const bool wasAlreadyDefeated = enemy->IsDefeated();
 	const int hpBefore = enemy->GetHP();
 	const int maxHp = (std::max)(1, enemy->GetMaxHP());
-	const float hpRatio = static_cast<float>(hpBefore) /
+	const int pocketDamage = enemy->ApplyPocketDamage();
+	const float hpRatio = static_cast<float>(enemy->GetHP()) /
 		static_cast<float>(maxHp);
+	if (pocketDamage > 0)
+	{
+		RecordBalanceEvent("enemy_pocket_damage", {
+			{ "enemy_id", enemy->GetEnemyId() }, { "damage", pocketDamage },
+			{ "hp_before", hpBefore }, { "hp_after", enemy->GetHP() },
+		});
+	}
 	const float finisherRatio = GetCurrentPocketFinisherRatio();
 	const Vector3 pocketPosition = enemy->GetPosition();
-	if (wasAlreadyDefeated || hpRatio <= finisherRatio + 0.0001f)
+	if (wasAlreadyDefeated || enemy->IsDefeated() || hpRatio <= finisherRatio + 0.0001f)
 	{
 		NotifyPocketFeedback(
 			pocketPosition,
@@ -1517,7 +1586,7 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 			true,
 			hpBefore);
 		enemy->Defeat();
-		if (!wasAlreadyDefeated)
+		if (!wasAlreadyDefeated && pocketDamage < hpBefore)
 		{
 			NotifyEnemyDefeated(enemy->GetEnemyId());
 		}
@@ -1540,14 +1609,15 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 	NotifyPocketFeedback(
 		pocketPosition,
 		false,
-		false);
+		false,
+		pocketDamage);
 	m_PocketedEnemyQueue.push_back(enemy);
 	RecordBalanceEvent(
 		"enemy_pocket_controlled",
 		{
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "stage_type", ToString(m_CurrentBattleStageType) },
-			{ "hp", hpBefore },
+			{ "hp", enemy->GetHP() },
 			{ "max_hp", maxHp },
 			{ "hp_ratio", hpRatio },
 			{ "finisher_ratio", finisherRatio },
@@ -1723,6 +1793,30 @@ void Game::FinalizeRunResult(bool completed)
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
 		acquiredRelics);
+	m_LastRunResult.clearedBattles = m_ClearedStageCount;
+	RecordPersistentProgress();
+}
+
+void Game::RecordPersistentProgress()
+{
+	m_LastProgressionUnlocks.clear();
+	if (!m_PersistentProgressEligible) return;
+	try
+	{
+		m_LastProgressionUnlocks = m_ProgressionProfile.RecordRun(m_LastRunResult, m_ActiveAscension);
+		m_ProgressionProfile.Save();
+	}
+	catch (const std::exception& e)
+	{
+		m_LastProgressionUnlocks.push_back(std::string("恒久進行を保存できませんでした：") + e.what());
+	}
+}
+
+void Game::SetSelectedAscension(int level)
+{
+	if (HasValidRunSave()) return;
+	m_ProgressionProfile.selectedAscension = std::clamp(level, 0, m_ProgressionProfile.highestUnlockedAscension);
+	try { m_ProgressionProfile.Save(); } catch (...) {}
 }
 
 void Game::CompleteNormalRouteArea(const char* areaType)
@@ -1732,6 +1826,7 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 		return;
 	}
 
+	m_RunMap.CompleteActive();
 	m_AreaProgress++;
 	m_PlayerRunStatus.progress = (std::min)(
 		kNormalRouteAreaGoal,
@@ -1740,6 +1835,7 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 	RecordBalanceEvent(
 		"route_area_completed",
 		{
+			{ "map_path", m_RunMap.Path() },
 			{ "area_type", areaType != nullptr ? areaType : "unknown" },
 			{ "area_progress", m_AreaProgress },
 			{ "area_goal", kNormalRouteAreaGoal },
@@ -1751,11 +1847,17 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 		m_BalanceValidationEnabled &&
 		m_BalanceValidationEnduranceMode &&
 		m_BalanceValidationMaximumClearedStages > kNormalRouteAreaGoal;
+	if (longValidationRun && m_AreaProgress >= m_RunMap.StartArea() + m_RunMap.AreaCount())
+	{
+		m_RunMap.Generate(m_RouteSelectionSeed + static_cast<std::uint32_t>(m_AreaProgress), m_AreaProgress);
+		RecordBalanceEvent("run_map_extended", m_RunMap.Snapshot());
+	}
 	if (!longValidationRun && m_AreaProgress >= kNormalRouteAreaGoal)
 	{
 		m_AreaProgress = kNormalRouteAreaGoal;
 		m_PlayerRunStatus.progress = kNormalRouteAreaGoal;
 		m_RunPhase = RunPhase::BossPreparation;
+		m_RunMap.Choose(m_RunMap.AreaCount() * 3);
 		RecordBalanceEvent(
 			"boss_preparation_entered",
 			{
@@ -1787,6 +1889,7 @@ void Game::LeaveRestSite()
 {
 	if (m_RunPhase == RunPhase::BossPreparation)
 	{
+		m_RunMap.CompleteActive();
 		m_RunPhase = RunPhase::FinalBossReady;
 		RecordBalanceEvent(
 			"boss_preparation_completed",
@@ -1812,6 +1915,7 @@ void Game::CompleteFinalBossRun()
 {
 	++m_ClearedStageCount;
 	m_RunStatistics.DefeatFinalBoss();
+	m_RunMap.CompleteActive();
 	m_RunPhase = RunPhase::Completed;
 	RecordBalanceEvent(
 		"final_boss_defeated",
@@ -1834,6 +1938,7 @@ void Game::CompleteFinalBossRun()
 
 void Game::ProcessGameOver()
 {
+	if (m_DebugMode) { FinishDebugBattle(false); return; }
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
@@ -1876,6 +1981,7 @@ void Game::ProcessGameOver()
 
 void Game::StartClearReward()
 {
+	if (m_DebugMode) { FinishDebugBattle(true); return; }
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
@@ -1927,6 +2033,7 @@ void Game::StartClearReward()
 	m_SelectedRewardIndex = 0;
 	m_SelectedRewardBallIndex = 0;
 	m_IsClearRewardChosen = false;
+	m_ClearRewardMouseConfirmed = false;
 	m_RewardMessage = UiText::ChooseClearReward;
 	m_IsMidBossRelicSelectionActive = false;
 	m_MidBossRelicOffers.clear();
@@ -2092,6 +2199,7 @@ void Game::StartNextBattle(StageType stageType)
 		previousStageId);
 	if (selectedStage == nullptr)
 	{
+		m_RunMap.CancelActive();
 		if (enteringFinalBoss)
 		{
 			m_RunPhase = RunPhase::FinalBossReady;
@@ -2108,6 +2216,8 @@ void Game::StartNextBattle(StageType stageType)
 
 void Game::UpdateClearReward()
 {
+	const bool confirmed = std::exchange(m_ClearRewardMouseConfirmed, false) ||
+		Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE);
 	if (m_IsMidBossRelicSelectionActive)
 	{
 		const int offerCount = GetMidBossRelicOfferCount();
@@ -2128,7 +2238,7 @@ void Game::UpdateClearReward()
 			m_SelectedRelicOfferIndex =
 				(m_SelectedRelicOfferIndex + 1) % offerCount;
 		}
-		if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
+		if (confirmed)
 		{
 			AcquireMidBossRelicOffer(m_SelectedRelicOfferIndex);
 		}
@@ -2137,7 +2247,7 @@ void Game::UpdateClearReward()
 
 	if (m_IsClearRewardChosen)
 	{
-		if (Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
+		if (confirmed)
 		{
 			ContinueAfterClearReward();
 		}
@@ -2179,7 +2289,7 @@ void Game::UpdateClearReward()
 		}
 	}
 
-	if (!Input::GetKeyTrigger(VK_RETURN) && !Input::GetKeyTrigger(VK_SPACE))
+	if (!confirmed)
 	{
 		return;
 	}
@@ -2363,17 +2473,8 @@ void Game::ApplySelectedBallPreview()
 
 void Game::DrawBallSelectionUI()
 {
-	ImGui::SetNextWindowPos(
-		ImVec2(30.0f, 90.0f),
-		ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(
-		ImVec2(560.0f, 500.0f),
-		ImGuiCond_FirstUseEver);
-
-	ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoResize;
-
+	GameUi::PrepareWindow("ball_selection", ImVec2(30, 90), ImVec2(560, 500));
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse;
 	ImGui::Begin("ボール選択", nullptr, flags);
 	ImGui::TextUnformatted("使用するボールを選んでください。");
 	ImGui::TextUnformatted("選択した性能は照準へすぐ反映されます。");
@@ -2390,11 +2491,12 @@ void Game::DrawBallSelectionUI()
 		}
 
 		ImGui::PushID(index);
-		ImGui::Text(
-			"[%d] %s%s",
-			index + 1,
-			GetPlayerBallDisplayName(ball->definitionId),
-			m_PlayerDeck.WasHeldOffer(index) ? "  （ホールド中）" : "");
+		if (PlayerBallUI::Select(*ball, m_SelectedOfferIndex == index))
+		{
+			m_SelectedOfferIndex = index;
+			if (m_SelectedHoldIndex == index) m_SelectedHoldIndex = -1;
+			ApplySelectedBallPreview();
+		}
 		ImGui::Text(
 			"攻撃:%d  防御:%d  重さ:%.1f  大きさ:%.1f",
 			GetEffectivePlayerBallAttack(ball),
@@ -2403,6 +2505,7 @@ void Game::DrawBallSelectionUI()
 			ball->status.radius);
 		ImGui::Text("特性:%s", GetPlayerBallAbilityName(*ball));
 		ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
+		ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
 
 		if (ImGui::RadioButton(
 			"使用",
@@ -2446,134 +2549,77 @@ void Game::DrawBallSelectionUI()
 
 void Game::DrawClearRewardUI()
 {
-	ImGui::SetNextWindowPos(ImVec2(290.0f, 90.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(700.0f, 540.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags clearFlags = ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-	ImGui::Begin(UiText::ClearWindow, nullptr, clearFlags);
+	GameUi::PrepareWindow("clear_reward", ImVec2(290, 90), ImVec2(700, 550));
+	ImGui::Begin(UiText::ClearWindow, nullptr, ImGuiWindowFlags_NoCollapse);
 	ImGui::TextUnformatted(UiText::StageClear);
-	ImGui::Separator();
 	ImGui::Text(UiText::RewardMoneyFormat, m_CurrentStageRewardMoney);
 	ImGui::Text(UiText::MoneyFormat, m_PlayerRunStatus.money);
-	ImGui::Text("HP : %d / %d", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp);
-	ImGui::Text(UiText::ClearedFormat, m_ClearedStageCount);
-	ImGui::Text(
-		"通常エリア : %d / %d (%s)",
-		m_AreaProgress,
-		kNormalRouteAreaGoal,
-		ToString(m_RunPhase));
+	ImGui::Text("HP %d / %d", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp);
 	ImGui::Separator();
 	if (m_IsMidBossRelicSelectionActive)
 	{
 		ImGui::TextUnformatted("中ボス撃破報酬：レリックを1つ選択");
-		ImGui::TextUnformatted("この選択後に通常のクリア報酬を選びます。");
-		ImGui::Separator();
-		for (int offerIndex = 0;
-			offerIndex < GetMidBossRelicOfferCount();
-			offerIndex++)
+		for (int index = 0; index < GetMidBossRelicOfferCount(); ++index)
 		{
-			const RelicDefinition* relic = GetMidBossRelicOffer(offerIndex);
+			const auto* relic = GetMidBossRelicOffer(index);
 			if (relic == nullptr) continue;
-			ImGui::PushID(offerIndex);
-			const bool selected = offerIndex == m_SelectedRelicOfferIndex;
-			if (ImGui::RadioButton(relic->name, selected))
-			{
-				m_SelectedRelicOfferIndex = offerIndex;
-			}
-			ImGui::Text("    レア度: %s", ToString(relic->rarity));
-			ImGui::TextWrapped("    %s", relic->description);
-			ImGui::Separator();
+			ImGui::PushID(index);
+			if (ImGui::Selectable(relic->name, index == m_SelectedRelicOfferIndex)) m_SelectedRelicOfferIndex = index;
+			ImGui::TextWrapped("%s", relic->description);
 			ImGui::PopID();
 		}
-		ImGui::TextUnformatted("方向キー / WASD：選択  Enter / Space：獲得");
-		ImGui::End();
-		return;
+		if (ImGui::Button("選択したレリックを獲得", ImVec2(-1, 40))) m_ClearRewardMouseConfirmed = true;
 	}
-
-	if (!m_IsClearRewardChosen)
+	else if (m_IsClearRewardChosen)
 	{
-		ImGui::TextUnformatted(UiText::ChooseReward);
-		for (int index = 0; index < kClearRewardCount; index++)
-		{
-			ImGui::Text("%s %s", index == m_SelectedRewardIndex ? ">" : " ", kClearRewardNames[index]);
-		}
-
-		if (m_SelectedRewardIndex == 0)
-		{
-			ImGui::Separator();
-			ImGui::TextUnformatted(UiText::NewBallSelect);
-			for (int index = 0; index < m_PlayerDeck.GetCatalogCount(); index++)
-			{
-				const PlayerBallData* ball = m_PlayerDeck.GetCatalogBall(index);
-				if (ball != nullptr)
-				{
-					ImGui::Text(UiText::RewardBallStatsFormat,
-						index == m_SelectedRewardBallIndex ? ">" : " ",
-						GetPlayerBallDisplayName(ball->definitionId),
-						GetEffectivePlayerBallAttack(ball),
-						GetEffectivePlayerBallDefense(ball));
-					if (index == m_SelectedRewardBallIndex)
-					{
-						ImGui::TextWrapped(
-							"    %s",
-							PlayerBallText::GetDescription(ball->definitionId));
-					}
-				}
-			}
-		}
-		else if (m_SelectedRewardIndex == 1)
-		{
-			ImGui::Separator();
-			ImGui::TextUnformatted(UiText::UpgradeBallSelect);
-			for (int index = 0; index < m_PlayerDeck.GetRewardTargetCount(); index++)
-			{
-				const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(index);
-				if (ball != nullptr)
-				{
-					ImGui::Text(UiText::BallUpgradeStatsFormat,
-						index == m_SelectedRewardBallIndex ? ">" : " ", index,
-						GetPlayerBallDisplayName(ball->definitionId), ball->upgradeLevel,
-						GetEffectivePlayerBallAttack(ball),
-						GetEffectivePlayerBallDefense(ball));
-					if (index == m_SelectedRewardBallIndex)
-					{
-						ImGui::TextWrapped(
-							"    %s",
-							PlayerBallText::GetDescription(ball->definitionId));
-					}
-					if (ball->CanUpgrade())
-					{
-						const BallUpgradeStep& next = ball->upgradeTable[ball->upgradeLevel];
-						ImGui::Text(UiText::NextStatsFormat, next.attack, next.defense);
-						const int upgradeCost =
-							GetClearRewardUpgradeCost(index);
-						ImGui::Text(
-							UiText::UpgradeCostFormat,
-							upgradeCost);
-						if (m_PlayerRunStatus.money < upgradeCost)
-						{
-							ImGui::TextColored(
-								ImVec4(1.0f, 0.35f, 0.3f, 1.0f),
-								"%s",
-								UiText::UpgradeMoneyShortage);
-						}
-					}
-					else
-					{
-						ImGui::TextUnformatted(UiText::MaxUpgrade);
-					}
-				}
-			}
-		}
-
-		ImGui::Separator();
-		ImGui::TextUnformatted(UiText::ClearControls);
+		ImGui::TextWrapped("%s", m_RewardMessage.c_str());
+		if (ImGui::Button("次のルートへ", ImVec2(-1, 44))) m_ClearRewardMouseConfirmed = true;
 	}
 	else
 	{
-		ImGui::TextUnformatted(m_RewardMessage.c_str());
-		ImGui::Separator();
-		ImGui::TextUnformatted(UiText::NextRouteControls);
+		ImGui::TextUnformatted(UiText::ChooseReward);
+		for (int index = 0; index < kClearRewardCount; ++index)
+		{
+			if (ImGui::RadioButton(kClearRewardNames[index], index == m_SelectedRewardIndex))
+			{
+				m_SelectedRewardIndex = index;
+				m_SelectedRewardBallIndex = 0;
+			}
+		}
+		ImGui::BeginChild("reward_targets", ImVec2(0, -96), ImGuiChildFlags_Borders);
+		const bool upgrading = m_SelectedRewardIndex == 1;
+		const int count = m_SelectedRewardIndex == 0 ? m_PlayerDeck.GetCatalogCount() :
+			(upgrading ? m_PlayerDeck.GetRewardTargetCount() : 0);
+		for (int index = 0; index < count; ++index)
+		{
+			const auto* ball = upgrading ? m_PlayerDeck.GetRewardTarget(index) : m_PlayerDeck.GetCatalogBall(index);
+			if (ball == nullptr) continue;
+			ImGui::PushID(index);
+			if (PlayerBallUI::Select(*ball, index == m_SelectedRewardBallIndex)) m_SelectedRewardBallIndex = index;
+			if (index == m_SelectedRewardBallIndex)
+			{
+				ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
+				if (upgrading)
+				{
+					ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(*ball).c_str());
+					const int upgradeCost = GetClearRewardUpgradeCost(index);
+					if (upgradeCost >= 0) ImGui::Text(UiText::UpgradeCostFormat, upgradeCost);
+					if (upgradeCost > m_PlayerRunStatus.money) ImGui::TextUnformatted(UiText::UpgradeMoneyShortage);
+				}
+				else ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
+			}
+			ImGui::Separator();
+			ImGui::PopID();
+		}
+		if (m_SelectedRewardIndex == 2) ImGui::Text("追加で %d Money を受け取ります。", kExtraRewardMoney);
+		ImGui::EndChild();
+		const int cost = upgrading ? GetClearRewardUpgradeCost(m_SelectedRewardBallIndex) : 0;
+		const bool unavailable = upgrading ? cost < 0 || cost > m_PlayerRunStatus.money :
+			(m_SelectedRewardIndex == 0 && count == 0);
+		ImGui::BeginDisabled(unavailable);
+		if (ImGui::Button(upgrading ? "選択した個体を強化" : "選択した報酬を獲得", ImVec2(-1, 40))) m_ClearRewardMouseConfirmed = true;
+		ImGui::EndDisabled();
+		if (!m_RewardMessage.empty()) ImGui::TextWrapped("%s", m_RewardMessage.c_str());
 	}
 	ImGui::End();
 }

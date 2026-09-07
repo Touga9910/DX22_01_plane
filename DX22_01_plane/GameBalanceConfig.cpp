@@ -5,6 +5,7 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "BallPhysicsComponent.h"
+#include "BallPhysicsWorld.h"
 #include "input.h"
 
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
@@ -45,7 +46,11 @@ void Game::LoadPlayerStatusFromJson(
 		loadResult.defaultRunStatus
 	);
 	m_RestHealRatio = loadResult.restHealRatio;
-	m_PlayerDeck.SetCatalog(loadResult.ballDefinitions);
+	m_DefaultRestHealRatio = loadResult.restHealRatio;
+	std::vector<PlayerBallData> unlockedCatalog;
+	for (const auto& ball : loadResult.ballDefinitions)
+		if (m_ProgressionProfile.IsBallUnlocked(ball.definitionId)) unlockedCatalog.push_back(ball);
+	m_PlayerDeck.SetCatalog(unlockedCatalog);
 
 	std::vector<PlayerBallData> defaultDeck =
 		PlayerBallDataLoader::LoadDeck(
@@ -75,7 +80,6 @@ void Game::ResetPlayerRuntimeStatus()
 	m_IsMidBossRelicSelectionActive = false;
 	m_MidBossRelicOffers.clear();
 	m_ShopRelicOffers.clear();
-	m_ShopRelicPurchased = false;
 	m_ClearedStageCount = 0;
 	m_AreaProgress = 0;
 	m_RunPhase = RunPhase::NormalRoute;
@@ -119,8 +123,19 @@ void Game::StartNewRun(
 	std::optional<std::uint32_t> forcedRandomSeed,
 	const std::string& forcedValidationVariant)
 {
+	if (!m_DebugMode) LoadPlayerStatusFromJson(); // Refresh the catalog after newly completed achievements.
 	ResetPlayerRuntimeStatus();
 	ResetDynamicBalanceRunState();
+	const std::string effectiveControllerType = !controllerType.empty()
+		? controllerType : (m_BalanceAutoPlayEnabled ? "autoplay" : "human");
+	m_PersistentProgressEligible = effectiveControllerType == "human" && !m_DebugMode &&
+		!m_BalanceAutoPlayEnabled && !m_BalanceValidationEnabled;
+	m_ActiveAscension = (!m_DebugMode && !m_BalanceAutoPlayEnabled && !m_BalanceValidationEnabled)
+		? m_ProgressionProfile.selectedAscension : 0;
+	const int hpPenalty = ProgressionProfile::StartingHpPenalty(m_ActiveAscension);
+	m_PlayerRunStatus.maxHp = (std::max)(1, m_PlayerRunStatus.maxHp - hpPenalty);
+	m_PlayerRunStatus.currentHp = m_PlayerRunStatus.maxHp;
+	m_RestHealRatio = (std::max)(0.05f, m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(m_ActiveAscension));
 	m_RunStatistics.Reset();
 	m_RunActive = true;
 	m_IsPaused = false;
@@ -220,10 +235,12 @@ void Game::StartNewRun(
 	m_StageSelectionSeed = m_RunRandomSeed ^ 0x9e3779b9u;
 	m_RouteSelectionSeed = m_RunRandomSeed ^ 0x85ebca6bu;
 	m_RouteSelectionCounter = 0;
+	m_RunMap.Generate(m_RouteSelectionSeed);
 	m_StageSelector.Seed(m_StageSelectionSeed);
 	m_AutoRandomEngine.seed(m_RunRandomSeed ^ 0xc2b2ae35u);
 	m_PocketRandomEngine.seed(m_RunRandomSeed ^ 0x27d4eb2fu);
 	m_RelicRandomEngine.seed(m_RunRandomSeed ^ 0xd3a2646cu);
+	if (m_DebugMode) ApplyDebugRunSettings();
 
 	std::vector<BalanceBallSnapshot> deck;
 	deck.reserve(static_cast<size_t>(
@@ -256,12 +273,10 @@ void Game::StartNewRun(
 		deck.push_back(std::move(snapshot));
 	}
 
-	const std::string effectiveControllerType =
-		!controllerType.empty()
-		? controllerType
-		: (m_BalanceAutoPlayEnabled ? "autoplay" : "human");
 	const nlohmann::json runContext =
 	{
+		{ "debug_sandbox", m_DebugMode },
+		{ "physics_model", BallPhysicsWorld::ModelName },
 		{ "controller_profile", controllerProfile },
 		{ "build_profile", buildProfile },
 		{ "build_profile_settings_hash", buildProfileSettingsHash },
@@ -307,7 +322,9 @@ void Game::StartNewRun(
 		{ "dynamic_balance_level_at_start", m_DynamicBalanceLevel },
 		{ "initial_money", m_PlayerRunStatus.money },
 		{ "initial_progress", m_PlayerRunStatus.progress },
+		{ "ascension", m_ActiveAscension },
 		{ "area_goal", kNormalRouteAreaGoal },
+		{ "run_map", m_RunMap.Snapshot() },
 		{ "run_phase", ToString(m_RunPhase) },
 	};
 
@@ -370,7 +387,7 @@ void Game::LoadBalanceAutoPlayConfig(
 		std::cout
 			<< "[BalanceAutoPlay] "
 			<< (m_BalanceAutoPlayEnabled ? "Enabled" : "Disabled")
-			<< " / F8 toggles auto play"
+			<< " / F8 toggles auto play / F9 stops at run end"
 			<< std::endl;
 	}
 	catch (const nlohmann::json::exception& error)

@@ -127,6 +127,11 @@ void GameObject::FixedUpdate()
 
 		if (component->IsEnabled())
 		{
+			if (!component->m_HasStarted)
+			{
+				component->Start();
+				component->m_HasStarted = true;
+			}
 			component->FixedUpdate();
 		}
 	}

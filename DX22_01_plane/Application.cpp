@@ -224,7 +224,7 @@ void Application::MainLoop()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     // プレイヤー向けImGui表示に必要な日本語グリフを読み込む。
     // 対応するWindows環境に同梱されるフォントを使い、
@@ -259,6 +259,18 @@ void Application::MainLoop()
    long long oldCount = liWork.QuadPart;// 前回計測時の時間
    long long nowCount = oldCount;// 今回計測時の時間
 
+   int renderHz = 60;
+#if defined(_DEBUG)
+   // Only for isolated regression captures; production rendering remains 60 Hz.
+   wchar_t testRenderHz[16] = {};
+   if (GetEnvironmentVariableW(L"DX22_TEST_RENDER_HZ", testRenderHz, 16) > 0)
+   {
+       const int requestedHz = _wtoi(testRenderHz);
+       if (requestedHz == 30 || requestedHz == 60 || requestedHz == 144)
+           renderHz = requestedHz;
+   }
+#endif
+
 
    // ゲームループ
    while (1)
@@ -280,15 +292,15 @@ void Application::MainLoop()
            QueryPerformanceCounter(&liWork);// 現在時間を取得
            nowCount = liWork.QuadPart;
            // 1/60秒が経過したか？
-           if (nowCount >= oldCount + frequency / 60) {
-
-               // ゲーム更新
-               Game::Update();
+           if (nowCount >= oldCount + frequency / renderHz) {
 
                // ★ ImGuiフレーム開始（Game::Draw()より前に必ず呼ぶ）
                ImGui_ImplDX11_NewFrame();
                ImGui_ImplWin32_NewFrame();
                ImGui::NewFrame();
+
+               Game::Update(static_cast<double>(nowCount - oldCount) /
+                   static_cast<double>(frequency));
 
                // ゲーム描画
                Game::Draw();
@@ -305,6 +317,8 @@ void Application::MainLoop()
                    ImGui::RenderPlatformWindowsDefault();
                }
                
+
+               Renderer::DrawEnd();
 
                fpsCounter++; // ゲーム処理を実行したら＋１する
                oldCount = nowCount;
@@ -366,6 +380,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     case WM_CLOSE:  // 「x」ボタンが押されたら
     {
         int res = MessageBoxW(NULL, L"終了しますか？", L"確認", MB_OKCANCEL);
+        Game::ResetFrameTiming();
         if (res == IDOK) {
             DestroyWindow(hWnd);  // 「WM_DESTROY」メッセージを送る
         }
@@ -375,9 +390,11 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     case WM_ACTIVATE:
         if (wParam == WA_INACTIVE) {
             // フルスクリーン表示かつメッセージボックス非表示なら
-            if (m_IsFullscreen)
+            if (m_IsFullscreen &&
+                !(lParam != 0 && ImGui::GetCurrentContext() != nullptr &&
+                  ImGui::FindViewportByPlatformHandle(reinterpret_cast<void*>(lParam)) != nullptr))
             {
-                // ウインドウを最小化する（タスク切替時に背後に残る問題対策）
+                // 別のアプリへ切り替えた場合のみ、ウインドウを最小化する（タスク切替時に背後に残る問題対策）
                 ShowWindow(hWnd, SW_MINIMIZE);
             }
         }
@@ -386,12 +403,17 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
     case WM_SIZE: //ウィンドウサイズに変更があったメッセージ
 
+        Game::ResetFrameTiming();
         if (wParam != SIZE_MINIMIZED)
         {
             int width = LOWORD(lParam); //横幅
             int height = HIWORD(lParam); //縦幅
             Renderer::ResizeWindow(width, height);
         }
+        break;
+
+    case WM_EXITSIZEMOVE:
+        Game::ResetFrameTiming();
         break;
 
     default:

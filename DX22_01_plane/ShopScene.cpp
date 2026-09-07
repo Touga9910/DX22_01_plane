@@ -1,8 +1,11 @@
+﻿#pragma execution_character_set("utf-8")
 #include "ShopScene.h"
 
 #include "Game.h"
+#include "GameUi.h"
 #include "Input.h"
 #include "PlayerBallText.h"
+#include "PlayerBallUI.h"
 #include "Texture2D.h"
 #include "Texture2DFactory.h"
 #include "UiText.h"
@@ -71,10 +74,6 @@ void ShopScene::Update()
 			m_Message = std::string(relic != nullptr ? relic->name : "Relic") +
 				UiText::RelicPurchasedSuffix;
 		}
-		else if (Game::GetInstance()->HasPurchasedShopRelic())
-		{
-			m_Message = RelicUtf8(u8"\u3053\u306e\u30b7\u30e7\u30c3\u30d7\u3067\u306f\u65e2\u306b\u30ec\u30ea\u30c3\u30af\u3092\u8cfc\u5165\u3057\u3066\u3044\u307e\u3059\u3002");
-		}
 		else if (relic != nullptr &&
 			Game::GetInstance()->HasRelic(relic->type))
 		{
@@ -115,122 +114,75 @@ void ShopScene::Update()
 
 void ShopScene::DrawUI()
 {
-	ImGui::SetNextWindowPos(ImVec2(260.0f, 70.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(760.0f, 580.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
-	ImGui::Begin(UiText::ShopWindow, nullptr, flags);
-
-	ImGui::Text(
-		UiText::ShopStatusFormat,
-		Game::GetInstance()->GetPlayerMoney(),
-		Game::GetInstance()->GetDeckBallCount(),
-		Game::GetInstance()->GetOwnedRelicCount(),
-		Game::GetInstance()->GetRelicCount());
-	ImGui::Separator();
-	ImGui::Text(UiText::BuyBallFormat, m_Menu.GetIndex() == 0 ? ">" : " ", kBallPrice);
-	ImGui::Text(UiText::RemoveBallFormat, m_Menu.GetIndex() == 1 ? ">" : " ", kRemovePrice);
-	ImGui::Text(UiText::BuyRelicFormat, m_Menu.GetIndex() == 2 ? ">" : " ");
-	ImGui::Text(UiText::LeaveShopFormat, m_Menu.GetIndex() == 3 ? ">" : " ");
-
-	ImGui::Separator();
-	if (m_Menu.GetIndex() == 0)
+	GameUi::PrepareWindow("shop", ImVec2(260, 70), ImVec2(760, 580));
+	ImGui::Begin(UiText::ShopWindow, nullptr, ImGuiWindowFlags_NoCollapse);
+	Game* game = Game::GetInstance();
+	ImGui::Text(UiText::ShopStatusFormat, game->GetPlayerMoney(), game->GetDeckBallCount(), game->GetOwnedRelicCount(), game->GetRelicCount());
+	const char* categories[] = { "ボール購入", "デッキから削除", "レリック購入" };
+	for (int category = 0; category < 3; ++category)
 	{
-		ImGui::TextUnformatted(UiText::BallCatalog);
-		for (int index = 0; index < Game::GetInstance()->GetShopBallCount(); index++)
-		{
-			const PlayerBallData* ball = Game::GetInstance()->GetShopBall(index);
-			if (ball != nullptr)
-			{
-				ImGui::Text(UiText::BallStatsFormat,
-					index == m_SelectedBuyBall ? ">" : " ",
-					PlayerBallText::GetName(ball->definitionId),
-					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
-					Game::GetInstance()->GetEffectivePlayerBallDefense(ball),
-					ball->status.mass);
-				ImGui::Text(UiText::BallPhysicsFormat,
-					ball->status.restitution,
-					ball->status.friction,
-					ball->status.radius);
-				ImGui::Text(UiText::BallTraitsFormat,
-					ball->status.abilities.pierce ? UiText::Yes : UiText::No,
-					ball->status.abilities.anchor ? UiText::Yes : UiText::No);
-				if (index == m_SelectedBuyBall)
-				{
-					ImGui::TextWrapped(
-						"    %s",
-						PlayerBallText::GetDescription(ball->definitionId));
-				}
-			}
-		}
+		if (category > 0) ImGui::SameLine();
+		if (ImGui::RadioButton(categories[category], m_Menu.GetIndex() == category)) m_Menu.SetIndex(category, 4);
 	}
-	else if (m_Menu.GetIndex() == 1)
+	ImGui::Separator();
+	ImGui::BeginChild("shop_items", ImVec2(0, -112), ImGuiChildFlags_Borders);
+	if (m_Menu.GetIndex() == 0 || m_Menu.GetIndex() == 1)
 	{
-		ImGui::TextUnformatted(UiText::RemoveCatalog);
-		ImGui::Text(
-			UiText::MinimumDeckFormat,
-			Game::GetInstance()->GetMinimumDeckSize());
-		for (int index = 0; index < Game::GetInstance()->GetDeckBallCount(); index++)
+		const bool buying = m_Menu.GetIndex() == 0;
+		int& selected = buying ? m_SelectedBuyBall : m_SelectedRemoveBall;
+		const int count = buying ? game->GetShopBallCount() : game->GetDeckBallCount();
+		if (!buying) ImGui::Text(UiText::MinimumDeckFormat, game->GetMinimumDeckSize());
+		for (int index = 0; index < count; ++index)
 		{
-			const PlayerBallData* ball = Game::GetInstance()->GetDeckBall(index);
-			if (ball != nullptr)
+			const auto* ball = buying ? game->GetShopBall(index) : game->GetDeckBall(index);
+			if (ball == nullptr) continue;
+			ImGui::PushID(index);
+			if (PlayerBallUI::Select(*ball, index == selected)) selected = index;
+			if (index == selected)
 			{
-				ImGui::Text(UiText::BallCombatStatsFormat,
-					index == m_SelectedRemoveBall ? ">" : " ", index,
-					PlayerBallText::GetName(ball->definitionId),
-					Game::GetInstance()->GetEffectivePlayerBallAttack(ball),
-					Game::GetInstance()->GetEffectivePlayerBallDefense(ball));
-				if (index == m_SelectedRemoveBall)
-				{
-					ImGui::TextWrapped(
-						"    %s",
-						PlayerBallText::GetDescription(ball->definitionId));
-				}
+				ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
+				ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
+				ImGui::Text("レリック込み：攻撃 %d / 防御 %d", game->GetEffectivePlayerBallAttack(ball), game->GetEffectivePlayerBallDefense(ball));
+				const int cost = buying ? kBallPrice : kRemovePrice;
+				ImGui::BeginDisabled(game->GetPlayerMoney() < cost || (!buying && count <= game->GetMinimumDeckSize()));
+				const std::string label = std::string(buying ? "このボールを購入" : "この個体を削除") + " (" + std::to_string(cost) + " Money)";
+				if (ImGui::Button(label.c_str(), ImVec2(-1, 34))) m_Menu.Confirm(buying ? 0 : 1, 4);
+				ImGui::EndDisabled();
 			}
+			ImGui::Separator();
+			ImGui::PopID();
 		}
 	}
 	else if (m_Menu.GetIndex() == 2)
 	{
-		ImGui::TextUnformatted(RelicUtf8(u8"\u4eca\u56de\u5165\u8377\u3057\u305f\u30ec\u30ea\u30c3\u30af\uff08\u3053\u306e\u5165\u5e97\u30671\u3064\u307e\u3067\uff09"));
-		for (int index = 0; index < Game::GetInstance()->GetShopRelicOfferCount(); index++)
+		ImGui::TextWrapped("入荷中のレリックは、所持金の範囲で複数購入できます。");
+		for (int index = 0; index < game->GetShopRelicOfferCount(); ++index)
 		{
-			const RelicDefinition* relic = Game::GetInstance()->GetShopRelicOffer(index);
-			if (relic == nullptr)
+			const auto* relic = game->GetShopRelicOffer(index);
+			if (relic == nullptr) continue;
+			ImGui::PushID(index);
+			const bool owned = game->HasRelic(relic->type);
+			if (ImGui::Selectable(relic->name, m_SelectedRelic == index)) m_SelectedRelic = index;
+			ImGui::TextWrapped("%s", relic->description);
+			ImGui::Text("%d Money  %s", relic->price, owned ? UiText::OwnedSuffix : "");
+			ImGui::BeginDisabled(owned || game->GetPlayerMoney() < relic->price);
+			if (ImGui::Button(owned ? "購入済み" : "購入する", ImVec2(-1, 32)))
 			{
-				continue;
+				m_SelectedRelic = index;
+				m_Menu.Confirm(2, 4);
 			}
-
-			ImGui::Text(
-				UiText::RelicLineFormat,
-				index == m_SelectedRelic ? ">" : " ",
-				relic->name,
-				relic->price,
-				Game::GetInstance()->HasRelic(relic->type)
-					? UiText::OwnedSuffix
-					: "");
-			ImGui::Text("    rarity: %s", ToString(relic->rarity));
-			ImGui::Text("    %s", relic->description);
+			ImGui::EndDisabled();
+			ImGui::Separator();
+			ImGui::PopID();
 		}
-		if (Game::GetInstance()->GetShopRelicOfferCount() == 0)
-		{
-			ImGui::TextUnformatted(RelicUtf8(u8"\u672a\u6240\u6301\u306e\u30ec\u30ea\u30c3\u30af\u304c\u3042\u308a\u307e\u305b\u3093\u3002"));
-		}
-		if (Game::GetInstance()->HasPurchasedShopRelic())
-		{
-			ImGui::TextUnformatted(RelicUtf8(u8"\u30ec\u30ea\u30c3\u30af\u8cfc\u5165\u6e08\u307f"));
-		}
+		if (game->GetShopRelicOfferCount() == 0) ImGui::TextUnformatted("入荷品はありません。");
 	}
-
-	if (!m_Message.empty())
-	{
-		ImGui::Separator();
-		ImGui::TextUnformatted(m_Message.c_str());
-	}
-	ImGui::Separator();
-	ImGui::TextUnformatted(UiText::ShopSelectControls);
-	ImGui::TextUnformatted(UiText::ShopItemControls);
+	ImGui::EndChild();
+	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
+	if (ImGui::Button("ショップを出る", ImVec2(-1, 38))) m_Menu.Confirm(3, 4);
 	ImGui::End();
 }
+
 
 void ShopScene::Uninit()
 {

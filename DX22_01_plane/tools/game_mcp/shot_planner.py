@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from bridge_store import GameBridgeError
+from build_shot_evaluator import evaluate_build_shots, selected_ball
 
 
 VALID_PLAYER_LEVELS = ("beginner", "intermediate", "advanced")
@@ -101,13 +102,23 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
     return (
         "最初にget_game_stateを呼び、available_actionsに含まれる"
         "操作だけを使用してください。"
-        "ショットでは必ず生存中の敵をenemies[].target_idで"
+        "最終ボス戦でboss_stateがある場合は、boss_shot_choicesまたはevaluate_boss_shotsで"
+        "評価し、candidate_idとstate_keyをfire_boss_shotへ渡してください。"
+        "候補に含まれる中立球への押し込みや位置調整も有効です。ボール選択は同時に行います。"
+        "このボス専用経路はC++ AIと同じ決定的な評価で、照準誤差を加えません。"
+        "以下の敵への標的指定・fire_shot・照準誤差の規則は通常戦と中ボス戦に適用します。"
+        "通常戦と中ボス戦のショットでは必ず生存中の敵をenemies[].target_idで"
         "指定してください。enemy_idは敵の種類名であり、"
         "同じ種類の敵が複数いる場合に個体を識別できないため、"
         "標的指定には使用しないでください。"
         "空間上の任意方向を指定したり、敵がいない方向へ撃ってはいけません。"
         "戦闘中はtable.pockets、pocket_rules、"
         "enemies[].pocket_finisher_eligibleを比較してください。"
+        "get_game_stateのbuild_shot_choices.recommendedでボール・標的・接触点を一緒に比較してください。"
+        "推奨ボールをselect_ballで選んだ後は状態を再取得してください。"
+        "shot_tacticsは現在選択中のボールに対する推定です。"
+        "shot_type=autoとpower_mode=autoで実行時に再評価してください。"
+        "推定命中数や停止位置は概算なので、実測ログと比較してください。"
         "get_game_stateのshot_tacticsで敵ごとの通常攻撃と"
         "ポケット経路の比較を確認し、通常ランでは"
         "fire_shotのshot_goal=autoを使って最新状態で再評価させます。"
@@ -119,6 +130,10 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "最大HPの4%ダメージを受けるため、残HPと利得を比較してください。"
         "ショット後はボールが停止してfire_shotが再び利用可能になるまで"
         "状態を確認してください。"
+        "run_mapがある場合はnodesのnext_node_idsで先の休憩所・ショップ・中ボスへの"
+        "到達経路を比較し、選ぶノードに対応するroute_optionsのroute_indexを明示してください。"
+        "明示したマップ経路はサーバーが変更しません。route_indexを省略した場合は"
+        "直近の報酬だけを基に自動選択します。"
         "ステージ選択ではplayer、deck_balls、relics、"
         "stage_choice.need_signalsを比較し、money、new_ball、"
         "ball_upgrade、hp_recovery、relicの5つを現在欲しい順に"
@@ -135,7 +150,7 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "get_game_stateのmcp_controlに現在のplayer_levelと行動方針が"
         "含まれるため、毎回それに従ってください。"
         "ショットにはサーバー側でプレイヤーレベル別の"
-        "距離適応パワーと、少量の照準・パワー誤差が自動的に"
+        "ボール特性と配置に応じたパワーと、少量の照準・パワー誤差が自動的に"
         "加わります。通常はfire_shotのpower_mode=autoを使用し、"
         "manualはパワー固定の検証時だけにしてください。"
         "dynamic_balanceには自動難易度の現在レベル、次戦の敵補正、"
@@ -512,6 +527,22 @@ def recommend_shot_power(
     profile: dict[str, Any],
 ) -> dict[str, Any]:
     ensure_enemy_target_ids(state)
+    build_candidates = evaluate_build_shots(state, profile)
+    if build_candidates:
+        best = build_candidates[0]
+        return {
+            "model": best["model"], "estimate_only": True,
+            "evaluation_power": best["power"],
+            "recommended_target_id": best["target_id"],
+            "recommended_goal": best["shot_goal"],
+            "recommended_shot_type": best["shot_type"],
+            "recommended": best, "recommendations": build_candidates[:5],
+            "usage": "Select the recommended ball, refresh state, then fire_shot with power_mode=auto and shot_type=auto; the current ball and geometry are re-evaluated.",
+        }
+    if selected_ball(state):
+        return {"recommended_target_id": None, "recommended_goal": None,
+                "recommendations": [], "usage": "No reachable candidate for the selected ball. Check build_shot_choices for another offer."}
+    ensure_enemy_target_ids(state)
     if shot_type not in VALID_SHOT_TYPES:
         raise GameBridgeError(
             "shot_typeはdirectまたはbankを指定してください。"
@@ -837,6 +868,74 @@ def plan_targeted_shot(
             ),
             "estimated_path_length": best["path_length"],
             "human_error": error_report,
+        },
+    }
+
+
+def plan_build_shot(
+    state: dict[str, Any], target_id: str, profile: dict[str, Any], *,
+    power_mode: str = "auto", power: float | None = None,
+    shot_type: str = "auto", wall_index: int = -1,
+    shot_goal: str = "auto", pocket_index: int = -1,
+    random_source: random.Random | None = None,
+) -> dict[str, Any] | None:
+    """Execute the same bounded build evaluator used by the recommendations."""
+    if not selected_ball(state):
+        return None  # Compatibility with older snapshots without ball metadata.
+    ensure_enemy_target_ids(state)
+    target = _find_live_enemy(state, target_id)
+    if shot_type not in ("auto", "direct", "bank") or shot_goal not in VALID_SHOT_GOALS:
+        raise GameBridgeError("Invalid shot type or goal.")
+    if power_mode not in ("auto", "manual"):
+        raise GameBridgeError("Invalid power mode.")
+    if power_mode == "manual" and (power is None or not 1 <= _finite_number(power, "power") <= 8):
+        raise GameBridgeError("manual power must be between 1 and 8.")
+    candidates = evaluate_build_shots(
+        state, profile, target_id=target["target_id"], shot_type=shot_type,
+        wall_index=wall_index, fixed_power=power if power_mode == "manual" else None,
+        shot_goal=shot_goal, pocket_index=pocket_index,
+    )
+    if not candidates:
+        raise GameBridgeError("No reachable shot for this ball and target. Refresh shot_tactics or select another offered ball.")
+    choice = candidates[0]
+    player_position = _xz_position(state["player"]["position"], "player.position")
+    ideal_aim = _xz_position(choice["aim_point"], "aim_point")
+    aim_error, power_error = _human_error_limits(profile)
+    rng = random_source or _HUMAN_ERROR_RANDOM
+    actual_aim, lateral_error, error_limit = _apply_aim_error(
+        player_position, ideal_aim, float(target.get("radius", 2.4)), aim_error, rng,
+    )
+    applied_power_error = rng.triangular(-power_error, power_error, 0.0)
+    actual_power = max(1, min(8, choice["power"] * (1 + applied_power_error)))
+    direction_target = actual_aim
+    if choice["shot_type"] == "bank":
+        bank = _plan_bank_shot(player_position, actual_aim,
+                              state["table"]["walls"][choice["wall_index"]], choice["wall_index"])
+        if bank is None:
+            raise GameBridgeError("Aim error invalidated the bank path; refresh the recommendation.")
+        direction_target = bank["contact_point"]
+    direction = _normalized_direction(player_position, direction_target)
+    return {
+        "arguments": {"direction_x": direction[0], "direction_z": direction[1],
+                      "power": actual_power, "target_id": target["target_id"],
+                      "shot_type": choice["shot_type"], "shot_goal": choice["shot_goal"],
+                      "wall_index": choice["wall_index"]},
+        "shot_plan": {
+            "target_id": target["target_id"], "enemy_id": target.get("enemy_id"),
+            "shot_type": choice["shot_type"], "shot_goal": choice["shot_goal"],
+            "requested_shot_goal": shot_goal, "aim_point": _point_json(actual_aim),
+            "wall_index": choice["wall_index"], "pocket_index": choice["pocket_index"],
+            "build_evaluation": choice,
+            "power_policy": {"reason": "build_geometry_evaluation", "power_mode": power_mode,
+                             "requested_power": power, "effective_power": choice["power"],
+                             "recommended_power": choice["power"]},
+            "human_error": {"ideal_aim_point": _point_json(ideal_aim),
+                            "actual_aim_point": _point_json(actual_aim),
+                            "lateral_aim_error": lateral_error, "aim_error_limit": error_limit,
+                            "aim_error_radius_ratio": aim_error,
+                            "requested_power": choice["power"], "actual_power": actual_power,
+                            "applied_power_error_ratio": applied_power_error,
+                            "power_error_limit_ratio": power_error},
         },
     }
 

@@ -1,7 +1,10 @@
-#include "GameMcpBridge.h"
+﻿#include "GameMcpBridge.h"
+#include "BallStatusJson.h"
 
 #include "EnemyBall.h"
+#include "BreakBall.h"
 #include "Game.h"
+#include "BallPhysicsWorld.h"
 #include "PlayerBall.h"
 #include "Pocket.h"
 #include "StageDataLoader.h"
@@ -205,7 +208,9 @@ namespace
 			enemies.push_back({
 				{ "enemy_id", spawn.enemyId },
 				{ "position", VectorToJson(spawn.position) },
-				{ "max_hp", spawn.enemyData.status.maxHp },
+				{ "max_hp", spawn.enemyData.maxHp },
+				{ "frontal_damage_multiplier", spawn.enemyData.frontalDamageMultiplier },
+				{ "pocket_damage_ratio", spawn.enemyData.pocketDamageRatio },
 				{ "attack", spawn.enemyData.status.attack },
 				{ "radius", spawn.enemyData.status.radius },
 			});
@@ -248,14 +253,20 @@ namespace
 			{ "instance_id", ball.instanceId },
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "can_upgrade", ball.CanUpgrade() },
+			{ "next_upgrade", ball.CanUpgrade() ? WriteBallStatus(ball.upgradeTable[ball.upgradeLevel]) : nlohmann::json(nullptr) },
 			{ "status", {
-				{ "max_hp", ball.status.maxHp },
 				{ "attack", ball.status.attack },
 				{ "defense", ball.status.defense },
 				{ "mass", ball.status.mass },
 				{ "radius", ball.status.radius },
 				{ "restitution", ball.status.restitution },
 				{ "friction", ball.status.friction },
+				{ "knockbackTransfer", ball.status.knockbackTransfer },
+				{ "pierceMaxUses", ball.status.pierceMaxUses },
+				{ "pierceSpeedRetention", ball.status.pierceSpeedRetention },
+				{ "anchorBrakeMultiplier", ball.status.anchorBrakeMultiplier },
+				{ "anchorStopSpeedSquared", ball.status.anchorStopSpeedSquared },
+				{ "anchorKnockbackImmune", ball.status.anchorKnockbackImmune },
 				{ "pierce", ball.status.abilities.pierce },
 				{ "split", ball.status.abilities.split },
 				{ "anchor", ball.status.abilities.anchor },
@@ -459,6 +470,18 @@ nlohmann::json GameMcpBridge::BuildState(
 		} },
 	};
 
+	state["physics_clock"] = {
+		{ "model", BallPhysicsWorld::ModelName },
+        { "trajectory_prediction", "shared_ccd_toi_v1" },
+		{ "substeps_last_tick", game.m_PhysicsSubstepsLastTick },
+        { "max_toi_iterations_per_tick", ContinuousBallStepper::MaxIterations },
+		{ "substep_limit_count", game.m_PhysicsSubstepLimitCount },
+		{ "frequency_hz", 60 },
+		{ "tick", game.m_PhysicsTickCount },
+		{ "steps_last_frame", game.m_PhysicsStepsLastFrame },
+		{ "max_steps_per_frame", FixedStepClock::MaxStepsPerFrame },
+		{ "dropped_seconds", game.m_PhysicsClock.DroppedSeconds() },
+	};
 	state["table"] = {
 		{ "field_width", TableConfig::GetFieldWidth() },
 		{ "field_depth", TableConfig::GetFieldDepth() },
@@ -471,6 +494,43 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "configured_heal_amount", game.GetRestHealAmount() },
 		{ "capped_at_max_hp", true },
 		{ "available", game.CanRestHeal() },
+	};
+	state["meta_progression"] = {
+		{"active_ascension", game.m_ActiveAscension},
+		{"selected_ascension", game.m_ProgressionProfile.selectedAscension},
+		{"highest_unlocked_ascension", game.m_ProgressionProfile.highestUnlockedAscension},
+		{"total_runs", game.m_ProgressionProfile.totalRuns},
+		{"total_clears", game.m_ProgressionProfile.totalClears},
+		{"persistent_rewards_eligible", game.m_PersistentProgressEligible},
+		{"enemy_hp_multiplier", ProgressionProfile::EnemyHpMultiplier(game.m_ActiveAscension)},
+		{"enemy_attack_bonus", ProgressionProfile::EnemyAttackBonus(game.m_ActiveAscension)},
+	};
+	state["meta_progression"]["ascension_rules"] = nlohmann::json::array();
+	for (int level = 0; level <= ProgressionProfile::MaximumAscension; ++level)
+	{
+		state["meta_progression"]["ascension_rules"].push_back({
+			{ "level", level },
+			{ "rule", ProgressionProfile::AscensionRule(level) },
+			{ "unlocked", level <= game.m_ProgressionProfile.highestUnlockedAscension },
+		});
+	}
+	state["meta_progression"]["achievements"] = nlohmann::json::array();
+	for (const AchievementDefinition& achievement : AchievementCatalog)
+	{
+		state["meta_progression"]["achievements"].push_back({
+			{ "key", achievement.key },
+			{ "name", achievement.name },
+			{ "condition", achievement.condition },
+			{ "reward", achievement.reward },
+			{ "unlocked", game.m_ProgressionProfile.IsAchievementUnlocked(achievement.id) },
+		});
+	}
+	state["meta_progression"]["ball_unlocks"] = {
+		{{ "definition_id", "player_standard" }, { "unlocked", true }},
+		{{ "definition_id", "player_heavy" }, { "unlocked", true }},
+		{{ "definition_id", "player_pierce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_pierce") }},
+		{{ "definition_id", "player_bounce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_bounce") }},
+		{{ "definition_id", "player_anchor" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_anchor") }},
 	};
 	const std::vector<TableFrame*> tableFrames =
 		game.GetComponents<TableFrame>();
@@ -590,12 +650,19 @@ nlohmann::json GameMcpBridge::BuildState(
 		state["player"]["position"] =
 			VectorToJson(player->GetPosition());
 		state["player"]["attack"] = player->GetAttack();
+		state["player"]["velocity"] = VectorToJson(player->GetVelocity());
 		state["player"]["defense"] = player->GetDefense();
 		state["player"]["idle"] = player->IsIdle();
 		if (player->GetBall() != nullptr)
 		{
 			state["player"]["radius"] =
 				player->GetBall()->GetRadius();
+		}
+		const PlayerBallData* selectedBall = game.m_PlayerDeck.GetOffer(game.m_SelectedOfferIndex);
+		if (selectedBall == nullptr) selectedBall = game.m_PlayerDeck.GetCurrent();
+		if (selectedBall != nullptr)
+		{
+			state["player"]["ball"] = BallDataToJson(*selectedBall, game.m_SelectedOfferIndex);
 		}
 	}
 
@@ -617,6 +684,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "midboss_weight", relic->midBossWeight },
 			{ "shop_weight", relic->shopWeight },
 			{ "owned", game.HasRelic(relic->type) },
+			{ "unlocked", game.m_ProgressionProfile.IsRelicUnlocked(relic->type) },
 			{ "shop_offered", game.IsShopRelicOffered(index) },
 			{ "midboss_offered", std::find(
 				game.m_MidBossRelicOffers.begin(),
@@ -626,7 +694,8 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 	state["relic_selection"] = {
 		{ "shop_offer_count", game.GetShopRelicOfferCount() },
-		{ "shop_purchase_used", game.m_ShopRelicPurchased },
+		{ "shop_purchase_limited", false },
+		{ "shop_purchase_used", false },
 		{ "midboss_active", game.m_IsMidBossRelicSelectionActive },
 		{ "midboss_offer_count", game.GetMidBossRelicOfferCount() },
 	};
@@ -676,6 +745,20 @@ nlohmann::json GameMcpBridge::BuildState(
 		},
 	};
 
+    state["boss_state"] = nullptr;
+    state["break_balls"] = nlohmann::json::array();
+    for (auto* neutral : game.GetComponents<BreakBall>())
+    {
+        auto* ball = neutral->GetBall();
+        state["break_balls"].push_back({
+            {"target_id", "break_ball:" + std::to_string(neutral->GetIndex())},
+            {"position", VectorToJson(ball->GetPosition())}, {"velocity", VectorToJson(ball->GetVelocity())},
+            {"radius", ball->GetRadius()}, {"mass", ball->GetStatus().mass},
+            {"active", neutral->GetGameObject()->IsActive()}, {"used_this_shot", neutral->IsUsed()},
+            {"pocketed", neutral->IsPocketed()}, {"fixed_boss_damage", BossCombatRules::BreakBallDamage},
+            {"armor_damage", 1}, {"max_activations_per_shot", 1}, {"pierce_passes_through", false},
+            {"consumes_enemy_damage_relics", false}});
+    }
 	state["enemies"] = nlohmann::json::array();
 	const std::vector<EnemyBall*> enemies =
 		game.GetComponents<EnemyBall>();
@@ -688,6 +771,19 @@ nlohmann::json GameMcpBridge::BuildState(
 		{
 			continue;
 		}
+        if (enemy->IsArmorBoss())
+        {
+            const auto& boss = enemy->GetBossState();
+            state["boss_state"] = {
+                {"boss_id", enemy->GetEnemyId()}, {"target_id", "enemy:" + std::to_string(enemyIndex)},
+                {"phase", 1}, {"hp", enemy->GetHP()}, {"max_hp", enemy->GetMaxHP()},
+                {"armor", boss.armor}, {"max_armor", BossCombatRules::MaxArmor},
+                {"is_broken", boss.IsBroken()}, {"break_shots_remaining", boss.shotsRemaining},
+                {"break_started_this_shot", boss.startedThisShot}, {"pocket_immune", true},
+                {"direct_damage_multiplier", boss.IsBroken() ? 1.0f : 0.25f},
+                {"damage_order", "directional_then_defense_then_armor_ceil_min1"},
+                {"break_ball_refreshes_break", false}, {"trigger_shot_consumes_break", false}};
+        }
 		state["enemies"].push_back({
 			{ "target_id",
 				"enemy:" + std::to_string(enemyIndex) },
@@ -696,8 +792,14 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "max_hp", enemy->GetMaxHP() },
 			{ "attack", enemy->GetAttack() },
 			{ "defense", enemy->GetDefense() },
+			{ "mass", enemy->GetStatus().mass },
+			{ "friction", enemy->GetStatus().friction },
+			{ "restitution", enemy->GetStatus().restitution },
+			{ "frontal_damage_multiplier", enemy->GetFrontalDamageMultiplier() },
+			{ "pocket_damage_ratio", enemy->GetPocketDamageRatio() },
 			{ "defeated", enemy->IsDefeated() },
 			{ "pocketed", enemy->IsPocketed() },
+            { "pocket_immune", enemy->IsArmorBoss() },
 			{ "can_attack_this_turn",
 				!enemy->IsDefeated() && !enemy->IsPocketed() },
 			{ "pocket_queue_index",
@@ -920,6 +1022,9 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["available_actions"] = nlohmann::json::array();
 	state["route_options"] = nlohmann::json::array();
+	state["run_map"] = game.m_RunMap.Snapshot();
+	if (dynamic_cast<StageSelectScene*>(game.m_Scene) == nullptr)
+		for (auto& node : state["run_map"]["nodes"]) node["selectable"] = false;
 	state["available_actions"].push_back("set_dynamic_balance");
 	state["available_actions"].push_back("set_next_stage_layout");
 	if (game.m_McpNextStageOverride.has_value())
@@ -945,6 +1050,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{
 				state["route_options"].push_back({
 					{ "route_index", routeIndex },
+					{ "node_id", stageSelect->GetMapNodeIdAt(routeIndex) },
+					{ "next_node_ids", game.m_RunMap.Node(stageSelect->GetMapNodeIdAt(routeIndex))->next },
 					{ "destination",
 						stageSelect->GetRouteIdAt(routeIndex) },
 					{ "display_name",
@@ -1013,7 +1120,6 @@ nlohmann::json GameMcpBridge::BuildState(
 		{
 			const RelicDefinition* relic = game.GetShopRelicOffer(offerIndex);
 			if (relic != nullptr &&
-				!game.m_ShopRelicPurchased &&
 				!game.HasRelic(relic->type) &&
 				game.m_PlayerRunStatus.money >= relic->price)
 			{
@@ -1042,6 +1148,11 @@ nlohmann::json GameMcpBridge::BuildState(
 			"select_ball");
 		state["available_actions"].push_back(
 			"fire_shot");
+        if (!state["boss_state"].is_null())
+        {
+            state["available_actions"].push_back("evaluate_boss_shots");
+            state["available_actions"].push_back("fire_boss_shot");
+        }
 	}
 
 	if (game.m_GameState == GameState::ClearReward)
@@ -1070,6 +1181,24 @@ nlohmann::json GameMcpBridge::BuildState(
 		}
 	}
 
+	state["debug_mode"] = {{"active", game.m_DebugMode}, {"editor_open", game.m_DebugEditorOpen},
+		{"finished", game.m_DebugBattleFinished}};
+	if (!game.m_StageEditor.draft.is_null())
+	{
+		state["stage_editor"] = game.m_StageEditor.Snapshot(game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
+		state["stage_editor"]["open"] = game.m_DebugEditorOpen;
+	}
+	if (game.m_DebugEditorOpen) state["available_actions"] = {"validate_stage_layout", "propose_stage_layout"};
+	else if (game.m_DebugMode)
+	{
+		auto allowed = nlohmann::json::array();
+		for (const auto& action : state["available_actions"])
+			if (action == "select_ball" || action == "fire_shot" || action == "evaluate_boss_shots" || action == "fire_boss_shot")
+				allowed.push_back(action);
+		state["available_actions"] = std::move(allowed);
+	}
+	if (dynamic_cast<TitleScene*>(game.m_Scene) != nullptr && !game.m_DebugEditorOpen)
+		state["available_actions"].push_back("open_stage_editor");
 	return state;
 }
 
@@ -1101,6 +1230,38 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 
 	const std::string action =
 		command.value("action", std::string());
+	if (action == "open_stage_editor")
+	{
+		if (dynamic_cast<TitleScene*>(game.m_Scene) == nullptr) return CommandResult(false, "Open the stage editor from the title screen.");
+		game.OpenDebugMode();
+		return CommandResult(true, "Stage editor opened in debug setup.");
+	}
+	if (action == "validate_stage_layout" || action == "propose_stage_layout")
+	{
+		if (!game.m_DebugEditorOpen) return CommandResult(false, "Open the stage editor first.");
+		const auto args = command.value("arguments", nlohmann::json::object());
+		const auto layout = args.value("layout", nlohmann::json());
+		const auto report = StageLayoutEditor::Inspect(layout, game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
+		auto result = CommandResult(report["valid"].get<bool>(), "Layout validation complete.");
+		result["report"] = report;
+		if (action == "propose_stage_layout" && report["valid"].get<bool>())
+		{
+			try
+			{
+				const auto& expected = args.at("expected_revision");
+				if (!expected.is_number_integer() || expected.get<double>() < 0) throw std::runtime_error("expected_revision must be a nonnegative integer.");
+				game.m_StageEditor.Propose(layout, expected.get<std::uint64_t>(), game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
+				result["message"] = "Proposal ready for visual review. Draft and files are unchanged until accepted in the editor.";
+			}
+			catch (const std::exception& e) { result = CommandResult(false, e.what()); result["report"] = report; }
+		}
+		return result;
+	}
+	if (game.m_DebugEditorOpen)
+		return CommandResult(false, "Debug setup is open. Resume or start the battle from its window.");
+	if (game.m_DebugMode && action != "select_ball" && action != "fire_shot" &&
+		action != "evaluate_boss_shots" && action != "fire_boss_shot")
+		return CommandResult(false, "This action is unavailable in debug battle mode.");
 	const nlohmann::json arguments =
 		command.value(
 			"arguments",
@@ -1117,6 +1278,22 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		}
 	};
 
+    if (action == "evaluate_boss_shots" || action == "fire_boss_shot")
+    {
+        if (scene != "battle" || game.GetGameState() != GameState::AimingDirection || !game.AreAllBallsStopped())
+            return CommandResult(false, "Boss planning requires a stopped battle in aiming state.");
+        const auto choices = game.EvaluateBossShots();
+        if (choices.empty()) return CommandResult(false, "No live Armor boss or playable ball.");
+        if (action == "evaluate_boss_shots")
+        {
+            auto result = CommandResult(true, "Evaluated with shared CCD/TOI prediction; gameplay unchanged.");
+            result["evaluation"] = choices;
+            return result;
+        }
+        const bool fired = game.FireBossPlannedShot(arguments.value("candidate_id", std::string()),
+            arguments.value("state_key", std::string()));
+        return CommandResult(fired, fired ? "Fired the selected boss plan." : "Stale or invalid plan. Evaluate again.");
+    }
 	if (action == "set_dynamic_balance")
 	{
 		const bool enabled = arguments.value(
@@ -1678,7 +1855,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		{
 			return CommandResult(
 				false,
-				"The requested relic could not be purchased. Check money and the one-purchase limit.");
+				"The requested relic could not be purchased. Check money, ownership and the current offers.");
 		}
 		recordBuildDecision();
 

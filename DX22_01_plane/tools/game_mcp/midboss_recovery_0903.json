@@ -1,0 +1,4092 @@
+{
+  "server_tools": [
+    "get_game_state",
+    "evaluate_build_risk",
+    "set_player_level",
+    "set_build_profile",
+    "set_dynamic_balance",
+    "set_next_stage_layout",
+    "clear_next_stage_layout",
+    "start_new_run",
+    "choose_destination",
+    "select_ball",
+    "fire_shot",
+    "heal",
+    "upgrade_ball",
+    "remove_ball",
+    "buy_relic",
+    "choose_relic",
+    "continue_to_battle",
+    "choose_reward",
+    "continue_after_reward"
+  ],
+  "before": {
+    "autoplay_enabled": false,
+    "available_actions": [
+      "set_dynamic_balance",
+      "set_next_stage_layout",
+      "choose_relic"
+    ],
+    "balance_validation": {
+      "cleared_stage_count": 5,
+      "dynamic_balance_forced_off": true,
+      "enabled": true,
+      "endurance_mode": false,
+      "experiment_id": "paired_dda_5x2",
+      "maximum_cleared_stages": 30,
+      "route_selection_seed": 2229202348,
+      "run_seed": 20260807,
+      "seed_suite_index": 0,
+      "seed_suite_size": 5,
+      "stage_selection_seed": 2667732606,
+      "variant_count": 2,
+      "variant_id": "dda_off",
+      "variant_index": 0
+    },
+    "ball_adjustment_candidates": [
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 2,
+        "instance_id": 2,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_pierce",
+        "index": 1,
+        "instance_id": 6,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 1,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_heavy",
+        "index": 3,
+        "instance_id": 4,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "ball_adjustment_rule": {
+      "consumed_after_adjustment": true,
+      "purpose": "automatic-play suggestion only",
+      "required_for_removal": false,
+      "required_for_reward_upgrade": false,
+      "required_for_upgrade": false,
+      "trigger": "the selected player ball hit a full-HP enemy and the enemy survived"
+    },
+    "baseline_difficulty": {
+      "enemy_attack_delta": 0,
+      "enemy_hp_multiplier": 1.0,
+      "profile": "normal"
+    },
+    "bridge": {
+      "single_pending_command": true,
+      "write_actions_enabled": true
+    },
+    "catalog_balls": [
+      {
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_heavy",
+        "index": 1,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_pierce",
+        "index": 2,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_bounce",
+        "index": 3,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.00800000037997961,
+          "knockbackTransfer": 1.0,
+          "mass": 1.5,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.200000047683716,
+          "restitution": 0.949999988079071
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.009999999776482582,
+          "knockbackTransfer": 1.0,
+          "mass": 1.5,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.200000047683716,
+          "restitution": 0.8999999761581421,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_anchor",
+        "index": 4,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": true,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.399999976158142,
+          "anchorKnockbackImmune": true,
+          "anchorStopSpeedSquared": 0.05999999865889549,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355
+        },
+        "status": {
+          "anchor": true,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "clear_reward_rule": {
+      "rest_site_upgrade_requires_money": false,
+      "upgrade_cost_by_current_level": {
+        "0": 15,
+        "1": 30
+      },
+      "upgrade_requires_money": true
+    },
+    "deck_balls": [
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 30,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 1,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_pierce",
+        "index": 1,
+        "instance_id": 6,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_standard",
+        "index": 2,
+        "instance_id": 2,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_heavy",
+        "index": 3,
+        "instance_id": 4,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_pierce",
+        "index": 4,
+        "instance_id": 5,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_anchor",
+        "index": 5,
+        "instance_id": 8,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": true,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.399999976158142,
+          "anchorKnockbackImmune": true,
+          "anchorStopSpeedSquared": 0.05999999865889549,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355
+        },
+        "status": {
+          "anchor": true,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 30,
+        "definition_id": "player_standard",
+        "index": 6,
+        "instance_id": 7,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_heavy",
+        "index": 7,
+        "instance_id": 3,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "deck_rule": {
+      "can_remove": true,
+      "current_size": 8,
+      "minimum_size": 5,
+      "shop_removal_cost": 15
+    },
+    "dynamic_balance": {
+      "application_timing": "next_battle_spawn",
+      "current_battle_enabled": false,
+      "current_battle_level": 0,
+      "current_stage_metrics": {
+        "active": false,
+        "enemy_count": 3,
+        "no_hit_shots": 0,
+        "shots": 7
+      },
+      "enabled": false,
+      "last_evaluation": {
+        "level_change": 0,
+        "no_hit_rate": 0.0,
+        "reason": "Automatic adjustment is disabled.",
+        "remaining_hp_ratio": 0.25999999046325684,
+        "result": "clear",
+        "shots_per_enemy": 2.3333332538604736
+      },
+      "level": 0,
+      "maximum_level": 0,
+      "minimum_level": -3,
+      "next_enemy_modifier": {
+        "attack_delta": 0,
+        "max_hp_delta": 0
+      },
+      "role": "assist_mode"
+    },
+    "enemies": [],
+    "game_state": "clear_reward",
+    "offered_balls": [],
+    "player": {
+      "attack": 2,
+      "current_hp": 13,
+      "defense": 0,
+      "idle": false,
+      "max_hp": 50,
+      "money": 30,
+      "pocketed": false,
+      "position": {
+        "x": 65.4503402709961,
+        "y": 1.0,
+        "z": -24.33601188659668
+      },
+      "progress": 6,
+      "radius": 2.4000000953674316
+    },
+    "pocket_rules": {
+      "enemy": {
+        "current_finisher_hp_ratio": 0.20000000298023224,
+        "current_stage_type": "midboss",
+        "finisher_hp_ratios": {
+          "boss": 0.10000000149011612,
+          "midboss": 0.20000000298023224,
+          "normal": 0.30000001192092896
+        },
+        "high_hp_result": "skip_attack_then_queue_return",
+        "return_position": {
+          "x": 0.0,
+          "y": 1.0,
+          "z": 26.0
+        },
+        "return_queue_size": 0,
+        "returns_per_turn": 1
+      },
+      "player": {
+        "damage_amount": 2,
+        "damage_ignores_defense": true,
+        "max_hp_damage_ratio": 0.03999999910593033,
+        "return_region": {
+          "center": {
+            "x": 0.0,
+            "y": 1.0,
+            "z": 0.0
+          },
+          "half_depth": 8.0,
+          "half_width": 12.0
+        }
+      }
+    },
+    "progression_scaling": {
+      "attack_interval": 5,
+      "attack_start_progress": 20,
+      "attack_step": 1,
+      "current_progress": 6,
+      "enabled": true,
+      "hp_interval": 5,
+      "hp_start_progress": 10,
+      "hp_step": 1,
+      "maximum_attack_delta": 8,
+      "maximum_hp_delta": 4,
+      "next_enemy_attack_delta": 0,
+      "next_enemy_hp_delta": 0
+    },
+    "published_at_unix_ms": 1788416212621,
+    "relic_effects": {
+      "all_ball_attack_bonus": 0,
+      "all_ball_defense_bonus": 0,
+      "applies_to_collision_pairs": [
+        "player_enemy",
+        "enemy_enemy"
+      ],
+      "bank_shot_damage_multiplier": 1,
+      "bank_shot_ready": false,
+      "current_shot_ball_collisions": 1,
+      "current_shot_collision_attack_bonus": 0,
+      "current_shot_enemy_damage_bonus": 0,
+      "current_shot_enemy_enemy_collisions": 0,
+      "current_shot_player_enemy_collisions": 1,
+      "emergency_repair_contact_threshold": 0,
+      "emergency_repair_heal_amount": 0
+    },
+    "relic_selection": {
+      "midboss_active": true,
+      "midboss_offer_count": 3,
+      "shop_offer_count": 0,
+      "shop_purchase_limited": false,
+      "shop_purchase_used": false
+    },
+    "relics": [
+      {
+        "description": "所持しているすべてのボールの攻撃力が1上がる。",
+        "index": 0,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "攻撃コア",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "所持しているすべてのボールの防御力が1上がる。",
+        "index": 1,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "防御コア",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ボール同士の衝突後、敵に与えるダメージが1増える。効果はショットごとにリセットされる。",
+        "index": 2,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "衝撃加速装置",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "壁に当たった後、最初に敵へ直接当てた攻撃のダメージが2倍になる。",
+        "index": 3,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "バンクショット",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "1回のショットでボール同士が3回以上接触すると、ショット終了後にHPを1回復する。",
+        "index": 4,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "緊急修理キット",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "スタンダードボールが威力4以下で壁に当たらず敵に命中すると、ダメージ+1。",
+        "index": 5,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "精密照準器",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ヘビーボールが敵に与える衝突ダメージ+1。",
+        "index": 6,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "ヘビーインパクター",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "貫通ボールの貫通回数が1回から2回になり、貫通時に減速しなくなる。",
+        "index": 7,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "貫通過給機",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "バウンドボールは壁に当たるたびに次の命中ダメージ+1。最大+3。",
+        "index": 8,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "高張力スプリング",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "停止したアンカーボールに敵が衝突したとき、与えるダメージ+1。",
+        "index": 9,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "アンカーチェーン",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "各バトルで最初に倒した敵1体からMoneyを5追加で得る。",
+        "index": 10,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "賞金首リスト",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ショット前に提示されるボールの選択肢が3つから4つに増える。",
+        "index": 11,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "拡張ボールラック",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      }
+    ],
+    "rest_heal": {
+      "available": true,
+      "capped_at_max_hp": true,
+      "configured_heal_amount": 13,
+      "heal_percent": 25,
+      "heal_ratio": 0.25
+    },
+    "route_options": [],
+    "run_progress": {
+      "area_goal": 15,
+      "area_progress": 5,
+      "final_boss_defeated": false,
+      "final_boss_id": "",
+      "final_boss_reached": false,
+      "midboss_challenges": 1,
+      "midboss_defeats": 1,
+      "phase": "normal_route",
+      "total_battles": 5
+    },
+    "running": true,
+    "scene": "battle",
+    "schema_version": 1,
+    "selected_stage_id": "midboss_001",
+    "sequence": 1747,
+    "stage_layout_control": {
+      "allowed_enemy_ids": [
+        "enemy_boss_core",
+        "enemy_midboss_guard",
+        "enemy_midboss_pocket",
+        "enemy_normal",
+        "enemy_striker",
+        "enemy_strong",
+        "enemy_tank"
+      ],
+      "application_timing": "next_battle_spawn",
+      "current_override": null,
+      "maximum_enemy_count": 12,
+      "queued_override": null
+    },
+    "table": {
+      "field_depth": 72.0,
+      "field_width": 137.0,
+      "pockets": [
+        {
+          "index": 0,
+          "position": {
+            "x": -68.5,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 1,
+          "position": {
+            "x": 0.0,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 2,
+          "position": {
+            "x": 68.5,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 3,
+          "position": {
+            "x": -68.5,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 4,
+          "position": {
+            "x": 0.0,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 5,
+          "position": {
+            "x": 68.5,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        }
+      ],
+      "walls": [
+        {
+          "end": {
+            "x": -4.5,
+            "y": 1.0,
+            "z": 36.0
+          },
+          "start": {
+            "x": -64.0,
+            "y": 1.0,
+            "z": 36.0
+          }
+        },
+        {
+          "end": {
+            "x": 64.0,
+            "y": 1.0,
+            "z": 36.0
+          },
+          "start": {
+            "x": 4.5,
+            "y": 1.0,
+            "z": 36.0
+          }
+        },
+        {
+          "end": {
+            "x": -4.5,
+            "y": 1.0,
+            "z": -36.0
+          },
+          "start": {
+            "x": -64.0,
+            "y": 1.0,
+            "z": -36.0
+          }
+        },
+        {
+          "end": {
+            "x": 64.0,
+            "y": 1.0,
+            "z": -36.0
+          },
+          "start": {
+            "x": 4.5,
+            "y": 1.0,
+            "z": -36.0
+          }
+        },
+        {
+          "end": {
+            "x": -68.5,
+            "y": 1.0,
+            "z": 31.5
+          },
+          "start": {
+            "x": -68.5,
+            "y": 1.0,
+            "z": -31.5
+          }
+        },
+        {
+          "end": {
+            "x": 68.5,
+            "y": 1.0,
+            "z": 31.5
+          },
+          "start": {
+            "x": 68.5,
+            "y": 1.0,
+            "z": -31.5
+          }
+        }
+      ]
+    },
+    "mcp_control": {
+      "player_level": "intermediate",
+      "label": "中級者",
+      "allow_bank_shots": true,
+      "recommended_power": {
+        "min": 3.0,
+        "max": 7.0
+      },
+      "human_error": {
+        "aim_radius_ratio": 0.02,
+        "power_ratio": 0.05
+      },
+      "pocket_tactics": {
+        "minimum_alignment": 0.55,
+        "minimum_score_advantage": 0.5,
+        "self_pocket_risk_weight": 3.0,
+        "control_attack_weight": 4.0,
+        "finisher_bonus": 7.0
+      },
+      "route_policy": {
+        "low_hp_rest_threshold": 25,
+        "force_low_hp_rest": true,
+        "avoid_unactionable_shop": true
+      },
+      "stage_choice_policy": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0,
+        "need_priority": [
+          "hp_recovery",
+          "relic",
+          "ball_upgrade",
+          "new_ball",
+          "money"
+        ]
+      },
+      "relic_policy": {
+        "low_hp_ratio": 0.5,
+        "minimum_average_attack": 2.0,
+        "low_hp_priority": [
+          "Emergency Repair Kit",
+          "Guard Core"
+        ],
+        "attack_priority": [
+          "Power Core",
+          "Impact Accelerator",
+          "Bank Shot"
+        ]
+      },
+      "instructions": [
+        "生存中の敵から、低HPまたは高攻撃力の敵を優先して狙う。",
+        "通常はdirectを使い、直射が不利な配置や反射後の当たりが明確な場合はbankを使う。",
+        "複数の敵が一直線に並ぶ場合は、後続への連鎖衝突も考慮する。",
+        "ボールのattack、mass、pierceと敵配置を比較して使用ボールを選ぶ。",
+        "HPが40%未満なら休憩所で回復し、それ以外は有効な強化を優先する。",
+        "通常ダメージとポケット到達経路を比較し、フィニッシュ可能か、次の総被ダメージを大きく減らせる場合にポケットを選ぶ。",
+        "標準ボールを優先して取得・強化し、安定した直接ダメージを基準にする。"
+      ],
+      "build_profile": {
+        "id": "standard",
+        "label": "標準型",
+        "settings_hash": "5b1723e22f2bb431868cb1d7545b837ec9d26fff94476ce150ae45ea9f9f1a57"
+      },
+      "build_policy": {
+        "id": "standard",
+        "settings_hash": "5b1723e22f2bb431868cb1d7545b837ec9d26fff94476ce150ae45ea9f9f1a57",
+        "label": "標準型",
+        "new_ball_priority": [
+          "player_standard",
+          "player_heavy",
+          "player_pierce",
+          "player_bounce",
+          "player_anchor"
+        ],
+        "upgrade_priority": [
+          "player_standard",
+          "player_heavy",
+          "player_pierce",
+          "player_bounce",
+          "player_anchor"
+        ],
+        "reward_priority": [
+          "ball_upgrade",
+          "new_ball",
+          "relic",
+          "hp_recovery",
+          "money"
+        ],
+        "ball_score_weights": {
+          "attack": 100.0,
+          "defense": 3.0,
+          "mass": 1.0,
+          "restitution": 2.0,
+          "pierce_bonus": 5.0,
+          "anchor_bonus": 0.0,
+          "definition_bonus": {
+            "player_standard": 250.0
+          }
+        },
+        "stage_choice_policy": {
+          "target_deck_size": 8,
+          "need_priority": [
+            "hp_recovery",
+            "relic",
+            "ball_upgrade",
+            "new_ball",
+            "money"
+          ]
+        },
+        "relic_policy": {
+          "attack_priority": [
+            "Power Core",
+            "Impact Accelerator",
+            "Bank Shot"
+          ],
+          "low_hp_priority": [
+            "Emergency Repair Kit",
+            "Guard Core"
+          ]
+        },
+        "shot_policy": {
+          "bank_mode": "with_relic",
+          "bank_every_n_shots": 3
+        },
+        "instructions": [
+          "標準ボールを優先して取得・強化し、安定した直接ダメージを基準にする。"
+        ]
+      }
+    },
+    "build_decision": {
+      "preferred_build_id": "standard",
+      "active_build_id": "standard",
+      "hypotheses": [
+        {
+          "id": "standard",
+          "label": "標準型",
+          "preferred": true,
+          "core_ball": "player_standard",
+          "core_ball_count": 3,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Power Core"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6875,
+          "commitment": 0.7863,
+          "fit_score": 69.875
+        },
+        {
+          "id": "heavy",
+          "label": "重量衝突型",
+          "preferred": false,
+          "core_ball": "player_heavy",
+          "core_ball_count": 2,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Impact Accelerator"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6562,
+          "commitment": 0.7019,
+          "fit_score": 60.938
+        },
+        {
+          "id": "pierce",
+          "label": "貫通整列型",
+          "preferred": false,
+          "core_ball": "player_pierce",
+          "core_ball_count": 2,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Power Core"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6562,
+          "commitment": 0.7019,
+          "fit_score": 60.938
+        },
+        {
+          "id": "anchor",
+          "label": "防御制御型",
+          "preferred": false,
+          "core_ball": "player_anchor",
+          "core_ball_count": 1,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Guard Core",
+            "Emergency Repair Kit"
+          ],
+          "completion": 0.375,
+          "affinity": 0.5938,
+          "commitment": 0.4381,
+          "fit_score": 38.438
+        },
+        {
+          "id": "bounce",
+          "label": "反射型",
+          "preferred": false,
+          "core_ball": "player_bounce",
+          "core_ball_count": 0,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "player_bounce",
+            "Bank Shot"
+          ],
+          "completion": 0.0,
+          "affinity": 0.4688,
+          "commitment": 0.1656,
+          "fit_score": 14.062
+        }
+      ],
+      "offered_ball_choices": {
+        "source": "offered_balls",
+        "recommended": null,
+        "choices": []
+      },
+      "catalog_ball_choices": {
+        "source": "catalog_balls",
+        "recommended": {
+          "index": 4,
+          "instance_id": 0,
+          "definition_id": "player_anchor",
+          "score": 108.201,
+          "chosen_build_id": "anchor",
+          "breakdown": {
+            "immediate_power": 56.75,
+            "survival": 17.28,
+            "generic_early_value": 4.445,
+            "flexibility": 2.5,
+            "synergy": 22.953,
+            "key_part": 4.274,
+            "preferred_build": 0.0,
+            "redundancy": -0.0
+          }
+        },
+        "choices": [
+          {
+            "index": 4,
+            "instance_id": 0,
+            "definition_id": "player_anchor",
+            "score": 108.201,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "immediate_power": 56.75,
+              "survival": 17.28,
+              "generic_early_value": 4.445,
+              "flexibility": 2.5,
+              "synergy": 22.953,
+              "key_part": 4.274,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 0,
+            "instance_id": 0,
+            "definition_id": "player_standard",
+            "score": 82.312,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 30.0,
+              "survival": 0.0,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0
+            }
+          },
+          {
+            "index": 1,
+            "instance_id": 0,
+            "definition_id": "player_heavy",
+            "score": 74.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 2,
+            "instance_id": 0,
+            "definition_id": "player_pierce",
+            "score": 55.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 3,
+            "instance_id": 0,
+            "definition_id": "player_bounce",
+            "score": 45.714,
+            "chosen_build_id": "bounce",
+            "breakdown": {
+              "immediate_power": 17.5,
+              "survival": 0.0,
+              "generic_early_value": 2.735,
+              "flexibility": 2.5,
+              "synergy": 16.14,
+              "key_part": 6.838,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          }
+        ]
+      },
+      "upgrade_choices": {
+        "source": "upgrade_candidates",
+        "recommended": {
+          "index": 5,
+          "instance_id": 8,
+          "definition_id": "player_anchor",
+          "score": 132.201,
+          "chosen_build_id": "anchor",
+          "breakdown": {
+            "immediate_power": 56.75,
+            "survival": 17.28,
+            "generic_early_value": 4.445,
+            "flexibility": 2.5,
+            "synergy": 22.953,
+            "key_part": 4.274,
+            "preferred_build": 0.0,
+            "redundancy": -0.0,
+            "upgrade_gain": 24.0
+          }
+        },
+        "choices": [
+          {
+            "index": 5,
+            "instance_id": 8,
+            "definition_id": "player_anchor",
+            "score": 132.201,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "immediate_power": 56.75,
+              "survival": 17.28,
+              "generic_early_value": 4.445,
+              "flexibility": 2.5,
+              "synergy": 22.953,
+              "key_part": 4.274,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 0,
+            "instance_id": 1,
+            "definition_id": "player_standard",
+            "score": 127.072,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 49.0,
+              "survival": 5.76,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 20.0
+            }
+          },
+          {
+            "index": 6,
+            "instance_id": 7,
+            "definition_id": "player_standard",
+            "score": 127.072,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 49.0,
+              "survival": 5.76,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 20.0
+            }
+          },
+          {
+            "index": 2,
+            "instance_id": 2,
+            "definition_id": "player_standard",
+            "score": 106.312,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 30.0,
+              "survival": 0.0,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 3,
+            "instance_id": 4,
+            "definition_id": "player_heavy",
+            "score": 98.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 7,
+            "instance_id": 3,
+            "definition_id": "player_heavy",
+            "score": 98.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 1,
+            "instance_id": 6,
+            "definition_id": "player_pierce",
+            "score": 79.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 4,
+            "instance_id": 5,
+            "definition_id": "player_pierce",
+            "score": 79.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          }
+        ]
+      },
+      "relic_choices": {
+        "recommended": {
+          "index": 0,
+          "name": "攻撃コア",
+          "canonical_name": "Power Core",
+          "score": 58.299,
+          "chosen_build_id": "standard",
+          "breakdown": {
+            "standalone_value": 22.0,
+            "survival": 0.0,
+            "synergy_and_key_part": 37.799,
+            "price_pressure": -1.5
+          }
+        },
+        "choices": [
+          {
+            "index": 0,
+            "name": "攻撃コア",
+            "canonical_name": "Power Core",
+            "score": 58.299,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 22.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 37.799,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 1,
+            "name": "防御コア",
+            "canonical_name": "Guard Core",
+            "score": 56.119,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "standalone_value": 20.0,
+              "survival": 13.44,
+              "synergy_and_key_part": 24.179,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 2,
+            "name": "衝撃加速装置",
+            "canonical_name": "Impact Accelerator",
+            "score": 46.758,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "standalone_value": 21.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 27.258,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 4,
+            "name": "緊急修理キット",
+            "canonical_name": "Emergency Repair Kit",
+            "score": 44.3,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "standalone_value": 18.0,
+              "survival": 13.44,
+              "synergy_and_key_part": 14.36,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 3,
+            "name": "バンクショット",
+            "canonical_name": "Bank Shot",
+            "score": 33.409,
+            "chosen_build_id": "bounce",
+            "breakdown": {
+              "standalone_value": 14.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 20.909,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 5,
+            "name": "精密照準器",
+            "canonical_name": "精密照準器",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 6,
+            "name": "ヘビーインパクター",
+            "canonical_name": "ヘビーインパクター",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 7,
+            "name": "貫通過給機",
+            "canonical_name": "貫通過給機",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 8,
+            "name": "高張力スプリング",
+            "canonical_name": "高張力スプリング",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 9,
+            "name": "アンカーチェーン",
+            "canonical_name": "アンカーチェーン",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 10,
+            "name": "賞金首リスト",
+            "canonical_name": "賞金首リスト",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 11,
+            "name": "拡張ボールラック",
+            "canonical_name": "拡張ボールラック",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          }
+        ]
+      },
+      "clear_reward": {
+        "recommended": {
+          "reward": "upgrade_ball",
+          "score": 131.201,
+          "catalog_index": -1,
+          "instance_id": 8,
+          "upgrade_cost": 15,
+          "chosen_build_id": "anchor",
+          "reason": "paid_upgrade_without_deck_growth"
+        },
+        "options": [
+          {
+            "reward": "upgrade_ball",
+            "score": 131.201,
+            "catalog_index": -1,
+            "instance_id": 8,
+            "upgrade_cost": 15,
+            "chosen_build_id": "anchor",
+            "reason": "paid_upgrade_without_deck_growth"
+          },
+          {
+            "reward": "new_ball",
+            "score": 83.201,
+            "catalog_index": 4,
+            "instance_id": 0,
+            "chosen_build_id": "anchor",
+            "reason": "build_fit_with_deck_pressure"
+          },
+          {
+            "reward": "extra_money",
+            "score": 38.0,
+            "catalog_index": -1,
+            "instance_id": 0,
+            "chosen_build_id": "standard",
+            "reason": "flexible_future_value"
+          }
+        ],
+        "target_deck_size": 8,
+        "current_deck_size": 8
+      },
+      "risk_context": {
+        "accept": false,
+        "benefit_score": 0.0,
+        "risk_penalty": 13.3,
+        "net_value": -13.3,
+        "current_hp_ratio": 0.26,
+        "projected_hp_ratio": 0.26,
+        "minimum_survival_ratio": 0.24,
+        "survival_floor_met": true,
+        "breakdown": {
+          "hp_cost": -0.0,
+          "enemy_strength": -0.0,
+          "low_hp_exposure": -13.3
+        }
+      }
+    },
+    "shot_tactics": {
+      "evaluation_power": 5.0,
+      "recommended_target_id": null,
+      "recommended_goal": null,
+      "recommendations": [],
+      "usage": "fire_shotでshot_goal=autoを使うと、実行時のパワーと最新状態でdamage/pocketを再評価します。"
+    },
+    "stage_choice": {
+      "wanted_reward_values": [
+        "money",
+        "new_ball",
+        "ball_upgrade",
+        "hp_recovery",
+        "relic"
+      ],
+      "recommended_wanted_rewards": [
+        "hp_recovery",
+        "relic",
+        "money",
+        "new_ball",
+        "ball_upgrade"
+      ],
+      "reward_route_matches": {
+        "money": [],
+        "new_ball": [],
+        "ball_upgrade": [],
+        "hp_recovery": [],
+        "relic": []
+      },
+      "need_signals": {
+        "money": false,
+        "new_ball": false,
+        "ball_upgrade": false,
+        "hp_recovery": true,
+        "relic": true
+      },
+      "status": {
+        "current_hp": 13,
+        "maximum_hp": 50,
+        "hp_ratio": 0.26,
+        "money": 30,
+        "deck_size": 8,
+        "average_deck_attack": 2.0,
+        "has_upgradeable_ball": true,
+        "has_affordable_relic": true,
+        "rest_heal_available": true
+      },
+      "thresholds": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0
+      }
+    }
+  },
+  "choose_relic": {
+    "action": "choose_relic",
+    "command_id": "5fb91fb037b84a58ab46abee95e3c85e",
+    "completed_at_unix_ms": 1788416212877,
+    "message": "Acquired midboss relic: 緊急修理キット.",
+    "ok": true,
+    "schema_version": 1,
+    "state_sequence": 1748
+  },
+  "after": {
+    "autoplay_enabled": false,
+    "available_actions": [
+      "set_dynamic_balance",
+      "set_next_stage_layout",
+      "choose_reward"
+    ],
+    "balance_validation": {
+      "cleared_stage_count": 5,
+      "dynamic_balance_forced_off": true,
+      "enabled": true,
+      "endurance_mode": false,
+      "experiment_id": "paired_dda_5x2",
+      "maximum_cleared_stages": 30,
+      "route_selection_seed": 2229202348,
+      "run_seed": 20260807,
+      "seed_suite_index": 0,
+      "seed_suite_size": 5,
+      "stage_selection_seed": 2667732606,
+      "variant_count": 2,
+      "variant_id": "dda_off",
+      "variant_index": 0
+    },
+    "ball_adjustment_candidates": [
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 2,
+        "instance_id": 2,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_pierce",
+        "index": 1,
+        "instance_id": 6,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 1,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "allowed_adjustments": [
+          "upgrade",
+          "remove"
+        ],
+        "can_upgrade": true,
+        "definition_id": "player_heavy",
+        "index": 3,
+        "instance_id": 4,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "ball_adjustment_rule": {
+      "consumed_after_adjustment": true,
+      "purpose": "automatic-play suggestion only",
+      "required_for_removal": false,
+      "required_for_reward_upgrade": false,
+      "required_for_upgrade": false,
+      "trigger": "the selected player ball hit a full-HP enemy and the enemy survived"
+    },
+    "baseline_difficulty": {
+      "enemy_attack_delta": 0,
+      "enemy_hp_multiplier": 1.0,
+      "profile": "normal"
+    },
+    "bridge": {
+      "single_pending_command": true,
+      "write_actions_enabled": true
+    },
+    "catalog_balls": [
+      {
+        "can_upgrade": true,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_heavy",
+        "index": 1,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_pierce",
+        "index": 2,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_bounce",
+        "index": 3,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.00800000037997961,
+          "knockbackTransfer": 1.0,
+          "mass": 1.5,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.200000047683716,
+          "restitution": 0.949999988079071
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.009999999776482582,
+          "knockbackTransfer": 1.0,
+          "mass": 1.5,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.200000047683716,
+          "restitution": 0.8999999761581421,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "definition_id": "player_anchor",
+        "index": 4,
+        "instance_id": 0,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": true,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.399999976158142,
+          "anchorKnockbackImmune": true,
+          "anchorStopSpeedSquared": 0.05999999865889549,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355
+        },
+        "status": {
+          "anchor": true,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "clear_reward_rule": {
+      "rest_site_upgrade_requires_money": false,
+      "upgrade_cost_by_current_level": {
+        "0": 15,
+        "1": 30
+      },
+      "upgrade_requires_money": true
+    },
+    "deck_balls": [
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 30,
+        "definition_id": "player_standard",
+        "index": 0,
+        "instance_id": 1,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_pierce",
+        "index": 1,
+        "instance_id": 6,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_standard",
+        "index": 2,
+        "instance_id": 2,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_heavy",
+        "index": 3,
+        "instance_id": 4,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_pierce",
+        "index": 4,
+        "instance_id": 5,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": true,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 2,
+          "pierceSpeedRetention": 0.8500000238418579,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 1,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": true,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_anchor",
+        "index": 5,
+        "instance_id": 8,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": true,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.399999976158142,
+          "anchorKnockbackImmune": true,
+          "anchorStopSpeedSquared": 0.05999999865889549,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355
+        },
+        "status": {
+          "anchor": true,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 2,
+          "friction": 0.05999999865889549,
+          "knockbackTransfer": 1.0,
+          "mass": 6.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.5999999046325684,
+          "restitution": 0.3499999940395355,
+          "split": false
+        },
+        "upgrade_level": 0
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 30,
+        "definition_id": "player_standard",
+        "index": 6,
+        "instance_id": 7,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 5,
+          "defense": 2,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 3,
+          "defense": 1,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 2.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 1
+      },
+      {
+        "can_upgrade": true,
+        "clear_reward_upgrade_affordable": true,
+        "clear_reward_upgrade_cost": 15,
+        "definition_id": "player_heavy",
+        "index": 7,
+        "instance_id": 3,
+        "next_upgrade": {
+          "abilities": {
+            "anchor": false,
+            "pierce": false,
+            "split": false
+          },
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.149999976158142,
+          "mass": 5.0,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929
+        },
+        "status": {
+          "anchor": false,
+          "anchorBrakeMultiplier": 1.0,
+          "anchorKnockbackImmune": false,
+          "anchorStopSpeedSquared": 0.029999999329447746,
+          "attack": 2,
+          "defense": 0,
+          "friction": 0.019999999552965164,
+          "knockbackTransfer": 1.0,
+          "mass": 4.0,
+          "pierce": false,
+          "pierceMaxUses": 1,
+          "pierceSpeedRetention": 0.75,
+          "radius": 2.4000000953674316,
+          "restitution": 0.800000011920929,
+          "split": false
+        },
+        "upgrade_level": 0
+      }
+    ],
+    "deck_rule": {
+      "can_remove": true,
+      "current_size": 8,
+      "minimum_size": 5,
+      "shop_removal_cost": 15
+    },
+    "dynamic_balance": {
+      "application_timing": "next_battle_spawn",
+      "current_battle_enabled": false,
+      "current_battle_level": 0,
+      "current_stage_metrics": {
+        "active": false,
+        "enemy_count": 3,
+        "no_hit_shots": 0,
+        "shots": 7
+      },
+      "enabled": false,
+      "last_evaluation": {
+        "level_change": 0,
+        "no_hit_rate": 0.0,
+        "reason": "Automatic adjustment is disabled.",
+        "remaining_hp_ratio": 0.25999999046325684,
+        "result": "clear",
+        "shots_per_enemy": 2.3333332538604736
+      },
+      "level": 0,
+      "maximum_level": 0,
+      "minimum_level": -3,
+      "next_enemy_modifier": {
+        "attack_delta": 0,
+        "max_hp_delta": 0
+      },
+      "role": "assist_mode"
+    },
+    "enemies": [],
+    "game_state": "clear_reward",
+    "offered_balls": [],
+    "player": {
+      "attack": 2,
+      "current_hp": 13,
+      "defense": 0,
+      "idle": false,
+      "max_hp": 50,
+      "money": 30,
+      "pocketed": false,
+      "position": {
+        "x": 65.4503402709961,
+        "y": 1.0,
+        "z": -24.33601188659668
+      },
+      "progress": 6,
+      "radius": 2.4000000953674316
+    },
+    "pocket_rules": {
+      "enemy": {
+        "current_finisher_hp_ratio": 0.20000000298023224,
+        "current_stage_type": "midboss",
+        "finisher_hp_ratios": {
+          "boss": 0.10000000149011612,
+          "midboss": 0.20000000298023224,
+          "normal": 0.30000001192092896
+        },
+        "high_hp_result": "skip_attack_then_queue_return",
+        "return_position": {
+          "x": 0.0,
+          "y": 1.0,
+          "z": 26.0
+        },
+        "return_queue_size": 0,
+        "returns_per_turn": 1
+      },
+      "player": {
+        "damage_amount": 2,
+        "damage_ignores_defense": true,
+        "max_hp_damage_ratio": 0.03999999910593033,
+        "return_region": {
+          "center": {
+            "x": 0.0,
+            "y": 1.0,
+            "z": 0.0
+          },
+          "half_depth": 8.0,
+          "half_width": 12.0
+        }
+      }
+    },
+    "progression_scaling": {
+      "attack_interval": 5,
+      "attack_start_progress": 20,
+      "attack_step": 1,
+      "current_progress": 6,
+      "enabled": true,
+      "hp_interval": 5,
+      "hp_start_progress": 10,
+      "hp_step": 1,
+      "maximum_attack_delta": 8,
+      "maximum_hp_delta": 4,
+      "next_enemy_attack_delta": 0,
+      "next_enemy_hp_delta": 0
+    },
+    "published_at_unix_ms": 1788416212860,
+    "relic_effects": {
+      "all_ball_attack_bonus": 0,
+      "all_ball_defense_bonus": 0,
+      "applies_to_collision_pairs": [
+        "player_enemy",
+        "enemy_enemy"
+      ],
+      "bank_shot_damage_multiplier": 1,
+      "bank_shot_ready": false,
+      "current_shot_ball_collisions": 1,
+      "current_shot_collision_attack_bonus": 0,
+      "current_shot_enemy_damage_bonus": 0,
+      "current_shot_enemy_enemy_collisions": 0,
+      "current_shot_player_enemy_collisions": 1,
+      "emergency_repair_contact_threshold": 3,
+      "emergency_repair_heal_amount": 1
+    },
+    "relic_selection": {
+      "midboss_active": false,
+      "midboss_offer_count": 3,
+      "shop_offer_count": 0,
+      "shop_purchase_limited": false,
+      "shop_purchase_used": false
+    },
+    "relics": [
+      {
+        "description": "所持しているすべてのボールの攻撃力が1上がる。",
+        "index": 0,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "攻撃コア",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "所持しているすべてのボールの防御力が1上がる。",
+        "index": 1,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "防御コア",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ボール同士の衝突後、敵に与えるダメージが1増える。効果はショットごとにリセットされる。",
+        "index": 2,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "衝撃加速装置",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "壁に当たった後、最初に敵へ直接当てた攻撃のダメージが2倍になる。",
+        "index": 3,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "バンクショット",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "1回のショットでボール同士が3回以上接触すると、ショット終了後にHPを1回復する。",
+        "index": 4,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "緊急修理キット",
+        "owned": true,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "スタンダードボールが威力4以下で壁に当たらず敵に命中すると、ダメージ+1。",
+        "index": 5,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "精密照準器",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ヘビーボールが敵に与える衝突ダメージ+1。",
+        "index": 6,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "ヘビーインパクター",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "貫通ボールの貫通回数が1回から2回になり、貫通時に減速しなくなる。",
+        "index": 7,
+        "midboss_offered": true,
+        "midboss_weight": 1,
+        "name": "貫通過給機",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "バウンドボールは壁に当たるたびに次の命中ダメージ+1。最大+3。",
+        "index": 8,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "高張力スプリング",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "停止したアンカーボールに敵が衝突したとき、与えるダメージ+1。",
+        "index": 9,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "アンカーチェーン",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "各バトルで最初に倒した敵1体からMoneyを5追加で得る。",
+        "index": 10,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "賞金首リスト",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      },
+      {
+        "description": "ショット前に提示されるボールの選択肢が3つから4つに増える。",
+        "index": 11,
+        "midboss_offered": false,
+        "midboss_weight": 1,
+        "name": "拡張ボールラック",
+        "owned": false,
+        "price": 20,
+        "rarity": "common",
+        "shop_offered": false,
+        "shop_weight": 1
+      }
+    ],
+    "rest_heal": {
+      "available": true,
+      "capped_at_max_hp": true,
+      "configured_heal_amount": 13,
+      "heal_percent": 25,
+      "heal_ratio": 0.25
+    },
+    "route_options": [],
+    "run_progress": {
+      "area_goal": 15,
+      "area_progress": 5,
+      "final_boss_defeated": false,
+      "final_boss_id": "",
+      "final_boss_reached": false,
+      "midboss_challenges": 1,
+      "midboss_defeats": 1,
+      "phase": "normal_route",
+      "total_battles": 5
+    },
+    "running": true,
+    "scene": "battle",
+    "schema_version": 1,
+    "selected_stage_id": "midboss_001",
+    "sequence": 1748,
+    "stage_layout_control": {
+      "allowed_enemy_ids": [
+        "enemy_boss_core",
+        "enemy_midboss_guard",
+        "enemy_midboss_pocket",
+        "enemy_normal",
+        "enemy_striker",
+        "enemy_strong",
+        "enemy_tank"
+      ],
+      "application_timing": "next_battle_spawn",
+      "current_override": null,
+      "maximum_enemy_count": 12,
+      "queued_override": null
+    },
+    "table": {
+      "field_depth": 72.0,
+      "field_width": 137.0,
+      "pockets": [
+        {
+          "index": 0,
+          "position": {
+            "x": -68.5,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 1,
+          "position": {
+            "x": 0.0,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 2,
+          "position": {
+            "x": 68.5,
+            "y": 1.0499999523162842,
+            "z": 36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 3,
+          "position": {
+            "x": -68.5,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 4,
+          "position": {
+            "x": 0.0,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        },
+        {
+          "index": 5,
+          "position": {
+            "x": 68.5,
+            "y": 1.0499999523162842,
+            "z": -36.0
+          },
+          "radius": 3.0
+        }
+      ],
+      "walls": [
+        {
+          "end": {
+            "x": -4.5,
+            "y": 1.0,
+            "z": 36.0
+          },
+          "start": {
+            "x": -64.0,
+            "y": 1.0,
+            "z": 36.0
+          }
+        },
+        {
+          "end": {
+            "x": 64.0,
+            "y": 1.0,
+            "z": 36.0
+          },
+          "start": {
+            "x": 4.5,
+            "y": 1.0,
+            "z": 36.0
+          }
+        },
+        {
+          "end": {
+            "x": -4.5,
+            "y": 1.0,
+            "z": -36.0
+          },
+          "start": {
+            "x": -64.0,
+            "y": 1.0,
+            "z": -36.0
+          }
+        },
+        {
+          "end": {
+            "x": 64.0,
+            "y": 1.0,
+            "z": -36.0
+          },
+          "start": {
+            "x": 4.5,
+            "y": 1.0,
+            "z": -36.0
+          }
+        },
+        {
+          "end": {
+            "x": -68.5,
+            "y": 1.0,
+            "z": 31.5
+          },
+          "start": {
+            "x": -68.5,
+            "y": 1.0,
+            "z": -31.5
+          }
+        },
+        {
+          "end": {
+            "x": 68.5,
+            "y": 1.0,
+            "z": 31.5
+          },
+          "start": {
+            "x": 68.5,
+            "y": 1.0,
+            "z": -31.5
+          }
+        }
+      ]
+    },
+    "mcp_control": {
+      "player_level": "intermediate",
+      "label": "中級者",
+      "allow_bank_shots": true,
+      "recommended_power": {
+        "min": 3.0,
+        "max": 7.0
+      },
+      "human_error": {
+        "aim_radius_ratio": 0.02,
+        "power_ratio": 0.05
+      },
+      "pocket_tactics": {
+        "minimum_alignment": 0.55,
+        "minimum_score_advantage": 0.5,
+        "self_pocket_risk_weight": 3.0,
+        "control_attack_weight": 4.0,
+        "finisher_bonus": 7.0
+      },
+      "route_policy": {
+        "low_hp_rest_threshold": 25,
+        "force_low_hp_rest": true,
+        "avoid_unactionable_shop": true
+      },
+      "stage_choice_policy": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0,
+        "need_priority": [
+          "hp_recovery",
+          "relic",
+          "ball_upgrade",
+          "new_ball",
+          "money"
+        ]
+      },
+      "relic_policy": {
+        "low_hp_ratio": 0.5,
+        "minimum_average_attack": 2.0,
+        "low_hp_priority": [
+          "Emergency Repair Kit",
+          "Guard Core"
+        ],
+        "attack_priority": [
+          "Power Core",
+          "Impact Accelerator",
+          "Bank Shot"
+        ]
+      },
+      "instructions": [
+        "生存中の敵から、低HPまたは高攻撃力の敵を優先して狙う。",
+        "通常はdirectを使い、直射が不利な配置や反射後の当たりが明確な場合はbankを使う。",
+        "複数の敵が一直線に並ぶ場合は、後続への連鎖衝突も考慮する。",
+        "ボールのattack、mass、pierceと敵配置を比較して使用ボールを選ぶ。",
+        "HPが40%未満なら休憩所で回復し、それ以外は有効な強化を優先する。",
+        "通常ダメージとポケット到達経路を比較し、フィニッシュ可能か、次の総被ダメージを大きく減らせる場合にポケットを選ぶ。",
+        "標準ボールを優先して取得・強化し、安定した直接ダメージを基準にする。"
+      ],
+      "build_profile": {
+        "id": "standard",
+        "label": "標準型",
+        "settings_hash": "5b1723e22f2bb431868cb1d7545b837ec9d26fff94476ce150ae45ea9f9f1a57"
+      },
+      "build_policy": {
+        "id": "standard",
+        "settings_hash": "5b1723e22f2bb431868cb1d7545b837ec9d26fff94476ce150ae45ea9f9f1a57",
+        "label": "標準型",
+        "new_ball_priority": [
+          "player_standard",
+          "player_heavy",
+          "player_pierce",
+          "player_bounce",
+          "player_anchor"
+        ],
+        "upgrade_priority": [
+          "player_standard",
+          "player_heavy",
+          "player_pierce",
+          "player_bounce",
+          "player_anchor"
+        ],
+        "reward_priority": [
+          "ball_upgrade",
+          "new_ball",
+          "relic",
+          "hp_recovery",
+          "money"
+        ],
+        "ball_score_weights": {
+          "attack": 100.0,
+          "defense": 3.0,
+          "mass": 1.0,
+          "restitution": 2.0,
+          "pierce_bonus": 5.0,
+          "anchor_bonus": 0.0,
+          "definition_bonus": {
+            "player_standard": 250.0
+          }
+        },
+        "stage_choice_policy": {
+          "target_deck_size": 8,
+          "need_priority": [
+            "hp_recovery",
+            "relic",
+            "ball_upgrade",
+            "new_ball",
+            "money"
+          ]
+        },
+        "relic_policy": {
+          "attack_priority": [
+            "Power Core",
+            "Impact Accelerator",
+            "Bank Shot"
+          ],
+          "low_hp_priority": [
+            "Emergency Repair Kit",
+            "Guard Core"
+          ]
+        },
+        "shot_policy": {
+          "bank_mode": "with_relic",
+          "bank_every_n_shots": 3
+        },
+        "instructions": [
+          "標準ボールを優先して取得・強化し、安定した直接ダメージを基準にする。"
+        ]
+      }
+    },
+    "build_decision": {
+      "preferred_build_id": "standard",
+      "active_build_id": "standard",
+      "hypotheses": [
+        {
+          "id": "standard",
+          "label": "標準型",
+          "preferred": true,
+          "core_ball": "player_standard",
+          "core_ball_count": 3,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Power Core"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6875,
+          "commitment": 0.7863,
+          "fit_score": 69.875
+        },
+        {
+          "id": "heavy",
+          "label": "重量衝突型",
+          "preferred": false,
+          "core_ball": "player_heavy",
+          "core_ball_count": 2,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Impact Accelerator"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6562,
+          "commitment": 0.7019,
+          "fit_score": 60.938
+        },
+        {
+          "id": "pierce",
+          "label": "貫通整列型",
+          "preferred": false,
+          "core_ball": "player_pierce",
+          "core_ball_count": 2,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "Power Core"
+          ],
+          "completion": 0.75,
+          "affinity": 0.6562,
+          "commitment": 0.7019,
+          "fit_score": 60.938
+        },
+        {
+          "id": "anchor",
+          "label": "防御制御型",
+          "preferred": false,
+          "core_ball": "player_anchor",
+          "core_ball_count": 1,
+          "owned_core_relics": [
+            "Emergency Repair Kit"
+          ],
+          "missing_key_parts": [
+            "Guard Core"
+          ],
+          "completion": 0.5,
+          "affinity": 0.5938,
+          "commitment": 0.5231,
+          "fit_score": 45.312
+        },
+        {
+          "id": "bounce",
+          "label": "反射型",
+          "preferred": false,
+          "core_ball": "player_bounce",
+          "core_ball_count": 0,
+          "owned_core_relics": [],
+          "missing_key_parts": [
+            "player_bounce",
+            "Bank Shot"
+          ],
+          "completion": 0.0,
+          "affinity": 0.4688,
+          "commitment": 0.1656,
+          "fit_score": 14.062
+        }
+      ],
+      "offered_ball_choices": {
+        "source": "offered_balls",
+        "recommended": null,
+        "choices": []
+      },
+      "catalog_ball_choices": {
+        "source": "catalog_balls",
+        "recommended": {
+          "index": 4,
+          "instance_id": 0,
+          "definition_id": "player_anchor",
+          "score": 109.472,
+          "chosen_build_id": "anchor",
+          "breakdown": {
+            "immediate_power": 56.75,
+            "survival": 17.28,
+            "generic_early_value": 4.445,
+            "flexibility": 2.5,
+            "synergy": 25.078,
+            "key_part": 3.419,
+            "preferred_build": 0.0,
+            "redundancy": -0.0
+          }
+        },
+        "choices": [
+          {
+            "index": 4,
+            "instance_id": 0,
+            "definition_id": "player_anchor",
+            "score": 109.472,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "immediate_power": 56.75,
+              "survival": 17.28,
+              "generic_early_value": 4.445,
+              "flexibility": 2.5,
+              "synergy": 25.078,
+              "key_part": 3.419,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 0,
+            "instance_id": 0,
+            "definition_id": "player_standard",
+            "score": 82.312,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 30.0,
+              "survival": 0.0,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0
+            }
+          },
+          {
+            "index": 1,
+            "instance_id": 0,
+            "definition_id": "player_heavy",
+            "score": 74.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 2,
+            "instance_id": 0,
+            "definition_id": "player_pierce",
+            "score": 55.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          },
+          {
+            "index": 3,
+            "instance_id": 0,
+            "definition_id": "player_bounce",
+            "score": 45.714,
+            "chosen_build_id": "bounce",
+            "breakdown": {
+              "immediate_power": 17.5,
+              "survival": 0.0,
+              "generic_early_value": 2.735,
+              "flexibility": 2.5,
+              "synergy": 16.14,
+              "key_part": 6.838,
+              "preferred_build": 0.0,
+              "redundancy": -0.0
+            }
+          }
+        ]
+      },
+      "upgrade_choices": {
+        "source": "upgrade_candidates",
+        "recommended": {
+          "index": 5,
+          "instance_id": 8,
+          "definition_id": "player_anchor",
+          "score": 133.472,
+          "chosen_build_id": "anchor",
+          "breakdown": {
+            "immediate_power": 56.75,
+            "survival": 17.28,
+            "generic_early_value": 4.445,
+            "flexibility": 2.5,
+            "synergy": 25.078,
+            "key_part": 3.419,
+            "preferred_build": 0.0,
+            "redundancy": -0.0,
+            "upgrade_gain": 24.0
+          }
+        },
+        "choices": [
+          {
+            "index": 5,
+            "instance_id": 8,
+            "definition_id": "player_anchor",
+            "score": 133.472,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "immediate_power": 56.75,
+              "survival": 17.28,
+              "generic_early_value": 4.445,
+              "flexibility": 2.5,
+              "synergy": 25.078,
+              "key_part": 3.419,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 0,
+            "instance_id": 1,
+            "definition_id": "player_standard",
+            "score": 127.072,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 49.0,
+              "survival": 5.76,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 20.0
+            }
+          },
+          {
+            "index": 6,
+            "instance_id": 7,
+            "definition_id": "player_standard",
+            "score": 127.072,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 49.0,
+              "survival": 5.76,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 20.0
+            }
+          },
+          {
+            "index": 2,
+            "instance_id": 2,
+            "definition_id": "player_standard",
+            "score": 106.312,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "immediate_power": 30.0,
+              "survival": 0.0,
+              "generic_early_value": 6.155,
+              "flexibility": 12.5,
+              "synergy": 31.657,
+              "key_part": 8.0,
+              "preferred_build": 3.0,
+              "redundancy": -9.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 3,
+            "instance_id": 4,
+            "definition_id": "player_heavy",
+            "score": 98.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 7,
+            "instance_id": 3,
+            "definition_id": "player_heavy",
+            "score": 98.018,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "immediate_power": 34.0,
+              "survival": 0.0,
+              "generic_early_value": 3.761,
+              "flexibility": 5.0,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 1,
+            "instance_id": 6,
+            "definition_id": "player_pierce",
+            "score": 79.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          },
+          {
+            "index": 4,
+            "instance_id": 5,
+            "definition_id": "player_pierce",
+            "score": 79.176,
+            "chosen_build_id": "pierce",
+            "breakdown": {
+              "immediate_power": 18.0,
+              "survival": 0.0,
+              "generic_early_value": 3.419,
+              "flexibility": 2.5,
+              "synergy": 29.547,
+              "key_part": 1.71,
+              "preferred_build": 0.0,
+              "redundancy": -0.0,
+              "upgrade_gain": 24.0
+            }
+          }
+        ]
+      },
+      "relic_choices": {
+        "recommended": {
+          "index": 0,
+          "name": "攻撃コア",
+          "canonical_name": "Power Core",
+          "score": 58.299,
+          "chosen_build_id": "standard",
+          "breakdown": {
+            "standalone_value": 22.0,
+            "survival": 0.0,
+            "synergy_and_key_part": 37.799,
+            "price_pressure": -1.5
+          }
+        },
+        "choices": [
+          {
+            "index": 0,
+            "name": "攻撃コア",
+            "canonical_name": "Power Core",
+            "score": 58.299,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 22.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 37.799,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 1,
+            "name": "防御コア",
+            "canonical_name": "Guard Core",
+            "score": 57.081,
+            "chosen_build_id": "anchor",
+            "breakdown": {
+              "standalone_value": 20.0,
+              "survival": 13.44,
+              "synergy_and_key_part": 25.141,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 2,
+            "name": "衝撃加速装置",
+            "canonical_name": "Impact Accelerator",
+            "score": 46.758,
+            "chosen_build_id": "heavy",
+            "breakdown": {
+              "standalone_value": 21.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 27.258,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 3,
+            "name": "バンクショット",
+            "canonical_name": "Bank Shot",
+            "score": 33.409,
+            "chosen_build_id": "bounce",
+            "breakdown": {
+              "standalone_value": 14.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 20.909,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 5,
+            "name": "精密照準器",
+            "canonical_name": "精密照準器",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 6,
+            "name": "ヘビーインパクター",
+            "canonical_name": "ヘビーインパクター",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 7,
+            "name": "貫通過給機",
+            "canonical_name": "貫通過給機",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 8,
+            "name": "高張力スプリング",
+            "canonical_name": "高張力スプリング",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 9,
+            "name": "アンカーチェーン",
+            "canonical_name": "アンカーチェーン",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 10,
+            "name": "賞金首リスト",
+            "canonical_name": "賞金首リスト",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          },
+          {
+            "index": 11,
+            "name": "拡張ボールラック",
+            "canonical_name": "拡張ボールラック",
+            "score": 10.5,
+            "chosen_build_id": "standard",
+            "breakdown": {
+              "standalone_value": 10.0,
+              "survival": 0.0,
+              "synergy_and_key_part": 2.0,
+              "price_pressure": -1.5
+            }
+          }
+        ]
+      },
+      "clear_reward": {
+        "recommended": {
+          "reward": "upgrade_ball",
+          "score": 132.472,
+          "catalog_index": -1,
+          "instance_id": 8,
+          "upgrade_cost": 15,
+          "chosen_build_id": "anchor",
+          "reason": "paid_upgrade_without_deck_growth"
+        },
+        "options": [
+          {
+            "reward": "upgrade_ball",
+            "score": 132.472,
+            "catalog_index": -1,
+            "instance_id": 8,
+            "upgrade_cost": 15,
+            "chosen_build_id": "anchor",
+            "reason": "paid_upgrade_without_deck_growth"
+          },
+          {
+            "reward": "new_ball",
+            "score": 84.472,
+            "catalog_index": 4,
+            "instance_id": 0,
+            "chosen_build_id": "anchor",
+            "reason": "build_fit_with_deck_pressure"
+          },
+          {
+            "reward": "extra_money",
+            "score": 38.0,
+            "catalog_index": -1,
+            "instance_id": 0,
+            "chosen_build_id": "standard",
+            "reason": "flexible_future_value"
+          }
+        ],
+        "target_deck_size": 8,
+        "current_deck_size": 8
+      },
+      "risk_context": {
+        "accept": false,
+        "benefit_score": 0.0,
+        "risk_penalty": 13.3,
+        "net_value": -13.3,
+        "current_hp_ratio": 0.26,
+        "projected_hp_ratio": 0.26,
+        "minimum_survival_ratio": 0.24,
+        "survival_floor_met": true,
+        "breakdown": {
+          "hp_cost": -0.0,
+          "enemy_strength": -0.0,
+          "low_hp_exposure": -13.3
+        }
+      }
+    },
+    "shot_tactics": {
+      "evaluation_power": 5.0,
+      "recommended_target_id": null,
+      "recommended_goal": null,
+      "recommendations": [],
+      "usage": "fire_shotでshot_goal=autoを使うと、実行時のパワーと最新状態でdamage/pocketを再評価します。"
+    },
+    "stage_choice": {
+      "wanted_reward_values": [
+        "money",
+        "new_ball",
+        "ball_upgrade",
+        "hp_recovery",
+        "relic"
+      ],
+      "recommended_wanted_rewards": [
+        "hp_recovery",
+        "relic",
+        "money",
+        "new_ball",
+        "ball_upgrade"
+      ],
+      "reward_route_matches": {
+        "money": [],
+        "new_ball": [],
+        "ball_upgrade": [],
+        "hp_recovery": [],
+        "relic": []
+      },
+      "need_signals": {
+        "money": false,
+        "new_ball": false,
+        "ball_upgrade": false,
+        "hp_recovery": true,
+        "relic": true
+      },
+      "status": {
+        "current_hp": 13,
+        "maximum_hp": 50,
+        "hp_ratio": 0.26,
+        "money": 30,
+        "deck_size": 8,
+        "average_deck_attack": 2.0,
+        "has_upgradeable_ball": true,
+        "has_affordable_relic": true,
+        "rest_heal_available": true
+      },
+      "thresholds": {
+        "low_hp_ratio": 0.5,
+        "money_reserve": 20,
+        "target_deck_size": 8,
+        "minimum_average_attack": 2.0
+      }
+    }
+  }
+}

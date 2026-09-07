@@ -4,6 +4,7 @@
 #include "PlayerBall.h"
 #include "EnemyBall.h"
 #include "BallFactory.h"
+#include "BreakBall.h"
 #include "EnemyData.h"
 #include "StageDataLoader.h"
 #include "TableConfig.h"
@@ -47,6 +48,7 @@ void BattleScene::Init()
 	// オブジェクトを作成
 	Game* game = Game::GetInstance();
 	PlayerBall* ball = BallFactory::CreatePlayer(*game);
+	game->ApplyDebugBattlePlayer(ball);
 	m_SceneGameObjects.emplace_back(ball->GetGameObject());
 
 	GameObject* groundObject = game->CreateGameObject(typeid(Ground).name());
@@ -134,10 +136,22 @@ void BattleScene::Init()
 
 			EnemyBall* enemy =
 				BallFactory::CreateEnemy(*Game::GetInstance(), enemyData);
+			game->ApplyDebugBattleEnemy(enemy, static_cast<std::size_t>(&spawn - adjustedStage.enemies.data()));
 			m_SceneGameObjects.emplace_back(enemy->GetGameObject());
 		}
 
 		Game::GetInstance()->OnBattleStageStarted(adjustedStage);
+        const bool hasArmorBoss = std::any_of(adjustedStage.enemies.begin(), adjustedStage.enemies.end(),
+            [](const EnemySpawnData& spawn) { return spawn.enemyData.id == "enemy_boss_core"; });
+        if (hasArmorBoss)
+        {
+            for (int index = 0; index < 2; ++index)
+            {
+                auto* neutral = BallFactory::CreateBreakBall(*game, index);
+                m_SceneGameObjects.emplace_back(neutral->GetGameObject());
+                neutral->Reposition();
+            }
+        }
 	}
 
 	std::cout << "\nオブジェクトの生成終了\n" << std::endl;
@@ -203,8 +217,8 @@ void BattleScene::Update()
 {
 	StageBase::Update();
 
-	UpdateJsonHotReload();
-	if (Input::GetKeyTrigger(VK_F5))
+	if (!Game::GetInstance()->IsDebugMode()) UpdateJsonHotReload();
+	if (!Game::GetInstance()->IsDebugMode() && Input::GetKeyTrigger(VK_F5))
 	{
 		ReloadEnemyStatusFromJson();
 	}
@@ -339,7 +353,7 @@ void BattleScene::ArrangeDenseEnemySpawns(StageData& stage) const
 	constexpr float kDenseGap = 2.0f;
 	constexpr float kNearestRowDistance = 14.0f;
 
-	if (stage.enemies.size() <= 3)
+	if (stage.preserveLayout || stage.enemies.size() <= 3)
 	{
 		return;
 	}

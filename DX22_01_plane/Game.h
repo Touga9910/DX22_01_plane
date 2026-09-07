@@ -1,4 +1,8 @@
 ﻿#pragma once
+#include "ShotRelicRules.h"
+#include "DebugBattleSetup.h"
+#include "StageLayoutEditor.h"
+#include "ProgressionProfile.h"
 #include <array>
 #include <cstdint>
 #include <deque>
@@ -37,6 +41,7 @@
 #include "PlayerRunStatus.h"
 #include "StageSelector.h"
 #include "GameObject.h"
+#include "FixedStepClock.h"
 #include "TagComponent.h"
 #include "json/json.hpp"
 
@@ -61,8 +66,15 @@ private:
 	std::vector<std::unique_ptr<GameObject>> m_GameObjects;
 
 	GameState m_GameState = GameState::AimingDirection;
+	FixedStepClock m_PhysicsClock;
+	bool m_ResetPhysicsElapsed = true;
+	std::uint64_t m_PhysicsTickCount = 0;
+	int m_PhysicsStepsLastFrame = 0;
+	int m_PhysicsSubstepsLastTick = 0;
+	std::uint64_t m_PhysicsSubstepLimitCount = 0;
+	void UpdateFixedPhysics(double elapsedSeconds);
 
-	BallStatus m_DefaultPlayerStatus{ 10, 1, 0 };
+	BallStatus m_DefaultPlayerStatus{};
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	PlayerRunStatus m_PlayerRunStatus{};
 	float m_RestHealRatio = 0.25f;
@@ -71,6 +83,8 @@ private:
 	std::optional<StageData> m_McpCurrentStageOverride;
 
 	PlayerDeck m_PlayerDeck;
+    nlohmann::json m_BossShotCache;
+    std::string m_BossShotCacheKey;
 	std::array<bool, static_cast<std::size_t>(RelicType::Count)>
 		m_OwnedRelics{};
 	int m_CurrentShotCollisionAttackBonus = 0;
@@ -96,14 +110,15 @@ private:
 	bool m_IsStageRewardCollected = false; // 二重取得防止
 	std::string m_RewardMessage;           // 購入結果などの表示
 	bool m_IsClearRewardChosen = false;
+	bool m_ClearRewardMouseConfirmed = false;
 	bool m_IsMidBossRelicSelectionActive = false;
 	int m_SelectedRelicOfferIndex = 0;
 	std::vector<int> m_MidBossRelicOffers;
 	std::vector<int> m_ShopRelicOffers;
-	bool m_ShopRelicPurchased = false;
 	int m_ClearedStageCount = 0;
 	static constexpr int kNormalRouteAreaGoal = 15;
 	int m_AreaProgress = 0;
+	RunMap m_RunMap;
 	RunPhase m_RunPhase = RunPhase::NormalRoute;
 
 	// バランスログ収集用の自動プレイ設定
@@ -220,9 +235,41 @@ private:
 	std::string m_SaveLoadMessage;
 	int m_SaveLoadMessageFrames = 0;
 	RunStatisticsTracker m_RunStatistics{};
+	ProgressionProfile m_ProgressionProfile{};
+	int m_ActiveAscension = 0;
+	bool m_PersistentProgressEligible = false;
+	float m_DefaultRestHealRatio = 0.25f;
+	std::vector<std::string> m_LastProgressionUnlocks;
 	SettingsManager m_SettingsManager{};
 	bool m_RunActive = false;
+	bool m_DebugMode = false;
+	bool m_DebugEditorOpen = false;
+	bool m_DebugBattleFinished = false;
+	bool m_DebugPreviousAutoPlay = false;
+	bool m_DebugPreviousValidation = false;
+	int m_DebugRequest = 0; // 1:開始・再戦、2:タイトルへ
+	DebugBattleSetup m_DebugSetup;
+	DebugBattleSetup m_DebugActiveSetup;
+	std::vector<PlayerBallData> m_DebugBallCatalog;
+	std::vector<EnemyData> m_DebugEnemyCatalog;
+	std::vector<StageData> m_DebugStages;
+	std::string m_DebugMessage;
+	void DrawDebugMode();
+	StageLayoutEditor m_StageEditor;
+	void DrawStageEditor();
+	void TestStageEditorLayout();
+	float StageEditorPlayerRadius() const;
+	bool UpdateDebugMode();
+	bool StartDebugBattle();
+	void EndDebugMode();
+	void FinishDebugBattle(bool victory);
+	void ApplyDebugRunSettings();
+	void SaveDebugPreset();
+	bool LoadDebugPreset();
 	bool m_IsPaused = false;
+	bool m_MousePauseToggle = false;
+	bool m_MouseSaveRequested = false;
+	bool m_MouseFullscreenToggle = false;
 	bool m_PauseConfirmTitle = false;
 	bool m_PendingDisplayApply = false;
 	RunResultSnapshot m_LastRunResult{};
@@ -328,6 +375,8 @@ private:
 	void ApplyRelicModifiersTo(PlayerBall* player);
 	std::vector<int> RollRelicOffers(int count, bool midBoss);
 	bool GrantRelic(int relicIndex, const char* source);
+	ShotRelicRules CaptureShotRelicRules() const;
+	void CommitShotRelicRules(const ShotRelicRules& rules);
 	bool IsCurrentBall(const char* definitionId) const;
 	void ResetShotRelicState(PlayerBall* player = nullptr);
 	void ApplyEndOfShotRelicEffects(PlayerBall* player);
@@ -391,6 +440,7 @@ private:
 	bool SaveAndReturnToTitle();
 	void DrawPauseUI();
 	void FinalizeRunResult(bool completed);
+	void RecordPersistentProgress();
 	void CompleteNormalRouteArea(const char* areaType);
 	void EnterNextRouteAfterArea();
 	void CompleteFinalBossRun();
@@ -404,11 +454,16 @@ private:
 		int hpAfter);
 
 public:
+	void OpenDebugMode();
+	bool IsDebugMode() const { return m_DebugMode; }
+	void ApplyDebugBattlePlayer(PlayerBall* player);
+	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
 	Game(); // コンストラクタ
 	~Game(); // デストラクタ
 
 	static void Init(); // 初期化
-	static void Update(); // 更新
+	static void Update(double elapsedSeconds); // 入力・表示フレームの更新
+	static void ResetFrameTiming();
 	static void Draw(); // 描画
 	static void Uninit(); // 終了処理
 
@@ -421,6 +476,11 @@ public:
 
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
 
+	bool CanOpenPauseMenu() const { return CanPause(); }
+	void RequestPauseToggle() { m_MousePauseToggle = true; }
+	void RequestManualSave() { m_MouseSaveRequested = true; }
+	void RequestFullscreenToggle() { m_MouseFullscreenToggle = true; }
+	bool IsPaused() const { return m_IsPaused; }
 	GameState GetGameState() const { return m_GameState; }
 	void SetGameState(GameState state) { m_GameState = state; }
 	bool IsBalanceAutoPlayEnabled() const
@@ -454,6 +514,8 @@ public:
 	{
 		return m_RunStatistics.GetState();
 	}
+    nlohmann::json EvaluateBossShots();
+    bool FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey);
 	bool WasLastRunCompleted() const
 	{
 		return m_LastRunResult.completed;
@@ -462,6 +524,12 @@ public:
 	{
 		return m_LastRunResult;
 	}
+	const ProgressionProfile& GetProgressionProfile() const { return m_ProgressionProfile; }
+	const std::vector<std::string>& GetLastProgressionUnlocks() const { return m_LastProgressionUnlocks; }
+	int GetActiveAscension() const { return m_ActiveAscension; }
+	void SetSelectedAscension(int level);
+	bool IsBallPermanentlyUnlocked(const std::string& id) const { return m_ProgressionProfile.IsBallUnlocked(id); }
+	bool IsRelicPermanentlyUnlocked(RelicType type) const { return m_ProgressionProfile.IsRelicUnlocked(type); }
 	const GameSettings& GetSettings() const
 	{
 		return m_SettingsManager.Get();
@@ -629,6 +697,8 @@ public:
 	}
 	int GetClearedStageCount() const { return m_ClearedStageCount; }
 	int GetAreaProgress() const { return m_AreaProgress; }
+	const RunMap& GetRunMap() const { return m_RunMap; }
+	bool ChooseMapNode(int nodeId) { return m_RunMap.Choose(nodeId); }
 	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
 	RunPhase GetRunPhase() const { return m_RunPhase; }
 	bool IsBossPreparation() const
@@ -672,6 +742,7 @@ public:
 		return index < m_OwnedRelics.size() && m_OwnedRelics[index];
 	}
 	int GetOwnedRelicCount() const;
+	ShotRelicRules MakePredictionShotRules(float launchPower) const;
 	int GetRelicAttackBonus() const;
 	int GetRelicDefenseBonus() const;
 	int GetCurrentShotCollisionAttackBonus() const
@@ -718,7 +789,6 @@ public:
 		return GetRelic(GetShopRelicOfferCatalogIndex(offerIndex));
 	}
 	bool IsShopRelicOffered(int relicIndex) const;
-	bool HasPurchasedShopRelic() const { return m_ShopRelicPurchased; }
 	bool BuyShopRelicOffer(int offerIndex);
 	bool BuyShopRelic(int relicIndex);
 	void RollMidBossRelicOffers();

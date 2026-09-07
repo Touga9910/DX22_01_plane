@@ -18,6 +18,23 @@ from shot_planner import load_player_profiles
 
 
 class ServerSchemaTests(unittest.TestCase):
+    def test_stage_editor_tools_expose_review_workflow(self):
+        tools = {tool.name: tool for tool in self._list_tools()}
+        self.assertIn("open_stage_editor", tools)
+        self.assertTrue(tools["get_stage_editor"].annotations.readOnlyHint)
+        self.assertIn("layout", tools["validate_stage_layout"].inputSchema["required"])
+        self.assertEqual(set(tools["propose_stage_layout"].inputSchema["required"]), {"layout", "expected_revision"})
+        self.assertFalse(tools["propose_stage_layout"].annotations.readOnlyHint)
+
+    def test_boss_tools_expose_evaluation_and_stale_state_guard(self):
+        tools = {tool.name: tool for tool in self._list_tools()}
+        self.assertIn("evaluate_boss_shots", tools)
+        self.assertTrue(tools["evaluate_boss_shots"].annotations.readOnlyHint)
+        fire = tools["fire_boss_shot"]
+        self.assertEqual(set(fire.inputSchema["required"]), {"candidate_id", "state_key"})
+        self.assertNotIn("direction_x", fire.inputSchema["properties"])
+        self.assertFalse(fire.annotations.readOnlyHint)
+
     def _list_tools(self):
         profiles_path = (
             Path(__file__).resolve().parent

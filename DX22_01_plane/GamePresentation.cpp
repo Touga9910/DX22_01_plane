@@ -6,6 +6,10 @@
 #include "BattleScene.h"
 #include "Camera.h"
 #include "Game.h"
+#include "GameUi.h"
+#include "EnemyBall.h"
+#include "BreakBall.h"
+#include "PlayerBall.h"
 #include "input.h"
 #include "imgui/imgui.h"
 #include "json/json.hpp"
@@ -88,7 +92,8 @@ namespace
 		{
 			return false;
 		}
-		screenPosition = ImVec2(result.x, result.y);
+		const ImVec2 origin = ImGui::GetMainViewport()->Pos;
+		screenPosition = ImVec2(origin.x + result.x, origin.y + result.y);
 		return true;
 	}
 
@@ -229,21 +234,71 @@ void GamePresentation::Draw(Game& game)
 		DrawTutorial(game);
 	}
 
-	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(
-		ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 12.0f,
-			viewport->WorkPos.y + 12.0f),
-		ImGuiCond_Always,
-		ImVec2(1.0f, 0.0f));
-	ImGui::SetNextWindowBgAlpha(0.68f);
-	const ImGuiWindowFlags hintFlags =
-		ImGuiWindowFlags_NoDecoration |
-		ImGuiWindowFlags_AlwaysAutoResize |
-		ImGuiWindowFlags_NoNav |
-		ImGuiWindowFlags_NoInputs;
-	if (ImGui::Begin("##presentation_shortcuts", nullptr, hintFlags))
+	if (ImGui::BeginMainMenuBar())
 	{
-		ImGui::TextUnformatted("F1 チュートリアル   F2 分析ダッシュボード");
+		ImGui::BeginDisabled(!game.CanOpenPauseMenu());
+		if (ImGui::Button(game.IsPaused() ? "再開" : "ポーズ / 設定")) game.RequestPauseToggle();
+		if (ImGui::Button("セーブ")) game.RequestManualSave();
+		ImGui::EndDisabled();
+		if (ImGui::Button("ガイド")) { if (m_TutorialActive) m_TutorialActive = false; else StartTutorial(true); }
+		if (ImGui::Button("分析")) { m_DashboardOpen = !m_DashboardOpen; if (m_DashboardOpen) LoadDashboard(); }
+		ImGui::Checkbox("デバッグ", &GameUi::showDebugger);
+		if (ImGui::Button("UIを画面内へ戻す")) GameUi::ResetWindows();
+		if (ImGui::Button("全画面切替")) game.RequestFullscreenToggle();
+		if (ImGui::Button("終了")) PostMessage(Application::GetWindow(), WM_CLOSE, 0, 0);
+		ImGui::EndMainMenuBar();
+	}
+	GameUi::PrepareWindow("play_hints", ImVec2(805, 35), ImVec2(450, 170));
+	if (ImGui::Begin("操作と攻略", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		if (IsBattleScene(game))
+		{
+			const auto players = game.GetComponents<PlayerBall>();
+			const int currentHp = players.empty() ? game.GetPlayerCurrentHp() : players[0]->GetHP();
+			ImGui::Text("HP %d / %d   所持金 %d", currentHp, game.GetPlayerMaxHp(), game.GetPlayerMoney());
+		}
+		ImGui::TextUnformatted("盤面を左ドラッグして離す：発射 / 右クリック：取消");
+		ImGui::TextUnformatted("ホイール：拡大縮小 / タイトルバーをドラッグ：UI移動");
+		if (IsBattleScene(game))
+		{
+			for (const EnemyBall* enemy : game.GetComponents<EnemyBall>())
+			{
+				if (enemy == nullptr || enemy->IsDefeated()) continue;
+                if (enemy->IsArmorBoss())
+                {
+                    const auto& boss = enemy->GetBossState();
+                    ImGui::Separator();
+                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.6f, 1.0f), "最終ボス  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+                    ImGui::Text("Armor %d / %d", boss.armor, BossCombatRules::MaxArmor);
+                    if (boss.IsBroken())
+                    {
+                        ImGui::TextColored(ImVec4(1, 0.85f, 0.2f, 1), "BREAK！ 通常ダメージ100%% / 残り%dショット", boss.shotsRemaining);
+                        if (boss.startedThisShot && game.GetGameState() == GameState::BallsMoving)
+                            ImGui::TextUnformatted("このショットの残り ＋ 次の2ショットが有効");
+                    }
+                    else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");
+                    ImGui::TextUnformatted("黄色の球をボスへ押し込もう：Armor -1 / HP -4");
+                    ImGui::TextUnformatted("黄色の球は命中・落下後、ショット終了時に再配置");
+                    for (auto* neutral : game.GetComponents<BreakBall>())
+                        ImGui::Text("ブレイク球%d：%s", neutral->GetIndex() + 1,
+                            neutral->GetGameObject()->IsActive() ? "使用可能" : "再配置待ち");
+                }
+				if (enemy->GetFrontalDamageMultiplier() < 1.0f)
+				{
+					ImGui::Separator();
+					ImGui::TextColored(ImVec4(0.3f, 0.85f, 1.0f, 1.0f), "中ボス：ガード球（水色）  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::Text("テーブル手前側からの衝突ダメージを%d%%軽減（最低1）。", static_cast<int>(std::lround((1.0f - enemy->GetFrontalDamageMultiplier()) * 100.0f)));
+					ImGui::TextUnformatted("側面・奥側から狙おう。ガードの向きは固定。");
+				}
+				if (enemy->GetPocketDamageRatio() > 0.0f)
+				{
+					ImGui::Separator();
+					ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "中ボス：ポケット球（緑）  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::Text("ポケットに落とすと最大HPの%d%%ダメージ。", static_cast<int>(std::lround(enemy->GetPocketDamageRatio() * 100.0f)));
+					ImGui::TextUnformatted("重い球で押し出そう。生存時は待機列に入り、後で復帰する。");
+				}
+			}
+		}
 	}
 	ImGui::End();
 }
@@ -420,20 +475,9 @@ void GamePresentation::SaveTutorialProgress() const
 
 void GamePresentation::DrawTutorial(Game& game)
 {
-	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(
-		ImVec2(
-			viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y - 24.0f),
-		ImGuiCond_Always,
-		ImVec2(0.5f, 1.0f));
-	ImGui::SetNextWindowSize(ImVec2(670.0f, 0.0f), ImGuiCond_Always);
+	GameUi::PrepareWindow("tutorial", ImVec2(305, 400), ImVec2(670, 270));
 	ImGui::SetNextWindowBgAlpha(0.94f);
-	const ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_AlwaysAutoResize;
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize;
 	if (!ImGui::Begin("プレイガイド", nullptr, flags))
 	{
 		ImGui::End();
@@ -464,7 +508,7 @@ void GamePresentation::DrawTutorial(Game& game)
 		break;
 	case TutorialStep::ChooseAndAim:
 		ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.3f, 1.0f), "1. ボールを選び、狙う");
-		ImGui::TextUnformatted("1 / 2 / 3 または左のボール選択画面で使用球を選びます。");
+		ImGui::TextUnformatted("ボール選択画面で、使いたいボールの「使用」をクリックします。");
 		ImGui::TextUnformatted("マウスを動かして軌道予測線を敵へ合わせ、左ボタンを押してください。");
 		break;
 	case TutorialStep::SetPower:
@@ -513,7 +557,7 @@ void GamePresentation::DrawTutorial(Game& game)
 
 void GamePresentation::DrawFeedback(Game& game)
 {
-	ImDrawList* foreground = ImGui::GetForegroundDrawList();
+	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 	const ImVec2 topLeft = viewport->Pos;
 	const ImVec2 bottomRight(
@@ -605,21 +649,8 @@ void GamePresentation::DrawFeedback(Game& game)
 
 void GamePresentation::DrawDashboard()
 {
-	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(
-		ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
-			viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
-		ImGuiCond_Always,
-		ImVec2(0.5f, 0.5f));
-	ImGui::SetNextWindowSize(
-		ImVec2(
-			(std::min)(1040.0f, viewport->WorkSize.x - 40.0f),
-			(std::min)(650.0f, viewport->WorkSize.y - 40.0f)),
-		ImGuiCond_Always);
-	const ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoResize;
+	GameUi::PrepareWindow("dashboard", ImVec2(120, 35), ImVec2(1040, 650));
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse;
 	if (!ImGui::Begin("バランス分析ダッシュボード", &m_DashboardOpen, flags))
 	{
 		ImGui::End();

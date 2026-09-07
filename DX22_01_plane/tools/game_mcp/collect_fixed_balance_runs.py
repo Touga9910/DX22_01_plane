@@ -11,7 +11,7 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from build_decision import build_decision_snapshot
+from build_decision import build_decision_snapshot, evaluate_relic_choices
 from build_profiles import load_build_profiles, profile_settings_hash
 
 
@@ -226,6 +226,25 @@ def catalog_candidate(
     return catalog[0] if catalog else None
 
 
+def midboss_relic_candidate(
+    state: dict[str, Any],
+    build_profiles: dict[str, dict[str, Any]],
+    preferred_profile_id: str,
+) -> dict[str, Any] | None:
+    # Keep owned relics as build evidence; only offered, unowned relics
+    # are eligible for this free reward, regardless of their shop prices.
+    reward_state = dict(state)
+    reward_state["relics"] = [
+        dict(relic, price=0)
+        for relic in state.get("relics", [])
+        if isinstance(relic, dict)
+        and (relic.get("owned", False) or relic.get("midboss_offered", False))
+    ]
+    return evaluate_relic_choices(
+        reward_state, build_profiles, preferred_profile_id,
+    ).get("recommended")
+
+
 def choose_shot_type(
     state: dict[str, Any],
     build_policy: dict[str, Any],
@@ -350,6 +369,22 @@ async def play_current_run(
                 actions_taken += 1
                 continue
 
+            if state.get("boss_state") and "fire_boss_shot" in actions:
+                evaluation = state.get("boss_shot_choices") or await call(session, "evaluate_boss_shots")
+                choice = evaluation.get("recommended")
+                if not choice:
+                    return {"completed": False, "reason": "boss_planning_unavailable", "shots": shots_fired}
+                result = await call(session, "fire_boss_shot", {
+                    "candidate_id": choice["candidate_id"], "state_key": evaluation["state_key"],
+                })
+                if result.get("ok"):
+                    shots_fired += 1
+                    actions_taken += 1
+                else:
+                    transient_errors += 1
+                await asyncio.sleep(0.15)
+                continue
+
             if (
                 scene == "battle"
                 and "fire_shot" in actions
@@ -413,6 +448,11 @@ async def play_current_run(
                         f"dynamic:{active_build_id}:only_available_ball"
                     )
 
+                # Selection changes attack, friction and reachable contact
+                # paths. Never fire with a recommendation for the previous ball.
+                state = await get_state(session)
+                if "fire_shot" not in state.get("available_actions", []):
+                    continue
                 tactics = state.get("shot_tactics", {})
                 target_id = tactics.get("recommended_target_id")
                 if not target_id:
@@ -425,16 +465,10 @@ async def play_current_run(
                     ).values()) / 2.0,
                 ))
                 goal = str(tactics.get("recommended_goal", "damage"))
-                shot_type = choose_shot_type(
-                    state,
-                    active_build_policy,
-                    goal,
-                    shots_fired,
-                )
+                shot_type = "auto"
                 arguments: dict[str, Any] = {
                     "target_id": target_id,
-                    "power": power,
-                    "power_mode": "manual",
+                    "power_mode": "auto",
                     "shot_type": shot_type,
                     "shot_goal": "auto",
                     "ball_selection_reason": ball_selection_reason,
@@ -447,6 +481,31 @@ async def play_current_run(
                     actions_taken += 1
                 else:
                     transient_errors += 1
+                continue
+
+            if "choose_relic" in actions:
+                relic_choice = midboss_relic_candidate(
+                    state, build_profiles, active_build_id,
+                )
+                if relic_choice is None:
+                    raise ValueError("No unowned midboss reward is offered.")
+                result = await call(
+                    session,
+                    "choose_relic",
+                    {
+                        "relic_index": int(relic_choice["index"]),
+                        "decision_reason": (
+                            f"dynamic:{active_build_id}:free_midboss_reward:"
+                            f"score={relic_choice['score']}:"
+                            f"{relic_choice['canonical_name']}"
+                        ),
+                    },
+                )
+                if result.get("ok", False):
+                    actions_taken += 1
+                else:
+                    transient_errors += 1
+                    await asyncio.sleep(0.3)
                 continue
 
             if "choose_reward" in actions:

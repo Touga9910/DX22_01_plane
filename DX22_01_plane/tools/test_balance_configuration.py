@@ -139,19 +139,20 @@ class BalanceConfigurationTests(unittest.TestCase):
             )
         )
 
-        self.assertEqual(player["status"]["maxHp"], 50)
+        self.assertEqual(player["maxHp"], 50)
+        self.assertNotIn("maxHp", player["status"])
         self.assertEqual(player["currentHp"], 50)
         self.assertEqual(player["restHealRatio"], 0.25)
         self.assertNotIn("restHealCooldownBattles", player)
         self.assertNotIn("resthealcooldown", cooldown_sources.lower())
         self.assertEqual(
             math.ceil(
-                player["status"]["maxHp"] * player["restHealRatio"]
+                player["maxHp"] * player["restHealRatio"]
             ),
             13,
         )
         for ball in player["balls"]:
-            self.assertEqual(ball["status"]["maxHp"], 50)
+            self.assertNotIn("maxHp", ball["status"])
 
     def test_late_progression_and_validation_run_cap(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
@@ -277,7 +278,7 @@ class BalanceConfigurationTests(unittest.TestCase):
             return sum(
                 enemy_by_id[
                     spawn.get("enemyId", "enemy_normal")
-                ]["status"]["maxHp"] + hp_delta(progress)
+                ]["status"]["maxHp"] + (0 if spawn.get("enemyId") == "enemy_boss_core" else hp_delta(progress))
                 for spawn in stage_by_id[stage_id]["enemies"]
             )
 
@@ -291,13 +292,13 @@ class BalanceConfigurationTests(unittest.TestCase):
         ) / 2
         self.assertGreaterEqual(normal_average, 24)
         self.assertLessEqual(normal_average, 28)
-        self.assertGreaterEqual(midboss_average, 30)
-        self.assertLessEqual(midboss_average, 36)
+        self.assertGreaterEqual(midboss_average, 24)
+        self.assertLessEqual(midboss_average, 30)
 
         for boss_id in ("boss_001", "boss_002"):
             boss_hp = effective_hp(boss_id, 10)
-            self.assertGreaterEqual(boss_hp, 38)
-            self.assertLessEqual(boss_hp, 45)
+            self.assertEqual(boss_hp, 60)
+            self.assertEqual(len(stage_by_id[boss_id]["enemies"]), 1)
             boss_enemy_ids = {
                 spawn.get("enemyId", "enemy_normal")
                 for spawn in stage_by_id[boss_id]["enemies"]

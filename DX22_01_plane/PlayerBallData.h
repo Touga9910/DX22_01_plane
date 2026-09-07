@@ -6,11 +6,8 @@
 
 #include "BallStatus.h"
 
-struct BallUpgradeStep
-{
-	int attack = 1;
-	int defense = 0;
-};
+// 各段階のボール性能を丸ごと保持する。
+using BallUpgradeStep = BallStatus;
 
 // プレイヤーのデッキに含まれる、ボール1個分の実行時データ。
 struct PlayerBallData

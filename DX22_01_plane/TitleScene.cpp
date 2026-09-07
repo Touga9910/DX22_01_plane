@@ -1,6 +1,8 @@
-﻿
+﻿#pragma execution_character_set("utf-8")
+
 #include "TitleScene.h"
 #include "Game.h"
+#include "GameUi.h"
 #include "Input.h"
 #include "Texture2D.h"
 #include "Texture2DFactory.h"
@@ -43,7 +45,13 @@ void TitleScene::Init()
 // 更新
 void TitleScene::Update()
 {
-	const bool confirmed = m_Menu.UpdateVertical(2, false);
+	// 実績画面を開いている間は、背面のタイトルメニューへキー入力を渡さない。
+	if (m_ShowProgression)
+	{
+		return;
+	}
+
+	const bool confirmed = m_Menu.UpdateVertical(3, false);
 	if (m_Menu.WasMoved())
 	{
 		m_ConfirmNewRun = false;
@@ -76,6 +84,9 @@ void TitleScene::Update()
 			}
 			m_Message = Game::GetInstance()->GetSaveLoadMessage();
 			return;
+		case 2:
+			Game::GetInstance()->OpenDebugMode();
+			return;
 		default:
 			break;
 		}
@@ -84,35 +95,67 @@ void TitleScene::Update()
 
 void TitleScene::DrawUI()
 {
-	ImGui::SetNextWindowPos(ImVec2(390.0f, 360.0f), ImGuiCond_Always);
-	ImGui::SetNextWindowSize(ImVec2(500.0f, 245.0f), ImGuiCond_Always);
-	const ImGuiWindowFlags flags =
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoCollapse;
-	ImGui::Begin(UiText::TitleWindow, nullptr, flags);
-	ImGui::Text("%s %s", m_Menu.GetIndex() == 0 ? ">" : " ", UiText::NewRun);
-	ImGui::Spacing();
-	if (m_CanContinue)
+	if (m_ShowProgression) { DrawProgressionUI(); return; }
+	GameUi::PrepareWindow("title", ImVec2(390, 285), ImVec2(500, 405));
+	ImGui::Begin(UiText::TitleWindow, nullptr, ImGuiWindowFlags_NoCollapse);
+	if (ImGui::Button(m_ConfirmNewRun ? "上書きして新しく始める" : UiText::NewRun, ImVec2(-1, 40)))
+		m_Menu.Confirm(0, 3);
+	if (m_ConfirmNewRun && ImGui::Button("キャンセル", ImVec2(-1, 32)))
 	{
-		ImGui::Text("%s %s", m_Menu.GetIndex() == 1 ? ">" : " ", UiText::ContinueRun);
-		ImGui::TextDisabled("    %s", m_SaveSummary.c_str());
+		m_ConfirmNewRun = false;
+		m_Message.clear();
 	}
-	else
-	{
-		ImGui::TextDisabled("%s %s", m_Menu.GetIndex() == 1 ? ">" : " ", UiText::ContinueRun);
-		ImGui::TextDisabled("    %s", m_SaveSummary.c_str());
-	}
-	if (!m_Message.empty())
-	{
-		ImGui::Separator();
-		ImGui::TextWrapped("%s", m_Message.c_str());
-	}
-	ImGui::Separator();
-	ImGui::TextUnformatted(UiText::TitleControls);
+	ImGui::BeginDisabled(!m_CanContinue);
+	if (ImGui::Button(UiText::ContinueRun, ImVec2(-1, 40))) m_Menu.Confirm(1, 3);
+	ImGui::EndDisabled();
+	if (ImGui::Button("デバッグモード：デッキ・戦闘設定", ImVec2(-1, 40))) m_Menu.Confirm(2, 3);
+	if (ImGui::Button("アセンション・実績", ImVec2(-1, 40))) m_ShowProgression = true;
+	ImGui::Text("次の通常ラン：アセンション%d", Game::GetInstance()->GetProgressionProfile().selectedAscension);
+	ImGui::TextWrapped("%s", m_SaveSummary.c_str());
+	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
+	ImGui::TextDisabled("ボタンをクリックして進めます。");
 	ImGui::TextDisabled("%s", UiText::ManualSaveHint);
 	ImGui::End();
 }
+
+void TitleScene::DrawProgressionUI()
+{
+	Game* game = Game::GetInstance();
+	const auto& profile = game->GetProgressionProfile();
+	const bool hasRunSave = game->HasValidRunSave();
+	GameUi::PrepareWindow("progression", ImVec2(270, 60), ImVec2(740, 610));
+	ImGui::Begin("アセンション・実績", nullptr, ImGuiWindowFlags_NoCollapse);
+	ImGui::Text("クリア %d回 / 挑戦 %d回 / 最高到達エリア %d", profile.totalClears, profile.totalRuns, profile.highestArea);
+	ImGui::SeparatorText("アセンション");
+	ImGui::Text("選択中 %d / 解放済み %d", profile.selectedAscension, profile.highestUnlockedAscension);
+	ImGui::TextWrapped("現在の累積ルール：");
+	for (int level = 1; level <= profile.selectedAscension; ++level) ImGui::BulletText("A%d  %s", level, ProgressionProfile::AscensionRule(level));
+	if (profile.selectedAscension == 0) ImGui::BulletText("A0  %s", ProgressionProfile::AscensionRule(0));
+	ImGui::BeginDisabled(hasRunSave || profile.selectedAscension <= 0);
+	if (ImGui::Button("難易度を下げる", ImVec2(180, 34))) game->SetSelectedAscension(profile.selectedAscension - 1);
+	ImGui::EndDisabled(); ImGui::SameLine();
+	ImGui::BeginDisabled(hasRunSave || profile.selectedAscension >= profile.highestUnlockedAscension);
+	if (ImGui::Button("難易度を上げる", ImVec2(180, 34))) game->SetSelectedAscension(profile.selectedAscension + 1);
+	ImGui::EndDisabled();
+	if (hasRunSave) ImGui::TextDisabled("中断ランがある間は難易度を変更できません。");
+	if (profile.highestUnlockedAscension < ProgressionProfile::MaximumAscension)
+		ImGui::TextWrapped("A%dをクリアするとA%dを解放します。", profile.highestUnlockedAscension, profile.highestUnlockedAscension + 1);
+	else ImGui::TextUnformatted("最高アセンションまで解放済みです。");
+	ImGui::SeparatorText("実績と解放");
+	ImGui::BeginChild("achievement_list", ImVec2(0, -55), ImGuiChildFlags_Borders);
+	for (const auto& achievement : AchievementCatalog)
+	{
+		const bool done = profile.IsAchievementUnlocked(achievement.id);
+		ImGui::TextColored(done ? ImVec4(.35f,.95f,.55f,1) : ImVec4(.72f,.72f,.72f,1), "%s  %s", done ? "達成" : "未達成", achievement.name);
+		ImGui::TextWrapped("条件：%s", achievement.condition);
+		ImGui::TextWrapped("解放：%s", achievement.reward);
+		ImGui::Separator();
+	}
+	ImGui::EndChild();
+	if (ImGui::Button("タイトルへ戻る", ImVec2(-1, 40))) m_ShowProgression = false;
+	ImGui::End();
+}
+
 
 // 終了処理
 void TitleScene::Uninit()
