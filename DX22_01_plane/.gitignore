@@ -1,2 +1,6 @@
-runtime/game_mcp/
+# Local runtime data and generated verification artifacts
+runtime/
 saves/
+tools/runtime_tests/
+tools/*.zip
+imgui.ini
