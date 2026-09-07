@@ -1,9 +1,0 @@
-{
-  "action": "continue_to_battle",
-  "command_id": "5c0c7e04c41f4a5abb9d6e08aa5f66d4",
-  "completed_at_unix_ms": 1788429331131,
-  "message": "Completed the area and returned to the route.",
-  "ok": true,
-  "schema_version": 1,
-  "state_sequence": 43
-}

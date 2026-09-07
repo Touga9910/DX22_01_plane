@@ -1,9 +1,0 @@
-{
-  "action": "start_new_run",
-  "command_id": "9edafeb179eb41a3b3b68f7602014f6d",
-  "completed_at_unix_ms": 1788507500122,
-  "message": "This action is unavailable in debug battle mode.",
-  "ok": false,
-  "schema_version": 1,
-  "state_sequence": 67
-}

@@ -1,9 +1,0 @@
-{
-  "ui_save_trial": "passed",
-  "live_mcp_read_validate": "passed",
-  "executable_sha256": "4734017852C3C13CEA68A77C8F22016DBB9BD8C6C4474DFF1DE7E39E1C93A0E8",
-  "cpp_editor_tests": "passed",
-  "ordinary_run_authored_positions": "passed",
-  "passed": true,
-  "mcp_python_tests": 100
-}

@@ -1,7 +1,0 @@
-{
-  "shots": 20,
-  "break_started": true,
-  "break_expired": true,
-  "final_boss_defeated": true,
-  "post_capture_assertion_corrected": "run_progress"
-}

@@ -1,9 +1,0 @@
-{
-  "action": "fire_shot",
-  "command_id": "6a10873dc19048f8a908023a0e2ce75f",
-  "completed_at_unix_ms": 1788476415111,
-  "message": "Fired the requested shot.",
-  "ok": true,
-  "schema_version": 1,
-  "state_sequence": 11
-}
