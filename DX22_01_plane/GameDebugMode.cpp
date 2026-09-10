@@ -113,8 +113,6 @@ bool Game::StartDebugBattle()
     }
     m_McpNextStageOverride = stage;
     StartNextBattle(stage.stageType);
-    m_GameState = GameState::AimingDirection;
-    m_AllBallsStoppedFrameCount = 0;
     for (auto* player : GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
     BalanceLogger::GetInstance().RecordEvent("debug_battle_setup", m_DebugSetup.ToJson());
     m_DebugMessage = "設定した条件で戦闘を開始しました。";
@@ -151,7 +149,6 @@ void Game::EndDebugMode()
     m_BossShotCache = {}; m_BossShotCacheKey.clear();
     LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
     ResetDynamicBalanceRunState();
-    m_GameState = GameState::AimingDirection;
 }
 
 // Debug Battleを終了する。

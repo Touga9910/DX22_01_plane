@@ -2,6 +2,7 @@
 #include "ShotRelicRules.h"
 #include "DebugBattleSetup.h"
 #include "GameWorld.h"
+#include "BattleController.h"
 #include "SceneManager.h"
 #include "RunProgressController.h"
 #include "StageLayoutEditor.h"
@@ -60,7 +61,15 @@ private:
 
 	GameWorld m_World;
 
-	GameState m_GameState = GameState::AimingDirection;
+	BattleController m_BattleController;
+
+	// 直近に確定した戦闘結果。
+	// MCPやResult側から参照できるようGameが履歴だけ保持する。
+	BattleResult m_LastBattleResult = BattleResult::None;
+
+	// ClearRewardは戦闘内部状態ではないためGame側で保持する。
+	bool m_IsClearRewardActive = false;
+
 	FixedStepClock m_PhysicsClock;
 	bool m_ResetPhysicsElapsed = true;
 	std::uint64_t m_PhysicsTickCount = 0;
@@ -68,6 +77,7 @@ private:
 	int m_PhysicsSubstepsLastTick = 0;
 	std::uint64_t m_PhysicsSubstepLimitCount = 0;
 	void UpdateFixedPhysics(double elapsedSeconds);
+	void InitializeBattleController();
 
 	BallStatus m_DefaultPlayerStatus{};
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
@@ -121,7 +131,6 @@ private:
 	bool m_AutoStopAfterCurrentRunRequested = false;
 	int m_AutoDecisionDelayFrames = 20;
 	int m_AutoDecisionFrame = 0;
-	int m_AllBallsStoppedFrameCount = 0;
 	int m_AutoRunCount = 0;
 	int m_AutoMaxRuns = 0;
 	float m_AutoMinShotPower = 4.0f;
@@ -328,17 +337,6 @@ private:
 	friend class GameSaveManager;
 
 	/// <summary>
-	/// 全てのボールが停止しているかどうかを判定する関数
-	/// </summary>
-	bool AreAllBallsStopped() const;
-	bool TryRecoverClearedBattle(const char* source);
-
-	/// <summary>
-	/// 敵の攻撃処理を行う関数
-	/// </summary>
-	void ProcessEnemyAttack();
-
-	/// <summary>
 	/// ゲームオーバー時の処理を行う関数
 	/// </summary>
 	void ProcessGameOver();
@@ -357,7 +355,7 @@ private:
 	/// 報酬UIの描画処理を行う関数
 	/// </summary>
 	void DrawClearRewardUI();
-	void BeginBallSelection();
+	bool BeginBallSelection();
 	void UpdateBallSelection();
 	void DrawBallSelectionUI();
 	void ApplySelectedBallPreview();
@@ -378,7 +376,7 @@ private:
 	void CaptureCurrentPlayerStatus();
 	void DrawNextPlayerBall();
 	void DiscardCurrentPlayerBall();
-	void PrepareNextPlayerBall();
+	bool PrepareNextPlayerBall();
 	int CalculateStageRewardMoney() const;
 	void CollectStageRewardMoney();
 	void LoadBalanceAutoPlayConfig(
@@ -486,10 +484,36 @@ public:
 	void RequestFullscreenToggle() { m_MouseFullscreenToggle = true; }
 	// ゲームがポーズ中かを返す。
 	bool IsPaused() const { return m_IsPaused; }
-	// 現在のゲーム進行状態を返す。
-	GameState GetGameState() const { return m_GameState; }
-	// ゲーム進行状態を変更する。
-	void SetGameState(GameState state) { m_GameState = state; }
+	// BattleStateを取得する
+	BattleState GetBattleState() const
+	{
+		return m_BattleController.GetState();
+	}
+
+	BattleResult GetBattleResult() const
+	{
+		return m_BattleController.GetResult();
+	}
+
+	BattleResult GetLastBattleResult() const
+	{
+		return m_LastBattleResult;
+	}
+
+	bool IsBattleActive() const
+	{
+		return m_BattleController.IsActive();
+	}
+
+	bool IsClearRewardActive() const
+	{
+		return m_IsClearRewardActive;
+	}
+
+	bool AreAllBallsStopped() const
+	{
+		return m_BattleController.AreAllBallsStopped();
+	}
 	// バランス検証用の自動プレイが有効かを返す。
 	bool IsBalanceAutoPlayEnabled() const
 	{
@@ -584,6 +608,11 @@ public:
 			: nullptr;
 	}
 	void OnPlayerShotFired(PlayerBall* player);
+	void NotifyBattleAimDirectionStarted();
+	void NotifyBattlePowerSelectionStarted();
+	void NotifyBattleShotConfirmed();
+	void NotifyBattleShotCancelled();
+	void NotifyBattlePlayerDefeated();	
 	void NotifyPlayerWallCollision();
 	void NotifyAnchorStopped();
 	void NotifyEnemyDefeated(const std::string& enemyId);

@@ -137,7 +137,7 @@ void GamePresentation::Initialize(Game& game)
 			m_TutorialCompleted = false;
 		}
 	}
-	m_PreviousGameState = static_cast<int>(game.GetGameState());
+	m_PreviousBattleState = static_cast<int>(game.GetBattleState());
 	LoadDashboard();
 }
 
@@ -204,22 +204,22 @@ void GamePresentation::Update(Game& game)
 		Camera::GetInstance().SetTarget(Vector3::Zero);
 	}
 
-	const int currentState = static_cast<int>(game.GetGameState());
+	const int currentState = static_cast<int>(game.GetBattleState());
 	if (m_TutorialActive && IsBattleScene(game))
 	{
 		if (m_TutorialStep == TutorialStep::ChooseAndAim &&
-			game.GetGameState() == GameState::AimingPower)
+			game.GetBattleState() == BattleState::AimingPower)
 		{
 			m_TutorialStep = TutorialStep::SetPower;
 		}
 		else if (m_TutorialStep == TutorialStep::WatchShot &&
-			m_PreviousGameState == static_cast<int>(GameState::BallsMoving) &&
-			currentState != static_cast<int>(GameState::BallsMoving))
+			m_PreviousBattleState == static_cast<int>(BattleState::BallsMoving) &&
+			currentState != static_cast<int>(BattleState::BallsMoving))
 		{
 			m_TutorialStep = TutorialStep::ReadResult;
 		}
 	}
-	m_PreviousGameState = currentState;
+	m_PreviousBattleState = currentState;
 }
 
 void GamePresentation::Draw(Game& game)
@@ -273,7 +273,7 @@ void GamePresentation::Draw(Game& game)
                     if (boss.IsBroken())
                     {
                         ImGui::TextColored(ImVec4(1, 0.85f, 0.2f, 1), "BREAK！ 通常ダメージ100%% / 残り%dショット", boss.shotsRemaining);
-                        if (boss.startedThisShot && game.GetGameState() == GameState::BallsMoving)
+                        if (boss.startedThisShot && game.GetBattleState() == BattleState::BallsMoving)
                             ImGui::TextUnformatted("このショットの残り ＋ 次の2ショットが有効");
                     }
                     else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");

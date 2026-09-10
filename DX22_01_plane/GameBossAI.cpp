@@ -43,7 +43,7 @@ json Game::EvaluateBossShots()
     EnemyBall* boss = nullptr;
     for (auto* enemy : GetComponents<EnemyBall>())
         if (enemy->IsArmorBoss() && !enemy->IsDefeated()) { boss = enemy; break; }
-    if (!boss || players.empty() || !players[0]->IsIdle() || m_GameState != GameState::AimingDirection || !AreAllBallsStopped()) return {};
+    if (!boss || players.empty() || !players[0]->IsIdle() || GetBattleState() != BattleState::AimingDirection || !AreAllBallsStopped()) return {};
     auto* player = players[0];
     std::string key = std::to_string(BallShotPrediction::WorldKey(*this)) + ":" + std::to_string(m_RunStatistics.GetState().totalShots);
     for (int i = 0; i < m_PlayerDeck.GetOfferCount(); ++i)

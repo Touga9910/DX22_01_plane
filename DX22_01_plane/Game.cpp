@@ -110,56 +110,67 @@ namespace
 			owner->GetComponent<EnemyAttackComponent>() != nullptr;
 	}
 
-	const char* GetGameStateDebugName(GameState state)
+	const char* GetBattleStateDebugName(BattleState state)
 	{
 		switch (state)
 		{
-		case GameState::AimingDirection: return "AimingDirection";
-		case GameState::AimingPower:     return "AimingPower";
-		case GameState::ConfirmShot:     return "ConfirmShot";
-		case GameState::BallsMoving:     return "BallsMoving";
-		case GameState::EnemyAttack:     return "EnemyAttack";
-		case GameState::TurnEnd:         return "TurnEnd";
-		case GameState::ClearReward:     return "ClearReward";
-		case GameState::GameOver:        return "GameOver";
-		default:                         return "Unknown";
+		case BattleState::Inactive:        return "Inactive";
+		case BattleState::AimingDirection: return "AimingDirection";
+		case BattleState::AimingPower:     return "AimingPower";
+		case BattleState::ConfirmShot:     return "ConfirmShot";
+		case BattleState::BallsMoving:     return "BallsMoving";
+		case BattleState::EnemyAttack:     return "EnemyAttack";
+		case BattleState::TurnEnd:         return "TurnEnd";
+		case BattleState::Finished:        return "Finished";
+		default:                            return "Unknown";
 		}
 	}
 
-	const char* GetIncomingDamagePhaseLabel(GameState state)
+	const char* GetIncomingDamagePhaseLabel(
+		BattleState state,
+		bool clearReward)
 	{
+		if (clearReward)
+		{
+			return "敵全滅（被ダメージなし）";
+		}
+
 		switch (state)
 		{
-		case GameState::AimingDirection:
-		case GameState::AimingPower:
-		case GameState::ConfirmShot:
-		case GameState::BallsMoving:
+		case BattleState::AimingDirection:
+		case BattleState::AimingPower:
+		case BattleState::ConfirmShot:
+		case BattleState::BallsMoving:
 			return "このターンの敵攻撃前";
-		case GameState::EnemyAttack:
+
+		case BattleState::EnemyAttack:
 			return "敵攻撃処理中";
-		case GameState::TurnEnd:
+
+		case BattleState::TurnEnd:
 			return "このターンの敵攻撃は処理済み（次ターン参考）";
-		case GameState::ClearReward:
-			return "敵全滅（被ダメージなし）";
-		case GameState::GameOver:
-			return "ゲームオーバー（参考値）";
+
+		case BattleState::Finished:
+			return "戦闘終了";
+
 		default:
 			return "戦闘外（参考値）";
 		}
 	}
 
-	const char* GetIncomingDamageValueLabel(GameState state)
+	const char* GetIncomingDamageValueLabel(BattleState state)
 	{
 		switch (state)
 		{
-		case GameState::AimingDirection:
-		case GameState::AimingPower:
-		case GameState::ConfirmShot:
-		case GameState::BallsMoving:
-		case GameState::EnemyAttack:
+		case BattleState::AimingDirection:
+		case BattleState::AimingPower:
+		case BattleState::ConfirmShot:
+		case BattleState::BallsMoving:
+		case BattleState::EnemyAttack:
 			return "このターンの予測被ダメージ";
-		case GameState::TurnEnd:
+
+		case BattleState::TurnEnd:
 			return "次ターンの参考被ダメージ";
+
 		default:
 			return "参考被ダメージ";
 		}
@@ -346,7 +357,7 @@ bool Game::CanPause() const
 bool Game::SaveAndReturnToTitle()
 {
 	if (m_DebugMode) { m_DebugRequest = 2; return true; }
-	if (m_GameState == GameState::ClearReward && !m_IsClearRewardChosen)
+	if (m_IsClearRewardActive && !m_IsClearRewardChosen)
 	{
 		SetSaveLoadMessage(
 			"報酬を選択して次のルートへ進んでから保存してください。");
@@ -358,7 +369,7 @@ bool Game::SaveAndReturnToTitle()
 	bool sceneAlreadyActive = true;
 	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr)
 	{
-		resumeScene = m_GameState == GameState::ClearReward
+		resumeScene = m_IsClearRewardActive
 			? SceneType::Select
 			: SceneType::Battle;
 		sceneAlreadyActive = false;
@@ -415,6 +426,7 @@ void Game::Init()
 	m_Instance->LoadBalanceValidationConfig();
 	m_Instance->LoadEncounterBalanceConfig();
 	m_Instance->LoadPocketRulesConfig();
+	m_Instance->InitializeBattleController();
 
 	// 最初のシーンを読み込む
 	m_Instance->m_SceneManager.Initialize(SceneType::Title);
@@ -506,7 +518,7 @@ void Game::Update(double elapsedSeconds)
 	// ==========================
 	// ClearReward中はゲーム本編を更新しない
 	// ==========================
-	if (m_Instance->m_GameState == GameState::ClearReward)
+	if (m_Instance->m_IsClearRewardActive)
 	{
 		ResetFrameTiming();
 		m_Instance->UpdateClearReward();
@@ -537,82 +549,25 @@ void Game::Update(double elapsedSeconds)
 
 	m_Instance->m_World.LateUpdate();
 	m_Instance->RemoveDestroyedGameObjects();
-	if (m_Instance->TryRecoverClearedBattle("state_invariant"))
+	m_Instance->m_BattleController.Update();
+
+	const BattleResult battleResult =
+		m_Instance->m_BattleController.ConsumeResult();
+
+	if (battleResult != BattleResult::None)
 	{
-		return;
+		m_Instance->m_LastBattleResult = battleResult;
 	}
 
-	// ゲーム状態を更新（全ボールの停止検知など）
-	switch (m_Instance->m_GameState)
+	switch (battleResult)
 	{
-	case GameState::BallsMoving:
-		// The 11-tick settling counter is advanced only by fixed physics.
-		if (m_Instance->m_AllBallsStoppedFrameCount >= 11)
-		{
-			m_Instance->m_AllBallsStoppedFrameCount = 0;
-			for (GameObject* ball :
-				m_Instance->GetGameObjectsWith<BallPhysicsComponent>())
-			{
-				if (ball == nullptr)
-				{
-					continue;
-				}
-				if (BallPhysicsComponent* physics =
-					ball->GetComponent<BallPhysicsComponent>())
-				{
-					physics->Velocity() =
-						DirectX::SimpleMath::Vector3::Zero;
-					physics->Acceleration() =
-						DirectX::SimpleMath::Vector3::Zero;
-				}
-			}
-			m_Instance->RestorePocketedPlayer();
+	case BattleResult::Victory:
+		m_Instance->StartClearReward();
+		return;
 
-			const std::vector<PlayerBall*> players =
-				m_Instance->GetComponents<PlayerBall>();
-			const std::vector<EnemyBall*> enemies =
-				m_Instance->GetComponents<EnemyBall>();
-			if (!players.empty())
-			{
-				m_Instance->ApplyEndOfShotRelicEffects(players[0]);
-			}
-			const int playerHp =
-				players.empty() || players[0] == nullptr
-				? m_Instance->m_PlayerRunStatus.currentHp
-				: players[0]->GetHP();
-
-			BalanceLogger::GetInstance().EndShot(
-				playerHp,
-				CountAliveEnemies(enemies),
-				CountDefeatedEnemies(enemies));
-			m_Instance->FinishDynamicBalanceShot();
-            for (auto* enemy : enemies) enemy->EndBossShot();
-            if (!m_Instance->AreAllEnemiesDefeated())
-                for (auto* neutral : m_Instance->GetComponents<BreakBall>()) neutral->Reposition();
-
-			if (m_Instance->AreAllEnemiesDefeated())
-			{
-				m_Instance->StartClearReward();
-
-				// 攻撃フェーズへ進まないのでリターン
-				return;
-			}
-
-			m_Instance->m_GameState = GameState::EnemyAttack;
-		}
-		break;
-
-	case GameState::EnemyAttack:
-		m_Instance->ProcessEnemyAttack();
-		break;
-
-	case GameState::TurnEnd:
-		m_Instance->PrepareNextPlayerBall();
-		break;
-
-	case GameState::GameOver:
+	case BattleResult::Defeat:
 		m_Instance->ProcessGameOver();
-		break;
+		return;
 
 	default:
 		break;
@@ -635,31 +590,52 @@ void Game::ResetFrameTiming()
 void Game::UpdateFixedPhysics(double elapsedSeconds)
 {
 	m_PhysicsStepsLastFrame = 0;
+
 	if (m_ResetPhysicsElapsed)
 	{
-		// Start a new time interval without simulating time before this scene/shot.
 		elapsedSeconds = FixedStepClock::StepSeconds;
 		m_ResetPhysicsElapsed = false;
 	}
-	const int steps = m_PhysicsClock.Advance(elapsedSeconds);
+
+	const int steps =
+		m_PhysicsClock.Advance(elapsedSeconds);
+
 	for (int step = 0; step < steps; ++step)
 	{
-		const GameState previousState = m_GameState;
+		const BattleState previousState =
+			m_BattleController.GetState();
+
 		m_World.FixedUpdate();
-		const auto physicsResult = BallPhysicsWorld::Step(*this);
-		m_PhysicsSubstepsLastTick = physicsResult.substeps;
-		if (physicsResult.limitReached) ++m_PhysicsSubstepLimitCount;
+
+		const auto physicsResult =
+			BallPhysicsWorld::Step(*this);
+
+		m_PhysicsSubstepsLastTick =
+			physicsResult.substeps;
+
+		if (physicsResult.limitReached)
+		{
+			++m_PhysicsSubstepLimitCount;
+		}
+
 		++m_PhysicsTickCount;
 		++m_PhysicsStepsLastFrame;
-		if (m_GameState == GameState::BallsMoving)
+
+		const bool stopCatchUp =
+			m_BattleController.OnFixedStepCompleted();
+
+		const BattleState currentState =
+			m_BattleController.GetState();
+
+		if (currentState != previousState ||
+			stopCatchUp ||
+			m_BattleController.IsFinished())
 		{
-			m_AllBallsStoppedFrameCount = AreAllBallsStopped()
-				? m_AllBallsStoppedFrameCount + 1 : 0;
-		}
-		if (m_GameState != previousState || m_AllBallsStoppedFrameCount >= 11)
-		{
-			if (previousState == GameState::BallsMoving) BallShotPrediction::WriteVerificationActual(*this);
-			// Finish the shot / handle death once, outside the catch-up loop.
+			if (previousState == BattleState::BallsMoving)
+			{
+				BallShotPrediction::WriteVerificationActual(*this);
+			}
+
 			m_PhysicsClock.Reset();
 			break;
 		}
@@ -719,7 +695,9 @@ void Game::Draw()
 	ImGui::Separator();
 	ImGui::TextDisabled(
 		"フェーズ: %s",
-		GetIncomingDamagePhaseLabel(m_Instance->m_GameState));
+		GetIncomingDamagePhaseLabel(
+			m_Instance->GetBattleState(),
+			m_Instance->m_IsClearRewardActive));
 	if (forecast.hasPlayer)
 	{
 		ImGui::Text(
@@ -740,7 +718,7 @@ void Game::Draw()
 		ImGui::TextColored(
 			damageColor,
 			"%s: %d  攻撃後HP: %d%s",
-			GetIncomingDamageValueLabel(m_Instance->m_GameState),
+			GetIncomingDamageValueLabel(m_Instance->GetBattleState()),
 			forecast.expectedDamage,
 			forecast.hpAfterAttack,
 			forecast.lethal ? "  [致死]" : "");
@@ -912,7 +890,16 @@ void Game::Draw()
 	}
 	ImGui::Separator();
 
-	ImGui::Text("GameState = %d", static_cast<int>(m_Instance->m_GameState));
+	ImGui::Text(
+		"BattleState = %s",
+		GetBattleStateDebugName(
+			m_Instance->GetBattleState()));
+
+	ImGui::Text(
+		"ClearReward = %s",
+		m_Instance->m_IsClearRewardActive
+		? "true"
+		: "false");
 
 	ImGui::Text("AreAllBallsStopped = %s",
 		m_Instance->AreAllBallsStopped() ? "true" : "false");
@@ -1023,7 +1010,7 @@ void Game::Draw()
 	// ==========================
 	// 報酬UIを最後に重ねる
 	// ==========================
-	if (m_Instance->m_GameState == GameState::ClearReward)
+	if (m_Instance->m_IsClearRewardActive)
 	{
 		m_Instance->DrawClearRewardUI();
 	}
@@ -1174,7 +1161,7 @@ void Game::DrawPauseUI()
 		ImGui::TextWrapped(
 			"ランのセーブデータは1個だけです。現在のセーブを上書きしてタイトルへ戻ります。");
 		if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr &&
-			m_GameState != GameState::ClearReward)
+			!m_IsClearRewardActive)
 		{
 			ImGui::TextDisabled("戦闘中のランは、この戦闘の最初から再開します。");
 		}
@@ -1301,13 +1288,26 @@ void Game::ChangeScene(SceneType sceneType)
 	// =====================================
 	if (sceneType == SceneType::Battle)
 	{
-		// ステージ開始時に現在ボール・山札・捨て札を回収して再シャッフルする。
+		m_IsClearRewardActive = false;
+		m_LastBattleResult = BattleResult::None;
+
+		m_BattleController.StartBattle();
+
 		m_PlayerDeck.Reset();
-		BeginBallSelection();
+
+		if (!BeginBallSelection())
+		{
+			m_BattleController.NotifyPlayerDefeated();
+		}
 
 		m_IsStageRewardCollected = false;
 		m_CurrentStageRewardMoney = 0;
 		m_RewardMessage.clear();
+	}
+	else
+	{
+		m_IsClearRewardActive = false;
+		m_BattleController.Reset();
 	}
 
 	if (sceneType == SceneType::Title && m_DebugMode)
@@ -1317,6 +1317,10 @@ void Game::ChangeScene(SceneType sceneType)
 
 	if (!m_Instance->m_SceneManager.Change(sceneType))
 	{
+		if (sceneType == SceneType::Battle)
+		{
+			m_BattleController.Reset();
+		}
 		std::cerr << "[Game] シーンの生成に失敗しました" << std::endl;
 		return;
 	}
@@ -1360,154 +1364,7 @@ bool Game::ContainsGameObject(const GameObject* gameObject) const
 // All Enemies Defeatedかどうかを判定する。
 bool Game::AreAllEnemiesDefeated() const
 {
-	std::vector<EnemyBall*> enemies = m_Instance->GetComponents<EnemyBall>();
-
-	// 敵が1体もいない場合はクリア扱いにしない
-	if (enemies.empty())
-	{
-		return false;
-	}
-
-	for (EnemyBall* enemy : enemies)
-	{
-		if (enemy == nullptr)
-		{
-			continue;
-		}
-
-		if (!enemy->IsDefeated())
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-// All Balls Stoppedかどうかを判定する。
-bool Game::AreAllBallsStopped() const
-{
-	std::vector<GameObject*> balls = m_Instance->GetGameObjectsWith<BallPhysicsComponent>();
-
-	if (balls.empty())
-	{
-		return false;
-	}
-
-	// Game::AreAllBallsStopped()
-	for (GameObject* ball : balls)
-	{
-		if (ball == nullptr) continue;
-
-		// 撃破済みの敵も反射後に停止するまではショット中として扱う。
-		BallPhysicsComponent* physics = ball->GetComponent<BallPhysicsComponent>();
-		if (physics != nullptr && !physics->IsStopped())
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-// Recover Cleared Battleを試行する。
-bool Game::TryRecoverClearedBattle(const char* source)
-{
-	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) == nullptr ||
-		m_GameState == GameState::BallsMoving ||
-		m_GameState == GameState::ClearReward ||
-		m_GameState == GameState::GameOver ||
-		!AreAllEnemiesDefeated())
-	{
-		return false;
-	}
-
-	RecordBalanceEvent(
-		"battle_clear_state_recovered",
-		{
-			{ "source", source != nullptr ? source : "unknown" },
-			{ "previous_game_state", GetGameStateDebugName(m_GameState) },
-		});
-	StartClearReward();
-	return true;
-}
-
-// Enemy Attackを処理する。
-void Game::ProcessEnemyAttack()
-{
-	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
-	std::vector<EnemyBall*> enemies = GetComponents<EnemyBall>();
-
-	if (players.empty())
-	{
-		m_GameState = GameState::GameOver;
-		return;
-	}
-
-	// 撃破済みの敵はショット中の反射物として残し、
-	// 敵の攻撃が始まる直前にだけ取り除く。
-	for (EnemyBall* enemy : enemies)
-	{
-		if (enemy != nullptr && enemy->IsDefeated())
-		{
-			DeleteGameObject(enemy->GetGameObject());
-		}
-	}
-	enemies = GetComponents<EnemyBall>();
-
-	PlayerBall* player = players[0];
-	InvalidateDebugCombatForecast("敵攻撃開始");
-	RefreshDebugCombatForecast();
-	const int predictedDamage = m_DebugCombatForecast.expectedDamage;
-	const int playerHpBeforeEnemyAttack = player->GetHP();
-
-	for (EnemyBall* enemy : enemies)
-	{
-		if (enemy == nullptr)
-		{
-			continue;
-		}
-
-		if (enemy->IsDefeated())
-		{
-			continue;
-		}
-		if (enemy->IsPocketed())
-		{
-			continue;
-		}
-
-		EnemyAttackComponent* attack =
-			enemy->GetGameObject()->GetComponent<EnemyAttackComponent>();
-		if (attack != nullptr)
-		{
-			const int hpBefore = player->GetHP();
-			attack->Attack(player);
-			NotifyPlayerDamage(
-				"enemy_attack",
-				(std::max)(0, hpBefore - player->GetHP()),
-				enemy->GetEnemyId(),
-				hpBefore,
-				player->GetHP());
-		}
-	}
-	m_DebugLastEnemyAttackComparisonValid = true;
-	m_DebugLastEnemyAttackPredictedDamage = predictedDamage;
-	m_DebugLastEnemyAttackActualDamage = (std::max)(
-		0,
-		playerHpBeforeEnemyAttack - player->GetHP());
-
-	CapturePlayerStatusFrom(player);
-
-	if (m_PlayerRunStatus.currentHp <= 0)
-	{
-		m_GameState = GameState::GameOver;
-	}
-	else
-	{
-		RestoreNextPocketedEnemy();
-		m_GameState = GameState::TurnEnd;
-	}
+	return m_BattleController.AreAllEnemiesDefeated();
 }
 
 // Current Pocket Finisher Ratioを取得する。
@@ -1883,7 +1740,6 @@ void Game::EnterNextRouteAfterArea()
 	{
 		ChangeScene(SceneType::Select);
 	}
-	m_GameState = GameState::AimingDirection;
 }
 
 // Shopから退出する。
@@ -1910,7 +1766,6 @@ void Game::LeaveRestSite()
 				{ "next_phase", ToString(m_RunProgress.GetPhase()) },
 			});
 		ChangeScene(SceneType::Select);
-		m_GameState = GameState::AimingDirection;
 		return;
 	}
 
@@ -1921,6 +1776,7 @@ void Game::LeaveRestSite()
 // Continue After Clear Reward の処理を実行する。
 void Game::ContinueAfterClearReward()
 {
+	m_IsClearRewardActive = false;
 	EnterNextRouteAfterArea();
 }
 
@@ -1947,12 +1803,12 @@ void Game::CompleteFinalBossRun()
 	FinalizeRunResult(true);
 	GameSaveManager::Remove();
 	ChangeScene(SceneType::Result);
-	m_GameState = GameState::AimingDirection;
 }
 
 // Game Overを処理する。
 void Game::ProcessGameOver()
 {
+	m_IsClearRewardActive = false;
 	if (m_DebugMode) { FinishDebugBattle(false); return; }
 	DiscardCurrentPlayerBall();
 
@@ -1991,7 +1847,6 @@ void Game::ProcessGameOver()
 	GameSaveManager::Remove();
 
 	ChangeScene(SceneType::Result);
-	m_GameState = GameState::AimingDirection;
 }
 
 // Clear Rewardを開始する。
@@ -2090,7 +1945,6 @@ void Game::StartClearReward()
 		FinalizeRunResult(true);
 		GameSaveManager::Remove();
 		ChangeScene(SceneType::Result);
-		m_GameState = GameState::AimingDirection;
 		return;
 	}
 	nlohmann::json newBallCandidates = nlohmann::json::array();
@@ -2147,13 +2001,13 @@ void Game::StartClearReward()
 			},
 			{ "extra_money_amount", kExtraRewardMoney },
 		});
-	m_GameState = GameState::ClearReward;
+	m_IsClearRewardActive = true;
 }
 
 // Current Stageを完了する。
 void Game::CompleteCurrentStage()
 {
-	if (m_GameState != GameState::ClearReward)
+	if (!m_IsClearRewardActive)
 	{
 		StartClearReward();
 	}
@@ -2396,7 +2250,7 @@ void Game::UpdateClearReward()
 	}
 }
 // Begin Ball Selection の処理を実行する。
-void Game::BeginBallSelection()
+bool Game::BeginBallSelection()
 {
 	m_CurrentShotCollisionAttackBonus = 0;
 	m_CurrentShotPlayerEnemyCollisionCount = 0;
@@ -2410,15 +2264,15 @@ void Game::BeginBallSelection()
 
 	if (!m_PlayerDeck.PrepareOffer(GetBallOfferSize()))
 	{
-		m_GameState = GameState::GameOver;
-		return;
+		return false;
 	}
 
 	m_SelectedOfferIndex = 0;
 	m_SelectedHoldIndex = -1;
 
-	// 前回から保持していたボールは、初期状態では保持を継続する。
-	for (int index = 0; index < m_PlayerDeck.GetOfferCount(); index++)
+	for (int index = 0;
+		index < m_PlayerDeck.GetOfferCount();
+		index++)
 	{
 		if (m_PlayerDeck.WasHeldOffer(index))
 		{
@@ -2427,18 +2281,19 @@ void Game::BeginBallSelection()
 		}
 	}
 
-	if (m_SelectedHoldIndex >= 0 && m_PlayerDeck.GetOfferCount() > 1)
+	if (m_SelectedHoldIndex >= 0 &&
+		m_PlayerDeck.GetOfferCount() > 1)
 	{
-		// 保持中のボールとは別の、新しく引いた候補を初期選択にする。
 		m_SelectedOfferIndex = 1;
 	}
-	else if (m_SelectedHoldIndex == m_SelectedOfferIndex)
+	else if (m_SelectedHoldIndex ==
+		m_SelectedOfferIndex)
 	{
 		m_SelectedHoldIndex = -1;
 	}
 
-	m_GameState = GameState::AimingDirection;
 	ApplySelectedBallPreview();
+	return true;
 }
 
 // Ball Selectionを更新する。

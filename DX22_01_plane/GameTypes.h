@@ -186,16 +186,4 @@ enum class DamageBallCollisionType
 {
 	PlayerEnemy,
 	EnemyEnemy
-};
-
-enum class GameState
-{
-	AimingDirection,
-	AimingPower,
-	ConfirmShot,
-	BallsMoving,
-	EnemyAttack,
-	TurnEnd,
-	ClearReward,
-	GameOver,
-};
+};	

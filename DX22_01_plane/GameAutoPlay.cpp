@@ -157,7 +157,6 @@ bool Game::UpdateBalanceAutoPlay()
 		}
 
 		ChangeScene(SceneType::Title);
-		m_GameState = GameState::AimingDirection;
 		return true;
 	}
 
@@ -313,7 +312,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (m_GameState == GameState::ClearReward)
+	if (m_IsClearRewardActive)
 	{
 		if (!isDecisionReady())
 		{
@@ -336,11 +335,12 @@ bool Game::UpdateBalanceAutoPlay()
 	}
 
 	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr &&
-		m_GameState == GameState::AimingDirection)
+		GetBattleState() == BattleState::AimingDirection)
 	{
-		if (TryRecoverClearedBattle("autoplay_no_target_guard"))
+		if (AreAllEnemiesDefeated())
 		{
-			return true;
+			m_AutoDecisionFrame = 0;
+			return false;
 		}
 		std::vector<PlayerBall*> players =
 			GetComponents<PlayerBall>();
@@ -591,15 +591,16 @@ bool Game::FireBalanceAutoShot()
 
 	if (bestTarget == nullptr)
 	{
-		if (TryRecoverClearedBattle("autoplay_fire_no_target"))
+		if (AreAllEnemiesDefeated())
 		{
-			return true;
+			m_AutoDecisionFrame = 0;
+			return false;
 		}
 		RecordBalanceEvent(
 			"autoplay_waiting",
 			{
 				{ "reason", "no_live_target" },
-				{ "game_state", static_cast<int>(m_GameState) },
+				{ "battle_state", ToString(GetBattleState()) },
 			});
 		return false;
 	}
@@ -1120,7 +1121,6 @@ void Game::PruneBalanceAutoPendingBalls()
 // On Battle Stage Started の処理を実行する。
 void Game::OnBattleStageStarted(const StageData& stage)
 {
-	m_AllBallsStoppedFrameCount = 0;
 	m_BountyRewardClaimed = false;
 	InvalidateDebugCombatForecast("戦闘開始");
 	m_RunStatistics.ReachFloor(m_PlayerRunStatus.progress);

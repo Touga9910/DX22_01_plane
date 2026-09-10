@@ -109,7 +109,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     const bool impact = BallPhysicsRules::Pair(first, second);
     CommitPhysicsBody(first);
     otherContact.CommitPhysicsBody(second);
-    if (!impact || Game::GetInstance()->GetGameState() != GameState::BallsMoving) return;
+	if (!impact || Game::GetInstance()->GetBattleState() != BattleState::BallsMoving) return;
     auto* myEnemy = GetGameObject()->GetComponent<EnemyBall>();
     auto* otherEnemy = other->GetGameObject()->GetComponent<EnemyBall>();
     auto* myPlayer = GetGameObject()->GetComponent<PlayerBall>();

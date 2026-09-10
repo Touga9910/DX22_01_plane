@@ -140,12 +140,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BallCcdGeometry.h" />
+    <ClInclude Include="BattleController.h" />
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
     <ClInclude Include="ShotRelicRules.h" />
     <ClInclude Include="BallShotPrediction.h" />
     <ClInclude Include="BossCombatRules.h" />
     <ClInclude Include="BreakBall.h" />
+    <ClCompile Include="BattleController.cpp" />
     <ClCompile Include="BreakBall.cpp" />
     <ClCompile Include="BallShotPrediction.cpp">
       <Optimization>MaxSpeed</Optimization>
@@ -168,11 +170,15 @@
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameBattleBridge.cpp" />
     <ClCompile Include="GameWorld.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="RunProgressController.cpp" />
     <ClCompile Include="GameAutoPlay.cpp" />
-    <ClCompile Include="GameBossAI.cpp"><Optimization>MaxSpeed</Optimization><BasicRuntimeChecks>Default</BasicRuntimeChecks></ClCompile>
+    <ClCompile Include="GameBossAI.cpp">
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+    </ClCompile>
     <ClCompile Include="GameBalanceConfig.cpp" />
     <ClCompile Include="GameDebugMode.cpp" />
     <ClCompile Include="GameStageEditor.cpp" />

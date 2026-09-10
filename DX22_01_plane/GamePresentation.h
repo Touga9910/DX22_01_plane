@@ -106,7 +106,7 @@ private:
 	bool m_TutorialActive = false;
 	bool m_TutorialReplay = false;
 	TutorialStep m_TutorialStep = TutorialStep::Welcome;
-	int m_PreviousGameState = -1;
+	int m_PreviousBattleState = -1;
 	bool m_DashboardOpen = false;
 	float m_ImpactFlashLifetime = 0.0f;
 	float m_DamageFlashLifetime = 0.0f;

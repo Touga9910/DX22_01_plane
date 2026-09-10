@@ -669,7 +669,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		deck.m_NextInstanceId = restoredDeck.nextInstanceId;
 		deck.m_RandomEngine = restoredDeck.randomEngine;
 
-		game.m_GameState = GameState::AimingDirection;
 		game.m_IsRestoringRunSave = true;
 		game.ChangeScene(resumeScene);
 		game.m_IsRestoringRunSave = false;

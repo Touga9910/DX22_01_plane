@@ -131,7 +131,7 @@ void PlayerBall::FixedUpdate()
 		UpdateSimulation();
 	}
     else if (!m_SkipSimulationOnNextFixedUpdate && m_Ball->HasPierceAbility() &&
-        Game::GetInstance()->GetGameState() == GameState::BallsMoving)
+		Game::GetInstance()->GetBattleState() == BattleState::BallsMoving)
     {
         // Another moving enemy can enter a piercer that has already gone idle.
         UpdateStopByFriction();
@@ -208,7 +208,7 @@ void PlayerBall::Defeat()
 	m_Ball->Defeat();
 
 	// プレイヤー専用：ゲームオーバーへ移行
-	Game::GetInstance()->SetGameState(GameState::GameOver);
+	Game::GetInstance()->NotifyBattlePlayerDefeated();
 }
 
 void PlayerBall::OnPocketHit()
@@ -378,11 +378,11 @@ void PlayerBall::UpdateTrailLife()
 
 void PlayerBall::UpdateAim()
 {
-	GameState gameState = Game::GetInstance()->GetGameState();
+	BattleState battleState = Game::GetInstance()->GetBattleState();
 
-	if (gameState != GameState::AimingDirection &&
-		gameState != GameState::AimingPower &&
-		gameState != GameState::ConfirmShot)
+	if (battleState != BattleState::AimingDirection &&
+		battleState != BattleState::AimingPower &&
+		battleState != BattleState::ConfirmShot)
 	{
 		return;
 	}
@@ -420,9 +420,9 @@ void PlayerBall::UpdateAim()
 	}
 	else
 	{
-		if (gameState != GameState::AimingDirection)
+		if (battleState != BattleState::AimingDirection)
 		{
-			Game::GetInstance()->SetGameState(GameState::AimingDirection);
+			Game::GetInstance()->NotifyBattleAimDirectionStarted();
 		}
 
 		UpdateAimDirectionFromMouse();
@@ -633,7 +633,7 @@ void PlayerBall::BeginMousePowerDrag()
 	m_PowerDragStartMousePos = Input::GetMousePosition();                 // パワー計算の基準位置を保存する
 	m_ShotPower = m_MinShotPower;                                         // ドラッグ開始時は最小パワーにする
 	m_PreTrajectoryDirty = true;                                          // 予測線を再計算対象にする
-	Game::GetInstance()->SetGameState(GameState::AimingPower);
+	Game::GetInstance()->NotifyBattlePowerSelectionStarted();
 }
 
 void PlayerBall::UpdateShotPowerFromMouseDrag()
@@ -662,7 +662,7 @@ void PlayerBall::CancelMousePowerDrag()
 {
 	m_IsPowerDragging = false;                                      // パワードラッグを終了する
 	m_PreTrajectoryDirty = true;                                    // 方向合わせに戻るため予測線を更新対象にする
-	Game::GetInstance()->SetGameState(GameState::AimingDirection);  // 方向合わせ状態へ戻す
+	Game::GetInstance()->NotifyBattleShotCancelled();				// 方向合わせ状態へ戻す
 }
 
 void PlayerBall::FireMouseShot()
@@ -678,7 +678,6 @@ void PlayerBall::FireMouseShot()
 	m_StopCount = 0;                                                // 停止判定カウントをリセットする
     BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
 	Game::GetInstance()->OnPlayerShotFired(this);
-	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
 
 void PlayerBall::FireAutomatedShot(
@@ -695,7 +694,6 @@ void PlayerBall::FireAutomatedShot(
 
     BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
 	Game::GetInstance()->OnPlayerShotFired(this);
-	Game::GetInstance()->SetGameState(GameState::BallsMoving);
 }
 
 Vector3 PlayerBall::GetShotVector() const
@@ -900,19 +898,18 @@ void PlayerBall::DrawImGui()
 		ImGui::SliderFloat("Shot Power", &m_ShotPower, m_MinShotPower, m_MaxShotPower);
 
 		// 現在の GameState 表示
-		const char* gsStr = "";
-		switch (Game::GetInstance()->GetGameState())
-		{
-		case GameState::AimingDirection: gsStr = "AimingDirection"; break;
-		case GameState::AimingPower:     gsStr = "AimingPower";     break;
-		case GameState::ConfirmShot:     gsStr = "ConfirmShot";     break;
-		case GameState::BallsMoving:     gsStr = "BallsMoving";     break;
-		case GameState::TurnEnd:         gsStr = "TurnEnd";         break;
-		case GameState::EnemyAttack:     gsStr = "EnemyAttack";     break;
-		case GameState::ClearReward:     gsStr = "ClearReward";     break;
-		case GameState::GameOver:        gsStr = "GameOver";        break;
-		}
-		ImGui::Text("GameState: %s", gsStr);
+		const BattleState battleState =
+			Game::GetInstance()->GetBattleState();
+
+		ImGui::Text(
+			"BattleState: %s",
+			ToString(battleState));
+
+		ImGui::Text(
+			"ClearReward: %s",
+			Game::GetInstance()->IsClearRewardActive()
+			? "true"
+			: "false");
 
 		// 状態表示
 		const char* stateStr = "";

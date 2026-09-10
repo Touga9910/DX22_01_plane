@@ -313,6 +313,9 @@
     <ClInclude Include="imgui\imgui_impl_win32.h">
       <Filter>ヘッダー ファイル\90_External\ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="BattleController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ソース ファイル">
@@ -639,6 +642,12 @@
     <Filter Include="リソース ファイル\Tools\MCP">
       <UniqueIdentifier>{6b8389d6-b681-44c9-8c1f-0da977f27e54}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\02_Gameplay\Buttle">
+      <UniqueIdentifier>{6653dde1-aead-4c87-9d42-71f3680392f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\02_Gameplay\Battle">
+      <UniqueIdentifier>{5e68da69-10f8-4559-98e4-81e55b2f49df}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -862,6 +871,12 @@
     </ClCompile>
     <ClCompile Include="GamePresentation.cpp">
       <Filter>ソース ファイル\05_UI</Filter>
+    </ClCompile>
+    <ClCompile Include="BattleController.cpp">
+      <Filter>ソース ファイル\02_Gameplay\Buttle</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBattleBridge.cpp">
+      <Filter>ソース ファイル\02_Gameplay\Buttle</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

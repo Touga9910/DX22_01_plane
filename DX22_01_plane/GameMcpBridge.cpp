@@ -138,21 +138,41 @@ namespace
 		return false;
 	}
 
-	const char* GetGameStateName(GameState state)
+	const char* GetGameStateName(const Game& game)
 	{
-		switch (state)
+		if (game.IsClearRewardActive())
 		{
-		case GameState::AimingDirection: return "aiming_direction";
-		case GameState::AimingPower: return "aiming_power";
-		case GameState::ConfirmShot: return "confirm_shot";
-		case GameState::BallsMoving: return "balls_moving";
-		case GameState::EnemyAttack: return "enemy_attack";
-		case GameState::TurnEnd: return "turn_end";
-		case GameState::ClearReward: return "clear_reward";
-		case GameState::GameOver: return "game_over";
-		default: return "unknown";
+			return "clear_reward";
+		}
+
+		if (game.GetLastBattleResult() == BattleResult::Defeat &&
+			game.GetCurrentSceneType() == SceneType::Result)
+		{
+			return "game_over";
+		}
+
+		switch (game.GetBattleState())
+		{
+		case BattleState::AimingDirection:
+			return "aiming_direction";
+		case BattleState::AimingPower:
+			return "aiming_power";
+		case BattleState::ConfirmShot:
+			return "confirm_shot";
+		case BattleState::BallsMoving:
+			return "balls_moving";
+		case BattleState::EnemyAttack:
+			return "enemy_attack";
+		case BattleState::TurnEnd:
+			return "turn_end";
+		case BattleState::Finished:
+			return "finished";
+		case BattleState::Inactive:
+		default:
+			return "inactive";
 		}
 	}
+
 
 	const char* GetSceneName(const Scene* scene)
 	{
@@ -465,7 +485,10 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "published_at_unix_ms", UnixTimeMilliseconds() },
 		{ "sequence", m_StateSequence },
 		{ "scene", GetSceneName(game.GetCurrentScene()) },
-		{ "game_state", GetGameStateName(game.m_GameState) },
+		{ "game_state", GetGameStateName(game) },
+		{ "battle_state", ToString(game.GetBattleState()) },
+		{ "battle_result", ToString(game.GetLastBattleResult()) },
+		{ "clear_reward_active", game.IsClearRewardActive() },
 		{ "selected_stage_id",
 			game.m_PlayerRunStatus.GetSelectedStageId() },
 		{ "autoplay_enabled",
@@ -1149,7 +1172,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			"continue_to_battle");
 	}
 	else if (scene == "battle" &&
-		game.m_GameState == GameState::AimingDirection &&
+		game.GetBattleState() == BattleState::AimingDirection &&
 		player != nullptr &&
 		player->IsIdle() &&
 		game.AreAllBallsStopped())
@@ -1165,7 +1188,7 @@ nlohmann::json GameMcpBridge::BuildState(
         }
 	}
 
-	if (game.m_GameState == GameState::ClearReward)
+	if (game.IsClearRewardActive())
 	{
 		state["clear_reward_rule"] = {
 			{ "upgrade_requires_money", true },
@@ -1290,7 +1313,9 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 
     if (action == "evaluate_boss_shots" || action == "fire_boss_shot")
     {
-        if (scene != "battle" || game.GetGameState() != GameState::AimingDirection || !game.AreAllBallsStopped())
+		if (scene != "battle" ||
+			game.GetBattleState() != BattleState::AimingDirection ||
+			!game.AreAllBallsStopped())
             return CommandResult(false, "Boss planning requires a stopped battle in aiming state.");
         const auto choices = game.EvaluateBossShots();
         if (choices.empty()) return CommandResult(false, "No live Armor boss or playable ball.");
@@ -1627,7 +1652,6 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			forcedRandomSeed,
 			forcedValidationVariant);
 		game.ChangeScene(SceneType::Select);
-		game.m_GameState = GameState::AimingDirection;
 		return CommandResult(true, "Started a new run.");
 	}
 
@@ -1670,7 +1694,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	if (action == "select_ball")
 	{
 		if (scene != "battle" ||
-			game.m_GameState != GameState::AimingDirection)
+			game.GetBattleState() != BattleState::AimingDirection)
 		{
 			return CommandResult(
 				false,
@@ -1698,7 +1722,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	if (action == "fire_shot")
 	{
 		if (scene != "battle" ||
-			game.m_GameState != GameState::AimingDirection)
+			game.GetBattleState() != BattleState::AimingDirection)
 		{
 			return CommandResult(
 				false,
@@ -1876,7 +1900,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 
 	if (action == "choose_relic")
 	{
-		if (game.m_GameState != GameState::ClearReward ||
+		if (!game.IsClearRewardActive() ||
 			!game.m_IsMidBossRelicSelectionActive)
 		{
 			return CommandResult(
@@ -1931,7 +1955,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 
 	if (action == "choose_reward")
 	{
-		if (game.m_GameState != GameState::ClearReward ||
+		if (!game.IsClearRewardActive() ||
 			game.m_IsClearRewardChosen ||
 			game.m_IsMidBossRelicSelectionActive)
 		{
@@ -2025,7 +2049,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 
 	if (action == "continue_after_reward")
 	{
-		if (game.m_GameState != GameState::ClearReward ||
+		if (!game.IsClearRewardActive() ||
 			!game.m_IsClearRewardChosen)
 		{
 			return CommandResult(

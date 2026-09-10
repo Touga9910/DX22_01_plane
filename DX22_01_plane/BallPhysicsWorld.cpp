@@ -30,7 +30,7 @@ namespace
     struct WorldAdapter
     {
         Game& game;
-        GameState initialState;
+        BattleState initialState;
         std::vector<Body> bodies;
         std::vector<Collision::Segment> walls;
         std::vector<Pocket*> pockets;
@@ -44,7 +44,7 @@ namespace
         bool IsActive(std::size_t i) const { return bodies[i].collision->CanSimulate(); }
         float Radius(std::size_t i) const { return bodies[i].ball->GetRadius(); }
         Vector3 Velocity(std::size_t i) const { return bodies[i].ball->GetVelocity(); }
-        bool ShouldContinue() const { return game.GetGameState() == initialState; }
+        bool ShouldContinue() const { return game.GetBattleState() == initialState; }
 
         void BeginSubstep()
         {
@@ -77,7 +77,7 @@ namespace
 
 ContinuousBallStepper::Result BallPhysicsWorld::Step(Game& game)
 {
-    WorldAdapter world{ game, game.GetGameState() };
+    WorldAdapter world{ game, game.GetBattleState() };
     const std::vector<BallComponent*> balls = game.GetComponents<BallComponent>();
     const std::vector<Pocket*> pockets = game.GetComponents<Pocket>();
     const std::vector<TableFrame*> frames = game.GetComponents<TableFrame>();

@@ -74,22 +74,6 @@ namespace
 			}));
 	}
 
-	const char* GetGameStateDebugName(GameState state)
-	{
-		switch (state)
-		{
-		case GameState::AimingDirection: return "AimingDirection";
-		case GameState::AimingPower:     return "AimingPower";
-		case GameState::ConfirmShot:     return "ConfirmShot";
-		case GameState::BallsMoving:     return "BallsMoving";
-		case GameState::EnemyAttack:     return "EnemyAttack";
-		case GameState::TurnEnd:         return "TurnEnd";
-		case GameState::ClearReward:     return "ClearReward";
-		case GameState::GameOver:        return "GameOver";
-		default:                         return "Unknown";
-		}
-	}
-
 	const char* GetSceneDebugName(Scene* scene)
 	{
 		if (dynamic_cast<TitleScene*>(scene)) return "TITLE";
@@ -218,7 +202,7 @@ bool Game::ApplyClearRewardUpgrade(
 	int& chargedCost)
 {
 	chargedCost = 0;
-	if (m_GameState != GameState::ClearReward)
+	if (!m_IsClearRewardActive)
 	{
 		return false;
 	}
@@ -730,16 +714,16 @@ void Game::DrawNextPlayerBall()
 	m_PlayerDeck.DrawNext();
 }
 // Next Player Ballを準備する。
-void Game::PrepareNextPlayerBall()
+bool Game::PrepareNextPlayerBall()
 {
 	DiscardCurrentPlayerBall();
 
 	if (m_PlayerDeck.HasCurrent())
 	{
-		return;
+		return true;
 	}
 
-	BeginBallSelection();
+	return BeginBallSelection();
 }
 
 // Stage Reward Moneyを計算する。
@@ -811,7 +795,6 @@ void Game::CollectStageRewardMoney()
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
 	ResetFrameTiming();
-	m_AllBallsStoppedFrameCount = 0;
 	ResetShotRelicState(player);
     // A new shot starts a new damage episode even for touching enemy pairs.
     for (auto* ball : GetComponents<BallComponent>()) ball->ResetShotAbilityState();
@@ -902,6 +885,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	}
 
 	m_PlayerDeck.MarkCurrentUsed();
+	m_BattleController.NotifyShotFired();
 }
 
 // Player Wall Collisionを通知する。
@@ -1345,8 +1329,26 @@ void Game::SaveDebugSnapshot()
 
 	file << "[Scene]\n";
 	file << "Scene = " << GetSceneDebugName(m_SceneManager.Get()) << "\n";
-	file << "GameState = " << GetGameStateDebugName(m_GameState)
-		<< " (" << static_cast<int>(m_GameState) << ")\n";
+	file << "[Scene]\n";
+	file << "Scene = " << GetSceneDebugName(m_SceneManager.Get()) << "\n";
+
+	file << "BattleState = "
+		<< ToString(GetBattleState())
+		<< " (" << static_cast<int>(GetBattleState()) << ")\n";
+
+	file << "ClearReward = "
+		<< (m_IsClearRewardActive ? "true" : "false")
+		<< "\n";
+
+	file << "LastBattleResult = "
+		<< ToString(m_LastBattleResult)
+		<< "\n";
+
+	file << "AreAllBallsStopped = "
+		<< (AreAllBallsStopped() ? "true" : "false") << "\n";
+
+	file << "AreAllEnemiesDefeated = "
+		<< (AreAllEnemiesDefeated() ? "true" : "false") << "\n";
 	file << "AreAllBallsStopped = " << (AreAllBallsStopped() ? "true" : "false") << "\n";
 	file << "AreAllEnemiesDefeated = " << (AreAllEnemiesDefeated() ? "true" : "false") << "\n";
 	file << "\n";

@@ -28,16 +28,16 @@ void StageBase::Update()
     PlayerBall* ball = GetPlayerBall();
     if (!ball) return;
    
-    switch (Game::GetInstance()->GetGameState())
+    switch (Game::GetInstance()->GetBattleState())
     {
-    case GameState::TurnEnd:
+    case BattleState::TurnEnd:
         // TC-20: ショット完了（全ボール停止）のタイミングで打数カウント
         m_StrokeCount++;
         UpdateStrokeUI();
-        // ※ 翌フレームに Game::Update() が自動で AimingDirection へ遷移させる
+        // 次の戦闘更新で AimingDirection へ遷移する
         break;
 
-    case GameState::BallsMoving:
+    case BattleState::BallsMoving:
         // TC-21: ゴール判定
         if (ball->GetState() == PlayerBall::State::Goal)
         {
@@ -47,7 +47,7 @@ void StageBase::Update()
 
     default:
         // TC-22: AimingDirection / AimingPower / ConfirmShot では
-        //        何もしない（PlayerBall::UpdateAim() が入力・状態遷移を処理）
+        //        何もしない（PlayerBall::UpdateAim() が入力を処理）
         break;
     }
 }
