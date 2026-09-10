@@ -168,6 +168,9 @@
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameWorld.cpp" />
+    <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="RunProgressController.cpp" />
     <ClCompile Include="GameAutoPlay.cpp" />
     <ClCompile Include="GameBossAI.cpp"><Optimization>MaxSpeed</Optimization><BasicRuntimeChecks>Default</BasicRuntimeChecks></ClCompile>
     <ClCompile Include="GameBalanceConfig.cpp" />
@@ -245,6 +248,9 @@
     <ClInclude Include="EnemyAttackComponent.h" />
     <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameWorld.h" />
+    <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="RunProgressController.h" />
     <ClInclude Include="DebugBattleSetup.h" />
     <ClInclude Include="StageLayoutEditor.h" />
     <ClInclude Include="EnemyText.h" />

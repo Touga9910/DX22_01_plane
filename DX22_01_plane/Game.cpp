@@ -9,6 +9,12 @@
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
 #include "GameSaveManager.h"
+#include "BattleScene.h"
+#include "ResultScene.h"
+#include "RestSiteScene.h"
+#include "ShopScene.h"
+#include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "BallPhysicsComponent.h"
 #include "BallPhysicsWorld.h"
 #include "input.h"
@@ -200,16 +206,16 @@ namespace
 // コンストラクタ
 Game::Game()
 {
-	m_Scene = nullptr;
 }
 
 // デストラクタ
 Game::~Game()
 {
-	delete m_Scene;
+	m_SceneManager.Reset();
 	DeleteAllGameObjects();
 }
 
+// Debug Combat Forecastを無効化する。
 void Game::InvalidateDebugCombatForecast(const char* reason)
 {
 	m_DebugCombatForecastDirty = true;
@@ -219,6 +225,7 @@ void Game::InvalidateDebugCombatForecast(const char* reason)
 	}
 }
 
+// Debug Combat Forecastを更新する。
 void Game::RefreshDebugCombatForecast()
 {
 	if (!m_DebugCombatForecastDirty)
@@ -297,6 +304,7 @@ void Game::RefreshDebugCombatForecast()
 	m_DebugCombatForecastDirty = false;
 }
 
+// Debug Player Damageを記録する。
 void Game::RecordDebugPlayerDamage(
 	const std::string& source,
 	const std::string& sourceId,
@@ -324,15 +332,17 @@ void Game::RecordDebugPlayerDamage(
 	}
 }
 
+// Pauseが可能か判定する。
 bool Game::CanPause() const
 {
 	return m_RunActive &&
-		(dynamic_cast<BattleScene*>(m_Scene) != nullptr ||
-		 dynamic_cast<StageSelectScene*>(m_Scene) != nullptr ||
-		 dynamic_cast<RestSiteScene*>(m_Scene) != nullptr ||
-		 dynamic_cast<ShopScene*>(m_Scene) != nullptr);
+		(dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr ||
+		 dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr ||
+		 dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr ||
+		 dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr);
 }
 
+// And Return To Titleを保存する。
 bool Game::SaveAndReturnToTitle()
 {
 	if (m_DebugMode) { m_DebugRequest = 2; return true; }
@@ -346,22 +356,22 @@ bool Game::SaveAndReturnToTitle()
 	CaptureCurrentPlayerStatus();
 	SceneType resumeScene = SceneType::Max;
 	bool sceneAlreadyActive = true;
-	if (dynamic_cast<BattleScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		resumeScene = m_GameState == GameState::ClearReward
 			? SceneType::Select
 			: SceneType::Battle;
 		sceneAlreadyActive = false;
 	}
-	else if (dynamic_cast<StageSelectScene*>(m_Scene) != nullptr)
+	else if (dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		resumeScene = SceneType::Select;
 	}
-	else if (dynamic_cast<RestSiteScene*>(m_Scene) != nullptr)
+	else if (dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		resumeScene = SceneType::RestSite;
 	}
-	else if (dynamic_cast<ShopScene*>(m_Scene) != nullptr)
+	else if (dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		resumeScene = SceneType::Shop;
 	}
@@ -407,7 +417,7 @@ void Game::Init()
 	m_Instance->LoadPocketRulesConfig();
 
 	// 最初のシーンを読み込む
-	m_Instance->m_Scene = new TitleScene;
+	m_Instance->m_SceneManager.Initialize(SceneType::Title);
 	m_Instance->m_GameMcpBridge =
 		std::make_unique<GameMcpBridge>();
 	m_Instance->m_GameMcpBridge->Initialize(*m_Instance);
@@ -504,31 +514,28 @@ void Game::Update(double elapsedSeconds)
 	}
 
 	if (!m_Instance->m_BalanceAutoPlayEnabled &&
-		dynamic_cast<BattleScene*>(m_Instance->m_Scene) != nullptr &&
+		dynamic_cast<BattleScene*>(m_Instance->m_SceneManager.Get()) != nullptr &&
 		m_Instance->m_PlayerDeck.GetOfferCount() > 0)
 	{
 		m_Instance->UpdateBallSelection();
 	}
 
 	// シーンを更新
-	m_Instance->m_Scene->Update();
+	if (Scene* scene = m_Instance->m_SceneManager.Get())
+	{
+		scene->Update();
+	}
 
 	// カメラを更新
 	m_Instance->m_Camera.Update();
 
 	// オブジェクトを更新
-	for (auto& gameObject : m_Instance->m_GameObjects)
-	{
-		gameObject->Update();
-	}
+	m_Instance->m_World.Update();
 
 	// Input/AI/MCP have run once. Only physical motion may catch up here.
 	m_Instance->UpdateFixedPhysics(elapsedSeconds);
 
-	for (auto& gameObject : m_Instance->m_GameObjects)
-	{
-		gameObject->LateUpdate();
-	}
+	m_Instance->m_World.LateUpdate();
 	m_Instance->RemoveDestroyedGameObjects();
 	if (m_Instance->TryRecoverClearedBattle("state_invariant"))
 	{
@@ -613,6 +620,7 @@ void Game::Update(double elapsedSeconds)
 
 }
 
+// Frame Timingを初期状態へ戻す。
 void Game::ResetFrameTiming()
 {
 	if (m_Instance != nullptr)
@@ -623,6 +631,7 @@ void Game::ResetFrameTiming()
 	}
 }
 
+// Fixed Physicsを更新する。
 void Game::UpdateFixedPhysics(double elapsedSeconds)
 {
 	m_PhysicsStepsLastFrame = 0;
@@ -636,10 +645,7 @@ void Game::UpdateFixedPhysics(double elapsedSeconds)
 	for (int step = 0; step < steps; ++step)
 	{
 		const GameState previousState = m_GameState;
-		for (auto& gameObject : m_GameObjects)
-		{
-			gameObject->FixedUpdate();
-		}
+		m_World.FixedUpdate();
 		const auto physicsResult = BallPhysicsWorld::Step(*this);
 		m_PhysicsSubstepsLastTick = physicsResult.substeps;
 		if (physicsResult.limitReached) ++m_PhysicsSubstepLimitCount;
@@ -665,15 +671,12 @@ void Game::Draw()
 {
 	Renderer::DrawStart();
 
-	for (auto& gameObject : m_Instance->m_GameObjects)
-	{
-		gameObject->Draw();
-	}
+	m_Instance->m_World.Draw();
 
 	ImGui::BeginDisabled(m_Instance->m_IsPaused || m_Instance->m_DebugEditorOpen);
-	if (m_Instance->m_Scene != nullptr)
+	if (m_Instance->m_SceneManager.Get() != nullptr)
 	{
-		m_Instance->m_Scene->DrawUI();
+		m_Instance->m_SceneManager.Get()->DrawUI();
 	}
 
 	if (GameUi::showDebugger)
@@ -1011,7 +1014,7 @@ void Game::Draw()
 
 	}
 
-	if (dynamic_cast<BattleScene*>(m_Instance->m_Scene) != nullptr &&
+	if (dynamic_cast<BattleScene*>(m_Instance->m_SceneManager.Get()) != nullptr &&
 		m_Instance->m_PlayerDeck.GetOfferCount() > 0)
 	{
 		m_Instance->DrawBallSelectionUI();
@@ -1056,6 +1059,7 @@ void Game::Draw()
 	// Application owns ImGui rendering and presentation, including detached windows.
 }
 
+// Pause UIを描画する。
 void Game::DrawPauseUI()
 {
 	GameSettings& settings = m_SettingsManager.Edit();
@@ -1169,7 +1173,7 @@ void Game::DrawPauseUI()
 	{
 		ImGui::TextWrapped(
 			"ランのセーブデータは1個だけです。現在のセーブを上書きしてタイトルへ戻ります。");
-		if (dynamic_cast<BattleScene*>(m_Scene) != nullptr &&
+		if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr &&
 			m_GameState != GameState::ClearReward)
 		{
 			ImGui::TextDisabled("戦闘中のランは、この戦闘の最初から再開します。");
@@ -1228,17 +1232,14 @@ void Game::Uninit()
 			"application_exit",
 			playerHp,
 			m_Instance->m_PlayerRunStatus.maxHp,
-			m_Instance->m_ClearedStageCount);
+			m_Instance->m_RunProgress.GetClearedBattleCount());
 	}
 
 	// カメラの終了処理
 	m_Instance->m_Camera.Uninit();
 
-	// オブジェクトの終了処理
-	for (auto& o : m_Instance->m_GameObjects)
-	{
-		o->Uninit();
-	}
+	// オブジェクトの終了処理は所有者であるGameWorldへ委譲する。
+	m_Instance->m_World.Clear();
 
 
 	// 入力処理を終了
@@ -1257,21 +1258,26 @@ Game* Game::GetInstance()
 	return m_Instance;
 }
 
+// GameObject生成要求を専用のGameWorldへ委譲する。
 GameObject* Game::CreateGameObject(const std::string& name)
 {
-	auto gameObject = std::make_unique<GameObject>(name);
-	GameObject* result = gameObject.get();
-	m_GameObjects.emplace_back(std::move(gameObject));
-	return result;
+	return m_World.Create(name);
 }
 
-// シーンを切り替える
+// シーン遷移前後のゲーム固有処理を調停し、シーン寿命管理をSceneManagerへ委譲する。
 void Game::ChangeScene(SceneType sceneType)
 {
+	if (sceneType < SceneType::Title || sceneType >= SceneType::Max)
+	{
+		std::cerr << "[Game] 無効なシーンへの遷移要求を拒否しました" << std::endl;
+		return;
+	}
+
 	ResetFrameTiming();
 	int score = 0;
+	Scene* currentScene = m_Instance->m_SceneManager.Get();
 
-	if (m_Instance->m_Scene != nullptr)
+	if (currentScene != nullptr)
 	{
 		m_Instance->CaptureCurrentPlayerStatus();
 		if (!m_Instance->m_IsRestoringRunSave &&
@@ -1284,13 +1290,10 @@ void Game::ChangeScene(SceneType sceneType)
 		}
 
 		if (BattleScene* battleScene =
-			dynamic_cast<BattleScene*>(m_Instance->m_Scene))
+			dynamic_cast<BattleScene*>(currentScene))
 		{
 			score = battleScene->GetScore();
 		}
-
-		delete m_Instance->m_Scene;
-		m_Instance->m_Scene = nullptr;
 	}
 
 	// =====================================
@@ -1307,91 +1310,54 @@ void Game::ChangeScene(SceneType sceneType)
 		m_RewardMessage.clear();
 	}
 
-	switch (sceneType)
+	if (sceneType == SceneType::Title && m_DebugMode)
 	{
-	case SceneType::Title:
-		if (m_DebugMode) EndDebugMode();
-		m_Instance->m_Scene = new TitleScene;
-		break;
+		EndDebugMode();
+	}
 
-	case SceneType::Battle:
-		m_Instance->m_Scene = new BattleScene;
-		break;
+	if (!m_Instance->m_SceneManager.Change(sceneType))
+	{
+		std::cerr << "[Game] シーンの生成に失敗しました" << std::endl;
+		return;
+	}
 
-	case SceneType::RestSite:
-		m_Instance->m_Scene = new RestSiteScene;
-		break;
-
-	case SceneType::Shop:
-		m_Instance->m_Scene = new ShopScene;
-		break;
-
-	case SceneType::Select:
-		m_Instance->m_Scene = new StageSelectScene;
-		break;
-
-	case SceneType::Result:
-		m_Instance->m_Scene = new ResultScene;
-
-		dynamic_cast<ResultScene*>(
-			m_Instance->m_Scene
-			)->SetScore(score);
-
-		break;
-
-	default:
-		break;
+	if (sceneType == SceneType::Result)
+	{
+		if (ResultScene* resultScene = dynamic_cast<ResultScene*>(
+			m_Instance->m_SceneManager.Get()))
+		{
+			resultScene->SetScore(score);
+		}
 	}
 
 	m_Instance->InvalidateDebugCombatForecast("シーン変更");
 }
 
+// GameObject削除要求を専用のGameWorldへ委譲する。
 void Game::DeleteGameObject(GameObject* gameObject)
 {
-	if (ContainsGameObject(gameObject))
-	{
-		gameObject->Destroy();
-	}
+	m_World.RequestDestroy(gameObject);
 }
 
+// 削除要求済みGameObjectの破棄を専用のGameWorldへ委譲する。
 void Game::RemoveDestroyedGameObjects()
 {
-	std::erase_if(
-		m_GameObjects,
-		[](const std::unique_ptr<GameObject>& gameObject) {
-			return gameObject != nullptr &&
-				gameObject->IsDestroyRequested();
-		});
-
+	m_World.RemoveDestroyed();
 }
 
-// オブジェクトをすべて削除
+// ゲーム空間に存在するすべてのGameObjectを終了して破棄する。
 void Game::DeleteAllGameObjects()
 {
-	// 終了処理
-	for (auto& o : m_Instance->m_GameObjects)
-	{
-		o->Uninit();
-	}
-	m_Instance->m_GameObjects.clear();
+	m_World.Clear();
 }
 
+// 指定したGameObjectが現在のGameWorldに存在するかを返す。
 bool Game::ContainsGameObject(const GameObject* gameObject) const
 {
-	if (gameObject == nullptr) return false;
-
-	for (const auto& ownedGameObject : m_GameObjects)
-	{
-		if (ownedGameObject.get() == gameObject &&
-			!ownedGameObject->IsDestroyRequested())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return m_World.Contains(gameObject);
 }
 
+// All Enemies Defeatedかどうかを判定する。
 bool Game::AreAllEnemiesDefeated() const
 {
 	std::vector<EnemyBall*> enemies = m_Instance->GetComponents<EnemyBall>();
@@ -1418,6 +1384,7 @@ bool Game::AreAllEnemiesDefeated() const
 	return true;
 }
 
+// All Balls Stoppedかどうかを判定する。
 bool Game::AreAllBallsStopped() const
 {
 	std::vector<GameObject*> balls = m_Instance->GetGameObjectsWith<BallPhysicsComponent>();
@@ -1443,9 +1410,10 @@ bool Game::AreAllBallsStopped() const
 	return true;
 }
 
+// Recover Cleared Battleを試行する。
 bool Game::TryRecoverClearedBattle(const char* source)
 {
-	if (dynamic_cast<BattleScene*>(m_Scene) == nullptr ||
+	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) == nullptr ||
 		m_GameState == GameState::BallsMoving ||
 		m_GameState == GameState::ClearReward ||
 		m_GameState == GameState::GameOver ||
@@ -1464,6 +1432,7 @@ bool Game::TryRecoverClearedBattle(const char* source)
 	return true;
 }
 
+// Enemy Attackを処理する。
 void Game::ProcessEnemyAttack()
 {
 	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
@@ -1541,6 +1510,7 @@ void Game::ProcessEnemyAttack()
 	}
 }
 
+// Current Pocket Finisher Ratioを取得する。
 float Game::GetCurrentPocketFinisherRatio() const
 {
 	switch (m_CurrentBattleStageType)
@@ -1555,6 +1525,7 @@ float Game::GetCurrentPocketFinisherRatio() const
 	}
 }
 
+// Enemy Pocket Finisher Eligibleかどうかを判定する。
 bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 {
     if (enemy && enemy->IsArmorBoss()) return false;
@@ -1569,6 +1540,7 @@ bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 	return hpRatio <= GetCurrentPocketFinisherRatio() + 0.0001f;
 }
 
+// Player Pocket Damage Amountを取得する。
 int Game::GetPlayerPocketDamageAmount() const
 {
 	return (std::max)(1, static_cast<int>(std::ceil(
@@ -1576,6 +1548,7 @@ int Game::GetPlayerPocketDamageAmount() const
 		m_PlayerPocketDamageRatio)));
 }
 
+// Enemy Pocketを処理する。
 void Game::HandleEnemyPocket(EnemyBall* enemy)
 {
     if (enemy && enemy->IsArmorBoss()) return;
@@ -1645,6 +1618,7 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		});
 }
 
+// Pocket Queue Indexを取得する。
 int Game::GetPocketQueueIndex(const EnemyBall* enemy) const
 {
 	for (std::size_t index = 0;
@@ -1659,6 +1633,7 @@ int Game::GetPocketQueueIndex(const EnemyBall* enemy) const
 	return -1;
 }
 
+// Player Pocket Return Positionを検索する。
 Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 {
 	std::uniform_real_distribution<float> xDistribution(
@@ -1703,6 +1678,7 @@ Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 	return Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f);
 }
 
+// Pocketed Playerを復元する。
 void Game::RestorePocketedPlayer()
 {
 	for (PlayerBall* player : GetComponents<PlayerBall>())
@@ -1725,6 +1701,7 @@ void Game::RestorePocketedPlayer()
 	}
 }
 
+// Enemy Pocket Return Positionを検索する。
 Vector3 Game::FindEnemyPocketReturnPosition(
 	const EnemyBall* returningEnemy) const
 {
@@ -1771,6 +1748,7 @@ Vector3 Game::FindEnemyPocketReturnPosition(
 		baseZ);
 }
 
+// Next Pocketed Enemyを復元する。
 void Game::RestoreNextPocketedEnemy()
 {
 	while (!m_PocketedEnemyQueue.empty())
@@ -1798,6 +1776,7 @@ void Game::RestoreNextPocketedEnemy()
 	}
 }
 
+// Finalize Run Result の処理を実行する。
 void Game::FinalizeRunResult(bool completed)
 {
 	std::vector<RelicType> acquiredRelics;
@@ -1813,10 +1792,12 @@ void Game::FinalizeRunResult(bool completed)
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
 		acquiredRelics);
-	m_LastRunResult.clearedBattles = m_ClearedStageCount;
+	m_LastRunResult.clearedBattles =
+		m_RunProgress.GetClearedBattleCount();
 	RecordPersistentProgress();
 }
 
+// Persistent Progressを記録する。
 void Game::RecordPersistentProgress()
 {
 	m_LastProgressionUnlocks.clear();
@@ -1832,6 +1813,7 @@ void Game::RecordPersistentProgress()
 	}
 }
 
+// Selected Ascensionを設定する。
 void Game::SetSelectedAscension(int level)
 {
 	if (HasValidRunSave()) return;
@@ -1839,56 +1821,61 @@ void Game::SetSelectedAscension(int level)
 	try { m_ProgressionProfile.Save(); } catch (...) {}
 }
 
+// Normal Route Areaを完了する。
 void Game::CompleteNormalRouteArea(const char* areaType)
 {
-	if (m_RunPhase != RunPhase::NormalRoute)
-	{
-		return;
-	}
-
-	m_RunMap.CompleteActive();
-	m_AreaProgress++;
-	m_PlayerRunStatus.progress = (std::min)(
-		kNormalRouteAreaGoal,
-		m_AreaProgress + 1);
-	m_RunStatistics.CompleteArea(m_AreaProgress);
-	RecordBalanceEvent(
-		"route_area_completed",
-		{
-			{ "map_path", m_RunMap.Path() },
-			{ "area_type", areaType != nullptr ? areaType : "unknown" },
-			{ "area_progress", m_AreaProgress },
-			{ "area_goal", kNormalRouteAreaGoal },
-		});
-
-	// 30戦検証は明示的な耐久モードだけで使用し、固定seedなどの
-	// 検証設定を有効にしただけでは通常ランの終着点を迂回させない。
+	// 現在の通常エリアを完了し、ラン進行と関連ログを同期する。
 	const bool longValidationRun =
 		m_BalanceValidationEnabled &&
 		m_BalanceValidationEnduranceMode &&
 		m_BalanceValidationMaximumClearedStages > kNormalRouteAreaGoal;
-	if (longValidationRun && m_AreaProgress >= m_RunMap.StartArea() + m_RunMap.AreaCount())
+	const AreaCompletionResult completion =
+		m_RunProgress.CompleteNormalArea(
+			longValidationRun,
+			m_BalanceValidationMaximumClearedStages,
+			m_RouteSelectionSeed + static_cast<std::uint32_t>(
+				m_RunProgress.GetAreaProgress() + 1));
+	if (completion == AreaCompletionResult::Rejected)
 	{
-		m_RunMap.Generate(m_RouteSelectionSeed + static_cast<std::uint32_t>(m_AreaProgress), m_AreaProgress);
-		RecordBalanceEvent("run_map_extended", m_RunMap.Snapshot());
+		return;
 	}
-	if (!longValidationRun && m_AreaProgress >= kNormalRouteAreaGoal)
+
+	const int areaProgress = m_RunProgress.GetAreaProgress();
+	m_PlayerRunStatus.progress = (std::min)(
+		kNormalRouteAreaGoal,
+		areaProgress + 1);
+	m_RunStatistics.CompleteArea(areaProgress);
+	RecordBalanceEvent(
+		"route_area_completed",
+		{
+			{ "map_path", m_RunProgress.GetMap().Path() },
+			{ "area_type", areaType != nullptr ? areaType : "unknown" },
+			{ "area_progress", areaProgress },
+			{ "area_goal", kNormalRouteAreaGoal },
+		});
+
+	if (completion == AreaCompletionResult::MapExtended)
 	{
-		m_AreaProgress = kNormalRouteAreaGoal;
+		RecordBalanceEvent(
+			"run_map_extended",
+			m_RunProgress.GetMap().Snapshot());
+	}
+	if (completion == AreaCompletionResult::BossPreparationEntered)
+	{
 		m_PlayerRunStatus.progress = kNormalRouteAreaGoal;
-		m_RunPhase = RunPhase::BossPreparation;
-		m_RunMap.Choose(m_RunMap.AreaCount() * 3);
 		RecordBalanceEvent(
 			"boss_preparation_entered",
 			{
-				{ "area_progress", m_AreaProgress },
+				{ "area_progress", areaProgress },
 			});
 	}
 }
 
+// Next Route After Areaへ進める。
 void Game::EnterNextRouteAfterArea()
 {
-	if (m_RunPhase == RunPhase::BossPreparation)
+	// 現在のランフェーズに応じて次のルート選択先へ遷移する。
+	if (m_RunProgress.IsBossPreparation())
 	{
 		ChangeScene(SceneType::RestSite);
 	}
@@ -1899,23 +1886,28 @@ void Game::EnterNextRouteAfterArea()
 	m_GameState = GameState::AimingDirection;
 }
 
+// Shopから退出する。
 void Game::LeaveShop()
 {
 	CompleteNormalRouteArea("shop");
 	EnterNextRouteAfterArea();
 }
 
+// Rest Siteから退出する。
 void Game::LeaveRestSite()
 {
-	if (m_RunPhase == RunPhase::BossPreparation)
+	// 休憩所の利用完了を記録して次のルートへ進める。
+	if (m_RunProgress.IsBossPreparation())
 	{
-		m_RunMap.CompleteActive();
-		m_RunPhase = RunPhase::FinalBossReady;
+		if (!m_RunProgress.CompleteBossPreparation())
+		{
+			return;
+		}
 		RecordBalanceEvent(
 			"boss_preparation_completed",
 			{
-				{ "area_progress", m_AreaProgress },
-				{ "next_phase", ToString(m_RunPhase) },
+				{ "area_progress", m_RunProgress.GetAreaProgress() },
+				{ "next_phase", ToString(m_RunProgress.GetPhase()) },
 			});
 		ChangeScene(SceneType::Select);
 		m_GameState = GameState::AimingDirection;
@@ -1926,29 +1918,31 @@ void Game::LeaveRestSite()
 	EnterNextRouteAfterArea();
 }
 
+// Continue After Clear Reward の処理を実行する。
 void Game::ContinueAfterClearReward()
 {
 	EnterNextRouteAfterArea();
 }
 
+// Final Boss Runを完了する。
 void Game::CompleteFinalBossRun()
 {
-	++m_ClearedStageCount;
+	// 最終ボス撃破時のラン完了処理と永続結果を確定する。
+	m_RunProgress.RecordBattleCleared();
 	m_RunStatistics.DefeatFinalBoss();
-	m_RunMap.CompleteActive();
-	m_RunPhase = RunPhase::Completed;
+	m_RunProgress.CompleteFinalBoss();
 	RecordBalanceEvent(
 		"final_boss_defeated",
 		{
 			{ "stage_id", m_PlayerRunStatus.GetSelectedStageId() },
-			{ "area_progress", m_AreaProgress },
-			{ "cleared_battle_count", m_ClearedStageCount },
+			{ "area_progress", m_RunProgress.GetAreaProgress() },
+			{ "cleared_battle_count", m_RunProgress.GetClearedBattleCount() },
 		});
 	BalanceLogger::GetInstance().EndRun(
 		"completed",
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
-		m_ClearedStageCount);
+		m_RunProgress.GetClearedBattleCount());
 	m_RunActive = false;
 	FinalizeRunResult(true);
 	GameSaveManager::Remove();
@@ -1956,6 +1950,7 @@ void Game::CompleteFinalBossRun()
 	m_GameState = GameState::AimingDirection;
 }
 
+// Game Overを処理する。
 void Game::ProcessGameOver()
 {
 	if (m_DebugMode) { FinishDebugBattle(false); return; }
@@ -1990,7 +1985,7 @@ void Game::ProcessGameOver()
 		"game_over",
 		m_PlayerRunStatus.currentHp,
 		m_PlayerRunStatus.maxHp,
-		m_ClearedStageCount);
+		m_RunProgress.GetClearedBattleCount());
 	m_RunActive = false;
 	FinalizeRunResult(false);
 	GameSaveManager::Remove();
@@ -1999,6 +1994,7 @@ void Game::ProcessGameOver()
 	m_GameState = GameState::AimingDirection;
 }
 
+// Clear Rewardを開始する。
 void Game::StartClearReward()
 {
 	if (m_DebugMode) { FinishDebugBattle(true); return; }
@@ -2030,7 +2026,7 @@ void Game::StartClearReward()
 			{ "shots_per_enemy", m_DynamicBalanceLastShotsPerEnemy },
 		});
 
-	if (m_RunPhase == RunPhase::FinalBoss &&
+	if (m_RunProgress.GetPhase() == RunPhase::FinalBoss &&
 		m_CurrentBattleStageType == StageType::Boss)
 	{
 		// 最終ボス後は、以後使えないMoneyや取得物を選ばせない。
@@ -2061,7 +2057,7 @@ void Game::StartClearReward()
 	{
 		RollMidBossRelicOffers();
 	}
-	m_ClearedStageCount++;
+	m_RunProgress.RecordBattleCleared();
 	if (m_CurrentBattleStageType == StageType::MidBoss)
 	{
 		m_RunStatistics.DefeatMidBoss();
@@ -2074,14 +2070,14 @@ void Game::StartClearReward()
 		m_BalanceValidationEnduranceMode &&
 		m_BalanceValidationMaximumClearedStages > kNormalRouteAreaGoal &&
 		m_BalanceValidationMaximumClearedStages > 0 &&
-		m_ClearedStageCount >=
+		m_RunProgress.GetClearedBattleCount() >=
 			m_BalanceValidationMaximumClearedStages)
 	{
 		RecordBalanceEvent(
 			"balance_validation_run_completed",
 			{
 				{ "reason", "maximum_cleared_stages_reached" },
-				{ "cleared_stage_count", m_ClearedStageCount },
+				{ "cleared_stage_count", m_RunProgress.GetClearedBattleCount() },
 				{ "maximum_cleared_stages",
 					m_BalanceValidationMaximumClearedStages },
 			});
@@ -2089,7 +2085,7 @@ void Game::StartClearReward()
 			"validation_complete",
 			m_PlayerRunStatus.currentHp,
 			m_PlayerRunStatus.maxHp,
-			m_ClearedStageCount);
+			m_RunProgress.GetClearedBattleCount());
 		m_RunActive = false;
 		FinalizeRunResult(true);
 		GameSaveManager::Remove();
@@ -2154,6 +2150,7 @@ void Game::StartClearReward()
 	m_GameState = GameState::ClearReward;
 }
 
+// Current Stageを完了する。
 void Game::CompleteCurrentStage()
 {
 	if (m_GameState != GameState::ClearReward)
@@ -2162,29 +2159,32 @@ void Game::CompleteCurrentStage()
 	}
 }
 
+// Scheduled Stage Typeを取得する。
 StageType Game::GetScheduledStageType() const
 {
-	if (m_RunPhase == RunPhase::FinalBossReady ||
-		m_RunPhase == RunPhase::FinalBoss)
+	// 現在のランフェーズから次に開始すべき戦闘種別を返す。
+	if (m_RunProgress.GetPhase() == RunPhase::FinalBossReady ||
+		m_RunProgress.GetPhase() == RunPhase::FinalBoss)
 	{
 		return StageType::Boss;
 	}
 	return StageType::Normal;
 }
 
+// Next Battleを開始する。
 void Game::StartNextBattle()
 {
 	StartNextBattle(GetScheduledStageType());
 }
 
+// Next Battleを開始する。
 void Game::StartNextBattle(StageType stageType)
 {
-	const bool enteringFinalBoss =
-		m_RunPhase == RunPhase::FinalBossReady;
+	// 選択された戦闘種別に対応するステージを確定して戦闘へ遷移する。
+	const bool enteringFinalBoss = m_RunProgress.BeginFinalBoss();
 	if (enteringFinalBoss)
 	{
 		stageType = StageType::Boss;
-		m_RunPhase = RunPhase::FinalBoss;
 	}
 	const std::string previousStageId =
 		m_PlayerRunStatus.GetSelectedStageId().empty()
@@ -2219,10 +2219,10 @@ void Game::StartNextBattle(StageType stageType)
 		previousStageId);
 	if (selectedStage == nullptr)
 	{
-		m_RunMap.CancelActive();
+		m_RunProgress.CancelActiveNode();
 		if (enteringFinalBoss)
 		{
-			m_RunPhase = RunPhase::FinalBossReady;
+			m_RunProgress.CancelFinalBossStart();
 		}
 		std::cerr << "[Game] 戦闘ステージを選択できなかったため、"
 			"シーン遷移を中止します" << std::endl;
@@ -2234,6 +2234,7 @@ void Game::StartNextBattle(StageType stageType)
 	ChangeScene(SceneType::Battle);
 }
 
+// Clear Rewardを更新する。
 void Game::UpdateClearReward()
 {
 	const bool confirmed = std::exchange(m_ClearRewardMouseConfirmed, false) ||
@@ -2394,6 +2395,7 @@ void Game::UpdateClearReward()
 		m_IsClearRewardChosen = true;
 	}
 }
+// Begin Ball Selection の処理を実行する。
 void Game::BeginBallSelection()
 {
 	m_CurrentShotCollisionAttackBonus = 0;
@@ -2439,6 +2441,7 @@ void Game::BeginBallSelection()
 	ApplySelectedBallPreview();
 }
 
+// Ball Selectionを更新する。
 void Game::UpdateBallSelection()
 {
 	const int offerCount = m_PlayerDeck.GetOfferCount();
@@ -2480,6 +2483,7 @@ void Game::UpdateBallSelection()
 	}
 }
 
+// Selected Ball Previewを適用する。
 void Game::ApplySelectedBallPreview()
 {
 	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
@@ -2491,6 +2495,7 @@ void Game::ApplySelectedBallPreview()
 	ApplyPlayerStatusTo(players[0]);
 }
 
+// Ball Selection UIを描画する。
 void Game::DrawBallSelectionUI()
 {
 	GameUi::PrepareWindow("ball_selection", ImVec2(30, 90), ImVec2(560, 500));
@@ -2567,6 +2572,7 @@ void Game::DrawBallSelectionUI()
 	ImGui::End();
 }
 
+// Clear Reward UIを描画する。
 void Game::DrawClearRewardUI()
 {
 	GameUi::PrepareWindow("clear_reward", ImVec2(290, 90), ImVec2(700, 550));

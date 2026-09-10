@@ -30,6 +30,7 @@
 #include <stdexcept>
 
 
+// Player Status From Jsonを読み込む。
 void Game::LoadPlayerStatusFromJson(
 	const std::string& filePath,
 	const std::string& deckFilePath)
@@ -61,8 +62,10 @@ void Game::LoadPlayerStatusFromJson(
 
 	ResetPlayerRuntimeStatus();
 }
+// Player Runtime Statusを初期状態へ戻す。
 void Game::ResetPlayerRuntimeStatus()
 {
+	// プレイヤーとラン進行に属する一時状態を新規ラン開始前の値へ戻す。
 	m_PlayerRunStatus = NormalizePlayerRunStatus(m_DefaultPlayerRunStatus);
 	m_PlayerRunStatus.progress = 1;
 	m_PlayerRunStatus.SetSelectedStageId("");
@@ -80,9 +83,7 @@ void Game::ResetPlayerRuntimeStatus()
 	m_IsMidBossRelicSelectionActive = false;
 	m_MidBossRelicOffers.clear();
 	m_ShopRelicOffers.clear();
-	m_ClearedStageCount = 0;
-	m_AreaProgress = 0;
-	m_RunPhase = RunPhase::NormalRoute;
+	m_RunProgress.Reset(0);
 	m_AutoPendingBallAdjustments.clear();
 	m_PocketedEnemyQueue.clear();
 	m_McpCurrentStageOverride.reset();
@@ -92,6 +93,7 @@ void Game::ResetPlayerRuntimeStatus()
 	InvalidateDebugCombatForecast("ラン初期化");
 }
 
+// Dynamic Balance Run Stateを初期状態へ戻す。
 void Game::ResetDynamicBalanceRunState()
 {
 	m_DynamicBalanceEnabled = m_DynamicBalanceConfiguredEnabled;
@@ -115,6 +117,7 @@ void Game::ResetDynamicBalanceRunState()
 	m_DynamicBalanceLastReason = "No battle has been evaluated in this run.";
 }
 
+// New Runを開始する。
 void Game::StartNewRun(
 	const std::string& controllerType,
 	const std::string& controllerProfile,
@@ -235,7 +238,7 @@ void Game::StartNewRun(
 	m_StageSelectionSeed = m_RunRandomSeed ^ 0x9e3779b9u;
 	m_RouteSelectionSeed = m_RunRandomSeed ^ 0x85ebca6bu;
 	m_RouteSelectionCounter = 0;
-	m_RunMap.Generate(m_RouteSelectionSeed);
+	m_RunProgress.Reset(m_RouteSelectionSeed);
 	m_StageSelector.Seed(m_StageSelectionSeed);
 	m_AutoRandomEngine.seed(m_RunRandomSeed ^ 0xc2b2ae35u);
 	m_PocketRandomEngine.seed(m_RunRandomSeed ^ 0x27d4eb2fu);
@@ -324,8 +327,8 @@ void Game::StartNewRun(
 		{ "initial_progress", m_PlayerRunStatus.progress },
 		{ "ascension", m_ActiveAscension },
 		{ "area_goal", kNormalRouteAreaGoal },
-		{ "run_map", m_RunMap.Snapshot() },
-		{ "run_phase", ToString(m_RunPhase) },
+		{ "run_map", m_RunProgress.GetMap().Snapshot() },
+		{ "run_phase", ToString(m_RunProgress.GetPhase()) },
 	};
 
 	BalanceLogger::GetInstance().BeginRun(
@@ -336,6 +339,7 @@ void Game::StartNewRun(
 		runContext);
 }
 
+// Balance Auto Play Configを読み込む。
 void Game::LoadBalanceAutoPlayConfig(
 	const std::string& filePath)
 {
@@ -403,6 +407,7 @@ void Game::LoadBalanceAutoPlayConfig(
 	}
 }
 
+// Dynamic Balance Configを読み込む。
 void Game::LoadDynamicBalanceConfig(
 	const std::string& filePath)
 {
@@ -581,6 +586,7 @@ void Game::LoadDynamicBalanceConfig(
 	}
 }
 
+// Difficulty Profile Configを読み込む。
 void Game::LoadDifficultyProfileConfig(
 	const std::string& filePath)
 {
@@ -628,6 +634,7 @@ void Game::LoadDifficultyProfileConfig(
 	}
 }
 
+// Balance Validation Configを読み込む。
 void Game::LoadBalanceValidationConfig(
 	const std::string& filePath)
 {
@@ -750,6 +757,7 @@ void Game::LoadBalanceValidationConfig(
 	}
 }
 
+// Encounter Balance Configを読み込む。
 void Game::LoadEncounterBalanceConfig(
 	const std::string& filePath)
 {
@@ -808,6 +816,7 @@ void Game::LoadEncounterBalanceConfig(
 	}
 }
 
+// Pocket Rules Configを読み込む。
 void Game::LoadPocketRulesConfig(const std::string& filePath)
 {
 	std::ifstream file(filePath);
@@ -874,6 +883,7 @@ void Game::LoadPocketRulesConfig(const std::string& filePath)
 	}
 }
 
+// Dynamic Balance Shotを終了する。
 void Game::FinishDynamicBalanceShot()
 {
 	if (!m_DynamicBalanceStageActive ||
@@ -889,6 +899,7 @@ void Game::FinishDynamicBalanceShot()
 	m_DynamicBalanceShotActive = false;
 }
 
+// Dynamic Balance Stageを評価する。
 void Game::EvaluateDynamicBalanceStage(bool cleared)
 {
 	if (!m_DynamicBalanceStageActive)

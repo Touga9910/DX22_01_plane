@@ -36,6 +36,7 @@ class ResultPauseContractTests(unittest.TestCase):
     def test_finite_run_endpoint_contract(self) -> None:
         game_types = source("GameTypes.h")
         game = source("Game.cpp")
+        run_progress = source("RunProgressController.h")
         routes = source("StageSelectScene.cpp")
         save_manager = source("GameSaveManager.cpp")
 
@@ -47,7 +48,8 @@ class ResultPauseContractTests(unittest.TestCase):
             "Completed",
         ):
             self.assertIn(phase, game_types)
-        self.assertIn("kNormalRouteAreaGoal = 15", source("Game.h"))
+        self.assertIn("NormalRouteAreaGoal = 15", run_progress)
+        self.assertIn("RunProgressController m_RunProgress", source("Game.h"))
         self.assertIn("CompleteNormalRouteArea", game)
         self.assertIn("CompleteFinalBossRun", game)
         self.assertIn("m_BalanceValidationEnduranceMode", game)

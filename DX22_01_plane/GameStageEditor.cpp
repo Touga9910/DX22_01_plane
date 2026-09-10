@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 
+// Stage Editor Player Radius の処理を実行する。
 float Game::StageEditorPlayerRadius() const
 {
     float radius = 2.4f;
@@ -13,6 +14,7 @@ float Game::StageEditorPlayerRadius() const
     return radius;
 }
 
+// Test Stage Editor Layout の処理を実行する。
 void Game::TestStageEditorLayout()
 {
     const auto report = StageLayoutEditor::Inspect(m_StageEditor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
@@ -24,6 +26,7 @@ void Game::TestStageEditorLayout()
     m_DebugRequest = 1;
 }
 
+// Stage Editorを描画する。
 void Game::DrawStageEditor()
 {
     using Json = nlohmann::json;

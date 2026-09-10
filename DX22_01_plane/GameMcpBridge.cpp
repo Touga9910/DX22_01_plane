@@ -4,6 +4,12 @@
 #include "EnemyBall.h"
 #include "BreakBall.h"
 #include "Game.h"
+#include "BattleScene.h"
+#include "ResultScene.h"
+#include "RestSiteScene.h"
+#include "ShopScene.h"
+#include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "BallPhysicsWorld.h"
 #include "PlayerBall.h"
 #include "Pocket.h"
@@ -458,7 +464,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "running", running },
 		{ "published_at_unix_ms", UnixTimeMilliseconds() },
 		{ "sequence", m_StateSequence },
-		{ "scene", GetSceneName(game.m_Scene) },
+		{ "scene", GetSceneName(game.GetCurrentScene()) },
 		{ "game_state", GetGameStateName(game.m_GameState) },
 		{ "selected_stage_id",
 			game.m_PlayerRunStatus.GetSelectedStageId() },
@@ -639,8 +645,8 @@ nlohmann::json GameMcpBridge::BuildState(
 	};
 	const RunResultSnapshot& runStatistics = game.m_RunStatistics.GetState();
 	state["run_progress"] = {
-		{ "phase", ToString(game.m_RunPhase) },
-		{ "area_progress", game.m_AreaProgress },
+		{ "phase", ToString(game.m_RunProgress.GetPhase()) },
+		{ "area_progress", game.m_RunProgress.GetAreaProgress() },
 		{ "area_goal", Game::kNormalRouteAreaGoal },
 		{ "total_battles", runStatistics.totalBattles },
 		{ "midboss_challenges", runStatistics.midBossChallenges },
@@ -1016,7 +1022,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "maximum_cleared_stages",
 			game.m_BalanceValidationMaximumClearedStages },
 		{ "endurance_mode", game.m_BalanceValidationEnduranceMode },
-		{ "cleared_stage_count", game.m_ClearedStageCount },
+		{ "cleared_stage_count", game.m_RunProgress.GetClearedBattleCount() },
 		{
 			"dynamic_balance_forced_off",
 			game.m_BalanceValidationEnabled &&
@@ -1026,8 +1032,8 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["available_actions"] = nlohmann::json::array();
 	state["route_options"] = nlohmann::json::array();
-	state["run_map"] = game.m_RunMap.Snapshot();
-	if (dynamic_cast<StageSelectScene*>(game.m_Scene) == nullptr)
+	state["run_map"] = game.m_RunProgress.GetMap().Snapshot();
+	if (dynamic_cast<StageSelectScene*>(game.GetCurrentScene()) == nullptr)
 		for (auto& node : state["run_map"]["nodes"]) node["selectable"] = false;
 	state["available_actions"].push_back("set_dynamic_balance");
 	state["available_actions"].push_back("set_next_stage_layout");
@@ -1045,7 +1051,7 @@ nlohmann::json GameMcpBridge::BuildState(
 	else if (scene == "stage_select")
 	{
 		StageSelectScene* stageSelect =
-			dynamic_cast<StageSelectScene*>(game.m_Scene);
+			dynamic_cast<StageSelectScene*>(game.GetCurrentScene());
 		if (stageSelect != nullptr)
 		{
 			for (int routeIndex = 0;
@@ -1055,7 +1061,7 @@ nlohmann::json GameMcpBridge::BuildState(
 				state["route_options"].push_back({
 					{ "route_index", routeIndex },
 					{ "node_id", stageSelect->GetMapNodeIdAt(routeIndex) },
-					{ "next_node_ids", game.m_RunMap.Node(stageSelect->GetMapNodeIdAt(routeIndex))->next },
+					{ "next_node_ids", game.m_RunProgress.GetMap().Node(stageSelect->GetMapNodeIdAt(routeIndex))->next },
 					{ "destination",
 						stageSelect->GetRouteIdAt(routeIndex) },
 					{ "display_name",
@@ -1069,7 +1075,7 @@ nlohmann::json GameMcpBridge::BuildState(
 	else if (scene == "rest_site")
 	{
 		RestSiteScene* restSite =
-			dynamic_cast<RestSiteScene*>(game.m_Scene);
+			dynamic_cast<RestSiteScene*>(game.GetCurrentScene());
 		const bool actionUsed =
 			restSite != nullptr && restSite->HasUsedAction();
 		const bool canHeal = game.CanRestHeal();
@@ -1201,7 +1207,7 @@ nlohmann::json GameMcpBridge::BuildState(
 				allowed.push_back(action);
 		state["available_actions"] = std::move(allowed);
 	}
-	if (dynamic_cast<TitleScene*>(game.m_Scene) != nullptr && !game.m_DebugEditorOpen)
+	if (dynamic_cast<TitleScene*>(game.GetCurrentScene()) != nullptr && !game.m_DebugEditorOpen)
 		state["available_actions"].push_back("open_stage_editor");
 	return state;
 }
@@ -1236,7 +1242,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		command.value("action", std::string());
 	if (action == "open_stage_editor")
 	{
-		if (dynamic_cast<TitleScene*>(game.m_Scene) == nullptr) return CommandResult(false, "Open the stage editor from the title screen.");
+		if (dynamic_cast<TitleScene*>(game.GetCurrentScene()) == nullptr) return CommandResult(false, "Open the stage editor from the title screen.");
 		game.OpenDebugMode();
 		return CommandResult(true, "Stage editor opened in debug setup.");
 	}
@@ -1270,7 +1276,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		command.value(
 			"arguments",
 			nlohmann::json::object());
-	const std::string scene = GetSceneName(game.m_Scene);
+	const std::string scene = GetSceneName(game.GetCurrentScene());
 	auto recordBuildDecision = [&game, &arguments]()
 	{
 		if (arguments.contains("decision_context") &&
@@ -1634,7 +1640,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A destination can only be chosen from stage select.");
 		}
 		StageSelectScene* stageSelect =
-			dynamic_cast<StageSelectScene*>(game.m_Scene);
+			dynamic_cast<StageSelectScene*>(game.GetCurrentScene());
 		if (stageSelect == nullptr)
 		{
 			return CommandResult(
@@ -1902,7 +1908,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		if (scene == "rest_site")
 		{
 			RestSiteScene* restSite =
-				dynamic_cast<RestSiteScene*>(game.m_Scene);
+				dynamic_cast<RestSiteScene*>(game.GetCurrentScene());
 			if (restSite != nullptr &&
 				!restSite->HasUsedAction() &&
 				game.HasAvailableRestBenefit())

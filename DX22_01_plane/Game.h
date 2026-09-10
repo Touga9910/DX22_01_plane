@@ -1,6 +1,9 @@
 ﻿#pragma once
 #include "ShotRelicRules.h"
 #include "DebugBattleSetup.h"
+#include "GameWorld.h"
+#include "SceneManager.h"
+#include "RunProgressController.h"
 #include "StageLayoutEditor.h"
 #include "ProgressionProfile.h"
 #include <array>
@@ -21,14 +24,6 @@
 
 
 #include"Renderer.h"
-#include"TitleScene.h"
-#include"BattleScene.h"
-#include"ResultScene.h"
-#include"StageSelectScene.h"
-#include"RestSiteScene.h"
-#include"ShopScene.h"
-
-
 #include "input.h"
 #include "Camera.h"
 #include "BallStatus.h"
@@ -51,19 +46,19 @@ class GameMcpBridge;
 class GamePresentation;
 class GameSaveManager;
 class PlayerBall;
+class Scene;
 
 class Game
 {
 private:
 	static Game* m_Instance;//ゲームインスタンス
 
-	Scene* m_Scene;//シーン
+	SceneManager m_SceneManager;
 
 	// カメラ
 	Camera&  m_Camera = Camera::GetInstance();
 
-	//オブジェクト配列
-	std::vector<std::unique_ptr<GameObject>> m_GameObjects;
+	GameWorld m_World;
 
 	GameState m_GameState = GameState::AimingDirection;
 	FixedStepClock m_PhysicsClock;
@@ -115,11 +110,9 @@ private:
 	int m_SelectedRelicOfferIndex = 0;
 	std::vector<int> m_MidBossRelicOffers;
 	std::vector<int> m_ShopRelicOffers;
-	int m_ClearedStageCount = 0;
-	static constexpr int kNormalRouteAreaGoal = 15;
-	int m_AreaProgress = 0;
-	RunMap m_RunMap;
-	RunPhase m_RunPhase = RunPhase::NormalRoute;
+	static constexpr int kNormalRouteAreaGoal =
+		RunProgressController::NormalRouteAreaGoal;
+	RunProgressController m_RunProgress;
 
 	// バランスログ収集用の自動プレイ設定
 	bool m_BalanceAutoPlayEnabled = false;
@@ -332,7 +325,6 @@ private:
 	int m_DebugEnemySortMode = 0;
 
 	friend class GameMcpBridge;
-	friend class GamePresentation;
 	friend class GameSaveManager;
 
 	/// <summary>
@@ -457,6 +449,7 @@ private:
 
 public:
 	void OpenDebugMode();
+	// デバッグモードが有効かを返す。
 	bool IsDebugMode() const { return m_DebugMode; }
 	void ApplyDebugBattlePlayer(PlayerBall* player);
 	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
@@ -473,18 +466,31 @@ public:
 	GameObject* CreateGameObject(const std::string& name);
 
 	void ChangeScene(SceneType sceneType);	//シーンを変更
+	// 現在のシーンを読み取り用に返す。
+	Scene* GetCurrentScene() const { return m_SceneManager.Get(); }
+	// 現在のシーン種別を返す。
+	SceneType GetCurrentSceneType() const { return m_SceneManager.GetType(); }
 	void DeleteGameObject(GameObject* gameObject);
 	void DeleteAllGameObjects();
 
+	// ゲームで使用するカメラを返す。
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
 
+	// 現在ポーズメニューを開けるかを返す。
 	bool CanOpenPauseMenu() const { return CanPause(); }
+	// 次回更新時のポーズ切り替えを要求する。
 	void RequestPauseToggle() { m_MousePauseToggle = true; }
+	// 次回更新時の手動セーブを要求する。
 	void RequestManualSave() { m_MouseSaveRequested = true; }
+	// 次回更新時の全画面切り替えを要求する。
 	void RequestFullscreenToggle() { m_MouseFullscreenToggle = true; }
+	// ゲームがポーズ中かを返す。
 	bool IsPaused() const { return m_IsPaused; }
+	// 現在のゲーム進行状態を返す。
 	GameState GetGameState() const { return m_GameState; }
+	// ゲーム進行状態を変更する。
 	void SetGameState(GameState state) { m_GameState = state; }
+	// バランス検証用の自動プレイが有効かを返す。
 	bool IsBalanceAutoPlayEnabled() const
 	{
 		return m_BalanceAutoPlayEnabled;
@@ -506,44 +512,57 @@ public:
 		const std::string& forcedValidationVariant = std::string());
 	bool HasValidRunSave() const;
 	std::string GetRunSaveSummary() const;
+	// 直近のセーブ・ロード結果メッセージを返す。
 	const std::string& GetSaveLoadMessage() const
 	{
 		return m_SaveLoadMessage;
 	}
 	bool SaveCurrentRun();
 	bool LoadSavedRun();
+	// 現在のラン統計を読み取り専用で返す。
 	const RunResultSnapshot& GetRunStatistics() const
 	{
 		return m_RunStatistics.GetState();
 	}
     nlohmann::json EvaluateBossShots();
     bool FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey);
+	// 直近のランが完走扱いかを返す。
 	bool WasLastRunCompleted() const
 	{
 		return m_LastRunResult.completed;
 	}
+	// 直近に確定したラン結果を返す。
 	const RunResultSnapshot& GetLastRunResult() const
 	{
 		return m_LastRunResult;
 	}
+	// 永続進行データを読み取り専用で返す。
 	const ProgressionProfile& GetProgressionProfile() const { return m_ProgressionProfile; }
+	// 直近に解放された要素の一覧を返す。
 	const std::vector<std::string>& GetLastProgressionUnlocks() const { return m_LastProgressionUnlocks; }
+	// 現在適用中のアセンション値を返す。
 	int GetActiveAscension() const { return m_ActiveAscension; }
 	void SetSelectedAscension(int level);
+	// 指定したボールが永続解放済みかを返す。
 	bool IsBallPermanentlyUnlocked(const std::string& id) const { return m_ProgressionProfile.IsBallUnlocked(id); }
+	// 指定したレリックが永続解放済みかを返す。
 	bool IsRelicPermanentlyUnlocked(RelicType type) const { return m_ProgressionProfile.IsRelicUnlocked(type); }
+	// 現在のゲーム設定を読み取り専用で返す。
 	const GameSettings& GetSettings() const
 	{
 		return m_SettingsManager.Get();
 	}
+	// 振動設定が有効かを返す。
 	bool IsVibrationEnabled() const
 	{
 		return m_SettingsManager.Get().vibrationEnabled;
 	}
+	// 画面フラッシュ設定が有効かを返す。
 	bool IsScreenFlashEnabled() const
 	{
 		return m_SettingsManager.Get().screenFlashEnabled;
 	}
+	// カメラ揺れ設定が有効かを返す。
 	bool IsCameraShakeEnabled() const
 	{
 		return m_SettingsManager.Get().cameraShakeEnabled;
@@ -557,6 +576,7 @@ public:
 	void StartNextBattle();
 	void StartNextBattle(StageType stageType);
 	void OnBattleStageStarted(const StageData& stage);
+	// MCPで上書きされた現在のステージ情報を返す。
 	const StageData* GetCurrentStageOverride() const
 	{
 		return m_McpCurrentStageOverride.has_value()
@@ -610,11 +630,14 @@ public:
 		int requestedLevel,
 		bool hasRequestedLevel);
 	void NotifyBalanceAutoFullHpEnemySurvived();
+	// 次回のルート選択に使う一意な乱数シードを返す。
 	std::uint32_t GetNextRouteRandomSeed()
 	{
 		return m_RouteSelectionSeed + m_RouteSelectionCounter++;
 	}
+	// 山札に残っているボール数を返す。
 	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
+	// 捨て札にあるボール数を返す。
 	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
 
 	/// <summary>
@@ -624,103 +647,80 @@ public:
 	// ゲーム空間から、指定した型のコンポーネントをすべて取得する。
 	template<typename T> std::vector<T*> GetComponents()
 	{
-		static_assert(std::is_base_of_v<Component, T>,
-			"T must inherit from Component");
-
-		std::vector<T*>res;
-		for (auto& gameObject : m_Instance->m_GameObjects)
-		{
-			if (gameObject->IsDestroyRequested())
-			{
-				continue;
-			}
-
-			if (T* component = gameObject->GetComponent<T>())
-			{
-				res.emplace_back(component);
-			}
-		}
-		return res;
+		return m_World.GetComponents<T>();
 	}
 
 	// Entityの継承型ではなく、保持ComponentでWorldを検索する。
 	template<typename T>
 	std::vector<GameObject*> GetGameObjectsWith()
 	{
-		static_assert(std::is_base_of_v<Component, T>,
-			"T must inherit from Component");
-
-		std::vector<GameObject*> result;
-		for (auto& gameObject : m_Instance->m_GameObjects)
-		{
-			if (gameObject->IsDestroyRequested())
-			{
-				continue;
-			}
-
-			if (gameObject->HasComponent<T>())
-			{
-				result.push_back(gameObject.get());
-			}
-		}
-		return result;
+		return m_World.GetObjectsWith<T>();
 	}
 
+	// 指定したタグを持つゲームオブジェクトを取得する。
 	std::vector<GameObject*> GetGameObjectsWithTag(GameObjectTag tag)
 	{
-		std::vector<GameObject*> result;
-		for (auto& gameObject : m_Instance->m_GameObjects)
-		{
-			if (gameObject->IsDestroyRequested())
-			{
-				continue;
-			}
-
-			TagComponent* tagComponent = gameObject->GetComponent<TagComponent>();
-			if (tagComponent != nullptr && tagComponent->GetTag() == tag)
-			{
-				result.push_back(gameObject.get());
-			}
-		}
-		return result;
+		return m_World.GetObjectsWithTag(tag);
 	}
 
+	// プレイヤーの所持金を返す。
 	int GetPlayerMoney() const
 	{
 		return m_PlayerRunStatus.money;
 	}
+	// プレイヤーの現在HPを返す。
 	int GetPlayerCurrentHp() const { return m_PlayerRunStatus.currentHp; }
+	// プレイヤーの最大HPを返す。
 	int GetPlayerMaxHp() const { return m_PlayerRunStatus.maxHp; }
 	int GetRestHealAmount() const;
 	int GetRestHealPercent() const;
+	// 休憩による回復を利用できるかを返す。
 	bool CanRestHeal() const
 	{
 		return m_PlayerRunStatus.currentHp < m_PlayerRunStatus.maxHp;
 	}
-	int GetClearedStageCount() const { return m_ClearedStageCount; }
-	int GetAreaProgress() const { return m_AreaProgress; }
-	const RunMap& GetRunMap() const { return m_RunMap; }
-	bool ChooseMapNode(int nodeId) { return m_RunMap.Choose(nodeId); }
+	// 現在までにクリアした戦闘数を返す。
+	int GetClearedStageCount() const
+	{
+		return m_RunProgress.GetClearedBattleCount();
+	}
+	// 通常ルートの現在進行数を返す。
+	int GetAreaProgress() const { return m_RunProgress.GetAreaProgress(); }
+	// 現在のランマップを読み取り専用で返す。
+	const RunMap& GetRunMap() const { return m_RunProgress.GetMap(); }
+	// 選択可能なマップノードを選ぶ。
+	bool ChooseMapNode(int nodeId) { return m_RunProgress.ChooseNode(nodeId); }
+	// 通常ルートの完了目標エリア数を返す。
 	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
-	RunPhase GetRunPhase() const { return m_RunPhase; }
+	// 現在のランフェーズを返す。
+	RunPhase GetRunPhase() const { return m_RunProgress.GetPhase(); }
+	// 最終ボス前の準備フェーズかを返す。
 	bool IsBossPreparation() const
 	{
-		return m_RunPhase == RunPhase::BossPreparation;
+		return m_RunProgress.IsBossPreparation();
 	}
+	// 最終ボスを選択可能なフェーズかを返す。
 	bool IsFinalBossRoute() const
 	{
-		return m_RunPhase == RunPhase::FinalBossReady;
+		return m_RunProgress.IsFinalBossReady();
 	}
+	// プレイヤー表示用の現在進行値を返す。
 	int GetPlayerProgress() const { return m_PlayerRunStatus.progress; }
+	// 現在選択されているステージIDを返す。
 	const std::string& GetSelectedStageId() const
 	{
 		return m_PlayerRunStatus.GetSelectedStageId();
 	}
 
+	// 報酬対象となるデッキ内ボール数を返す。
 	int GetDeckBallCount() const { return m_PlayerDeck.GetRewardTargetCount(); }
+	// デッキの最小構成数を返す。
 	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
+	// 指定位置のデッキ内ボールを返す。
 	const PlayerBallData* GetDeckBall(int index) const { return m_PlayerDeck.GetRewardTarget(index); }
+	// ショップの商品候補となるボール数を返す。
 	int GetShopBallCount() const { return m_PlayerDeck.GetCatalogCount(); }
+	// 指定位置のショップ用ボール情報を返す。
 	const PlayerBallData* GetShopBall(int index) const { return m_PlayerDeck.GetCatalogBall(index); }
 	bool IsBallAdjustmentCandidate(std::uint64_t instanceId) const;
 	bool HasAvailableRestBenefit() const;
@@ -728,16 +728,19 @@ public:
 	bool RestUpgradeBall(int ballIndex);
 	bool BuyShopBall(int catalogIndex, int cost);
 	bool RemoveShopBall(int ballIndex, int cost);
+	// 登録されているレリック総数を返す。
 	int GetRelicCount() const
 	{
 		return static_cast<int>(RelicCatalog.size());
 	}
+	// 指定位置のレリック定義を返す。
 	const RelicDefinition* GetRelic(int index) const
 	{
 		return index >= 0 && index < GetRelicCount()
 			? &RelicCatalog[static_cast<std::size_t>(index)]
 			: nullptr;
 	}
+	// 指定したレリックを所持しているかを返す。
 	bool HasRelic(RelicType type) const
 	{
 		const std::size_t index = static_cast<std::size_t>(type);
@@ -747,23 +750,28 @@ public:
 	ShotRelicRules MakePredictionShotRules(float launchPower) const;
 	int GetRelicAttackBonus() const;
 	int GetRelicDefenseBonus() const;
+	// 現在ショットの衝突攻撃ボーナスを返す。
 	int GetCurrentShotCollisionAttackBonus() const
 	{
 		return m_CurrentShotCollisionAttackBonus;
 	}
+	// 現在ショットのプレイヤー対敵衝突数を返す。
 	int GetCurrentShotPlayerEnemyCollisionCount() const
 	{
 		return m_CurrentShotPlayerEnemyCollisionCount;
 	}
+	// 現在ショットの敵同士の衝突数を返す。
 	int GetCurrentShotEnemyEnemyCollisionCount() const
 	{
 		return m_CurrentShotEnemyEnemyCollisionCount;
 	}
+	// 現在ショットの全ボール衝突数を返す。
 	int GetCurrentShotBallCollisionCount() const
 	{
 		return m_CurrentShotPlayerEnemyCollisionCount +
 			m_CurrentShotEnemyEnemyCollisionCount;
 	}
+	// バンクショット効果をまだ消費可能かを返す。
 	bool IsCurrentShotBankShotReady() const
 	{
 		return m_CurrentShotBankShotReady &&
@@ -771,21 +779,25 @@ public:
 	}
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
 	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;
+	// ボール報酬として提示する候補数を返す。
 	int GetBallOfferSize() const
 	{
 		return HasRelic(RelicType::ExpandedBallOffer) ? 4 : 3;
 	}
 	void RollShopRelicOffers();
+	// ショップに提示中のレリック数を返す。
 	int GetShopRelicOfferCount() const
 	{
 		return static_cast<int>(m_ShopRelicOffers.size());
 	}
+	// ショップ提示位置に対応するレリック番号を返す。
 	int GetShopRelicOfferCatalogIndex(int offerIndex) const
 	{
 		return offerIndex >= 0 && offerIndex < GetShopRelicOfferCount()
 			? m_ShopRelicOffers[static_cast<std::size_t>(offerIndex)]
 			: -1;
 	}
+	// ショップ提示位置に対応するレリック定義を返す。
 	const RelicDefinition* GetShopRelicOffer(int offerIndex) const
 	{
 		return GetRelic(GetShopRelicOfferCatalogIndex(offerIndex));
@@ -794,20 +806,24 @@ public:
 	bool BuyShopRelicOffer(int offerIndex);
 	bool BuyShopRelic(int relicIndex);
 	void RollMidBossRelicOffers();
+	// 中ボス報酬として提示中のレリック数を返す。
 	int GetMidBossRelicOfferCount() const
 	{
 		return static_cast<int>(m_MidBossRelicOffers.size());
 	}
+	// 中ボス提示位置に対応するレリック番号を返す。
 	int GetMidBossRelicOfferCatalogIndex(int offerIndex) const
 	{
 		return offerIndex >= 0 && offerIndex < GetMidBossRelicOfferCount()
 			? m_MidBossRelicOffers[static_cast<std::size_t>(offerIndex)]
 			: -1;
 	}
+	// 中ボス提示位置に対応するレリック定義を返す。
 	const RelicDefinition* GetMidBossRelicOffer(int offerIndex) const
 	{
 		return GetRelic(GetMidBossRelicOfferCatalogIndex(offerIndex));
 	}
+	// 中ボスのレリック選択中かを返す。
 	bool IsMidBossRelicSelectionActive() const
 	{
 		return m_IsMidBossRelicSelectionActive;

@@ -8,6 +8,12 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
+#include "BattleScene.h"
+#include "ResultScene.h"
+#include "RestSiteScene.h"
+#include "ShopScene.h"
+#include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "BallPhysicsComponent.h"
 #include "input.h"
 
@@ -128,10 +134,11 @@ namespace
 	}
 }
 
+// Rest Heal の処理を実行する。
 bool Game::RestHeal()
 {
 	RestSiteScene* restSite =
-		dynamic_cast<RestSiteScene*>(m_Scene);
+		dynamic_cast<RestSiteScene*>(m_SceneManager.Get());
 	if (restSite != nullptr && restSite->HasUsedAction())
 	{
 		return false;
@@ -163,11 +170,12 @@ bool Game::RestHeal()
 			{ "boss_preparation", IsBossPreparation() },
 			{ "capped_at_max_hp",
 				actualHealAmount < configuredHealAmount },
-			{ "source_scene", GetSceneDebugName(m_Scene) },
+			{ "source_scene", GetSceneDebugName(m_SceneManager.Get()) },
 		});
 	return true;
 }
 
+// Rest Heal Amountを取得する。
 int Game::GetRestHealAmount() const
 {
 	return (std::max)(
@@ -177,11 +185,13 @@ int Game::GetRestHealAmount() const
 			m_RestHealRatio)));
 }
 
+// Rest Heal Percentを取得する。
 int Game::GetRestHealPercent() const
 {
 	return static_cast<int>(std::lround(m_RestHealRatio * 100.0f));
 }
 
+// Clear Reward Upgrade Costを取得する。
 int Game::GetClearRewardUpgradeCost(int ballIndex) const
 {
 	const PlayerBallData* ball =
@@ -202,6 +212,7 @@ int Game::GetClearRewardUpgradeCost(int ballIndex) const
 	return -1;
 }
 
+// Clear Reward Upgradeを適用する。
 bool Game::ApplyClearRewardUpgrade(
 	int ballIndex,
 	int& chargedCost)
@@ -228,10 +239,11 @@ bool Game::ApplyClearRewardUpgrade(
 	return true;
 }
 
+// Rest Upgrade Ball の処理を実行する。
 bool Game::RestUpgradeBall(int ballIndex)
 {
 	RestSiteScene* restSite =
-		dynamic_cast<RestSiteScene*>(m_Scene);
+		dynamic_cast<RestSiteScene*>(m_SceneManager.Get());
 	if (restSite != nullptr && restSite->HasUsedAction())
 	{
 		return false;
@@ -265,11 +277,12 @@ bool Game::RestUpgradeBall(int ballIndex)
 			{ "attack_after", ball->status.attack },
 			{ "defense_after", ball->status.defense },
 			{ "status_after", WriteBallStatus(ball->status) },
-			{ "source_scene", GetSceneDebugName(m_Scene) },
+			{ "source_scene", GetSceneDebugName(m_SceneManager.Get()) },
 		});
 	return true;
 }
 
+// Shop Ballを購入する。
 bool Game::BuyShopBall(int catalogIndex, int cost)
 {
 	cost = (std::max)(0, cost);
@@ -298,6 +311,7 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 	return true;
 }
 
+// Shop Ballを取り除く。
 bool Game::RemoveShopBall(int ballIndex, int cost)
 {
 	cost = (std::max)(0, cost);
@@ -338,6 +352,7 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 	return true;
 }
 
+// Relicを購入する。
 bool Game::BuyRelic(int relicIndex)
 {
 	const RelicDefinition* relic = GetRelic(relicIndex);
@@ -372,6 +387,7 @@ bool Game::BuyRelic(int relicIndex)
 	return true;
 }
 
+// Relicを付与する。
 bool Game::GrantRelic(int relicIndex, const char* source)
 {
 	const RelicDefinition* relic = GetRelic(relicIndex);
@@ -396,6 +412,7 @@ bool Game::GrantRelic(int relicIndex, const char* source)
 	return true;
 }
 
+// Relic Offersの候補を抽選する。
 std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 {
 	std::vector<int> candidates;
@@ -441,11 +458,13 @@ std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 	return offers;
 }
 
+// Shop Relic Offersの候補を抽選する。
 void Game::RollShopRelicOffers()
 {
 	m_ShopRelicOffers = RollRelicOffers(3, false);
 }
 
+// Shop Relic Offeredかどうかを判定する。
 bool Game::IsShopRelicOffered(int relicIndex) const
 {
 	return std::find(
@@ -454,11 +473,13 @@ bool Game::IsShopRelicOffered(int relicIndex) const
 		relicIndex) != m_ShopRelicOffers.end();
 }
 
+// Shop Relic Offerを購入する。
 bool Game::BuyShopRelicOffer(int offerIndex)
 {
 	return BuyShopRelic(GetShopRelicOfferCatalogIndex(offerIndex));
 }
 
+// Shop Relicを購入する。
 bool Game::BuyShopRelic(int relicIndex)
 {
 	if (!IsShopRelicOffered(relicIndex))
@@ -472,6 +493,7 @@ bool Game::BuyShopRelic(int relicIndex)
 	return true;
 }
 
+// Mid Boss Relic Offersの候補を抽選する。
 void Game::RollMidBossRelicOffers()
 {
 	m_MidBossRelicOffers = RollRelicOffers(3, true);
@@ -479,11 +501,13 @@ void Game::RollMidBossRelicOffers()
 	m_IsMidBossRelicSelectionActive = !m_MidBossRelicOffers.empty();
 }
 
+// Mid Boss Relic Offerを獲得する。
 bool Game::AcquireMidBossRelicOffer(int offerIndex)
 {
 	return AcquireMidBossRelic(GetMidBossRelicOfferCatalogIndex(offerIndex));
 }
 
+// Mid Boss Relicを獲得する。
 bool Game::AcquireMidBossRelic(int relicIndex)
 {
 	if (!m_IsMidBossRelicSelectionActive ||
@@ -498,6 +522,7 @@ bool Game::AcquireMidBossRelic(int relicIndex)
 	return true;
 }
 
+// Owned Relic Countを取得する。
 int Game::GetOwnedRelicCount() const
 {
 	return static_cast<int>(std::count(
@@ -506,16 +531,19 @@ int Game::GetOwnedRelicCount() const
 		true));
 }
 
+// Relic Attack Bonusを取得する。
 int Game::GetRelicAttackBonus() const
 {
 	return HasRelic(RelicType::AllBallAttackUp) ? 1 : 0;
 }
 
+// Relic Defense Bonusを取得する。
 int Game::GetRelicDefenseBonus() const
 {
 	return HasRelic(RelicType::AllBallDefenseUp) ? 1 : 0;
 }
 
+// Effective Player Ball Attackを取得する。
 int Game::GetEffectivePlayerBallAttack(
 	const PlayerBallData* ball) const
 {
@@ -524,6 +552,7 @@ int Game::GetEffectivePlayerBallAttack(
 		: ball->status.attack + GetRelicAttackBonus();
 }
 
+// Effective Player Ball Defenseを取得する。
 int Game::GetEffectivePlayerBallDefense(
 	const PlayerBallData* ball) const
 {
@@ -532,6 +561,7 @@ int Game::GetEffectivePlayerBallDefense(
 		: ball->status.defense + GetRelicDefenseBonus();
 }
 
+// Player Status Toを適用する。
 void Game::ApplyPlayerStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -571,6 +601,7 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 	ApplyPlayerRunStatusTo(player);
 }
 
+// Player Run Status Toを適用する。
 void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -585,6 +616,7 @@ void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 	InvalidateDebugCombatForecast("プレイヤー状態変更");
 }
 
+// Relic Modifiers Toを適用する。
 void Game::ApplyRelicModifiersTo(PlayerBall* player)
 {
 	if (player == nullptr || player->GetBall() == nullptr)
@@ -606,6 +638,7 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 	}
 }
 
+// Shot Relic Stateを初期状態へ戻す。
 void Game::ResetShotRelicState(PlayerBall* player)
 {
 	m_CurrentShotCollisionAttackBonus = 0;
@@ -623,6 +656,7 @@ void Game::ResetShotRelicState(PlayerBall* player)
 	}
 }
 
+// End Of Shot Relic Effectsを適用する。
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
 	if (player == nullptr ||
@@ -655,6 +689,7 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 		});
 }
 
+// Player Status Fromを取得して保持する。
 void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 {
 	if (player == nullptr)
@@ -678,6 +713,7 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 		m_PlayerRunStatus.maxHp
 	);
 }
+// Current Player Statusを取得して保持する。
 void Game::CaptureCurrentPlayerStatus()
 {
 	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
@@ -688,10 +724,12 @@ void Game::CaptureCurrentPlayerStatus()
 	CapturePlayerStatusFrom(players[0]);
 }
 
+// Next Player Ballを描画する。
 void Game::DrawNextPlayerBall()
 {
 	m_PlayerDeck.DrawNext();
 }
+// Next Player Ballを準備する。
 void Game::PrepareNextPlayerBall()
 {
 	DiscardCurrentPlayerBall();
@@ -704,6 +742,7 @@ void Game::PrepareNextPlayerBall()
 	BeginBallSelection();
 }
 
+// Stage Reward Moneyを計算する。
 int Game::CalculateStageRewardMoney() const
 {
 	constexpr int BASE_CLEAR_MONEY = 5;
@@ -732,6 +771,7 @@ int Game::CalculateStageRewardMoney() const
 	return totalRewardMoney;
 }
 
+// Collect Stage Reward Money の処理を実行する。
 void Game::CollectStageRewardMoney()
 {
 	// StartClearRewardが複数回呼ばれても二重取得しない
@@ -767,6 +807,7 @@ void Game::CollectStageRewardMoney()
 		});
 }
 
+// On Player Shot Fired の処理を実行する。
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
 	ResetFrameTiming();
@@ -863,6 +904,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	m_PlayerDeck.MarkCurrentUsed();
 }
 
+// Player Wall Collisionを通知する。
 void Game::NotifyPlayerWallCollision()
 {
     auto rules = CaptureShotRelicRules();
@@ -870,6 +912,7 @@ void Game::NotifyPlayerWallCollision()
     CommitShotRelicRules(rules);
 }
 
+// Current Ballかどうかを判定する。
 bool Game::IsCurrentBall(const char* definitionId) const
 {
 	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
@@ -877,6 +920,7 @@ bool Game::IsCurrentBall(const char* definitionId) const
 		currentBall->definitionId == definitionId;
 }
 
+// Player Enemy Relic Damage Bonusを消費する。
 int Game::ConsumePlayerEnemyRelicDamageBonus()
 {
     auto rules = CaptureShotRelicRules();
@@ -885,6 +929,7 @@ int Game::ConsumePlayerEnemyRelicDamageBonus()
     return bonus;
 }
 
+// Anchor Stoppedを通知する。
 void Game::NotifyAnchorStopped()
 {
     auto rules = CaptureShotRelicRules();
@@ -892,6 +937,7 @@ void Game::NotifyAnchorStopped()
     CommitShotRelicRules(rules);
 }
 
+// Pierce Maximum Usesを取得する。
 int Game::GetPierceMaximumUses() const
 {
 	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
@@ -900,6 +946,7 @@ int Game::GetPierceMaximumUses() const
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0;
 }
 
+// Pierce Speed Retentionを取得する。
 float Game::GetPierceSpeedRetention() const
 {
 	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
@@ -908,6 +955,7 @@ float Game::GetPierceSpeedRetention() const
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0.75f;
 }
 
+// Enemy Defeatedを通知する。
 void Game::NotifyEnemyDefeated(const std::string& enemyId)
 {
 	if (!HasRelic(RelicType::BountyList) || m_BountyRewardClaimed)
@@ -927,6 +975,7 @@ void Game::NotifyEnemyDefeated(const std::string& enemyId)
 		});
 }
 
+// Bank Shot Damage Multiplierを消費する。
 int Game::ConsumeBankShotDamageMultiplier()
 {
     auto rules = CaptureShotRelicRules();
@@ -936,6 +985,7 @@ int Game::ConsumeBankShotDamageMultiplier()
     return multiplier;
 }
 
+// Damage Ball Collisionを通知する。
 void Game::NotifyDamageBallCollision(
 	DamageBallCollisionType collisionType)
 {
@@ -946,6 +996,7 @@ void Game::NotifyDamageBallCollision(
         for (PlayerBall* player : GetComponents<PlayerBall>()) ApplyRelicModifiersTo(player);
 }
 
+// Combat Feedbackを通知する。
 void Game::NotifyCombatFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	int damage,
@@ -961,6 +1012,7 @@ void Game::NotifyCombatFeedback(
 	});
 }
 
+// Pocket Feedbackを通知する。
 void Game::NotifyPocketFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	bool playerPocket,
@@ -977,6 +1029,7 @@ void Game::NotifyPocketFeedback(
 	});
 }
 
+// Player Damageを通知する。
 void Game::NotifyPlayerDamage(
 	const std::string& source,
 	int damage,
@@ -997,6 +1050,7 @@ void Game::NotifyPlayerDamage(
 	PublishGameEvent(PlayerDamageEvent{ source, damage, sourceId });
 }
 
+// Game Eventを公開する。
 void Game::PublishGameEvent(const GameEvent& event)
 {
 	std::visit(
@@ -1063,6 +1117,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 		event);
 }
 
+// Balance Eventを記録する。
 void Game::RecordBalanceEvent(
 	const std::string& eventType,
 	const nlohmann::json& details)
@@ -1070,6 +1125,7 @@ void Game::RecordBalanceEvent(
 	BalanceLogger::GetInstance().RecordEvent(eventType, details);
 }
 
+// Dynamic Balance Hitを通知する。
 void Game::NotifyDynamicBalanceHit()
 {
 	if (m_DynamicBalanceStageActive &&
@@ -1079,6 +1135,7 @@ void Game::NotifyDynamicBalanceHit()
 	}
 }
 
+// Dynamic Balance To Enemy Dataを適用する。
 void Game::ApplyDynamicBalanceToEnemyData(
 	EnemyData& enemyData) const
 {
@@ -1134,6 +1191,7 @@ void Game::ApplyDynamicBalanceToEnemyData(
 		m_DynamicBalanceMinEnemyAttack, m_DynamicBalanceMaxEnemyAttack);
 }
 
+// Progression Hp Modifierを計算する。
 int Game::CalculateProgressionHpModifier() const
 {
 	if (!m_ProgressionScalingEnabled ||
@@ -1150,6 +1208,7 @@ int Game::CalculateProgressionHpModifier() const
 		tier * m_ProgressionHpStep);
 }
 
+// Progression Attack Modifierを計算する。
 int Game::CalculateProgressionAttackModifier() const
 {
 	if (!m_ProgressionScalingEnabled ||
@@ -1166,6 +1225,7 @@ int Game::CalculateProgressionAttackModifier() const
 		tier * m_ProgressionAttackStep);
 }
 
+// Dynamic Balance Attack Modifierを計算する。
 int Game::CalculateDynamicBalanceAttackModifier(int level) const
 {
 	if (level > 0 && !m_DynamicBalancePositiveAttackScalingEnabled)
@@ -1176,6 +1236,7 @@ int Game::CalculateDynamicBalanceAttackModifier(int level) const
 		m_DynamicBalanceAttackStep;
 }
 
+// Dynamic Balanceを設定する。
 void Game::SetDynamicBalance(
 	bool enabled,
 	bool resetLevel,
@@ -1218,6 +1279,7 @@ void Game::SetDynamicBalance(
 	m_DynamicBalanceLastLevelChange = 0;
 }
 
+// Balance Auto Full Hp Enemy Survivedを通知する。
 void Game::NotifyBalanceAutoFullHpEnemySurvived()
 {
 	const PlayerBallData* currentBall =
@@ -1246,6 +1308,7 @@ void Game::NotifyBalanceAutoFullHpEnemySurvived()
 		<< std::endl;
 }
 
+// Current Player Ballを破棄する。
 void Game::DiscardCurrentPlayerBall()
 {
 	if (!m_PlayerDeck.HasCurrent())
@@ -1268,6 +1331,7 @@ void Game::DiscardCurrentPlayerBall()
 	m_PlayerDeck.DiscardCurrentIfUsed();
 }
 
+// Debug Snapshotを保存する。
 void Game::SaveDebugSnapshot()
 {
 	std::ofstream file("debug_state_snapshot.txt");
@@ -1280,7 +1344,7 @@ void Game::SaveDebugSnapshot()
 	file << std::fixed << std::setprecision(3);
 
 	file << "[Scene]\n";
-	file << "Scene = " << GetSceneDebugName(m_Scene) << "\n";
+	file << "Scene = " << GetSceneDebugName(m_SceneManager.Get()) << "\n";
 	file << "GameState = " << GetGameStateDebugName(m_GameState)
 		<< " (" << static_cast<int>(m_GameState) << ")\n";
 	file << "AreAllBallsStopped = " << (AreAllBallsStopped() ? "true" : "false") << "\n";
@@ -1350,6 +1414,7 @@ void Game::SaveDebugSnapshot()
 	}
 }
 
+// Prediction Shot Rulesを生成する。
 ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
 {
     ShotRelicRules rules;
@@ -1361,6 +1426,7 @@ ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
     return rules;
 }
 
+// Shot Relic Rulesを取得して保持する。
 ShotRelicRules Game::CaptureShotRelicRules() const
 {
     auto rules = MakePredictionShotRules(m_CurrentShotLaunchPower);
@@ -1378,6 +1444,7 @@ ShotRelicRules Game::CaptureShotRelicRules() const
     return rules;
 }
 
+// Shot Relic Rulesを確定する。
 void Game::CommitShotRelicRules(const ShotRelicRules& rules)
 {
     m_CurrentShotCollisionAttackBonus = rules.collisionBonus;

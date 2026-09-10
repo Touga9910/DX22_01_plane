@@ -5,6 +5,12 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
+#include "BattleScene.h"
+#include "ResultScene.h"
+#include "RestSiteScene.h"
+#include "ShopScene.h"
+#include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "BallPhysicsComponent.h"
 #include "input.h"
 
@@ -61,6 +67,7 @@ namespace
 	}
 }
 
+// Balance Auto Playを更新する。
 bool Game::UpdateBalanceAutoPlay()
 {
 	if (m_DebugMode || m_DebugEditorOpen) return false;
@@ -87,7 +94,7 @@ bool Game::UpdateBalanceAutoPlay()
 			<< std::endl;
 	}
 
-	if (!m_BalanceAutoPlayEnabled || m_Scene == nullptr)
+	if (!m_BalanceAutoPlayEnabled || m_SceneManager.Get() == nullptr)
 	{
 		return false;
 	}
@@ -104,7 +111,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	};
 
-	if (dynamic_cast<TitleScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<TitleScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
@@ -127,7 +134,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (dynamic_cast<ResultScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<ResultScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		if (m_AutoStopAfterCurrentRunRequested)
 		{
@@ -155,7 +162,7 @@ bool Game::UpdateBalanceAutoPlay()
 	}
 
 	if (StageSelectScene* stageSelect =
-		dynamic_cast<StageSelectScene*>(m_Scene))
+		dynamic_cast<StageSelectScene*>(m_SceneManager.Get()))
 	{
 		if (!isDecisionReady())
 		{
@@ -211,7 +218,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (dynamic_cast<RestSiteScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
@@ -251,7 +258,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (dynamic_cast<ShopScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
@@ -328,7 +335,7 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (dynamic_cast<BattleScene*>(m_Scene) != nullptr &&
+	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr &&
 		m_GameState == GameState::AimingDirection)
 	{
 		if (TryRecoverClearedBattle("autoplay_no_target_guard"))
@@ -358,12 +365,13 @@ bool Game::UpdateBalanceAutoPlay()
 	return false;
 }
 
+// 指定したComponentが現在のGameWorldに属しているかを返す。
 bool Game::ContainsComponent(const Component* component) const
 {
-	return component != nullptr &&
-		ContainsGameObject(component->GetGameObject());
+	return m_World.Contains(component);
 }
 
+// Balance Auto Ballを選択する。
 void Game::SelectBalanceAutoBall()
 {
     const auto bossChoices = EvaluateBossShots();
@@ -423,6 +431,7 @@ void Game::SelectBalanceAutoBall()
 	ApplySelectedBallPreview();
 }
 
+// Balance Auto Shotを発射する。
 bool Game::FireBalanceAutoShot()
 {
     const auto bossChoices = EvaluateBossShots();
@@ -642,6 +651,7 @@ bool Game::FireBalanceAutoShot()
 	return true;
 }
 
+// Balance Auto Rewardを適用する。
 void Game::ApplyBalanceAutoReward()
 {
 	bool hasMissingRelic = false;
@@ -777,11 +787,13 @@ void Game::ApplyBalanceAutoReward()
 		});
 }
 
+// Balance Auto Stage Typeを取得する。
 StageType Game::GetBalanceAutoStageType() const
 {
 	return GetScheduledStageType();
 }
 
+// Balance Auto Heal Neededかどうかを判定する。
 bool Game::IsBalanceAutoHealNeeded() const
 {
 	if (m_PlayerRunStatus.maxHp <= 0 ||
@@ -795,11 +807,12 @@ bool Game::IsBalanceAutoHealNeeded() const
 		m_PlayerRunStatus.maxHp * thresholdPercent;
 }
 
+// Balance Auto Relic To Buyを検索する。
 int Game::FindBalanceAutoRelicToBuy() const
 {
 	const auto isCandidate = [this](int index)
 	{
-		return dynamic_cast<ShopScene*>(m_Scene) == nullptr ||
+		return dynamic_cast<ShopScene*>(m_SceneManager.Get()) == nullptr ||
 			m_ShopRelicOffers.empty() || IsShopRelicOffered(index);
 	};
 	const bool needsDefense =
@@ -848,6 +861,7 @@ int Game::FindBalanceAutoRelicToBuy() const
 	return -1;
 }
 
+// Balance Auto Weakest Ballを検索する。
 int Game::FindBalanceAutoWeakestBall() const
 {
 	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
@@ -892,6 +906,7 @@ int Game::FindBalanceAutoWeakestBall() const
 	return weakestIndex;
 }
 
+// Balance Auto Missing Catalog Ballを検索する。
 int Game::FindBalanceAutoMissingCatalogBall() const
 {
 	if (m_PlayerDeck.GetRewardTargetCount() >= kAutoMaximumDeckSize)
@@ -944,6 +959,7 @@ int Game::FindBalanceAutoMissingCatalogBall() const
 	return -1;
 }
 
+// Balance Auto Upgrade Targetを検索する。
 int Game::FindBalanceAutoUpgradeTarget() const
 {
 	int bestIndex = -1;
@@ -971,6 +987,7 @@ int Game::FindBalanceAutoUpgradeTarget() const
 	return bestIndex;
 }
 
+// Balance Auto Shop Actionを保持しているか判定する。
 bool Game::HasBalanceAutoShopAction() const
 {
 	return FindBalanceAutoRelicToBuy() >= 0 ||
@@ -979,6 +996,7 @@ bool Game::HasBalanceAutoShopAction() const
 			FindBalanceAutoMissingCatalogBall() >= 0);
 }
 
+// Balance Auto Pending Upgradeable Ballを検索する。
 int Game::FindBalanceAutoPendingUpgradeableBall() const
 {
 	for (const std::uint64_t instanceId :
@@ -1002,6 +1020,7 @@ int Game::FindBalanceAutoPendingUpgradeableBall() const
 	return -1;
 }
 
+// Balance Auto Pending Removal Ballを検索する。
 int Game::FindBalanceAutoPendingRemovalBall() const
 {
 	for (const std::uint64_t instanceId :
@@ -1025,6 +1044,7 @@ int Game::FindBalanceAutoPendingRemovalBall() const
 	return -1;
 }
 
+// Ball Adjustment Candidateかどうかを判定する。
 bool Game::IsBallAdjustmentCandidate(
 	std::uint64_t instanceId) const
 {
@@ -1036,6 +1056,7 @@ bool Game::IsBallAdjustmentCandidate(
 		m_AutoPendingBallAdjustments.end();
 }
 
+// Available Rest Benefitを保持しているか判定する。
 bool Game::HasAvailableRestBenefit() const
 {
 	if (CanRestHeal())
@@ -1058,6 +1079,7 @@ bool Game::HasAvailableRestBenefit() const
 	return false;
 }
 
+// Balance Auto Pending Ballを取り除く。
 void Game::RemoveBalanceAutoPendingBall(
 	std::uint64_t instanceId)
 {
@@ -1069,6 +1091,7 @@ void Game::RemoveBalanceAutoPendingBall(
 		m_AutoPendingBallAdjustments.end());
 }
 
+// Prune Balance Auto Pending Balls の処理を実行する。
 void Game::PruneBalanceAutoPendingBalls()
 {
 	m_AutoPendingBallAdjustments.erase(
@@ -1094,6 +1117,7 @@ void Game::PruneBalanceAutoPendingBalls()
 		m_AutoPendingBallAdjustments.end());
 }
 
+// On Battle Stage Started の処理を実行する。
 void Game::OnBattleStageStarted(const StageData& stage)
 {
 	m_AllBallsStoppedFrameCount = 0;
@@ -1108,7 +1132,7 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	m_RunStatistics.BeginBattle(
 		stage.stageType == StageType::MidBoss,
 		stage.stageType == StageType::Boss &&
-			m_RunPhase == RunPhase::FinalBoss,
+			m_RunProgress.GetPhase() == RunPhase::FinalBoss,
 		stage.id);
 	m_PocketedEnemyQueue.clear();
 	m_DynamicBalanceAppliedEnabled = m_DynamicBalanceEnabled;
@@ -1212,9 +1236,9 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	const nlohmann::json stageContext =
 	{
 		{ "progress", m_PlayerRunStatus.progress },
-		{ "area_progress", m_AreaProgress },
+		{ "area_progress", m_RunProgress.GetAreaProgress() },
 		{ "area_goal", kNormalRouteAreaGoal },
-		{ "run_phase", ToString(m_RunPhase) },
+		{ "run_phase", ToString(m_RunProgress.GetPhase()) },
 		{ "par", stage.par },
 		{ "money", m_PlayerRunStatus.money },
 		{ "layout_source", layoutSource },

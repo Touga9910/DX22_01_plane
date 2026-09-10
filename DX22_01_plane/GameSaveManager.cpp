@@ -242,7 +242,7 @@ bool GameSaveManager::Save(
 		if (sceneAlreadyActive && resumeScene == SceneType::RestSite)
 		{
 			const RestSiteScene* rest =
-				dynamic_cast<const RestSiteScene*>(game.m_Scene);
+				dynamic_cast<const RestSiteScene*>(game.GetCurrentScene());
 			restActionUsed = rest != nullptr && rest->HasUsedAction();
 		}
 
@@ -267,7 +267,7 @@ bool GameSaveManager::Save(
 		}
 		const PlayerDeck& deck = game.m_PlayerDeck;
 		const json payload = {
-			{ "run_map", game.m_RunMap.Save() },
+			{ "run_map", game.m_RunProgress.GetMap().Save() },
 			{ "saved_at_utc", MakeUtcTimestamp() },
 			{ "resume_scene", SceneToId(resumeScene) },
 			{ "scene_state", {
@@ -279,10 +279,10 @@ bool GameSaveManager::Save(
 				{ "current_hp", game.m_PlayerRunStatus.currentHp },
 				{ "money", game.m_PlayerRunStatus.money },
 				{ "progress", game.m_PlayerRunStatus.progress },
-				{ "cleared_stage_count", game.m_ClearedStageCount },
-				{ "area_progress", game.m_AreaProgress },
+				{ "cleared_stage_count", game.m_RunProgress.GetClearedBattleCount() },
+				{ "area_progress", game.m_RunProgress.GetAreaProgress() },
 				{ "ascension", game.m_ActiveAscension },
-				{ "run_phase", ToString(game.m_RunPhase) },
+				{ "run_phase", ToString(game.m_RunProgress.GetPhase()) },
 				{ "selected_stage_id", game.m_PlayerRunStatus.GetSelectedStageId() },
 				{ "last_stage_id", game.m_PlayerRunStatus.GetLastStageId() },
 				{ "owned_relics", std::move(relics) },
@@ -631,11 +631,13 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		game.StartNewRun("human", "save_load", "", "", runSeed);
 		game.m_ActiveAscension = activeAscension;
 		game.m_RestHealRatio = (std::max)(0.05f, game.m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(activeAscension));
-		game.m_RunMap = std::move(restoredMap);
 		game.m_PlayerRunStatus = std::move(restoredStatus);
-		game.m_ClearedStageCount = clearedStages;
-		game.m_AreaProgress = areaProgress;
-		game.m_RunPhase = runPhase;
+		game.m_RunProgress.Restore({
+			std::move(restoredMap),
+			clearedStages,
+			areaProgress,
+			runPhase,
+		});
 		game.m_OwnedRelics = relics;
 		game.m_RunRandomSeed = runSeed;
 		game.m_StageSelectionSeed = stageSeed;
@@ -693,7 +695,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			resumeScene == SceneType::RestSite &&
 			payload.at("scene_state").at("rest_action_used").get<bool>())
 		{
-			if (RestSiteScene* rest = dynamic_cast<RestSiteScene*>(game.m_Scene))
+			if (RestSiteScene* rest = dynamic_cast<RestSiteScene*>(game.GetCurrentScene()))
 			{
 				rest->MarkActionUsed();
 			}

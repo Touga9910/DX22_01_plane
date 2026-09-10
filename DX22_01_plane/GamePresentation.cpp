@@ -940,5 +940,5 @@ void GamePresentation::LoadDashboard()
 
 bool GamePresentation::IsBattleScene(const Game& game) const
 {
-	return dynamic_cast<const BattleScene*>(game.m_Scene) != nullptr;
+	return dynamic_cast<const BattleScene*>(game.GetCurrentScene()) != nullptr;
 }

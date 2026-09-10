@@ -2,6 +2,7 @@
 #pragma execution_character_set("utf-8")
 #include "GameUi.h"
 #include "GameMcpBridge.h"
+#include "TitleScene.h"
 #include "BalanceLogger.h"
 #include "EnemyBall.h"
 #include "PlayerBall.h"
@@ -41,9 +42,10 @@ namespace
     const std::filesystem::path PresetPath = "saves/debug_battle_setup.json";
 }
 
+// Debug Modeを開く。
 void Game::OpenDebugMode()
 {
-    if (!m_DebugMode && dynamic_cast<TitleScene*>(m_Scene) == nullptr) return;
+    if (!m_DebugMode && dynamic_cast<TitleScene*>(m_SceneManager.Get()) == nullptr) return;
     if (m_DebugBallCatalog.empty())
     {
         m_DebugBallCatalog = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {}).ballDefinitions;
@@ -68,6 +70,7 @@ void Game::OpenDebugMode()
     ResetFrameTiming();
 }
 
+// Debug Run Settingsを適用する。
 void Game::ApplyDebugRunSettings()
 {
     m_PlayerDeck.SetDefaultDeck(m_DebugSetup.deck);
@@ -80,6 +83,7 @@ void Game::ApplyDebugRunSettings()
     m_DynamicBalanceLevel = m_DynamicBalanceAppliedLevel = 0;
 }
 
+// Debug Battleを開始する。
 bool Game::StartDebugBattle()
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -118,6 +122,7 @@ bool Game::StartDebugBattle()
     return true;
 }
 
+// Debug Battle Playerを適用する。
 void Game::ApplyDebugBattlePlayer(PlayerBall* player)
 {
     if (!m_DebugMode || !player) return;
@@ -125,6 +130,7 @@ void Game::ApplyDebugBattlePlayer(PlayerBall* player)
     player->GetBall()->SetInitialPosition(m_DebugSetup.playerPosition);
 }
 
+// Debug Battle Enemyを適用する。
 void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
     if (!m_DebugMode || !enemy || index >= m_DebugSetup.enemies.size()) return;
@@ -132,6 +138,7 @@ void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index)
     enemy->SetDebugBossState(m_DebugSetup.armor, m_DebugSetup.breakShots);
 }
 
+// Debug Modeを終了する。
 void Game::EndDebugMode()
 {
     if (!m_DebugMode) return;
@@ -147,6 +154,7 @@ void Game::EndDebugMode()
     m_GameState = GameState::AimingDirection;
 }
 
+// Debug Battleを終了する。
 void Game::FinishDebugBattle(bool victory)
 {
     if (m_DebugBattleFinished) return;
@@ -163,6 +171,7 @@ void Game::FinishDebugBattle(bool victory)
     ResetFrameTiming();
 }
 
+// Debug Modeを更新する。
 bool Game::UpdateDebugMode()
 {
     const int request = std::exchange(m_DebugRequest, 0);
@@ -182,6 +191,7 @@ bool Game::UpdateDebugMode()
     return false;
 }
 
+// Debug Presetを保存する。
 void Game::SaveDebugPreset()
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -198,6 +208,7 @@ void Game::SaveDebugPreset()
     catch (const std::exception& e) { m_DebugMessage = std::string("保存できませんでした：") + e.what(); }
 }
 
+// Debug Presetを読み込む。
 bool Game::LoadDebugPreset()
 {
     try
@@ -213,6 +224,7 @@ bool Game::LoadDebugPreset()
     return false;
 }
 
+// Debug Modeを描画する。
 void Game::DrawDebugMode()
 {
     static bool stageTabActive = true;

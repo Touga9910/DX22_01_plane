@@ -1,4 +1,4 @@
-#include "Game.h"
+﻿#include "Game.h"
 #include "BallShotPrediction.h"
 #include "BallStatusJson.h"
 #include "BreakBall.h"
@@ -36,6 +36,7 @@ namespace
     struct Aim { Vector3 velocity; std::string target, kind; };
 }
 
+// Boss Shotsを評価する。
 json Game::EvaluateBossShots()
 {
     const auto players = GetComponents<PlayerBall>();
@@ -201,6 +202,7 @@ json Game::EvaluateBossShots()
     return m_BossShotCache;
 }
 
+// Boss Planned Shotを発射する。
 bool Game::FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey)
 {
     const auto evaluation = EvaluateBossShots();

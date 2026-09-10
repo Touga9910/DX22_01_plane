@@ -3,21 +3,28 @@
 #pragma execution_character_set("utf-8")
 
 #include "GameSaveManager.h"
+#include "RestSiteScene.h"
+#include "ShopScene.h"
+#include "StageSelectScene.h"
+#include "TitleScene.h"
 #include "UiText.h"
 
 #include <cstdio>
 
+// Save Load Messageを設定する。
 void Game::SetSaveLoadMessage(const std::string& message)
 {
 	m_SaveLoadMessage = message;
 	m_SaveLoadMessageFrames = message.empty() ? 0 : 240;
 }
 
+// Valid Run Saveを保持しているか判定する。
 bool Game::HasValidRunSave() const
 {
 	return GameSaveManager::Inspect().valid;
 }
 
+// Run Save Summaryを取得する。
 std::string Game::GetRunSaveSummary() const
 {
 	const RunSaveInfo info = GameSaveManager::Inspect();
@@ -40,6 +47,7 @@ std::string Game::GetRunSaveSummary() const
 	return summary;
 }
 
+// Run Checkpointを保存する。
 bool Game::SaveRunCheckpoint(
 	SceneType sceneType,
 	bool sceneAlreadyActive,
@@ -62,19 +70,20 @@ bool Game::SaveRunCheckpoint(
 	return saved;
 }
 
+// Current Runを保存する。
 bool Game::SaveCurrentRun()
 {
 	if (m_DebugMode) { SetSaveLoadMessage("デバッグ条件は専用画面の「条件を保存」で保存できます。"); return false; }
 	SceneType sceneType = SceneType::Max;
-	if (dynamic_cast<StageSelectScene*>(m_Scene) != nullptr)
+	if (dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		sceneType = SceneType::Select;
 	}
-	else if (dynamic_cast<RestSiteScene*>(m_Scene) != nullptr)
+	else if (dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		sceneType = SceneType::RestSite;
 	}
-	else if (dynamic_cast<ShopScene*>(m_Scene) != nullptr)
+	else if (dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr)
 	{
 		sceneType = SceneType::Shop;
 	}
@@ -86,9 +95,10 @@ bool Game::SaveCurrentRun()
 	return SaveRunCheckpoint(sceneType, true, true);
 }
 
+// Saved Runを読み込む。
 bool Game::LoadSavedRun()
 {
-	if (dynamic_cast<TitleScene*>(m_Scene) == nullptr)
+	if (dynamic_cast<TitleScene*>(m_SceneManager.Get()) == nullptr)
 	{
 		SetSaveLoadMessage(UiText::LoadFromTitle);
 		return false;
