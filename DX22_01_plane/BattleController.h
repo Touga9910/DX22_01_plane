@@ -1,10 +1,29 @@
 ﻿#pragma once
 
+#include "GameTypes.h"
+#include "ShotRelicRules.h"
+#include "StageData.h"
+
+#include <deque>
 #include <functional>
+#include <random>
 #include <string>
 
 class GameWorld;
 class PlayerBall;
+class EnemyBall;
+
+struct BattlePocketRules
+{
+    float playerDamageRatio = 0.04f;
+    float normalFinisherRatio = 0.30f;
+    float midBossFinisherRatio = 0.20f;
+    float bossFinisherRatio = 0.10f;
+    float playerReturnHalfWidth = 12.0f;
+    float playerReturnHalfDepth = 8.0f;
+    float enemyReturnX = 0.0f;
+    float enemyReturnTopEdgeOffset = 10.0f;
+};
 
 // 1回の戦闘内部だけで使用する進行状態。
 // ClearReward / GameOverは戦闘外の処理なので含めない。
@@ -130,6 +149,23 @@ public:
     bool AreAllBallsStopped() const;
     bool AreAllEnemiesDefeated() const;
 
+    void ResetShotState(const ShotRelicRules& rules);
+    const ShotRelicRules& GetShotRelicRules() const { return m_ShotRelicRules; }
+    void SetShotRelicRules(const ShotRelicRules& rules) { m_ShotRelicRules = rules; }
+    bool ClaimBountyReward();
+
+    void BeginStage(StageType stageType);
+    StageType GetStageType() const { return m_StageType; }
+    BattlePocketRules& PocketRules() { return m_PocketRules; }
+    const BattlePocketRules& PocketRules() const { return m_PocketRules; }
+    std::mt19937& PocketRandomEngine() { return m_PocketRandomEngine; }
+    const std::mt19937& PocketRandomEngine() const { return m_PocketRandomEngine; }
+    void QueuePocketedEnemy(EnemyBall* enemy);
+    EnemyBall* PopPocketedEnemy();
+    int GetPocketQueueIndex(const EnemyBall* enemy) const;
+    std::size_t GetPocketQueueSize() const { return m_PocketedEnemyQueue.size(); }
+    void ClearPocketQueue() { m_PocketedEnemyQueue.clear(); }
+
 private:
     static constexpr int kRequiredStoppedTicks = 11;
 
@@ -141,6 +177,12 @@ private:
     bool m_Active = false;
 
     int m_AllBallsStoppedTickCount = 0;
+    ShotRelicRules m_ShotRelicRules{};
+    bool m_BountyRewardClaimed = false;
+    StageType m_StageType = StageType::Normal;
+    BattlePocketRules m_PocketRules{};
+    std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
+    std::deque<EnemyBall*> m_PocketedEnemyQueue;
 
 private:
     void CompleteShot();

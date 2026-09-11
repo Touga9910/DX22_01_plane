@@ -490,13 +490,13 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "battle_result", ToString(game.GetLastBattleResult()) },
 		{ "clear_reward_active", game.IsClearRewardActive() },
 		{ "selected_stage_id",
-			game.m_PlayerRunStatus.GetSelectedStageId() },
+			game.m_RunController.Status().GetSelectedStageId() },
 		{ "autoplay_enabled",
-			game.m_BalanceAutoPlayEnabled },
+			game.m_BalanceAutoPlayer.IsEnabled() },
 		{ "autoplay_stop_after_current_run",
-			game.m_AutoStopAfterCurrentRunRequested },
+			game.m_BalanceAutoPlayer.IsStopAfterCurrentRunRequested() },
 		{ "autoplay_stop_after_current_run_default",
-			game.m_AutoStopAfterCurrentRunDefault },
+			game.m_BalanceAutoPlayer.IsStopAfterCurrentRunDefault() },
 		{ "bridge", {
 			{ "write_actions_enabled", m_AllowWriteActions },
 			{ "single_pending_command", true },
@@ -522,7 +522,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "pockets", nlohmann::json::array() },
 	};
 	state["rest_heal"] = {
-		{ "heal_ratio", game.m_RestHealRatio },
+		{ "heal_ratio", game.m_RunController.RestHealRatio() },
 		{ "heal_percent", game.GetRestHealPercent() },
 		{ "configured_heal_amount", game.GetRestHealAmount() },
 		{ "capped_at_max_hp", true },
@@ -602,15 +602,15 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["pocket_rules"] = {
 		{ "player", {
-			{ "max_hp_damage_ratio", game.m_PlayerPocketDamageRatio },
+			{ "max_hp_damage_ratio", game.m_BattleController.PocketRules().playerDamageRatio },
 			{ "damage_amount", game.GetPlayerPocketDamageAmount() },
 			{ "damage_ignores_defense", true },
 			{ "return_region", {
 				{ "center", VectorToJson(
 					DirectX::SimpleMath::Vector3(
 						0.0f, TableConfig::FIELD_HEIGHT, 0.0f)) },
-				{ "half_width", game.m_PlayerPocketReturnHalfWidth },
-				{ "half_depth", game.m_PlayerPocketReturnHalfDepth },
+				{ "half_width", game.m_BattleController.PocketRules().playerReturnHalfWidth },
+				{ "half_depth", game.m_BattleController.PocketRules().playerReturnHalfDepth },
 			} },
 		} },
 		{ "enemy", {
@@ -618,20 +618,20 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "returns_per_turn", 1 },
 			{ "return_position", VectorToJson(
 				DirectX::SimpleMath::Vector3(
-					game.m_EnemyPocketReturnX,
+					game.m_BattleController.PocketRules().enemyReturnX,
 					TableConfig::FIELD_HEIGHT,
 					TableConfig::GetFieldDepth() * 0.5f -
-						game.m_EnemyPocketReturnTopEdgeOffset)) },
+						game.m_BattleController.PocketRules().enemyReturnTopEdgeOffset)) },
 			{ "finisher_hp_ratios", {
-				{ "normal", game.m_NormalPocketFinisherRatio },
-				{ "midboss", game.m_MidBossPocketFinisherRatio },
-				{ "boss", game.m_BossPocketFinisherRatio },
+				{ "normal", game.m_BattleController.PocketRules().normalFinisherRatio },
+				{ "midboss", game.m_BattleController.PocketRules().midBossFinisherRatio },
+				{ "boss", game.m_BattleController.PocketRules().bossFinisherRatio },
 			} },
 			{ "current_stage_type",
-				StageTypeToMcpString(game.m_CurrentBattleStageType) },
+				StageTypeToMcpString(game.m_BattleController.GetStageType()) },
 			{ "current_finisher_hp_ratio",
 				game.GetCurrentPocketFinisherRatio() },
-			{ "return_queue_size", game.m_PocketedEnemyQueue.size() },
+			{ "return_queue_size", game.m_BattleController.GetPocketQueueSize() },
 		} },
 	};
 
@@ -656,20 +656,20 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["player"] = {
 		{ "current_hp",
 			player == nullptr
-				? game.m_PlayerRunStatus.currentHp
+				? game.m_RunController.Status().currentHp
 				: player->GetHP() },
 		{ "max_hp",
 			player == nullptr
-				? game.m_PlayerRunStatus.maxHp
+				? game.m_RunController.Status().maxHp
 				: player->GetMaxHP() },
-		{ "money", game.m_PlayerRunStatus.money },
-		{ "progress", game.m_PlayerRunStatus.progress },
+		{ "money", game.m_RunController.Status().money },
+		{ "progress", game.m_RunController.Status().progress },
 		{ "pocketed", player != nullptr && player->IsPocketed() },
 	};
 	const RunResultSnapshot& runStatistics = game.m_RunStatistics.GetState();
 	state["run_progress"] = {
-		{ "phase", ToString(game.m_RunProgress.GetPhase()) },
-		{ "area_progress", game.m_RunProgress.GetAreaProgress() },
+		{ "phase", ToString(game.m_RunController.Progress().GetPhase()) },
+		{ "area_progress", game.m_RunController.Progress().GetAreaProgress() },
 		{ "area_goal", Game::kNormalRouteAreaGoal },
 		{ "total_battles", runStatistics.totalBattles },
 		{ "midboss_challenges", runStatistics.midBossChallenges },
@@ -691,8 +691,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			state["player"]["radius"] =
 				player->GetBall()->GetRadius();
 		}
-		const PlayerBallData* selectedBall = game.m_PlayerDeck.GetOffer(game.m_SelectedOfferIndex);
-		if (selectedBall == nullptr) selectedBall = game.m_PlayerDeck.GetCurrent();
+		const PlayerBallData* selectedBall = game.m_RunController.Deck().GetOffer(game.m_SelectedOfferIndex);
+		if (selectedBall == nullptr) selectedBall = game.m_RunController.Deck().GetCurrent();
 		if (selectedBall != nullptr)
 		{
 			state["player"]["ball"] = BallDataToJson(*selectedBall, game.m_SelectedOfferIndex);
@@ -720,9 +720,9 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "unlocked", game.m_ProgressionProfile.IsRelicUnlocked(relic->type) },
 			{ "shop_offered", game.IsShopRelicOffered(index) },
 			{ "midboss_offered", std::find(
-				game.m_MidBossRelicOffers.begin(),
-				game.m_MidBossRelicOffers.end(), index) !=
-				game.m_MidBossRelicOffers.end() },
+				game.m_RunController.MidBossRelicOffers().begin(),
+				game.m_RunController.MidBossRelicOffers().end(), index) !=
+				game.m_RunController.MidBossRelicOffers().end() },
 		});
 	}
 	state["relic_selection"] = {
@@ -853,11 +853,11 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["offered_balls"] = nlohmann::json::array();
 	for (int index = 0;
-		index < game.m_PlayerDeck.GetOfferCount();
+		index < game.m_RunController.Deck().GetOfferCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			game.m_PlayerDeck.GetOffer(index);
+			game.m_RunController.Deck().GetOffer(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -874,11 +874,11 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["deck_balls"] = nlohmann::json::array();
 	for (int index = 0;
-		index < game.m_PlayerDeck.GetRewardTargetCount();
+		index < game.m_RunController.Deck().GetRewardTargetCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			game.m_PlayerDeck.GetRewardTarget(index);
+			game.m_RunController.Deck().GetRewardTarget(index);
 		if (ball != nullptr)
 		{
 			nlohmann::json ballJson =
@@ -891,7 +891,7 @@ nlohmann::json GameMcpBridge::BuildState(
 				: nlohmann::json(nullptr);
 			ballJson["clear_reward_upgrade_affordable"] =
 				upgradeCost >= 0 &&
-				game.m_PlayerRunStatus.money >= upgradeCost;
+				game.m_RunController.Status().money >= upgradeCost;
 			state["deck_balls"].push_back(
 				std::move(ballJson));
 		}
@@ -899,11 +899,11 @@ nlohmann::json GameMcpBridge::BuildState(
 
 	state["catalog_balls"] = nlohmann::json::array();
 	for (int index = 0;
-		index < game.m_PlayerDeck.GetCatalogCount();
+		index < game.m_RunController.Deck().GetCatalogCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			game.m_PlayerDeck.GetCatalogBall(index);
+			game.m_RunController.Deck().GetCatalogBall(index);
 		if (ball != nullptr)
 		{
 			state["catalog_balls"].push_back(
@@ -912,14 +912,14 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 
 	const int deckBallCount =
-		game.m_PlayerDeck.GetRewardTargetCount();
+		game.m_RunController.Deck().GetRewardTargetCount();
 	state["deck_rule"] = {
 		{ "minimum_size", PlayerDeck::MinimumDeckSize },
 		{ "current_size", deckBallCount },
 		{ "shop_removal_cost", kShopRemoveCost },
 		{ "can_remove",
 			deckBallCount > PlayerDeck::MinimumDeckSize &&
-			game.m_PlayerRunStatus.money >= kShopRemoveCost },
+			game.m_RunController.Status().money >= kShopRemoveCost },
 	};
 
 	game.PruneBalanceAutoPendingBalls();
@@ -937,14 +937,14 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["ball_adjustment_candidates"] =
 		nlohmann::json::array();
 	for (const std::uint64_t instanceId :
-		game.m_AutoPendingBallAdjustments)
+		game.m_BalanceAutoPlayer.GetPendingBallAdjustments())
 	{
 		const int ballIndex =
-			FindDeckBallIndex(game.m_PlayerDeck, instanceId);
+			FindDeckBallIndex(game.m_RunController.Deck(), instanceId);
 		const PlayerBallData* ball =
 			ballIndex < 0
 				? nullptr
-				: game.m_PlayerDeck.GetRewardTarget(ballIndex);
+				: game.m_RunController.Deck().GetRewardTarget(ballIndex);
 		if (ball == nullptr)
 		{
 			continue;
@@ -963,68 +963,68 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 
 	const int dynamicHpDelta =
-		game.m_DynamicBalanceEnabled
-			? game.m_DynamicBalanceLevel *
-				game.m_DynamicBalanceHpStep
+		game.m_DynamicBalanceController.IsEnabled()
+			? game.m_DynamicBalanceController.GetLevel() *
+				game.m_DynamicBalanceController.GetHpStep()
 			: 0;
 	const int dynamicAttackDelta =
-		game.m_DynamicBalanceEnabled
-			? game.CalculateDynamicBalanceAttackModifier(
-				game.m_DynamicBalanceLevel)
+		game.m_DynamicBalanceController.IsEnabled()
+			? game.m_DynamicBalanceController.CalculateAttackModifier(
+				game.m_DynamicBalanceController.GetLevel())
 			: 0;
 	state["dynamic_balance"] = {
 		{ "role", "assist_mode" },
-		{ "enabled", game.m_DynamicBalanceEnabled },
+		{ "enabled", game.m_DynamicBalanceController.IsEnabled() },
 		{ "current_battle_enabled",
-			game.m_DynamicBalanceAppliedEnabled },
-		{ "level", game.m_DynamicBalanceLevel },
+			game.m_DynamicBalanceController.IsAppliedEnabled() },
+		{ "level", game.m_DynamicBalanceController.GetLevel() },
 		{ "current_battle_level",
-			game.m_DynamicBalanceAppliedLevel },
-		{ "minimum_level", game.m_DynamicBalanceMinLevel },
-		{ "maximum_level", game.m_DynamicBalanceMaxLevel },
+			game.m_DynamicBalanceController.GetAppliedLevel() },
+		{ "minimum_level", game.m_DynamicBalanceController.GetMinimumLevel() },
+		{ "maximum_level", game.m_DynamicBalanceController.GetMaximumLevel() },
 		{ "application_timing", "next_battle_spawn" },
 		{ "next_enemy_modifier", {
 			{ "max_hp_delta", dynamicHpDelta },
 			{ "attack_delta", dynamicAttackDelta },
 		} },
 		{ "current_stage_metrics", {
-			{ "active", game.m_DynamicBalanceStageActive },
-			{ "shots", game.m_DynamicBalanceStageShots },
+			{ "active", game.m_DynamicBalanceController.IsStageActive() },
+			{ "shots", game.m_DynamicBalanceController.GetStageShots() },
 			{ "no_hit_shots",
-				game.m_DynamicBalanceStageNoHitShots },
+				game.m_DynamicBalanceController.GetStageNoHitShots() },
 			{ "enemy_count",
-				game.m_DynamicBalanceStageEnemyCount },
+				game.m_DynamicBalanceController.GetStageEnemyCount() },
 		} },
 		{ "last_evaluation", {
-			{ "result", game.m_DynamicBalanceLastResult },
-			{ "reason", game.m_DynamicBalanceLastReason },
+			{ "result", game.m_DynamicBalanceController.GetLastResult() },
+			{ "reason", game.m_DynamicBalanceController.GetLastReason() },
 			{ "level_change",
-				game.m_DynamicBalanceLastLevelChange },
+				game.m_DynamicBalanceController.GetLastLevelChange() },
 			{ "remaining_hp_ratio",
-				game.m_DynamicBalanceLastHpRatio },
+				game.m_DynamicBalanceController.GetLastHpRatio() },
 			{ "no_hit_rate",
-				game.m_DynamicBalanceLastNoHitRate },
+				game.m_DynamicBalanceController.GetLastNoHitRate() },
 			{ "shots_per_enemy",
-				game.m_DynamicBalanceLastShotsPerEnemy },
+				game.m_DynamicBalanceController.GetLastShotsPerEnemy() },
 		} },
 	};
 	state["progression_scaling"] = {
-		{ "enabled", game.m_ProgressionScalingEnabled },
-		{ "current_progress", game.m_PlayerRunStatus.progress },
+		{ "enabled", game.m_DynamicBalanceController.IsProgressionScalingEnabled() },
+		{ "current_progress", game.m_RunController.Status().progress },
 		{ "next_enemy_hp_delta",
-			game.CalculateProgressionHpModifier() },
-		{ "hp_start_progress", game.m_ProgressionHpStart },
-		{ "hp_interval", game.m_ProgressionHpInterval },
-		{ "hp_step", game.m_ProgressionHpStep },
+			game.m_DynamicBalanceController.CalculateProgressionHpModifier(game.m_RunController.Status().progress) },
+		{ "hp_start_progress", game.m_DynamicBalanceController.GetProgressionHpStart() },
+		{ "hp_interval", game.m_DynamicBalanceController.GetProgressionHpInterval() },
+		{ "hp_step", game.m_DynamicBalanceController.GetProgressionHpStep() },
 		{ "maximum_hp_delta",
-			game.m_ProgressionHpMaximumDelta },
+			game.m_DynamicBalanceController.GetProgressionHpMaximumDelta() },
 		{ "next_enemy_attack_delta",
-			game.CalculateProgressionAttackModifier() },
-		{ "attack_start_progress", game.m_ProgressionAttackStart },
-		{ "attack_interval", game.m_ProgressionAttackInterval },
-		{ "attack_step", game.m_ProgressionAttackStep },
+			game.m_DynamicBalanceController.CalculateProgressionAttackModifier(game.m_RunController.Status().progress) },
+		{ "attack_start_progress", game.m_DynamicBalanceController.GetProgressionAttackStart() },
+		{ "attack_interval", game.m_DynamicBalanceController.GetProgressionAttackInterval() },
+		{ "attack_step", game.m_DynamicBalanceController.GetProgressionAttackStep() },
 		{ "maximum_attack_delta",
-			game.m_ProgressionAttackMaximumDelta },
+			game.m_DynamicBalanceController.GetProgressionAttackMaximumDelta() },
 	};
 	state["baseline_difficulty"] = {
 		{ "profile", game.m_BaselineDifficultyProfile },
@@ -1032,30 +1032,29 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "enemy_attack_delta", game.m_BaselineEnemyAttackDelta },
 	};
 	state["balance_validation"] = {
-		{ "enabled", game.m_BalanceValidationEnabled },
-		{ "experiment_id", game.m_BalanceValidationExperimentId },
-		{ "variant_id", game.m_BalanceValidationCurrentVariantId },
-		{ "variant_index", game.m_BalanceValidationVariantIndex },
-		{ "variant_count", game.m_BalanceValidationVariants.size() },
+		{ "enabled", game.m_BalanceValidationController.IsEnabled() },
+		{ "experiment_id", game.m_BalanceValidationController.GetExperimentId() },
+		{ "variant_id", game.m_BalanceValidationController.GetCurrentVariantId() },
+		{ "variant_index", game.m_BalanceValidationController.GetVariantIndex() },
+		{ "variant_count", game.m_BalanceValidationController.GetVariants().size() },
 		{ "run_seed", game.m_RunRandomSeed },
 		{ "stage_selection_seed", game.m_StageSelectionSeed },
 		{ "route_selection_seed", game.m_RouteSelectionSeed },
-		{ "seed_suite_index", game.m_BalanceValidationSeedIndex },
-		{ "seed_suite_size", game.m_BalanceValidationSeeds.size() },
+		{ "seed_suite_index", game.m_BalanceValidationController.GetSeedIndex() },
+		{ "seed_suite_size", game.m_BalanceValidationController.GetSeedCount() },
 		{ "maximum_cleared_stages",
-			game.m_BalanceValidationMaximumClearedStages },
-		{ "endurance_mode", game.m_BalanceValidationEnduranceMode },
-		{ "cleared_stage_count", game.m_RunProgress.GetClearedBattleCount() },
+			game.m_BalanceValidationController.GetMaximumClearedStages() },
+		{ "endurance_mode", game.m_BalanceValidationController.IsEnduranceMode() },
+		{ "cleared_stage_count", game.m_RunController.Progress().GetClearedBattleCount() },
 		{
 			"dynamic_balance_forced_off",
-			game.m_BalanceValidationEnabled &&
-			game.m_BalanceValidationCurrentDisableDynamicBalance
+			game.m_BalanceValidationController.IsDynamicBalanceLockedOff()
 		},
 	};
 
 	state["available_actions"] = nlohmann::json::array();
 	state["route_options"] = nlohmann::json::array();
-	state["run_map"] = game.m_RunProgress.GetMap().Snapshot();
+	state["run_map"] = game.m_RunController.Progress().GetMap().Snapshot();
 	if (dynamic_cast<StageSelectScene*>(game.GetCurrentScene()) == nullptr)
 		for (auto& node : state["run_map"]["nodes"]) node["selectable"] = false;
 	state["available_actions"].push_back("set_dynamic_balance");
@@ -1084,7 +1083,7 @@ nlohmann::json GameMcpBridge::BuildState(
 				state["route_options"].push_back({
 					{ "route_index", routeIndex },
 					{ "node_id", stageSelect->GetMapNodeIdAt(routeIndex) },
-					{ "next_node_ids", game.m_RunProgress.GetMap().Node(stageSelect->GetMapNodeIdAt(routeIndex))->next },
+					{ "next_node_ids", game.m_RunController.Progress().GetMap().Node(stageSelect->GetMapNodeIdAt(routeIndex))->next },
 					{ "destination",
 						stageSelect->GetRouteIdAt(routeIndex) },
 					{ "display_name",
@@ -1104,11 +1103,11 @@ nlohmann::json GameMcpBridge::BuildState(
 		const bool canHeal = game.CanRestHeal();
 		bool canUpgrade = false;
 		for (int index = 0;
-			index < game.m_PlayerDeck.GetRewardTargetCount();
+			index < game.m_RunController.Deck().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				game.m_PlayerDeck.GetRewardTarget(index);
+				game.m_RunController.Deck().GetRewardTarget(index);
 			if (ball != nullptr && ball->CanUpgrade())
 			{
 				canUpgrade = true;
@@ -1121,7 +1120,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "must_claim_available_bonus_before_continue", true },
 			{ "action_used", actionUsed },
 			{ "bonus_available", bonusAvailable },
-			{ "heal_ratio", game.m_RestHealRatio },
+			{ "heal_ratio", game.m_RunController.RestHealRatio() },
 			{ "heal_percent", game.GetRestHealPercent() },
 			{ "configured_heal_amount", game.GetRestHealAmount() },
 			{ "priority", nlohmann::json::array({
@@ -1154,15 +1153,15 @@ nlohmann::json GameMcpBridge::BuildState(
 			const RelicDefinition* relic = game.GetShopRelicOffer(offerIndex);
 			if (relic != nullptr &&
 				!game.HasRelic(relic->type) &&
-				game.m_PlayerRunStatus.money >= relic->price)
+				game.m_RunController.Status().money >= relic->price)
 			{
 				state["available_actions"].push_back(
 					"buy_relic");
 				break;
 			}
 		}
-		if (game.m_PlayerRunStatus.money >= kShopRemoveCost &&
-			game.m_PlayerDeck.GetRewardTargetCount() >
+		if (game.m_RunController.Status().money >= kShopRemoveCost &&
+			game.m_RunController.Deck().GetRewardTargetCount() >
 				PlayerDeck::MinimumDeckSize)
 		{
 			state["available_actions"].push_back(
@@ -1214,15 +1213,16 @@ nlohmann::json GameMcpBridge::BuildState(
 		}
 	}
 
-	state["debug_mode"] = {{"active", game.m_DebugMode}, {"editor_open", game.m_DebugEditorOpen},
-		{"finished", game.m_DebugBattleFinished}};
-	if (!game.m_StageEditor.draft.is_null())
+	auto& debug = game.m_DebugController;
+	state["debug_mode"] = {{"active", debug.IsActive()}, {"editor_open", debug.IsEditorOpen()},
+		{"finished", debug.IsBattleFinished()}};
+	if (!debug.GetStageEditor().draft.is_null())
 	{
-		state["stage_editor"] = game.m_StageEditor.Snapshot(game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
-		state["stage_editor"]["open"] = game.m_DebugEditorOpen;
+		state["stage_editor"] = debug.GetStageEditor().Snapshot(debug.GetEnemyCatalog(), debug.StageEditorPlayerRadius());
+		state["stage_editor"]["open"] = debug.IsEditorOpen();
 	}
-	if (game.m_DebugEditorOpen) state["available_actions"] = {"validate_stage_layout", "propose_stage_layout"};
-	else if (game.m_DebugMode)
+	if (debug.IsEditorOpen()) state["available_actions"] = {"validate_stage_layout", "propose_stage_layout"};
+	else if (debug.IsActive())
 	{
 		auto allowed = nlohmann::json::array();
 		for (const auto& action : state["available_actions"])
@@ -1230,7 +1230,7 @@ nlohmann::json GameMcpBridge::BuildState(
 				allowed.push_back(action);
 		state["available_actions"] = std::move(allowed);
 	}
-	if (dynamic_cast<TitleScene*>(game.GetCurrentScene()) != nullptr && !game.m_DebugEditorOpen)
+	if (dynamic_cast<TitleScene*>(game.GetCurrentScene()) != nullptr && !debug.IsEditorOpen())
 		state["available_actions"].push_back("open_stage_editor");
 	return state;
 }
@@ -1271,10 +1271,11 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	}
 	if (action == "validate_stage_layout" || action == "propose_stage_layout")
 	{
-		if (!game.m_DebugEditorOpen) return CommandResult(false, "Open the stage editor first.");
+		auto& debug = game.m_DebugController;
+		if (!debug.IsEditorOpen()) return CommandResult(false, "Open the stage editor first.");
 		const auto args = command.value("arguments", nlohmann::json::object());
 		const auto layout = args.value("layout", nlohmann::json());
-		const auto report = StageLayoutEditor::Inspect(layout, game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
+		const auto report = StageLayoutEditor::Inspect(layout, debug.GetEnemyCatalog(), debug.StageEditorPlayerRadius());
 		auto result = CommandResult(report["valid"].get<bool>(), "Layout validation complete.");
 		result["report"] = report;
 		if (action == "propose_stage_layout" && report["valid"].get<bool>())
@@ -1283,16 +1284,16 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			{
 				const auto& expected = args.at("expected_revision");
 				if (!expected.is_number_integer() || expected.get<double>() < 0) throw std::runtime_error("expected_revision must be a nonnegative integer.");
-				game.m_StageEditor.Propose(layout, expected.get<std::uint64_t>(), game.m_DebugEnemyCatalog, game.StageEditorPlayerRadius());
+				debug.GetStageEditor().Propose(layout, expected.get<std::uint64_t>(), debug.GetEnemyCatalog(), debug.StageEditorPlayerRadius());
 				result["message"] = "Proposal ready for visual review. Draft and files are unchanged until accepted in the editor.";
 			}
 			catch (const std::exception& e) { result = CommandResult(false, e.what()); result["report"] = report; }
 		}
 		return result;
 	}
-	if (game.m_DebugEditorOpen)
+	if (game.m_DebugController.IsEditorOpen())
 		return CommandResult(false, "Debug setup is open. Resume or start the battle from its window.");
-	if (game.m_DebugMode && action != "select_ball" && action != "fire_shot" &&
+	if (game.IsDebugMode() && action != "select_ball" && action != "fire_shot" &&
 		action != "evaluate_boss_shots" && action != "fire_boss_shot")
 		return CommandResult(false, "This action is unavailable in debug battle mode.");
 	const nlohmann::json arguments =
@@ -1333,7 +1334,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	{
 		const bool enabled = arguments.value(
 			"enabled",
-			game.m_DynamicBalanceEnabled);
+			game.m_DynamicBalanceController.IsEnabled());
 		const bool resetLevel =
 			arguments.value("reset_level", false);
 		const bool hasRequestedLevel =
@@ -1349,18 +1350,19 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		const int requestedLevel =
 			hasRequestedLevel
 				? arguments["level"].get<int>()
-				: game.m_DynamicBalanceLevel;
-		game.SetDynamicBalance(
+				: game.m_DynamicBalanceController.GetLevel();
+		game.m_DynamicBalanceController.Set(
 			enabled,
 			resetLevel,
 			requestedLevel,
-			hasRequestedLevel);
+			hasRequestedLevel,
+			game.m_BalanceValidationController.IsDynamicBalanceLockedOff());
 		return CommandResult(
 			true,
 			std::string("Dynamic balance ") +
 				(enabled ? "enabled" : "disabled") +
 				". Level=" +
-				std::to_string(game.m_DynamicBalanceLevel) +
+				std::to_string(game.m_DynamicBalanceController.GetLevel()) +
 				". Changes apply to newly spawned enemies.");
 	}
 
@@ -1600,7 +1602,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				false,
 				"A new run can only start from the title or result scene.");
 		}
-		game.m_BalanceAutoPlayEnabled = false;
+		game.m_BalanceAutoPlayer.SetEnabled(false);
 		std::optional<std::uint32_t> forcedRandomSeed;
 		if (arguments.contains("run_seed"))
 		{
@@ -1623,14 +1625,9 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			std::string());
 		if (!forcedValidationVariant.empty())
 		{
-			const bool found = std::any_of(
-				game.m_BalanceValidationVariants.begin(),
-				game.m_BalanceValidationVariants.end(),
-				[&forcedValidationVariant](
-					const BalanceValidationVariant& variant)
-				{
-					return variant.id == forcedValidationVariant;
-				});
+			const bool found =
+				game.m_BalanceValidationController.HasVariant(
+					forcedValidationVariant);
 			if (!found)
 			{
 				return CommandResult(
@@ -1703,7 +1700,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		const int offerIndex =
 			arguments.value("offer_index", -1);
 		if (offerIndex < 0 ||
-			offerIndex >= game.m_PlayerDeck.GetOfferCount())
+			offerIndex >= game.m_RunController.Deck().GetOfferCount())
 		{
 			return CommandResult(
 				false,
@@ -1814,7 +1811,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				std::uint64_t{ 0 });
 		const int ballIndex =
 			FindDeckBallIndex(
-				game.m_PlayerDeck,
+				game.m_RunController.Deck(),
 				instanceId);
 		if (ballIndex < 0 ||
 			!game.RestUpgradeBall(ballIndex))
@@ -1841,7 +1838,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				std::uint64_t{ 0 });
 		const int ballIndex =
 			FindDeckBallIndex(
-				game.m_PlayerDeck,
+				game.m_RunController.Deck(),
 				instanceId);
 		if (ballIndex < 0 ||
 			!game.RemoveShopBall(
@@ -1964,7 +1961,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"A clear reward is not currently available.");
 		}
 
-		const int moneyBefore = game.m_PlayerRunStatus.money;
+		const int moneyBefore = game.m_RunController.Status().money;
 		const std::string reward =
 			arguments.value("reward", std::string());
 		bool applied = false;
@@ -1974,7 +1971,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			const int catalogIndex =
 				arguments.value("catalog_index", -1);
 			applied =
-				game.m_PlayerDeck.AddCatalogBall(catalogIndex);
+				game.m_RunController.Deck().AddCatalogBall(catalogIndex);
 			game.m_SelectedRewardIndex = 0;
 			game.m_SelectedRewardBallIndex = catalogIndex;
 		}
@@ -1986,13 +1983,13 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 					std::uint64_t{ 0 });
 			const int ballIndex =
 				FindDeckBallIndex(
-					game.m_PlayerDeck,
+					game.m_RunController.Deck(),
 					instanceId);
 			const int upgradeCost = ballIndex >= 0
 				? game.GetClearRewardUpgradeCost(ballIndex)
 				: -1;
 			if (upgradeCost >= 0 &&
-				game.m_PlayerRunStatus.money < upgradeCost)
+				game.m_RunController.Status().money < upgradeCost)
 			{
 				return CommandResult(
 					false,
@@ -2007,8 +2004,8 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		}
 		else if (reward == "extra_money")
 		{
-			game.m_PlayerRunStatus.money +=
-				kExtraRewardMoney;
+			game.m_RunController.AddMoney(
+				kExtraRewardMoney);
 			game.m_SelectedRewardIndex = 2;
 			game.m_SelectedRewardBallIndex = 0;
 			applied = true;
@@ -2034,7 +2031,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			{ "reward", reward },
 			{ "selected_index", game.m_SelectedRewardBallIndex },
 			{ "money_before", moneyBefore },
-			{ "money_after", game.m_PlayerRunStatus.money },
+			{ "money_after", game.m_RunController.Status().money },
 		};
 		if (reward == "upgrade_ball")
 		{

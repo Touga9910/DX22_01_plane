@@ -1,11 +1,15 @@
 ﻿#pragma once
 #include "ShotRelicRules.h"
-#include "DebugBattleSetup.h"
+#include "BossShotPlanner.h"
+#include "GameDebugController.h"
 #include "GameWorld.h"
 #include "BattleController.h"
+#include "BalanceAutoPlayer.h"
+#include "BalanceValidationController.h"
+#include "DynamicBalanceController.h"
+#include "RunController.h"
 #include "SceneManager.h"
 #include "RunProgressController.h"
-#include "StageLayoutEditor.h"
 #include "ProgressionProfile.h"
 #include <array>
 #include <cstdint>
@@ -81,27 +85,11 @@ private:
 
 	BallStatus m_DefaultPlayerStatus{};
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
-	PlayerRunStatus m_PlayerRunStatus{};
-	float m_RestHealRatio = 0.25f;
-	StageSelector m_StageSelector;
+	RunController m_RunController;
 	std::optional<StageData> m_McpNextStageOverride;
 	std::optional<StageData> m_McpCurrentStageOverride;
 
-	PlayerDeck m_PlayerDeck;
-    nlohmann::json m_BossShotCache;
-    std::string m_BossShotCacheKey;
-	std::array<bool, static_cast<std::size_t>(RelicType::Count)>
-		m_OwnedRelics{};
-	int m_CurrentShotCollisionAttackBonus = 0;
-	int m_CurrentShotPlayerEnemyCollisionCount = 0;
-	int m_CurrentShotEnemyEnemyCollisionCount = 0;
-	bool m_CurrentShotBankShotReady = false;
-	bool m_CurrentShotBankShotConsumed = false;
-	int m_CurrentShotWallCollisionCount = 0;
-	int m_CurrentShotBounceDamageBonus = 0;
-	bool m_CurrentShotAnchorStopped = false;
-	float m_CurrentShotLaunchPower = 0.0f;
-	bool m_BountyRewardClaimed = false;
+	BossShotPlanner m_BossShotPlanner;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
@@ -111,34 +99,15 @@ private:
 	int m_SelectedRewardIndex = 0;
 	int m_SelectedRewardBallIndex = 0;
 
-	int m_CurrentStageRewardMoney = 0;    // 今回のステージで取得したMoney
-	bool m_IsStageRewardCollected = false; // 二重取得防止
 	std::string m_RewardMessage;           // 購入結果などの表示
 	bool m_IsClearRewardChosen = false;
 	bool m_ClearRewardMouseConfirmed = false;
 	bool m_IsMidBossRelicSelectionActive = false;
 	int m_SelectedRelicOfferIndex = 0;
-	std::vector<int> m_MidBossRelicOffers;
-	std::vector<int> m_ShopRelicOffers;
 	static constexpr int kNormalRouteAreaGoal =
 		RunProgressController::NormalRouteAreaGoal;
-	RunProgressController m_RunProgress;
 
-	// バランスログ収集用の自動プレイ設定
-	bool m_BalanceAutoPlayEnabled = false;
-	bool m_AutoRestartAfterGameOver = true;
-	bool m_AutoStopAfterCurrentRunDefault = false;
-	bool m_AutoStopAfterCurrentRunRequested = false;
-	int m_AutoDecisionDelayFrames = 20;
-	int m_AutoDecisionFrame = 0;
-	int m_AutoRunCount = 0;
-	int m_AutoMaxRuns = 0;
-	float m_AutoMinShotPower = 4.0f;
-	float m_AutoMaxShotPower = 8.0f;
-	float m_AutoAimJitterDegrees = 1.5f;
-	std::mt19937 m_AutoRandomEngine{ std::random_device{}() };
-	unsigned int m_AutoRandomSeed = 20260727u;
-	std::vector<std::uint64_t> m_AutoPendingBallAdjustments;
+	BalanceAutoPlayer m_BalanceAutoPlayer;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
 	std::unique_ptr<GamePresentation> m_GamePresentation;
 	nlohmann::json m_PendingShotTelemetry = nlohmann::json::object();
@@ -146,52 +115,12 @@ private:
 	std::uint32_t m_StageSelectionSeed = 0;
 	std::uint32_t m_RouteSelectionSeed = 0;
 	std::uint32_t m_RouteSelectionCounter = 0;
-	std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
-	std::mt19937 m_RelicRandomEngine{ std::random_device{}() };
-	std::deque<EnemyBall*> m_PocketedEnemyQueue;
-	StageType m_CurrentBattleStageType = StageType::Normal;
-	float m_PlayerPocketDamageRatio = 0.04f;
-	float m_NormalPocketFinisherRatio = 0.30f;
-	float m_MidBossPocketFinisherRatio = 0.20f;
-	float m_BossPocketFinisherRatio = 0.10f;
-	float m_PlayerPocketReturnHalfWidth = 12.0f;
-	float m_PlayerPocketReturnHalfDepth = 8.0f;
-	float m_EnemyPocketReturnX = 0.0f;
-	float m_EnemyPocketReturnTopEdgeOffset = 10.0f;
-
-	// 固定条件でバランスを検証する。有効時はランのシードを固定し、
-	// DDAを強制的に無効化できるため、変更前後のビルドを比較できる。
-	bool m_BalanceValidationEnabled = false;
-	bool m_BalanceValidationDisableDynamicBalance = true;
-	bool m_BalanceValidationCurrentDisableDynamicBalance = true;
-	bool m_BalanceValidationFixedStageSchedule = true;
-	bool m_BalanceValidationEnduranceMode = false;
-	std::uint32_t m_BalanceValidationSeed = 20260807u;
-	std::vector<std::uint32_t> m_BalanceValidationSeeds{ 20260807u };
-	std::uint32_t m_BalanceValidationRunCounter = 0;
-	std::uint32_t m_BalanceValidationSeedIndex = 0;
-	std::uint32_t m_BalanceValidationVariantIndex = 0;
-	std::string m_BalanceValidationExperimentId = "fixed_baseline";
-	std::string m_BalanceValidationCurrentVariantId = "dda_off";
-	std::vector<BalanceValidationVariant> m_BalanceValidationVariants{
-		{ "dda_off", true },
-		{ "dda_on", false },
-	};
-	int m_BalanceValidationMaximumClearedStages = 30;
+	BalanceValidationController m_BalanceValidationController;
 
 	// 基準難易度はラン中に固定し、DDAは独立した救済機能として扱う。
 	std::string m_BaselineDifficultyProfile = "normal";
 	float m_BaselineEnemyHpMultiplier = 1.0f;
 	int m_BaselineEnemyAttackDelta = 0;
-	bool m_ProgressionScalingEnabled = true;
-	int m_ProgressionHpStart = 10;
-	int m_ProgressionHpInterval = 5;
-	int m_ProgressionHpStep = 1;
-	int m_ProgressionHpMaximumDelta = 4;
-	int m_ProgressionAttackStart = 20;
-	int m_ProgressionAttackInterval = 5;
-	int m_ProgressionAttackStep = 1;
-	int m_ProgressionAttackMaximumDelta = 8;
 
 	// エンカウントの脅威度コストは、単純な敵数とは分けてログへ記録する。
 	std::unordered_map<std::string, float> m_EnemyThreatCosts;
@@ -200,41 +129,7 @@ private:
 	float m_DenseLayoutThreatMultiplier = 1.25f;
 	float m_McpLayoutThreatMultiplier = 1.0f;
 
-	// 動的難易度調整（DDA）。1戦の結果を、次の戦闘で生成する敵へ適用する。
-	bool m_DynamicBalanceConfiguredEnabled = true;
-	bool m_DynamicBalanceEnabled = true;
-	bool m_DynamicBalanceAppliedEnabled = true;
-	int m_DynamicBalanceInitialLevel = 0;
-	int m_DynamicBalanceLevel = 0;
-	int m_DynamicBalanceAppliedLevel = 0;
-	int m_DynamicBalanceMinLevel = -3;
-	int m_DynamicBalanceMaxLevel = 3;
-	int m_DynamicBalanceHpStep = 1;
-	int m_DynamicBalanceAttackStep = 1;
-	int m_DynamicBalanceLevelsPerAttackStep = 2;
-	bool m_DynamicBalancePositiveAttackScalingEnabled = false;
-	int m_DynamicBalanceMinEnemyHp = 1;
-	int m_DynamicBalanceMaxEnemyHp = 100;
-	int m_DynamicBalanceMinEnemyAttack = 0;
-	int m_DynamicBalanceMaxEnemyAttack = 50;
-	float m_DynamicBalanceStrongHpRatio = 0.70f;
-	float m_DynamicBalanceWeakHpRatio = 0.30f;
-	float m_DynamicBalanceStrongNoHitRate = 0.20f;
-	float m_DynamicBalanceWeakNoHitRate = 0.50f;
-	float m_DynamicBalanceTargetShotsPerEnemy = 3.0f;
-	float m_DynamicBalanceWeakShotMultiplier = 1.5f;
-	bool m_DynamicBalanceStageActive = false;
-	bool m_DynamicBalanceShotActive = false;
-	bool m_DynamicBalanceCurrentShotHit = false;
-	int m_DynamicBalanceStageShots = 0;
-	int m_DynamicBalanceStageNoHitShots = 0;
-	int m_DynamicBalanceStageEnemyCount = 0;
-	int m_DynamicBalanceLastLevelChange = 0;
-	float m_DynamicBalanceLastHpRatio = 1.0f;
-	float m_DynamicBalanceLastNoHitRate = 0.0f;
-	float m_DynamicBalanceLastShotsPerEnemy = 0.0f;
-	std::string m_DynamicBalanceLastResult = "not_evaluated";
-	std::string m_DynamicBalanceLastReason = "No battle has been evaluated.";
+	DynamicBalanceController m_DynamicBalanceController;
 	bool m_IsRestoringRunSave = false;
 	std::string m_SaveLoadMessage;
 	int m_SaveLoadMessageFrames = 0;
@@ -246,25 +141,9 @@ private:
 	std::vector<std::string> m_LastProgressionUnlocks;
 	SettingsManager m_SettingsManager{};
 	bool m_RunActive = false;
-	bool m_DebugMode = false;
-	bool m_DebugEditorOpen = false;
-	bool m_DebugBattleFinished = false;
-	bool m_DebugPreviousAutoPlay = false;
-	bool m_DebugPreviousValidation = false;
-	int m_DebugRequest = 0; // 1:開始・再戦、2:タイトルへ
-	DebugBattleSetup m_DebugSetup;
-	DebugBattleSetup m_DebugActiveSetup;
-	std::vector<PlayerBallData> m_DebugBallCatalog;
-	std::vector<EnemyData> m_DebugEnemyCatalog;
-	std::vector<StageData> m_DebugStages;
-	std::string m_DebugMessage;
+	GameDebugController m_DebugController;
 	void DrawDebugMode();
-	StageLayoutEditor m_StageEditor;
-	void DrawStageEditor();
-	void TestStageEditorLayout();
-	float StageEditorPlayerRadius() const;
 	bool UpdateDebugMode();
-	bool StartDebugBattle();
 	void EndDebugMode();
 	void FinishDebugBattle(bool victory);
 	void ApplyDebugRunSettings();
@@ -278,63 +157,12 @@ private:
 	bool m_PendingDisplayApply = false;
 	RunResultSnapshot m_LastRunResult{};
 
-	struct DebugEnemyCombatSnapshot
-	{
-		std::string id;
-		int currentHp = 0;
-		int maxHp = 0;
-		int attack = 0;
-		int damageBeforeMinimum = 0;
-		int expectedDamage = 0;
-		bool minimumDamageApplied = false;
-		bool defeated = false;
-		bool pocketed = false;
-		bool canAttack = false;
-		std::string state;
-	};
-
-	struct DebugCombatForecastSnapshot
-	{
-		bool hasPlayer = false;
-		int playerCurrentHp = 0;
-		int playerMaxHp = 0;
-		int playerDefense = 0;
-		int theoreticalDamage = 0;
-		int expectedDamage = 0;
-		int overkillDamage = 0;
-		int attackerCount = 0;
-		int hpAfterAttack = 0;
-		bool lethal = false;
-		std::vector<DebugEnemyCombatSnapshot> enemies;
-		std::uint64_t updateRevision = 0;
-		std::string updateReason = "initial";
-	};
-
-	struct DebugPlayerDamageRecord
-	{
-		std::uint64_t sequence = 0;
-		std::string source;
-		std::string sourceId;
-		int damage = 0;
-		int hpBefore = -1;
-		int hpAfter = -1;
-	};
-
-	DebugCombatForecastSnapshot m_DebugCombatForecast{};
-	bool m_DebugCombatForecastDirty = true;
-	std::string m_DebugCombatForecastPendingReason = "initial";
-	std::deque<DebugPlayerDamageRecord> m_DebugPlayerDamageHistory;
-	std::uint64_t m_DebugDamageSequence = 0;
-	bool m_DebugLastEnemyAttackComparisonValid = false;
-	int m_DebugLastEnemyAttackPredictedDamage = 0;
-	int m_DebugLastEnemyAttackActualDamage = 0;
-	bool m_DebugShowDefeatedEnemies = true;
-	bool m_DebugShowPocketedEnemies = true;
-	bool m_DebugOnlyAttackers = false;
-	int m_DebugEnemySortMode = 0;
-
 	friend class GameMcpBridge;
 	friend class GameSaveManager;
+	friend class BalanceAutoPlayer;
+	friend class GameDebugController;
+	friend class GamePresentation;
+	friend class BossShotPlanner;
 
 	/// <summary>
 	/// ゲームオーバー時の処理を行う関数
@@ -379,18 +207,9 @@ private:
 	bool PrepareNextPlayerBall();
 	int CalculateStageRewardMoney() const;
 	void CollectStageRewardMoney();
-	void LoadBalanceAutoPlayConfig(
-		const std::string& filePath =
-			"assets/data/balance_autoplay.json");
-	void LoadDynamicBalanceConfig(
-		const std::string& filePath =
-			"assets/data/dynamic_balance.json");
 	void LoadDifficultyProfileConfig(
 		const std::string& filePath =
 			"assets/data/difficulty_profiles.json");
-	void LoadBalanceValidationConfig(
-		const std::string& filePath =
-			"assets/data/balance_validation.json");
 	void LoadEncounterBalanceConfig(
 		const std::string& filePath =
 			"assets/data/encounter_balance.json");
@@ -401,25 +220,14 @@ private:
 	void RestorePocketedPlayer();
 	DirectX::SimpleMath::Vector3 FindEnemyPocketReturnPosition(
 		const EnemyBall* returningEnemy) const;
-	void ResetDynamicBalanceRunState();
 	StageType GetScheduledStageType() const;
-	void FinishDynamicBalanceShot();
-	void EvaluateDynamicBalanceStage(bool cleared);
-	bool UpdateBalanceAutoPlay();
-	bool FireBalanceAutoShot();
-	void SelectBalanceAutoBall();
-	void ApplyBalanceAutoReward();
+	void ApplyBalanceAutoBallSelection(int offerIndex);
+	void MarkBalanceAutoRewardChosen(
+		int rewardIndex,
+		int rewardBallIndex,
+		const std::string& message);
 	int GetClearRewardUpgradeCost(int ballIndex) const;
 	bool ApplyClearRewardUpgrade(int ballIndex, int& chargedCost);
-	StageType GetBalanceAutoStageType() const;
-	bool IsBalanceAutoHealNeeded() const;
-	int FindBalanceAutoRelicToBuy() const;
-	int FindBalanceAutoWeakestBall() const;
-	int FindBalanceAutoMissingCatalogBall() const;
-	int FindBalanceAutoUpgradeTarget() const;
-	bool HasBalanceAutoShopAction() const;
-	int FindBalanceAutoPendingUpgradeableBall() const;
-	int FindBalanceAutoPendingRemovalBall() const;
 	void RemoveBalanceAutoPendingBall(std::uint64_t instanceId);
 	void PruneBalanceAutoPendingBalls();
 	void RemoveDestroyedGameObjects();
@@ -448,7 +256,7 @@ private:
 public:
 	void OpenDebugMode();
 	// デバッグモードが有効かを返す。
-	bool IsDebugMode() const { return m_DebugMode; }
+	bool IsDebugMode() const { return m_DebugController.IsActive(); }
 	void ApplyDebugBattlePlayer(PlayerBall* player);
 	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
 	Game(); // コンストラクタ
@@ -517,7 +325,7 @@ public:
 	// バランス検証用の自動プレイが有効かを返す。
 	bool IsBalanceAutoPlayEnabled() const
 	{
-		return m_BalanceAutoPlayEnabled;
+		return m_BalanceAutoPlayer.IsEnabled();
 	}
 
 	bool ContainsGameObject(const GameObject* gameObject) const;
@@ -648,16 +456,23 @@ public:
 	void RecordBalanceEvent(
 		const std::string& eventType,
 		const nlohmann::json& details = nlohmann::json::object());
-	void NotifyDynamicBalanceHit();
-	int CalculateDynamicBalanceAttackModifier(int level) const;
-	int CalculateProgressionHpModifier() const;
-	int CalculateProgressionAttackModifier() const;
 	void ApplyDynamicBalanceToEnemyData(EnemyData& enemyData) const;
-	void SetDynamicBalance(
-		bool enabled,
-		bool resetLevel,
-		int requestedLevel,
-		bool hasRequestedLevel);
+	DynamicBalanceController& DynamicBalance()
+	{
+		return m_DynamicBalanceController;
+	}
+	const DynamicBalanceController& DynamicBalance() const
+	{
+		return m_DynamicBalanceController;
+	}
+	BalanceValidationController& BalanceValidation()
+	{
+		return m_BalanceValidationController;
+	}
+	const BalanceValidationController& BalanceValidation() const
+	{
+		return m_BalanceValidationController;
+	}
 	void NotifyBalanceAutoFullHpEnemySurvived();
 	// 次回のルート選択に使う一意な乱数シードを返す。
 	std::uint32_t GetNextRouteRandomSeed()
@@ -665,9 +480,9 @@ public:
 		return m_RouteSelectionSeed + m_RouteSelectionCounter++;
 	}
 	// 山札に残っているボール数を返す。
-	int GetPlayerDeckCount() const { return m_PlayerDeck.GetDrawPileCount(); }
+	int GetPlayerDeckCount() const { return m_RunController.Deck().GetDrawPileCount(); }
 	// 捨て札にあるボール数を返す。
-	int GetPlayerDiscardCount() const { return m_PlayerDeck.GetDiscardPileCount(); }
+	int GetPlayerDiscardCount() const { return m_RunController.Deck().GetDiscardPileCount(); }
 
 	/// <summary>
 	/// 敵が全滅しているかどうかを判定する関数
@@ -695,62 +510,62 @@ public:
 	// プレイヤーの所持金を返す。
 	int GetPlayerMoney() const
 	{
-		return m_PlayerRunStatus.money;
+		return m_RunController.Status().money;
 	}
 	// プレイヤーの現在HPを返す。
-	int GetPlayerCurrentHp() const { return m_PlayerRunStatus.currentHp; }
+	int GetPlayerCurrentHp() const { return m_RunController.Status().currentHp; }
 	// プレイヤーの最大HPを返す。
-	int GetPlayerMaxHp() const { return m_PlayerRunStatus.maxHp; }
+	int GetPlayerMaxHp() const { return m_RunController.Status().maxHp; }
 	int GetRestHealAmount() const;
 	int GetRestHealPercent() const;
 	// 休憩による回復を利用できるかを返す。
 	bool CanRestHeal() const
 	{
-		return m_PlayerRunStatus.currentHp < m_PlayerRunStatus.maxHp;
+		return m_RunController.CanRestHeal();
 	}
 	// 現在までにクリアした戦闘数を返す。
 	int GetClearedStageCount() const
 	{
-		return m_RunProgress.GetClearedBattleCount();
+		return m_RunController.Progress().GetClearedBattleCount();
 	}
 	// 通常ルートの現在進行数を返す。
-	int GetAreaProgress() const { return m_RunProgress.GetAreaProgress(); }
+	int GetAreaProgress() const { return m_RunController.Progress().GetAreaProgress(); }
 	// 現在のランマップを読み取り専用で返す。
-	const RunMap& GetRunMap() const { return m_RunProgress.GetMap(); }
+	const RunMap& GetRunMap() const { return m_RunController.Progress().GetMap(); }
 	// 選択可能なマップノードを選ぶ。
-	bool ChooseMapNode(int nodeId) { return m_RunProgress.ChooseNode(nodeId); }
+	bool ChooseMapNode(int nodeId) { return m_RunController.Progress().ChooseNode(nodeId); }
 	// 通常ルートの完了目標エリア数を返す。
 	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
 	// 現在のランフェーズを返す。
-	RunPhase GetRunPhase() const { return m_RunProgress.GetPhase(); }
+	RunPhase GetRunPhase() const { return m_RunController.Progress().GetPhase(); }
 	// 最終ボス前の準備フェーズかを返す。
 	bool IsBossPreparation() const
 	{
-		return m_RunProgress.IsBossPreparation();
+		return m_RunController.Progress().IsBossPreparation();
 	}
 	// 最終ボスを選択可能なフェーズかを返す。
 	bool IsFinalBossRoute() const
 	{
-		return m_RunProgress.IsFinalBossReady();
+		return m_RunController.Progress().IsFinalBossReady();
 	}
 	// プレイヤー表示用の現在進行値を返す。
-	int GetPlayerProgress() const { return m_PlayerRunStatus.progress; }
+	int GetPlayerProgress() const { return m_RunController.Status().progress; }
 	// 現在選択されているステージIDを返す。
 	const std::string& GetSelectedStageId() const
 	{
-		return m_PlayerRunStatus.GetSelectedStageId();
+		return m_RunController.Status().GetSelectedStageId();
 	}
 
 	// 報酬対象となるデッキ内ボール数を返す。
-	int GetDeckBallCount() const { return m_PlayerDeck.GetRewardTargetCount(); }
+	int GetDeckBallCount() const { return m_RunController.Deck().GetRewardTargetCount(); }
 	// デッキの最小構成数を返す。
 	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
 	// 指定位置のデッキ内ボールを返す。
-	const PlayerBallData* GetDeckBall(int index) const { return m_PlayerDeck.GetRewardTarget(index); }
+	const PlayerBallData* GetDeckBall(int index) const { return m_RunController.Deck().GetRewardTarget(index); }
 	// ショップの商品候補となるボール数を返す。
-	int GetShopBallCount() const { return m_PlayerDeck.GetCatalogCount(); }
+	int GetShopBallCount() const { return m_RunController.Deck().GetCatalogCount(); }
 	// 指定位置のショップ用ボール情報を返す。
-	const PlayerBallData* GetShopBall(int index) const { return m_PlayerDeck.GetCatalogBall(index); }
+	const PlayerBallData* GetShopBall(int index) const { return m_RunController.Deck().GetCatalogBall(index); }
 	bool IsBallAdjustmentCandidate(std::uint64_t instanceId) const;
 	bool HasAvailableRestBenefit() const;
 	bool RestHeal();
@@ -772,8 +587,7 @@ public:
 	// 指定したレリックを所持しているかを返す。
 	bool HasRelic(RelicType type) const
 	{
-		const std::size_t index = static_cast<std::size_t>(type);
-		return index < m_OwnedRelics.size() && m_OwnedRelics[index];
+		return m_RunController.HasRelic(type);
 	}
 	int GetOwnedRelicCount() const;
 	ShotRelicRules MakePredictionShotRules(float launchPower) const;
@@ -782,29 +596,29 @@ public:
 	// 現在ショットの衝突攻撃ボーナスを返す。
 	int GetCurrentShotCollisionAttackBonus() const
 	{
-		return m_CurrentShotCollisionAttackBonus;
+		return m_BattleController.GetShotRelicRules().collisionBonus;
 	}
 	// 現在ショットのプレイヤー対敵衝突数を返す。
 	int GetCurrentShotPlayerEnemyCollisionCount() const
 	{
-		return m_CurrentShotPlayerEnemyCollisionCount;
+		return m_BattleController.GetShotRelicRules().playerEnemyContacts;
 	}
 	// 現在ショットの敵同士の衝突数を返す。
 	int GetCurrentShotEnemyEnemyCollisionCount() const
 	{
-		return m_CurrentShotEnemyEnemyCollisionCount;
+		return m_BattleController.GetShotRelicRules().enemyEnemyContacts;
 	}
 	// 現在ショットの全ボール衝突数を返す。
 	int GetCurrentShotBallCollisionCount() const
 	{
-		return m_CurrentShotPlayerEnemyCollisionCount +
-			m_CurrentShotEnemyEnemyCollisionCount;
+		const auto& rules = m_BattleController.GetShotRelicRules();
+		return rules.playerEnemyContacts + rules.enemyEnemyContacts;
 	}
 	// バンクショット効果をまだ消費可能かを返す。
 	bool IsCurrentShotBankShotReady() const
 	{
-		return m_CurrentShotBankShotReady &&
-			!m_CurrentShotBankShotConsumed;
+		const auto& rules = m_BattleController.GetShotRelicRules();
+		return rules.bankReady && !rules.bankConsumed;
 	}
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
 	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;
@@ -817,13 +631,13 @@ public:
 	// ショップに提示中のレリック数を返す。
 	int GetShopRelicOfferCount() const
 	{
-		return static_cast<int>(m_ShopRelicOffers.size());
+		return static_cast<int>(m_RunController.ShopRelicOffers().size());
 	}
 	// ショップ提示位置に対応するレリック番号を返す。
 	int GetShopRelicOfferCatalogIndex(int offerIndex) const
 	{
 		return offerIndex >= 0 && offerIndex < GetShopRelicOfferCount()
-			? m_ShopRelicOffers[static_cast<std::size_t>(offerIndex)]
+			? m_RunController.ShopRelicOffers()[static_cast<std::size_t>(offerIndex)]
 			: -1;
 	}
 	// ショップ提示位置に対応するレリック定義を返す。
@@ -838,13 +652,13 @@ public:
 	// 中ボス報酬として提示中のレリック数を返す。
 	int GetMidBossRelicOfferCount() const
 	{
-		return static_cast<int>(m_MidBossRelicOffers.size());
+		return static_cast<int>(m_RunController.MidBossRelicOffers().size());
 	}
 	// 中ボス提示位置に対応するレリック番号を返す。
 	int GetMidBossRelicOfferCatalogIndex(int offerIndex) const
 	{
 		return offerIndex >= 0 && offerIndex < GetMidBossRelicOfferCount()
-			? m_MidBossRelicOffers[static_cast<std::size_t>(offerIndex)]
+			? m_RunController.MidBossRelicOffers()[static_cast<std::size_t>(offerIndex)]
 			: -1;
 	}
 	// 中ボス提示位置に対応するレリック定義を返す。

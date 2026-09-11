@@ -316,6 +316,24 @@
     <ClInclude Include="BattleController.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
+    <ClInclude Include="BalanceAutoPlayer.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="RunController.h">
+      <Filter>ヘッダー ファイル\00_Application</Filter>
+    </ClInclude>
+    <ClInclude Include="BalanceValidationController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="BossShotPlanner.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="DynamicBalanceController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="GameDebugController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ソース ファイル">
@@ -664,6 +682,15 @@
     </ClCompile>
     <ClCompile Include="RunProgressController.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="RunController.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceValidationController.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="DynamicBalanceController.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル\00_Application</Filter>

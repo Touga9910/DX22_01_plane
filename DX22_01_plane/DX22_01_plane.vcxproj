@@ -141,6 +141,12 @@
   <ItemGroup>
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
+    <ClInclude Include="BalanceAutoPlayer.h" />
+    <ClInclude Include="BalanceValidationController.h" />
+    <ClInclude Include="BossShotPlanner.h" />
+    <ClInclude Include="DynamicBalanceController.h" />
+    <ClInclude Include="GameDebugController.h" />
+    <ClInclude Include="RunController.h" />
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
     <ClInclude Include="ShotRelicRules.h" />
@@ -174,6 +180,9 @@
     <ClCompile Include="GameWorld.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="RunProgressController.cpp" />
+    <ClCompile Include="RunController.cpp" />
+    <ClCompile Include="BalanceValidationController.cpp" />
+    <ClCompile Include="DynamicBalanceController.cpp" />
     <ClCompile Include="GameAutoPlay.cpp" />
     <ClCompile Include="GameBossAI.cpp">
       <Optimization>MaxSpeed</Optimization>

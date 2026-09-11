@@ -127,18 +127,19 @@ bool Game::RestHeal()
 	{
 		return false;
 	}
-	if (!CanRestHeal())
+	if (!m_RunController.CanRestHeal())
 	{
 		return false;
 	}
 
-	const int hpBefore = m_PlayerRunStatus.currentHp;
-	const int configuredHealAmount = GetRestHealAmount();
-	m_PlayerRunStatus.currentHp = (std::min)(
-		m_PlayerRunStatus.maxHp,
-		hpBefore + configuredHealAmount);
+	const int hpBefore = m_RunController.Status().currentHp;
+	const int configuredHealAmount = m_RunController.GetRestHealAmount();
+	if (!m_RunController.RestHeal())
+	{
+		return false;
+	}
 	const int actualHealAmount =
-		m_PlayerRunStatus.currentHp - hpBefore;
+		m_RunController.Status().currentHp - hpBefore;
 	if (restSite != nullptr)
 	{
 		restSite->MarkActionUsed();
@@ -147,10 +148,10 @@ bool Game::RestHeal()
 		"rest_heal",
 		{
 			{ "hp_before", hpBefore },
-			{ "hp_after", m_PlayerRunStatus.currentHp },
+			{ "hp_after", m_RunController.Status().currentHp },
 			{ "heal_amount", actualHealAmount },
 			{ "configured_heal_amount", configuredHealAmount },
-			{ "heal_ratio", m_RestHealRatio },
+			{ "heal_ratio", m_RunController.RestHealRatio() },
 			{ "boss_preparation", IsBossPreparation() },
 			{ "capped_at_max_hp",
 				actualHealAmount < configuredHealAmount },
@@ -162,24 +163,20 @@ bool Game::RestHeal()
 // Rest Heal Amountを取得する。
 int Game::GetRestHealAmount() const
 {
-	return (std::max)(
-		1,
-		static_cast<int>(std::ceil(
-			static_cast<float>(m_PlayerRunStatus.maxHp) *
-			m_RestHealRatio)));
+	return m_RunController.GetRestHealAmount();
 }
 
 // Rest Heal Percentを取得する。
 int Game::GetRestHealPercent() const
 {
-	return static_cast<int>(std::lround(m_RestHealRatio * 100.0f));
+	return m_RunController.GetRestHealPercent();
 }
 
 // Clear Reward Upgrade Costを取得する。
 int Game::GetClearRewardUpgradeCost(int ballIndex) const
 {
 	const PlayerBallData* ball =
-		m_PlayerDeck.GetRewardTarget(ballIndex);
+		m_RunController.Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr || !ball->CanUpgrade())
 	{
 		return -1;
@@ -208,7 +205,7 @@ bool Game::ApplyClearRewardUpgrade(
 	}
 
 	const int cost = GetClearRewardUpgradeCost(ballIndex);
-	if (cost < 0 || m_PlayerRunStatus.money < cost)
+	if (cost < 0 || m_RunController.Status().money < cost)
 	{
 		return false;
 	}
@@ -218,7 +215,10 @@ bool Game::ApplyClearRewardUpgrade(
 		return false;
 	}
 
-	m_PlayerRunStatus.money -= cost;
+	if (!m_RunController.SpendMoney(cost))
+	{
+		return false;
+	}
 	chargedCost = cost;
 	return true;
 }
@@ -232,7 +232,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 	{
 		return false;
 	}
-	PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(ballIndex);
+	PlayerBallData* ball = m_RunController.Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr ||
 		!ball->CanUpgrade())
 	{
@@ -242,10 +242,10 @@ bool Game::RestUpgradeBall(int ballIndex)
 	const std::uint64_t instanceId = ball->instanceId;
 	const std::string ballId = ball->definitionId;
 	const int upgradeLevelBefore = ball->upgradeLevel;
-	const BallUpgradeStep& upgrade = ball->upgradeTable[ball->upgradeLevel];
-	ball->status = upgrade;
-	ball->upgradeLevel++;
-	ball->status = NormalizeBallStatus(ball->status);
+	if (!m_RunController.UpgradeBall(ballIndex))
+	{
+		return false;
+	}
 	RemoveBalanceAutoPendingBall(instanceId);
 	if (restSite != nullptr)
 	{
@@ -271,17 +271,15 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 {
 	cost = (std::max)(0, cost);
 	const PlayerBallData* catalogBall =
-		m_PlayerDeck.GetCatalogBall(catalogIndex);
+		m_RunController.Deck().GetCatalogBall(catalogIndex);
 	const std::string ballId =
 		catalogBall != nullptr ? catalogBall->definitionId : std::string();
-	const int moneyBefore = m_PlayerRunStatus.money;
-	if (m_PlayerRunStatus.money < cost ||
-		!m_PlayerDeck.AddCatalogBall(catalogIndex))
+	const int moneyBefore = m_RunController.Status().money;
+	if (!m_RunController.BuyShopBall(catalogIndex, cost))
 	{
 		return false;
 	}
 
-	m_PlayerRunStatus.money -= cost;
 	PublishGameEvent(BallAcquiredEvent{ ballId });
 	RecordBalanceEvent(
 		"shop_ball_purchased",
@@ -290,7 +288,7 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 			{ "ball_id", ballId },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
+			{ "money_after", m_RunController.Status().money },
 		});
 	return true;
 }
@@ -299,29 +297,28 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 bool Game::RemoveShopBall(int ballIndex, int cost)
 {
 	cost = (std::max)(0, cost);
-	if (m_PlayerRunStatus.money < cost ||
-		m_PlayerDeck.GetRewardTargetCount() <=
+	if (m_RunController.Status().money < cost ||
+		m_RunController.Deck().GetRewardTargetCount() <=
 			PlayerDeck::MinimumDeckSize)
 	{
 		return false;
 	}
 
 	const PlayerBallData* ball =
-		m_PlayerDeck.GetRewardTarget(ballIndex);
+		m_RunController.Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr)
 	{
 		return false;
 	}
 	const std::uint64_t instanceId = ball->instanceId;
 	const std::string ballId = ball->definitionId;
-	const int moneyBefore = m_PlayerRunStatus.money;
+	const int moneyBefore = m_RunController.Status().money;
 
-	if (!m_PlayerDeck.RemoveRewardTarget(ballIndex))
+	if (!m_RunController.RemoveShopBall(ballIndex, cost))
 	{
 		return false;
 	}
 
-	m_PlayerRunStatus.money -= cost;
 	RemoveBalanceAutoPendingBall(instanceId);
 	RecordBalanceEvent(
 		"shop_ball_removed",
@@ -330,8 +327,8 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 			{ "ball_id", ballId },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
-			{ "deck_count_after", m_PlayerDeck.GetRewardTargetCount() },
+			{ "money_after", m_RunController.Status().money },
+			{ "deck_count_after", m_RunController.Deck().GetRewardTargetCount() },
 		});
 	return true;
 }
@@ -346,18 +343,23 @@ bool Game::BuyRelic(int relicIndex)
 	}
 
 	const int cost = (std::max)(0, relic->price);
-	if (m_PlayerRunStatus.money < cost)
+	const int moneyBefore = m_RunController.Status().money;
+	if (!m_RunController.BuyRelic(relicIndex))
 	{
 		return false;
 	}
-
-	const int moneyBefore = m_PlayerRunStatus.money;
-	m_PlayerRunStatus.money -= cost;
-	if (!GrantRelic(relicIndex, "shop"))
+	for (PlayerBall* player : GetComponents<PlayerBall>())
 	{
-		m_PlayerRunStatus.money = moneyBefore;
-		return false;
+		ApplyRelicModifiersTo(player);
 	}
+	RecordBalanceEvent(
+		"relic_acquired",
+		{
+			{ "relic_index", relicIndex },
+			{ "relic_name", relic->name },
+			{ "rarity", ToString(relic->rarity) },
+			{ "source", "shop" },
+		});
 	RecordBalanceEvent(
 		"relic_purchased",
 		{
@@ -365,7 +367,7 @@ bool Game::BuyRelic(int relicIndex)
 			{ "relic_name", relic->name },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
+			{ "money_after", m_RunController.Status().money },
 		});
 
 	return true;
@@ -380,7 +382,10 @@ bool Game::GrantRelic(int relicIndex, const char* source)
 		return false;
 	}
 
-	m_OwnedRelics[static_cast<std::size_t>(relic->type)] = true;
+	if (!m_RunController.GrantRelic(relicIndex))
+	{
+		return false;
+	}
 	for (PlayerBall* player : GetComponents<PlayerBall>())
 	{
 		ApplyRelicModifiersTo(player);
@@ -399,62 +404,25 @@ bool Game::GrantRelic(int relicIndex, const char* source)
 // Relic Offersの候補を抽選する。
 std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 {
-	std::vector<int> candidates;
-	for (int index = 0; index < GetRelicCount(); index++)
-	{
-		const RelicDefinition* relic = GetRelic(index);
-		if (relic != nullptr && !m_ProgressionProfile.IsRelicUnlocked(relic->type)) continue;
-		const int weight = relic == nullptr
-			? 0
-			: (midBoss ? relic->midBossWeight : relic->shopWeight);
-		if (relic != nullptr && !HasRelic(relic->type) && weight > 0)
-		{
-			candidates.push_back(index);
-		}
-	}
-
-	std::vector<int> offers;
-	while (!candidates.empty() && static_cast<int>(offers.size()) < count)
-	{
-		int totalWeight = 0;
-		for (int index : candidates)
-		{
-			const RelicDefinition* relic = GetRelic(index);
-			totalWeight += midBoss
-				? relic->midBossWeight
-				: relic->shopWeight;
-		}
-		std::uniform_int_distribution<int> distribution(1, totalWeight);
-		int roll = distribution(m_RelicRandomEngine);
-		std::size_t selected = 0;
-		for (; selected < candidates.size(); selected++)
-		{
-			const RelicDefinition* relic = GetRelic(candidates[selected]);
-			roll -= midBoss ? relic->midBossWeight : relic->shopWeight;
-			if (roll <= 0)
-			{
-				break;
-			}
-		}
-		offers.push_back(candidates[selected]);
-		candidates.erase(candidates.begin() + selected);
-	}
-	return offers;
+	return m_RunController.RollRelicOffers(
+		count,
+		midBoss,
+		m_ProgressionProfile);
 }
 
 // Shop Relic Offersの候補を抽選する。
 void Game::RollShopRelicOffers()
 {
-	m_ShopRelicOffers = RollRelicOffers(3, false);
+	m_RunController.ShopRelicOffers() = RollRelicOffers(3, false);
 }
 
 // Shop Relic Offeredかどうかを判定する。
 bool Game::IsShopRelicOffered(int relicIndex) const
 {
 	return std::find(
-		m_ShopRelicOffers.begin(),
-		m_ShopRelicOffers.end(),
-		relicIndex) != m_ShopRelicOffers.end();
+		m_RunController.ShopRelicOffers().begin(),
+		m_RunController.ShopRelicOffers().end(),
+		relicIndex) != m_RunController.ShopRelicOffers().end();
 }
 
 // Shop Relic Offerを購入する。
@@ -480,9 +448,9 @@ bool Game::BuyShopRelic(int relicIndex)
 // Mid Boss Relic Offersの候補を抽選する。
 void Game::RollMidBossRelicOffers()
 {
-	m_MidBossRelicOffers = RollRelicOffers(3, true);
+	m_RunController.MidBossRelicOffers() = RollRelicOffers(3, true);
 	m_SelectedRelicOfferIndex = 0;
-	m_IsMidBossRelicSelectionActive = !m_MidBossRelicOffers.empty();
+	m_IsMidBossRelicSelectionActive = !m_RunController.MidBossRelicOffers().empty();
 }
 
 // Mid Boss Relic Offerを獲得する。
@@ -495,9 +463,9 @@ bool Game::AcquireMidBossRelicOffer(int offerIndex)
 bool Game::AcquireMidBossRelic(int relicIndex)
 {
 	if (!m_IsMidBossRelicSelectionActive ||
-		std::find(m_MidBossRelicOffers.begin(),
-			m_MidBossRelicOffers.end(), relicIndex) ==
-			m_MidBossRelicOffers.end() ||
+		std::find(m_RunController.MidBossRelicOffers().begin(),
+			m_RunController.MidBossRelicOffers().end(), relicIndex) ==
+			m_RunController.MidBossRelicOffers().end() ||
 		!GrantRelic(relicIndex, "midboss"))
 	{
 		return false;
@@ -509,10 +477,7 @@ bool Game::AcquireMidBossRelic(int relicIndex)
 // Owned Relic Countを取得する。
 int Game::GetOwnedRelicCount() const
 {
-	return static_cast<int>(std::count(
-		m_OwnedRelics.begin(),
-		m_OwnedRelics.end(),
-		true));
+	return m_RunController.GetOwnedRelicCount();
 }
 
 // Relic Attack Bonusを取得する。
@@ -553,10 +518,10 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 		return;
 	}
 
-	const PlayerBallData* selectedBall = m_PlayerDeck.GetCurrent();
+	const PlayerBallData* selectedBall = m_RunController.Deck().GetCurrent();
 	if (selectedBall == nullptr)
 	{
-		selectedBall = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+		selectedBall = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
 	}
 
 	if (selectedBall == nullptr)
@@ -593,9 +558,9 @@ void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 		return;
 	}
 
-	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
-	player->SetMaxHP(m_PlayerRunStatus.maxHp);
-	player->SetHP(m_PlayerRunStatus.currentHp);
+	m_RunController.Status() = NormalizePlayerRunStatus(m_RunController.Status());
+	player->SetMaxHP(m_RunController.Status().maxHp);
+	player->SetHP(m_RunController.Status().currentHp);
 	ApplyRelicModifiersTo(player);
 	InvalidateDebugCombatForecast("プレイヤー状態変更");
 }
@@ -611,7 +576,7 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 	const int defenseBefore = player->GetDefense();
 	const int collisionBonus =
 		HasRelic(RelicType::CollisionAttackUp)
-			? m_CurrentShotCollisionAttackBonus
+			? m_BattleController.GetShotRelicRules().collisionBonus
 			: 0;
 	player->GetBall()->SetCombatModifiers(
 		GetRelicAttackBonus() + collisionBonus,
@@ -625,15 +590,7 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 // Shot Relic Stateを初期状態へ戻す。
 void Game::ResetShotRelicState(PlayerBall* player)
 {
-	m_CurrentShotCollisionAttackBonus = 0;
-	m_CurrentShotPlayerEnemyCollisionCount = 0;
-	m_CurrentShotEnemyEnemyCollisionCount = 0;
-	m_CurrentShotBankShotReady = false;
-	m_CurrentShotBankShotConsumed = false;
-	m_CurrentShotWallCollisionCount = 0;
-	m_CurrentShotBounceDamageBonus = 0;
-	m_CurrentShotAnchorStopped = false;
-	m_CurrentShotLaunchPower = 0.0f;
+	m_BattleController.ResetShotState(MakePredictionShotRules(0.0f));
 	if (player != nullptr)
 	{
 		ApplyRelicModifiersTo(player);
@@ -684,17 +641,17 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 	BallStatus updatedStatus =
 		NormalizeBallStatus(player->GetStatus());
 
-	PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	if (currentBall != nullptr)
 	{
 		currentBall->status = updatedStatus;
 	}
 
-	m_PlayerRunStatus = NormalizePlayerRunStatus(m_PlayerRunStatus);
-	m_PlayerRunStatus.currentHp = std::clamp(
+	m_RunController.Status() = NormalizePlayerRunStatus(m_RunController.Status());
+	m_RunController.Status().currentHp = std::clamp(
 		player->GetHP(),
 		0,
-		m_PlayerRunStatus.maxHp
+		m_RunController.Status().maxHp
 	);
 }
 // Current Player Statusを取得して保持する。
@@ -711,14 +668,14 @@ void Game::CaptureCurrentPlayerStatus()
 // Next Player Ballを描画する。
 void Game::DrawNextPlayerBall()
 {
-	m_PlayerDeck.DrawNext();
+	m_RunController.Deck().DrawNext();
 }
 // Next Player Ballを準備する。
 bool Game::PrepareNextPlayerBall()
 {
 	DiscardCurrentPlayerBall();
 
-	if (m_PlayerDeck.HasCurrent())
+	if (m_RunController.Deck().HasCurrent())
 	{
 		return true;
 	}
@@ -759,35 +716,32 @@ int Game::CalculateStageRewardMoney() const
 void Game::CollectStageRewardMoney()
 {
 	// StartClearRewardが複数回呼ばれても二重取得しない
-	if (m_IsStageRewardCollected)
+	if (m_RunController.IsStageRewardCollected())
 	{
 		return;
 	}
 
-	m_CurrentStageRewardMoney =
-		CalculateStageRewardMoney();
-
-	const int moneyBefore = m_PlayerRunStatus.money;
-	m_PlayerRunStatus.money +=
-		m_CurrentStageRewardMoney;
-
-	m_PlayerRunStatus =
-		NormalizePlayerRunStatus(m_PlayerRunStatus);
-
-	m_IsStageRewardCollected = true;
+	const int moneyBefore = m_RunController.Status().money;
+	if (!m_RunController.CollectStageReward(
+		CalculateStageRewardMoney()))
+	{
+		return;
+	}
+	const int rewardMoney =
+		m_RunController.GetCurrentStageRewardMoney();
 
 	char rewardMessage[128]{};
 	sprintf_s(
 		rewardMessage,
 		UiText::RewardMoneyFormat,
-		m_CurrentStageRewardMoney);
+		rewardMoney);
 	m_RewardMessage = rewardMessage;
 	RecordBalanceEvent(
 		"stage_money_reward",
 		{
-			{ "amount", m_CurrentStageRewardMoney },
+			{ "amount", rewardMoney },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
+			{ "money_after", m_RunController.Status().money },
 		});
 }
 
@@ -801,9 +755,9 @@ void Game::OnPlayerShotFired(PlayerBall* player)
     for (auto* enemy : GetComponents<EnemyBall>()) enemy->BeginBossShot();
 
 	// 選択内容はショットした瞬間に確定する。
-	if (!m_PlayerDeck.HasCurrent())
+	if (!m_RunController.Deck().HasCurrent())
 	{
-		if (!m_PlayerDeck.SelectOffer(
+		if (!m_RunController.Deck().SelectOffer(
 			m_SelectedOfferIndex,
 			m_SelectedHoldIndex))
 		{
@@ -817,18 +771,14 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	}
 
 	const PlayerBallData* currentBall =
-		m_PlayerDeck.GetCurrent();
+		m_RunController.Deck().GetCurrent();
 	if (player != nullptr && currentBall != nullptr)
 	{
-		m_CurrentShotLaunchPower = player->GetVelocity().Length();
+		auto shotRules = m_BattleController.GetShotRelicRules();
+		shotRules.launchPower = player->GetVelocity().Length();
+		m_BattleController.SetShotRelicRules(shotRules);
 		PublishGameEvent(ShotFiredEvent{ currentBall->definitionId });
-		if (m_DynamicBalanceStageActive)
-		{
-			FinishDynamicBalanceShot();
-			m_DynamicBalanceStageShots++;
-			m_DynamicBalanceShotActive = true;
-			m_DynamicBalanceCurrentShotHit = false;
-		}
+		m_DynamicBalanceController.OnShotStarted();
 
 		const DirectX::SimpleMath::Vector3 position =
 			player->GetPosition();
@@ -838,11 +788,11 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			GetComponents<EnemyBall>();
 		nlohmann::json offers = nlohmann::json::array();
 		for (int index = 0;
-			index < m_PlayerDeck.GetOfferCount();
+			index < m_RunController.Deck().GetOfferCount();
 			index++)
 		{
 			const PlayerBallData* offer =
-				m_PlayerDeck.GetOffer(index);
+				m_RunController.Deck().GetOffer(index);
 			if (offer == nullptr)
 			{
 				continue;
@@ -853,7 +803,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 					{ "instance_id", offer->instanceId },
 					{ "id", offer->definitionId },
 					{ "upgrade_level", offer->upgradeLevel },
-					{ "held", m_PlayerDeck.WasHeldOffer(index) },
+					{ "held", m_RunController.Deck().WasHeldOffer(index) },
 				});
 		}
 		nlohmann::json shotContext =
@@ -884,7 +834,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		m_PendingShotTelemetry = nlohmann::json::object();
 	}
 
-	m_PlayerDeck.MarkCurrentUsed();
+	m_RunController.Deck().MarkCurrentUsed();
 	m_BattleController.NotifyShotFired();
 }
 
@@ -899,7 +849,7 @@ void Game::NotifyPlayerWallCollision()
 // Current Ballかどうかを判定する。
 bool Game::IsCurrentBall(const char* definitionId) const
 {
-	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	return currentBall != nullptr && definitionId != nullptr &&
 		currentBall->definitionId == definitionId;
 }
@@ -924,8 +874,8 @@ void Game::NotifyAnchorStopped()
 // Pierce Maximum Usesを取得する。
 int Game::GetPierceMaximumUses() const
 {
-	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
-	if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+	const PlayerBallData* ball = m_RunController.Deck().GetCurrent();
+	if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
 	return ball != nullptr ? BallMechanics::PierceUses(ball->status,
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0;
 }
@@ -933,8 +883,8 @@ int Game::GetPierceMaximumUses() const
 // Pierce Speed Retentionを取得する。
 float Game::GetPierceSpeedRetention() const
 {
-	const PlayerBallData* ball = m_PlayerDeck.GetCurrent();
-	if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+	const PlayerBallData* ball = m_RunController.Deck().GetCurrent();
+	if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
 	return ball != nullptr ? BallMechanics::PierceRetention(ball->status,
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce") : 0.75f;
 }
@@ -942,20 +892,20 @@ float Game::GetPierceSpeedRetention() const
 // Enemy Defeatedを通知する。
 void Game::NotifyEnemyDefeated(const std::string& enemyId)
 {
-	if (!HasRelic(RelicType::BountyList) || m_BountyRewardClaimed)
+	if (!HasRelic(RelicType::BountyList) ||
+		!m_BattleController.ClaimBountyReward())
 	{
 		return;
 	}
-	m_BountyRewardClaimed = true;
-	const int moneyBefore = m_PlayerRunStatus.money;
-	m_PlayerRunStatus.money += kBountyRewardMoney;
+	const int moneyBefore = m_RunController.Status().money;
+	m_RunController.AddMoney(kBountyRewardMoney);
 	RecordBalanceEvent(
 		"bounty_reward",
 		{
 			{ "enemy_id", enemyId },
 			{ "amount", kBountyRewardMoney },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
+			{ "money_after", m_RunController.Status().money },
 		});
 }
 
@@ -1053,7 +1003,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 			{
 				m_RunStatistics.RecordEnemyDamage(value.damage);
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayEnabled)
+					!m_BalanceAutoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnCombatFeedback(
 						value.worldPosition,
@@ -1069,7 +1019,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 					m_RunStatistics.RecordEnemyDamage(value.damage);
 				}
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayEnabled)
+					!m_BalanceAutoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnPocketFeedback(
 						value.worldPosition,
@@ -1086,7 +1036,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 					value.damage,
 					value.sourceId);
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayEnabled)
+					!m_BalanceAutoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnPlayerDamage(
 						value.damage,
@@ -1109,199 +1059,36 @@ void Game::RecordBalanceEvent(
 	BalanceLogger::GetInstance().RecordEvent(eventType, details);
 }
 
-// Dynamic Balance Hitを通知する。
-void Game::NotifyDynamicBalanceHit()
-{
-	if (m_DynamicBalanceStageActive &&
-		m_DynamicBalanceShotActive)
-	{
-		m_DynamicBalanceCurrentShotHit = true;
-	}
-}
-
-// Dynamic Balance To Enemy Dataを適用する。
+// Enemy Dataへ基準難易度、進行、DDAの補正を適用する。
 void Game::ApplyDynamicBalanceToEnemyData(
 	EnemyData& enemyData) const
 {
-	if (m_DebugMode) return; // 指定した実験値へ難易度補正を重ねない。
-	const bool armorBoss = enemyData.id == "enemy_boss_core";
-	if (!armorBoss) enemyData.maxHp = std::clamp(
-		static_cast<int>(std::lround(
-			static_cast<double>(enemyData.maxHp) *
-			static_cast<double>(m_BaselineEnemyHpMultiplier))) +
-			CalculateProgressionHpModifier(),
-		m_DynamicBalanceMinEnemyHp,
-		m_DynamicBalanceMaxEnemyHp);
-	if (!armorBoss) enemyData.status.attack = std::clamp(
-		enemyData.status.attack +
-			m_BaselineEnemyAttackDelta +
-			CalculateProgressionAttackModifier(),
-		m_DynamicBalanceMinEnemyAttack,
-		m_DynamicBalanceMaxEnemyAttack);
-
-	const bool effectiveEnabled = !armorBoss && (
-		m_DynamicBalanceStageActive
-			? m_DynamicBalanceAppliedEnabled
-			: m_DynamicBalanceEnabled);
-
-	if (effectiveEnabled)
-	{
-		const int effectiveLevel =
-			m_DynamicBalanceStageActive
-				? m_DynamicBalanceAppliedLevel
-				: m_DynamicBalanceLevel;
-		const int hpDelta =
-			effectiveLevel *
-			m_DynamicBalanceHpStep;
-		const int attackDelta =
-			CalculateDynamicBalanceAttackModifier(effectiveLevel);
-
-		enemyData.maxHp = std::clamp(
-			enemyData.maxHp + hpDelta,
-			m_DynamicBalanceMinEnemyHp,
-			m_DynamicBalanceMaxEnemyHp);
-		enemyData.status.attack = std::clamp(
-			enemyData.status.attack + attackDelta,
-			m_DynamicBalanceMinEnemyAttack,
-			m_DynamicBalanceMaxEnemyAttack);
-	}
-
-	// アセンションは救済補正の後に適用し、選択した難易度を保証する。
-	enemyData.maxHp = std::clamp(
-		static_cast<int>(std::lround(enemyData.maxHp * ProgressionProfile::EnemyHpMultiplier(m_ActiveAscension))),
-		m_DynamicBalanceMinEnemyHp, m_DynamicBalanceMaxEnemyHp);
-	enemyData.status.attack = std::clamp(
-		enemyData.status.attack + ProgressionProfile::EnemyAttackBonus(m_ActiveAscension),
-		m_DynamicBalanceMinEnemyAttack, m_DynamicBalanceMaxEnemyAttack);
+	m_DynamicBalanceController.ApplyToEnemyData(
+		enemyData,
+		m_BaselineEnemyHpMultiplier,
+		m_BaselineEnemyAttackDelta,
+		m_RunController.Status().progress,
+		m_ActiveAscension,
+		IsDebugMode());
 }
-
-// Progression Hp Modifierを計算する。
-int Game::CalculateProgressionHpModifier() const
-{
-	if (!m_ProgressionScalingEnabled ||
-		m_PlayerRunStatus.progress < m_ProgressionHpStart ||
-		m_ProgressionHpStep <= 0)
-	{
-		return 0;
-	}
-	const int tier = 1 +
-		(m_PlayerRunStatus.progress - m_ProgressionHpStart) /
-		m_ProgressionHpInterval;
-	return (std::min)(
-		m_ProgressionHpMaximumDelta,
-		tier * m_ProgressionHpStep);
-}
-
-// Progression Attack Modifierを計算する。
-int Game::CalculateProgressionAttackModifier() const
-{
-	if (!m_ProgressionScalingEnabled ||
-		m_PlayerRunStatus.progress < m_ProgressionAttackStart ||
-		m_ProgressionAttackStep <= 0)
-	{
-		return 0;
-	}
-	const int tier = 1 +
-		(m_PlayerRunStatus.progress - m_ProgressionAttackStart) /
-		m_ProgressionAttackInterval;
-	return (std::min)(
-		m_ProgressionAttackMaximumDelta,
-		tier * m_ProgressionAttackStep);
-}
-
-// Dynamic Balance Attack Modifierを計算する。
-int Game::CalculateDynamicBalanceAttackModifier(int level) const
-{
-	if (level > 0 && !m_DynamicBalancePositiveAttackScalingEnabled)
-	{
-		return 0;
-	}
-	return (level / m_DynamicBalanceLevelsPerAttackStep) *
-		m_DynamicBalanceAttackStep;
-}
-
-// Dynamic Balanceを設定する。
-void Game::SetDynamicBalance(
-	bool enabled,
-	bool resetLevel,
-	int requestedLevel,
-	bool hasRequestedLevel)
-{
-	if (m_BalanceValidationEnabled &&
-		m_BalanceValidationCurrentDisableDynamicBalance)
-	{
-		m_DynamicBalanceEnabled = false;
-		m_DynamicBalanceLevel = 0;
-		m_DynamicBalanceLastReason =
-			"Assist mode is locked off by balance validation mode.";
-		m_DynamicBalanceLastLevelChange = 0;
-		return;
-	}
-	m_DynamicBalanceEnabled = enabled;
-	if (hasRequestedLevel)
-	{
-		m_DynamicBalanceLevel = std::clamp(
-			requestedLevel,
-			m_DynamicBalanceMinLevel,
-			m_DynamicBalanceMaxLevel);
-		m_DynamicBalanceLastReason =
-			"Difficulty level was set through MCP.";
-	}
-	else if (resetLevel)
-	{
-		m_DynamicBalanceLevel = 0;
-		m_DynamicBalanceLastReason =
-			"Difficulty level was reset through MCP.";
-	}
-	else
-	{
-		m_DynamicBalanceLastReason =
-			enabled
-				? "Automatic adjustment was enabled through MCP."
-				: "Automatic adjustment was disabled through MCP.";
-	}
-	m_DynamicBalanceLastLevelChange = 0;
-}
-
 // Balance Auto Full Hp Enemy Survivedを通知する。
 void Game::NotifyBalanceAutoFullHpEnemySurvived()
 {
 	const PlayerBallData* currentBall =
-		m_PlayerDeck.GetCurrent();
-	if (currentBall == nullptr ||
-		currentBall->instanceId == 0)
-	{
-		return;
-	}
-
-	if (std::find(
-		m_AutoPendingBallAdjustments.begin(),
-		m_AutoPendingBallAdjustments.end(),
-		currentBall->instanceId) !=
-		m_AutoPendingBallAdjustments.end())
-	{
-		return;
-	}
-
-	m_AutoPendingBallAdjustments.push_back(
-		currentBall->instanceId);
-	std::cout
-		<< "[BalanceAutoPlay] Ball adjustment pending: "
-		<< currentBall->definitionId
-		<< " (instance " << currentBall->instanceId << ")"
-		<< std::endl;
+		m_RunController.Deck().GetCurrent();
+	m_BalanceAutoPlayer.NotifyFullHpEnemySurvived(currentBall);
 }
 
 // Current Player Ballを破棄する。
 void Game::DiscardCurrentPlayerBall()
 {
-	if (!m_PlayerDeck.HasCurrent())
+	if (!m_RunController.Deck().HasCurrent())
 	{
-		m_PlayerDeck.ClearCurrentUsed();
+		m_RunController.Deck().ClearCurrentUsed();
 		return;
 	}
 
-	if (!m_PlayerDeck.IsCurrentUsed())
+	if (!m_RunController.Deck().IsCurrentUsed())
 	{
 		return;
 	}
@@ -1312,7 +1099,7 @@ void Game::DiscardCurrentPlayerBall()
 		CapturePlayerStatusFrom(players[0]);
 	}
 
-	m_PlayerDeck.DiscardCurrentIfUsed();
+	m_RunController.Deck().DiscardCurrentIfUsed();
 }
 
 // Debug Snapshotを保存する。
@@ -1358,25 +1145,25 @@ void Game::SaveDebugSnapshot()
 
 	file << "[BallCounts]\n";
 	file << "PlayerRunCurrentHp = "
-		<< m_PlayerRunStatus.currentHp << "\n";
+		<< m_RunController.Status().currentHp << "\n";
 
 	file << "PlayerRunMaxHp = "
-		<< m_PlayerRunStatus.maxHp << "\n";
+		<< m_RunController.Status().maxHp << "\n";
 
 	file << "[Deck]\n";
 	file << "DrawPile = "
-		<< m_PlayerDeck.GetDrawPileCount() << "\n";
+		<< m_RunController.Deck().GetDrawPileCount() << "\n";
 
 	file << "DiscardPile = "
-		<< m_PlayerDeck.GetDiscardPileCount() << "\n";
+		<< m_RunController.Deck().GetDiscardPileCount() << "\n";
 
 	file << "OfferCount = "
-		<< m_PlayerDeck.GetOfferCount() << "\n";
+		<< m_RunController.Deck().GetOfferCount() << "\n";
 
 	file << "TotalDeckCount = "
-		<< m_PlayerDeck.GetRewardTargetCount() << "\n";
+		<< m_RunController.Deck().GetRewardTargetCount() << "\n";
 
-	const PlayerBallData* currentBall = m_PlayerDeck.GetCurrent();
+	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	if (currentBall != nullptr)
 	{
 		file << "CurrentBallId = "
@@ -1388,7 +1175,7 @@ void Game::SaveDebugSnapshot()
 			<< "\n";
 
 		file << "CurrentBallUsed = "
-			<< (m_PlayerDeck.IsCurrentUsed() ? "true" : "false")
+			<< (m_RunController.Deck().IsCurrentUsed() ? "true" : "false")
 			<< "\n";
 	}
 	else
@@ -1402,7 +1189,7 @@ void Game::SaveDebugSnapshot()
 	file << "\n";
 
 	file << "PlayerMoney = "
-		<< m_PlayerRunStatus.money
+		<< m_RunController.Status().money
 		<< "\n";
 
 	for (int i = 0; i < static_cast<int>(players.size()); i++)
@@ -1420,9 +1207,9 @@ void Game::SaveDebugSnapshot()
 ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
 {
     ShotRelicRules rules;
-    rules.relics = m_OwnedRelics;
-    const auto* ball = m_PlayerDeck.GetCurrent();
-    if (ball == nullptr) ball = m_PlayerDeck.GetOffer(m_SelectedOfferIndex);
+    rules.relics = m_RunController.Relics();
+    const auto* ball = m_RunController.Deck().GetCurrent();
+    if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
     if (ball != nullptr) rules.ballId = ball->definitionId;
     rules.launchPower = launchPower;
     return rules;
@@ -1431,31 +1218,14 @@ ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
 // Shot Relic Rulesを取得して保持する。
 ShotRelicRules Game::CaptureShotRelicRules() const
 {
-    auto rules = MakePredictionShotRules(m_CurrentShotLaunchPower);
+    auto rules = m_BattleController.GetShotRelicRules();
     // Live build effects require a committed deck ball, preserving shot lifecycle semantics.
-    if (!m_PlayerDeck.GetCurrent()) rules.ballId.clear();
-    rules.collisionBonus = m_CurrentShotCollisionAttackBonus;
-    rules.playerEnemyContacts = m_CurrentShotPlayerEnemyCollisionCount;
-    rules.enemyEnemyContacts = m_CurrentShotEnemyEnemyCollisionCount;
-    rules.bankReady = m_CurrentShotBankShotReady;
-    rules.bankConsumed = m_CurrentShotBankShotConsumed;
-    rules.wallContacts = m_CurrentShotWallCollisionCount;
-    rules.bounceBonus = m_CurrentShotBounceDamageBonus;
-    rules.anchorStopped = m_CurrentShotAnchorStopped;
-    rules.launchPower = m_CurrentShotLaunchPower;
+    if (!m_RunController.Deck().GetCurrent()) rules.ballId.clear();
     return rules;
 }
 
 // Shot Relic Rulesを確定する。
 void Game::CommitShotRelicRules(const ShotRelicRules& rules)
 {
-    m_CurrentShotCollisionAttackBonus = rules.collisionBonus;
-    m_CurrentShotPlayerEnemyCollisionCount = rules.playerEnemyContacts;
-    m_CurrentShotEnemyEnemyCollisionCount = rules.enemyEnemyContacts;
-    m_CurrentShotBankShotReady = rules.bankReady;
-    m_CurrentShotBankShotConsumed = rules.bankConsumed;
-    m_CurrentShotWallCollisionCount = rules.wallContacts;
-    m_CurrentShotBounceDamageBonus = rules.bounceBonus;
-    m_CurrentShotAnchorStopped = rules.anchorStopped;
-    m_CurrentShotLaunchPower = rules.launchPower;
+    m_BattleController.SetShotRelicRules(rules);
 }

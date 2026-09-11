@@ -15,6 +15,9 @@ public:
 	void Initialize(Game& game);
 	void Update(Game& game);
 	void Draw(Game& game);
+	void DrawPause(Game& game);
+	void DrawBallSelection(Game& game);
+	void DrawClearReward(Game& game);
 
 	void OnBattleStarted(Game& game);
 	void OnShotFired();

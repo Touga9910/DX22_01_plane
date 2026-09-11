@@ -27,10 +27,10 @@ class ClearRewardUpgradeCostContractTests(unittest.TestCase):
             progression.index("bool Game::RestUpgradeBall")
         ]
 
-        self.assertIn("m_GameState != GameState::ClearReward", paid)
-        self.assertIn("m_PlayerRunStatus.money < cost", paid)
+        self.assertIn("!m_IsClearRewardActive", paid)
+        self.assertIn("m_RunController.Status().money < cost", paid)
         self.assertIn("RestUpgradeBall(ballIndex)", paid)
-        self.assertIn("m_PlayerRunStatus.money -= cost", paid)
+        self.assertIn("m_RunController.SpendMoney(cost)", paid)
 
     def test_human_autoplay_and_mcp_share_the_paid_path(self) -> None:
         game = source("Game.cpp")

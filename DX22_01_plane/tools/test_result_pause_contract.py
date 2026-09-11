@@ -49,10 +49,10 @@ class ResultPauseContractTests(unittest.TestCase):
         ):
             self.assertIn(phase, game_types)
         self.assertIn("NormalRouteAreaGoal = 15", run_progress)
-        self.assertIn("RunProgressController m_RunProgress", source("Game.h"))
+        self.assertIn("RunController m_RunController", source("Game.h"))
         self.assertIn("CompleteNormalRouteArea", game)
         self.assertIn("CompleteFinalBossRun", game)
-        self.assertIn("m_BalanceValidationEnduranceMode", game)
+        self.assertIn("m_BalanceValidationController", game)
         self.assertIn("GameSaveManager::Remove()", game)
         self.assertIn("GetRunMap().Available()", routes)
         self.assertIn("ChooseMapNode(nodeId)", routes)

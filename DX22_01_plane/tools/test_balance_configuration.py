@@ -22,6 +22,8 @@ def load_game_sources() -> str:
             "GameAutoPlay.cpp",
             "GameBalanceConfig.cpp",
             "GameProgression.cpp",
+            "DynamicBalanceController.cpp",
+            "BalanceValidationController.cpp",
         )
     )
 
@@ -70,7 +72,10 @@ class BalanceConfigurationTests(unittest.TestCase):
         )
 
         self.assertIn('state["rest_heal"]', bridge_source)
-        self.assertIn('{ "heal_ratio", game.m_RestHealRatio }', bridge_source)
+        self.assertIn(
+            '{ "heal_ratio", game.m_RunController.RestHealRatio() }',
+            bridge_source,
+        )
         self.assertIn("最大HPの25%回復", server_source)
         self.assertNotIn("プレイヤーHPを全回復", server_source)
 
@@ -96,13 +101,13 @@ class BalanceConfigurationTests(unittest.TestCase):
     def test_new_run_resets_dynamic_balance_state(self) -> None:
         game_source = load_game_sources()
 
-        self.assertIn("ResetDynamicBalanceRunState();", game_source)
+        self.assertIn("m_DynamicBalanceController.OnRunStarted();", game_source)
         self.assertIn(
-            "m_DynamicBalanceEnabled = m_DynamicBalanceConfiguredEnabled;",
+            "m_Enabled = m_ConfiguredEnabled;",
             game_source,
         )
         self.assertIn(
-            "m_DynamicBalanceLevel = std::clamp(",
+            "m_Level = std::clamp(",
             game_source,
         )
 
@@ -115,11 +120,11 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertLess(dynamic["minimum_level"], 0)
         self.assertFalse(dynamic["positive_attack_scaling_enabled"])
         self.assertIn(
-            "level > 0 && !m_DynamicBalancePositiveAttackScalingEnabled",
+            "level > 0 && !m_PositiveAttackScalingEnabled",
             game_source,
         )
         self.assertIn(
-            "CalculateDynamicBalanceAttackModifier(effectiveLevel)",
+            "CalculateAttackModifier(effectiveLevel)",
             game_source,
         )
 
@@ -173,7 +178,7 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertEqual(progression["maximum_attack_delta"], 8)
         self.assertEqual(validation["maximum_cleared_stages_per_run"], 30)
         self.assertFalse(validation["endurance_mode"])
-        self.assertIn("m_BalanceValidationEnduranceMode", game_source)
+        self.assertIn("m_EnduranceMode", game_source)
         self.assertIn('"validation_complete"', game_source)
         self.assertIn(
             "return (std::max)(1, damage - GetDefense());",
@@ -203,7 +208,7 @@ class BalanceConfigurationTests(unittest.TestCase):
             {"normal": 0.30, "midboss": 0.20, "boss": 0.10},
         )
         self.assertEqual(pocket["enemy_return"]["per_turn"], 1)
-        self.assertIn("RestoreNextPocketedEnemy();", game_source)
+        self.assertIn("RestoreNextPocketedEnemy()", game_source)
         self.assertIn('state["pocket_rules"]', bridge_source)
         self.assertIn('{ "pocketed", enemy->IsPocketed() }', bridge_source)
         self.assertIn(

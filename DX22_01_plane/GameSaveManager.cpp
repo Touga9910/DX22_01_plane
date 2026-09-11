@@ -247,7 +247,7 @@ bool GameSaveManager::Save(
 		}
 
 		json relics = json::array();
-		for (const bool owned : game.m_OwnedRelics)
+		for (const bool owned : game.m_RunController.Relics())
 		{
 			relics.push_back(owned);
 		}
@@ -265,26 +265,26 @@ bool GameSaveManager::Save(
 		{
 			ballUsage[ballId] = shotCount;
 		}
-		const PlayerDeck& deck = game.m_PlayerDeck;
+		const PlayerDeck& deck = game.m_RunController.Deck();
 		const json payload = {
-			{ "run_map", game.m_RunProgress.GetMap().Save() },
+			{ "run_map", game.m_RunController.Progress().GetMap().Save() },
 			{ "saved_at_utc", MakeUtcTimestamp() },
 			{ "resume_scene", SceneToId(resumeScene) },
 			{ "scene_state", {
 				{ "rest_action_used", restActionUsed },
-				{ "shop_relic_offers", game.m_ShopRelicOffers },
+				{ "shop_relic_offers", game.m_RunController.ShopRelicOffers() },
 			} },
 			{ "run", {
-				{ "max_hp", game.m_PlayerRunStatus.maxHp },
-				{ "current_hp", game.m_PlayerRunStatus.currentHp },
-				{ "money", game.m_PlayerRunStatus.money },
-				{ "progress", game.m_PlayerRunStatus.progress },
-				{ "cleared_stage_count", game.m_RunProgress.GetClearedBattleCount() },
-				{ "area_progress", game.m_RunProgress.GetAreaProgress() },
+				{ "max_hp", game.m_RunController.Status().maxHp },
+				{ "current_hp", game.m_RunController.Status().currentHp },
+				{ "money", game.m_RunController.Status().money },
+				{ "progress", game.m_RunController.Status().progress },
+				{ "cleared_stage_count", game.m_RunController.Progress().GetClearedBattleCount() },
+				{ "area_progress", game.m_RunController.Progress().GetAreaProgress() },
 				{ "ascension", game.m_ActiveAscension },
-				{ "run_phase", ToString(game.m_RunProgress.GetPhase()) },
-				{ "selected_stage_id", game.m_PlayerRunStatus.GetSelectedStageId() },
-				{ "last_stage_id", game.m_PlayerRunStatus.GetLastStageId() },
+				{ "run_phase", ToString(game.m_RunController.Progress().GetPhase()) },
+				{ "selected_stage_id", game.m_RunController.Status().GetSelectedStageId() },
+				{ "last_stage_id", game.m_RunController.Status().GetLastStageId() },
 				{ "owned_relics", std::move(relics) },
 			} },
 			{ "random", {
@@ -292,17 +292,17 @@ bool GameSaveManager::Save(
 				{ "stage_selection_seed", game.m_StageSelectionSeed },
 				{ "route_selection_seed", game.m_RouteSelectionSeed },
 				{ "route_selection_counter", routeCounter },
-				{ "stage_selector_state", SerializeEngine(game.m_StageSelector.m_RandomEngine) },
-				{ "pocket_state", SerializeEngine(game.m_PocketRandomEngine) },
-				{ "relic_state", SerializeEngine(game.m_RelicRandomEngine) },
+				{ "stage_selector_state", SerializeEngine(game.m_RunController.StageSelection().m_RandomEngine) },
+				{ "pocket_state", SerializeEngine(game.m_BattleController.PocketRandomEngine()) },
+				{ "relic_state", SerializeEngine(game.m_RunController.RelicRandomEngine()) },
 			} },
 			{ "dynamic_balance", {
-				{ "enabled", game.m_DynamicBalanceEnabled },
-				{ "level", game.m_DynamicBalanceLevel },
-				{ "applied_enabled", game.m_DynamicBalanceAppliedEnabled },
-				{ "applied_level", game.m_DynamicBalanceAppliedLevel },
-				{ "last_result", game.m_DynamicBalanceLastResult },
-				{ "last_reason", game.m_DynamicBalanceLastReason },
+				{ "enabled", game.m_DynamicBalanceController.IsEnabled() },
+				{ "level", game.m_DynamicBalanceController.GetLevel() },
+				{ "applied_enabled", game.m_DynamicBalanceController.IsAppliedEnabled() },
+				{ "applied_level", game.m_DynamicBalanceController.GetAppliedLevel() },
+				{ "last_result", game.m_DynamicBalanceController.GetLastResult() },
+				{ "last_reason", game.m_DynamicBalanceController.GetLastReason() },
 			} },
 			{ "run_statistics", {
 				{ "reached_floor", runStatistics.reachedFloor },
@@ -496,7 +496,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		// Migrate legacy normal-route saves past the finite endpoint to the
 		// guaranteed boss-preparation rest.
 		const bool migratedToBossPreparation =
-			!game.m_BalanceValidationEnduranceMode &&
+			!game.m_BalanceValidationController.IsEnduranceMode() &&
 			runPhase == RunPhase::NormalRoute &&
 			areaProgress >= Game::kNormalRouteAreaGoal;
 		if (migratedToBossPreparation)
@@ -580,10 +580,10 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 
 		const int dynamicLevel = dynamicBalance.at("level").get<int>();
 		const int appliedLevel = dynamicBalance.at("applied_level").get<int>();
-		if (dynamicLevel < game.m_DynamicBalanceMinLevel ||
-			dynamicLevel > game.m_DynamicBalanceMaxLevel ||
-			appliedLevel < game.m_DynamicBalanceMinLevel ||
-			appliedLevel > game.m_DynamicBalanceMaxLevel)
+		if (dynamicLevel < game.m_DynamicBalanceController.GetMinimumLevel() ||
+			dynamicLevel > game.m_DynamicBalanceController.GetMaximumLevel() ||
+			appliedLevel < game.m_DynamicBalanceController.GetMinimumLevel() ||
+			appliedLevel > game.m_DynamicBalanceController.GetMaximumLevel())
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}
@@ -630,35 +630,33 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 
 		game.StartNewRun("human", "save_load", "", "", runSeed);
 		game.m_ActiveAscension = activeAscension;
-		game.m_RestHealRatio = (std::max)(0.05f, game.m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(activeAscension));
-		game.m_PlayerRunStatus = std::move(restoredStatus);
-		game.m_RunProgress.Restore({
+		game.m_RunController.RestHealRatio() = (std::max)(0.05f, game.m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(activeAscension));
+		game.m_RunController.Status() = std::move(restoredStatus);
+		game.m_RunController.Progress().Restore({
 			std::move(restoredMap),
 			clearedStages,
 			areaProgress,
 			runPhase,
 		});
-		game.m_OwnedRelics = relics;
+		game.m_RunController.Relics() = relics;
 		game.m_RunRandomSeed = runSeed;
 		game.m_StageSelectionSeed = stageSeed;
 		game.m_RouteSelectionSeed = routeSeed;
 		game.m_RouteSelectionCounter = routeCounter;
-		game.m_StageSelector.m_RandomEngine = stageEngine;
-		game.m_PocketRandomEngine = pocketEngine;
-		game.m_RelicRandomEngine = relicEngine;
-		game.m_DynamicBalanceEnabled = dynamicBalance.at("enabled").get<bool>();
-		game.m_DynamicBalanceLevel = dynamicLevel;
-		game.m_DynamicBalanceAppliedEnabled =
-			dynamicBalance.at("applied_enabled").get<bool>();
-		game.m_DynamicBalanceAppliedLevel = appliedLevel;
-		game.m_DynamicBalanceLastResult =
-			dynamicBalance.at("last_result").get<std::string>();
-		game.m_DynamicBalanceLastReason =
-			dynamicBalance.at("last_reason").get<std::string>();
+		game.m_RunController.StageSelection().m_RandomEngine = stageEngine;
+		game.m_BattleController.PocketRandomEngine() = pocketEngine;
+		game.m_RunController.RelicRandomEngine() = relicEngine;
+		game.m_DynamicBalanceController.RestoreRunState(
+			dynamicBalance.at("enabled").get<bool>(),
+			dynamicLevel,
+			dynamicBalance.at("applied_enabled").get<bool>(),
+			appliedLevel,
+			dynamicBalance.at("last_result").get<std::string>(),
+			dynamicBalance.at("last_reason").get<std::string>());
 		game.m_RunStatistics.Restore(restoredStatistics);
 		game.m_RunActive = true;
 
-		PlayerDeck& deck = game.m_PlayerDeck;
+		PlayerDeck& deck = game.m_RunController.Deck();
 		deck.m_DrawPile = std::move(restoredDeck.drawPile);
 		deck.m_DiscardPile = std::move(restoredDeck.discardPile);
 		deck.m_OfferedBalls = std::move(restoredDeck.offeredBalls);
@@ -675,11 +673,11 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		if (hasRelicRandomState)
 		{
 			// Undo the temporary shop roll so the next saved roll stays deterministic.
-			game.m_RelicRandomEngine = relicEngine;
+			game.m_RunController.RelicRandomEngine() = relicEngine;
 		}
 		if (resumeScene == SceneType::Shop && !shopRelicOffers.empty())
 		{
-			game.m_ShopRelicOffers = std::move(shopRelicOffers);
+			game.m_RunController.ShopRelicOffers() = std::move(shopRelicOffers);
 		}
 		if (migratedToBossPreparation)
 		{

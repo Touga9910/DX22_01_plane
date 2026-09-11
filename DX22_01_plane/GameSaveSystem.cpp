@@ -53,7 +53,9 @@ bool Game::SaveRunCheckpoint(
 	bool sceneAlreadyActive,
 	bool showNotification)
 {
-	if (m_DebugMode || m_BalanceAutoPlayEnabled || m_BalanceValidationEnabled)
+	if (IsDebugMode() ||
+		m_BalanceAutoPlayer.IsEnabled() ||
+		m_BalanceValidationController.IsEnabled())
 	{
 		return false;
 	}
@@ -73,7 +75,7 @@ bool Game::SaveRunCheckpoint(
 // Current Runを保存する。
 bool Game::SaveCurrentRun()
 {
-	if (m_DebugMode) { SetSaveLoadMessage("デバッグ条件は専用画面の「条件を保存」で保存できます。"); return false; }
+	if (IsDebugMode()) { SetSaveLoadMessage("デバッグ条件は専用画面の「条件を保存」で保存できます。"); return false; }
 	SceneType sceneType = SceneType::Max;
 	if (dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr)
 	{

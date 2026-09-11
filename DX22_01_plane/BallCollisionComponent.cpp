@@ -162,14 +162,14 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			{
 				BalanceLogger::GetInstance().RecordDamageCollision(
 					BalanceCollisionType::PlayerEnemy);
-				Game::GetInstance()->NotifyDynamicBalanceHit();
+				Game::GetInstance()->DynamicBalance().OnHit();
 			}
 			else if (isEnemyEnemyCollision)
 			{
 				// 両方の敵にダメージが入っても、衝突回数は1回。
 				BalanceLogger::GetInstance().RecordDamageCollision(
 					BalanceCollisionType::EnemyEnemy);
-				Game::GetInstance()->NotifyDynamicBalanceHit();
+				Game::GetInstance()->DynamicBalance().OnHit();
 			}
 
 			if (myEnemy != nullptr)

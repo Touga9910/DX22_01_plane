@@ -35,26 +35,21 @@ void Game::InitializeBattleController()
 	hooks.finishDynamicBalanceShot =
 		[this]()
 		{
-			FinishDynamicBalanceShot();
+			m_DynamicBalanceController.OnShotFinished();
 		};
 
 	hooks.beginEnemyAttackForecast =
 		[this]() -> int
 		{
-			InvalidateDebugCombatForecast("敵攻撃開始");
-			RefreshDebugCombatForecast();
-
-			return m_DebugCombatForecast.expectedDamage;
+			return m_DebugController.BeginEnemyAttackForecast(*this);
 		};
 
 	hooks.endEnemyAttackForecast =
 		[this](int predictedDamage, int actualDamage)
 		{
-			m_DebugLastEnemyAttackComparisonValid = true;
-			m_DebugLastEnemyAttackPredictedDamage =
-				predictedDamage;
-			m_DebugLastEnemyAttackActualDamage =
-				actualDamage;
+			m_DebugController.EndEnemyAttackForecast(
+				predictedDamage,
+				actualDamage);
 		};
 
 	hooks.notifyPlayerDamage =

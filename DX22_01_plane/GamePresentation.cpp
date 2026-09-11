@@ -942,3 +942,19 @@ bool GamePresentation::IsBattleScene(const Game& game) const
 {
 	return dynamic_cast<const BattleScene*>(game.GetCurrentScene()) != nullptr;
 }
+
+// Game keeps only the timing decision; presentation owns the UI details.
+void Game::DrawPauseUI()
+{
+	if (m_GamePresentation != nullptr) m_GamePresentation->DrawPause(*this);
+}
+
+void Game::DrawBallSelectionUI()
+{
+	if (m_GamePresentation != nullptr) m_GamePresentation->DrawBallSelection(*this);
+}
+
+void Game::DrawClearRewardUI()
+{
+	if (m_GamePresentation != nullptr) m_GamePresentation->DrawClearReward(*this);
+}

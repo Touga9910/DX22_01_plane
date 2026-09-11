@@ -12,6 +12,59 @@
 #include <utility>
 #include <vector>
 
+void BattleController::ResetShotState(const ShotRelicRules& rules)
+{
+    m_ShotRelicRules = rules;
+}
+
+bool BattleController::ClaimBountyReward()
+{
+    if (m_BountyRewardClaimed)
+    {
+        return false;
+    }
+    m_BountyRewardClaimed = true;
+    return true;
+}
+
+void BattleController::BeginStage(StageType stageType)
+{
+    m_StageType = stageType;
+    m_BountyRewardClaimed = false;
+    m_PocketedEnemyQueue.clear();
+}
+
+void BattleController::QueuePocketedEnemy(EnemyBall* enemy)
+{
+    if (enemy != nullptr)
+    {
+        m_PocketedEnemyQueue.push_back(enemy);
+    }
+}
+
+EnemyBall* BattleController::PopPocketedEnemy()
+{
+    if (m_PocketedEnemyQueue.empty())
+    {
+        return nullptr;
+    }
+    EnemyBall* enemy = m_PocketedEnemyQueue.front();
+    m_PocketedEnemyQueue.pop_front();
+    return enemy;
+}
+
+int BattleController::GetPocketQueueIndex(const EnemyBall* enemy) const
+{
+    for (std::size_t index = 0; index < m_PocketedEnemyQueue.size(); ++index)
+    {
+        if (m_PocketedEnemyQueue[index] == enemy)
+        {
+            return static_cast<int>(index);
+        }
+    }
+    return -1;
+}
+
 const char* ToString(BattleState state)
 {
     switch (state)

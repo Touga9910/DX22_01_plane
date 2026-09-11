@@ -37,18 +37,18 @@ namespace
 }
 
 // Boss Shotsを評価する。
-json Game::EvaluateBossShots()
+json BossShotPlanner::Evaluate(Game& game)
 {
-    const auto players = GetComponents<PlayerBall>();
+    const auto players = game.GetComponents<PlayerBall>();
     EnemyBall* boss = nullptr;
-    for (auto* enemy : GetComponents<EnemyBall>())
+    for (auto* enemy : game.GetComponents<EnemyBall>())
         if (enemy->IsArmorBoss() && !enemy->IsDefeated()) { boss = enemy; break; }
-    if (!boss || players.empty() || !players[0]->IsIdle() || GetBattleState() != BattleState::AimingDirection || !AreAllBallsStopped()) return {};
+    if (!boss || players.empty() || !players[0]->IsIdle() || game.GetBattleState() != BattleState::AimingDirection || !game.AreAllBallsStopped()) return {};
     auto* player = players[0];
-    std::string key = std::to_string(BallShotPrediction::WorldKey(*this)) + ":" + std::to_string(m_RunStatistics.GetState().totalShots);
-    for (int i = 0; i < m_PlayerDeck.GetOfferCount(); ++i)
+    std::string key = std::to_string(BallShotPrediction::WorldKey(game)) + ":" + std::to_string(game.m_RunStatistics.GetState().totalShots);
+    for (int i = 0; i < game.m_RunController.Deck().GetOfferCount(); ++i)
     {
-        const auto* offer = m_PlayerDeck.GetOffer(i);
+        const auto* offer = game.m_RunController.Deck().GetOffer(i);
         if (offer) key += ":" + std::to_string(offer->instanceId) + offer->definitionId + WriteBallStatus(offer->status).dump();
     }
     // Expose an opaque compact key; comparison uses the complete key internally.
@@ -60,15 +60,15 @@ json Game::EvaluateBossShots()
     const Vector3 start = player->GetPosition(), bossPosition = boss->GetPosition();
     std::vector<BreakBall*> neutrals;
     std::vector<Vector3> initialNeutrals;
-    for (auto* neutral : GetComponents<BreakBall>())
+    for (auto* neutral : game.GetComponents<BreakBall>())
         if (neutral->GetGameObject()->IsActive()) { neutrals.push_back(neutral); initialNeutrals.push_back(neutral->GetBall()->GetPosition()); }
     const float initialOpportunity = Opportunity(start,bossPosition,initialNeutrals);
     json choices = json::array(), offerChoices = json::array();
     std::map<std::string,json> equivalentOffers;
     int evaluated = 0, incomplete = 0;
-    for (int offerIndex = 0; offerIndex < m_PlayerDeck.GetOfferCount(); ++offerIndex)
+    for (int offerIndex = 0; offerIndex < game.m_RunController.Deck().GetOfferCount(); ++offerIndex)
     {
-        const auto* offer = m_PlayerDeck.GetOffer(offerIndex);
+        const auto* offer = game.m_RunController.Deck().GetOffer(offerIndex);
         if (!offer) continue;
         const std::string signature = offer->definitionId + WriteBallStatus(offer->status).dump();
         if (equivalentOffers.contains(signature))
@@ -132,7 +132,7 @@ json Game::EvaluateBossShots()
         for (const auto& aim : aims)
         {
             ++evaluated;
-            const auto prediction = BallShotPrediction::Predict(*this,*player,aim.velocity,false,offer);
+            const auto prediction = BallShotPrediction::Predict(game,*player,aim.velocity,false,offer);
             if (!prediction.complete) { ++incomplete; continue; }
             const BallShotPrediction::Ball* endPlayer = nullptr;
             const BallShotPrediction::Ball* endBoss = nullptr;
@@ -203,24 +203,36 @@ json Game::EvaluateBossShots()
 }
 
 // Boss Planned Shotを発射する。
-bool Game::FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey)
+bool BossShotPlanner::Fire(Game& game, const std::string& candidateId, const std::string& stateKey)
 {
-    const auto evaluation = EvaluateBossShots();
+    const auto evaluation = Evaluate(game);
     if (evaluation.empty() || evaluation["state_key"] != stateKey) return false;
     for (const auto& choice : evaluation["choices"])
     {
         if (choice["candidate_id"] != candidateId) continue;
-        const auto players = GetComponents<PlayerBall>();
+        const auto players = game.GetComponents<PlayerBall>();
         if (players.empty()) return false;
-        m_SelectedOfferIndex = choice["offer_index"].get<int>();
-        if (m_SelectedHoldIndex == m_SelectedOfferIndex) m_SelectedHoldIndex = -1;
-        ApplySelectedBallPreview();
+        game.m_SelectedOfferIndex = choice["offer_index"].get<int>();
+        if (game.m_SelectedHoldIndex == game.m_SelectedOfferIndex) game.m_SelectedHoldIndex = -1;
+        game.ApplySelectedBallPreview();
         const auto& d = choice["velocity"];
         const Vector3 velocity(d["x"].get<float>(),0,d["z"].get<float>());
-        m_PendingShotTelemetry = {{"boss_evaluation",choice},{"model",evaluation["model"]},{"state_key",stateKey}};
-        RecordBalanceEvent("boss_ai_decision",m_PendingShotTelemetry);
+        game.m_PendingShotTelemetry = {{"boss_evaluation",choice},{"model",evaluation["model"]},{"state_key",stateKey}};
+        game.RecordBalanceEvent("boss_ai_decision",game.m_PendingShotTelemetry);
         players[0]->FireAutomatedShot(velocity);
         return true;
     }
     return false;
+}
+
+json Game::EvaluateBossShots()
+{
+    return m_BossShotPlanner.Evaluate(*this);
+}
+
+bool Game::FireBossPlannedShot(
+    const std::string& candidateId,
+    const std::string& stateKey)
+{
+    return m_BossShotPlanner.Fire(*this, candidateId, stateKey);
 }

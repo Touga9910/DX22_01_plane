@@ -6,7 +6,7 @@
 #include <cstdio>
 
 // Stage Editor Player Radius の処理を実行する。
-float Game::StageEditorPlayerRadius() const
+float GameDebugController::StageEditorPlayerRadius() const
 {
     float radius = 2.4f;
     for (const auto& ball : m_DebugBallCatalog) radius = (std::max)(radius, ball.status.radius);
@@ -15,7 +15,7 @@ float Game::StageEditorPlayerRadius() const
 }
 
 // Test Stage Editor Layout の処理を実行する。
-void Game::TestStageEditorLayout()
+void GameDebugController::TestStageEditorLayout()
 {
     const auto report = StageLayoutEditor::Inspect(m_StageEditor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
     if (!report["valid"].get<bool>()) { m_DebugMessage = "配置のエラーを解消してから試遊してください。"; return; }
@@ -27,7 +27,7 @@ void Game::TestStageEditorLayout()
 }
 
 // Stage Editorを描画する。
-void Game::DrawStageEditor()
+void GameDebugController::DrawStageEditor(Game&)
 {
     using Json = nlohmann::json;
     auto& editor = m_StageEditor;

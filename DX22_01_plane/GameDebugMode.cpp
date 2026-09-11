@@ -43,9 +43,9 @@ namespace
 }
 
 // Debug Modeを開く。
-void Game::OpenDebugMode()
+void GameDebugController::Open(Game& game)
 {
-    if (!m_DebugMode && dynamic_cast<TitleScene*>(m_SceneManager.Get()) == nullptr) return;
+    if (!m_DebugMode && dynamic_cast<TitleScene*>(game.m_SceneManager.Get()) == nullptr) return;
     if (m_DebugBallCatalog.empty())
     {
         m_DebugBallCatalog = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {}).ballDefinitions;
@@ -67,38 +67,38 @@ void Game::OpenDebugMode()
         }
         catch (const std::exception& e) { m_DebugMessage = e.what(); }
     }
-    ResetFrameTiming();
+    Game::ResetFrameTiming();
 }
 
 // Debug Run Settingsを適用する。
-void Game::ApplyDebugRunSettings()
+void GameDebugController::ApplyRunSettings(Game& game)
 {
-    m_PlayerDeck.SetDefaultDeck(m_DebugSetup.deck);
-    m_PlayerDeck.ResetToDefault();
-    m_PlayerRunStatus.maxHp = m_DebugSetup.maxHp;
-    m_PlayerRunStatus.currentHp = m_DebugSetup.hp;
-    m_PlayerRunStatus.money = m_DebugSetup.money;
-    m_OwnedRelics = m_DebugSetup.relics;
-    m_DynamicBalanceEnabled = m_DynamicBalanceAppliedEnabled = false;
-    m_DynamicBalanceLevel = m_DynamicBalanceAppliedLevel = 0;
+    game.m_RunController.Deck().SetDefaultDeck(m_DebugSetup.deck);
+    game.m_RunController.Deck().ResetToDefault();
+    game.m_RunController.Status().maxHp = m_DebugSetup.maxHp;
+    game.m_RunController.Status().currentHp = m_DebugSetup.hp;
+    game.m_RunController.Status().money = m_DebugSetup.money;
+    game.m_RunController.Relics() = m_DebugSetup.relics;
+	game.m_DynamicBalanceController.ForceDisabled();
 }
 
 // Debug Battleを開始する。
-bool Game::StartDebugBattle()
+bool GameDebugController::StartBattle(Game& game)
 {
     m_DebugMessage = m_DebugSetup.Validate();
     if (!m_DebugMessage.empty()) return false;
     // 描画中にSceneを破棄しない。再戦でも前の球を破棄してから初期状態を作る。
-    if (m_DebugMode) ChangeScene(SceneType::Title);
-    m_DebugPreviousAutoPlay = m_BalanceAutoPlayEnabled;
-    m_DebugPreviousValidation = m_BalanceValidationEnabled;
-    m_BalanceAutoPlayEnabled = m_BalanceValidationEnabled = false;
+    if (m_DebugMode) game.ChangeScene(SceneType::Title);
+    m_DebugPreviousAutoPlay = game.m_BalanceAutoPlayer.IsEnabled();
+	m_DebugPreviousValidation = game.m_BalanceValidationController.IsEnabled();
+    game.m_BalanceAutoPlayer.SetEnabled(false);
+	game.m_BalanceValidationController.SetEnabled(false);
     m_DebugMode = true;
     m_DebugActiveSetup = m_DebugSetup;
     m_DebugEditorOpen = m_DebugBattleFinished = false;
-    m_BossShotCache = {}; m_BossShotCacheKey.clear();
-    m_McpNextStageOverride.reset();
-    StartNewRun("debug_sandbox", "manual_debug", "", "", m_DebugSetup.seed);
+    game.m_BossShotPlanner.Reset();
+    game.m_McpNextStageOverride.reset();
+    game.StartNewRun("debug_sandbox", "manual_debug", "", "", m_DebugSetup.seed);
     StageData stage;
     stage.id = "debug_battle";
     for (const auto& enemy : m_DebugSetup.enemies)
@@ -111,17 +111,17 @@ bool Game::StartDebugBattle()
         else if (stage.stageType != StageType::Boss && enemy.spawn.enemyData.id.find("midboss") != std::string::npos)
             stage.stageType = StageType::MidBoss;
     }
-    m_McpNextStageOverride = stage;
-    StartNextBattle(stage.stageType);
-    for (auto* player : GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
+    game.m_McpNextStageOverride = stage;
+    game.StartNextBattle(stage.stageType);
+    for (auto* player : game.GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
     BalanceLogger::GetInstance().RecordEvent("debug_battle_setup", m_DebugSetup.ToJson());
     m_DebugMessage = "設定した条件で戦闘を開始しました。";
-    ResetFrameTiming();
+    Game::ResetFrameTiming();
     return true;
 }
 
 // Debug Battle Playerを適用する。
-void Game::ApplyDebugBattlePlayer(PlayerBall* player)
+void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
 {
     if (!m_DebugMode || !player) return;
     player->GetBall()->ResetAtPosition(m_DebugSetup.playerPosition);
@@ -129,7 +129,7 @@ void Game::ApplyDebugBattlePlayer(PlayerBall* player)
 }
 
 // Debug Battle Enemyを適用する。
-void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index)
+void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
     if (!m_DebugMode || !enemy || index >= m_DebugSetup.enemies.size()) return;
     enemy->SetHP(m_DebugSetup.enemies[index].hp);
@@ -137,59 +137,59 @@ void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index)
 }
 
 // Debug Modeを終了する。
-void Game::EndDebugMode()
+void GameDebugController::End(Game& game)
 {
     if (!m_DebugMode) return;
-    BalanceLogger::GetInstance().EndRun("debug_closed", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp, 0);
+    BalanceLogger::GetInstance().EndRun("debug_closed", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, 0);
     m_DebugMode = m_DebugEditorOpen = m_DebugBattleFinished = false;
-    m_RunActive = m_IsPaused = false;
-    m_BalanceAutoPlayEnabled = m_DebugPreviousAutoPlay;
-    m_BalanceValidationEnabled = m_DebugPreviousValidation;
-    m_McpNextStageOverride.reset();
-    m_BossShotCache = {}; m_BossShotCacheKey.clear();
-    LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
-    ResetDynamicBalanceRunState();
+    game.m_RunActive = game.m_IsPaused = false;
+    game.m_BalanceAutoPlayer.SetEnabled(m_DebugPreviousAutoPlay);
+	game.m_BalanceValidationController.SetEnabled(m_DebugPreviousValidation);
+    game.m_McpNextStageOverride.reset();
+    game.m_BossShotPlanner.Reset();
+    game.LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
+	game.m_DynamicBalanceController.OnRunStarted();
 }
 
 // Debug Battleを終了する。
-void Game::FinishDebugBattle(bool victory)
+void GameDebugController::FinishBattle(Game& game, bool victory)
 {
     if (m_DebugBattleFinished) return;
-    CaptureCurrentPlayerStatus();
-    const auto enemies = GetComponents<EnemyBall>();
+    game.CaptureCurrentPlayerStatus();
+    const auto enemies = game.GetComponents<EnemyBall>();
     const int defeated = static_cast<int>(std::count_if(enemies.begin(), enemies.end(), [](auto* e) { return e->IsDefeated(); }));
     auto& logger = BalanceLogger::GetInstance();
-    logger.EndShot(m_PlayerRunStatus.currentHp, static_cast<int>(enemies.size()) - defeated, defeated);
-    logger.EndStage(victory ? "clear" : "game_over", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp, defeated);
-    logger.EndRun(victory ? "debug_clear" : "debug_game_over", m_PlayerRunStatus.currentHp, m_PlayerRunStatus.maxHp, victory ? 1 : 0);
+    logger.EndShot(game.m_RunController.Status().currentHp, static_cast<int>(enemies.size()) - defeated, defeated);
+    logger.EndStage(victory ? "clear" : "game_over", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, defeated);
+    logger.EndRun(victory ? "debug_clear" : "debug_game_over", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, victory ? 1 : 0);
     m_DebugBattleFinished = m_DebugEditorOpen = true;
-    m_IsPaused = false;
+    game.m_IsPaused = false;
     m_DebugMessage = victory ? "戦闘クリア。条件を変えるか、同じ条件で再戦できます。" : "戦闘終了（HP 0）。条件を変えるか、同じ条件で再戦できます。";
-    ResetFrameTiming();
+    Game::ResetFrameTiming();
 }
 
 // Debug Modeを更新する。
-bool Game::UpdateDebugMode()
+bool GameDebugController::Update(Game& game)
 {
     const int request = std::exchange(m_DebugRequest, 0);
-    if (request == 1) { StartDebugBattle(); ResetFrameTiming(); return true; }
+    if (request == 1) { StartBattle(game); Game::ResetFrameTiming(); return true; }
     if (request == 2)
     {
         m_DebugEditorOpen = false;
-        if (m_DebugMode) ChangeScene(SceneType::Title);
-        ResetFrameTiming(); return true;
+        if (m_DebugMode) game.ChangeScene(SceneType::Title);
+        Game::ResetFrameTiming(); return true;
     }
     if (m_DebugEditorOpen)
     {
         // 編集中も状態を公開するが、外部からの戦闘操作はBridge側で拒否する。
-        if (m_GameMcpBridge) m_GameMcpBridge->Update(*this);
-        ResetFrameTiming(); return true;
+        if (game.m_GameMcpBridge) game.m_GameMcpBridge->Update(game);
+        Game::ResetFrameTiming(); return true;
     }
     return false;
 }
 
 // Debug Presetを保存する。
-void Game::SaveDebugPreset()
+void GameDebugController::SavePreset()
 {
     m_DebugMessage = m_DebugSetup.Validate();
     if (!m_DebugMessage.empty()) return;
@@ -206,7 +206,7 @@ void Game::SaveDebugPreset()
 }
 
 // Debug Presetを読み込む。
-bool Game::LoadDebugPreset()
+bool GameDebugController::LoadPreset()
 {
     try
     {
@@ -222,7 +222,7 @@ bool Game::LoadDebugPreset()
 }
 
 // Debug Modeを描画する。
-void Game::DrawDebugMode()
+void GameDebugController::Draw(Game& game)
 {
     static bool stageTabActive = true;
     if (m_DebugMode && !m_DebugEditorOpen)
@@ -230,7 +230,7 @@ void Game::DrawDebugMode()
         GameUi::PrepareWindow("debug_mode_controls", ImVec2(740, 20), ImVec2(450, 130));
         ImGui::Begin("デバッグ戦闘", nullptr, ImGuiWindowFlags_NoCollapse);
         ImGui::TextUnformatted("通常セーブ・通常ランの集計から独立しています。");
-        if (ImGui::Button("条件を編集（一時停止）")) OpenDebugMode();
+        if (ImGui::Button("条件を編集（一時停止）")) Open(game);
         ImGui::SameLine();
         if (ImGui::Button("同じ条件で再戦")) { m_DebugSetup = m_DebugActiveSetup; m_DebugRequest = 1; }
         if (ImGui::Button("デバッグを終了")) m_DebugRequest = 2;
@@ -246,12 +246,12 @@ void Game::DrawDebugMode()
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(!m_DebugMode || m_DebugBattleFinished);
-    if (ImGui::Button("編集中の条件を適用せず再開", ImVec2(260, 36))) { m_DebugEditorOpen = false; m_IsPaused = false; ResetFrameTiming(); }
+    if (ImGui::Button("編集中の条件を適用せず再開", ImVec2(260, 36))) { m_DebugEditorOpen = false; game.m_IsPaused = false; Game::ResetFrameTiming(); }
     ImGui::EndDisabled(); ImGui::SameLine();
     if (ImGui::Button("タイトルへ戻る", ImVec2(180, 36))) m_DebugRequest = 2;
     ImGui::BeginDisabled(stageTabActive);
-    if (ImGui::Button("デバッグ条件を保存")) SaveDebugPreset(); ImGui::SameLine();
-    if (ImGui::Button("デバッグ条件を読み込む")) LoadDebugPreset();
+    if (ImGui::Button("デバッグ条件を保存")) SavePreset(); ImGui::SameLine();
+    if (ImGui::Button("デバッグ条件を読み込む")) LoadPreset();
     ImGui::EndDisabled();
     if (!m_DebugMessage.empty()) ImGui::TextWrapped("%s", m_DebugMessage.c_str());
     const auto error = m_DebugSetup.Validate();
@@ -262,7 +262,7 @@ void Game::DrawDebugMode()
         if (ImGui::BeginTabItem("ステージエディター"))
         {
             stageTabActive = true;
-            DrawStageEditor();
+            DrawStageEditor(game);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("デッキ"))
@@ -310,9 +310,9 @@ void Game::DrawDebugMode()
             const std::uint32_t seedStep = 1;
             ImGui::InputScalar("乱数シード", ImGuiDataType_U32, &m_DebugSetup.seed, &seedStep);
             ImGui::TextDisabled("同じ条件・シードでデッキの抽選を再現します。敵への難易度補正は無効です。");
-            for (int i = 0; i < GetRelicCount(); ++i)
+            for (int i = 0; i < game.GetRelicCount(); ++i)
             {
-                const auto* relic = GetRelic(i);
+                const auto* relic = game.GetRelic(i);
                 ImGui::Checkbox(relic->name, &m_DebugSetup.relics[static_cast<size_t>(i)]);
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", relic->description);
             }
@@ -370,3 +370,15 @@ void Game::DrawDebugMode()
     }
     ImGui::End();
 }
+
+// Gameは呼び出し窓口だけを保ち、デバッグの手順はControllerへ委譲する。
+void Game::OpenDebugMode() { m_DebugController.Open(*this); }
+void Game::ApplyDebugBattlePlayer(PlayerBall* player) { m_DebugController.ApplyBattlePlayer(player); }
+void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index) { m_DebugController.ApplyBattleEnemy(enemy, index); }
+void Game::ApplyDebugRunSettings() { m_DebugController.ApplyRunSettings(*this); }
+void Game::EndDebugMode() { m_DebugController.End(*this); }
+void Game::FinishDebugBattle(bool victory) { m_DebugController.FinishBattle(*this, victory); }
+bool Game::UpdateDebugMode() { return m_DebugController.Update(*this); }
+void Game::DrawDebugMode() { m_DebugController.Draw(*this); }
+void Game::SaveDebugPreset() { m_DebugController.SavePreset(); }
+bool Game::LoadDebugPreset() { return m_DebugController.LoadPreset(); }

@@ -13,29 +13,31 @@ def source(name: str) -> str:
 
 class CppAutoPlayRecoveryContractTests(unittest.TestCase):
     def test_clear_invariant_recovers_outside_ball_movement(self) -> None:
-        game = source("Game.cpp")
-        header = source("Game.h")
+        battle = source("BattleController.cpp")
+        header = source("BattleController.h")
+        bridge = source("GameBattleBridge.cpp")
 
-        self.assertIn('TryRecoverClearedBattle("state_invariant")', game)
-        self.assertIn('"battle_clear_state_recovered"', game)
-        self.assertIn("!AreAllEnemiesDefeated()", game)
+        self.assertIn('TryRecoverClearedBattle("state_invariant")', battle)
+        self.assertIn('"battle_clear_state_recovered"', bridge)
+        self.assertIn("!AreAllEnemiesDefeated()", battle)
         self.assertIn("bool TryRecoverClearedBattle(const char* source);", header)
 
     def test_collision_damage_is_limited_to_active_shot(self) -> None:
         collision = source("BallCollisionComponent.cpp")
-        gate = collision.index("GameState::BallsMoving")
+        gate = collision.index("BattleState::BallsMoving")
         damage = collision.index("myEnemy->TakeDamage", gate)
 
         self.assertLess(gate, damage)
         self.assertIn("return;", collision[gate:damage])
 
     def test_stop_requires_stable_frames_and_clears_motion(self) -> None:
-        game = source("Game.cpp")
+        battle = source("BattleController.cpp")
         player = source("PlayerBall.cpp")
 
-        self.assertIn("m_AllBallsStoppedFrameCount >= 11", game)
-        self.assertIn("physics->Velocity() =", game)
-        self.assertIn("physics->Acceleration() =", game)
+        self.assertIn("kRequiredStoppedTicks = 11", source("BattleController.h"))
+        self.assertIn("m_AllBallsStoppedTickCount >= kRequiredStoppedTicks", battle)
+        self.assertIn("physics->Velocity() =", battle)
+        self.assertIn("physics->Acceleration() =", battle)
         self.assertIn("BallPhysicsRules::PlayerFriction", player)
         self.assertIn("velocity = acceleration = Vector3::Zero", source("BallPhysicsRules.h"))
 
@@ -46,7 +48,7 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
             "isKillable ? 180.0f",
             "pocketRisk",
             "safeMaximumPower",
-            'TryRecoverClearedBattle("autoplay_fire_no_target")',
+            '"autoplay_waiting"',
             '"no_live_target"',
         ):
             self.assertIn(contract, autoplay)
@@ -55,11 +57,11 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
         autoplay = source("GameAutoPlay.cpp")
 
         for contract in (
-            "FindBalanceAutoRelicToBuy",
+            "BalanceAutoPlayer::FindRelicToBuy",
             '"save_for_relic"',
-            "FindBalanceAutoMissingCatalogBall",
+            "BalanceAutoPlayer::FindMissingCatalogBall",
             '"fill_missing_ball_type"',
-            "FindBalanceAutoUpgradeTarget",
+            "BalanceAutoPlayer::FindUpgradeTarget",
             '"concentrate_primary_ball"',
         ):
             self.assertIn(contract, autoplay)

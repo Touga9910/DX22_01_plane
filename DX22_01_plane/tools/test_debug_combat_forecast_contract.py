@@ -15,12 +15,12 @@ class DebugCombatForecastContractTests(unittest.TestCase):
     def test_forecast_recalculates_only_while_dirty(self) -> None:
         game = source("Game.cpp")
         draw = game[
-            game.index("void Game::Draw()") :
-            game.index("void Game::DrawPauseUI()")
+            game.index("void GameDebugController::DrawDiagnostics(") :
+            game.index("void Game::Draw()")
         ]
 
         self.assertIn("m_DebugCombatForecastDirty", draw)
-        self.assertIn("RefreshDebugCombatForecast();", draw)
+        self.assertIn("RefreshCombatForecast(game);", draw)
         self.assertIn("if (!m_DebugCombatForecastDirty)", game)
         self.assertNotIn(
             'InvalidateDebugCombatForecast("シーン変更")',
@@ -45,7 +45,7 @@ class DebugCombatForecastContractTests(unittest.TestCase):
 
     def test_phase_and_damage_breakdown_are_visible(self) -> None:
         game = source("Game.cpp")
-        header = source("Game.h")
+        debug = source("GameDebugController.h")
 
         for label in (
             "このターンの敵攻撃前",
@@ -61,11 +61,11 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             "damageBeforeMinimum",
             "minimumDamageApplied",
         ):
-            self.assertIn(field, header)
+            self.assertIn(field, debug)
 
     def test_prediction_comparison_history_and_filters_exist(self) -> None:
         game = source("Game.cpp")
-        header = source("Game.h")
+        debug = source("GameDebugController.h")
 
         for label in (
             "直近敵攻撃",
@@ -78,8 +78,8 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             self.assertIn(label, game)
         self.assertIn("ImGui::ProgressBar", game)
         self.assertIn("RecordDebugPlayerDamage", game)
-        self.assertIn("m_DebugPlayerDamageHistory", header)
-        self.assertIn("m_DebugLastEnemyAttackPredictedDamage", header)
+        self.assertIn("m_DebugPlayerDamageHistory", debug)
+        self.assertIn("m_DebugLastEnemyAttackPredictedDamage", debug)
 
     def test_real_and_preview_damage_share_the_same_formula(self) -> None:
         status = source("BallStatusComponent.h")

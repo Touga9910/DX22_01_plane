@@ -1,4 +1,5 @@
 ﻿#include "Game.h"
+#include "BalanceAutoPlayer.h"
 
 #pragma execution_character_set("utf-8")
 #include "Renderer.h"
@@ -67,87 +68,196 @@ namespace
 	}
 }
 
-// Balance Auto Playを更新する。
-bool Game::UpdateBalanceAutoPlay()
+void BalanceAutoPlayer::SetEnabled(bool enabled)
 {
-	if (m_DebugMode || m_DebugEditorOpen) return false;
-	if (Input::GetKeyTrigger(VK_F8))
+	m_Enabled = enabled;
+	m_DecisionFrame = 0;
+}
+
+void BalanceAutoPlayer::LoadConfig(
+	const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	if (!file)
 	{
-		const bool startAutoPlay = !m_BalanceAutoPlayEnabled;
-		m_BalanceAutoPlayEnabled = startAutoPlay;
-		m_AutoStopAfterCurrentRunRequested =
-			startAutoPlay && m_AutoStopAfterCurrentRunDefault;
-		m_AutoDecisionFrame = 0;
+		std::cout
+			<< "[BalanceAutoPlay] Config not found: "
+			<< filePath << std::endl;
+		return;
+	}
+
+	try
+	{
+		nlohmann::json config;
+		file >> config;
+
+		m_Enabled = config.value("enabled", false);
+		m_RestartAfterGameOver =
+			config.value("restart_after_game_over", true);
+		m_StopAfterCurrentRunDefault =
+			config.value("stop_after_current_run", false);
+		m_StopAfterCurrentRunRequested =
+			m_Enabled && m_StopAfterCurrentRunDefault;
+		m_DecisionDelayFrames = (std::max)(
+			1,
+			config.value("decision_delay_frames", 20));
+		m_MaximumRuns =
+			(std::max)(0, config.value("max_runs", 0));
+		m_MinimumShotPower = std::clamp(
+			config.value("min_shot_power", 4.0f),
+			1.0f,
+			8.0f);
+		m_MaximumShotPower = std::clamp(
+			config.value("max_shot_power", 8.0f),
+			m_MinimumShotPower,
+			8.0f);
+		m_AimJitterDegrees = std::clamp(
+			config.value("aim_jitter_degrees", 1.5f),
+			0.0f,
+			15.0f);
+
+		m_RandomSeed =
+			config.value("random_seed", 20260727u);
+		m_RandomEngine.seed(m_RandomSeed);
 
 		std::cout
 			<< "[BalanceAutoPlay] "
-			<< (m_BalanceAutoPlayEnabled ? "ON" : "OFF")
+			<< (m_Enabled ? "Enabled" : "Disabled")
+			<< " / F8 toggles auto play / F9 stops at run end"
 			<< std::endl;
 	}
-	if (m_BalanceAutoPlayEnabled && Input::GetKeyTrigger(VK_F9))
+	catch (const nlohmann::json::exception& error)
 	{
-		m_AutoStopAfterCurrentRunRequested =
-			!m_AutoStopAfterCurrentRunRequested;
+		std::cerr
+			<< "[BalanceAutoPlay] Invalid config: "
+			<< error.what() << std::endl;
+	}
+}
+
+void Game::ApplyBalanceAutoBallSelection(int offerIndex)
+{
+	m_SelectedOfferIndex = offerIndex;
+	if (m_SelectedHoldIndex == offerIndex)
+	{
+		m_SelectedHoldIndex = -1;
+	}
+	ApplySelectedBallPreview();
+}
+
+void Game::MarkBalanceAutoRewardChosen(
+	int rewardIndex,
+	int rewardBallIndex,
+	const std::string& message)
+{
+	m_SelectedRewardIndex = rewardIndex;
+	m_SelectedRewardBallIndex = rewardBallIndex;
+	m_RewardMessage = message;
+	m_IsClearRewardChosen = true;
+}
+
+bool Game::IsBallAdjustmentCandidate(
+	std::uint64_t instanceId) const
+{
+	return m_BalanceAutoPlayer.IsBallAdjustmentCandidate(instanceId);
+}
+
+bool Game::HasAvailableRestBenefit() const
+{
+	return m_BalanceAutoPlayer.HasAvailableRestBenefit(*this);
+}
+
+void Game::RemoveBalanceAutoPendingBall(
+	std::uint64_t instanceId)
+{
+	m_BalanceAutoPlayer.RemovePendingBall(instanceId);
+}
+
+void Game::PruneBalanceAutoPendingBalls()
+{
+	m_BalanceAutoPlayer.PrunePendingBalls(*this);
+}
+
+// Balance Auto Playを更新する。
+bool BalanceAutoPlayer::Update(Game& game)
+{
+	if (game.IsDebugMode() || game.m_DebugController.IsEditorOpen()) return false;
+	if (Input::GetKeyTrigger(VK_F8))
+	{
+		const bool startAutoPlay = !m_Enabled;
+		m_Enabled = startAutoPlay;
+		m_StopAfterCurrentRunRequested =
+			startAutoPlay && m_StopAfterCurrentRunDefault;
+		m_DecisionFrame = 0;
+
+		std::cout
+			<< "[BalanceAutoPlay] "
+			<< (m_Enabled ? "ON" : "OFF")
+			<< std::endl;
+	}
+	if (m_Enabled && Input::GetKeyTrigger(VK_F9))
+	{
+		m_StopAfterCurrentRunRequested =
+			!m_StopAfterCurrentRunRequested;
 		std::cout
 			<< "[BalanceAutoPlay] Stop at run end: "
-			<< (m_AutoStopAfterCurrentRunRequested ? "ON" : "OFF")
+			<< (m_StopAfterCurrentRunRequested ? "ON" : "OFF")
 			<< std::endl;
 	}
 
-	if (!m_BalanceAutoPlayEnabled || m_SceneManager.Get() == nullptr)
+	if (!m_Enabled || game.m_SceneManager.Get() == nullptr)
 	{
 		return false;
 	}
 
 	auto isDecisionReady = [this]()
 	{
-		m_AutoDecisionFrame++;
-		if (m_AutoDecisionFrame < m_AutoDecisionDelayFrames)
+		m_DecisionFrame++;
+		if (m_DecisionFrame < m_DecisionDelayFrames)
 		{
 			return false;
 		}
 
-		m_AutoDecisionFrame = 0;
+		m_DecisionFrame = 0;
 		return true;
 	};
 
-	if (dynamic_cast<TitleScene*>(m_SceneManager.Get()) != nullptr)
+	if (dynamic_cast<TitleScene*>(game.m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		if (m_AutoMaxRuns > 0 &&
-			m_AutoRunCount >= m_AutoMaxRuns)
+		if (m_MaximumRuns > 0 &&
+			m_RunCount >= m_MaximumRuns)
 		{
-			m_BalanceAutoPlayEnabled = false;
+			m_Enabled = false;
 			std::cout
 				<< "[BalanceAutoPlay] Max runs reached"
 				<< std::endl;
 			return false;
 		}
 
-		StartNewRun();
-		m_AutoRunCount++;
-		ChangeScene(SceneType::Select);
+		game.StartNewRun();
+		m_RunCount++;
+		game.ChangeScene(SceneType::Select);
 		return true;
 	}
 
-	if (dynamic_cast<ResultScene*>(m_SceneManager.Get()) != nullptr)
+	if (dynamic_cast<ResultScene*>(game.m_SceneManager.Get()) != nullptr)
 	{
-		if (m_AutoStopAfterCurrentRunRequested)
+		if (m_StopAfterCurrentRunRequested)
 		{
-			m_BalanceAutoPlayEnabled = false;
-			m_AutoStopAfterCurrentRunRequested = false;
+			m_Enabled = false;
+			m_StopAfterCurrentRunRequested = false;
 			std::cout
 				<< "[BalanceAutoPlay] Stopped at terminal result"
 				<< std::endl;
 			return false;
 		}
-		if (!m_AutoRestartAfterGameOver)
+		if (!m_RestartAfterGameOver)
 		{
-			m_BalanceAutoPlayEnabled = false;
+			m_Enabled = false;
 			return false;
 		}
 
@@ -156,19 +266,19 @@ bool Game::UpdateBalanceAutoPlay()
 			return false;
 		}
 
-		ChangeScene(SceneType::Title);
+		game.ChangeScene(SceneType::Title);
 		return true;
 	}
 
 	if (StageSelectScene* stageSelect =
-		dynamic_cast<StageSelectScene*>(m_SceneManager.Get()))
+		dynamic_cast<StageSelectScene*>(game.m_SceneManager.Get()))
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		PruneBalanceAutoPendingBalls();
+		PrunePendingBalls(game);
 		int selectedRoute = -1;
 		auto findRoute = [stageSelect](const char* routeId)
 		{
@@ -184,20 +294,20 @@ bool Game::UpdateBalanceAutoPlay()
 			return -1;
 		};
 
-		if (IsFinalBossRoute())
+		if (game.IsFinalBossRoute())
 		{
 			selectedRoute = 0;
 		}
-		else if (IsBalanceAutoHealNeeded())
+		else if (IsHealNeeded(game))
 		{
 			selectedRoute = findRoute("rest");
 		}
-		if (selectedRoute < 0 && HasBalanceAutoShopAction())
+		if (selectedRoute < 0 && HasShopAction(game))
 		{
 			selectedRoute = findRoute("shop");
 		}
 		if (selectedRoute < 0 &&
-			FindBalanceAutoUpgradeTarget() >= 0)
+			FindUpgradeTarget(game) >= 0)
 		{
 			selectedRoute = findRoute("rest");
 		}
@@ -217,32 +327,32 @@ bool Game::UpdateBalanceAutoPlay()
 		return true;
 	}
 
-	if (dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr)
+	if (dynamic_cast<RestSiteScene*>(game.m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		if (IsBalanceAutoHealNeeded() && RestHeal())
+		if (IsHealNeeded(game) && game.RestHeal())
 		{
 			std::cout
 				<< "[BalanceAutoPlay] RestSite: recovered "
-				<< GetRestHealPercent()
+				<< game.GetRestHealPercent()
 				<< "% of max HP"
 				<< std::endl;
 		}
 		else
 		{
 			const int ballIndex =
-				FindBalanceAutoUpgradeTarget();
+				FindUpgradeTarget(game);
 			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(ballIndex);
+				game.m_RunController.Deck().GetRewardTarget(ballIndex);
 			if (ball != nullptr)
 			{
 				const std::uint64_t instanceId = ball->instanceId;
 				const std::string definitionId = ball->definitionId;
-				if (RestUpgradeBall(ballIndex))
+				if (game.RestUpgradeBall(ballIndex))
 				{
 					std::cout
 						<< "[BalanceAutoPlay] RestSite: upgraded "
@@ -253,21 +363,21 @@ bool Game::UpdateBalanceAutoPlay()
 			}
 		}
 
-		LeaveRestSite();
+		game.LeaveRestSite();
 		return true;
 	}
 
-	if (dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr)
+	if (dynamic_cast<ShopScene*>(game.m_SceneManager.Get()) != nullptr)
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		const int relicIndex = FindBalanceAutoRelicToBuy();
-		if (relicIndex >= 0 && BuyShopRelic(relicIndex))
+		const int relicIndex = FindRelicToBuy(game);
+		if (relicIndex >= 0 && game.BuyShopRelic(relicIndex))
 		{
-			const RelicDefinition* relic = GetRelic(relicIndex);
+			const RelicDefinition* relic = game.GetRelic(relicIndex);
 			std::cout
 				<< "[BalanceAutoPlay] Shop: purchased relic "
 				<< (relic != nullptr ? relic->name : "unknown")
@@ -275,17 +385,17 @@ bool Game::UpdateBalanceAutoPlay()
 		}
 		else
 		{
-			const int ballIndex = FindBalanceAutoWeakestBall();
+			const int ballIndex = FindWeakestBall(game);
 			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(ballIndex);
+				game.m_RunController.Deck().GetRewardTarget(ballIndex);
 			if (ball != nullptr &&
-				m_PlayerRunStatus.money >= kAutoShopRemoveCost &&
-				m_PlayerDeck.GetRewardTargetCount() >
+				game.m_RunController.Status().money >= kAutoShopRemoveCost &&
+				game.m_RunController.Deck().GetRewardTargetCount() >
 					PlayerDeck::MinimumDeckSize)
 			{
 				const std::uint64_t instanceId = ball->instanceId;
 				const std::string definitionId = ball->definitionId;
-				if (RemoveShopBall(ballIndex, kAutoShopRemoveCost))
+				if (game.RemoveShopBall(ballIndex, kAutoShopRemoveCost))
 				{
 					std::cout
 						<< "[BalanceAutoPlay] Shop: removed "
@@ -297,9 +407,9 @@ bool Game::UpdateBalanceAutoPlay()
 			else
 			{
 				const int catalogIndex =
-					FindBalanceAutoMissingCatalogBall();
+					FindMissingCatalogBall(game);
 				if (catalogIndex >= 0 &&
-					BuyShopBall(catalogIndex, kAutoShopBallCost))
+					game.BuyShopBall(catalogIndex, kAutoShopBallCost))
 				{
 					std::cout
 						<< "[BalanceAutoPlay] Shop: purchased ball"
@@ -308,48 +418,48 @@ bool Game::UpdateBalanceAutoPlay()
 			}
 		}
 
-		LeaveShop();
+		game.LeaveShop();
 		return true;
 	}
 
-	if (m_IsClearRewardActive)
+	if (game.m_IsClearRewardActive)
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		if (m_IsMidBossRelicSelectionActive)
+		if (game.m_IsMidBossRelicSelectionActive)
 		{
-			AcquireMidBossRelicOffer(0);
+			game.AcquireMidBossRelicOffer(0);
 		}
-		else if (!m_IsClearRewardChosen)
+		else if (!game.m_IsClearRewardChosen)
 		{
-			ApplyBalanceAutoReward();
+			ApplyReward(game);
 		}
 		else
 		{
-			ContinueAfterClearReward();
+			game.ContinueAfterClearReward();
 		}
 		return true;
 	}
 
-	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr &&
-		GetBattleState() == BattleState::AimingDirection)
+	if (dynamic_cast<BattleScene*>(game.m_SceneManager.Get()) != nullptr &&
+		game.GetBattleState() == BattleState::AimingDirection)
 	{
-		if (AreAllEnemiesDefeated())
+		if (game.AreAllEnemiesDefeated())
 		{
-			m_AutoDecisionFrame = 0;
+			m_DecisionFrame = 0;
 			return false;
 		}
 		std::vector<PlayerBall*> players =
-			GetComponents<PlayerBall>();
+			game.GetComponents<PlayerBall>();
 		if (players.empty() ||
 			players[0] == nullptr ||
 			!players[0]->IsIdle() ||
-			!AreAllBallsStopped())
+			!game.AreAllBallsStopped())
 		{
-			m_AutoDecisionFrame = 0;
+			m_DecisionFrame = 0;
 			return false;
 		}
 
@@ -358,8 +468,8 @@ bool Game::UpdateBalanceAutoPlay()
 			return false;
 		}
 
-		SelectBalanceAutoBall();
-		return FireBalanceAutoShot();
+		SelectBall(game);
+		return FireShot(game);
 	}
 
 	return false;
@@ -372,17 +482,16 @@ bool Game::ContainsComponent(const Component* component) const
 }
 
 // Balance Auto Ballを選択する。
-void Game::SelectBalanceAutoBall()
+void BalanceAutoPlayer::SelectBall(Game& game)
 {
-    const auto bossChoices = EvaluateBossShots();
+    const auto bossChoices = game.EvaluateBossShots();
     if (bossChoices.contains("recommended") && !bossChoices["recommended"].is_null())
     {
-        m_SelectedOfferIndex = bossChoices["recommended"]["offer_index"].get<int>();
-        if (m_SelectedHoldIndex == m_SelectedOfferIndex) m_SelectedHoldIndex = -1;
-        ApplySelectedBallPreview();
+		game.ApplyBalanceAutoBallSelection(
+			bossChoices["recommended"]["offer_index"].get<int>());
         return;
     }
-	const int offerCount = m_PlayerDeck.GetOfferCount();
+	const int offerCount = game.m_RunController.Deck().GetOfferCount();
 	if (offerCount <= 0)
 	{
 		return;
@@ -392,15 +501,15 @@ void Game::SelectBalanceAutoBall()
 	float bestScore =
 		-(std::numeric_limits<float>::max)();
 	const bool needsDefense =
-		m_PlayerRunStatus.currentHp * 2 <=
-		m_PlayerRunStatus.maxHp;
+		game.m_RunController.Status().currentHp * 2 <=
+		game.m_RunController.Status().maxHp;
 	const auto& shotCounts =
-		m_RunStatistics.GetState().ballShotCounts;
+		game.m_RunStatistics.GetState().ballShotCounts;
 
 	for (int index = 0; index < offerCount; index++)
 	{
 		const PlayerBallData* ball =
-			m_PlayerDeck.GetOffer(index);
+			game.m_RunController.Deck().GetOffer(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -423,27 +532,22 @@ void Game::SelectBalanceAutoBall()
 		}
 	}
 
-	m_SelectedOfferIndex = bestIndex;
-	if (m_SelectedHoldIndex == bestIndex)
-	{
-		m_SelectedHoldIndex = -1;
-	}
-	ApplySelectedBallPreview();
+	game.ApplyBalanceAutoBallSelection(bestIndex);
 }
 
 // Balance Auto Shotを発射する。
-bool Game::FireBalanceAutoShot()
+bool BalanceAutoPlayer::FireShot(Game& game)
 {
-    const auto bossChoices = EvaluateBossShots();
+    const auto bossChoices = game.EvaluateBossShots();
     if (bossChoices.contains("recommended") && !bossChoices["recommended"].is_null())
-        return FireBossPlannedShot(bossChoices["recommended"]["candidate_id"].get<std::string>(),
+        return game.FireBossPlannedShot(bossChoices["recommended"]["candidate_id"].get<std::string>(),
             bossChoices["state_key"].get<std::string>());
 	std::vector<PlayerBall*> players =
-		GetComponents<PlayerBall>();
+		game.GetComponents<PlayerBall>();
 	std::vector<EnemyBall*> enemies =
-		GetComponents<EnemyBall>();
+		game.GetComponents<EnemyBall>();
 	std::vector<Pocket*> pockets =
-		GetComponents<Pocket>();
+		game.GetComponents<Pocket>();
 
 	if (players.empty() || players[0] == nullptr)
 	{
@@ -591,16 +695,16 @@ bool Game::FireBalanceAutoShot()
 
 	if (bestTarget == nullptr)
 	{
-		if (AreAllEnemiesDefeated())
+		if (game.AreAllEnemiesDefeated())
 		{
-			m_AutoDecisionFrame = 0;
+			m_DecisionFrame = 0;
 			return false;
 		}
-		RecordBalanceEvent(
+		game.RecordBalanceEvent(
 			"autoplay_waiting",
 			{
 				{ "reason", "no_live_target" },
-				{ "battle_state", ToString(GetBattleState()) },
+				{ "battle_state", ToString(game.GetBattleState()) },
 			});
 		return false;
 	}
@@ -609,16 +713,16 @@ bool Game::FireBalanceAutoShot()
 		3.14159265358979323846f / 180.0f;
 	const bool needsSafeShot =
 		bestPocketRisk > 0.0f ||
-		m_PlayerRunStatus.currentHp * 2 <=
-			m_PlayerRunStatus.maxHp;
+		game.m_RunController.Status().currentHp * 2 <=
+			game.m_RunController.Status().maxHp;
 	const float appliedJitterDegrees = needsSafeShot
-		? m_AutoAimJitterDegrees * 0.5f
-		: m_AutoAimJitterDegrees;
+		? m_AimJitterDegrees * 0.5f
+		: m_AimJitterDegrees;
 	std::uniform_real_distribution<float> jitterDistribution(
 		-appliedJitterDegrees,
 		appliedJitterDegrees);
 	const float jitter =
-		jitterDistribution(m_AutoRandomEngine) *
+		jitterDistribution(m_RandomEngine) *
 		DegreesToRadians;
 	const float cosine = std::cos(jitter);
 	const float sine = std::sin(jitter);
@@ -630,13 +734,13 @@ bool Game::FireBalanceAutoShot()
 			bestDirection.z * cosine);
 
 	const float safeMaximumPower = (std::max)(
-		m_AutoMinShotPower,
+		m_MinimumShotPower,
 		needsSafeShot
-		? (std::min)(m_AutoMaxShotPower, 5.5f)
-		: m_AutoMaxShotPower);
+		? (std::min)(m_MaximumShotPower, 5.5f)
+		: m_MaximumShotPower);
 	const float shotPower = std::clamp(
 		3.0f + bestDistance * 0.03f,
-		m_AutoMinShotPower,
+		m_MinimumShotPower,
 		safeMaximumPower);
 
 	std::cout
@@ -653,14 +757,14 @@ bool Game::FireBalanceAutoShot()
 }
 
 // Balance Auto Rewardを適用する。
-void Game::ApplyBalanceAutoReward()
+void BalanceAutoPlayer::ApplyReward(Game& game)
 {
 	bool hasMissingRelic = false;
 	int nextRelicPrice = (std::numeric_limits<int>::max)();
-	for (int index = 0; index < GetRelicCount(); index++)
+	for (int index = 0; index < game.GetRelicCount(); index++)
 	{
-		const RelicDefinition* relic = GetRelic(index);
-		if (relic != nullptr && !HasRelic(relic->type))
+		const RelicDefinition* relic = game.GetRelic(index);
+		if (relic != nullptr && !game.HasRelic(relic->type))
 		{
 			hasMissingRelic = true;
 			nextRelicPrice = (std::min)(nextRelicPrice, relic->price);
@@ -668,36 +772,37 @@ void Game::ApplyBalanceAutoReward()
 	}
 
 	// 戦闘報酬の資金でレリックを買えるなら、球の過剰増加より先に資金を確保する。
-	if (hasMissingRelic && m_PlayerRunStatus.money < nextRelicPrice)
+	if (hasMissingRelic && game.m_RunController.Status().money < nextRelicPrice)
 	{
-		const int moneyBefore = m_PlayerRunStatus.money;
-		m_SelectedRewardIndex = 2;
-		m_PlayerRunStatus.money += kExtraRewardMoney;
-		m_RewardMessage = "Auto Play: saved Money for a relic.";
-		m_IsClearRewardChosen = true;
-		RecordBalanceEvent(
+		const int moneyBefore = game.m_RunController.Status().money;
+		game.m_RunController.AddMoney(kExtraRewardMoney);
+		game.MarkBalanceAutoRewardChosen(
+			2,
+			0,
+			"Auto Play: saved Money for a relic.");
+		game.RecordBalanceEvent(
 			"clear_reward_choice",
 			{
 				{ "controller", "autoplay" },
 				{ "reward", "extra_money" },
 				{ "reason", "save_for_relic" },
 				{ "money_before", moneyBefore },
-				{ "money_after", m_PlayerRunStatus.money },
+				{ "money_after", game.m_RunController.Status().money },
 			});
 		return;
 	}
 
-	const int missingCatalogIndex = FindBalanceAutoMissingCatalogBall();
+	const int missingCatalogIndex = FindMissingCatalogBall(game);
 	if (missingCatalogIndex >= 0 &&
-		m_PlayerDeck.AddCatalogBall(missingCatalogIndex))
+		game.m_RunController.Deck().AddCatalogBall(missingCatalogIndex))
 	{
 		const PlayerBallData* catalogBall =
-			m_PlayerDeck.GetCatalogBall(missingCatalogIndex);
-		m_SelectedRewardIndex = 0;
-		m_SelectedRewardBallIndex = missingCatalogIndex;
-		m_RewardMessage = "Auto Play: added a missing ball type.";
-		m_IsClearRewardChosen = true;
-		RecordBalanceEvent(
+			game.m_RunController.Deck().GetCatalogBall(missingCatalogIndex);
+		game.MarkBalanceAutoRewardChosen(
+			0,
+			missingCatalogIndex,
+			"Auto Play: added a missing ball type.");
+		game.RecordBalanceEvent(
 			"clear_reward_choice",
 			{
 				{ "controller", "autoplay" },
@@ -711,28 +816,27 @@ void Game::ApplyBalanceAutoReward()
 		return;
 	}
 
-	const int upgradeTarget = FindBalanceAutoUpgradeTarget();
+	const int upgradeTarget = FindUpgradeTarget(game);
 	const PlayerBallData* ball =
-		m_PlayerDeck.GetRewardTarget(upgradeTarget);
+		game.m_RunController.Deck().GetRewardTarget(upgradeTarget);
 	if (ball != nullptr)
 	{
 		const std::uint64_t instanceId = ball->instanceId;
 		const std::string definitionId = ball->definitionId;
 		const int upgradeLevelBefore = ball->upgradeLevel;
 		const int upgradeCost =
-			GetClearRewardUpgradeCost(upgradeTarget);
-		const int moneyBefore = m_PlayerRunStatus.money;
+			game.GetClearRewardUpgradeCost(upgradeTarget);
+		const int moneyBefore = game.m_RunController.Status().money;
 		int chargedCost = 0;
 		if (upgradeCost >= 0 &&
-			m_PlayerRunStatus.money >= upgradeCost &&
-			ApplyClearRewardUpgrade(upgradeTarget, chargedCost))
+			game.m_RunController.Status().money >= upgradeCost &&
+			game.ApplyClearRewardUpgrade(upgradeTarget, chargedCost))
 		{
-			m_SelectedRewardIndex = 1;
-			m_SelectedRewardBallIndex = upgradeTarget;
-			m_RewardMessage =
-				"Auto Play: paid Money and upgraded a primary ball.";
-			m_IsClearRewardChosen = true;
-			RecordBalanceEvent(
+			game.MarkBalanceAutoRewardChosen(
+				1,
+				upgradeTarget,
+				"Auto Play: paid Money and upgraded a primary ball.");
+			game.RecordBalanceEvent(
 				"clear_reward_choice",
 				{
 					{ "controller", "autoplay" },
@@ -743,20 +847,20 @@ void Game::ApplyBalanceAutoReward()
 					{ "upgrade_level_before", upgradeLevelBefore },
 					{ "upgrade_cost", chargedCost },
 					{ "money_before", moneyBefore },
-					{ "money_after", m_PlayerRunStatus.money },
+					{ "money_after", game.m_RunController.Status().money },
 				});
 			return;
 		}
 
 		if (upgradeCost >= 0 &&
-			m_PlayerRunStatus.money < upgradeCost)
+			game.m_RunController.Status().money < upgradeCost)
 		{
-			m_SelectedRewardIndex = 2;
-			m_PlayerRunStatus.money += kExtraRewardMoney;
-			m_RewardMessage =
-				"Auto Play: saved Money for a paid upgrade.";
-			m_IsClearRewardChosen = true;
-			RecordBalanceEvent(
+			game.m_RunController.AddMoney(kExtraRewardMoney);
+			game.MarkBalanceAutoRewardChosen(
+				2,
+				0,
+				"Auto Play: saved Money for a paid upgrade.");
+			game.RecordBalanceEvent(
 				"clear_reward_choice",
 				{
 					{ "controller", "autoplay" },
@@ -766,59 +870,53 @@ void Game::ApplyBalanceAutoReward()
 					{ "target_upgrade_level", upgradeLevelBefore },
 					{ "required_upgrade_cost", upgradeCost },
 					{ "money_before", moneyBefore },
-					{ "money_after", m_PlayerRunStatus.money },
+					{ "money_after", game.m_RunController.Status().money },
 				});
 			return;
 		}
 	}
 
-	const int moneyBefore = m_PlayerRunStatus.money;
-	m_SelectedRewardIndex = 2;
-	m_PlayerRunStatus.money += kExtraRewardMoney;
-	m_RewardMessage =
-		"Auto Play: received extra Money.";
-	m_IsClearRewardChosen = true;
-	RecordBalanceEvent(
+	const int moneyBefore = game.m_RunController.Status().money;
+	game.m_RunController.AddMoney(kExtraRewardMoney);
+	game.MarkBalanceAutoRewardChosen(
+		2,
+		0,
+		"Auto Play: received extra Money.");
+	game.RecordBalanceEvent(
 		"clear_reward_choice",
 		{
 			{ "controller", "autoplay" },
 			{ "reward", "extra_money" },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_PlayerRunStatus.money },
+			{ "money_after", game.m_RunController.Status().money },
 		});
 }
 
-// Balance Auto Stage Typeを取得する。
-StageType Game::GetBalanceAutoStageType() const
-{
-	return GetScheduledStageType();
-}
-
 // Balance Auto Heal Neededかどうかを判定する。
-bool Game::IsBalanceAutoHealNeeded() const
+bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 {
-	if (m_PlayerRunStatus.maxHp <= 0 ||
-		m_PlayerRunStatus.currentHp >= m_PlayerRunStatus.maxHp)
+	if (game.m_RunController.Status().maxHp <= 0 ||
+		game.m_RunController.Status().currentHp >= game.m_RunController.Status().maxHp)
 	{
 		return false;
 	}
 
-	const int thresholdPercent = IsBossPreparation() ? 75 : 60;
-	return m_PlayerRunStatus.currentHp * 100 <=
-		m_PlayerRunStatus.maxHp * thresholdPercent;
+	const int thresholdPercent = game.IsBossPreparation() ? 75 : 60;
+	return game.m_RunController.Status().currentHp * 100 <=
+		game.m_RunController.Status().maxHp * thresholdPercent;
 }
 
 // Balance Auto Relic To Buyを検索する。
-int Game::FindBalanceAutoRelicToBuy() const
+int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 {
-	const auto isCandidate = [this](int index)
+	const auto isCandidate = [this, &game](int index)
 	{
-		return dynamic_cast<ShopScene*>(m_SceneManager.Get()) == nullptr ||
-			m_ShopRelicOffers.empty() || IsShopRelicOffered(index);
+		return dynamic_cast<ShopScene*>(game.m_SceneManager.Get()) == nullptr ||
+			game.m_RunController.ShopRelicOffers().empty() || game.IsShopRelicOffered(index);
 	};
 	const bool needsDefense =
-		m_PlayerRunStatus.currentHp * 2 <=
-		m_PlayerRunStatus.maxHp;
+		game.m_RunController.Status().currentHp * 2 <=
+		game.m_RunController.Status().maxHp;
 	const std::array<RelicType, 5> priority = needsDefense
 		? std::array<RelicType, 5>{
 			RelicType::EmergencyRepairKit,
@@ -835,25 +933,25 @@ int Game::FindBalanceAutoRelicToBuy() const
 
 	for (RelicType type : priority)
 	{
-		for (int index = 0; index < GetRelicCount(); index++)
+		for (int index = 0; index < game.GetRelicCount(); index++)
 		{
-			const RelicDefinition* relic = GetRelic(index);
+			const RelicDefinition* relic = game.GetRelic(index);
 			if (relic != nullptr &&
 				relic->type == type &&
 				isCandidate(index) &&
-				!HasRelic(type) &&
-				m_PlayerRunStatus.money >= relic->price)
+				!game.HasRelic(type) &&
+				game.m_RunController.Status().money >= relic->price)
 			{
 				return index;
 			}
 		}
 	}
-	for (int index = 0; index < GetRelicCount(); index++)
+	for (int index = 0; index < game.GetRelicCount(); index++)
 	{
-		const RelicDefinition* relic = GetRelic(index);
+		const RelicDefinition* relic = game.GetRelic(index);
 		if (relic != nullptr && isCandidate(index) &&
-			!HasRelic(relic->type) &&
-			m_PlayerRunStatus.money >= relic->price)
+			!game.HasRelic(relic->type) &&
+			game.m_RunController.Status().money >= relic->price)
 		{
 			return index;
 		}
@@ -863,11 +961,11 @@ int Game::FindBalanceAutoRelicToBuy() const
 }
 
 // Balance Auto Weakest Ballを検索する。
-int Game::FindBalanceAutoWeakestBall() const
+int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 {
-	const int ballCount = m_PlayerDeck.GetRewardTargetCount();
+	const int ballCount = game.m_RunController.Deck().GetRewardTargetCount();
 	if (ballCount <= PlayerDeck::MinimumDeckSize ||
-		m_PlayerRunStatus.money < kAutoShopRemoveCost)
+		game.m_RunController.Status().money < kAutoShopRemoveCost)
 	{
 		return -1;
 	}
@@ -876,7 +974,7 @@ int Game::FindBalanceAutoWeakestBall() const
 	float weakestScore = (std::numeric_limits<float>::max)();
 	for (int index = 0; index < ballCount; index++)
 	{
-		const PlayerBallData* ball = m_PlayerDeck.GetRewardTarget(index);
+		const PlayerBallData* ball = game.m_RunController.Deck().GetRewardTarget(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -886,7 +984,7 @@ int Game::FindBalanceAutoWeakestBall() const
 		for (int otherIndex = 0; otherIndex < ballCount; otherIndex++)
 		{
 			const PlayerBallData* other =
-				m_PlayerDeck.GetRewardTarget(otherIndex);
+				game.m_RunController.Deck().GetRewardTarget(otherIndex);
 			if (other != nullptr &&
 				other->definitionId == ball->definitionId)
 			{
@@ -908,9 +1006,9 @@ int Game::FindBalanceAutoWeakestBall() const
 }
 
 // Balance Auto Missing Catalog Ballを検索する。
-int Game::FindBalanceAutoMissingCatalogBall() const
+int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 {
-	if (m_PlayerDeck.GetRewardTargetCount() >= kAutoMaximumDeckSize)
+	if (game.m_RunController.Deck().GetRewardTargetCount() >= kAutoMaximumDeckSize)
 	{
 		return -1;
 	}
@@ -927,11 +1025,11 @@ int Game::FindBalanceAutoMissingCatalogBall() const
 	{
 		bool alreadyOwned = false;
 		for (int index = 0;
-			index < m_PlayerDeck.GetRewardTargetCount();
+			index < game.m_RunController.Deck().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(index);
+				game.m_RunController.Deck().GetRewardTarget(index);
 			if (ball != nullptr && ball->definitionId == definitionId)
 			{
 				alreadyOwned = true;
@@ -944,11 +1042,11 @@ int Game::FindBalanceAutoMissingCatalogBall() const
 		}
 
 		for (int catalogIndex = 0;
-			catalogIndex < m_PlayerDeck.GetCatalogCount();
+			catalogIndex < game.m_RunController.Deck().GetCatalogCount();
 			catalogIndex++)
 		{
 			const PlayerBallData* catalogBall =
-				m_PlayerDeck.GetCatalogBall(catalogIndex);
+				game.m_RunController.Deck().GetCatalogBall(catalogIndex);
 			if (catalogBall != nullptr &&
 				catalogBall->definitionId == definitionId)
 			{
@@ -961,16 +1059,16 @@ int Game::FindBalanceAutoMissingCatalogBall() const
 }
 
 // Balance Auto Upgrade Targetを検索する。
-int Game::FindBalanceAutoUpgradeTarget() const
+int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 {
 	int bestIndex = -1;
 	float bestScore = -(std::numeric_limits<float>::max)();
 	for (int index = 0;
-		index < m_PlayerDeck.GetRewardTargetCount();
+		index < game.m_RunController.Deck().GetRewardTargetCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			m_PlayerDeck.GetRewardTarget(index);
+			game.m_RunController.Deck().GetRewardTarget(index);
 		if (ball == nullptr || !ball->CanUpgrade())
 		{
 			continue;
@@ -989,26 +1087,26 @@ int Game::FindBalanceAutoUpgradeTarget() const
 }
 
 // Balance Auto Shop Actionを保持しているか判定する。
-bool Game::HasBalanceAutoShopAction() const
+bool BalanceAutoPlayer::HasShopAction(const Game& game) const
 {
-	return FindBalanceAutoRelicToBuy() >= 0 ||
-		FindBalanceAutoWeakestBall() >= 0 ||
-		(m_PlayerRunStatus.money >= kAutoShopBallCost &&
-			FindBalanceAutoMissingCatalogBall() >= 0);
+	return FindRelicToBuy(game) >= 0 ||
+		FindWeakestBall(game) >= 0 ||
+		(game.m_RunController.Status().money >= kAutoShopBallCost &&
+			FindMissingCatalogBall(game) >= 0);
 }
 
 // Balance Auto Pending Upgradeable Ballを検索する。
-int Game::FindBalanceAutoPendingUpgradeableBall() const
+int BalanceAutoPlayer::FindPendingUpgradeableBall(const Game& game) const
 {
 	for (const std::uint64_t instanceId :
-		m_AutoPendingBallAdjustments)
+		m_PendingBallAdjustments)
 	{
 		for (int index = 0;
-			index < m_PlayerDeck.GetRewardTargetCount();
+			index < game.m_RunController.Deck().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(index);
+				game.m_RunController.Deck().GetRewardTarget(index);
 			if (ball != nullptr &&
 				ball->instanceId == instanceId &&
 				ball->CanUpgrade())
@@ -1022,17 +1120,17 @@ int Game::FindBalanceAutoPendingUpgradeableBall() const
 }
 
 // Balance Auto Pending Removal Ballを検索する。
-int Game::FindBalanceAutoPendingRemovalBall() const
+int BalanceAutoPlayer::FindPendingRemovalBall(const Game& game) const
 {
 	for (const std::uint64_t instanceId :
-		m_AutoPendingBallAdjustments)
+		m_PendingBallAdjustments)
 	{
 		for (int index = 0;
-			index < m_PlayerDeck.GetRewardTargetCount();
+			index < game.m_RunController.Deck().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				m_PlayerDeck.GetRewardTarget(index);
+				game.m_RunController.Deck().GetRewardTarget(index);
 			if (ball != nullptr &&
 				ball->instanceId == instanceId &&
 				!ball->CanUpgrade())
@@ -1046,31 +1144,49 @@ int Game::FindBalanceAutoPendingRemovalBall() const
 }
 
 // Ball Adjustment Candidateかどうかを判定する。
-bool Game::IsBallAdjustmentCandidate(
+bool BalanceAutoPlayer::IsBallAdjustmentCandidate(
 	std::uint64_t instanceId) const
 {
 	return instanceId != 0 &&
 		std::find(
-			m_AutoPendingBallAdjustments.begin(),
-			m_AutoPendingBallAdjustments.end(),
+			m_PendingBallAdjustments.begin(),
+			m_PendingBallAdjustments.end(),
 			instanceId) !=
-		m_AutoPendingBallAdjustments.end();
+		m_PendingBallAdjustments.end();
+}
+
+void BalanceAutoPlayer::NotifyFullHpEnemySurvived(
+	const PlayerBallData* currentBall)
+{
+	if (currentBall == nullptr ||
+		currentBall->instanceId == 0 ||
+		IsBallAdjustmentCandidate(currentBall->instanceId))
+	{
+		return;
+	}
+
+	m_PendingBallAdjustments.push_back(currentBall->instanceId);
+	std::cout
+		<< "[BalanceAutoPlay] Ball adjustment pending: "
+		<< currentBall->definitionId
+		<< " (instance " << currentBall->instanceId << ")"
+		<< std::endl;
 }
 
 // Available Rest Benefitを保持しているか判定する。
-bool Game::HasAvailableRestBenefit() const
+bool BalanceAutoPlayer::HasAvailableRestBenefit(const Game& game) const
 {
-	if (CanRestHeal())
+	if (game.CanRestHeal())
 	{
 		return true;
 	}
 
 	const int ballCount =
-		m_PlayerDeck.GetRewardTargetCount();
+		game.m_RunController.Deck().GetRewardTargetCount();
 	for (int index = 0; index < ballCount; index++)
 	{
 		const PlayerBallData* ball =
-			m_PlayerDeck.GetRewardTarget(index);
+			game.m_RunController.Deck().GetRewardTarget(index);
 		if (ball != nullptr && ball->CanUpgrade())
 		{
 			return true;
@@ -1081,32 +1197,32 @@ bool Game::HasAvailableRestBenefit() const
 }
 
 // Balance Auto Pending Ballを取り除く。
-void Game::RemoveBalanceAutoPendingBall(
+void BalanceAutoPlayer::RemovePendingBall(
 	std::uint64_t instanceId)
 {
-	m_AutoPendingBallAdjustments.erase(
+	m_PendingBallAdjustments.erase(
 		std::remove(
-			m_AutoPendingBallAdjustments.begin(),
-			m_AutoPendingBallAdjustments.end(),
+			m_PendingBallAdjustments.begin(),
+			m_PendingBallAdjustments.end(),
 			instanceId),
-		m_AutoPendingBallAdjustments.end());
+		m_PendingBallAdjustments.end());
 }
 
 // Prune Balance Auto Pending Balls の処理を実行する。
-void Game::PruneBalanceAutoPendingBalls()
+void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 {
-	m_AutoPendingBallAdjustments.erase(
+	m_PendingBallAdjustments.erase(
 		std::remove_if(
-			m_AutoPendingBallAdjustments.begin(),
-			m_AutoPendingBallAdjustments.end(),
-			[this](std::uint64_t instanceId)
+			m_PendingBallAdjustments.begin(),
+			m_PendingBallAdjustments.end(),
+			[this, &game](std::uint64_t instanceId)
 			{
 				for (int index = 0;
-					index < m_PlayerDeck.GetRewardTargetCount();
+					index < game.m_RunController.Deck().GetRewardTargetCount();
 					index++)
 				{
 					const PlayerBallData* ball =
-						m_PlayerDeck.GetRewardTarget(index);
+						game.m_RunController.Deck().GetRewardTarget(index);
 					if (ball != nullptr &&
 						ball->instanceId == instanceId)
 					{
@@ -1115,35 +1231,27 @@ void Game::PruneBalanceAutoPendingBalls()
 				}
 				return true;
 			}),
-		m_AutoPendingBallAdjustments.end());
+		m_PendingBallAdjustments.end());
 }
 
 // On Battle Stage Started の処理を実行する。
 void Game::OnBattleStageStarted(const StageData& stage)
 {
-	m_BountyRewardClaimed = false;
+	m_BattleController.BeginStage(stage.stageType);
 	InvalidateDebugCombatForecast("戦闘開始");
-	m_RunStatistics.ReachFloor(m_PlayerRunStatus.progress);
-	if (m_GamePresentation != nullptr && !m_BalanceAutoPlayEnabled)
+	m_RunStatistics.ReachFloor(m_RunController.Status().progress);
+	if (m_GamePresentation != nullptr &&
+		!m_BalanceAutoPlayer.IsEnabled())
 	{
 		m_GamePresentation->OnBattleStarted(*this);
 	}
-	m_CurrentBattleStageType = stage.stageType;
 	m_RunStatistics.BeginBattle(
 		stage.stageType == StageType::MidBoss,
 		stage.stageType == StageType::Boss &&
-			m_RunProgress.GetPhase() == RunPhase::FinalBoss,
+			m_RunController.Progress().GetPhase() == RunPhase::FinalBoss,
 		stage.id);
-	m_PocketedEnemyQueue.clear();
-	m_DynamicBalanceAppliedEnabled = m_DynamicBalanceEnabled;
-	m_DynamicBalanceAppliedLevel = m_DynamicBalanceLevel;
-	m_DynamicBalanceStageActive = true;
-	m_DynamicBalanceShotActive = false;
-	m_DynamicBalanceCurrentShotHit = false;
-	m_DynamicBalanceStageShots = 0;
-	m_DynamicBalanceStageNoHitShots = 0;
-	m_DynamicBalanceStageEnemyCount =
-		static_cast<int>(stage.enemies.size());
+	m_DynamicBalanceController.OnBattleStarted(
+		static_cast<int>(stage.enemies.size()));
 
 	std::vector<BalanceEnemySnapshot> enemies;
 	enemies.reserve(stage.enemies.size());
@@ -1168,11 +1276,11 @@ void Game::OnBattleStageStarted(const StageData& stage)
 
 	nlohmann::json deckJson = nlohmann::json::array();
 	for (int index = 0;
-		index < m_PlayerDeck.GetRewardTargetCount();
+		index < m_RunController.Deck().GetRewardTargetCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			m_PlayerDeck.GetRewardTarget(index);
+			m_RunController.Deck().GetRewardTarget(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -1197,18 +1305,21 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	}
 
 	const int appliedHpModifier =
-		m_DynamicBalanceAppliedEnabled
-		? m_DynamicBalanceAppliedLevel * m_DynamicBalanceHpStep
+		m_DynamicBalanceController.IsAppliedEnabled()
+		? m_DynamicBalanceController.GetAppliedLevel() *
+			m_DynamicBalanceController.GetHpStep()
 		: 0;
 	const int appliedAttackModifier =
-		m_DynamicBalanceAppliedEnabled
-		? CalculateDynamicBalanceAttackModifier(
-			m_DynamicBalanceAppliedLevel)
+		m_DynamicBalanceController.IsAppliedEnabled()
+		? m_DynamicBalanceController.CalculateAttackModifier(
+			m_DynamicBalanceController.GetAppliedLevel())
 		: 0;
 	const int progressionAttackModifier =
-		CalculateProgressionAttackModifier();
+		m_DynamicBalanceController.CalculateProgressionAttackModifier(
+			m_RunController.Status().progress);
 	const int progressionHpModifier =
-		CalculateProgressionHpModifier();
+		m_DynamicBalanceController.CalculateProgressionHpModifier(
+			m_RunController.Status().progress);
 	const std::string layoutSource =
 		m_McpCurrentStageOverride.has_value()
 		? "mcp_override"
@@ -1235,12 +1346,12 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	const auto targetThreat = m_StageThreatTargets.find(stage.id);
 	const nlohmann::json stageContext =
 	{
-		{ "progress", m_PlayerRunStatus.progress },
-		{ "area_progress", m_RunProgress.GetAreaProgress() },
+		{ "progress", m_RunController.Status().progress },
+		{ "area_progress", m_RunController.Progress().GetAreaProgress() },
 		{ "area_goal", kNormalRouteAreaGoal },
-		{ "run_phase", ToString(m_RunProgress.GetPhase()) },
+		{ "run_phase", ToString(m_RunController.Progress().GetPhase()) },
 		{ "par", stage.par },
-		{ "money", m_PlayerRunStatus.money },
+		{ "money", m_RunController.Status().money },
 		{ "layout_source", layoutSource },
 		{ "deck", std::move(deckJson) },
 		{ "owned_relics", std::move(relicsJson) },
@@ -1276,8 +1387,8 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		{
 			"dynamic_balance",
 			{
-				{ "enabled", m_DynamicBalanceAppliedEnabled },
-				{ "applied_level", m_DynamicBalanceAppliedLevel },
+				{ "enabled", m_DynamicBalanceController.IsAppliedEnabled() },
+				{ "applied_level", m_DynamicBalanceController.GetAppliedLevel() },
 				{ "enemy_hp_modifier", appliedHpModifier },
 				{ "enemy_attack_modifier", appliedAttackModifier },
 			}
@@ -1285,26 +1396,26 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		{
 			"progression_scaling",
 			{
-				{ "enabled", m_ProgressionScalingEnabled },
-				{ "progress", m_PlayerRunStatus.progress },
+				{ "enabled", m_DynamicBalanceController.IsProgressionScalingEnabled() },
+				{ "progress", m_RunController.Status().progress },
 				{ "enemy_hp_modifier", progressionHpModifier },
-				{ "hp_start_progress", m_ProgressionHpStart },
-				{ "hp_interval", m_ProgressionHpInterval },
-				{ "hp_step", m_ProgressionHpStep },
+				{ "hp_start_progress", m_DynamicBalanceController.GetProgressionHpStart() },
+				{ "hp_interval", m_DynamicBalanceController.GetProgressionHpInterval() },
+				{ "hp_step", m_DynamicBalanceController.GetProgressionHpStep() },
 				{ "maximum_hp_delta",
-					m_ProgressionHpMaximumDelta },
+					m_DynamicBalanceController.GetProgressionHpMaximumDelta() },
 				{ "enemy_attack_modifier", progressionAttackModifier },
-				{ "attack_start_progress", m_ProgressionAttackStart },
-				{ "attack_interval", m_ProgressionAttackInterval },
+				{ "attack_start_progress", m_DynamicBalanceController.GetProgressionAttackStart() },
+				{ "attack_interval", m_DynamicBalanceController.GetProgressionAttackInterval() },
 				{ "maximum_attack_delta",
-					m_ProgressionAttackMaximumDelta },
+					m_DynamicBalanceController.GetProgressionAttackMaximumDelta() },
 			}
 		},
 		{
 			"assist_mode",
 			{
-				{ "enabled", m_DynamicBalanceAppliedEnabled },
-				{ "applied_level", m_DynamicBalanceAppliedLevel },
+				{ "enabled", m_DynamicBalanceController.IsAppliedEnabled() },
+				{ "applied_level", m_DynamicBalanceController.GetAppliedLevel() },
 			}
 		},
 	};
@@ -1313,8 +1424,8 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		stage.id,
 		ToString(stage.stageType),
 		stage.difficulty,
-		m_PlayerRunStatus.currentHp,
-		m_PlayerRunStatus.maxHp,
+		m_RunController.Status().currentHp,
+		m_RunController.Status().maxHp,
 		enemies,
 		stageContext);
 }
