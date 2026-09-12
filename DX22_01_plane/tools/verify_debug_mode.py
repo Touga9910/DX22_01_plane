@@ -2,6 +2,7 @@
 import ctypes
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -33,11 +34,33 @@ def run_case(label, name):
             window = h.wait_for(lambda: h.window_for(process), process)
             ctypes.windll.user32.ShowWindow(window[0], 0)
             h.write(folder / "initial.json", state)
-            assert state["player"]["current_hp"] == preset["hp"], state["player"]
-            assert state["player"]["max_hp"] == preset["max_hp"]
+            ascension = preset.get("selected_ascension", 0)
+            hp_penalty = 10 if ascension >= 7 else 5 if ascension >= 2 else 0
+            hp_multiplier = 1.35 if ascension >= 9 else 1.20 if ascension >= 5 else 1.10 if ascension >= 1 else 1.0
+            attack_bonus = 3 if ascension >= 10 else 2 if ascension >= 6 else 1 if ascension >= 3 else 0
+            effective_max_hp = max(1, preset["max_hp"] - hp_penalty)
+            assert state["player"]["current_hp"] == min(preset["hp"], effective_max_hp), state["player"]
+            assert state["player"]["max_hp"] == effective_max_hp
             assert state["player"]["money"] == preset["money"]
             assert not state["dynamic_balance"]["enabled"]
             assert len(state["enemies"]) == len(preset["enemies"])
+            progression = state["meta_progression"]
+            assert progression["active_ascension"] == ascension
+            assert progression["selected_ascension"] == ascension
+            assert progression["highest_unlocked_ascension"] == preset.get("highest_unlocked_ascension", 0)
+            assert [item["unlocked"] for item in progression["achievements"]] == preset.get("achievements", [False] * 7)
+            assert progression["persistent_rewards_eligible"] is False
+            reported_unlocked_balls = {
+                item["definition_id"] for item in progression["ball_unlocks"]
+                if item["unlocked"]}
+            assert {item["definition_id"] for item in state["catalog_balls"]} == reported_unlocked_balls
+            for actual, configured in zip(state["enemies"], preset["enemies"]):
+                expected_max = math.floor(configured["max_hp"] * hp_multiplier + 0.5)
+                expected_hp = max(1, min(expected_max,
+                    math.floor(expected_max * configured["hp"] / configured["max_hp"] + 0.5)))
+                assert actual["max_hp"] == expected_max, actual
+                assert actual["hp"] == expected_hp, actual
+                assert actual["attack"] == configured["status"]["attack"] + attack_bonus, actual
             assert save.read_bytes() == SENTINEL
             assert not list((folder / "logs/balance").glob("run_*.json"))
             debug_logs = list((folder / "logs/debug_battle").glob("run_*.json"))
@@ -45,14 +68,31 @@ def run_case(label, name):
             run = h.read(debug_logs[0])
             assert run["controller_type"] == "debug_sandbox" and run["run_context"]["debug_sandbox"]
             assert len(run["initial_player"]["deck"]) == len(preset["deck"])
-            if name == "boss":
-                assert state["boss_state"]["armor"] == 0
-                assert state["boss_state"]["break_shots_remaining"] == 1
-                assert state["boss_state"]["hp"] == 30
-                assert len(state["break_balls"]) == 2
+            if name in ("boss", "break_chain"):
+                assert state["boss_state"]["armor"] == preset["armor"]
+                assert state["boss_state"]["break_shots_remaining"] == preset["break_shots"]
+                assert state["boss_state"]["hp"] == state["enemies"][0]["hp"]
+                configured_break_balls = preset.get("break_balls", [
+                    {"x": -4, "z": 10}, {"x": 4, "z": 10}])
+                assert len(state["break_balls"]) == len(configured_break_balls)
+                for actual, configured in zip(state["break_balls"], configured_break_balls):
+                    assert abs(actual["position"]["x"] - configured["x"]) < .001
+                    assert abs(actual["position"]["z"] - configured["z"]) < .001
                 assert abs(state["player"]["position"]["z"] + 10) < .001
-                h.command(folder, process, "fire_shot", direction_x=1, direction_z=0, power=2)
-                state = h.wait_for(lambda: s if (s := h.read(path)).get("boss_state", {}).get("armor") == 2 and "fire_shot" in s.get("available_actions", []) else None, process)
+                if name == "boss":
+                    h.command(folder, process, "fire_shot", direction_x=1, direction_z=0, power=2)
+                    state = h.wait_for(lambda: s if (s := h.read(path)).get("boss_state", {}).get("armor") == 2 and "fire_shot" in s.get("available_actions", []) else None, process)
+                else:
+                    hp_before = state["boss_state"]["hp"]
+                    h.command(folder, process, "fire_shot", direction_x=0, direction_z=1, power=6)
+                    state = h.wait_for(lambda: s if "fire_shot" in (s := h.read(path)).get("available_actions", []) else None, process, 60)
+                    expected = h.read(folder / "runtime/shot_prediction_expected.json")
+                    actual = h.read(folder / "runtime/shot_prediction_actual.json")
+                    assert expected["complete"] and expected["chain_impact_hits"] == 1
+                    expected_boss = next(ball for ball in expected["balls"] if ball["boss"])
+                    actual_boss = next(ball for ball in actual["balls"] if ball["boss"])
+                    assert expected_boss["hp"] == actual_boss["hp"] < hp_before
+                    assert state["boss_state"]["armor"] == 2
             else:
                 h.command(folder, process, "fire_shot", direction_x=1 if name == "win" else -1, direction_z=0, power=8 if name == "win" else 2)
                 state = h.wait_for(lambda: s if (s := h.read(path)).get("debug_mode", {}).get("finished") else None, process, 60)
@@ -84,5 +124,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--label", required=True)
     args = parser.parse_args()
-    report = [run_case(args.label, name) for name in ("win", "loss", "boss")]
+    report = [run_case(args.label, name) for name in ("win", "loss", "boss", "break_chain")]
     h.write(h.ROOT / args.label / "verified.json", {"cases":report,"passed":True})

@@ -257,8 +257,10 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 		next.playerCurrentHp = player->GetHP();
 		next.playerMaxHp = player->GetMaxHP();
 		next.playerDefense = player->GetDefense();
+		next.playerShield = game.GetPlayerShield();
 		next.hpAfterAttack = (std::max)(0, player->GetHP());
 	}
+	int remainingShield = next.playerShield;
 
 	next.enemies.reserve(enemies.size());
 	for (const EnemyBall* enemy : enemies)
@@ -295,9 +297,13 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 			enemySnapshot.minimumDamageApplied =
 				enemySnapshot.damageBeforeMinimum < 1;
 			next.theoreticalDamage += enemySnapshot.expectedDamage;
+			const int absorbed = (std::min)(
+				remainingShield,
+				enemySnapshot.expectedDamage);
+			remainingShield -= absorbed;
 			const int appliedDamage = (std::min)(
 				next.hpAfterAttack,
-				enemySnapshot.expectedDamage);
+				enemySnapshot.expectedDamage - absorbed);
 			next.expectedDamage += appliedDamage;
 			next.hpAfterAttack -= appliedDamage;
 		}
@@ -742,10 +748,11 @@ void GameDebugController::DrawDiagnostics(Game& game)
 	if (forecast.hasPlayer)
 	{
 		ImGui::Text(
-			"プレイヤーHP: %d / %d  防御: %d",
+			"プレイヤーHP: %d / %d  防御: %d  シールド: %d",
 			forecast.playerCurrentHp,
 			forecast.playerMaxHp,
-			forecast.playerDefense);
+			forecast.playerDefense,
+			forecast.playerShield);
 		drawHpBar(
 			"player_hp",
 			forecast.playerCurrentHp,

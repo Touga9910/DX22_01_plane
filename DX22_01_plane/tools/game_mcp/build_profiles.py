@@ -26,7 +26,11 @@ VALID_BALL_IDS = {
     "player_heavy",
     "player_pierce",
     "player_bounce",
+    "player_cushion_charge",
     "player_anchor",
+	"player_chain_impact",
+	"player_refractive_pierce",
+	"player_stop_shield",
 }
 VALID_REWARD_PRIORITIES = {
     "money",

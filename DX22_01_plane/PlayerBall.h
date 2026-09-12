@@ -280,6 +280,7 @@ private:
 	std::vector<SUBSET> m_PreviewSubsets;
 
 	bool m_PreviewHitBall = false;
+	bool m_PreviewHitEnemy = false;
 
 	DirectX::SimpleMath::Vector3 m_PreviewGhostBallPosition =
 		DirectX::SimpleMath::Vector3::Zero;

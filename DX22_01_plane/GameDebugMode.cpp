@@ -8,6 +8,7 @@
 #include "PlayerBall.h"
 #include "PlayerBallText.h"
 #include "EnemyText.h"
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <utility>
@@ -73,11 +74,25 @@ void GameDebugController::Open(Game& game)
 // Debug Run Settingsを適用する。
 void GameDebugController::ApplyRunSettings(Game& game)
 {
+    m_DebugSetup.ApplyProgressionTo(game.m_ProgressionProfile);
+    game.m_ActiveAscension = m_DebugSetup.selectedAscension;
+    std::vector<PlayerBallData> unlockedCatalog;
+    for (const PlayerBallData& ball : m_DebugBallCatalog)
+        if (game.m_ProgressionProfile.IsBallUnlocked(ball.definitionId))
+            unlockedCatalog.push_back(ball);
+    game.m_RunController.Deck().SetCatalog(unlockedCatalog);
     game.m_RunController.Deck().SetDefaultDeck(m_DebugSetup.deck);
     game.m_RunController.Deck().ResetToDefault();
-    game.m_RunController.Status().maxHp = m_DebugSetup.maxHp;
-    game.m_RunController.Status().currentHp = m_DebugSetup.hp;
+    game.m_RunController.Status().maxHp = m_DebugSetup.EffectiveMaxHp();
+    game.m_RunController.Status().currentHp = std::clamp(
+        m_DebugSetup.hp,
+        1,
+        game.m_RunController.Status().maxHp);
     game.m_RunController.Status().money = m_DebugSetup.money;
+    game.m_RunController.RestHealRatio() = (std::max)(
+        0.05f,
+        game.m_DefaultRestHealRatio -
+            ProgressionProfile::RestHealPenalty(game.m_ActiveAscension));
     game.m_RunController.Relics() = m_DebugSetup.relics;
 	game.m_DynamicBalanceController.ForceDisabled();
 }
@@ -89,6 +104,9 @@ bool GameDebugController::StartBattle(Game& game)
     if (!m_DebugMessage.empty()) return false;
     // 描画中にSceneを破棄しない。再戦でも前の球を破棄してから初期状態を作る。
     if (m_DebugMode) game.ChangeScene(SceneType::Title);
+    m_DebugPreviousProgressionProfile = game.m_ProgressionProfile;
+    m_DebugProgressionSnapshotValid = true;
+    m_DebugSetup.ApplyProgressionTo(game.m_ProgressionProfile);
     m_DebugPreviousAutoPlay = game.m_BalanceAutoPlayer.IsEnabled();
 	m_DebugPreviousValidation = game.m_BalanceValidationController.IsEnabled();
     game.m_BalanceAutoPlayer.SetEnabled(false);
@@ -132,7 +150,17 @@ void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
 void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
     if (!m_DebugMode || !enemy || index >= m_DebugSetup.enemies.size()) return;
-    enemy->SetHP(m_DebugSetup.enemies[index].hp);
+    const DebugBattleSetup::Enemy& configured = m_DebugSetup.enemies[index];
+    const int configuredMaxHp = (std::max)(1, configured.spawn.enemyData.maxHp);
+    const float hpRatio = std::clamp(
+        static_cast<float>(configured.hp) / static_cast<float>(configuredMaxHp),
+        0.0f,
+        1.0f);
+    const int scaledHp = std::clamp(
+        static_cast<int>(std::lround(enemy->GetMaxHP() * hpRatio)),
+        1,
+        enemy->GetMaxHP());
+    enemy->SetHP(scaledHp);
     enemy->SetDebugBossState(m_DebugSetup.armor, m_DebugSetup.breakShots);
 }
 
@@ -147,6 +175,12 @@ void GameDebugController::End(Game& game)
 	game.m_BalanceValidationController.SetEnabled(m_DebugPreviousValidation);
     game.m_McpNextStageOverride.reset();
     game.m_BossShotPlanner.Reset();
+    if (m_DebugProgressionSnapshotValid)
+    {
+        game.m_ProgressionProfile = m_DebugPreviousProgressionProfile;
+        m_DebugProgressionSnapshotValid = false;
+    }
+    game.m_ActiveAscension = 0;
     game.LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
 	game.m_DynamicBalanceController.OnRunStarted();
 }
@@ -309,13 +343,86 @@ void GameDebugController::Draw(Game& game)
             m_DebugSetup.money = std::clamp(m_DebugSetup.money, 0, 999999);
             const std::uint32_t seedStep = 1;
             ImGui::InputScalar("乱数シード", ImGuiDataType_U32, &m_DebugSetup.seed, &seedStep);
-            ImGui::TextDisabled("同じ条件・シードでデッキの抽選を再現します。敵への難易度補正は無効です。");
+            ImGui::TextDisabled("同じ条件・シードでデッキの抽選を再現します。基準難易度とDDAは無効、選択したアセンションだけを適用します。");
             for (int i = 0; i < game.GetRelicCount(); ++i)
             {
                 const auto* relic = game.GetRelic(i);
                 ImGui::Checkbox(relic->name, &m_DebugSetup.relics[static_cast<size_t>(i)]);
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", relic->description);
             }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("進行・アセンション"))
+        {
+            ImGui::TextWrapped(
+                "ここでの解除状態はデバッグ戦とMCP表示だけに適用され、通常プロフィールへは保存されません。");
+            if (ImGui::Button("現在の通常プロフィールをコピー"))
+            {
+                const ProgressionProfile& profile = m_DebugProgressionSnapshotValid
+                    ? m_DebugPreviousProgressionProfile
+                    : game.GetProgressionProfile();
+                m_DebugSetup.highestUnlockedAscension =
+                    profile.highestUnlockedAscension;
+                m_DebugSetup.selectedAscension = profile.selectedAscension;
+                m_DebugSetup.achievements = profile.achievements;
+            }
+            ImGui::SliderInt(
+                "解放済み最高アセンション",
+                &m_DebugSetup.highestUnlockedAscension,
+                0,
+                ProgressionProfile::MaximumAscension,
+                "A%d",
+                ImGuiSliderFlags_AlwaysClamp);
+            m_DebugSetup.selectedAscension = std::clamp(
+                m_DebugSetup.selectedAscension,
+                0,
+                m_DebugSetup.highestUnlockedAscension);
+            ImGui::SliderInt(
+                "今回適用するアセンション",
+                &m_DebugSetup.selectedAscension,
+                0,
+                m_DebugSetup.highestUnlockedAscension,
+                "A%d",
+                ImGuiSliderFlags_AlwaysClamp);
+            ImGui::Text(
+                "実効最大HP %d / 敵HP x%.2f / 敵攻撃 +%d / 休憩回復 %.0f%%",
+                m_DebugSetup.EffectiveMaxHp(),
+                ProgressionProfile::EnemyHpMultiplier(m_DebugSetup.selectedAscension),
+                ProgressionProfile::EnemyAttackBonus(m_DebugSetup.selectedAscension),
+                (std::max)(0.05f, game.m_DefaultRestHealRatio -
+                    ProgressionProfile::RestHealPenalty(m_DebugSetup.selectedAscension)) * 100.0f);
+            if (m_DebugSetup.selectedAscension == 0)
+                ImGui::BulletText("A0  %s", ProgressionProfile::AscensionRule(0));
+            else
+                for (int level = 1; level <= m_DebugSetup.selectedAscension; ++level)
+                    ImGui::BulletText(
+                        "A%d  %s",
+                        level,
+                        ProgressionProfile::AscensionRule(level));
+
+            ImGui::SeparatorText("実績の解除状態");
+            if (ImGui::Button("すべて解除"))
+                m_DebugSetup.achievements.fill(true);
+            ImGui::SameLine();
+            if (ImGui::Button("すべて未解除"))
+                m_DebugSetup.achievements.fill(false);
+            ImGui::BeginChild(
+                "debug_achievement_list",
+                ImVec2(0.0f, 250.0f),
+                ImGuiChildFlags_Borders);
+            for (const AchievementDefinition& achievement : AchievementCatalog)
+            {
+                const size_t index = static_cast<size_t>(achievement.id);
+                ImGui::PushID(static_cast<int>(index));
+                ImGui::Checkbox(
+                    achievement.name,
+                    &m_DebugSetup.achievements[index]);
+                ImGui::TextDisabled("解放：%s", achievement.reward);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("条件：%s", achievement.condition);
+                ImGui::PopID();
+            }
+            ImGui::EndChild();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("敵編成・配置"))
@@ -347,6 +454,33 @@ void GameDebugController::Draw(Game& game)
             ImGui::SliderInt("ボス Break残りショット", &m_DebugSetup.breakShots, 0, 2);
             if (m_DebugSetup.breakShots > 0) m_DebugSetup.armor = 0;
             else { m_DebugSetup.armor = (std::max)(1, m_DebugSetup.armor); ImGui::SliderInt("ボス Armor", &m_DebugSetup.armor, 1, 2); }
+            ImGui::SeparatorText("ブレイクボール");
+            ImGui::TextDisabled("ボス戦の開始時と、使用後の再配置で優先する位置です。");
+            ImGui::BeginDisabled(m_DebugSetup.breakBallPositions.size() >= 16);
+            if (ImGui::Button("ブレイクボールを追加"))
+            {
+                const float x = m_DebugSetup.breakBallPositions.size() % 2 == 0 ? -4.0f : 4.0f;
+                m_DebugSetup.breakBallPositions.push_back(
+                    {x, TableConfig::FIELD_HEIGHT, 10.0f});
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            ImGui::Text("%d / 16個", static_cast<int>(m_DebugSetup.breakBallPositions.size()));
+            for (size_t i = 0; i < m_DebugSetup.breakBallPositions.size();)
+            {
+                auto& position = m_DebugSetup.breakBallPositions[i];
+                ImGui::PushID(static_cast<int>(i));
+                const bool remove = ImGui::SmallButton("削除");
+                ImGui::SameLine();
+                ImGui::Text("ブレイクボール #%d", static_cast<int>(i + 1));
+                ImGui::SliderFloat("X##break_ball", &position.x, -65, 65);
+                ImGui::SliderFloat("Z##break_ball", &position.z, -33, 33);
+                position.y = TableConfig::FIELD_HEIGHT;
+                ImGui::PopID();
+                if (remove) m_DebugSetup.breakBallPositions.erase(
+                    m_DebugSetup.breakBallPositions.begin() + i);
+                else ++i;
+            }
             for (size_t i = 0; i < m_DebugSetup.enemies.size();)
             {
                 auto& enemy = m_DebugSetup.enemies[i]; ImGui::PushID(static_cast<int>(i));

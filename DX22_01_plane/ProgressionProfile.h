@@ -22,10 +22,10 @@ struct AchievementDefinition
 };
 
 inline constexpr std::array<AchievementDefinition, static_cast<size_t>(AchievementId::Count)> AchievementCatalog{{
-    {AchievementId::FirstVictory, "first_victory", "最初の勝利", "通常戦を1回クリアする", "貫通ボール"},
+    {AchievementId::FirstVictory, "first_victory", "最初の勝利", "通常戦を1回クリアする", "貫通分類のボール"},
     {AchievementId::DamageEight, "damage_eight", "連鎖の一打", "1ショットで8ダメージ以上与える", "衝撃加速装置"},
-    {AchievementId::AreaFive, "area_five", "道半ば", "エリア5へ到達する", "バウンドボール"},
-    {AchievementId::MidBoss, "midboss", "中ボス撃破", "中ボスを1体撃破する", "アンカーボール"},
+    {AchievementId::AreaFive, "area_five", "道半ば", "エリア5へ到達する", "反発分類のボール"},
+    {AchievementId::MidBoss, "midboss", "中ボス撃破", "中ボスを1体撃破する", "アンカー分類のボール"},
     {AchievementId::Collector, "collector", "ボール収集家", "1ランで新しいボールを3個獲得する", "拡張ボールラック"},
     {AchievementId::DamageFifteen, "damage_fifteen", "決定打", "1ショットで15ダメージ以上与える", "貫通過給機"},
     {AchievementId::FinalBoss, "final_boss", "Armor突破", "最終ボスを撃破する", "高張力スプリング・アンカーチェーン・アセンション1"},

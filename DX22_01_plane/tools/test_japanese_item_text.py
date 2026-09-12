@@ -17,11 +17,20 @@ class JapaneseItemTextTests(unittest.TestCase):
             "player_pierce",
             "player_bounce",
             "player_anchor",
+            "player_cushion_charge",
+			"player_chain_impact",
+			"player_refractive_pierce",
+			"player_stop_shield",
         ):
             self.assertGreaterEqual(text.count(f'"{definition_id}"'), 2)
         self.assertIn("GetName", text)
         self.assertIn("GetDescription", text)
         self.assertIn("GetTrait", text)
+        self.assertIn('u8"\\u6c4e\\u7528"', text)
+        self.assertIn('u8"\\u91cd\\u91cf"', text)
+        self.assertIn('u8"\\u8cab\\u901a"', text)
+        self.assertIn('u8"\\u53cd\\u767a"', text)
+        self.assertIn('u8"\\u30a2\\u30f3\\u30ab\\u30fc"', text)
 
     def test_relic_catalog_no_longer_uses_english_display_text(self) -> None:
         text = (ROOT / "GameTypes.h").read_text(encoding="utf-8")

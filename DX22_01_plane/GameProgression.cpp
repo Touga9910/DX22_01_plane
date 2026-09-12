@@ -533,7 +533,7 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 	player->SetStatus(selectedBall->status);
 	if (auto* render = player->GetGameObject()->GetComponent<BallRenderComponent>())
 	{
-		const auto color = PlayerBallText::GetColor(selectedBall->definitionId);
+		const auto color = PlayerBallText::GetColor(*selectedBall);
 		render->SetTint(DirectX::SimpleMath::Color(color[0], color[1], color[2], 1.0f));
 	}
 
@@ -600,6 +600,18 @@ void Game::ResetShotRelicState(PlayerBall* player)
 // End Of Shot Relic Effectsを適用する。
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
+	CushionChargeRules::EndPlayerShot(m_CushionCharges);
+	m_CushionBoostConsumedThisShot = false;
+	if (player != nullptr)
+	{
+		m_PlayerShield = (std::max)(0, player->GetStatus().stopShieldAmount);
+		if (m_PlayerShield > 0)
+		{
+			InvalidateDebugCombatForecast("停止時シールド付与");
+			RecordBalanceEvent("stop_shield_granted", { { "amount", m_PlayerShield } });
+		}
+	}
+
 	if (player == nullptr ||
 		!HasRelic(RelicType::EmergencyRepairKit) ||
 		GetCurrentShotBallCollisionCount() <
@@ -765,6 +777,10 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		}
 	}
 
+	CushionChargeRules::BeginPlayerShot(m_CushionCharges);
+	m_CushionBoostConsumedThisShot = false;
+	m_PlayerShield = 0;
+
 	if (player != nullptr)
 	{
 		CapturePlayerStatusFrom(player);
@@ -839,11 +855,96 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 }
 
 // Player Wall Collisionを通知する。
-void Game::NotifyPlayerWallCollision()
+void Game::NotifyPlayerWallCollision(
+	int cushionRegion,
+	DirectX::SimpleMath::Vector3& reflectedVelocity)
 {
     auto rules = CaptureShotRelicRules();
     rules.Wall();
     CommitShotRelicRules(rules);
+	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const float multiplier = currentBall != nullptr
+		? currentBall->status.cushionChargeSpeedMultiplier
+		: 1.0f;
+	CushionChargeRules::ApplyPlayerWallContact(
+		m_CushionCharges,
+		cushionRegion,
+		multiplier,
+		m_CushionBoostConsumedThisShot,
+		reflectedVelocity);
+}
+
+int Game::AbsorbPlayerShieldDamage(int damage)
+{
+	const int incoming = (std::max)(0, damage);
+	const int absorbed = (std::min)(m_PlayerShield, incoming);
+	m_PlayerShield -= absorbed;
+	if (absorbed > 0)
+	{
+		InvalidateDebugCombatForecast("停止時シールド消費");
+		RecordBalanceEvent(
+			"stop_shield_absorbed",
+			{ { "absorbed", absorbed }, { "remaining", m_PlayerShield } });
+	}
+	return incoming - absorbed;
+}
+
+void Game::NotifyPlayerChainImpact(
+	EnemyBall* directTarget,
+	int attackDamage,
+	float radius)
+{
+	if (directTarget == nullptr)
+	{
+		return;
+	}
+	NotifyPlayerChainImpact(
+		directTarget->GetPosition(), directTarget, attackDamage, radius);
+}
+
+void Game::NotifyPlayerChainImpact(
+	const DirectX::SimpleMath::Vector3& center,
+	const EnemyBall* excludedTarget,
+	int attackDamage,
+	float radius)
+{
+	if (attackDamage <= 0 || radius <= 0.0f) return;
+	const float radiusSquared = radius * radius;
+	int hitCount = 0;
+	int totalDamage = 0;
+	for (EnemyBall* enemy : GetComponents<EnemyBall>())
+	{
+		if (enemy == nullptr || enemy == excludedTarget || enemy->IsDefeated() ||
+			enemy->IsPocketed())
+		{
+			continue;
+		}
+		DirectX::SimpleMath::Vector3 offset = enemy->GetPosition() - center;
+		offset.y = 0.0f;
+		if (offset.LengthSquared() > radiusSquared)
+		{
+			continue;
+		}
+		const int hpBefore = enemy->GetHP();
+		const DirectX::SimpleMath::Vector3 feedbackPosition = enemy->GetPosition();
+		enemy->TakeDamage(attackDamage);
+		const int applied = (std::max)(0, hpBefore - enemy->GetHP());
+		if (applied <= 0 && !enemy->IsDefeated())
+		{
+			continue;
+		}
+		++hitCount;
+		totalDamage += applied;
+		NotifyCombatFeedback(feedbackPosition, applied, enemy->IsDefeated(), true);
+	}
+	if (hitCount > 0)
+	{
+		RecordBalanceEvent(
+			"chain_impact_triggered",
+			{ { "hit_count", hitCount }, { "damage", totalDamage },
+			  { "radius", radius }, { "attack_damage", attackDamage } });
+	}
+	PublishGameEvent(ChainImpactEvent{ center, radius, hitCount });
 }
 
 // Current Ballかどうかを判定する。
@@ -1010,6 +1111,17 @@ void Game::PublishGameEvent(const GameEvent& event)
 						value.damage,
 						value.defeated,
 						value.enemyEnemyCollision);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, ChainImpactEvent>)
+			{
+				if (m_GamePresentation != nullptr &&
+					!m_BalanceAutoPlayer.IsEnabled())
+				{
+					m_GamePresentation->OnChainImpact(
+						value.worldPosition,
+						value.radius,
+						value.hitCount);
 				}
 			}
 			else if constexpr (std::is_same_v<EventType, PocketFeedbackEvent>)

@@ -19,6 +19,7 @@ public:
     void Awake() override;
 
     void Damage(int damage);
+	void DamageAfterDefense(int damage);
     void TakeDamage(int damage);
     void Defeat();
 

@@ -15,6 +15,7 @@
   "balls": [
     {
       "id": "player_standard",
+      "category": "standard",
       "status": {
         "attack": 2,
         "defense": 0,
@@ -41,6 +42,7 @@
     },
     {
       "id": "player_heavy",
+      "category": "heavy",
       "status": {
         "attack": 2,
         "defense": 0,
@@ -68,6 +70,7 @@
     },
     {
       "id": "player_pierce",
+      "category": "pierce",
       "status": {
         "attack": 1,
         "defense": 0,
@@ -96,6 +99,7 @@
     },
     {
       "id": "player_bounce",
+      "category": "bounce",
       "status": {
         "attack": 1,
         "defense": 0,
@@ -122,6 +126,7 @@
     },
     {
       "id": "player_anchor",
+      "category": "anchor",
       "status": {
         "attack": 2,
         "defense": 2,
@@ -150,6 +155,91 @@
           "anchorKnockbackImmune": true
         }
       ]
+    },
+    {
+      "id": "player_cushion_charge",
+      "category": "bounce",
+      "status": {
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.5,
+        "radius": 2.2,
+        "restitution": 0.85,
+        "friction": 0.015,
+        "cushionChargeSpeedMultiplier": 1.1,
+        "abilities": {
+          "split": false,
+          "pierce": false,
+          "anchor": false
+        }
+      },
+      "upgrades": [
+        {
+          "cushionChargeSpeedMultiplier": 1.2
+        },
+        {
+          "cushionChargeSpeedMultiplier": 1.3
+        }
+      ]
+	},
+	{
+	  "id": "player_chain_impact",
+	  "category": "heavy",
+	  "status": {
+		"attack": 2,
+		"defense": 0,
+		"mass": 3.0,
+		"radius": 2.5,
+		"restitution": 0.75,
+		"friction": 0.025,
+		"knockbackTransfer": 1.1,
+		"chainImpactRadius": 12.0,
+		"abilities": { "split": false, "pierce": false, "anchor": false }
+	  },
+	  "upgrades": [
+		{ "mass": 3.5, "knockbackTransfer": 1.2, "chainImpactRadius": 16.0 },
+		{ "mass": 4.0, "knockbackTransfer": 1.3, "chainImpactRadius": 20.0 }
+	  ]
+	},
+	{
+	  "id": "player_refractive_pierce",
+	  "category": "pierce",
+	  "status": {
+		"attack": 1,
+		"defense": 0,
+		"mass": 1.5,
+		"radius": 2.0,
+		"restitution": 0.85,
+		"friction": 0.015,
+		"pierceMaxUses": 1,
+		"pierceSpeedRetention": 0.7,
+		"abilities": {
+		  "split": false, "pierce": true, "anchor": false,
+		  "refractAfterPierce": true
+		}
+	  },
+	  "upgrades": [
+		{ "pierceMaxUses": 2, "pierceSpeedRetention": 0.8 },
+		{ "pierceMaxUses": 3, "pierceSpeedRetention": 0.9 }
+	  ]
+	},
+	{
+	  "id": "player_stop_shield",
+	  "category": "anchor",
+	  "status": {
+		"attack": 1,
+		"defense": 1,
+		"mass": 4.0,
+		"radius": 2.5,
+		"restitution": 0.35,
+		"friction": 0.08,
+		"stopShieldAmount": 3,
+		"abilities": { "split": false, "pierce": false, "anchor": false }
+	  },
+	  "upgrades": [
+		{ "stopShieldAmount": 5 },
+		{ "stopShieldAmount": 7 }
+	  ]
     }
   ],
   "currentHp": 50,

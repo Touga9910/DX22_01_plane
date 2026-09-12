@@ -4,6 +4,7 @@
 #include "PlayerBallSaveData.h"
 #include "StageDataLoader.h"
 #include "GameTypes.h"
+#include "ProgressionProfile.h"
 #include "TableConfig.h"
 #include <cmath>
 #include <stdexcept>
@@ -24,8 +25,15 @@ struct DebugBattleSetup
     std::vector<PlayerBallData> deck;
     std::vector<Enemy> enemies;
     std::array<bool, static_cast<size_t>(RelicType::Count)> relics{};
+    int highestUnlockedAscension = 0;
+    int selectedAscension = 0;
+    std::array<bool, static_cast<size_t>(AchievementId::Count)> achievements{};
     int armor = 2;
     int breakShots = 0;
+    std::vector<DirectX::SimpleMath::Vector3> breakBallPositions{
+        {-4.0f, TableConfig::FIELD_HEIGHT, 10.0f},
+        {4.0f, TableConfig::FIELD_HEIGHT, 10.0f}
+    };
 
     std::string Validate() const
     {
@@ -33,13 +41,22 @@ struct DebugBattleSetup
             return "HP・最大HP・所持金が範囲外です。";
         if (deck.empty() || deck.size() > 64) return "デッキは1～64個にしてください。";
         if (enemies.empty() || enemies.size() > 32) return "敵は1～32体にしてください。";
+        if (highestUnlockedAscension < 0 ||
+            highestUnlockedAscension > ProgressionProfile::MaximumAscension ||
+            selectedAscension < 0 || selectedAscension > highestUnlockedAscension)
+            return "アセンションは解放済み範囲内で指定してください。";
         if (armor < 0 || armor > 2 || breakShots < 0 || breakShots > 2 || (armor == 0) != (breakShots > 0))
             return "Armorは1～2、またはArmor 0とBreak残り1～2を指定してください。";
+        if (breakBallPositions.size() > 16)
+            return "ブレイクボールは0～16個にしてください。";
         auto inside = [](const auto& pos, float radius) {
             return std::isfinite(pos.x) && std::isfinite(pos.z) &&
                 std::abs(pos.x) + radius < TableConfig::GetFieldWidth() * 0.5f &&
                 std::abs(pos.z) + radius < TableConfig::GetFieldDepth() * 0.5f;
         };
+        for (const auto& position : breakBallPositions)
+            if (!inside(position, 2.5f))
+                return "ブレイクボールの位置を台の内側へ移してください。";
         for (const auto& ball : deck)
         {
             if (!IsValidBallStatus(ball.status) || ball.status.radius < 0.1f || ball.status.radius > 12 ||
@@ -61,10 +78,24 @@ struct DebugBattleSetup
         return {};
     }
 
+    void ApplyProgressionTo(ProgressionProfile& profile) const
+    {
+        profile.highestUnlockedAscension = highestUnlockedAscension;
+        profile.selectedAscension = selectedAscension;
+        profile.achievements = achievements;
+    }
+
+    int EffectiveMaxHp() const
+    {
+        return (std::max)(
+            1,
+            maxHp - ProgressionProfile::StartingHpPenalty(selectedAscension));
+    }
+
     nlohmann::json ToJson() const
     {
         using nlohmann::json;
-        json balls = json::array(), foes = json::array();
+        json balls = json::array(), foes = json::array(), breakBalls = json::array();
         for (size_t i = 0; i < deck.size(); ++i)
         {
             auto ball = deck[i];
@@ -75,9 +106,16 @@ struct DebugBattleSetup
             foes.push_back({{"id", enemy.spawn.enemyData.id}, {"hp", enemy.hp},
                 {"max_hp", enemy.spawn.enemyData.maxHp}, {"status", WriteBallStatus(enemy.spawn.enemyData.status)},
                 {"x", enemy.spawn.position.x}, {"z", enemy.spawn.position.z}});
+        for (const auto& position : breakBallPositions)
+            breakBalls.push_back({{"x", position.x}, {"z", position.z}});
         return {{"version", 1}, {"hp", hp}, {"max_hp", maxHp}, {"money", money}, {"seed", seed},
             {"player_x", playerPosition.x}, {"player_z", playerPosition.z}, {"deck", balls},
-            {"enemies", foes}, {"relics", relics}, {"armor", armor}, {"break_shots", breakShots}};
+            {"enemies", foes}, {"relics", relics},
+            {"highest_unlocked_ascension", highestUnlockedAscension},
+            {"selected_ascension", selectedAscension},
+            {"achievements", achievements},
+            {"armor", armor}, {"break_shots", breakShots},
+            {"break_balls", breakBalls}};
     }
 
     static DebugBattleSetup FromJson(const nlohmann::json& j,
@@ -93,6 +131,25 @@ struct DebugBattleSetup
         next.playerPosition.x = j.at("player_x").get<float>(); next.playerPosition.z = j.at("player_z").get<float>();
         next.armor = j.at("armor").get<int>(); next.breakShots = j.at("break_shots").get<int>();
         next.relics = j.at("relics").get<decltype(next.relics)>();
+        if (j.contains("break_balls"))
+        {
+            if (!j.at("break_balls").is_array() || j.at("break_balls").size() > 16)
+                throw std::runtime_error("ブレイクボールの個数が不正です。");
+            next.breakBallPositions.clear();
+            for (const auto& value : j.at("break_balls"))
+                next.breakBallPositions.push_back({value.at("x").get<float>(),
+                    TableConfig::FIELD_HEIGHT, value.at("z").get<float>()});
+        }
+        next.highestUnlockedAscension = j.value("highest_unlocked_ascension", 0);
+        next.selectedAscension = j.value("selected_ascension", 0);
+        if (j.contains("achievements"))
+        {
+            if (!j.at("achievements").is_array() ||
+                j.at("achievements").size() != next.achievements.size())
+                throw std::runtime_error("実績解除状態の個数が不正です。");
+            next.achievements =
+                j.at("achievements").get<decltype(next.achievements)>();
+        }
         if (!j.at("deck").is_array() || j.at("deck").size() > 64 ||
             !j.at("enemies").is_array() || j.at("enemies").size() > 32 ||
             j.at("relics").size() != next.relics.size()) throw std::runtime_error("プリセットの個数が不正です。");

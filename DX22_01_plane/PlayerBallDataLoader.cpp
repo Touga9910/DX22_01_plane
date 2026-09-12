@@ -78,6 +78,9 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 						ballData.definitionId =
 							"player_ball_" + std::to_string(result.ballDefinitions.size());
 					}
+					ballData.category = BallCategoryFromId(
+						ballJson.value("category", ""),
+						ballData.definitionId);
 
 					if (ballJson.contains("status") && ballJson["status"].is_object())
 					{

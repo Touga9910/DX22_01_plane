@@ -287,6 +287,31 @@ std::vector<StageData> StageDataLoader::LoadAll(
             stage.difficulty = stageJson["difficulty"].get<int>();
             stage.par = stageJson.value("par", stage.par);
             stage.preserveLayout = stageJson.value("preserveLayout", false);
+            if (stageJson.contains("breakBalls"))
+            {
+                stage.hasBreakBallLayout = true;
+                if (!stageJson["breakBalls"].is_array())
+                {
+                    std::cerr << "[StageDataLoader] stage「" << stage.id
+                        << "」のbreakBallsが配列ではありません" << std::endl;
+                    continue;
+                }
+                for (const json& position : stageJson["breakBalls"])
+                {
+                    try
+                    {
+                        stage.breakBallPositions.push_back(LoadVector3(
+                            position,
+                            Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f)));
+                    }
+                    catch (const std::exception& e)
+                    {
+                        std::cerr << "[StageDataLoader] stage「" << stage.id
+                            << "」のブレイクボール位置が不正です: "
+                            << e.what() << std::endl;
+                    }
+                }
+            }
 
             const json& enemyArray = stageJson["enemies"];
             for (size_t enemyIndex = 0;

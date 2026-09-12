@@ -53,10 +53,31 @@ bool Game::SaveRunCheckpoint(
 	bool sceneAlreadyActive,
 	bool showNotification)
 {
-	if (IsDebugMode() ||
-		m_BalanceAutoPlayer.IsEnabled() ||
-		m_BalanceValidationController.IsEnabled())
+	if (IsDebugMode())
 	{
+		if (showNotification)
+		{
+			SetSaveLoadMessage(
+				"デバッグ中は通常のランセーブを使用できません。");
+		}
+		return false;
+	}
+	if (m_BalanceAutoPlayer.IsEnabled())
+	{
+		if (showNotification)
+		{
+			SetSaveLoadMessage(
+				"自動プレイ中は通常のランセーブを使用できません。");
+		}
+		return false;
+	}
+	if (m_BalanceValidationController.IsEnabled())
+	{
+		if (showNotification)
+		{
+			SetSaveLoadMessage(
+				"バランス検証中は通常のランセーブを使用できません。");
+		}
 		return false;
 	}
 	std::string message;

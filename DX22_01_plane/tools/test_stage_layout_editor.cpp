@@ -1,4 +1,5 @@
 #include "StageLayoutEditor.h"
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -8,7 +9,12 @@ int main()
     using Json = nlohmann::json;
     auto catalog = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
     assert(!catalog.empty());
-    Json layout = {{"id", "editor_test"}, {"stage_type", "normal"}, {"difficulty", 3}, {"par", 4}, {"enemies", {
+    const auto existingStages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
+    const auto legacyBoss = std::find_if(existingStages.begin(), existingStages.end(),
+        [](const StageData& stage) { return stage.stageType == StageType::Boss; });
+    assert(legacyBoss != existingStages.end() && !legacyBoss->hasBreakBallLayout);
+    assert(StageLayoutEditor::Encode(*legacyBoss)["break_balls"].size() == 2);
+    Json layout = {{"id", "editor_test"}, {"stage_type", "normal"}, {"difficulty", 3}, {"par", 4}, {"break_balls", Json::array()}, {"enemies", {
         {{"enemy_id", "enemy_normal"}, {"x", -30}, {"z", 12}},
         {{"enemy_id", "enemy_normal"}, {"x", -10}, {"z", 20}},
         {{"enemy_id", "enemy_normal"}, {"x", 15}, {"z", -18}},
@@ -26,8 +32,16 @@ int main()
     bad = layout; bad["id"] = "../escape"; invalid(bad);
     bad = layout; bad["stage_type"] = "boss"; invalid(bad);
     bad = layout; bad["enemies"][0]["enemy_id"] = "enemy_boss_core"; invalid(bad);
-    bad["stage_type"] = "boss"; assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true);
+    bad["stage_type"] = "boss";
+    bad["break_balls"] = {{{"x", -4}, {"z", 10}}, {{"x", 4}, {"z", 10}}};
+    assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true);
     bad["enemies"][1]["enemy_id"] = "enemy_boss_core"; invalid(bad);
+    bad = layout; bad["stage_type"] = "boss"; bad["enemies"][0]["enemy_id"] = "enemy_boss_core";
+    bad["break_balls"] = Json::array(); invalid(bad);
+    bad["break_balls"] = {{{"x", 70}, {"z", 0}}}; invalid(bad);
+    bad["break_balls"] = {{{"x", -4}, {"z", 10}}, {{"x", -4}, {"z", 10}}}; invalid(bad);
+    bad["break_balls"] = {{{"x", -30}, {"z", 12}}}; invalid(bad); // boss overlap
+    bad = layout; bad["break_balls"] = {{{"x", -4}, {"z", 10}}}; invalid(bad); // normal stage
     bad = layout; bad["enemies"] = Json::array();
     for (int i = 0; i < 33; ++i) bad["enemies"].push_back(layout["enemies"][0]); invalid(bad);
 
@@ -57,6 +71,7 @@ int main()
     assert(saved["stages"][1]["preserveLayout"] == true);
     const auto loaded = StageDataLoader::LoadAll(path.string(), "assets/data/enemy_data.json");
     assert(loaded.back().preserveLayout && loaded.back().enemies.size() == 4);
+    assert(loaded.back().hasBreakBallLayout == false && loaded.back().breakBallPositions.empty());
     assert(StageLayoutEditor::Encode(loaded.back()) == editor.draft);
     assert(std::filesystem::exists(path.string() + ".editor.bak"));
     editor.Save(path, catalog, 3); // repeated replacement with an existing backup
@@ -64,5 +79,19 @@ int main()
     bool conflict = false;
     try { editor.Save(path, catalog, 3); } catch (...) { conflict = true; }
     assert(conflict);
-    std::cout << "PASS: geometry, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
+    Json bossLayout = layout;
+    bossLayout["id"] = "editor_boss_test";
+    bossLayout["stage_type"] = "boss";
+    bossLayout["enemies"] = {{{"enemy_id", "enemy_boss_core"}, {"x", 20}, {"z", 10}}};
+    bossLayout["break_balls"] = {{{"x", -12}, {"z", 8}}, {{"x", 8}, {"z", -12}}};
+    assert(StageLayoutEditor::Inspect(bossLayout, catalog, 3)["valid"] == true);
+    StageLayoutEditor bossEditor;
+    bossEditor.Load(path, StageLayoutEditor::Decode(bossLayout, catalog));
+    bossEditor.Save(path, catalog, 3);
+    const auto withBoss = StageDataLoader::LoadAll(path.string(), "assets/data/enemy_data.json");
+    const auto& savedBoss = withBoss.back();
+    assert(savedBoss.hasBreakBallLayout && savedBoss.breakBallPositions.size() == 2);
+    assert(savedBoss.breakBallPositions[0].x == -12 && savedBoss.breakBallPositions[1].z == -12);
+    assert(StageLayoutEditor::Encode(savedBoss) == bossEditor.draft);
+    std::cout << "PASS: legacy boss display, geometry, boss break-ball layout, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
 }

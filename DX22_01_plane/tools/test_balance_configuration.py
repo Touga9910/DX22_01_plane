@@ -315,7 +315,9 @@ class BalanceConfigurationTests(unittest.TestCase):
         validation = load("assets/data/balance_validation.json")
         self.assertIn(profiles["selected_profile"], profiles["profiles"])
         self.assertIn(validation["baseline_profile"], profiles["profiles"])
-        self.assertTrue(validation["enabled"])
+        # 比較実験は必要なときだけ明示的に有効化し、通常起動では
+        # セーブや実績進行を妨げない。
+        self.assertFalse(validation["enabled"])
         self.assertGreaterEqual(len(set(validation["random_seeds"])), 3)
         self.assertEqual(len(validation["random_seeds"]), 5)
         self.assertEqual(

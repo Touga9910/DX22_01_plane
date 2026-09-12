@@ -68,6 +68,9 @@ void Game::ResetPlayerRuntimeStatus()
 	// プレイヤーとラン進行に属する一時状態を新規ラン開始前の値へ戻す。
 	m_RunController.ResetRuntimeState(m_DefaultPlayerRunStatus);
 	ResetShotRelicState();
+	m_CushionCharges = {};
+	m_CushionBoostConsumedThisShot = false;
+	m_PlayerShield = 0;
 	m_IsMidBossRelicSelectionActive = false;
 	m_RunController.Progress().Reset(0);
 	m_BalanceAutoPlayer.ResetPendingBallAdjustments();

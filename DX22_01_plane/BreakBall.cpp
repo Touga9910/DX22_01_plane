@@ -73,6 +73,17 @@ void BreakBall::HitBoss(EnemyBall& boss)
     Deactivate(false);
 }
 
+void BreakBall::PlaceAt(const Vector3& position)
+{
+    if (!m_Ball) return;
+    m_PreferredPosition = position;
+    m_HasPreferredPosition = true;
+    m_Ball->ResetAtPosition(position);
+    m_Ball->ResetShotAbilityState();
+    m_Used = m_Pocketed = false;
+    GetGameObject()->SetActive(true);
+}
+
 bool BreakBall::Reposition()
 {
     if (!m_Ball || GetGameObject()->IsActive()) return true;
@@ -103,8 +114,10 @@ bool BreakBall::Reposition()
     };
     // Stable preferred positions, followed by a complete deterministic interior grid.
     std::vector<Vector3> candidates = {
-        Vector3(m_Index == 0 ? -4.0f : 4.0f, TableConfig::FIELD_HEIGHT, 10.0f),
-        Vector3(m_Index == 0 ? -24.0f : 24.0f, TableConfig::FIELD_HEIGHT, -8.0f)
+        m_HasPreferredPosition
+            ? m_PreferredPosition
+            : Vector3(m_Index == 0 ? -4.0f : 4.0f, TableConfig::FIELD_HEIGHT, 10.0f),
+        Vector3(m_Index % 2 == 0 ? -24.0f : 24.0f, TableConfig::FIELD_HEIGHT, -8.0f)
     };
     for (float z = -24; z <= 24; z += 8)
         for (float x = -56; x <= 56; x += 8) candidates.emplace_back(x, TableConfig::FIELD_HEIGHT, z);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Component.h"
+#include "SimpleMath.h"
 
 class BallComponent;
 class EnemyBall;
@@ -16,6 +17,7 @@ public:
     void OnDestroy() override;
     void HitBoss(EnemyBall& boss);
     void Deactivate(bool pocketed);
+    void PlaceAt(const DirectX::SimpleMath::Vector3& position);
     bool Reposition();
     int GetIndex() const { return m_Index; }
     bool IsPocketed() const { return m_Pocketed; }
@@ -25,4 +27,6 @@ private:
     BallComponent* m_Ball = nullptr;
     int m_Index = 0;
     bool m_Pocketed = false, m_Used = false;
+    bool m_HasPreferredPosition = false;
+    DirectX::SimpleMath::Vector3 m_PreferredPosition = DirectX::SimpleMath::Vector3::Zero;
 };

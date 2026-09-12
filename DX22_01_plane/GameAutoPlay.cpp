@@ -60,7 +60,7 @@ namespace
 		{
 			value += 5.0f;
 		}
-		if (ball.definitionId == "player_bounce")
+		if (ball.category == BallCategory::Bounce)
 		{
 			value += 4.0f;
 		}
@@ -1013,9 +1013,10 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 		return -1;
 	}
 
-	const std::array<const char*, 5> priority =
+	const std::array<const char*, 6> priority =
 	{
 		"player_bounce",
+		"player_cushion_charge",
 		"player_anchor",
 		"player_pierce",
 		"player_heavy",
@@ -1238,6 +1239,9 @@ void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 void Game::OnBattleStageStarted(const StageData& stage)
 {
 	m_BattleController.BeginStage(stage.stageType);
+	m_CushionCharges = {};
+	m_CushionBoostConsumedThisShot = false;
+	m_PlayerShield = 0;
 	InvalidateDebugCombatForecast("戦闘開始");
 	m_RunStatistics.ReachFloor(m_RunController.Status().progress);
 	if (m_GamePresentation != nullptr &&

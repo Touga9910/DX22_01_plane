@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -12,6 +13,24 @@ def source(name: str) -> str:
 
 
 class SaveSystemContractTests(unittest.TestCase):
+    def test_normal_play_is_the_default_and_blocked_saves_explain_why(self) -> None:
+        config = json.loads(
+            (ROOT / "assets/data/balance_validation.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        save_system = source("GameSaveSystem.cpp")
+
+        self.assertFalse(config["enabled"])
+        self.assertIn(
+            "バランス検証中は通常のランセーブを使用できません。",
+            save_system,
+        )
+        self.assertIn(
+            "自動プレイ中は通常のランセーブを使用できません。",
+            save_system,
+        )
+
     def test_save_document_is_versioned_checked_and_atomically_committed(self) -> None:
         manager = source("GameSaveManager.cpp") + source("PlayerBallSaveData.h")
 

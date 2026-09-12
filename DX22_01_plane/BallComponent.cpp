@@ -194,6 +194,18 @@ void BallComponent::Damage(int damage)
 	}
 }
 
+void BallComponent::DamageAfterDefense(int damage)
+{
+	if (IsDefeated() || damage <= 0)
+	{
+		return;
+	}
+	if (m_StatusComponent->ApplyFinalDamage(damage))
+	{
+		Defeat();
+	}
+}
+
 void BallComponent::TakeDamage(int damage)
 {
 	// 外部から受け取ったダメージを、共通のダメージ処理へ渡す

@@ -1,6 +1,7 @@
 #include "../BallPhysicsRules.h"
 #include "../ShotRelicRules.h"
 #include "../BallShotPrediction.h"
+#include "../TableFrameCollisionComponent.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -95,6 +96,42 @@ int main()
     player.position = Vector3::Zero;
     assert(Pair(player, enemy) && player.pierceUses == 2);
 
+	Body refracting{}, stationaryEnemy{};
+	refracting.id = 11; stationaryEnemy.id = 12;
+	refracting.player = true; stationaryEnemy.enemy = true;
+	refracting.status.radius = 2.0f;
+	refracting.status.abilities.pierce = true;
+	refracting.status.abilities.refractAfterPierce = true;
+	refracting.pierceLimit = 1;
+	refracting.pierceRetention = 0.7f;
+	// A centred hit keeps travelling forward, just like ordinary pierce.
+	refracting.velocity = Vector3(5.0f, 0.0f, 0.0f);
+	stationaryEnemy.position = Vector3(4.0f, 0.0f, 0.0f);
+	stationaryEnemy.status.radius = 2.4f;
+	assert(Pair(refracting, stationaryEnemy));
+	assert(Near(refracting.velocity.x, 3.5f) && Near(refracting.velocity.z, 0.0f));
+	assert(stationaryEnemy.velocity == Vector3::Zero);
+	assert(refracting.pierceUses == 1);
+
+	// Approaching a target from its lower-right transfers the normal impact
+	// route to the piercing ball: it bends left/up and the enemy still does not move.
+	refracting = Body{}; stationaryEnemy = Body{};
+	refracting.id = 13; stationaryEnemy.id = 14;
+	refracting.player = true; stationaryEnemy.enemy = true;
+	refracting.status.radius = 2.0f;
+	refracting.status.abilities.pierce = true;
+	refracting.status.abilities.refractAfterPierce = true;
+	refracting.pierceLimit = 1;
+	refracting.pierceRetention = 0.7f;
+	refracting.position = Vector3(3.0f, 0.0f, -3.0f);
+	refracting.velocity = Vector3(0.0f, 0.0f, 5.0f);
+	stationaryEnemy.status.radius = 2.4f;
+	assert(Pair(refracting, stationaryEnemy));
+	assert(refracting.velocity.x < 0.0f && refracting.velocity.z > 0.0f);
+	assert(Near(refracting.velocity.x, -refracting.velocity.z));
+	assert(Near(refracting.velocity.Length(), 3.5f));
+	assert(stationaryEnemy.velocity == Vector3::Zero);
+
     player = Body{}; enemy = Body{};
     player.id = 1; enemy.id = 2;
     player.player = true; enemy.enemy = true;
@@ -115,6 +152,65 @@ int main()
     assert(Near(player.position.x, 8) && Near(player.velocity.x, -2));
     assert(!Wall(player, {Vector3(10, 0, -10), Vector3(10, 0, 10)}, Vector3::Zero));
     assert(PocketHit(Vector3(-10, 50, 0), Vector3(10, 50, 0), 2, {Vector3::Zero, 1}));
+
+    // The playable cloth is 2:1, side pockets are wider, and all six pocket
+    // openings have a rear cushion outside their trigger.
+    assert(Near(TableConfig::GetFieldWidth(), TableConfig::GetFieldDepth() * 2.0f));
+    assert(TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH >
+        TableConfig::CORNER_POCKET_MOUTH_HALF_WIDTH);
+    assert(TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH <
+        TableConfig::RAIL_WIDTH);
+    const auto tableWalls = TableFrameCollisionComponent::BuildLocalWalls();
+    assert(tableWalls.size() == 16);
+    const float rearZ = TableConfig::GetFieldDepth() * 0.5f +
+        TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH;
+    bool foundTopSidePocketRear = false;
+    Collision::Segment topSidePocketRear{};
+    for (const auto& tableWall : tableWalls)
+    {
+        if (Near(tableWall.start.x, -TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH) &&
+            Near(tableWall.end.x, TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH) &&
+            Near(tableWall.start.z, rearZ) && Near(tableWall.end.z, rearZ))
+        {
+            foundTopSidePocketRear = true;
+            topSidePocketRear = tableWall;
+        }
+    }
+    assert(foundTopSidePocketRear);
+
+    // A shot through the middle is pocketed before reaching the rear cushion.
+    const Collision::Sphere topSidePocket{
+        Vector3(0.0f, 0.0f, TableConfig::GetFieldDepth() * 0.5f),
+        TableConfig::POCKET_RADIUS
+    };
+    assert(PocketHit(
+        Vector3(0.0f, 0.0f, topSidePocket.center.z - 10.0f),
+        Vector3(0.0f, 0.0f, rearZ),
+        2.4f,
+        topSidePocket));
+
+    // A near miss outside the trigger catches the rounded end of that rear
+    // cushion instead of leaving the table through the pocket gap.
+    Body pocketNearMiss;
+    pocketNearMiss.status.radius = 2.4f;
+    pocketNearMiss.status.restitution = 1.0f;
+    const float lateralMiss = 2.0f;
+    const float approachZ = std::sqrt(
+        pocketNearMiss.status.radius * pocketNearMiss.status.radius -
+        lateralMiss * lateralMiss);
+    pocketNearMiss.position = Vector3(
+        topSidePocketRear.start.x - lateralMiss,
+        0.0f,
+        rearZ - approachZ);
+    pocketNearMiss.velocity =
+        topSidePocketRear.start - pocketNearMiss.position;
+    assert(!PocketHit(
+        pocketNearMiss.position,
+        pocketNearMiss.position,
+        pocketNearMiss.status.radius,
+        topSidePocket));
+    assert(Wall(pocketNearMiss, topSidePocketRear, Vector3::Zero));
+    assert(pocketNearMiss.velocity.z < 0.0f);
 
     ShotRelicRules shot;
     shot.ballId = "player_bounce";
@@ -139,5 +235,5 @@ int main()
     assert(shot.ConsumePlayerEnemyRelicDamageBonus() == 0);
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,-10), 0.5f) == 5);
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,10), 0.5f) == 10);
-    std::cout << "Shared friction, power, pierce contacts, anchor lock, wall, pocket and relic rules PASS\n";
+	std::cout << "Shared friction, power, pierce/refraction, anchor lock, table, pocket and relic rules PASS\n";
 }

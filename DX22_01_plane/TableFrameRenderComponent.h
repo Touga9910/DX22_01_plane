@@ -25,12 +25,20 @@ public:
 
 private:
     void BuildMesh();
+	void BuildChargeIndicators();
+	void AddChargeQuad(float xMin, float zMin, float xMax, float zMax, float y);
     void AddQuad(
         float xMin,
         float zMin,
         float xMax,
         float zMax,
         float y,
+        const DirectX::SimpleMath::Color& color);
+    void AddSurfaceQuad(
+        const DirectX::SimpleMath::Vector3& topLeft,
+        const DirectX::SimpleMath::Vector3& topRight,
+        const DirectX::SimpleMath::Vector3& bottomLeft,
+        const DirectX::SimpleMath::Vector3& bottomRight,
         const DirectX::SimpleMath::Color& color);
     void AddPocketDisc(
         const DirectX::SimpleMath::Vector3& center,
@@ -40,10 +48,15 @@ private:
 
     std::vector<VERTEX_3D> m_Vertices;
     std::vector<unsigned int> m_Indices;
+	std::vector<VERTEX_3D> m_ChargeVertices;
+	std::vector<unsigned int> m_ChargeIndices;
     std::vector<DirectX::SimpleMath::Vector3> m_PocketCenters;
 
     VertexBuffer<VERTEX_3D> m_VertexBuffer;
     IndexBuffer m_IndexBuffer;
+	VertexBuffer<VERTEX_3D> m_ChargeVertexBuffer;
+	IndexBuffer m_ChargeIndexBuffer;
     Shader m_Shader;
     std::unique_ptr<Material> m_Material;
+	std::unique_ptr<Material> m_ChargeMaterial;
 };

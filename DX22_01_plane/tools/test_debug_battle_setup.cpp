@@ -21,9 +21,33 @@ int main()
     setup.deck[1].upgradeLevel = 2; setup.deck[1].status = setup.deck[1].upgradeTable[1];
     setup.enemies = {foe("enemy_normal")};
     setup.hp = 13; setup.money = 321; setup.relics[0] = true;
+    setup.highestUnlockedAscension = 7;
+    setup.selectedAscension = 5;
+    setup.achievements[static_cast<size_t>(AchievementId::FirstVictory)] = true;
+    setup.achievements[static_cast<size_t>(AchievementId::DamageEight)] = true;
+    setup.breakBallPositions = {{-12, TableConfig::FIELD_HEIGHT, 8},
+        {11, TableConfig::FIELD_HEIGHT, -7}, {0, TableConfig::FIELD_HEIGHT, 15}};
     assert(setup.Validate().empty());
     const auto roundtrip = DebugBattleSetup::FromJson(setup.ToJson(), catalog, enemies);
     assert(roundtrip.ToJson() == setup.ToJson());
+    ProgressionProfile debugProfile;
+    roundtrip.ApplyProgressionTo(debugProfile);
+    assert(debugProfile.highestUnlockedAscension == 7 &&
+        debugProfile.selectedAscension == 5 &&
+        debugProfile.IsAchievementUnlocked(AchievementId::FirstVictory));
+    assert(roundtrip.EffectiveMaxHp() == setup.maxHp - 5);
+    assert(roundtrip.breakBallPositions.size() == 3 &&
+        roundtrip.breakBallPositions[1].x == 11 &&
+        roundtrip.breakBallPositions[1].z == -7);
+    auto legacyJson = setup.ToJson();
+    legacyJson.erase("highest_unlocked_ascension");
+    legacyJson.erase("selected_ascension");
+    legacyJson.erase("achievements");
+    legacyJson.erase("break_balls");
+    const auto legacy = DebugBattleSetup::FromJson(legacyJson, catalog, enemies);
+    assert(legacy.highestUnlockedAscension == 0 && legacy.selectedAscension == 0);
+    assert(std::none_of(legacy.achievements.begin(), legacy.achievements.end(), [](bool value) { return value; }));
+    assert(legacy.breakBallPositions.size() == 2);
     PlayerDeck deck;
     deck.SetDefaultDeck(roundtrip.deck); deck.Seed(123); deck.ResetToDefault();
     assert(deck.GetRewardTargetCount() == 3);
@@ -51,6 +75,13 @@ int main()
     j = setup.ToJson(); j["player_x"] = 500; reject(j);
     j = setup.ToJson(); j["armor"] = 0; reject(j);
     j = setup.ToJson(); j["relics"] = nlohmann::json::array(); reject(j);
+    j = setup.ToJson(); j["selected_ascension"] = 8; reject(j);
+    j = setup.ToJson(); j["highest_unlocked_ascension"] = 11; reject(j);
+    j = setup.ToJson(); j["achievements"] = nlohmann::json::array(); reject(j);
+    j = setup.ToJson(); j["break_balls"] = nlohmann::json::array();
+    for (int i = 0; i < 17; ++i) j["break_balls"].push_back({{"x", 0}, {"z", 0}});
+    reject(j);
+    j = setup.ToJson(); j["break_balls"][0]["x"] = 500; reject(j);
     j = setup.ToJson(); j["enemies"][0]["hp"] = 99999; reject(j);
     auto invalid = setup; invalid.playerPosition.x = std::numeric_limits<float>::quiet_NaN(); assert(!invalid.Validate().empty());
     invalid = setup; invalid.deck[0].status.mass = std::numeric_limits<float>::infinity(); assert(!invalid.Validate().empty());
@@ -77,5 +108,11 @@ int main()
     setup.armor = 0; setup.breakShots = 1;
     save("setup_boss.json");
     assert(DebugBattleSetup::FromJson(setup.ToJson(), catalog, enemies).ToJson() == setup.ToJson());
+    setup.deck = {ball("player_chain_impact")};
+    setup.enemies[0].spawn.position = {10, 1, 0};
+    setup.playerPosition = {0, 1, -10};
+    setup.armor = 2; setup.breakShots = 0;
+    setup.breakBallPositions = {{0, TableConfig::FIELD_HEIGHT, 0}};
+    save("setup_break_chain.json");
     std::cout << "PASS: roundtrip, duplicate identities, 1-ball redraw, " << rejected << " malformed presets, nonfinite values, boss limit, overlap and fixtures\n";
 }

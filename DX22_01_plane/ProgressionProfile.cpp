@@ -77,10 +77,14 @@ bool ProgressionProfile::IsAchievementUnlocked(AchievementId id) const
 }
 bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 {
-    if (id == "player_pierce") return IsAchievementUnlocked(AchievementId::FirstVictory);
-    if (id == "player_bounce") return IsAchievementUnlocked(AchievementId::AreaFive);
-    if (id == "player_anchor") return IsAchievementUnlocked(AchievementId::MidBoss);
-    return id == "player_standard" || id == "player_heavy";
+	if (id == "player_pierce" || id == "player_refractive_pierce")
+		return IsAchievementUnlocked(AchievementId::FirstVictory);
+    if (id == "player_bounce" || id == "player_cushion_charge")
+        return IsAchievementUnlocked(AchievementId::AreaFive);
+	if (id == "player_anchor" || id == "player_stop_shield")
+		return IsAchievementUnlocked(AchievementId::MidBoss);
+	return id == "player_standard" || id == "player_heavy" ||
+		id == "player_chain_impact";
 }
 bool ProgressionProfile::IsRelicUnlocked(RelicType type) const
 {

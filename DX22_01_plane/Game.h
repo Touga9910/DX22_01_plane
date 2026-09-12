@@ -32,6 +32,7 @@
 #include "input.h"
 #include "Camera.h"
 #include "BallStatus.h"
+#include "CushionChargeRules.h"
 #include "GameTypes.h"
 #include "GameEvent.h"
 #include "RunResultSnapshot.h"
@@ -66,6 +67,9 @@ private:
 	GameWorld m_World;
 
 	BattleController m_BattleController;
+	CushionChargeRules::State m_CushionCharges{};
+	bool m_CushionBoostConsumedThisShot = false;
+	int m_PlayerShield = 0;
 
 	// 直近に確定した戦闘結果。
 	// MCPやResult側から参照できるようGameが履歴だけ保持する。
@@ -259,6 +263,10 @@ public:
 	bool IsDebugMode() const { return m_DebugController.IsActive(); }
 	void ApplyDebugBattlePlayer(PlayerBall* player);
 	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
+	const std::vector<DirectX::SimpleMath::Vector3>& GetDebugBreakBallPositions() const
+	{
+		return m_DebugController.GetActiveBreakBallPositions();
+	}
 	Game(); // コンストラクタ
 	~Game(); // デストラクタ
 
@@ -421,7 +429,18 @@ public:
 	void NotifyBattleShotConfirmed();
 	void NotifyBattleShotCancelled();
 	void NotifyBattlePlayerDefeated();	
-	void NotifyPlayerWallCollision();
+	void NotifyPlayerWallCollision(
+		int cushionRegion,
+		DirectX::SimpleMath::Vector3& reflectedVelocity);
+	void NotifyPlayerChainImpact(
+		EnemyBall* directTarget,
+		int attackDamage,
+		float radius);
+	void NotifyPlayerChainImpact(
+		const DirectX::SimpleMath::Vector3& center,
+		const EnemyBall* excludedTarget,
+		int attackDamage,
+		float radius);
 	void NotifyAnchorStopped();
 	void NotifyEnemyDefeated(const std::string& enemyId);
 	int ConsumeBankShotDamageMultiplier();
@@ -562,6 +581,11 @@ public:
 	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
 	// 指定位置のデッキ内ボールを返す。
 	const PlayerBallData* GetDeckBall(int index) const { return m_RunController.Deck().GetRewardTarget(index); }
+	const CushionChargeRules::State& GetCushionCharges() const { return m_CushionCharges; }
+	int GetChargedCushionCount() const { return CushionChargeRules::ActiveCount(m_CushionCharges); }
+	bool WasCushionBoostConsumedThisShot() const { return m_CushionBoostConsumedThisShot; }
+	int GetPlayerShield() const { return m_PlayerShield; }
+	int AbsorbPlayerShieldDamage(int damage);
 	// ショップの商品候補となるボール数を返す。
 	int GetShopBallCount() const { return m_RunController.Deck().GetCatalogCount(); }
 	// 指定位置のショップ用ボール情報を返す。

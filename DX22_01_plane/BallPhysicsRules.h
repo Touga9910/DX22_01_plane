@@ -105,7 +105,8 @@ namespace BallPhysicsRules
         return Collision::DistanceSquaredPointToSegment(pocket.center, { start, end }) <= trigger * trigger;
     }
 
-    inline bool Wall(Body& body, const Collision::Segment& wall, const Vector3& interior)
+    inline bool Wall(Body& body, const Collision::Segment& wall, const Vector3& interior,
+        Vector3* resolvedContact = nullptr)
     {
         float projection;
         const Vector3 contact = BallCcdGeometry::ClosestXZ(body.position, wall, &projection);
@@ -123,6 +124,7 @@ namespace BallPhysicsRules
         const float dot = Collision::Dot(body.velocity, normal);
         if (dot >= -BallCcdGeometry::ApproachEpsilon) return false;
         body.velocity = (body.velocity - normal * (2.0f * dot)) * body.status.restitution;
+        if (resolvedContact != nullptr) *resolvedContact = contact;
         return true;
     }
 
@@ -181,7 +183,22 @@ namespace BallPhysicsRules
             Body& piercing = aPierces ? a : b;
             ++piercing.pierceUses;
             piercing.pierced.push_back(aPierces ? b.id : a.id);
-            piercing.velocity *= piercing.pierceRetention;
+			if (piercing.status.abilities.refractAfterPierce)
+			{
+				// Give the piercing ball the line-of-centres trajectory that the
+				// struck target would receive in an ordinary collision. The target
+				// itself keeps its pre-impact velocity. A centred hit therefore
+				// continues straight, while an off-centre hit bends toward its centre.
+				Vector3 transferDirection = aPierces ? -normal : normal;
+				transferDirection.y = 0.0f;
+				const float speed = piercing.velocity.Length();
+				if (transferDirection.LengthSquared() > 0.000001f)
+				{
+					transferDirection.Normalize();
+					piercing.velocity = transferDirection * speed;
+				}
+			}
+			piercing.velocity *= piercing.pierceRetention;
         }
         else
         {

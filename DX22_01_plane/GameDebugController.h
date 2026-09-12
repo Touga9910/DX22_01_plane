@@ -29,6 +29,10 @@ public:
 	void ApplyRunSettings(Game& game);
 	void ApplyBattlePlayer(PlayerBall* player);
 	void ApplyBattleEnemy(EnemyBall* enemy, std::size_t index);
+	const std::vector<DirectX::SimpleMath::Vector3>& GetActiveBreakBallPositions() const
+	{
+		return m_DebugActiveSetup.breakBallPositions;
+	}
 
 	void RequestStart() { m_DebugRequest = 1; }
 	void RequestExit() { m_DebugRequest = 2; }
@@ -74,6 +78,7 @@ private:
 		int playerCurrentHp = 0;
 		int playerMaxHp = 0;
 		int playerDefense = 0;
+		int playerShield = 0;
 		int theoreticalDamage = 0;
 		int expectedDamage = 0;
 		int overkillDamage = 0;
@@ -104,6 +109,8 @@ private:
 	bool m_DebugBattleFinished = false;
 	bool m_DebugPreviousAutoPlay = false;
 	bool m_DebugPreviousValidation = false;
+	bool m_DebugProgressionSnapshotValid = false;
+	ProgressionProfile m_DebugPreviousProgressionProfile{};
 	int m_DebugRequest = 0;
 	DebugBattleSetup m_DebugSetup;
 	DebugBattleSetup m_DebugActiveSetup;

@@ -222,7 +222,8 @@ void PlayerBall::OnPocketHit()
 	const int hpBefore = GetHP();
 	const int pocketDamage =
 		Game::GetInstance()->GetPlayerPocketDamageAmount();
-	const int hpAfter = (std::max)(0, hpBefore - pocketDamage);
+	const int hpDamage = Game::GetInstance()->AbsorbPlayerShieldDamage(pocketDamage);
+	const int hpAfter = (std::max)(0, hpBefore - hpDamage);
 	m_Ball->SetHP(hpAfter);
 	Game::GetInstance()->NotifyPlayerDamage(
 		"pocket",
@@ -285,7 +286,12 @@ void PlayerBall::ReturnFromPocket(const Vector3& position)
 
 void PlayerBall::TakeDamage(int damage)
 {
-	Damage(damage);    // BallComponent側のダメージ処理を呼ぶ
+	const int finalDamage = CalculateDamageTaken(damage);
+	const int hpDamage = Game::GetInstance()->AbsorbPlayerShieldDamage(finalDamage);
+	if (hpDamage > 0)
+	{
+		m_Ball->DamageAfterDefense(hpDamage);
+	}
 	Game::GetInstance()->CapturePlayerStatusFrom(this);
 }
 
@@ -718,6 +724,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
     // Keep the original aiming-only display: no reflected player trajectory,
     // just a short direction guide for the ball at the first blocking contact.
     m_PreviewHitBall = prediction.initialContactGuide.hitBall;
+    m_PreviewHitEnemy = prediction.initialContactGuide.chainImpactCenter;
     m_PreviewGhostBallPosition = prediction.initialContactGuide.playerPosition;
     m_PreviewHitBallPosition = prediction.initialContactGuide.ballPosition;
     m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
@@ -751,6 +758,7 @@ void PlayerBall::InitTrajectoryVisualModel()
 	addGuideMaterial({ 0.35f, 0.95f, 1.0f, 1.0f });   // 軌道予測線の色
 	addGuideMaterial({ 1.0f, 1.0f, 1.0f, 0.9f });     // 接触時のプレイヤーボール半径の色
 	addGuideMaterial({ 1.0f, 0.86f, 0.25f, 1.0f });   // 当たったボールが飛ぶ方向の色
+	addGuideMaterial({ 0.78f, 0.34f, 1.0f, 1.0f });   // 連鎖衝撃の実寸範囲
 
 	// サブセットを作成
 	SUBSET subset;
@@ -818,6 +826,17 @@ void PlayerBall::DrawTrajectoryLine()
 				OBJECT_LINE_THICKNESS,
 				Y_OFFSET + 0.06f,
 				2);
+		}
+
+		const float chainRadius = m_Ball->GetStatus().chainImpactRadius;
+		if (m_PreviewHitEnemy && chainRadius > 0.0f)
+		{
+			DrawGuideCircle(
+				m_PreviewHitBallPosition,
+				chainRadius,
+				0.24f,
+				Y_OFFSET + 0.09f,
+				3);
 		}
 	}
 

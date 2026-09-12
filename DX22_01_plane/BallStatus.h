@@ -7,6 +7,7 @@ struct BallAbilities
 	bool split = false;
 	bool pierce = false;
 	bool anchor = false;
+	bool refractAfterPierce = false;
 };
 
 struct BallStatus
@@ -24,6 +25,12 @@ struct BallStatus
 	float anchorBrakeMultiplier = 1.0f;
 	float anchorStopSpeedSquared = 0.03f;
 	bool anchorKnockbackImmune = false;
+	// クッション蓄積を消費した後続プレイヤーボールの速度倍率。
+	// 1.0は蓄積能力を持たない通常ボールを表す。
+	float cushionChargeSpeedMultiplier = 1.0f;
+	// New variants reuse the five existing categories. Zero disables each effect.
+	int stopShieldAmount = 0;
+	float chainImpactRadius = 0.0f;
 	BallAbilities abilities;
 };
 
@@ -38,5 +45,9 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.pierceSpeedRetention = std::clamp(status.pierceSpeedRetention, 0.0f, 1.0f);
 	status.anchorBrakeMultiplier = std::clamp(status.anchorBrakeMultiplier, 1.0f, 5.0f);
 	status.anchorStopSpeedSquared = std::clamp(status.anchorStopSpeedSquared, 0.03f, 1.0f);
+	status.cushionChargeSpeedMultiplier =
+		std::clamp(status.cushionChargeSpeedMultiplier, 1.0f, 3.0f);
+	status.stopShieldAmount = std::clamp(status.stopShieldAmount, 0, 100);
+	status.chainImpactRadius = std::clamp(status.chainImpactRadius, 0.0f, 100.0f);
 	return status;
 }

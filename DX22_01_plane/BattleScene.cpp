@@ -145,11 +145,17 @@ void BattleScene::Init()
             [](const EnemySpawnData& spawn) { return spawn.enemyData.id == "enemy_boss_core"; });
         if (hasArmorBoss)
         {
-            for (int index = 0; index < 2; ++index)
+            const bool usePlacedPositions = game->IsDebugMode() || adjustedStage.hasBreakBallLayout;
+            const auto placedPositions = game->IsDebugMode()
+                ? game->GetDebugBreakBallPositions()
+                : adjustedStage.breakBallPositions;
+            const int count = usePlacedPositions ? static_cast<int>(placedPositions.size()) : 2;
+            for (int index = 0; index < count; ++index)
             {
                 auto* neutral = BallFactory::CreateBreakBall(*game, index);
                 m_SceneGameObjects.emplace_back(neutral->GetGameObject());
-                neutral->Reposition();
+                if (usePlacedPositions) neutral->PlaceAt(placedPositions[static_cast<std::size_t>(index)]);
+                else neutral->Reposition();
             }
         }
 	}

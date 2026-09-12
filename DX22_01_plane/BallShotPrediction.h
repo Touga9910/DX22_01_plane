@@ -3,6 +3,7 @@
 #include "BallPhysicsRules.h"
 #include "ShotRelicRules.h"
 #include "BossCombatRules.h"
+#include "CushionChargeRules.h"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -29,6 +30,8 @@ namespace BallShotPrediction
     struct ContactGuide
     {
         bool hitBall = false;
+        bool hitEnemy = false;
+        bool chainImpactCenter = false;
         DirectX::SimpleMath::Vector3 playerPosition = DirectX::SimpleMath::Vector3::Zero;
         DirectX::SimpleMath::Vector3 ballPosition = DirectX::SimpleMath::Vector3::Zero;
         DirectX::SimpleMath::Vector3 ballDirection = DirectX::SimpleMath::Vector3::Zero;
@@ -42,10 +45,14 @@ namespace BallShotPrediction
         std::vector<std::size_t> reflectionPathIndices;
         ContactGuide initialContactGuide;
         std::vector<Ball> balls;
-        ShotRelicRules shot;
+		ShotRelicRules shot;
+		CushionChargeRules::State cushionCharges{};
+		bool cushionBoostConsumed = false;
         bool complete = false, pathTruncated = false;
         int ticks = 0, substeps = 0, damage = 0;
         int bossFixedDamage = 0, breakBallHits = 0;
+		int chainImpactHits = 0;
+		int stopShieldGranted = 0;
         double milliseconds = 0.0;
 
         std::size_t PreviewPointCount(std::size_t reflections) const

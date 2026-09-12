@@ -79,6 +79,19 @@ public:
         return false;
     }
 
+	// Applies damage that has already passed defense and temporary-shield rules.
+	bool ApplyFinalDamage(int damage)
+	{
+		if (m_IsDefeated || damage <= 0) return false;
+		m_CurrentHp -= damage;
+		if (m_CurrentHp <= 0)
+		{
+			m_CurrentHp = 0;
+			return true;
+		}
+		return false;
+	}
+
 private:
     BallStatus m_Status{};
     int m_AttackModifier = 0;

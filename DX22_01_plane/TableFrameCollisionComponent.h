@@ -11,13 +11,16 @@ class TableFrameCollisionComponent final : public Component
 public:
     void Awake() override;
 
+    static std::vector<Collision::Segment> BuildLocalWalls();
+
     const std::vector<Collision::Segment>& GetLocalWalls() const
     {
         return m_Walls;
     }
 
 private:
-    void AddWall(
+    static void AddWall(
+        std::vector<Collision::Segment>& walls,
         const DirectX::SimpleMath::Vector3& start,
         const DirectX::SimpleMath::Vector3& end);
 

@@ -22,8 +22,24 @@ BALL_METADATA: dict[str, dict[str, Any]] = {
         "standalone_value": 8.0,
         "tags": ("bounce", "bank"),
     },
+    "player_cushion_charge": {
+        "standalone_value": 10.0,
+        "tags": ("bounce", "bank", "setup"),
+    },
     "player_anchor": {
         "standalone_value": 13.0,
+        "tags": ("anchor", "defense", "control"),
+    },
+    "player_chain_impact": {
+        "standalone_value": 15.0,
+        "tags": ("heavy", "chain", "collision"),
+    },
+    "player_refractive_pierce": {
+        "standalone_value": 13.0,
+        "tags": ("pierce", "precision", "chain"),
+    },
+    "player_stop_shield": {
+        "standalone_value": 14.0,
         "tags": ("anchor", "defense", "control"),
     },
 }
@@ -223,12 +239,20 @@ def _immediate_ball_value(
         immediate += 9.0
     if bool(status.get("anchor", False)):
         immediate += 7.0
+    chain_radius = max(0.0, float(status.get("chainImpactRadius", 0.0)))
+    if chain_radius > 0.0 and living_enemy_count > 1:
+        immediate += min(16.0, chain_radius * 0.8)
+    if bool(status.get("refractAfterPierce", False)) and living_enemy_count > 1:
+        immediate += 10.0
+    shield = max(0.0, float(status.get("stopShieldAmount", 0.0)))
+    immediate += shield * 2.0
     survival = 0.0
     if hp_ratio < 0.5:
         urgency = (0.5 - hp_ratio) / 0.5
         survival = defense * 12.0 * urgency
         if bool(status.get("anchor", False)):
             survival += 12.0 * urgency
+        survival += shield * 5.0 * urgency
     return immediate, survival
 
 

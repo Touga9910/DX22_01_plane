@@ -26,6 +26,10 @@ public:
 		int damage,
 		bool defeated,
 		bool enemyEnemyCollision);
+	void OnChainImpact(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		float radius,
+		int hitCount);
 	void OnPocketFeedback(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		bool playerPocket,
@@ -53,6 +57,15 @@ private:
 		unsigned int color = 0xffffffffu;
 		bool drawRing = false;
 		bool playerHudMessage = false;
+	};
+
+	struct ChainRangeFeedback
+	{
+		DirectX::SimpleMath::Vector3 worldPosition{};
+		float radius = 0.0f;
+		float lifetime = 1.0f;
+		float totalLifetime = 1.0f;
+		int hitCount = 0;
 	};
 
 	struct DashboardMetric
@@ -120,5 +133,6 @@ private:
 	int m_CurrentShotHitCount = 0;
 	int m_CurrentShotDamage = 0;
 	std::vector<FloatingFeedback> m_Feedback;
+	std::vector<ChainRangeFeedback> m_ChainRanges;
 	DashboardData m_Dashboard;
 };

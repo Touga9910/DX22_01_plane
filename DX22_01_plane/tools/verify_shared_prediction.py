@@ -17,6 +17,8 @@ def check(label):
         assert expected['complete'] and expected['world_unchanged'], (case['case'], expected)
         for name in ('player_enemy_contacts', 'enemy_enemy_contacts'):
             assert expected[name] == actual[name], (case['case'], name, expected[name], actual[name])
+        if 'cushions' in expected:
+            assert expected['cushions'] == actual['cushions'], (case['case'], 'cushions')
         eb = {b['id']: b for b in expected['balls']}
         ab = {b['id']: b for b in actual['balls']}
         assert eb.keys() == ab.keys()

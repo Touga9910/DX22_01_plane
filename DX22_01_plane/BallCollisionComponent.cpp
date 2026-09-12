@@ -4,6 +4,7 @@
 #include "BallComponent.h"
 #include "BallMechanics.h"
 #include "BallPhysicsRules.h"
+#include "CushionChargeRules.h"
 #include "BallPhysicsComponent.h"
 #include "EnemyBall.h"
 #include "BreakBall.h"
@@ -75,8 +76,13 @@ void BallCollisionComponent::ResolveEnvironment(
     }
     for (const auto& wall : walls)
     {
-        const bool bounced = BallPhysicsRules::Wall(body, wall, interiorReference);
-        if (bounced && body.player) Game::GetInstance()->NotifyPlayerWallCollision();
+        Vector3 contact = Vector3::Zero;
+        const bool bounced = BallPhysicsRules::Wall(body, wall, interiorReference, &contact);
+        if (bounced && body.player)
+        {
+            Game::GetInstance()->NotifyPlayerWallCollision(
+                CushionChargeRules::RegionFromContact(wall, contact), body.velocity);
+        }
     }
     // Walls only change motion; rebuilding unchanged contact histories for each
     // wall copied the same vectors repeatedly during every TOI iteration.
@@ -114,12 +120,20 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     auto* otherEnemy = other->GetGameObject()->GetComponent<EnemyBall>();
     auto* myPlayer = GetGameObject()->GetComponent<PlayerBall>();
     auto* otherPlayer = other->GetGameObject()->GetComponent<PlayerBall>();
-    // Neutral contacts are physical only, except a one-shot fixed hit on the boss.
-    // Return before ContactDamage, minimum damage, and damage-relic consumption.
+    // Neutral contacts do not deal direct contact damage or consume damage relics.
+    // A player's chain-impact ability may still use the neutral as its blast center.
     if (first.breakBall || second.breakBall)
     {
+        const Vector3 firstPosition = first.position;
+        const Vector3 secondPosition = second.position;
         if (first.breakBall && otherEnemy) GetGameObject()->GetComponent<BreakBall>()->HitBoss(*otherEnemy);
         if (second.breakBall && myEnemy) other->GetGameObject()->GetComponent<BreakBall>()->HitBoss(*myEnemy);
+        if (first.breakBall && otherPlayer)
+            Game::GetInstance()->NotifyPlayerChainImpact(
+                firstPosition, nullptr, other->GetAttack(), otherPlayer->GetStatus().chainImpactRadius);
+        if (second.breakBall && myPlayer)
+            Game::GetInstance()->NotifyPlayerChainImpact(
+                secondPosition, nullptr, GetAttack(), myPlayer->GetStatus().chainImpactRadius);
         if (BallPhysicsRules::StopAnchor(first, m_PhysicsComponent->Acceleration()))
         {
             CommitPhysicsBody(first);
@@ -216,6 +230,21 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 					Game::GetInstance()->
 						NotifyBalanceAutoFullHpEnemySurvived();
 				}
+			}
+
+			if (myEnemy != nullptr && otherPlayer != nullptr && !myEnemyWasDefeated)
+			{
+				Game::GetInstance()->NotifyPlayerChainImpact(
+					myEnemy,
+					damageToThis,
+					otherPlayer->GetStatus().chainImpactRadius);
+			}
+			else if (otherEnemy != nullptr && myPlayer != nullptr && !otherEnemyWasDefeated)
+			{
+				Game::GetInstance()->NotifyPlayerChainImpact(
+					otherEnemy,
+					damageToOther,
+					myPlayer->GetStatus().chainImpactRadius);
 			}
 
     if (isPlayerEnemyCollision)

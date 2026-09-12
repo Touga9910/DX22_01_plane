@@ -316,6 +316,9 @@
     <ClInclude Include="BattleController.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
+    <ClInclude Include="CushionChargeRules.h">
+      <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
+    </ClInclude>
     <ClInclude Include="BalanceAutoPlayer.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
     </ClInclude>

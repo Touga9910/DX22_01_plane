@@ -6,10 +6,11 @@ namespace PlayerBallUI
 {
     inline bool Select(const PlayerBallData& ball, bool selected)
     {
-        const auto color = PlayerBallText::GetColor(ball.definitionId);
+        const auto color = PlayerBallText::GetColor(ball);
         const ImVec2 start = ImGui::GetCursorScreenPos();
         const float rowHeight = ImGui::GetTextLineHeightWithSpacing() + 8.0f;
-        std::string label = "      " + std::string(PlayerBallText::GetName(ball.definitionId)) +
+        std::string label = "      [" + std::string(PlayerBallText::GetTrait(ball)) + "] " +
+            PlayerBallText::GetName(ball.definitionId) +
             "  +" + std::to_string(ball.upgradeLevel);
         if (ball.instanceId != 0) label += "  / No." + std::to_string(ball.instanceId);
         const bool clicked = ImGui::Selectable(label.c_str(), selected, 0, ImVec2(0, rowHeight));

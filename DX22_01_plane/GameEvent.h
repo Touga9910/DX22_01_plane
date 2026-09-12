@@ -18,6 +18,13 @@ struct EnemyDamageEvent
 	bool enemyEnemyCollision = false;
 };
 
+struct ChainImpactEvent
+{
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	float radius = 0.0f;
+	int hitCount = 0;
+};
+
 struct PocketFeedbackEvent
 {
 	DirectX::SimpleMath::Vector3 worldPosition{};
@@ -41,6 +48,7 @@ struct BallAcquiredEvent
 using GameEvent = std::variant<
 	ShotFiredEvent,
 	EnemyDamageEvent,
+	ChainImpactEvent,
 	PocketFeedbackEvent,
 	PlayerDamageEvent,
 	BallAcquiredEvent>;

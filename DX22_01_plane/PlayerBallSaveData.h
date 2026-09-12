@@ -17,6 +17,7 @@ namespace PlayerBallSaveData
 		}
 		return {
 			{ "definition_id", ball.definitionId },
+			{ "category", BallCategoryId(ball.category) },
 			{ "instance_id", ball.instanceId },
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "upgrade_table", std::move(upgrades) },
@@ -29,6 +30,14 @@ namespace PlayerBallSaveData
 	{
 		PlayerBallData ball;
 		ball.definitionId = value.at("definition_id").get<std::string>();
+		if (value.contains("category") &&
+			(!value.at("category").is_string() ||
+			!IsBallCategoryId(value.at("category").get<std::string>())))
+		{
+			throw std::runtime_error(UiText::InvalidSaveData);
+		}
+		ball.category = BallCategoryFromId(
+			value.value("category", ""), ball.definitionId);
 		ball.instanceId = value.at("instance_id").get<std::uint64_t>();
 		ball.upgradeLevel = value.at("upgrade_level").get<int>();
 		if (ball.definitionId.empty() || ball.definitionId.size() > 128 ||

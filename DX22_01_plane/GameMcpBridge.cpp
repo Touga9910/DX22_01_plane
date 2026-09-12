@@ -229,6 +229,7 @@ namespace
 	nlohmann::json StageDataToJson(const StageData& stage)
 	{
 		nlohmann::json enemies = nlohmann::json::array();
+		nlohmann::json breakBalls = nlohmann::json::array();
 		for (const EnemySpawnData& spawn : stage.enemies)
 		{
 			enemies.push_back({
@@ -241,6 +242,13 @@ namespace
 				{ "radius", spawn.enemyData.status.radius },
 			});
 		}
+		const auto positions = stage.hasBreakBallLayout
+			? stage.breakBallPositions
+			: (stage.stageType == StageType::Boss
+				? DefaultBossBreakBallPositions()
+				: std::vector<DirectX::SimpleMath::Vector3>{});
+		for (const auto& position : positions)
+			breakBalls.push_back(VectorToJson(position));
 
 		return {
 			{ "layout_id", stage.id },
@@ -248,6 +256,7 @@ namespace
 			{ "difficulty", stage.difficulty },
 			{ "par", stage.par },
 			{ "enemies", std::move(enemies) },
+			{ "break_balls", std::move(breakBalls) },
 		};
 	}
 
@@ -276,6 +285,7 @@ namespace
 		return {
 			{ "index", index },
 			{ "definition_id", ball.definitionId },
+			{ "category", BallCategoryId(ball.category) },
 			{ "instance_id", ball.instanceId },
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "can_upgrade", ball.CanUpgrade() },
@@ -293,7 +303,11 @@ namespace
 				{ "anchorBrakeMultiplier", ball.status.anchorBrakeMultiplier },
 				{ "anchorStopSpeedSquared", ball.status.anchorStopSpeedSquared },
 				{ "anchorKnockbackImmune", ball.status.anchorKnockbackImmune },
+				{ "cushionChargeSpeedMultiplier", ball.status.cushionChargeSpeedMultiplier },
+				{ "stopShieldAmount", ball.status.stopShieldAmount },
+				{ "chainImpactRadius", ball.status.chainImpactRadius },
 				{ "pierce", ball.status.abilities.pierce },
+				{ "refractAfterPierce", ball.status.abilities.refractAfterPierce },
 				{ "split", ball.status.abilities.split },
 				{ "anchor", ball.status.abilities.anchor },
 			} },
@@ -561,9 +575,13 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["meta_progression"]["ball_unlocks"] = {
 		{{ "definition_id", "player_standard" }, { "unlocked", true }},
 		{{ "definition_id", "player_heavy" }, { "unlocked", true }},
+		{{ "definition_id", "player_chain_impact" }, { "unlocked", true }},
 		{{ "definition_id", "player_pierce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_pierce") }},
+		{{ "definition_id", "player_refractive_pierce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_refractive_pierce") }},
 		{{ "definition_id", "player_bounce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_bounce") }},
+		{{ "definition_id", "player_cushion_charge" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_cushion_charge") }},
 		{{ "definition_id", "player_anchor" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_anchor") }},
+		{{ "definition_id", "player_stop_shield" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_stop_shield") }},
 	};
 	const std::vector<TableFrame*> tableFrames =
 		game.GetComponents<TableFrame>();
@@ -666,6 +684,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "progress", game.m_RunController.Status().progress },
 		{ "pocketed", player != nullptr && player->IsPocketed() },
 	};
+	state["player"]["temporary_shield"] = game.GetPlayerShield();
 	const RunResultSnapshot& runStatistics = game.m_RunStatistics.GetState();
 	state["run_progress"] = {
 		{ "phase", ToString(game.m_RunController.Progress().GetPhase()) },
@@ -1220,6 +1239,27 @@ nlohmann::json GameMcpBridge::BuildState(
 	{
 		state["stage_editor"] = debug.GetStageEditor().Snapshot(debug.GetEnemyCatalog(), debug.StageEditorPlayerRadius());
 		state["stage_editor"]["open"] = debug.IsEditorOpen();
+	}
+	state["table"]["cushions"] = nlohmann::json::array();
+	state["table"]["cushion_boost_consumed_this_shot"] =
+		game.WasCushionBoostConsumedThisShot();
+	const auto& cushionCharges = game.GetCushionCharges();
+	for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
+	{
+		const auto& charge = cushionCharges[static_cast<std::size_t>(region)];
+		const char* side = region < 4 ? "top" : region < 8 ? "bottom" :
+			region < 10 ? "left" : "right";
+		const int part = region < 4 ? region : region < 8 ? region - 4 :
+			region < 10 ? region - 8 : region - 10;
+		state["table"]["cushions"].push_back({
+			{ "region", region },
+			{ "side", side },
+			{ "part", part },
+			{ "part_count", region < 8 ? 4 : 2 },
+			{ "charged", charge.active },
+			{ "usable_this_shot", charge.usableThisShot },
+			{ "speed_multiplier", charge.speedMultiplier },
+		});
 	}
 	if (debug.IsEditorOpen()) state["available_actions"] = {"validate_stage_layout", "propose_stage_layout"};
 	else if (debug.IsActive())

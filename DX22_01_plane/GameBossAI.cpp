@@ -155,6 +155,7 @@ json BossShotPlanner::Evaluate(Game& game)
             float incoming = 0;
             for (const auto& ball : prediction.balls)
                 if (ball.physics.enemy && !ball.defeated && !ball.pocketed) incoming += (std::max)(1,ball.attack-endPlayer->defense);
+			incoming = (std::max)(0.0f, incoming - static_cast<float>(prediction.stopShieldGranted));
             const float urgency = player->GetHP() <= 10 ? 3.0f : 1.0f;
             const float followup = static_cast<float>((std::max)(0,prediction.shot.playerEnemyContacts-1));
             json metrics = {{"direct_damage",direct},{"fixed_damage",prediction.bossFixedDamage},
@@ -163,6 +164,8 @@ json BossShotPlanner::Evaluate(Game& game)
                 {"player_hp_loss",hpLoss},{"expected_enemy_turn_damage",incoming},
                 {"pierce_followup_contacts",status.abilities.pierce ? followup : 0},
                 {"enemy_chain_contacts",prediction.shot.enemyEnemyContacts},{"wall_contacts",prediction.shot.wallContacts},
+				{"chain_impact_hits",prediction.chainImpactHits},{"stop_shield",prediction.stopShieldGranted},
+				{"charged_cushions",CushionChargeRules::PendingNextShotCount(prediction.cushionCharges)},
                 {"anchor_stopped",prediction.shot.anchorStopped},{"boss_killed",kill}};
             json breakdown = {
                 {"direct_damage",direct*(boss->GetBossState().IsBroken() ? 1.25f : 1.0f)},
@@ -175,7 +178,12 @@ json BossShotPlanner::Evaluate(Game& game)
                 {"pierce",status.abilities.pierce && direct>0 ? followup*0.25f : 0.0f},
                 {"heavy_push",offer->definitionId=="player_heavy" ? prediction.breakBallHits*0.3f : 0.0f},
                 {"anchor_position",status.abilities.anchor ? opportunity*0.5f : 0.0f},
-                {"bounce",offer->definitionId=="player_bounce" && prediction.shot.wallContacts>0 ? direct*0.1f : 0.0f},
+				{"chain_impact",prediction.chainImpactHits*1.5f},
+				{"stop_shield",prediction.stopShieldGranted*urgency*0.8f},
+				{"refractive_pierce",status.abilities.refractAfterPierce && prediction.shot.playerEnemyContacts>1 ? followup*0.6f : 0.0f},
+                {"bounce",offer->category==BallCategory::Bounce && prediction.shot.wallContacts>0 ? direct*0.1f : 0.0f},
+                {"cushion_setup",offer->definitionId=="player_cushion_charge" ?
+					CushionChargeRules::PendingNextShotCount(prediction.cushionCharges)*0.4f : 0.0f},
                 {"power",-0.05f*aim.velocity.Length()}};
             float score = 0; for (const auto& value : breakdown) score += value.get<float>();
             scored.push_back({{"candidate_id",std::to_string(offerIndex)+":"+std::to_string(scored.size())},

@@ -306,6 +306,15 @@ void DynamicBalanceController::ApplyToEnemyData(
 {
 	if (debugMode)
 	{
+		// デバッグで入力した性能は通常用のDDA上限で丸めず、
+		// 選択したアセンションのみを重ねる。
+		enemyData.maxHp = (std::max)(
+			1,
+			static_cast<int>(std::lround(
+				enemyData.maxHp * ProgressionProfile::EnemyHpMultiplier(ascension))));
+		enemyData.status.attack = (std::max)(
+			0,
+			enemyData.status.attack + ProgressionProfile::EnemyAttackBonus(ascension));
 		return;
 	}
 	const bool armorBoss = enemyData.id == "enemy_boss_core";

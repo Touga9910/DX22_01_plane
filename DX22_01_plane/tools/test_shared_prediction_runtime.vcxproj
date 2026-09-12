@@ -23,7 +23,7 @@
     <Link><SubSystem>Console</SubSystem><AdditionalDependencies>DirectXTK.lib;%(AdditionalDependencies)</AdditionalDependencies><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding><AdditionalLibraryDirectories>C:\directxtk\lib\x64\Debug;C:\assimp\5.2.5\lib;$(ProjectDir)..;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="test_shared_prediction_runtime.cpp" /><ClCompile Include="../Collision.cpp" />
+    <ClCompile Include="test_shared_prediction_runtime.cpp" /><ClCompile Include="../Collision.cpp" /><ClCompile Include="../TableFrameCollisionComponent.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -11,7 +11,10 @@ int main()
     std::filesystem::remove(path);
     ProgressionProfile p;
     assert(p.highestUnlockedAscension == 0 && p.IsBallUnlocked("player_standard"));
-    assert(!p.IsBallUnlocked("player_pierce") && !p.IsBallUnlocked("player_bounce") && !p.IsBallUnlocked("player_anchor"));
+	assert(p.IsBallUnlocked("player_chain_impact"));
+    assert(!p.IsBallUnlocked("player_pierce") && !p.IsBallUnlocked("player_bounce") &&
+		!p.IsBallUnlocked("player_cushion_charge") && !p.IsBallUnlocked("player_anchor") &&
+		!p.IsBallUnlocked("player_refractive_pierce") && !p.IsBallUnlocked("player_stop_shield"));
     assert(!p.IsRelicUnlocked(RelicType::PierceBallCharger));
     ProgressionProfile nonBattleProfile;
     RunResultSnapshot nonBattleArea; nonBattleArea.areaProgress = 1;
@@ -21,7 +24,9 @@ int main()
     run.acquiredBallIds = {"a", "b", "c"};
     auto first = p.RecordRun(run, 0);
     assert(first.size() == 6 && p.totalRuns == 1 && p.highestArea == 5);
-    assert(p.IsBallUnlocked("player_pierce") && p.IsBallUnlocked("player_bounce") && p.IsBallUnlocked("player_anchor"));
+    assert(p.IsBallUnlocked("player_pierce") && p.IsBallUnlocked("player_bounce") &&
+		p.IsBallUnlocked("player_cushion_charge") && p.IsBallUnlocked("player_anchor") &&
+		p.IsBallUnlocked("player_refractive_pierce") && p.IsBallUnlocked("player_stop_shield"));
     assert(p.IsRelicUnlocked(RelicType::PierceBallCharger) && p.IsRelicUnlocked(RelicType::ExpandedBallOffer));
     assert(!p.IsRelicUnlocked(RelicType::BounceBallSpring));
     run.completed = run.finalBossDefeated = true;

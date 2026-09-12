@@ -173,6 +173,16 @@ void GamePresentation::Update(Game& game)
 		{
 			return feedback.lifetime <= 0.0f;
 		});
+	for (ChainRangeFeedback& feedback : m_ChainRanges)
+	{
+		feedback.lifetime -= kFrameSeconds;
+	}
+	std::erase_if(
+		m_ChainRanges,
+		[](const ChainRangeFeedback& feedback)
+		{
+			return feedback.lifetime <= 0.0f;
+		});
 	m_ImpactFlashLifetime = (std::max)(
 		0.0f,
 		m_ImpactFlashLifetime - kFrameSeconds);
@@ -255,7 +265,8 @@ void GamePresentation::Draw(Game& game)
 		{
 			const auto players = game.GetComponents<PlayerBall>();
 			const int currentHp = players.empty() ? game.GetPlayerCurrentHp() : players[0]->GetHP();
-			ImGui::Text("HP %d / %d   所持金 %d", currentHp, game.GetPlayerMaxHp(), game.GetPlayerMoney());
+			ImGui::Text("HP %d / %d   シールド %d   所持金 %d",
+				currentHp, game.GetPlayerMaxHp(), game.GetPlayerShield(), game.GetPlayerMoney());
 		}
 		ImGui::TextUnformatted("盤面を左ドラッグして離す：発射 / 右クリック：取消");
 		ImGui::TextUnformatted("ホイール：拡大縮小 / タイトルバーをドラッグ：UI移動");
@@ -368,6 +379,24 @@ void GamePresentation::OnCombatFeedback(
 	{
 		Input::SetVibration(defeated ? 7 : 3, defeated ? 0.78f : 0.36f);
 	}
+}
+
+void GamePresentation::OnChainImpact(
+	const Vector3& worldPosition,
+	float radius,
+	int hitCount)
+{
+	if (radius <= 0.0f)
+	{
+		return;
+	}
+	ChainRangeFeedback feedback;
+	feedback.worldPosition = worldPosition;
+	feedback.radius = radius;
+	feedback.hitCount = (std::max)(0, hitCount);
+	feedback.totalLifetime = 1.05f;
+	feedback.lifetime = feedback.totalLifetime;
+	m_ChainRanges.push_back(feedback);
 }
 
 void GamePresentation::OnPocketFeedback(
@@ -580,6 +609,66 @@ void GamePresentation::DrawFeedback(Game& game)
 		foreground->AddRectFilled(ImVec2(topLeft.x, bottomRight.y - border), bottomRight, red);
 		foreground->AddRectFilled(topLeft, ImVec2(topLeft.x + border, bottomRight.y), red);
 		foreground->AddRectFilled(ImVec2(bottomRight.x - border, topLeft.y), bottomRight, red);
+	}
+
+	for (const ChainRangeFeedback& feedback : m_ChainRanges)
+	{
+		constexpr int segmentCount = 64;
+		std::vector<ImVec2> points;
+		points.reserve(segmentCount);
+		for (int index = 0; index < segmentCount; ++index)
+		{
+			const float angle = DirectX::XM_2PI *
+				static_cast<float>(index) / static_cast<float>(segmentCount);
+			const Vector3 worldPoint = feedback.worldPosition + Vector3(
+				std::cos(angle) * feedback.radius,
+				0.18f,
+				std::sin(angle) * feedback.radius);
+			ImVec2 screenPoint;
+			if (TryProjectToScreen(worldPoint, screenPoint))
+			{
+				points.push_back(screenPoint);
+			}
+		}
+		if (points.size() != segmentCount)
+		{
+			continue;
+		}
+		const float progress = 1.0f - feedback.lifetime / feedback.totalLifetime;
+		const float fade = std::clamp(feedback.lifetime / 0.28f, 0.0f, 1.0f);
+		const float pulse = 0.65f +
+			0.35f * std::sin(progress * DirectX::XM_PI * 3.0f);
+		const ImU32 purple = IM_COL32(198, 86, 255, 255);
+		foreground->AddConvexPolyFilled(
+			points.data(),
+			static_cast<int>(points.size()),
+			WithAlpha(purple, fade * 0.11f));
+		foreground->AddPolyline(
+			points.data(),
+			static_cast<int>(points.size()),
+			WithAlpha(purple, fade * (0.65f + pulse * 0.25f)),
+			ImDrawFlags_Closed,
+			3.0f + pulse * 2.0f);
+
+		ImVec2 center;
+		if (TryProjectToScreen(
+			feedback.worldPosition + Vector3(0.0f, 1.0f, 0.0f),
+			center))
+		{
+			std::ostringstream label;
+			label << "連鎖範囲 " << std::fixed << std::setprecision(0)
+				<< feedback.radius << "  /  " << feedback.hitCount << "体に連鎖";
+			const std::string text = label.str();
+			const ImVec2 size = ImGui::CalcTextSize(text.c_str());
+			const ImVec2 at(
+				center.x - size.x * 0.5f,
+				center.y - size.y - 18.0f);
+			foreground->AddText(
+				ImVec2(at.x + 2.0f, at.y + 2.0f),
+				IM_COL32(0, 0, 0, static_cast<int>(220.0f * fade)),
+				text.c_str());
+			foreground->AddText(at, WithAlpha(purple, fade), text.c_str());
+		}
 	}
 
 	for (const FloatingFeedback& feedback : m_Feedback)

@@ -229,9 +229,11 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     damage_by_id = {key: 0.0 for key in hp}
     contacts = 0
 
-    def damage(enemy, raw, source):
+    def damage(enemy, raw, source, directional=True):
         key = enemy["target_id"]
-        amount = min(hp[key] - damage_by_id[key], collision_damage(raw, enemy, source))
+        resolved = (collision_damage(raw, enemy, source) if directional else
+                    max(1, raw - float(enemy.get("defense", 0))))
+        amount = min(hp[key] - damage_by_id[key], resolved)
         damage_by_id[key] += max(0, amount)
 
     attack = float(stats.get("attack", 1))
@@ -243,6 +245,17 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         bonus += 1
         bank_gain += 1
     damage(target, attack + bonus + (attack if path["mode"] == "bank" and relic_owned(state, 3) else 0), contact)
+    chain_impact_hits = 0
+    chain_radius = max(0.0, float(stats.get("chainImpactRadius", 0.0)))
+    if chain_radius > 0.0:
+        center = pos(target["position"])
+        for nearby in enemies:
+            if nearby["target_id"] == target["target_id"]:
+                continue
+            if length(sub(pos(nearby["position"]), center)) > chain_radius:
+                continue
+            damage(nearby, attack + bonus, center, directional=False)
+            chain_impact_hits += 1
     if path["mode"] == "bank":
         spring_bonus = int(definition == "player_bounce" and relic_owned(state, 8))
         baseline_damage = min(hp[target["target_id"]], collision_damage(attack + bonus - spring_bonus, target, contact))
@@ -268,6 +281,10 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         # ordinary impact is possible, then stop the straight-line estimate.
         retention = max(0, min(1, float(stats.get("pierceSpeedRetention", 0.75))))
         speed *= retention
+        if stats.get("refractAfterPierce"):
+            # Follow the line-of-centres direction the struck enemy would take
+            # in an ordinary impact, while leaving that enemy stationary.
+            direction = normal
         cursor = add(contact, mul(direction, 0.001))
         last_contact = contact
         for use in range(int(stats.get("pierceMaxUses", 1))):
@@ -368,6 +385,10 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                     if e["target_id"] in killed | controlled and e.get("can_attack_this_turn", True))
     incoming_damage = sum(max(1, float(e.get("attack", 1)) - defense) for e in enemies
                           if e["target_id"] not in killed | controlled and e.get("can_attack_this_turn", True))
+    incoming_damage = max(
+        0.0,
+        incoming_damage - max(0.0, float(stats.get("stopShieldAmount", 0.0))),
+    )
     player = state["player"]
     current_hp = float(player.get("current_hp", 50))
     max_hp = max(1, float(player.get("max_hp", 50)))
@@ -383,6 +404,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         "pocket_control": len(controlled - killed), "safety": -net_loss * urgency,
         "stable_stop": stable, "precision": quality,
     }
+    metrics["chain_collisions"] += chain_impact_hits
     weights = {**DEFAULT_WEIGHTS, **profile.get("build_policy", {}).get("shot_evaluation", {})}
     breakdown = {key: round(value * float(weights.get(key, 0)), 4) for key, value in metrics.items()}
     breakdown["power_cost"] = round(-0.12 * power, 4)

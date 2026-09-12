@@ -27,6 +27,7 @@
     <ClCompile Include="..\PlayerBallDataLoader.cpp" />
     <ClCompile Include="..\StageDataLoader.cpp" />
     <ClCompile Include="..\PlayerDeck.cpp" />
+    <ClCompile Include="..\ProgressionProfile.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

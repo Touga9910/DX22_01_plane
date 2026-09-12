@@ -147,6 +147,8 @@ namespace
             {
                 auto& guide = result.initialContactGuide;
                 guide.hitBall = true;
+                guide.hitEnemy = other->physics.enemy;
+                guide.chainImpactCenter = other->physics.enemy || other->physics.breakBall;
                 guide.playerPosition = ball.physics.position;
                 guide.ballPosition = other->physics.position;
                 guide.ballDirection = other->physics.velocity;
@@ -213,9 +215,19 @@ namespace
                     BallPhysicsRules::Wall(ball.physics, wall, Vector3::Zero);
             for (const auto& wall : walls)
             {
-                if (BallPhysicsRules::Wall(ball.physics, wall, interior))
+                Vector3 contact = Vector3::Zero;
+                if (BallPhysicsRules::Wall(ball.physics, wall, interior, &contact))
                 {
-                    if (ball.physics.player) result.shot.Wall();
+                    if (ball.physics.player)
+                    {
+                        result.shot.Wall();
+                        CushionChargeRules::ApplyPlayerWallContact(
+                            result.cushionCharges,
+                            CushionChargeRules::RegionFromContact(wall, contact),
+                            ball.physics.status.cushionChargeSpeedMultiplier,
+							result.cushionBoostConsumed,
+                            ball.physics.velocity);
+                    }
                     RecordPreviewReflection(ball);
                 }
             }
@@ -223,10 +235,11 @@ namespace
         }
         void ResolveEnvironment(std::size_t i) { Environment(At(i), starts[i]); }
 
-        void Damage(Ball& target, int amount, const Vector3& source)
-        {
-            if (!target.physics.enemy || target.defeated) return;
-            amount = BallPhysicsRules::DirectionalDamage(amount, target.physics.position, source, target.frontalMultiplier);
+		void Damage(Ball& target, int amount, const Vector3& source, bool directional = true)
+		{
+			if (!target.physics.enemy || target.defeated) return;
+			if (directional)
+				amount = BallPhysicsRules::DirectionalDamage(amount, target.physics.position, source, target.frontalMultiplier);
             const int before = target.hp;
             const int applied = target.physics.boss ? BossCombatRules::DirectDamage(amount, target.defense, target.bossState) :
                 (std::max)(1, amount - target.defense);
@@ -236,13 +249,31 @@ namespace
             // EnemyBall::TakeDamage intentionally preserves velocity after lethal contact.
         }
 
+		void ChainImpact(const Ball& playerBall, const Vector3& center,
+			std::uintptr_t excludedTargetId, int attackDamage, bool suppressed)
+		{
+			const float radius = playerBall.physics.status.chainImpactRadius;
+			if (suppressed || radius <= 0.0f || attackDamage <= 0) return;
+			for (Ball& target : result.balls)
+			{
+				if (!target.physics.enemy || target.physics.id == excludedTargetId ||
+					target.defeated || target.pocketed || !target.active) continue;
+				Vector3 offset = target.physics.position - center;
+				offset.y = 0.0f;
+				if (offset.LengthSquared() > radius * radius) continue;
+				Damage(target, attackDamage, center, false);
+				++result.chainImpactHits;
+			}
+		}
+
         void ResolvePair(std::size_t i, std::size_t j)
         {
             Ball& a = At(i);
             Ball& b = At(j);
             const Vector3 ap = a.physics.position, bp = b.physics.position;
             const Vector3 av = a.physics.velocity, bv = b.physics.velocity;
-            const int aPierceUses = a.physics.pierceUses, bPierceUses = b.physics.pierceUses;
+			const int aPierceUses = a.physics.pierceUses, bPierceUses = b.physics.pierceUses;
+			const bool aWasDefeated = a.defeated, bWasDefeated = b.defeated;
             if (BallPhysicsRules::Pair(a.physics, b.physics) && !gameOver)
             {
                 // Count a physical ball response once, never the solver's repeated
@@ -254,6 +285,8 @@ namespace
                 }
                 if (a.physics.breakBall || b.physics.breakBall)
                 {
+                    const Vector3 aPosition = a.physics.position;
+                    const Vector3 bPosition = b.physics.position;
                     auto hit = [&](Ball& neutral, Ball& boss) {
                         if (!neutral.physics.breakBall || !boss.physics.boss || boss.defeated) return;
                         boss.bossState.HitBreakBall();
@@ -270,6 +303,10 @@ namespace
                         neutral.physics.velocity = neutral.acceleration = Vector3::Zero;
                     };
                     hit(a, b); hit(b, a);
+                    if (a.physics.breakBall && b.physics.player)
+                        ChainImpact(b, aPosition, 0, Attack(b), false);
+                    if (b.physics.breakBall && a.physics.player)
+                        ChainImpact(a, bPosition, 0, Attack(a), false);
                     if (BallPhysicsRules::StopAnchor(a.physics, a.acceleration)) result.shot.Anchor();
                     if (BallPhysicsRules::StopAnchor(b.physics, b.acceleration)) result.shot.Anchor();
                 }
@@ -279,8 +316,12 @@ namespace
                 const bool enemyEnemy = a.physics.enemy && b.physics.enemy;
                 const auto damage = BallPhysicsRules::ContactDamage(a.physics, b.physics, Attack(a), Attack(b),
                     a.defeated, b.defeated, result.shot);
-                Damage(a, damage.first, b.physics.position);
-                Damage(b, damage.second, a.physics.position);
+				Damage(a, damage.first, b.physics.position);
+				Damage(b, damage.second, a.physics.position);
+				if (a.physics.player && b.physics.enemy)
+					ChainImpact(a, b.physics.position, b.physics.id, damage.second, bWasDefeated);
+				else if (b.physics.player && a.physics.enemy)
+					ChainImpact(b, a.physics.position, a.physics.id, damage.first, aWasDefeated);
                 if (playerEnemy)
                 {
                     if (BallPhysicsRules::StopAnchor(a.physics, a.acceleration)) result.shot.Anchor();
@@ -331,6 +372,22 @@ namespace
             {"break_started_this_shot", ball.bossState.startedThisShot}};
     }
 
+	nlohmann::json CushionJson(const CushionChargeRules::State& charges)
+	{
+		nlohmann::json result = nlohmann::json::array();
+		for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
+		{
+			const auto& charge = charges[static_cast<std::size_t>(region)];
+			result.push_back({
+				{ "region", region },
+				{ "charged", charge.active },
+				{ "usable_this_shot", charge.usableThisShot },
+				{ "speed_multiplier", charge.speedMultiplier },
+			});
+		}
+		return result;
+	}
+
     bool VerificationEnabled()
     {
 #ifdef _DEBUG
@@ -352,6 +409,8 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
     Result result;
     if (!std::isfinite(velocity.x) || !std::isfinite(velocity.z) || velocity.LengthSquared() <= 0.0001f) return result;
     result.balls = Capture(game);
+	result.cushionCharges = game.GetCushionCharges();
+	CushionChargeRules::BeginPlayerShot(result.cushionCharges);
     result.shot = game.MakePredictionShotRules(velocity.Length());
     if (offer) result.shot.ballId = offer->definitionId;
     World world{ result };
@@ -377,6 +436,7 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
             { ++ball.physics.pierceLimit; ball.physics.pierceRetention = 1.0f; }
         }
         ball.attack = ball.physics.status.attack + game.GetRelicAttackBonus();
+		result.stopShieldGranted = ball.physics.status.stopShieldAmount;
         world.AddPoint(ball, true);
         found = true;
     }
@@ -446,12 +506,20 @@ std::uint64_t BallShotPrediction::WorldKey(Game& game)
         scalar(s.radius); scalar(s.mass); scalar(s.restitution); scalar(s.friction); scalar(s.knockbackTransfer);
         add(s.abilities.pierce); add(s.abilities.anchor); add(s.pierceMaxUses); scalar(s.pierceSpeedRetention);
         scalar(s.anchorBrakeMultiplier); scalar(s.anchorStopSpeedSquared); add(s.anchorKnockbackImmune);
+        scalar(s.cushionChargeSpeedMultiplier);
+		add(s.stopShieldAmount); scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
         scalar(ball.frontalMultiplier); scalar(ball.pocketDamageRatio);
     }
     const auto shot = game.MakePredictionShotRules(0.0f);
     for (bool owned : shot.relics) add(owned);
     for (unsigned char c : shot.ballId) add(c);
     scalar(game.GetCurrentPocketFinisherRatio()); add(game.GetPlayerPocketDamageAmount());
+	for (const auto& charge : game.GetCushionCharges())
+	{
+		add(charge.active);
+		add(charge.usableThisShot);
+		scalar(charge.speedMultiplier);
+	}
     for (auto* frame : game.GetComponents<TableFrame>())
     {
         add(frame->IsEnabled()); add(frame->GetGameObject()->IsActive());
@@ -479,8 +547,14 @@ void BallShotPrediction::WriteVerificationPrediction(Game& game, const PlayerBal
         {"preview_one_reflection_limited", result.PreviewReachesLimit(1)},
         {"preview_direct_points", result.PreviewPointCount(0)},
         {"preview_direct_hit_ball", result.initialContactGuide.hitBall},
+        {"preview_direct_hit_enemy", result.initialContactGuide.hitEnemy},
+        {"preview_chain_impact_center", result.initialContactGuide.chainImpactCenter},
         {"ticks", result.ticks}, {"substeps", result.substeps}, {"milliseconds", result.milliseconds},
         {"world_unchanged", before == WorldKey(game)}, {"balls", balls},
+        {"cushions", CushionJson(result.cushionCharges)},
+		{"cushion_boost_consumed", result.cushionBoostConsumed},
+		{"chain_impact_hits", result.chainImpactHits},
+		{"stop_shield_granted", result.stopShieldGranted},
         {"player_enemy_contacts", result.shot.playerEnemyContacts}, {"enemy_enemy_contacts", result.shot.enemyEnemyContacts}};
     std::filesystem::create_directories("runtime");
     std::ofstream("runtime/shot_prediction_expected.json") << data.dump(2);
@@ -492,6 +566,8 @@ void BallShotPrediction::WriteVerificationActual(Game& game)
     nlohmann::json balls = nlohmann::json::array();
     for (const auto& ball : Capture(game)) balls.push_back(BallJson(ball));
     const nlohmann::json data = {{"balls", balls},
+        {"cushions", CushionJson(game.GetCushionCharges())},
+		{"cushion_boost_consumed", game.WasCushionBoostConsumedThisShot()},
         {"player_enemy_contacts", game.GetCurrentShotPlayerEnemyCollisionCount()},
         {"enemy_enemy_contacts", game.GetCurrentShotEnemyEnemyCollisionCount()}};
     std::filesystem::create_directories("runtime");

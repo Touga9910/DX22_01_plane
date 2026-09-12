@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "EnemyData.h"
+#include "TableConfig.h"
 
 enum class StageType
 {
@@ -43,6 +44,16 @@ struct StageData
     int difficulty = 1;
     int par = 4;
     bool preserveLayout = false; // Authored stages bypass automatic dense arrangement.
+    bool hasBreakBallLayout = false;
 
     std::vector<EnemySpawnData> enemies;
+    std::vector<DirectX::SimpleMath::Vector3> breakBallPositions;
 };
+
+inline std::vector<DirectX::SimpleMath::Vector3> DefaultBossBreakBallPositions()
+{
+    return {
+        {-4.0f, TableConfig::FIELD_HEIGHT, 10.0f},
+        {4.0f, TableConfig::FIELD_HEIGHT, 10.0f}
+    };
+}

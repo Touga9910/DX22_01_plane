@@ -20,6 +20,7 @@ public:
     int palette = 0;
     bool snap = true;
     bool placing = false;
+    bool placingBreakBall = false;
     bool dragging = false;
     Json dragStart;
     char name[65] = {};
