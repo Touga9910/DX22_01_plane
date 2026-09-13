@@ -148,7 +148,6 @@ JSONへ分離したことで、プロトコル実装を変更せずにAIの振�
 |---|---|---|
 | 読み取り | `get_game_state` | `readOnlyHint=true` |
 | サーバー内設定 | `set_player_level` | 実行中プロセスだけを変更 |
-| ゲーム設定 | `set_dynamic_balance` | ゲーム側で範囲を再検証 |
 | 進行 | `choose_destination`、`continue_to_battle`、`continue_after_reward` | 現在シーンで許可された場合だけ実行 |
 | 戦闘 | `select_ball`、`fire_shot` | 照準待ち・停止中などを再検証 |
 | 回復・成長 | `heal`、`upgrade_ball`、`choose_reward` | HP、ID、強化可否などを再検証 |

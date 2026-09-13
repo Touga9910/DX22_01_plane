@@ -223,6 +223,12 @@
     <ClInclude Include="UiText.h">
       <Filter>ヘッダー ファイル\05_UI</Filter>
     </ClInclude>
+    <ClInclude Include="StatusEffect.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="StatusEffectJson.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="BallStatus.h">
       <Filter>ヘッダー ファイル\06_Data\Ball</Filter>
     </ClInclude>

@@ -73,6 +73,7 @@ void EnemyBall::Init(const EnemyData& data)
 
     m_Ball->SetMaxHP(m_EnemyData.maxHp);
     SetStatus(m_EnemyData.status);             // ステータスを反映
+    SetStatusEffects(m_EnemyData.initialStatusEffects);
 
     m_RenderComponent->LoadModel(
         m_EnemyData.modelFilePath.c_str(),
@@ -206,9 +207,11 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     m_EnemyData.rewardMoney = data.rewardMoney;
     m_EnemyData.rewardExp = data.rewardExp;
     m_EnemyData.scale = data.scale;
+    m_EnemyData.initialStatusEffects = data.initialStatusEffects;
 
     // HP割合を維持したままステータス更新
     ApplyStatusKeepHpRate(data.status);
+    SetStatusEffects(data.initialStatusEffects);
 
     // スケールも反映
     m_Ball->SetScale(data.scale);

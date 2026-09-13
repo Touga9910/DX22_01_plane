@@ -259,6 +259,8 @@
     <ClInclude Include="BallRenderComponent.h" />
     <ClInclude Include="BallStatus.h" />
     <ClInclude Include="BallStatusJson.h" />
+    <ClInclude Include="StatusEffect.h" />
+    <ClInclude Include="StatusEffectJson.h" />
     <ClInclude Include="BallMechanics.h" />
     <ClInclude Include="PlayerBallSaveData.h" />
     <ClInclude Include="BallStatusComponent.h" />

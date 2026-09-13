@@ -3,6 +3,7 @@
 #include <string>
 #include "utility.h"
 #include "BallStatus.h"
+#include "StatusEffect.h"
 #include "MeshRenderer.h"
 
 struct EnemyData
@@ -14,6 +15,8 @@ struct EnemyData
 
     int maxHp = 3;
     BallStatus status;
+    // 敵マスタではなく、ステージ上の各配置が個別に設定する初期状態効果。
+    StatusEffectCollection initialStatusEffects;
     float frontalDamageMultiplier = 1.0f;
     float pocketDamageRatio = 0.0f;
 

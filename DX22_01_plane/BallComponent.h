@@ -6,7 +6,9 @@
 #include "Collision.h"
 #include "Component.h"
 #include "SphereColliderComponent.h"
+#include "StatusEffect.h"
 
+#include <algorithm>
 #include <functional>
 #include <string>
 
@@ -32,11 +34,19 @@ public:
 
     int GetHP() const { return m_StatusComponent->GetCurrentHp(); }
     int GetMaxHP() const { return m_StatusComponent->GetMaxHp(); }
-    int GetAttack() const { return m_StatusComponent->GetAttack(); }
-    int GetDefense() const { return m_StatusComponent->GetDefense(); }
+    int GetAttack() const
+    {
+        return (std::max)(0, m_StatusComponent->GetAttack() +
+            m_StatusEffects.GetAttackModifier());
+    }
+    int GetDefense() const
+    {
+        return (std::max)(0, m_StatusComponent->GetDefense() +
+            m_StatusEffects.GetDefenseModifier());
+    }
     int CalculateDamageTaken(int damage) const
     {
-        return m_StatusComponent->CalculateDamageTaken(damage);
+        return (std::max)(1, damage - GetDefense());
     }
     void SetCombatModifiers(int attackModifier, int defenseModifier)
     {
@@ -44,6 +54,12 @@ public:
             attackModifier,
             defenseModifier);
     }
+    void SetStatusEffects(const StatusEffectCollection& effects)
+    {
+        m_StatusEffects = effects;
+    }
+    StatusEffectCollection& GetMutableStatusEffects() { return m_StatusEffects; }
+    const StatusEffectCollection& GetStatusEffects() const { return m_StatusEffects; }
     bool HasSplitAbility() const { return GetStatus().abilities.split; }
     bool HasPierceAbility() const { return GetStatus().abilities.pierce; }
     bool HasAnchorAbility() const { return GetStatus().abilities.anchor; }
@@ -111,6 +127,7 @@ private:
     SphereColliderComponent* m_ColliderComponent = nullptr;
     BallRenderComponent* m_RenderComponent = nullptr;
     BallCollisionComponent* m_BallCollisionComponent = nullptr;
+    StatusEffectCollection m_StatusEffects;
 
     std::function<void()> m_PocketHandler;
     std::function<void()> m_DefeatHandler;

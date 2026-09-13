@@ -115,6 +115,7 @@ private:
 	void SaveTutorialProgress() const;
 	void DrawTutorial(Game& game);
 	void DrawFeedback(Game& game);
+	void DrawEnemyStatusEffects(Game& game);
 	void DrawDashboard();
 	void DrawBattleHud(Game& game);
 	void DrawDeckList(Game& game);

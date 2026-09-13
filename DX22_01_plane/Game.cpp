@@ -2142,22 +2142,6 @@ void Game::ProcessGameOver()
 		m_RunController.Status().currentHp,
 		m_RunController.Status().maxHp,
 		CountDefeatedEnemies(enemies));
-	m_DynamicBalanceController.OnBattleFinished(
-		false,
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp);
-	RecordBalanceEvent(
-		"dynamic_balance_evaluation",
-		{
-			{ "battle_result", "game_over" },
-			{ "result", m_DynamicBalanceController.GetLastResult() },
-			{ "reason", m_DynamicBalanceController.GetLastReason() },
-			{ "level_change", m_DynamicBalanceController.GetLastLevelChange() },
-			{ "next_level", m_DynamicBalanceController.GetLevel() },
-			{ "remaining_hp_ratio", m_DynamicBalanceController.GetLastHpRatio() },
-			{ "no_hit_rate", m_DynamicBalanceController.GetLastNoHitRate() },
-			{ "shots_per_enemy", m_DynamicBalanceController.GetLastShotsPerEnemy() },
-		});
 	logger.EndRun(
 		"game_over",
 		m_RunController.Status().currentHp,
@@ -2188,23 +2172,6 @@ void Game::StartClearReward()
 		m_RunController.Status().currentHp,
 		m_RunController.Status().maxHp,
 		CountDefeatedEnemies(enemies));
-	m_DynamicBalanceController.OnBattleFinished(
-		true,
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp);
-	RecordBalanceEvent(
-		"dynamic_balance_evaluation",
-		{
-			{ "battle_result", "clear" },
-			{ "result", m_DynamicBalanceController.GetLastResult() },
-			{ "reason", m_DynamicBalanceController.GetLastReason() },
-			{ "level_change", m_DynamicBalanceController.GetLastLevelChange() },
-			{ "next_level", m_DynamicBalanceController.GetLevel() },
-			{ "remaining_hp_ratio", m_DynamicBalanceController.GetLastHpRatio() },
-			{ "no_hit_rate", m_DynamicBalanceController.GetLastNoHitRate() },
-			{ "shots_per_enemy", m_DynamicBalanceController.GetLastShotsPerEnemy() },
-		});
-
 	if (m_RunController.Progress().GetPhase() == RunPhase::FinalBoss &&
 		m_BattleController.GetStageType() == StageType::Boss)
 	{

@@ -1,10 +1,11 @@
 {
-  "enabled": true,
+  "retired": true,
+  "enabled": false,
   "initial_level": 0,
-  "minimum_level": -3,
+  "minimum_level": 0,
   "maximum_level": 0,
-  "hp_step_per_level": 1,
-  "attack_step": 1,
+  "hp_step_per_level": 0,
+  "attack_step": 0,
   "levels_per_attack_step": 2,
   "positive_attack_scaling_enabled": false,
   "progression_scaling": {
@@ -22,10 +23,10 @@
   "maximum_enemy_hp": 100,
   "minimum_enemy_attack": 0,
   "maximum_enemy_attack": 50,
-  "strong_clear_hp_ratio": 0.7,
-  "weak_clear_hp_ratio": 0.3,
-  "strong_no_hit_rate": 0.2,
-  "weak_no_hit_rate": 0.5,
+  "strong_clear_hp_ratio": 1.0,
+  "weak_clear_hp_ratio": 0.0,
+  "strong_no_hit_rate": 0.0,
+  "weak_no_hit_rate": 1.0,
   "target_shots_per_enemy": 3.0,
-  "weak_shot_multiplier": 1.5
+  "weak_shot_multiplier": 999.0
 }

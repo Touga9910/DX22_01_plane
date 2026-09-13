@@ -25,6 +25,7 @@
 #include "Texture2DFactory.h"
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <iostream>
 #include <typeinfo>
 #include <unordered_map>
@@ -318,14 +319,16 @@ void BattleScene::ReloadEnemyStatusFromJson()
 		return;
 	}
 
-	std::unordered_map<std::string, EnemyData> enemyDataMap;
+	// Same-type enemies may have different per-placement status effects.
+	// Preserve stage order within each enemy ID while hot reloading.
+	std::unordered_map<std::string, std::deque<EnemyData>> enemyDataMap;
 
 	for (const EnemySpawnData& spawn : stageData->enemies)
 	{
 		EnemyData enemyData = spawn.enemyData;
 		Game::GetInstance()->ApplyDynamicBalanceToEnemyData(
 			enemyData);
-		enemyDataMap[enemyData.id] = std::move(enemyData);
+		enemyDataMap[enemyData.id].push_back(std::move(enemyData));
 	}
 
 	std::vector<EnemyBall*> enemies =
@@ -340,12 +343,13 @@ void BattleScene::ReloadEnemyStatusFromJson()
 
 		auto it = enemyDataMap.find(enemy->GetEnemyId());
 
-		if (it == enemyDataMap.end())
+		if (it == enemyDataMap.end() || it->second.empty())
 		{
 			continue;
 		}
 
-		enemy->ApplyHotReloadData(it->second);
+		enemy->ApplyHotReloadData(it->second.front());
+		it->second.pop_front();
 	}
 	Game::GetInstance()->InvalidateDebugCombatForecast(
 		"エネミーステータス再読込");

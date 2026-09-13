@@ -20,7 +20,7 @@
   },
   "paired_validation": {
     "enabled": true,
-    "validation_variant": "dda_off",
+    "validation_variant": "fixed",
     "seeds": [20260807, 20260817, 20260827, 20260906, 20260916],
     "minimum_balance_score_improvement": 0.5,
     "minimum_terminal_run_rate": 1.0
@@ -30,7 +30,7 @@
     "id": "intermediate_standard_holdout",
     "controller_profile": "intermediate",
     "build_profile": "standard",
-    "validation_variant": "dda_off",
+    "validation_variant": "fixed",
     "seeds": [20261006, 20261016, 20261026, 20261105, 20261115],
     "minimum_balance_score_delta": 0.0,
     "minimum_terminal_run_rate": 1.0

@@ -578,15 +578,10 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			}
 		}
 
-		const int dynamicLevel = dynamicBalance.at("level").get<int>();
-		const int appliedLevel = dynamicBalance.at("applied_level").get<int>();
-		if (dynamicLevel < game.m_DynamicBalanceController.GetMinimumLevel() ||
-			dynamicLevel > game.m_DynamicBalanceController.GetMaximumLevel() ||
-			appliedLevel < game.m_DynamicBalanceController.GetMinimumLevel() ||
-			appliedLevel > game.m_DynamicBalanceController.GetMaximumLevel())
-		{
-			throw std::runtime_error(UiText::InvalidSaveData);
-		}
+		// 旧セーブのDDA値は読み取るが、復元時には適用しない。
+		// これによりDDA撤去前のランも固定難度で再開できる。
+		const int dynamicLevel = dynamicBalance.value("level", 0);
+		const int appliedLevel = dynamicBalance.value("applied_level", 0);
 
 		RunMap restoredMap;
 		if (payload.contains("run_map"))

@@ -124,21 +124,9 @@ class ServerSchemaTests(unittest.TestCase):
                 tools[tool_name].inputSchema["properties"],
             )
 
-    def test_dynamic_balance_tool_exposes_runtime_controls(
-        self,
-    ) -> None:
-        tools = self._list_tools()
-        dynamic_balance = next(
-            tool
-            for tool in tools
-            if tool.name == "set_dynamic_balance"
-        )
-        properties = dynamic_balance.inputSchema["properties"]
-        required = dynamic_balance.inputSchema["required"]
-        self.assertIn("enabled", properties)
-        self.assertIn("reset_level", properties)
-        self.assertIn("level", properties)
-        self.assertIn("enabled", required)
+    def test_dynamic_balance_runtime_control_is_not_exposed(self) -> None:
+        tool_names = {tool.name for tool in self._list_tools()}
+        self.assertNotIn("set_dynamic_balance", tool_names)
 
     def test_choose_destination_allows_omitted_wanted_rewards(self) -> None:
         tools = self._list_tools()

@@ -25,8 +25,10 @@ void DynamicBalanceController::LoadConfig(const std::string& filePath)
 	{
 		nlohmann::json config;
 		file >> config;
-		m_ConfiguredEnabled = config.value("enabled", m_ConfiguredEnabled);
-		m_Enabled = m_ConfiguredEnabled;
+		// DDAはゲーム方針として廃止した。旧設定にenabled=trueが残っても
+		// プレイ結果から敵性能が変化しないよう、常に無効として扱う。
+		m_ConfiguredEnabled = false;
+		m_Enabled = false;
 		m_MinimumLevel = config.value("minimum_level", m_MinimumLevel);
 		m_MaximumLevel = config.value("maximum_level", m_MaximumLevel);
 		if (m_MinimumLevel > m_MaximumLevel)
@@ -98,10 +100,9 @@ void DynamicBalanceController::LoadConfig(const std::string& filePath)
 			1.0f,
 			config.value("weak_shot_multiplier", m_WeakShotMultiplier));
 
-		std::cout << "[DynamicBalance] "
-			<< (m_Enabled ? "Enabled" : "Disabled")
-			<< " / Level=" << m_Level
-			<< " / Range=" << m_MinimumLevel << ".." << m_MaximumLevel
+		std::cout << "[DynamicBalance] Retired"
+			<< " / fixed progression scaling="
+			<< (m_ProgressionScalingEnabled ? "enabled" : "disabled")
 			<< std::endl;
 	}
 	catch (const nlohmann::json::exception& error)
@@ -113,8 +114,8 @@ void DynamicBalanceController::LoadConfig(const std::string& filePath)
 
 void DynamicBalanceController::OnRunStarted()
 {
-	m_Enabled = m_ConfiguredEnabled;
-	m_Level = std::clamp(m_InitialLevel, m_MinimumLevel, m_MaximumLevel);
+	m_Enabled = false;
+	m_Level = 0;
 	m_AppliedEnabled = false;
 	m_AppliedLevel = m_Level;
 	m_StageActive = false;
@@ -133,14 +134,15 @@ void DynamicBalanceController::OnRunStarted()
 
 void DynamicBalanceController::OnBattleStarted(int enemyCount)
 {
-	m_AppliedEnabled = m_Enabled;
-	m_AppliedLevel = m_Level;
-	m_StageActive = true;
+	(void)enemyCount;
+	m_AppliedEnabled = false;
+	m_AppliedLevel = 0;
+	m_StageActive = false;
 	m_ShotActive = false;
 	m_CurrentShotHit = false;
 	m_StageShots = 0;
 	m_StageNoHitShots = 0;
-	m_StageEnemyCount = (std::max)(0, enemyCount);
+	m_StageEnemyCount = 0;
 }
 
 void DynamicBalanceController::OnShotStarted()
@@ -207,7 +209,7 @@ void DynamicBalanceController::OnBattleFinished(
 	int requestedChange = 0;
 	if (!m_Enabled)
 	{
-		m_LastReason = "Automatic adjustment is disabled.";
+		m_LastReason = "Dynamic difficulty was retired; fixed difficulty is active.";
 	}
 	else if (!cleared)
 	{
@@ -334,21 +336,6 @@ void DynamicBalanceController::ApplyToEnemyData(
 			m_MaximumEnemyAttack);
 	}
 
-	const bool effectiveEnabled = !armorBoss &&
-		(m_StageActive ? m_AppliedEnabled : m_Enabled);
-	if (effectiveEnabled)
-	{
-		const int effectiveLevel = m_StageActive ? m_AppliedLevel : m_Level;
-		enemyData.maxHp = std::clamp(
-			enemyData.maxHp + effectiveLevel * m_HpStep,
-			m_MinimumEnemyHp,
-			m_MaximumEnemyHp);
-		enemyData.status.attack = std::clamp(
-			enemyData.status.attack + CalculateAttackModifier(effectiveLevel),
-			m_MinimumEnemyAttack,
-			m_MaximumEnemyAttack);
-	}
-
 	enemyData.maxHp = std::clamp(
 		static_cast<int>(std::lround(
 			enemyData.maxHp * ProgressionProfile::EnemyHpMultiplier(ascension))),
@@ -367,31 +354,13 @@ void DynamicBalanceController::Set(
 	bool hasRequestedLevel,
 	bool lockedOffByValidation)
 {
-	if (lockedOffByValidation)
-	{
-		ForceDisabled();
-		m_LastReason =
-			"Assist mode is locked off by balance validation mode.";
-		return;
-	}
-	m_Enabled = enabled;
-	if (hasRequestedLevel)
-	{
-		m_Level = std::clamp(requestedLevel, m_MinimumLevel, m_MaximumLevel);
-		m_LastReason = "Difficulty level was set through MCP.";
-	}
-	else if (resetLevel)
-	{
-		m_Level = 0;
-		m_LastReason = "Difficulty level was reset through MCP.";
-	}
-	else
-	{
-		m_LastReason = enabled
-			? "Automatic adjustment was enabled through MCP."
-			: "Automatic adjustment was disabled through MCP.";
-	}
-	m_LastLevelChange = 0;
+	(void)enabled;
+	(void)resetLevel;
+	(void)requestedLevel;
+	(void)hasRequestedLevel;
+	(void)lockedOffByValidation;
+	ForceDisabled();
+	m_LastReason = "Dynamic difficulty was retired; fixed difficulty is active.";
 }
 
 void DynamicBalanceController::ForceDisabled()
@@ -411,11 +380,12 @@ void DynamicBalanceController::RestoreRunState(
 	const std::string& lastResult,
 	const std::string& lastReason)
 {
-	m_Enabled = enabled;
-	m_Level = std::clamp(level, m_MinimumLevel, m_MaximumLevel);
-	m_AppliedEnabled = appliedEnabled;
-	m_AppliedLevel = std::clamp(
-		appliedLevel, m_MinimumLevel, m_MaximumLevel);
+	(void)enabled;
+	(void)level;
+	(void)appliedEnabled;
+	(void)appliedLevel;
+	(void)lastReason;
+	ForceDisabled();
 	m_LastResult = lastResult;
-	m_LastReason = lastReason;
+	m_LastReason = "Dynamic difficulty was retired; fixed difficulty is active.";
 }

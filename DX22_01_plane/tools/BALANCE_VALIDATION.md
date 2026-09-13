@@ -1,4 +1,4 @@
-# Fixed-condition and paired DDA balance validation
+# Fixed-condition balance validation
 
 ## Enable the mode
 
@@ -7,15 +7,14 @@ Edit `assets/data/balance_validation.json`:
 ```json
 {
   "enabled": true,
-  "experiment_id": "paired_dda_5x2",
+  "experiment_id": "fixed_baseline",
   "random_seeds": [20260807, 20260817, 20260827, 20260906, 20260916],
   "disable_dynamic_balance": true,
   "variants": [
-    { "id": "dda_off", "disable_dynamic_balance": true },
-    { "id": "dda_on", "disable_dynamic_balance": false }
+    { "id": "fixed", "disable_dynamic_balance": true }
   ],
   "minimum_runs_per_variant": 5,
-  "minimum_paired_seeds": 5,
+  "minimum_paired_seeds": 0,
   "maximum_cleared_stages_per_run": 30,
   "endurance_mode": true,
   "fixed_stage_schedule": false,
@@ -24,19 +23,17 @@ Edit `assets/data/balance_validation.json`:
 ```
 
 Start a new run after changing the file. Validation settings are loaded when
-the application starts. Runs 1-5 use `dda_off` with seed indexes 0-4. Runs
-6-10 use `dda_on` with the same seed indexes 0-4. The sequence then repeats.
+the application starts. Runs use `fixed` with seed indexes 0-4, then repeat.
 Each run records the variant ID/index plus the run, stage-selection,
 route-selection, and autoplay seeds.
 
 Set `endurance_mode` to `true` only when collecting the legacy 30-battle
 endurance suite. Validation runs then move to the result scene after 30 cleared battles even when
 the player is still alive. The run end reason is `validation_complete`. This
-cap prevents a defensive build from blocking the remaining seed-suite runs;
-it applies equally to the DDA-off and DDA-on variants.
+cap prevents a defensive build from blocking the remaining seed-suite runs.
 
-The late-progression HP and attack modifiers are not DDA. They remain active
-in both variants so the fixed baseline still has an end-game pressure curve.
+The late-progression HP and attack modifiers are fixed progression scaling.
+They remain active so the baseline still has an end-game pressure curve.
 With the default settings, enemy HP gains +1 at progress 10, another +1 every
 five progress levels up to +4. Enemy attack gains +1 at progress 20, another
 +1 every five progress levels, and stops at +8. Change these curves in
@@ -75,10 +72,10 @@ tools\game_mcp\.venv\Scripts\python.exe tools\analyze_balance_logs.py `
   --controller-type mcp `
   --controller-profile intermediate `
   --build-profile pierce `
-  --experiment-id paired_dda_5x2 `
-  --validation-variant dda_off `
+  --experiment-id fixed_baseline `
+  --validation-variant fixed `
   --dynamic-balance disabled `
-  --output logs\balance\report_intermediate_dda_off.json
+  --output logs\balance\report_intermediate_fixed.json
 ```
 
 Available cohort options are:
@@ -176,13 +173,13 @@ with `sample_count` before interpreting a rate.
 These statistics are descriptive, not causal. For example, a relic purchased
 late in a successful run will naturally be associated with higher progress.
 Do not call that relic overpowered from ownership win rate alone. Offer
-exposure, acquisition timing, player profile, DDA variant, and configuration
+exposure, acquisition timing, player profile, fixed validation variant, and configuration
 cohort must be controlled before estimating item strength.
 
 The fixed-run audit checks:
 
 - matching experiment ID and random seed;
-- DDA state matches each configured variant;
+- dynamic difficulty remains disabled;
 - deterministic seeds and route choices (the old fixed 5/10 boss schedule is
   disabled because midbosses are now weighted route candidates);
 - minimum run counts for beginner, intermediate, and advanced MCP profiles.
@@ -190,10 +187,8 @@ The fixed-run audit checks:
 `insufficient_data` means the collected logs are internally valid but the
 configured sample count has not been reached.
 
-The paired report only compares seeds present in both variants. It reports
-the `dda_on - dda_off` difference for reached progress, cleared stages, total
-shots, remaining HP ratio, and boss reach. Five complete seed pairs are
-required by default.
+The historical paired-DDA report tool remains available only for reading old
+experiments. New balance collection uses the single `fixed` variant.
 
 `balance_validation.json` now separates named `tuning` and `holdout` seed
 suites. `compare_paired_balance_runs.py --seed-suite <name>` selects one suite.
@@ -218,15 +213,10 @@ tools\game_mcp\.venv\Scripts\python.exe tools\analyze_balance_logs.py `
   --build-profile heavy `
   --output logs\balance\report_intermediate_heavy.json
 
-tools\game_mcp\.venv\Scripts\python.exe tools\compare_paired_balance_runs.py `
-  --controller-profile intermediate `
-  --build-profile heavy `
-  --output logs\balance\paired_intermediate_heavy.json
 ```
 
-With the default validation schedule, ten runs collect the same five seeds
-for DDA off and on. This is suitable for paired comparison. The build profile
-ID and its settings hash must match across every run in a cohort; restart the
+With the default validation schedule, runs cycle through five fixed seeds.
+The build profile ID and its settings hash must match across every run in a cohort; restart the
 MCP server after editing `build_profiles.json`.
 
 Boss strength remains locked in the general balance report until at least

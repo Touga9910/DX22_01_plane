@@ -98,33 +98,36 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertIn('state["route_options"]', bridge_source)
         self.assertNotIn('{ "offered_routes", nullptr }', bridge_source)
 
-    def test_new_run_resets_dynamic_balance_state(self) -> None:
+    def test_new_run_keeps_dynamic_balance_retired(self) -> None:
         game_source = load_game_sources()
 
         self.assertIn("m_DynamicBalanceController.OnRunStarted();", game_source)
         self.assertIn(
-            "m_Enabled = m_ConfiguredEnabled;",
+            "m_Enabled = false;",
             game_source,
         )
         self.assertIn(
-            "m_Level = std::clamp(",
+            "m_Level = 0;",
             game_source,
         )
 
-    def test_dynamic_balance_is_assist_only(self) -> None:
+    def test_dynamic_balance_is_retired(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
         game_source = load_game_sources()
 
+        self.assertFalse(dynamic["enabled"])
         self.assertEqual(dynamic["initial_level"], 0)
         self.assertEqual(dynamic["maximum_level"], 0)
-        self.assertLess(dynamic["minimum_level"], 0)
+        self.assertEqual(dynamic["minimum_level"], 0)
+        self.assertEqual(dynamic["hp_step_per_level"], 0)
+        self.assertEqual(dynamic["attack_step"], 0)
         self.assertFalse(dynamic["positive_attack_scaling_enabled"])
         self.assertIn(
-            "level > 0 && !m_PositiveAttackScalingEnabled",
+            "Dynamic difficulty was retired; fixed difficulty is active.",
             game_source,
         )
-        self.assertIn(
-            "CalculateAttackModifier(effectiveLevel)",
+        self.assertNotIn(
+            "enemyData.maxHp + effectiveLevel * m_HpStep",
             game_source,
         )
 
@@ -322,9 +325,9 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertEqual(len(validation["random_seeds"]), 5)
         self.assertEqual(
             [variant["id"] for variant in validation["variants"]],
-            ["dda_off", "dda_on"],
+            ["fixed"],
         )
-        self.assertEqual(validation["minimum_paired_seeds"], 5)
+        self.assertEqual(validation["minimum_paired_seeds"], 0)
         self.assertEqual(
             set(validation["seed_suites"]),
             {"tuning", "holdout"},

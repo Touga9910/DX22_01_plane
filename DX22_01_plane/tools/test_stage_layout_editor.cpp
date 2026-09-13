@@ -15,17 +15,31 @@ int main()
     assert(legacyBoss != existingStages.end() && !legacyBoss->hasBreakBallLayout);
     assert(StageLayoutEditor::Encode(*legacyBoss)["break_balls"].size() == 2);
     Json layout = {{"id", "editor_test"}, {"stage_type", "normal"}, {"difficulty", 3}, {"par", 4}, {"break_balls", Json::array()}, {"enemies", {
-        {{"enemy_id", "enemy_normal"}, {"x", -30}, {"z", 12}},
+        {{"enemy_id", "enemy_normal"}, {"x", -30}, {"z", 12}, {"status_effects", {
+            {{"type", "attack_up"}, {"magnitude", 2}},
+            {{"type", "defense_down"}, {"magnitude", 1}}}}},
         {{"enemy_id", "enemy_normal"}, {"x", -10}, {"z", 20}},
         {{"enemy_id", "enemy_normal"}, {"x", 15}, {"z", -18}},
         {{"enemy_id", "enemy_normal"}, {"x", 42}, {"z", 8}}}}};
     assert(StageLayoutEditor::Inspect(layout, catalog, 3)["valid"] == true);
+    const auto effectStage = StageLayoutEditor::Decode(layout, catalog);
+    assert(effectStage.enemies[0].enemyData.initialStatusEffects.GetAttackModifier() == 2);
+    assert(effectStage.enemies[0].enemyData.initialStatusEffects.GetDefenseModifier() == -1);
+    StatusEffectCollection combinedEffects;
+    combinedEffects.Set(StatusEffectType::AttackUp, 5);
+    combinedEffects.Set(StatusEffectType::AttackDown, 2);
+    combinedEffects.Set(StatusEffectType::DefenseUp, 1);
+    combinedEffects.Set(StatusEffectType::DefenseDown, 4);
+    assert(combinedEffects.GetAttackModifier() == 3 && combinedEffects.GetDefenseModifier() == -3);
     auto invalid = [&](Json value) { assert(StageLayoutEditor::Inspect(value, catalog, 3)["valid"] == false); };
     auto bad = layout; bad["enemies"][0]["x"] = 70; invalid(bad);
     bad = layout; bad["enemies"][0]["x"] = 0; bad["enemies"][0]["z"] = 0; invalid(bad);
     bad = layout; bad["enemies"][1] = bad["enemies"][0]; invalid(bad);
     bad = layout; bad["enemies"][0]["enemy_id"] = "unknown"; invalid(bad);
     bad = layout; bad["enemies"][0]["x"] = nullptr; invalid(bad);
+    bad = layout; bad["enemies"][0]["status_effects"][0]["type"] = "poison"; invalid(bad);
+    bad = layout; bad["enemies"][0]["status_effects"][0]["magnitude"] = 0; invalid(bad);
+    bad = layout; bad["enemies"][0]["status_effects"].push_back(bad["enemies"][0]["status_effects"][0]); invalid(bad);
     bad = layout; bad["enemies"] = Json::array(); invalid(bad);
     bad = layout; bad["difficulty"] = 1.5; invalid(bad);
     bad = layout; bad["par"] = 100; invalid(bad);
@@ -71,6 +85,8 @@ int main()
     assert(saved["stages"][1]["preserveLayout"] == true);
     const auto loaded = StageDataLoader::LoadAll(path.string(), "assets/data/enemy_data.json");
     assert(loaded.back().preserveLayout && loaded.back().enemies.size() == 4);
+    assert(loaded.back().enemies[0].enemyData.initialStatusEffects.GetMagnitude(StatusEffectType::AttackUp) == 2);
+    assert(loaded.back().enemies[0].enemyData.initialStatusEffects.GetMagnitude(StatusEffectType::DefenseDown) == 1);
     assert(loaded.back().hasBreakBallLayout == false && loaded.back().breakBallPositions.empty());
     assert(StageLayoutEditor::Encode(loaded.back()) == editor.draft);
     assert(std::filesystem::exists(path.string() + ".editor.bak"));
@@ -93,5 +109,5 @@ int main()
     assert(savedBoss.hasBreakBallLayout && savedBoss.breakBallPositions.size() == 2);
     assert(savedBoss.breakBallPositions[0].x == -12 && savedBoss.breakBallPositions[1].z == -12);
     assert(StageLayoutEditor::Encode(savedBoss) == bossEditor.draft);
-    std::cout << "PASS: legacy boss display, geometry, boss break-ball layout, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
+    std::cout << "PASS: status effects, legacy boss display, geometry, boss break-ball layout, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
 }

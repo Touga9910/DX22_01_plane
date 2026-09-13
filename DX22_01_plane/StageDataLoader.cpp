@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "TableConfig.h"
+#include "StatusEffectJson.h"
 #include "json/json.hpp"
 
 using json = nlohmann::json;
@@ -357,6 +358,11 @@ std::vector<StageData> StageDataLoader::LoadAll(
 
                 spawn.enemyData = enemyIt->second;
                 spawn.enemyData.initPosition = spawn.position;
+                if (spawnJson.contains("statusEffects"))
+                {
+                    spawn.enemyData.initialStatusEffects =
+                        ReadStatusEffects(spawnJson["statusEffects"]);
+                }
                 stage.enemies.push_back(spawn);
             }
 

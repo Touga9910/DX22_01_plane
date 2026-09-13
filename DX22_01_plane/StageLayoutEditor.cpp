@@ -1,5 +1,6 @@
 ﻿#include "StageLayoutEditor.h"
 #pragma execution_character_set("utf-8")
+#include "StatusEffectJson.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
@@ -29,7 +30,13 @@ StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
 {
     Json result = {{"id", stage.id}, {"stage_type", ToString(stage.stageType)}, {"difficulty", stage.difficulty},
         {"par", stage.par}, {"enemies", Json::array()}, {"break_balls", Json::array()}};
-    for (const auto& e : stage.enemies) result["enemies"].push_back({{"enemy_id", e.enemyId}, {"x", e.position.x}, {"z", e.position.z}});
+    for (const auto& e : stage.enemies)
+    {
+        Json enemy = {{"enemy_id", e.enemyId}, {"x", e.position.x}, {"z", e.position.z}};
+        const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
+        if (!effects.empty()) enemy["status_effects"] = effects;
+        result["enemies"].push_back(std::move(enemy));
+    }
     const auto positions = stage.hasBreakBallLayout
         ? stage.breakBallPositions
         : (stage.stageType == StageType::Boss
@@ -97,6 +104,30 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
         spawn.enemyData = *found;
         spawn.position = {x, TableConfig::FIELD_HEIGHT, z};
         spawn.enemyData.initPosition = spawn.position;
+        if (e.contains("status_effects"))
+        {
+            const auto& effects = e.at("status_effects");
+            if (!effects.is_array() || effects.size() > AllStatusEffectTypes.size())
+                throw std::runtime_error("状態効果は0～4個にしてください。");
+            std::array<bool, static_cast<std::size_t>(StatusEffectType::Count)> seen{};
+            for (const auto& effect : effects)
+            {
+                if (!effect.is_object() || !effect.contains("type") ||
+                    !effect.at("type").is_string() || !effect.contains("magnitude") ||
+                    !effect.at("magnitude").is_number_integer())
+                    throw std::runtime_error("状態効果にはtypeと整数のmagnitudeが必要です。");
+                StatusEffectType effectType{};
+                if (!TryParseStatusEffectType(effect.at("type").get<std::string>(), effectType))
+                    throw std::runtime_error("未登録の状態効果です：" + effect.at("type").get<std::string>());
+                const int magnitude = effect.at("magnitude").get<int>();
+                if (magnitude < 1 || magnitude > StatusEffectCollection::MaxMagnitude)
+                    throw std::runtime_error("状態効果量は1～999の整数です。");
+                const std::size_t effectIndex = static_cast<std::size_t>(effectType);
+                if (seen[effectIndex]) throw std::runtime_error("同じ状態効果を重複して設定できません。");
+                seen[effectIndex] = true;
+            }
+            spawn.enemyData.initialStatusEffects = ReadStatusEffects(effects);
+        }
         stage.enemies.push_back(spawn);
         cores += spawn.enemyId == "enemy_boss_core";
     }
@@ -209,7 +240,13 @@ void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vecto
     (*target)["id"] = stage.id; (*target)["stageType"] = ToString(stage.stageType);
     (*target)["difficulty"] = stage.difficulty; (*target)["par"] = stage.par; (*target)["preserveLayout"] = true;
     (*target)["enemies"] = Json::array();
-    for (const auto& e : stage.enemies) (*target)["enemies"].push_back({{"enemyId", e.enemyId}, {"position", {e.position.x, e.position.y, e.position.z}}});
+    for (const auto& e : stage.enemies)
+    {
+        Json enemy = {{"enemyId", e.enemyId}, {"position", {e.position.x, e.position.y, e.position.z}}};
+        const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
+        if (!effects.empty()) enemy["statusEffects"] = effects;
+        (*target)["enemies"].push_back(std::move(enemy));
+    }
     if (stage.stageType == StageType::Boss)
     {
         (*target)["breakBalls"] = Json::array();

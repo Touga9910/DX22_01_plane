@@ -11,7 +11,7 @@ struct BalanceValidationRun final
 {
 	bool enabled = false;
 	std::uint32_t seed = 0;
-	bool disableDynamicBalance = false;
+	bool disableDynamicBalance = true;
 };
 
 // 固定条件の比較実験と、シード／バリアント巡回を所有する。
@@ -78,10 +78,9 @@ private:
 	std::uint32_t m_SeedIndex = 0;
 	std::uint32_t m_VariantIndex = 0;
 	std::string m_ExperimentId = "fixed_baseline";
-	std::string m_CurrentVariantId = "dda_off";
+	std::string m_CurrentVariantId = "fixed";
 	std::vector<BalanceValidationVariant> m_Variants{
-		{ "dda_off", true },
-		{ "dda_on", false },
+		{ "fixed", true },
 	};
 	int m_MaximumClearedStages = 30;
 };

@@ -9,6 +9,29 @@ namespace
 {
     constexpr int BreakBallSelection(int index) { return -index - 2; }
     constexpr int SelectedBreakBall(int selection) { return selection <= -2 ? -selection - 2 : -1; }
+
+    const char* StatusEffectLabel(StatusEffectType type)
+    {
+        switch (type)
+        {
+        case StatusEffectType::AttackUp: return "攻撃上昇（赤↑）";
+        case StatusEffectType::AttackDown: return "攻撃低下（赤↓）";
+        case StatusEffectType::DefenseUp: return "防御上昇（青↑）";
+        case StatusEffectType::DefenseDown: return "防御低下（青↓）";
+        default: return "不明な状態効果";
+        }
+    }
+
+    int FindStatusEffectIndex(const nlohmann::json& enemy, StatusEffectType type)
+    {
+        if (!enemy.contains("status_effects") || !enemy["status_effects"].is_array()) return -1;
+        const auto& effects = enemy["status_effects"];
+        for (int index = 0; index < static_cast<int>(effects.size()); ++index)
+        {
+            if (effects[index].value("type", std::string()) == ToString(type)) return index;
+        }
+        return -1;
+    }
 }
 
 // Stage Editor Player Radius の処理を実行する。
@@ -234,6 +257,45 @@ void GameDebugController::DrawStageEditor(Game&)
     if (editor.selected >= 0)
     {
         ImGui::Text("選択中 #%d : %s", editor.selected + 1, EnemyLabel(editor.draft["enemies"][editor.selected]["enemy_id"].get<std::string>()));
+        ImGui::SeparatorText("初期バフ・デバフ");
+        ImGui::TextWrapped("この敵だけが戦闘開始時から持つ効果です。効果量は攻撃力／防御力の増減値です。");
+        for (const StatusEffectType effectType : AllStatusEffectTypes)
+        {
+            const auto& selectedEnemy = editor.draft["enemies"][editor.selected];
+            const int effectIndex = FindStatusEffectIndex(selectedEnemy, effectType);
+            bool enabled = effectIndex >= 0;
+            ImGui::PushID(ToString(effectType));
+            if (ImGui::Checkbox(StatusEffectLabel(effectType), &enabled))
+            {
+                auto edited = editor.draft;
+                auto& enemy = edited["enemies"][editor.selected];
+                if (!enemy.contains("status_effects") || !enemy["status_effects"].is_array())
+                    enemy["status_effects"] = Json::array();
+                const int existingIndex = FindStatusEffectIndex(enemy, effectType);
+                if (enabled && existingIndex < 0)
+                    enemy["status_effects"].push_back({{"type", ToString(effectType)}, {"magnitude", 1}});
+                else if (!enabled && existingIndex >= 0)
+                    enemy["status_effects"].erase(existingIndex);
+                if (enemy["status_effects"].empty()) enemy.erase("status_effects");
+                change(edited);
+                ImGui::PopID();
+                continue;
+            }
+            if (enabled)
+            {
+                int magnitude = selectedEnemy["status_effects"][effectIndex].value("magnitude", 1);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(120.0f);
+                if (ImGui::DragInt("効果量", &magnitude, 0.1f, 1, StatusEffectCollection::MaxMagnitude, "%d", ImGuiSliderFlags_AlwaysClamp))
+                {
+                    auto edited = editor.draft;
+                    edited["enemies"][editor.selected]["status_effects"][effectIndex]["magnitude"] = magnitude;
+                    change(edited);
+                }
+            }
+            ImGui::PopID();
+        }
+        ImGui::Separator();
         if (ImGui::Button("選択した敵を削除")) { auto edited = editor.draft; edited["enemies"].erase(editor.selected); editor.Replace(edited); }
         ImGui::SameLine();
         if (ImGui::Button("選択した敵を複製") && editor.selected >= 0 && editor.draft["enemies"].size() < 32)
@@ -296,7 +358,7 @@ void GameDebugController::DrawStageEditor(Game&)
         catch (const std::exception& e) { editor.message = e.what(); }
     }
     ImGui::EndDisabled();
-    ImGui::TextWrapped("保存対象は敵の種類・配置、ブレイクボールの初期配置、ステージ情報です。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
+    ImGui::TextWrapped("保存対象は敵の種類・配置・初期バフ／デバフ、ブレイクボールの初期配置、ステージ情報です。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
     if (!editor.message.empty()) ImGui::TextWrapped("%s", editor.message.c_str());
     ImGui::EndChild();
 }

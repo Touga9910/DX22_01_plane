@@ -73,10 +73,10 @@ tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_run
 ```
 
 調整前後を同じ乱数条件で比較する場合は、`--run-seed` を繰り返し指定し、
-`--validation-variant` でDDAなどの検証条件を固定します。
+`--validation-variant fixed` で固定難度の検証条件を指定します。
 
 ```bat
-tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_runs.py --profile intermediate --build-profile standard --runs 2 --run-seed 20260807 --run-seed 20260817 --validation-variant dda_off
+tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_runs.py --profile intermediate --build-profile standard --runs 2 --run-seed 20260807 --run-seed 20260817 --validation-variant fixed
 ```
 
 シードは指定順に使われ、ラン数のほうが多い場合は循環します。
@@ -102,36 +102,16 @@ MCPが計算した理想照準に対し、`player_profiles.json`の
 照準点、パワー、誤差量は `fire_shot` 応答の
 `shot_plan.human_error` に含まれます。
 
-## 動的バランス調整
+## 固定難度と進行度スケーリング
 
-既定で有効です。各戦闘の勝敗、残HP率、ショット数、敵に一度も
-当たらなかったショットの割合をゲーム側で評価し、救済レベルを
-`-3`～`0`の範囲で1段階ずつ変更します。補正は戦闘途中ではなく、
-次の戦闘で生成される敵へ適用されます。好成績時は救済を基準値0へ
-戻すだけで、基準より敵を強くしません。負方向ではHPを下げ、
-レベル-2以下では攻撃力も下げます。
+プレイ結果に応じて敵を簡易化する動的バランス調整は廃止しました。
+`get_game_state.dynamic_balance`は旧セーブ／旧ログとの互換性のためだけに
+残り、常に無効です。実行中に難度を変更するMCP操作も公開しません。
 
-現在値は`get_game_state`の`dynamic_balance`で確認できます。
-
-- `level`: 現在の難易度レベル
-- `next_enemy_modifier`: 次戦の敵HP・攻撃力への補正
-- `current_stage_metrics`: 現在の戦闘で収集中の指標
-- `last_evaluation`: 直近の判定結果と理由
-
-接続中は`set_dynamic_balance`で有効・無効、レベルのリセット、
-開始レベルの直接指定ができます。例えば、自動調整を有効にして
-基準レベルへ戻す場合は`enabled=true, reset_level=true`を指定します。
-実行中の戦闘の敵は変わらず、次に生成される敵から反映されます。
-
-判定しきい値と補正量は
-`assets/data/dynamic_balance.json`で設定します。変更後はゲームを
-再起動してください。MCPの行動指示ではなく、ゲーム本体の設定なので、
-動的調整のルールを変更する場合に編集する場所はこのJSONです。
-
-DDAのON/OFFとは別に、進行度10から敵HPを+1、以後5進行度ごとに
+固定難度の中で、進行度10から敵HPを+1、以後5進行度ごとに
 +1して最大+4、進行度20から敵攻撃力を+1、以後5進行度ごとに
-+1して最大+8とする後半スケーリングがあります。これはDDA OFFの
-固定条件でも後半ビルドへ基礎難易度が追従するための曲線です。
++1して最大+8とする後半スケーリングがあります。これはプレイ成績では
+変化せず、全プレイヤーに同じ条件で後半ビルドへ追従する固定曲線です。
 `get_game_state.progression_scaling`で現在の補正値を確認できます。
 
 ## ステージ配置のバランス調整
@@ -290,7 +270,6 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 - `get_game_state`
 - `set_player_level`
 - `set_build_profile`
-- `set_dynamic_balance`
 - `set_next_stage_layout`
 - `clear_next_stage_layout`
 - `start_new_run`

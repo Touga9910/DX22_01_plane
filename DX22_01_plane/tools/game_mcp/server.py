@@ -1074,37 +1074,6 @@ def create_server(
             }
         )
 
-    @mcp.tool(
-        title="動的バランス調整を設定",
-        description=(
-            "プレイ結果に応じた敵ステータスの自動調整をON/OFFします。"
-            "各戦闘の残HP、ショット数、空振り率、勝敗から難易度レベルを"
-            "1段階ずつ更新し、次の戦闘で生成される敵のHPと攻撃力へ"
-            "安全な範囲で反映します。reset_level=trueで基準レベルへ戻せます。"
-            "levelを指定すると許容範囲内へ丸めて開始レベルを直接設定します。"
-            "戦闘中の敵ステータスは突然変更しません。"
-        ),
-        annotations=local_write,
-        structured_output=True,
-    )
-    def set_dynamic_balance(
-        enabled: bool,
-        reset_level: bool = False,
-        level: int | None = None,
-    ) -> GameToolResult:
-        arguments: dict[str, Any] = {
-            "enabled": enabled,
-            "reset_level": reset_level,
-        }
-        if level is not None:
-            arguments["level"] = level
-        return GameToolResult(
-            result=store.submit_command(
-                "set_dynamic_balance",
-                arguments,
-            )
-        )
-
     @mcp.tool(title="ステージエディターを開く", annotations=local_write, structured_output=True)
     def open_stage_editor() -> GameToolResult:
         """タイトル画面から配置編集を開きます。通常ランの進行中は利用できません。"""

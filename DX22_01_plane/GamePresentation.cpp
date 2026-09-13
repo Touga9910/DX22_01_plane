@@ -63,6 +63,38 @@ namespace
 		return ImVec4(0.95f, 0.78f, 0.28f, 1.0f);
 	}
 
+	const char* StatusEffectName(StatusEffectType type)
+	{
+		switch (type)
+		{
+		case StatusEffectType::AttackUp: return "攻撃上昇";
+		case StatusEffectType::AttackDown: return "攻撃低下";
+		case StatusEffectType::DefenseUp: return "防御上昇";
+		case StatusEffectType::DefenseDown: return "防御低下";
+		default: return "不明な状態効果";
+		}
+	}
+
+	void DrawStatusArrow(ImDrawList* drawList, const ImVec2& minimum, StatusEffectType type)
+	{
+		const ImVec2 maximum(minimum.x + 25.0f, minimum.y + 25.0f);
+		const ImVec2 center((minimum.x + maximum.x) * 0.5f, (minimum.y + maximum.y) * 0.5f);
+		const ImU32 color = IsAttackStatusEffect(type)
+			? IM_COL32(245, 70, 62, 255)
+			: IM_COL32(65, 145, 255, 255);
+		drawList->AddRectFilled(minimum, maximum, IM_COL32(12, 18, 28, 235), 5.0f);
+		drawList->AddRect(minimum, maximum, color, 5.0f, 0, 1.5f);
+
+		const bool pointsUp = IsPositiveStatusEffect(type);
+		const float tipY = center.y + (pointsUp ? -7.0f : 7.0f);
+		const float tailY = center.y + (pointsUp ? 6.0f : -6.0f);
+		drawList->AddLine(ImVec2(center.x, tailY), ImVec2(center.x, tipY), color, 3.0f);
+		if (pointsUp)
+			drawList->AddTriangleFilled(ImVec2(center.x, tipY - 3.0f), ImVec2(center.x - 5.0f, tipY + 3.0f), ImVec2(center.x + 5.0f, tipY + 3.0f), color);
+		else
+			drawList->AddTriangleFilled(ImVec2(center.x, tipY + 3.0f), ImVec2(center.x - 5.0f, tipY - 3.0f), ImVec2(center.x + 5.0f, tipY - 3.0f), color);
+	}
+
 	bool DrawPileButton(
 		const char* id,
 		const char* label,
@@ -328,6 +360,7 @@ void GamePresentation::Draw(Game& game)
 	}
 	if (IsBattleScene(game))
 	{
+		DrawEnemyStatusEffects(game);
 		DrawBattleHud(game);
 		return;
 	}
@@ -385,6 +418,90 @@ void GamePresentation::Draw(Game& game)
 		}
 	}
 	ImGui::End();
+}
+
+void GamePresentation::DrawEnemyStatusEffects(Game& game)
+{
+	const BattleState state = game.GetBattleState();
+	if (state != BattleState::AimingDirection && state != BattleState::AimingPower &&
+		state != BattleState::ConfirmShot)
+	{
+		return;
+	}
+
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoInputs;
+	int enemyIndex = 0;
+	for (const EnemyBall* enemy : game.GetComponents<EnemyBall>())
+	{
+		const int currentIndex = enemyIndex++;
+		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
+		const auto& effects = enemy->GetStatusEffects();
+		const int effectCount = effects.GetActiveCount();
+		if (effectCount == 0) continue;
+
+		ImVec2 center;
+		ImVec2 top;
+		if (!TryProjectToScreen(enemy->GetPosition(), center) ||
+			!TryProjectToScreen(enemy->GetPosition() + Vector3(0.0f, enemy->GetRadius(), 0.0f), top))
+		{
+			continue;
+		}
+		const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
+		const float rowWidth = effectCount * 25.0f + (effectCount - 1) * 4.0f;
+		const ImVec2 rowPosition(center.x - rowWidth * 0.5f, center.y + projectedRadius + 7.0f);
+		if (rowPosition.x + rowWidth < viewport->Pos.x || rowPosition.x > viewport->Pos.x + viewport->Size.x ||
+			rowPosition.y + 25.0f < viewport->Pos.y || rowPosition.y > viewport->Pos.y + viewport->Size.y)
+		{
+			continue;
+		}
+
+		char windowId[64]{};
+		sprintf_s(windowId, "##enemy_status_effects_%d", currentIndex);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::SetNextWindowPos(rowPosition);
+		ImGui::SetNextWindowSize(ImVec2(rowWidth, 25.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+		if (ImGui::Begin(windowId, nullptr, flags))
+		{
+			int drawn = 0;
+			for (const StatusEffectType effectType : AllStatusEffectTypes)
+			{
+				const int magnitude = effects.GetMagnitude(effectType);
+				if (magnitude <= 0) continue;
+				if (drawn++ > 0) ImGui::SameLine();
+				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+				const ImVec2 iconMaximum(iconMinimum.x + 25.0f, iconMinimum.y + 25.0f);
+				ImGui::Dummy(ImVec2(25.0f, 25.0f));
+				DrawStatusArrow(ImGui::GetWindowDrawList(), iconMinimum, effectType);
+				const ImVec2 mouse = ImGui::GetIO().MousePos;
+				const bool hovered = mouse.x >= iconMinimum.x && mouse.x < iconMaximum.x &&
+					mouse.y >= iconMinimum.y && mouse.y < iconMaximum.y;
+				if (hovered)
+				{
+					const bool attack = IsAttackStatusEffect(effectType);
+					const int signedMagnitude = IsPositiveStatusEffect(effectType) ? magnitude : -magnitude;
+					const int baseValue = attack ? enemy->GetStatus().attack : enemy->GetStatus().defense;
+					const int currentValue = attack ? enemy->GetAttack() : enemy->GetDefense();
+					ImGui::BeginTooltip();
+					ImGui::TextColored(
+						attack ? ImVec4(1.0f, 0.35f, 0.31f, 1.0f) : ImVec4(0.32f, 0.62f, 1.0f, 1.0f),
+						"%s", StatusEffectName(effectType));
+					ImGui::Text("現在の効果：%s %+d", attack ? "攻撃力" : "防御力", signedMagnitude);
+					ImGui::Text("基礎値 %d  →  現在値 %d", baseValue, currentValue);
+					ImGui::EndTooltip();
+				}
+			}
+		}
+		ImGui::End();
+		ImGui::PopStyleVar(2);
+	}
 }
 
 void GamePresentation::DrawBattleHud(Game& game)

@@ -4,7 +4,8 @@
 
 struct EnemyData;
 
-// DDAの設定、戦闘計測、次戦補正を所有する。
+// 旧DDAセーブ／ログとの互換性と、固定の進行度スケーリングを所有する。
+// プレイ結果に応じた難易度変更は廃止済み。
 class DynamicBalanceController final
 {
 public:
@@ -74,16 +75,16 @@ public:
 	int GetProgressionAttackMaximumDelta() const { return m_ProgressionAttackMaximumDelta; }
 
 private:
-	bool m_ConfiguredEnabled = true;
-	bool m_Enabled = true;
-	bool m_AppliedEnabled = true;
+	bool m_ConfiguredEnabled = false;
+	bool m_Enabled = false;
+	bool m_AppliedEnabled = false;
 	int m_InitialLevel = 0;
 	int m_Level = 0;
 	int m_AppliedLevel = 0;
-	int m_MinimumLevel = -3;
-	int m_MaximumLevel = 3;
-	int m_HpStep = 1;
-	int m_AttackStep = 1;
+	int m_MinimumLevel = 0;
+	int m_MaximumLevel = 0;
+	int m_HpStep = 0;
+	int m_AttackStep = 0;
 	int m_LevelsPerAttackStep = 2;
 	bool m_PositiveAttackScalingEnabled = false;
 	int m_MinimumEnemyHp = 1;

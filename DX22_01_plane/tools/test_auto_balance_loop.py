@@ -444,7 +444,7 @@ class AutoBalanceLoopTests(unittest.TestCase):
             "build_profile": "standard",
             "paired_validation": {
                 "enabled": True,
-                "validation_variant": "dda_off",
+                "validation_variant": "fixed",
                 "seeds": [1, 2, 3],
             },
             "regression_validation": {
@@ -471,7 +471,7 @@ class AutoBalanceLoopTests(unittest.TestCase):
             "build_profile": "standard",
             "paired_validation": {
                 "enabled": True,
-                "validation_variant": "dda_off",
+                "validation_variant": "fixed",
                 "seeds": [1, 2, 3],
             },
             "holdout_validation": {

@@ -62,6 +62,14 @@ public:
     int GetMaxHP() const { return m_Ball->GetMaxHP(); }
     int GetAttack() const { return m_Ball->GetAttack(); }
     int GetDefense() const { return m_Ball->GetDefense(); }
+    void SetStatusEffects(const StatusEffectCollection& effects)
+    {
+        m_Ball->SetStatusEffects(effects);
+    }
+    const StatusEffectCollection& GetStatusEffects() const
+    {
+        return m_Ball->GetStatusEffects();
+    }
     bool IsDefeated() const { return m_Ball->IsDefeated(); }
     bool IsPocketed() const { return m_IsPocketed; }
     bool IsStopped() const { return m_Ball->IsStopped(); }

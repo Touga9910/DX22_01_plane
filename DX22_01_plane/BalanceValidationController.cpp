@@ -25,8 +25,7 @@ void BalanceValidationController::LoadConfig(
 		nlohmann::json config;
 		file >> config;
 		m_Enabled = config.value("enabled", false);
-		m_DisableDynamicBalance =
-			config.value("disable_dynamic_balance", true);
+		m_DisableDynamicBalance = true;
 		m_FixedStageSchedule = config.value("fixed_stage_schedule", true);
 		m_EnduranceMode = config.value("endurance_mode", false);
 		m_Seed = config.value("random_seed", 20260807u);
@@ -72,9 +71,7 @@ void BalanceValidationController::LoadConfig(
 				{
 					m_Variants.push_back({
 						id,
-						variant.value(
-							"disable_dynamic_balance",
-							m_DisableDynamicBalance),
+						true,
 					});
 				}
 			}

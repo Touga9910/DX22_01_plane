@@ -992,7 +992,8 @@ nlohmann::json GameMcpBridge::BuildState(
 				game.m_DynamicBalanceController.GetLevel())
 			: 0;
 	state["dynamic_balance"] = {
-		{ "role", "assist_mode" },
+		{ "role", "retired_compatibility" },
+		{ "retired", true },
 		{ "enabled", game.m_DynamicBalanceController.IsEnabled() },
 		{ "current_battle_enabled",
 			game.m_DynamicBalanceController.IsAppliedEnabled() },
@@ -1076,7 +1077,6 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["run_map"] = game.m_RunController.Progress().GetMap().Snapshot();
 	if (dynamic_cast<StageSelectScene*>(game.GetCurrentScene()) == nullptr)
 		for (auto& node : state["run_map"]["nodes"]) node["selectable"] = false;
-	state["available_actions"].push_back("set_dynamic_balance");
 	state["available_actions"].push_back("set_next_stage_layout");
 	if (game.m_McpNextStageOverride.has_value())
 	{
@@ -1370,42 +1370,6 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
             arguments.value("state_key", std::string()));
         return CommandResult(fired, fired ? "Fired the selected boss plan." : "Stale or invalid plan. Evaluate again.");
     }
-	if (action == "set_dynamic_balance")
-	{
-		const bool enabled = arguments.value(
-			"enabled",
-			game.m_DynamicBalanceController.IsEnabled());
-		const bool resetLevel =
-			arguments.value("reset_level", false);
-		const bool hasRequestedLevel =
-			arguments.contains("level") &&
-			arguments["level"].is_number_integer();
-		if (arguments.contains("level") &&
-			!hasRequestedLevel)
-		{
-			return CommandResult(
-				false,
-				"level must be an integer when provided.");
-		}
-		const int requestedLevel =
-			hasRequestedLevel
-				? arguments["level"].get<int>()
-				: game.m_DynamicBalanceController.GetLevel();
-		game.m_DynamicBalanceController.Set(
-			enabled,
-			resetLevel,
-			requestedLevel,
-			hasRequestedLevel,
-			game.m_BalanceValidationController.IsDynamicBalanceLockedOff());
-		return CommandResult(
-			true,
-			std::string("Dynamic balance ") +
-				(enabled ? "enabled" : "disabled") +
-				". Level=" +
-				std::to_string(game.m_DynamicBalanceController.GetLevel()) +
-				". Changes apply to newly spawned enemies.");
-	}
-
 	if (action == "set_next_stage_layout")
 	{
 		if (!arguments.contains("layout_id") ||
