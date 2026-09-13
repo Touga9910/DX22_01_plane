@@ -1,0 +1,13 @@
+prefix=C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/third_party/assimp
+exec_prefix=C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/third_party/assimp
+libdir=
+sharedlibdir=
+includedir=
+
+Name: zlib
+Description: zlib compression library
+Version: 
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir}

@@ -10,6 +10,7 @@
 #include "EnemyBall.h"
 #include "BreakBall.h"
 #include "PlayerBall.h"
+#include "PlayerBallText.h"
 #include "input.h"
 #include "imgui/imgui.h"
 #include "json/json.hpp"
@@ -33,6 +34,11 @@ namespace
 	constexpr const char* kBalanceReportPath =
 		"logs/balance/balance_report.json";
 
+	const char* PresentationUtf8(const char8_t* text) noexcept
+	{
+		return reinterpret_cast<const char*>(text);
+	}
+
 	ImU32 WithAlpha(ImU32 color, float alpha)
 	{
 		const unsigned int clamped = static_cast<unsigned int>(
@@ -55,6 +61,68 @@ namespace
 		if (judgement == "too_easy") return ImVec4(0.30f, 0.72f, 1.0f, 1.0f);
 		if (judgement == "too_difficult") return ImVec4(1.0f, 0.43f, 0.30f, 1.0f);
 		return ImVec4(0.95f, 0.78f, 0.28f, 1.0f);
+	}
+
+	bool DrawPileButton(
+		const char* id,
+		const char* label,
+		int count,
+		ImU32 accent,
+		const ImVec2& size)
+	{
+		const ImVec2 position = ImGui::GetCursorScreenPos();
+		ImGui::InvisibleButton(id, size);
+		const bool hovered = ImGui::IsItemHovered();
+		if (hovered)
+		{
+			ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+		}
+
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		const ImU32 background = hovered
+			? IM_COL32(26, 37, 51, 246)
+			: IM_COL32(12, 20, 30, 232);
+		drawList->AddRectFilled(
+			position,
+			ImVec2(position.x + size.x, position.y + size.y),
+			background,
+			10.0f);
+		drawList->AddRect(
+			position,
+			ImVec2(position.x + size.x, position.y + size.y),
+			hovered ? accent : IM_COL32(83, 99, 120, 220),
+			10.0f,
+			0,
+			hovered ? 2.0f : 1.0f);
+
+		for (int layer = 2; layer >= 0; --layer)
+		{
+			const float offset = static_cast<float>(layer) * 3.0f;
+			drawList->AddRectFilled(
+				ImVec2(position.x + 10.0f + offset, position.y + 12.0f - offset),
+				ImVec2(position.x + 43.0f + offset, position.y + 61.0f - offset),
+				layer == 0 ? IM_COL32(25, 34, 46, 255) : IM_COL32(48, 59, 73, 255),
+				4.0f);
+			drawList->AddRect(
+				ImVec2(position.x + 10.0f + offset, position.y + 12.0f - offset),
+				ImVec2(position.x + 43.0f + offset, position.y + 61.0f - offset),
+				layer == 0 ? accent : IM_COL32(96, 108, 126, 220),
+				4.0f);
+		}
+
+		drawList->AddText(
+			ImVec2(position.x + 52.0f, position.y + 13.0f),
+			IM_COL32(210, 220, 233, 255),
+			label);
+		char countText[24]{};
+		sprintf_s(countText, PresentationUtf8(u8"%d枚"), count);
+		drawList->AddText(
+			ImGui::GetFont(),
+			ImGui::GetFontSize() * 1.15f,
+			ImVec2(position.x + 52.0f, position.y + 36.0f),
+			IM_COL32(255, 255, 255, 255),
+			countText);
+		return ImGui::IsItemClicked(ImGuiMouseButton_Left);
 	}
 
 	bool TryProjectToScreen(
@@ -258,6 +326,11 @@ void GamePresentation::Draw(Game& game)
 		if (ImGui::Button("終了")) PostMessage(Application::GetWindow(), WM_CLOSE, 0, 0);
 		ImGui::EndMainMenuBar();
 	}
+	if (IsBattleScene(game))
+	{
+		DrawBattleHud(game);
+		return;
+	}
 	GameUi::PrepareWindow("play_hints", ImVec2(805, 35), ImVec2(450, 170));
 	if (ImGui::Begin("操作と攻略", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
 	{
@@ -314,8 +387,283 @@ void GamePresentation::Draw(Game& game)
 	ImGui::End();
 }
 
+void GamePresentation::DrawBattleHud(Game& game)
+{
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const ImVec2 workPosition = viewport->WorkPos;
+	const ImVec2 workSize = viewport->WorkSize;
+	const ImGuiWindowFlags fixedFlags =
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoDocking |
+		ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoScrollWithMouse;
+
+	const auto players = game.GetComponents<PlayerBall>();
+	const int currentHp = players.empty() || players[0] == nullptr
+		? game.GetPlayerCurrentHp()
+		: players[0]->GetHP();
+	const int maxHp = (std::max)(1, game.GetPlayerMaxHp());
+	const float hpRatio = std::clamp(
+		static_cast<float>(currentHp) / static_cast<float>(maxHp),
+		0.0f,
+		1.0f);
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(workPosition.x + 16.0f, workPosition.y + 16.0f));
+	ImGui::SetNextWindowSize(ImVec2(278.0f, 112.0f));
+	ImGui::SetNextWindowBgAlpha(0.91f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(82, 98, 119, 225));
+	if (ImGui::Begin("##battle_status_hud", nullptr, fixedFlags))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.42f, 0.38f, 1.0f), "HP  %d / %d", currentHp, maxHp);
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.92f, 0.25f, 0.22f, 1.0f));
+		ImGui::ProgressBar(hpRatio, ImVec2(-1.0f, 8.0f), "");
+		ImGui::PopStyleColor();
+		ImGui::TextDisabled("シールド %d    所持金 %d", game.GetPlayerShield(), game.GetPlayerMoney());
+		char relicButton[64]{};
+		sprintf_s(
+			relicButton,
+			PresentationUtf8(u8"レリック一覧  %d##relic_list"),
+			game.GetOwnedRelicCount());
+		if (ImGui::Button(relicButton, ImVec2(-1.0f, 25.0f)))
+		{
+			m_RelicListOpen = !m_RelicListOpen;
+		}
+	}
+	ImGui::End();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar(2);
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(
+		workPosition.x + workSize.x - 202.0f,
+		workPosition.y + 16.0f));
+	ImGui::SetNextWindowSize(ImVec2(186.0f, 51.0f));
+	ImGui::SetNextWindowBgAlpha(0.91f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+	if (ImGui::Begin("##deck_button_hud", nullptr, fixedFlags))
+	{
+		char deckButton[64]{};
+		sprintf_s(
+			deckButton,
+			PresentationUtf8(u8"デッキ確認  %d枚##deck_list"),
+			game.GetDeckBallCount());
+		if (ImGui::Button(deckButton, ImVec2(-1.0f, 30.0f)))
+		{
+			m_DeckListView = DeckListView::All;
+			m_DeckListOpen = !m_DeckListOpen;
+		}
+	}
+	ImGui::End();
+	ImGui::PopStyleVar();
+
+	const ImVec2 pileSize(112.0f, 76.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(
+		workPosition.x + 16.0f,
+		workPosition.y + workSize.y - pileSize.y - 12.0f));
+	ImGui::SetNextWindowSize(pileSize);
+	if (ImGui::Begin("##draw_pile_hud", nullptr, fixedFlags | ImGuiWindowFlags_NoBackground))
+	{
+		if (DrawPileButton(
+			"draw_pile_button",
+			"残り札",
+			game.GetPlayerDeckCount(),
+			IM_COL32(88, 169, 255, 255),
+			pileSize))
+		{
+			m_DeckListView = DeckListView::DrawPile;
+			m_DeckListOpen = true;
+		}
+	}
+	ImGui::End();
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(
+		workPosition.x + workSize.x - pileSize.x - 16.0f,
+		workPosition.y + workSize.y - pileSize.y - 12.0f));
+	ImGui::SetNextWindowSize(pileSize);
+	if (ImGui::Begin("##discard_pile_hud", nullptr, fixedFlags | ImGuiWindowFlags_NoBackground))
+	{
+		if (DrawPileButton(
+			"discard_pile_button",
+			"捨て札",
+			game.GetPlayerDiscardCount(),
+			IM_COL32(205, 118, 255, 255),
+			pileSize))
+		{
+			m_DeckListView = DeckListView::DiscardPile;
+			m_DeckListOpen = true;
+		}
+	}
+	ImGui::End();
+	ImGui::PopStyleVar();
+
+	if (m_DeckListOpen)
+	{
+		DrawDeckList(game);
+	}
+	if (m_RelicListOpen)
+	{
+		DrawRelicList(game);
+	}
+}
+
+void GamePresentation::DrawDeckList(Game& game)
+{
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const float overlayHeight = (std::min)(440.0f, viewport->WorkSize.y - 112.0f);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(
+		viewport->WorkPos.x + viewport->WorkSize.x - 388.0f,
+		viewport->WorkPos.y + 76.0f));
+	ImGui::SetNextWindowSize(ImVec2(372.0f, overlayHeight));
+	ImGui::SetNextWindowBgAlpha(0.96f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(88, 113, 143, 255));
+	const ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoDocking;
+	if (ImGui::Begin("##deck_list_overlay", nullptr, flags))
+	{
+		ImGui::TextUnformatted("デッキ確認");
+		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 26.0f);
+		if (ImGui::SmallButton("X##close_deck"))
+		{
+			m_DeckListOpen = false;
+		}
+		ImGui::Separator();
+
+		if (ImGui::Selectable("すべて", m_DeckListView == DeckListView::All, 0, ImVec2(88.0f, 24.0f)))
+			m_DeckListView = DeckListView::All;
+		ImGui::SameLine();
+		if (ImGui::Selectable("残り札", m_DeckListView == DeckListView::DrawPile, 0, ImVec2(88.0f, 24.0f)))
+			m_DeckListView = DeckListView::DrawPile;
+		ImGui::SameLine();
+		if (ImGui::Selectable("捨て札", m_DeckListView == DeckListView::DiscardPile, 0, ImVec2(88.0f, 24.0f)))
+			m_DeckListView = DeckListView::DiscardPile;
+
+		const PlayerDeck& deck = game.m_RunController.Deck();
+		int count = 0;
+		auto ballAt = [&](int index) -> const PlayerBallData*
+		{
+			switch (m_DeckListView)
+			{
+			case DeckListView::DrawPile:
+				return index >= 0 && index < deck.GetDrawPileCount()
+					? &deck.GetDrawPile()[static_cast<std::size_t>(index)]
+					: nullptr;
+			case DeckListView::DiscardPile:
+				return index >= 0 && index < deck.GetDiscardPileCount()
+					? &deck.GetDiscardPile()[static_cast<std::size_t>(index)]
+					: nullptr;
+			default:
+				return deck.GetRewardTarget(index);
+			}
+		};
+		switch (m_DeckListView)
+		{
+		case DeckListView::DrawPile: count = deck.GetDrawPileCount(); break;
+		case DeckListView::DiscardPile: count = deck.GetDiscardPileCount(); break;
+		default: count = deck.GetRewardTargetCount(); break;
+		}
+		ImGui::TextDisabled("%d枚", count);
+		ImGui::BeginChild("deck_list_rows", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
+		if (count == 0)
+		{
+			ImGui::TextDisabled("ここにはまだカードがありません。");
+		}
+		for (int index = 0; index < count; ++index)
+		{
+			const PlayerBallData* ball = ballAt(index);
+			if (ball == nullptr) continue;
+			ImGui::PushID(index);
+			const auto color = PlayerBallText::GetColor(*ball);
+			ImGui::ColorButton(
+				"ball_color",
+				ImVec4(color[0], color[1], color[2], 1.0f),
+				ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop,
+				ImVec2(18.0f, 18.0f));
+			ImGui::SameLine();
+			ImGui::Text("%s  Lv.%d", PlayerBallText::GetName(ball->definitionId), ball->upgradeLevel);
+			ImGui::TextDisabled("%s", PlayerBallText::GetTrait(*ball));
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("%s", PlayerBallText::GetDescription(ball->definitionId));
+			}
+			ImGui::Separator();
+			ImGui::PopID();
+		}
+		ImGui::EndChild();
+	}
+	ImGui::End();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar();
+}
+
+void GamePresentation::DrawRelicList(Game& game)
+{
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const float overlayHeight = (std::min)(360.0f, viewport->WorkSize.y - 164.0f);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(ImVec2(
+		viewport->WorkPos.x + 16.0f,
+		viewport->WorkPos.y + 138.0f));
+	ImGui::SetNextWindowSize(ImVec2(362.0f, overlayHeight));
+	ImGui::SetNextWindowBgAlpha(0.96f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
+	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(112, 190, 166, 255));
+	const ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoDocking;
+	if (ImGui::Begin("##relic_list_overlay", nullptr, flags))
+	{
+		ImGui::Text("レリック一覧  %d", game.GetOwnedRelicCount());
+		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 26.0f);
+		if (ImGui::SmallButton("X##close_relic"))
+		{
+			m_RelicListOpen = false;
+		}
+		ImGui::Separator();
+		ImGui::BeginChild("relic_list_rows", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
+		bool found = false;
+		for (int index = 0; index < game.GetRelicCount(); ++index)
+		{
+			const RelicDefinition* relic = game.GetRelic(index);
+			if (relic == nullptr || !game.HasRelic(relic->type)) continue;
+			found = true;
+			ImGui::PushID(index);
+			ImGui::TextColored(ImVec4(0.55f, 0.95f, 0.80f, 1.0f), "%s", relic->name);
+			ImGui::TextWrapped("%s", relic->description);
+			ImGui::Separator();
+			ImGui::PopID();
+		}
+		if (!found)
+		{
+			ImGui::TextDisabled("レリックはまだありません。");
+		}
+		ImGui::EndChild();
+	}
+	ImGui::End();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar();
+}
+
 void GamePresentation::OnBattleStarted(Game&)
 {
+	m_BallCardExpansion.fill(0.0f);
+	m_DeckListOpen = false;
+	m_RelicListOpen = false;
 	if (!m_TutorialCompleted)
 	{
 		StartTutorial(false);
@@ -327,6 +675,7 @@ void GamePresentation::OnShotFired()
 	m_CurrentShotHitCount = 0;
 	m_CurrentShotDamage = 0;
 	m_HitSummaryLifetime = 0.0f;
+	m_BallCardExpansion.fill(0.0f);
 	if (m_TutorialActive &&
 		(m_TutorialStep == TutorialStep::ChooseAndAim ||
 			m_TutorialStep == TutorialStep::SetPower))

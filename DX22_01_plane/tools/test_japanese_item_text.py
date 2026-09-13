@@ -52,6 +52,14 @@ class JapaneseItemTextTests(unittest.TestCase):
             self.assertIn('include "PlayerBallText.h"', text)
             self.assertIn("PlayerBallText::GetDescription", text)
 
+    def test_ball_card_dynamic_status_uses_explicit_utf8_format_strings(self) -> None:
+        text = (ROOT / "Game.cpp").read_text(encoding="utf-8-sig")
+
+        self.assertIn('PlayerBallText::Utf8(u8"攻撃 %d   防御 %d")', text)
+        self.assertIn('PlayerBallText::Utf8(u8"重さ %.1f   大きさ %.1f")', text)
+        self.assertNotIn('sprintf_s(text, "\\u653b\\u6483', text)
+        self.assertNotIn('sprintf_s(text, "\\u91cd\\u3055', text)
+
     def test_shared_japanese_ui_text_is_used_by_player_facing_screens(self) -> None:
         ui_text = (ROOT / "UiText.h").read_text(encoding="utf-8")
         self.assertIn("namespace UiText", ui_text)

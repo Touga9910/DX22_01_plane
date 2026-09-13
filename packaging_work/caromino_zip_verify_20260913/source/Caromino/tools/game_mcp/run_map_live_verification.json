@@ -1,0 +1,6 @@
+{
+  "tools": 19,
+  "map_description_active": true,
+  "map_instructions_active": true,
+  "endpoint": "http://127.0.0.1:8765/mcp"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "selected_profile": "normal",
+  "profiles": {
+    "story": {
+      "enemy_hp_multiplier": 0.75,
+      "enemy_attack_delta": -1
+    },
+    "normal": {
+      "enemy_hp_multiplier": 1.0,
+      "enemy_attack_delta": 0
+    },
+    "veteran": {
+      "enemy_hp_multiplier": 1.25,
+      "enemy_attack_delta": 1
+    }
+  }
+}

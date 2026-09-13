@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-build\CMakeFiles\c984b85d677324fb67d3c617c2c5a990\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{2DF7259B-F1ED-33D0-957E-DD6F061F9439}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,574 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineSystem.cmake:233 (message)"
+      - "CMakeLists.txt:59 (PROJECT)"
+    message: |
+      The system is: Windows - 10.0.26200 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:59 (PROJECT)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+      2026/09/12 12:30:30 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+      
+      繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdC\\CompilerIdC.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+      PrepareForBuild:
+        繝・ぅ繝ｬ繧ｯ繝医Μ "Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+        繝・ぅ繝ｬ繧ｯ繝医Μ "Debug\\CompilerIdC.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+      InitializeBuildStatus:
+        "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "Debug\\CompilerIdC.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        "Debug\\CompilerIdC.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+      ClCompile:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\\\" /Fd"Debug\\vc143.pdb" /external:W0 /Gd /TC /FC /errorReport:queue CMakeCCompilerId.c
+        CMakeCCompilerId.c
+      Link:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:".\\CompilerIdC.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:".\\CompilerIdC.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:".\\CompilerIdC.lib" /MACHINE:X64 Debug\\CMakeCCompilerId.obj
+        CompilerIdC.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdC\\CompilerIdC.exe
+      PostBuildEvent:
+        for %%i in (cl.exe) do @echo CMAKE_C_COMPILER=%%~$PATH:i
+        :VCEnd
+        CMAKE_C_COMPILER=C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\Hostx64\\x64\\cl.exe
+      FinalizeBuildStatus:
+        繝輔ぃ繧､繝ｫ "Debug\\CompilerIdC.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+        "Debug\\CompilerIdC.tlog\\CompilerIdC.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+      繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdC\\CompilerIdC.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+      
+      繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+          0 蛟九・隴ｦ蜻・
+          0 繧ｨ繝ｩ繝ｼ
+      
+      邨碁℃譎る俣 00:00:00.98
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CompilerIdC.exe"
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CompilerIdC.vcxproj"
+      
+      The C compiler identification is MSVC, found in:
+        C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/3.28.0-msvc1/CompilerIdC/CompilerIdC.exe
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:59 (PROJECT)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+      2026/09/12 12:30:32 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+      
+      繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+      PrepareForBuild:
+        繝・ぅ繝ｬ繧ｯ繝医Μ "Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+        繝・ぅ繝ｬ繧ｯ繝医Μ "Debug\\CompilerIdCXX.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+      InitializeBuildStatus:
+        "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+      ClCompile:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\\\" /Fd"Debug\\vc143.pdb" /external:W0 /Gd /TP /FC /errorReport:queue CMakeCXXCompilerId.cpp
+        CMakeCXXCompilerId.cpp
+      Link:
+        C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:".\\CompilerIdCXX.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:".\\CompilerIdCXX.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:".\\CompilerIdCXX.lib" /MACHINE:X64 Debug\\CMakeCXXCompilerId.obj
+        CompilerIdCXX.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdCXX\\CompilerIdCXX.exe
+      PostBuildEvent:
+        for %%i in (cl.exe) do @echo CMAKE_CXX_COMPILER=%%~$PATH:i
+        :VCEnd
+        CMAKE_CXX_COMPILER=C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\Hostx64\\x64\\cl.exe
+      FinalizeBuildStatus:
+        繝輔ぃ繧､繝ｫ "Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+        "Debug\\CompilerIdCXX.tlog\\CompilerIdCXX.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+      繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\3.28.0-msvc1\\CompilerIdCXX\\CompilerIdCXX.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+      
+      繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+          0 蛟九・隴ｦ蜻・
+          0 繧ｨ繝ｩ繝ｼ
+      
+      邨碁℃譎る俣 00:00:00.70
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.exe"
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.vcxproj"
+      
+      The CXX compiler identification is MSVC, found in:
+        C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/3.28.0-msvc1/CompilerIdCXX/CompilerIdCXX.exe
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:59 (PROJECT)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-pu1m2j"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-pu1m2j"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-pu1m2j'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_f4c2d.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:33 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-pu1m2j\\cmTC_f4c2d.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_f4c2d.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-pu1m2j\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_f4c2d.dir\\Debug\\\\" /Fd"cmTC_f4c2d.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.28\\Modules\\CMakeCCompilerABI.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_f4c2d.dir\\Debug\\\\" /Fd"cmTC_f4c2d.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.28\\Modules\\CMakeCCompilerABI.c"
+          CMakeCCompilerABI.c
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-pu1m2j\\Debug\\cmTC_f4c2d.exe" /INCREMENTAL /ILK:"cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-pu1m2j/Debug/cmTC_f4c2d.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-pu1m2j/Debug/cmTC_f4c2d.lib" /MACHINE:X64  /machine:x64 cmTC_f4c2d.dir\\Debug\\CMakeCCompilerABI.obj
+          cmTC_f4c2d.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-pu1m2j\\Debug\\cmTC_f4c2d.exe
+        FinalizeBuildStatus:
+          繝輔ぃ繧､繝ｫ "cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_f4c2d.dir\\Debug\\cmTC_f4c2d.tlog\\cmTC_f4c2d.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-pu1m2j\\cmTC_f4c2d.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+        
+        繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+            0 蛟九・隴ｦ蜻・
+            0 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.63
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:59 (PROJECT)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-neji9z"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-neji9z"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
+      CMAKE_CXX_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-neji9z'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_25a4a.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:34 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-neji9z\\cmTC_25a4a.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_25a4a.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-neji9z\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_25a4a.dir\\Debug\\cmTC_25a4a.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_25a4a.dir\\Debug\\cmTC_25a4a.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_25a4a.dir\\Debug\\cmTC_25a4a.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_25a4a.dir\\Debug\\\\" /Fd"cmTC_25a4a.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.28\\Modules\\CMakeCXXCompilerABI.cpp"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_25a4a.dir\\Debug\\\\" /Fd"cmTC_25a4a.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TP /errorReport:queue "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.28\\Modules\\CMakeCXXCompilerABI.cpp"
+          CMakeCXXCompilerABI.cpp
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-neji9z\\Debug\\cmTC_25a4a.exe" /INCREMENTAL /ILK:"cmTC_25a4a.dir\\Debug\\cmTC_25a4a.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-neji9z/Debug/cmTC_25a4a.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-neji9z/Debug/cmTC_25a4a.lib" /MACHINE:X64  /machine:x64 cmTC_25a4a.dir\\Debug\\CMakeCXXCompilerABI.obj
+          cmTC_25a4a.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-neji9z\\Debug\\cmTC_25a4a.exe
+        FinalizeBuildStatus:
+          繝輔ぃ繧､繝ｫ "cmTC_25a4a.dir\\Debug\\cmTC_25a4a.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_25a4a.dir\\Debug\\cmTC_25a4a.tlog\\cmTC_25a4a.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-neji9z\\cmTC_25a4a.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+        
+        繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+            0 蛟九・隴ｦ蜻・
+            0 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.64
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "contrib/zlib/CMakeLists.txt:35 (check_include_file)"
+    checks:
+      - "Looking for sys/types.h"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-g4zk5t"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-g4zk5t"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "HAVE_SYS_TYPES_H"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-g4zk5t'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_14392.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:36 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\cmTC_14392.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_14392.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_14392.dir\\Debug\\cmTC_14392.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_14392.dir\\Debug\\cmTC_14392.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_14392.dir\\Debug\\cmTC_14392.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_14392.dir\\Debug\\\\" /Fd"cmTC_14392.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\CheckIncludeFile.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_14392.dir\\Debug\\\\" /Fd"cmTC_14392.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\CheckIncludeFile.c"
+          CheckIncludeFile.c
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\Debug\\cmTC_14392.exe" /INCREMENTAL /ILK:"cmTC_14392.dir\\Debug\\cmTC_14392.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-g4zk5t/Debug/cmTC_14392.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-g4zk5t/Debug/cmTC_14392.lib" /MACHINE:X64  /machine:x64 cmTC_14392.dir\\Debug\\CheckIncludeFile.obj
+          cmTC_14392.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\Debug\\cmTC_14392.exe
+        FinalizeBuildStatus:
+          繝輔ぃ繧､繝ｫ "cmTC_14392.dir\\Debug\\cmTC_14392.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_14392.dir\\Debug\\cmTC_14392.tlog\\cmTC_14392.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-g4zk5t\\cmTC_14392.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+        
+        繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+            0 蛟九・隴ｦ蜻・
+            0 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.64
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "contrib/zlib/CMakeLists.txt:36 (check_include_file)"
+    checks:
+      - "Looking for stdint.h"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dinfou"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dinfou"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "HAVE_STDINT_H"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dinfou'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_eef54.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:37 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\cmTC_eef54.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_eef54.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_eef54.dir\\Debug\\cmTC_eef54.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_eef54.dir\\Debug\\cmTC_eef54.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_eef54.dir\\Debug\\cmTC_eef54.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_eef54.dir\\Debug\\\\" /Fd"cmTC_eef54.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\CheckIncludeFile.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_eef54.dir\\Debug\\\\" /Fd"cmTC_eef54.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\CheckIncludeFile.c"
+          CheckIncludeFile.c
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\Debug\\cmTC_eef54.exe" /INCREMENTAL /ILK:"cmTC_eef54.dir\\Debug\\cmTC_eef54.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dinfou/Debug/cmTC_eef54.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dinfou/Debug/cmTC_eef54.lib" /MACHINE:X64  /machine:x64 cmTC_eef54.dir\\Debug\\CheckIncludeFile.obj
+          cmTC_eef54.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\Debug\\cmTC_eef54.exe
+        FinalizeBuildStatus:
+          繝輔ぃ繧､繝ｫ "cmTC_eef54.dir\\Debug\\cmTC_eef54.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_eef54.dir\\Debug\\cmTC_eef54.tlog\\cmTC_eef54.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dinfou\\cmTC_eef54.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+        
+        繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+            0 蛟九・隴ｦ蜻・
+            0 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.61
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "contrib/zlib/CMakeLists.txt:37 (check_include_file)"
+    checks:
+      - "Looking for stddef.h"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-y3uwnu"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-y3uwnu"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "HAVE_STDDEF_H"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-y3uwnu'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_054dd.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:38 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\cmTC_054dd.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_054dd.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_054dd.dir\\Debug\\cmTC_054dd.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_054dd.dir\\Debug\\cmTC_054dd.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_054dd.dir\\Debug\\cmTC_054dd.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_054dd.dir\\Debug\\\\" /Fd"cmTC_054dd.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\CheckIncludeFile.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_054dd.dir\\Debug\\\\" /Fd"cmTC_054dd.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\CheckIncludeFile.c"
+          CheckIncludeFile.c
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\Debug\\cmTC_054dd.exe" /INCREMENTAL /ILK:"cmTC_054dd.dir\\Debug\\cmTC_054dd.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-y3uwnu/Debug/cmTC_054dd.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-y3uwnu/Debug/cmTC_054dd.lib" /MACHINE:X64  /machine:x64 cmTC_054dd.dir\\Debug\\CheckIncludeFile.obj
+          cmTC_054dd.vcxproj -> C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\Debug\\cmTC_054dd.exe
+        FinalizeBuildStatus:
+          繝輔ぃ繧､繝ｫ "cmTC_054dd.dir\\Debug\\cmTC_054dd.tlog\\unsuccessfulbuild" 繧貞炎髯､縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_054dd.dir\\Debug\\cmTC_054dd.tlog\\cmTC_054dd.lastbuildstate" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-y3uwnu\\cmTC_054dd.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′螳御ｺ・＠縺ｾ縺励◆縲・
+        
+        繝薙Ν繝峨↓謌仙粥縺励∪縺励◆縲・
+            0 蛟九・隴ｦ蜻・
+            0 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.63
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckTypeSize.cmake:146 (try_compile)"
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckTypeSize.cmake:271 (__check_type_size_impl)"
+      - "contrib/zlib/CMakeLists.txt:55 (check_type_size)"
+    checks:
+      - "Check size of off64_t"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-fvwv1k"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-fvwv1k"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "HAVE_OFF64_T"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-fvwv1k'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_afcce.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:39 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_afcce.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_afcce.dir\\Debug\\cmTC_afcce.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_afcce.dir\\Debug\\cmTC_afcce.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_afcce.dir\\Debug\\cmTC_afcce.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _LARGEFILE64_SOURCE=1 /D HAVE_SYS_TYPES_H /D HAVE_STDINT_H /D HAVE_STDDEF_H /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_afcce.dir\\Debug\\\\" /Fd"cmTC_afcce.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D _LARGEFILE64_SOURCE=1 /D HAVE_SYS_TYPES_H /D HAVE_STDINT_H /D HAVE_STDDEF_H /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_afcce.dir\\Debug\\\\" /Fd"cmTC_afcce.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c"
+          OFF64_T.c
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(29,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(30,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(31,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(32,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(33,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′邨ゆｺ・＠縺ｾ縺励◆ -- 螟ｱ謨励\xc2\x80・
+        
+        繝薙Ν繝峨↓螟ｱ謨励＠縺ｾ縺励◆縲・
+        
+        "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) (1) ->
+        (ClCompile 繧ｿ繝ｼ繧ｲ繝・ヨ) -> 
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(29,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(30,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(31,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(32,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\OFF64_T.c(33,12): error C2065: 'off64_t': 螳夂ｾｩ縺輔ｌ縺ｦ縺・↑縺・ｭ伜挨蟄舌〒縺吶\xc2\x80・[C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-fvwv1k\\cmTC_afcce.vcxproj]
+        
+            0 蛟九・隴ｦ蜻・
+            5 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.42
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckFunctionExists.cmake:86 (try_compile)"
+      - "contrib/zlib/CMakeLists.txt:64 (check_function_exists)"
+    checks:
+      - "Looking for fseeko"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-old7is"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-old7is"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "HAVE_FSEEKO"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-old7is'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_8be55.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:39 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_8be55.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_8be55.dir\\Debug\\cmTC_8be55.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_8be55.dir\\Debug\\cmTC_8be55.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_8be55.dir\\Debug\\cmTC_8be55.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=fseeko /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_8be55.dir\\Debug\\\\" /Fd"cmTC_8be55.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\CheckFunctionExists.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=fseeko /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_8be55.dir\\Debug\\\\" /Fd"cmTC_8be55.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\CheckFunctionExists.c"
+          CheckFunctionExists.c
+        Link:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\link.exe /ERRORREPORT:QUEUE /OUT:"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\Debug\\cmTC_8be55.exe" /INCREMENTAL /ILK:"cmTC_8be55.dir\\Debug\\cmTC_8be55.ilk" /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-old7is/Debug/cmTC_8be55.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:/HAL/HAL_Program/DX22/DX22_01_plane - 繧ｳ繝斐・/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-old7is/Debug/cmTC_8be55.lib" /MACHINE:X64  /machine:x64 cmTC_8be55.dir\\Debug\\CheckFunctionExists.obj
+        CheckFunctionExists.obj : error LNK2019: 譛ｪ隗｣豎ｺ縺ｮ螟夜Κ繧ｷ繝ｳ繝懊Ν fseeko 縺碁未謨ｰ main 縺ｧ蜿ら・縺輔ｌ縺ｾ縺励◆ [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj]
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\Debug\\cmTC_8be55.exe : fatal error LNK1120: 1 莉ｶ縺ｮ譛ｪ隗｣豎ｺ縺ｮ螟夜Κ蜿ら・ [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj]
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′邨ゆｺ・＠縺ｾ縺励◆ -- 螟ｱ謨励\xc2\x80・
+        
+        繝薙Ν繝峨↓螟ｱ謨励＠縺ｾ縺励◆縲・
+        
+        "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) (1) ->
+        (Link 繧ｿ繝ｼ繧ｲ繝・ヨ) -> 
+          CheckFunctionExists.obj : error LNK2019: 譛ｪ隗｣豎ｺ縺ｮ螟夜Κ繧ｷ繝ｳ繝懊Ν fseeko 縺碁未謨ｰ main 縺ｧ蜿ら・縺輔ｌ縺ｾ縺励◆ [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj]
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\Debug\\cmTC_8be55.exe : fatal error LNK1120: 1 莉ｶ縺ｮ譛ｪ隗｣豎ｺ縺ｮ螟夜Κ蜿ら・ [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-old7is\\cmTC_8be55.vcxproj]
+        
+            0 蛟九・隴ｦ蜻・
+            2 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.56
+        
+      exitCode: 1
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.28/Modules/CheckIncludeFile.cmake:90 (try_compile)"
+      - "contrib/zlib/CMakeLists.txt:72 (check_include_file)"
+    checks:
+      - "Looking for unistd.h"
+    directories:
+      source: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dp6v1e"
+      binary: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dp6v1e"
+    cmakeVariables:
+      CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
+      CMAKE_C_FLAGS_DEBUG: "/MDd /Zi /Ob0 /Od /RTC1"
+      CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
+      CMAKE_MODULE_PATH: "C:/HAL/HAL_Program/DX22/DX22_01_plane - \u30b3\u30d4\u30fc/DX22_01_plane/packaging_work/assimp-5.2.5-src/cmake-modules"
+    buildResult:
+      variable: "Z_HAVE_UNISTD_H"
+      cached: true
+      stdout: |
+        Change Dir: 'C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/packaging_work/assimp-build/CMakeFiles/CMakeScratch/TryCompile-dp6v1e'
+        
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64/MSBuild.exe" cmTC_78a46.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+        MSBuild 縺ｮ繝舌・繧ｸ繝ｧ繝ｳ 17.9.8+b34f75857 (.NET Framework)
+        2026/09/12 12:30:40 縺ｫ繝薙Ν繝峨ｒ髢句ｧ九＠縺ｾ縺励◆縲・
+        
+        繝弱・繝・1 荳翫・繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\cmTC_78a46.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ)縲・
+        PrepareForBuild:
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_78a46.dir\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          讒矩\xc2\x80蛹門・蜉帙′譛牙柑縺ｫ縺ｪ縺｣縺ｦ縺・∪縺吶\xc2\x80ゅさ繝ｳ繝代う繝ｩ險ｺ譁ｭ縺ｮ譖ｸ蠑剰ｨｭ螳壹↓縺ｯ繧ｨ繝ｩ繝ｼ髫主ｱ､縺悟渚譏縺輔ｌ縺ｾ縺吶\xc2\x80りｩｳ邏ｰ縺ｫ縺､縺・※縺ｯ縲”ttps://aka.ms/cpp/structured-output 繧貞盾辣ｧ縺励※縺上□縺輔＞縲・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\Debug\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          繝・ぅ繝ｬ繧ｯ繝医Μ "cmTC_78a46.dir\\Debug\\cmTC_78a46.tlog\\" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+        InitializeBuildStatus:
+          "AlwaysCreate" 縺梧欠螳壹＆繧後◆縺溘ａ "cmTC_78a46.dir\\Debug\\cmTC_78a46.tlog\\unsuccessfulbuild" 繧剃ｽ懈・縺励※縺・∪縺吶\xc2\x80・
+          "cmTC_78a46.dir\\Debug\\cmTC_78a46.tlog\\unsuccessfulbuild" 縺ｮ繧ｿ繝・メ 繧ｿ繧ｹ繧ｯ繧貞ｮ溯｡後＠縺ｦ縺・∪縺吶\xc2\x80・
+        ClCompile:
+          C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Tools\\MSVC\\14.38.33130\\bin\\HostX64\\x64\\CL.exe /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_78a46.dir\\Debug\\\\" /Fd"cmTC_78a46.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\CheckIncludeFile.c"
+          Microsoft(R) C/C++ Optimizing Compiler Version 19.38.33135 for x64
+          Copyright (C) Microsoft Corporation.  All rights reserved.
+          cl /c /Zi /W1 /WX- /diagnostics:column /Od /Ob0 /D _MBCS /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\\"Debug\\"" /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_78a46.dir\\Debug\\\\" /Fd"cmTC_78a46.dir\\Debug\\vc143.pdb" /external:W1 /Gd /TC /errorReport:queue "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\CheckIncludeFile.c"
+          CheckIncludeFile.c
+        C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\CheckIncludeFile.c(1,10): error C1083: include 繝輔ぃ繧､繝ｫ繧帝幕縺代∪縺帙ｓ縲・unistd.h':No such file or directory [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\cmTC_78a46.vcxproj]
+        繝励Ο繧ｸ繧ｧ繧ｯ繝・"C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\cmTC_78a46.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) 縺ｮ繝薙Ν繝峨′邨ゆｺ・＠縺ｾ縺励◆ -- 螟ｱ謨励\xc2\x80・
+        
+        繝薙Ν繝峨↓螟ｱ謨励＠縺ｾ縺励◆縲・
+        
+        "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\cmTC_78a46.vcxproj" (譌｢螳壹・繧ｿ繝ｼ繧ｲ繝・ヨ) (1) ->
+        (ClCompile 繧ｿ繝ｼ繧ｲ繝・ヨ) -> 
+          C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\CheckIncludeFile.c(1,10): error C1083: include 繝輔ぃ繧､繝ｫ繧帝幕縺代∪縺帙ｓ縲・unistd.h':No such file or directory [C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - 繧ｳ繝斐・\\DX22_01_plane\\packaging_work\\assimp-build\\CMakeFiles\\CMakeScratch\\TryCompile-dp6v1e\\cmTC_78a46.vcxproj]
+        
+            0 蛟九・隴ｦ蜻・
+            1 繧ｨ繝ｩ繝ｼ
+        
+        邨碁℃譎る俣 00:00:00.42
+        
+      exitCode: 1
+...

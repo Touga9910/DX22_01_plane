@@ -74,6 +74,273 @@ namespace
 		return PlayerBallText::GetTrait(ball);
 	}
 
+	const char* GetPlayerBallAimHint(const std::string& definitionId)
+	{
+		if (definitionId == "player_heavy")
+			return PlayerBallText::Utf8(u8"狙い：敵同士を押し込んで連鎖させる");
+		if (definitionId == "player_pierce")
+			return PlayerBallText::Utf8(u8"狙い：複数の敵を一直線に通す");
+		if (definitionId == "player_bounce")
+			return PlayerBallText::Utf8(u8"狙い：壁反射で敵の裏側へ回り込む");
+		if (definitionId == "player_anchor")
+			return PlayerBallText::Utf8(u8"狙い：接触位置で止め、次の配置を作る");
+		if (definitionId == "player_cushion_charge")
+			return PlayerBallText::Utf8(u8"狙い：クッションを経由して次の球へつなぐ");
+		if (definitionId == "player_chain_impact")
+			return PlayerBallText::Utf8(u8"狙い：敵の密集地点に当てて周囲を巻き込む");
+		if (definitionId == "player_refractive_pierce")
+			return PlayerBallText::Utf8(u8"狙い：衝突後の屈折先まで読む");
+		if (definitionId == "player_stop_shield")
+			return PlayerBallText::Utf8(u8"狙い：早めに止めて次の被弾を防ぐ");
+		return PlayerBallText::Utf8(u8"狙い：配置に合わせて確実に連鎖を始める");
+	}
+
+	struct BallCardInteraction
+	{
+		bool select = false;
+		bool toggleHold = false;
+	};
+
+	BallCardInteraction DrawBallSelectionCard(
+		const PlayerBallData& ball,
+		int index,
+		int attack,
+		int defense,
+		const ImVec2& position,
+		const ImVec2& size,
+		bool selected,
+		bool held,
+		float expansion)
+	{
+		BallCardInteraction interaction;
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		const auto ballColor = PlayerBallText::GetColor(ball);
+		const ImU32 accent = ImGui::ColorConvertFloat4ToU32(
+			ImVec4(ballColor[0], ballColor[1], ballColor[2], 1.0f));
+		const ImU32 cardBackground = selected
+			? IM_COL32(27, 34, 46, 248)
+			: (held ? IM_COL32(20, 36, 43, 244) : IM_COL32(15, 21, 30, 236));
+		const ImU32 borderColor = selected
+			? IM_COL32(255, 221, 118, 255)
+			: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(92, 105, 126, 210));
+		const ImVec2 cardMax(position.x + size.x, position.y + size.y);
+		constexpr float cornerRadius = 12.0f;
+		constexpr float footerHeight = 38.0f;
+		// 展開の終盤までは球の識別情報だけを見せ、
+		// 十分な高さができてから詳細とホールド操作を表示する。
+		const bool detailsVisible = expansion >= 0.82f;
+
+		drawList->AddRectFilled(
+			ImVec2(position.x + 5.0f, position.y + 7.0f),
+			ImVec2(cardMax.x + 5.0f, cardMax.y + 7.0f),
+			IM_COL32(0, 0, 0, 105),
+			cornerRadius);
+		drawList->AddRectFilled(position, cardMax, cardBackground, cornerRadius);
+		drawList->AddRectFilled(
+			position,
+			ImVec2(cardMax.x, position.y + 6.0f),
+			accent,
+			cornerRadius,
+			ImDrawFlags_RoundCornersTop);
+		drawList->AddRect(
+			position,
+			cardMax,
+			borderColor,
+			cornerRadius,
+			0,
+			selected ? 3.0f : 1.5f);
+
+		ImGui::PushID(index);
+		ImGui::SetCursorScreenPos(position);
+		ImGui::InvisibleButton(
+			"ball_card_select",
+			ImVec2(size.x, detailsVisible ? size.y - footerHeight : size.y));
+		const bool cardHovered = ImGui::IsItemHovered();
+		interaction.select = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+		interaction.toggleHold =
+			!selected && cardHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+
+		const ImVec2 footerPosition(position.x, cardMax.y - footerHeight);
+		bool footerHovered = false;
+		if (detailsVisible)
+		{
+			ImGui::SetCursorScreenPos(footerPosition);
+			ImGui::InvisibleButton(
+				"ball_card_hold",
+				ImVec2(size.x, footerHeight));
+			footerHovered = ImGui::IsItemHovered();
+			if (!selected && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+			{
+				interaction.toggleHold = true;
+			}
+			if (!selected && footerHovered &&
+				ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+			{
+				interaction.toggleHold = true;
+			}
+		}
+
+		if (cardHovered || footerHovered)
+		{
+			ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+		}
+
+		const float padding = 13.0f;
+		const float contentWidth = size.x - padding * 2.0f;
+		ImFont* font = ImGui::GetFont();
+		const float fontSize = ImGui::GetFontSize();
+		char text[160]{};
+
+		drawList->PushClipRect(position, cardMax, true);
+		if (!detailsVisible)
+		{
+			const ImVec2 ballCenter(position.x + 30.0f, cardMax.y - 36.0f);
+			drawList->AddCircleFilled(ballCenter, 18.0f, IM_COL32(3, 7, 12, 210), 28);
+			drawList->AddCircleFilled(ballCenter, 14.0f, accent, 28);
+			drawList->AddCircle(ballCenter, 18.0f, accent, 28, 2.0f);
+			drawList->AddText(
+				font,
+				fontSize * 0.95f,
+				ImVec2(position.x + 56.0f, cardMax.y - 47.0f),
+				IM_COL32(255, 255, 255, 255),
+				PlayerBallText::GetName(ball.definitionId));
+			const char* stateText = selected
+				? PlayerBallText::Utf8(u8"選択中")
+				: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
+			const ImVec2 stateSize = ImGui::CalcTextSize(stateText);
+			drawList->AddText(
+				ImVec2(cardMax.x - stateSize.x - 10.0f, cardMax.y - 21.0f),
+				selected
+					? IM_COL32(255, 221, 118, 255)
+					: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(145, 156, 174, 230)),
+				stateText);
+			drawList->PopClipRect();
+			ImGui::PopID();
+			return interaction;
+		}
+
+		sprintf_s(text, "%d  %s", index + 1, GetPlayerBallAbilityName(ball));
+		drawList->AddText(
+			font,
+			fontSize * 0.83f,
+			ImVec2(position.x + padding, position.y + 13.0f),
+			IM_COL32(220, 230, 243, 255),
+			text);
+
+		const ImVec2 ballCenter(position.x + 30.0f, position.y + 61.0f);
+		drawList->AddCircleFilled(ballCenter, 18.0f, IM_COL32(3, 7, 12, 210), 28);
+		drawList->AddCircleFilled(ballCenter, 14.0f, accent, 28);
+		drawList->AddCircle(ballCenter, 18.0f, accent, 28, 2.0f);
+
+		drawList->AddText(
+			font,
+			fontSize * 1.05f,
+			ImVec2(position.x + 55.0f, position.y + 48.0f),
+			IM_COL32(255, 255, 255, 255),
+			PlayerBallText::GetName(ball.definitionId));
+		sprintf_s(text, "Lv.%d  /  No.%llu", ball.upgradeLevel,
+			static_cast<unsigned long long>(ball.instanceId));
+		drawList->AddText(
+			font,
+			fontSize * 0.72f,
+			ImVec2(position.x + 55.0f, position.y + 70.0f),
+			IM_COL32(158, 171, 191, 255),
+			text);
+
+		// 数値を埋め込む文もUTF-8の書式文字列を使い、ImGuiへ渡す。
+		sprintf_s(
+			text,
+			PlayerBallText::Utf8(u8"攻撃 %d   防御 %d"),
+			attack,
+			defense);
+		drawList->AddText(
+			font,
+			fontSize * 0.83f,
+			ImVec2(position.x + padding, position.y + 94.0f),
+			IM_COL32(238, 242, 248, 255),
+			text);
+		sprintf_s(
+			text,
+			PlayerBallText::Utf8(u8"重さ %.1f   大きさ %.1f"),
+			ball.status.mass,
+			ball.status.radius);
+		drawList->AddText(
+			font,
+			fontSize * 0.75f,
+			ImVec2(position.x + padding, position.y + 115.0f),
+			IM_COL32(176, 188, 205, 255),
+			text);
+
+		drawList->AddLine(
+			ImVec2(position.x + padding, position.y + 139.0f),
+			ImVec2(cardMax.x - padding, position.y + 139.0f),
+			IM_COL32(83, 94, 113, 180));
+		drawList->AddText(
+			font,
+			fontSize * 0.78f,
+			ImVec2(position.x + padding, position.y + 149.0f),
+			IM_COL32(249, 224, 139, 255),
+			GetPlayerBallAimHint(ball.definitionId),
+			nullptr,
+			contentWidth);
+
+		if (size.y >= 252.0f && size.x >= 190.0f)
+		{
+			drawList->AddText(
+				font,
+				fontSize * 0.68f,
+				ImVec2(position.x + padding, position.y + 190.0f),
+				IM_COL32(171, 181, 197, 255),
+				PlayerBallText::GetDescription(ball.definitionId),
+				nullptr,
+				contentWidth);
+		}
+
+		const ImU32 footerBackground = selected
+			? IM_COL32(184, 137, 38, 235)
+			: (held ? IM_COL32(23, 122, 116, 245)
+				: (footerHovered ? IM_COL32(58, 74, 96, 245) : IM_COL32(35, 45, 60, 240)));
+		drawList->AddRectFilled(
+			footerPosition,
+			cardMax,
+			footerBackground,
+			cornerRadius,
+			ImDrawFlags_RoundCornersBottom);
+		const char* footerText = selected
+			? PlayerBallText::Utf8(u8"今回使用")
+			: (held
+				? PlayerBallText::Utf8(u8"ホールド解除")
+				: PlayerBallText::Utf8(u8"ホールド"));
+		const ImVec2 footerTextSize = ImGui::CalcTextSize(footerText);
+		drawList->AddText(
+			ImVec2(
+				position.x + (size.x - footerTextSize.x) * 0.5f,
+				footerPosition.y + (footerHeight - footerTextSize.y) * 0.5f),
+			IM_COL32(255, 255, 255, 255),
+			footerText);
+
+		if (selected || held)
+		{
+			const char* badgeText = selected ? "SELECT" : "HOLD";
+			const ImVec2 badgeSize = ImGui::CalcTextSize(badgeText);
+			const ImVec2 badgeMin(cardMax.x - badgeSize.x - 20.0f, position.y + 11.0f);
+			const ImVec2 badgeMax(cardMax.x - 8.0f, position.y + 11.0f + badgeSize.y + 8.0f);
+			drawList->AddRectFilled(
+				badgeMin,
+				badgeMax,
+				selected ? IM_COL32(220, 164, 51, 255) : IM_COL32(31, 151, 142, 255),
+				6.0f);
+			drawList->AddText(
+				ImVec2(badgeMin.x + 6.0f, badgeMin.y + 4.0f),
+				IM_COL32(255, 255, 255, 255),
+				badgeText);
+		}
+
+		drawList->PopClipRect();
+		ImGui::PopID();
+		return interaction;
+	}
+
 	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
 	{
 		return static_cast<int>(std::count_if(
@@ -2399,15 +2666,114 @@ void Game::ApplySelectedBallPreview()
 // Ball Selection UIを描画する。
 void GamePresentation::DrawBallSelection(Game& game)
 {
-	GameUi::PrepareWindow("ball_selection", ImVec2(30, 90), ImVec2(560, 500));
-	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse;
-	ImGui::Begin("ボール選択", nullptr, flags);
-	ImGui::TextUnformatted("使用するボールを選んでください。");
-	ImGui::TextUnformatted("選択した性能は照準へすぐ反映されます。");
-	ImGui::TextUnformatted("残りの候補から1個をホールドできます。");
-	ImGui::Separator();
-
 	const int offerCount = game.m_RunController.Deck().GetOfferCount();
+	if (offerCount <= 0)
+	{
+		return;
+	}
+
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	// 左下・右下の山札表示ぶんを空け、持ち札とHOLDは中央にまとめる。
+	const float horizontalPadding = std::clamp(
+		viewport->WorkSize.x * 0.105f,
+		70.0f,
+		132.0f);
+	const float gap = 14.0f;
+	const float collapsedCardHeight = 76.0f;
+	const float expandedCardHeight = std::clamp(
+		viewport->WorkSize.y * 0.37f,
+		218.0f,
+		280.0f);
+	const float cardBottom =
+		viewport->WorkPos.y + viewport->WorkSize.y - 12.0f;
+	const float availableCardWidth =
+		(viewport->WorkSize.x - horizontalPadding * 2.0f -
+			gap * static_cast<float>((std::max)(0, offerCount - 1))) /
+		static_cast<float>(offerCount);
+	const float cardWidth = (std::min)(252.0f, availableCardWidth);
+	const float cardsWidth = cardWidth * static_cast<float>(offerCount) +
+		gap * static_cast<float>((std::max)(0, offerCount - 1));
+	const float cardsStartX = viewport->WorkPos.x +
+		(viewport->WorkSize.x - cardsWidth) * 0.5f;
+
+	const auto easedExpansion = [](float value)
+	{
+		value = std::clamp(value, 0.0f, 1.0f);
+		return value * value * (3.0f - 2.0f * value);
+	};
+	const auto cardHeightFor = [&](float expansion)
+	{
+		return collapsedCardHeight +
+			(expandedCardHeight - collapsedCardHeight) *
+			easedExpansion(expansion);
+	};
+
+	const ImVec2 mousePosition = ImGui::GetIO().MousePos;
+	const float animationStep =
+		(std::min)(ImGui::GetIO().DeltaTime, 0.05f) * 8.5f;
+	float tallestCardHeight = collapsedCardHeight;
+	for (int index = 0;
+		index < offerCount && index < static_cast<int>(m_BallCardExpansion.size());
+		index++)
+	{
+		float& expansion = m_BallCardExpansion[static_cast<std::size_t>(index)];
+		const float currentHeight = cardHeightFor(expansion);
+		const float cardLeft = cardsStartX +
+			static_cast<float>(index) * (cardWidth + gap);
+		const bool hovered =
+			mousePosition.x >= cardLeft &&
+			mousePosition.x <= cardLeft + cardWidth &&
+			mousePosition.y >= cardBottom - currentHeight &&
+			mousePosition.y <= cardBottom;
+		expansion = std::clamp(
+			expansion + (hovered ? animationStep : -animationStep),
+			0.0f,
+			1.0f);
+		tallestCardHeight = (std::max)(
+			tallestCardHeight,
+			cardHeightFor(expansion));
+	}
+	for (std::size_t index = static_cast<std::size_t>((std::min)(offerCount, 4));
+		index < m_BallCardExpansion.size();
+		index++)
+	{
+		m_BallCardExpansion[index] = 0.0f;
+	}
+
+	const float panelHeight = tallestCardHeight + 24.0f;
+	const ImVec2 panelPosition(
+		viewport->WorkPos.x,
+		cardBottom - tallestCardHeight - 12.0f);
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(panelPosition, ImGuiCond_Always);
+	ImGui::SetNextWindowSize(
+		ImVec2(viewport->WorkSize.x, panelHeight),
+		ImGuiCond_Always);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	const ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoBackground |
+		ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoFocusOnAppearing |
+		ImGuiWindowFlags_NoNavFocus |
+		ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoScrollWithMouse;
+	ImGui::Begin("##ball_card_hud", nullptr, flags);
+
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	drawList->AddRectFilledMultiColor(
+		ImVec2(panelPosition.x, cardBottom - collapsedCardHeight - 16.0f),
+		ImVec2(panelPosition.x + viewport->WorkSize.x, cardBottom + 12.0f),
+		IM_COL32(5, 9, 15, 0),
+		IM_COL32(5, 9, 15, 0),
+		IM_COL32(5, 9, 15, 218),
+		IM_COL32(5, 9, 15, 218));
+
+	bool selectionChanged = false;
 	for (int index = 0; index < offerCount; index++)
 	{
 		const PlayerBallData* ball = game.m_RunController.Deck().GetOffer(index);
@@ -2416,61 +2782,48 @@ void GamePresentation::DrawBallSelection(Game& game)
 			continue;
 		}
 
-		ImGui::PushID(index);
-		if (PlayerBallUI::Select(*ball, game.m_SelectedOfferIndex == index))
-		{
-			game.m_SelectedOfferIndex = index;
-			if (game.m_SelectedHoldIndex == index) game.m_SelectedHoldIndex = -1;
-			game.ApplySelectedBallPreview();
-		}
-		ImGui::Text(
-			"攻撃:%d  防御:%d  重さ:%.1f  大きさ:%.1f",
+		const bool selected = game.m_SelectedOfferIndex == index;
+		const bool held = game.m_SelectedHoldIndex == index;
+		const float expansion = index < static_cast<int>(m_BallCardExpansion.size())
+			? m_BallCardExpansion[static_cast<std::size_t>(index)]
+			: 0.0f;
+		const float cardHeight = cardHeightFor(expansion);
+		const ImVec2 cardPosition(
+			cardsStartX + static_cast<float>(index) * (cardWidth + gap),
+			cardBottom - cardHeight);
+		const BallCardInteraction interaction = DrawBallSelectionCard(
+			*ball,
+			index,
 			game.GetEffectivePlayerBallAttack(ball),
 			game.GetEffectivePlayerBallDefense(ball),
-			ball->status.mass,
-			ball->status.radius);
-		ImGui::Text("特性:%s", GetPlayerBallAbilityName(*ball));
-		ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
-		ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
+			cardPosition,
+			ImVec2(cardWidth, cardHeight),
+			selected,
+			held,
+			expansion);
 
-		if (ImGui::RadioButton(
-			"使用",
-			game.m_SelectedOfferIndex == index))
+		if (interaction.select && !selected)
 		{
 			game.m_SelectedOfferIndex = index;
-			if (game.m_SelectedHoldIndex == index)
+			if (held)
 			{
 				game.m_SelectedHoldIndex = -1;
 			}
-			game.ApplySelectedBallPreview();
+			selectionChanged = true;
 		}
-
-		ImGui::SameLine();
-		if (game.m_SelectedOfferIndex == index)
+		if (interaction.toggleHold && !selected)
 		{
-			ImGui::TextUnformatted("このショットで使用");
+			game.m_SelectedHoldIndex = held ? -1 : index;
 		}
-		else
-		{
-			const bool isHeld = game.m_SelectedHoldIndex == index;
-			if (ImGui::Button(isHeld ? "ホールド解除" : "ホールド"))
-			{
-				game.m_SelectedHoldIndex = isHeld ? -1 : index;
-			}
-		}
-
-		ImGui::Separator();
-		ImGui::PopID();
 	}
 
-	ImGui::TextUnformatted(game.GetBallOfferSize() == 4
-		? "1 / 2 / 3 / 4：使用ボールを選択"
-		: "1 / 2 / 3：使用ボールを選択");
-	ImGui::TextUnformatted(game.GetBallOfferSize() == 4
-		? "Q / W / E / R：ホールドを切り替え"
-		: "Q / W / E：ホールドを切り替え");
-	ImGui::TextUnformatted("ショットを打つと選択が確定します。");
+	if (selectionChanged)
+	{
+		game.ApplySelectedBallPreview();
+	}
+
 	ImGui::End();
+	ImGui::PopStyleVar(2);
 }
 
 // Clear Reward UIを描画する。

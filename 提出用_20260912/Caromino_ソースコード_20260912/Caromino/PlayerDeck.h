@@ -1,0 +1,95 @@
+﻿#pragma once
+
+#include "PlayerBallData.h"
+
+#include <cstdint>
+#include <optional>
+#include <random>
+#include <vector>
+
+class GameSaveManager;
+
+class PlayerDeck
+{
+public:
+    static constexpr int MinimumDeckSize = 5;
+
+    // -------------------------
+    // デッキ初期化
+    // -------------------------
+    void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
+    void SetCatalog(const std::vector<PlayerBallData>& catalog);
+    void Seed(std::uint32_t seed);
+    void Reset();
+    void ResetToDefault();
+
+    // -------------------------
+    // ボール提示・選択・保持
+    // -------------------------
+    bool PrepareOffer(int offerSize = 3);
+    bool SelectOffer(int selectedIndex, int heldIndex);
+
+    int GetOfferCount() const { return static_cast<int>(m_OfferedBalls.size()); }
+    const PlayerBallData* GetOffer(int index) const;
+    bool WasHeldOffer(int index) const { return index == m_PreviousHeldOfferIndex; }
+    bool HasHeldBall() const { return m_HeldBall.has_value(); }
+
+    // -------------------------
+    // 山札・捨て札操作
+    // -------------------------
+    bool DrawNext();
+    bool DiscardCurrentIfUsed();
+    void MarkCurrentUsed();
+    void ClearCurrentUsed();
+
+    // -------------------------
+    // 現在ボール
+    // -------------------------
+    bool HasCurrent() const { return m_CurrentBall.has_value(); }
+    bool IsCurrentUsed() const { return m_IsCurrentBallUsed; }
+
+    const PlayerBallData* GetCurrent() const;
+    PlayerBallData* GetCurrent();
+    // -------------------------
+    // 山札・捨て札情報
+    // -------------------------
+    int GetDrawPileCount() const { return static_cast<int>(m_DrawPile.size()); }
+    int GetDiscardPileCount() const { return static_cast<int>(m_DiscardPile.size()); }
+
+    const std::vector<PlayerBallData>& GetDrawPile() const { return m_DrawPile; }
+    const std::vector<PlayerBallData>& GetDiscardPile() const { return m_DiscardPile; }
+
+    // -------------------------
+    // 報酬対象
+    // -------------------------
+    int GetRewardTargetCount() const;
+    const PlayerBallData* GetRewardTarget(int index) const;
+    PlayerBallData* GetRewardTarget(int index);
+
+    // -------------------------
+    // 休憩所・ショップ操作
+    // -------------------------
+    int GetCatalogCount() const;
+    const PlayerBallData* GetCatalogBall(int index) const;
+    bool AddCatalogBall(int index);
+    bool RemoveRewardTarget(int index);
+
+private:
+    friend class GameSaveManager;
+
+    bool DrawOneFromPile(PlayerBallData& result);
+    void ShuffleDrawPile();
+
+private:
+    std::vector<PlayerBallData> m_DefaultDeck;      // 初期デッキ
+    std::vector<PlayerBallData> m_Catalog;          // ショップで購入できるボール定義
+    std::vector<PlayerBallData> m_DrawPile;         // 山札
+    std::vector<PlayerBallData> m_DiscardPile;      // 捨て札
+    std::vector<PlayerBallData> m_OfferedBalls;     // 今回提示しているボール
+    std::optional<PlayerBallData> m_HeldBall;       // 次回まで保持するボール
+    std::optional<PlayerBallData> m_CurrentBall;    // 現在使用中のボール
+    int m_PreviousHeldOfferIndex = -1;              // 提示内で前回から保持されていた位置
+    bool m_IsCurrentBallUsed = false;               // 現在ボールを使用済みかどうか
+    std::uint64_t m_NextInstanceId = 1;              // 同名ボールを区別するランタイムID
+    std::mt19937 m_RandomEngine{ std::random_device{}() };
+};

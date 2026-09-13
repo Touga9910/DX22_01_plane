@@ -1,0 +1,4 @@
+[BalanceAutoPlay] Disabled / F8 toggles auto play / F9 stops at run end
+[DifficultyProfile] normal / HP x1 / ATK 0
+[DynamicBalance] Enabled / Level=0 / Range=-3..0
+[BalanceValidation] Enabled / Seed=20260807 / Experiment=paired_dda_5x2 / Variants=2

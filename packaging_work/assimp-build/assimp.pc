@@ -1,0 +1,9 @@
+libdir=C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/third_party/assimp/lib
+includedir=C:/HAL/HAL_Program/DX22/DX22_01_plane - コピー/DX22_01_plane/third_party/assimp/include
+
+Name: Assimp
+Description: Import various well-known 3D model formats in an uniform manner.
+Version: 5.2.4
+Libs: -L${libdir} -lassimp
+Libs.private:  
+Cflags: -I${includedir}

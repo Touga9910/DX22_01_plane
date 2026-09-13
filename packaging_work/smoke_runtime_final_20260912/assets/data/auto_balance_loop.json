@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "mcp_url": "http://127.0.0.1:8765/mcp",
+  "controller_profile": "intermediate",
+  "build_profile": "standard",
+  "collection_batch_runs": 5,
+  "maximum_collection_batches_per_fingerprint": 12,
+  "maximum_steps_per_run": 1200,
+  "maximum_collector_command_seconds": 7200,
+  "maximum_ai_command_seconds": 300,
+  "maximum_adjustment_iterations": 10,
+  "minimum_score_improvement": 0.5,
+  "maximum_non_improving_iterations": 2,
+  "sample_quality": {
+    "minimum_unique_run_seeds": 5,
+    "minimum_terminal_run_rate": 0.8,
+    "maximum_single_seed_share": 0.25,
+    "maximum_duration_outlier_rate": 0.15
+  },
+  "paired_validation": {
+    "enabled": true,
+    "validation_variant": "dda_off",
+    "seeds": [20260807, 20260817, 20260827, 20260906, 20260916],
+    "minimum_balance_score_improvement": 0.5,
+    "minimum_terminal_run_rate": 1.0
+  },
+  "holdout_validation": {
+    "enabled": true,
+    "id": "intermediate_standard_holdout",
+    "controller_profile": "intermediate",
+    "build_profile": "standard",
+    "validation_variant": "dda_off",
+    "seeds": [20261006, 20261016, 20261026, 20261105, 20261115],
+    "minimum_balance_score_delta": 0.0,
+    "minimum_terminal_run_rate": 1.0
+  },
+  "regression_validation": {
+    "enabled": true,
+    "seed_count": 2,
+    "maximum_balance_score_regression": 5.0,
+    "minimum_terminal_run_rate": 1.0,
+    "cases": [
+      {
+        "id": "beginner_standard",
+        "controller_profile": "beginner",
+        "build_profile": "standard"
+      },
+      {
+        "id": "advanced_standard",
+        "controller_profile": "advanced",
+        "build_profile": "standard"
+      },
+      {
+        "id": "intermediate_heavy",
+        "controller_profile": "intermediate",
+        "build_profile": "heavy"
+      },
+      {
+        "id": "intermediate_pierce",
+        "controller_profile": "intermediate",
+        "build_profile": "pierce"
+      },
+      {
+        "id": "intermediate_bounce",
+        "controller_profile": "intermediate",
+        "build_profile": "bounce"
+      },
+      {
+        "id": "intermediate_anchor",
+        "controller_profile": "intermediate",
+        "build_profile": "anchor"
+      }
+    ]
+  },
+  "budgets": {
+    "maximum_wall_clock_seconds": 86400,
+    "maximum_completed_runs": 400,
+    "maximum_ai_calls": 10,
+    "maximum_total_tokens": 100000,
+    "maximum_estimated_cost_usd": 5.0,
+    "pricing_usd_per_million_tokens": {
+      "input": 5.0,
+      "cached_input": 0.5,
+      "output": 30.0
+    }
+  },
+  "oscillation": {
+    "stop_on_direction_reversal": true,
+    "reversal_lookback_iterations": 3,
+    "maximum_same_direction_changes": 3,
+    "stop_on_repeated_enemy_configuration": true
+  }
+}

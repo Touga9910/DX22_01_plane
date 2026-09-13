@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\adler32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\compress.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\crc32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\deflate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\gzclose.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\gzlib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\gzread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\gzwrite.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inflate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\infback.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inftrees.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inffast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\trees.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\uncompr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\zutil.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-build-staticcrt\contrib\zlib\zconf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\zlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\crc32.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\deflate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\gzguts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inffast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inffixed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inflate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\inftrees.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\trees.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\zutil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\HAL\HAL_Program\DX22\DX22_01_plane - コピー\DX22_01_plane\packaging_work\assimp-5.2.5-src\contrib\zlib\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{25184D9D-83D6-343D-B27D-63868D04724A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{F49DE72A-85E9-3D02-8926-E368649A14B6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

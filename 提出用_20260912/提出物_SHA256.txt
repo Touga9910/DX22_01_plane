@@ -1,0 +1,15 @@
+Caromino 提出物 SHA-256
+作成・確認日：2026年9月13日
+
+ファイル名：Caromino_実行版_20260912.zip
+サイズ：21,643,238 bytes（約20.64 MiB）
+SHA-256：37511C2ACEC23A15BE7BCC4A8B508562C6B8854A8C9C530D45B0FD6EE7B1F8E5
+
+ファイル名：Caromino_ソースコード_20260912.zip
+サイズ：39,791,392 bytes（約37.95 MiB）
+SHA-256：4750DABCAFD6D3BE4C699C5EACB550C876899CFEFDC8654D271DD9067BE33C87
+
+確認方法（PowerShell）：
+Get-FileHash -Algorithm SHA256 "ZIPファイルのパス"
+
+表示されたHashが上記と一致すれば、作成後にファイルが変化・破損していません。

@@ -1,0 +1,78 @@
+DX22 主要ソースコード一覧
+作成日：2026年9月12日
+
+■ソリューション／プロジェクト
+・DX22_01_plane.sln
+・DX22_01_plane\DX22_01_plane.vcxproj
+・DX22_01_plane\DX22_01_plane.vcxproj.filters
+
+■ゲーム進行
+・Game.cpp / Game.h
+・RunController.cpp / RunController.h
+・BattleScene.cpp / BattleScene.h
+・StageSelectScene.cpp / StageSelectScene.h
+・ShopScene.cpp / ShopScene.h
+・RestSiteScene.cpp / RestSiteScene.h
+・ResultScene.cpp / ResultScene.h
+
+■ボール物理・衝突
+・BallPhysicsWorld.cpp / BallPhysicsWorld.h
+・BallCollisionComponent.cpp / BallCollisionComponent.h
+・BallPhysicsRules.h
+・ContinuousBallStepper.h
+・BallCcdGeometry.h
+・TableFrameCollisionComponent.cpp / TableFrameCollisionComponent.h
+
+■ショット・予測・球種
+・PlayerBall.cpp / PlayerBall.h
+・BallShotPrediction.cpp / BallShotPrediction.h
+・PlayerBallDataLoader.cpp / PlayerBallDataLoader.h
+・PlayerBallData.h
+・BreakBall.cpp / BreakBall.h
+
+■敵・ボス
+・EnemyBall.cpp / EnemyBall.h
+・EnemyAttackComponent.cpp / EnemyAttackComponent.h
+・GameBossAI.cpp
+・BossCombatRules.h
+
+■ステージ・エディター
+・StageData.h
+・StageDataLoader.cpp / StageDataLoader.h
+・StageLayoutEditor.cpp / StageLayoutEditor.h
+・GameStageEditor.cpp
+
+■進行・セーブ・設定
+・GameProgression.cpp
+・ProgressionProfile.cpp / ProgressionProfile.h
+・GameSaveManager.cpp / GameSaveManager.h
+・GameSaveSystem.cpp
+・SettingsManager.cpp / SettingsManager.h
+
+■描画・入力
+・Renderer.cpp / Renderer.h
+・BallRenderComponent.cpp / BallRenderComponent.h
+・TableFrameRenderComponent.cpp / TableFrameRenderComponent.h
+・StaticMesh.cpp / StaticMesh.h
+・input.cpp / input.h
+・shader\*.hlsl
+
+■デバッグ・AI・検証
+・GameDebugMode.cpp
+・GameDebugController.h
+・GameMcpBridge.cpp / GameMcpBridge.h
+・GameAutoPlay.cpp
+・tools\test_*.cpp
+・tools\verify_*.py
+
+■データ
+・assets\data\*.json
+・assets\texture\
+・assets\model\golfball\
+
+■外部依存物
+・third_party\DirectXTK\
+・third_party\assimp\
+・DX22_01_plane\imgui\
+・DX22_01_plane\json\json.hpp
+

@@ -2,6 +2,7 @@
 
 #include <SimpleMath.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -115,8 +116,18 @@ private:
 	void DrawTutorial(Game& game);
 	void DrawFeedback(Game& game);
 	void DrawDashboard();
+	void DrawBattleHud(Game& game);
+	void DrawDeckList(Game& game);
+	void DrawRelicList(Game& game);
 	void LoadDashboard();
 	bool IsBattleScene(const Game& game) const;
+
+	enum class DeckListView
+	{
+		All,
+		DrawPile,
+		DiscardPile,
+	};
 
 	bool m_TutorialCompleted = false;
 	bool m_TutorialActive = false;
@@ -132,6 +143,10 @@ private:
 	float m_CameraShakePhase = 0.0f;
 	int m_CurrentShotHitCount = 0;
 	int m_CurrentShotDamage = 0;
+	std::array<float, 4> m_BallCardExpansion{};
+	bool m_DeckListOpen = false;
+	bool m_RelicListOpen = false;
+	DeckListView m_DeckListView = DeckListView::All;
 	std::vector<FloatingFeedback> m_Feedback;
 	std::vector<ChainRangeFeedback> m_ChainRanges;
 	DashboardData m_Dashboard;
