@@ -6,6 +6,7 @@
 #include "CushionChargeRules.h"
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Game;
@@ -21,10 +22,14 @@ namespace BallShotPrediction
         int hp = 0, maxHp = 1, attack = 0, defense = 0;
         std::string enemyId;
         float frontalMultiplier = 1.0f, pocketDamageRatio = 0.0f;
+        std::vector<float> collisionDamageMultipliers;
+        int collisionStage = 0, collisionGraceTicks = 0;
+        std::unordered_map<std::uintptr_t, int> collisionGraceByBall;
         bool active = true, defeated = false, pocketed = false, playerSimulation = true;
         int stopCount = 0;
         BossCombatRules::State bossState;
         bool breakBallUsed = false;
+        bool nuisanceBall = false;
     };
 
     struct ContactGuide

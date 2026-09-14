@@ -159,9 +159,13 @@
     <ClInclude Include="ShotRelicRules.h" />
     <ClInclude Include="BallShotPrediction.h" />
     <ClInclude Include="BossCombatRules.h" />
+    <ClInclude Include="EnemyGimmickRules.h" />
+    <ClInclude Include="PocketReturnRules.h" />
     <ClInclude Include="BreakBall.h" />
+    <ClInclude Include="NuisanceBall.h" />
     <ClCompile Include="BattleController.cpp" />
     <ClCompile Include="BreakBall.cpp" />
+    <ClCompile Include="NuisanceBall.cpp" />
     <ClCompile Include="BallShotPrediction.cpp">
       <Optimization>MaxSpeed</Optimization>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>

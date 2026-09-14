@@ -22,15 +22,23 @@ namespace
         }
     }
 
-    int FindStatusEffectIndex(const nlohmann::json& enemy, StatusEffectType type)
+    int FindEffectIndex(
+        const nlohmann::json& enemy,
+        const char* field,
+        StatusEffectType type)
     {
-        if (!enemy.contains("status_effects") || !enemy["status_effects"].is_array()) return -1;
-        const auto& effects = enemy["status_effects"];
+        if (!enemy.contains(field) || !enemy[field].is_array()) return -1;
+        const auto& effects = enemy[field];
         for (int index = 0; index < static_cast<int>(effects.size()); ++index)
         {
             if (effects[index].value("type", std::string()) == ToString(type)) return index;
         }
         return -1;
+    }
+
+    int FindStatusEffectIndex(const nlohmann::json& enemy, StatusEffectType type)
+    {
+        return FindEffectIndex(enemy, "status_effects", type);
     }
 }
 
@@ -294,6 +302,69 @@ void GameDebugController::DrawStageEditor(Game&)
                 }
             }
             ImGui::PopID();
+        }
+        const auto& selectedEnemyForGimmick =
+            editor.draft["enemies"][editor.selected];
+        const auto selectedDefinition = std::find_if(
+            m_DebugEnemyCatalog.begin(),
+            m_DebugEnemyCatalog.end(),
+            [&](const EnemyData& data)
+            {
+                return data.id == selectedEnemyForGimmick["enemy_id"].get<std::string>();
+            });
+        if (selectedDefinition != m_DebugEnemyCatalog.end() &&
+            selectedDefinition->nuisanceBall.enabled)
+        {
+            ImGui::SeparatorText("お邪魔ボール");
+            ImGui::TextWrapped("場にある間、選択したデバフを自球に与えます。");
+            StatusEffectType selectedType = StatusEffectType::AttackDown;
+            int magnitude = 1;
+            if (selectedEnemyForGimmick.contains("nuisance_status_effects") &&
+                selectedEnemyForGimmick["nuisance_status_effects"].is_array() &&
+                !selectedEnemyForGimmick["nuisance_status_effects"].empty())
+            {
+                const auto& effect = selectedEnemyForGimmick["nuisance_status_effects"].front();
+                TryParseStatusEffectType(effect.value("type", std::string()), selectedType);
+                magnitude = effect.value("magnitude", magnitude);
+            }
+            else
+            {
+                if (selectedDefinition->nuisanceBall.debuffs.Has(StatusEffectType::DefenseDown))
+                    selectedType = StatusEffectType::DefenseDown;
+                magnitude = selectedDefinition->nuisanceBall.debuffs.GetMagnitude(selectedType);
+                magnitude = (std::max)(1, magnitude);
+            }
+
+            int debuffIndex = selectedType == StatusEffectType::DefenseDown ? 1 : 0;
+            const char* debuffs[] = {"攻撃低下", "防御低下"};
+            if (ImGui::Combo("付与デバフ", &debuffIndex, debuffs, 2))
+            {
+                auto edited = editor.draft;
+                edited["enemies"][editor.selected]["nuisance_status_effects"] =
+                    Json::array({{
+                        {"type", ToString(debuffIndex == 0
+                            ? StatusEffectType::AttackDown
+                            : StatusEffectType::DefenseDown)},
+                        {"magnitude", magnitude}
+                    }});
+                change(edited);
+            }
+            if (ImGui::DragInt("デバフ効果量", &magnitude, 0.1f, 1,
+                StatusEffectCollection::MaxMagnitude, "%d", ImGuiSliderFlags_AlwaysClamp))
+            {
+                auto edited = editor.draft;
+                edited["enemies"][editor.selected]["nuisance_status_effects"] =
+                    Json::array({{
+                        {"type", ToString(debuffIndex == 0
+                            ? StatusEffectType::AttackDown
+                            : StatusEffectType::DefenseDown)},
+                        {"magnitude", magnitude}
+                    }});
+                change(edited);
+            }
+            ImGui::TextDisabled("初回%dターン / 再生成%dターン / 出現の1ターン前に予告",
+                selectedDefinition->nuisanceBall.initialDelayTurns,
+                selectedDefinition->nuisanceBall.respawnDelayTurns);
         }
         ImGui::Separator();
         if (ImGui::Button("選択した敵を削除")) { auto edited = editor.draft; edited["enemies"].erase(editor.selected); editor.Replace(edited); }

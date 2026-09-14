@@ -25,6 +25,17 @@ int main()
     const auto effectStage = StageLayoutEditor::Decode(layout, catalog);
     assert(effectStage.enemies[0].enemyData.initialStatusEffects.GetAttackModifier() == 2);
     assert(effectStage.enemies[0].enemyData.initialStatusEffects.GetDefenseModifier() == -1);
+    auto nuisanceLayout = layout;
+    nuisanceLayout["enemies"][1]["enemy_id"] = "enemy_nuisance_spawner";
+    nuisanceLayout["enemies"][1]["nuisance_status_effects"] = {{{"type", "defense_down"}, {"magnitude", 3}}};
+    assert(StageLayoutEditor::Inspect(nuisanceLayout, catalog, 3)["valid"] == true);
+    const auto nuisanceStage = StageLayoutEditor::Decode(nuisanceLayout, catalog);
+    assert(nuisanceStage.enemies[1].enemyData.nuisanceBall.enabled);
+    assert(nuisanceStage.enemies[1].enemyData.nuisanceBall.debuffs.GetMagnitude(StatusEffectType::DefenseDown) == 3);
+    assert(StageLayoutEditor::Encode(nuisanceStage) == nuisanceLayout);
+    auto badNuisance = nuisanceLayout;
+    badNuisance["enemies"][1]["nuisance_status_effects"][0]["type"] = "attack_up";
+    assert(StageLayoutEditor::Inspect(badNuisance, catalog, 3)["valid"] == false);
     StatusEffectCollection combinedEffects;
     combinedEffects.Set(StatusEffectType::AttackUp, 5);
     combinedEffects.Set(StatusEffectType::AttackDown, 2);

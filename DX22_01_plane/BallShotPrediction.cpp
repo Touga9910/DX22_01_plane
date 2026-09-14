@@ -4,7 +4,9 @@
 #include "BallPhysicsComponent.h"
 #include "BallPhysicsWorld.h"
 #include "EnemyBall.h"
+#include "EnemyGimmickRules.h"
 #include "BreakBall.h"
+#include "NuisanceBall.h"
 #include "Game.h"
 #include "GameObject.h"
 #include "PlayerBall.h"
@@ -72,6 +74,9 @@ namespace
                 ball.pocketed = enemy->IsPocketed();
                 ball.frontalMultiplier = enemy->GetFrontalDamageMultiplier();
                 ball.pocketDamageRatio = enemy->GetPocketDamageRatio();
+                ball.collisionDamageMultipliers = enemy->GetCollisionDamageMultipliers();
+                ball.collisionStage = enemy->GetCollisionStage();
+                ball.collisionGraceTicks = enemy->GetCollisionCountGraceTicks();
             }
             if (const auto* neutral = owner->GetComponent<BreakBall>())
             {
@@ -79,6 +84,7 @@ namespace
                 ball.pocketed = neutral->IsPocketed();
                 ball.breakBallUsed = neutral->IsUsed();
             }
+            ball.nuisanceBall = owner->GetComponent<NuisanceBall>() != nullptr;
             ball.active = collision->CanSimulate();
             result.push_back(std::move(ball));
         }
@@ -239,7 +245,14 @@ namespace
 		{
 			if (!target.physics.enemy || target.defeated) return;
 			if (directional)
+			{
 				amount = BallPhysicsRules::DirectionalDamage(amount, target.physics.position, source, target.frontalMultiplier);
+				amount = EnemyGimmickRules::ScaleCollisionDamage(
+					amount,
+					EnemyGimmickRules::CollisionDamageMultiplier(
+						target.collisionDamageMultipliers,
+						target.collisionStage));
+			}
             const int before = target.hp;
             const int applied = target.physics.boss ? BossCombatRules::DirectDamage(amount, target.defense, target.bossState) :
                 (std::max)(1, amount - target.defense);
@@ -248,6 +261,16 @@ namespace
             result.damage += before - target.hp;
             // EnemyBall::TakeDamage intentionally preserves velocity after lethal contact.
         }
+
+		void AdvanceCollisionStage(Ball& target, std::uintptr_t otherId)
+		{
+			if (!target.physics.enemy || target.defeated ||
+				target.collisionDamageMultipliers.empty() || otherId == 0 ||
+				target.collisionGraceByBall.contains(otherId)) return;
+			++target.collisionStage;
+			if (target.collisionGraceTicks > 0)
+				target.collisionGraceByBall[otherId] = target.collisionGraceTicks;
+		}
 
 		void ChainImpact(const Ball& playerBall, const Vector3& center,
 			std::uintptr_t excludedTargetId, int attackDamage, bool suppressed)
@@ -318,6 +341,11 @@ namespace
                     a.defeated, b.defeated, result.shot);
 				Damage(a, damage.first, b.physics.position);
 				Damage(b, damage.second, a.physics.position);
+				if (playerEnemy || enemyEnemy)
+				{
+					AdvanceCollisionStage(a, b.physics.id);
+					AdvanceCollisionStage(b, a.physics.id);
+				}
 				if (a.physics.player && b.physics.enemy)
 					ChainImpact(a, b.physics.position, b.physics.id, damage.second, bWasDefeated);
 				else if (b.physics.player && a.physics.enemy)
@@ -343,6 +371,13 @@ namespace
                 if (result.balls[i].active) order.push_back(i);
             for (auto i : order)
             {
+                for (auto it = result.balls[i].collisionGraceByBall.begin();
+                    it != result.balls[i].collisionGraceByBall.end();)
+                {
+                    if (--it->second <= 0)
+                        it = result.balls[i].collisionGraceByBall.erase(it);
+                    else ++it;
+                }
                 auto& body = result.balls[i].physics;
                 body.velocity.y = 0.0f;
                 const auto missing = [&](std::uintptr_t id) {
@@ -435,7 +470,9 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
             if (offer->definitionId == "player_pierce" && game.HasRelic(RelicType::PierceBallCharger))
             { ++ball.physics.pierceLimit; ball.physics.pierceRetention = 1.0f; }
         }
-        ball.attack = ball.physics.status.attack + game.GetRelicAttackBonus();
+        ball.attack = ball.physics.status.attack + game.GetRelicAttackBonus() +
+            player.GetAuraStatusEffects().GetAttackModifier();
+		ball.defense += player.GetAuraStatusEffects().GetDefenseModifier();
 		result.stopShieldGranted = ball.physics.status.stopShieldAmount;
         world.AddPoint(ball, true);
         found = true;
@@ -470,7 +507,8 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
                     ball.physics.status, ball.physics.status.friction, ball.stopCount,
                     exitingPierce ? &exitDirection : nullptr);
             }
-            if (ball.physics.enemy || ball.physics.breakBall) BallPhysicsRules::EnemyFriction(ball.physics.velocity, ball.physics.status.friction);
+            if (ball.physics.enemy || ball.physics.breakBall || ball.nuisanceBall)
+                BallPhysicsRules::EnemyFriction(ball.physics.velocity, ball.physics.status.friction);
         }
         world.BeginTick();
         const auto step = ContinuousBallStepper::Step(world);
@@ -509,6 +547,8 @@ std::uint64_t BallShotPrediction::WorldKey(Game& game)
         scalar(s.cushionChargeSpeedMultiplier);
 		add(s.stopShieldAmount); scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
         scalar(ball.frontalMultiplier); scalar(ball.pocketDamageRatio);
+        add(ball.collisionStage); add(ball.collisionGraceTicks); add(ball.nuisanceBall);
+        for (float multiplier : ball.collisionDamageMultipliers) scalar(multiplier);
     }
     const auto shot = game.MakePredictionShotRules(0.0f);
     for (bool owned : shot.relics) add(owned);

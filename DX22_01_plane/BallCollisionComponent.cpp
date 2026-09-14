@@ -207,6 +207,11 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 					Game::GetInstance()->
 						NotifyBalanceAutoFullHpEnemySurvived();
 				}
+				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
+				{
+					myEnemy->RegisterCollisionForStage(
+						reinterpret_cast<std::uintptr_t>(other));
+				}
 			}
 
 			if (otherEnemy != nullptr)
@@ -229,6 +234,11 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				{
 					Game::GetInstance()->
 						NotifyBalanceAutoFullHpEnemySurvived();
+				}
+				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
+				{
+					otherEnemy->RegisterCollisionForStage(
+						reinterpret_cast<std::uintptr_t>(m_BallComponent));
 				}
 			}
 

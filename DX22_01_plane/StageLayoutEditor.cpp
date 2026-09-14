@@ -35,6 +35,13 @@ StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
         Json enemy = {{"enemy_id", e.enemyId}, {"x", e.position.x}, {"z", e.position.z}};
         const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
         if (!effects.empty()) enemy["status_effects"] = effects;
+        if (e.enemyData.nuisanceBall.enabled)
+        {
+            const Json nuisanceEffects =
+                WriteStatusEffects(e.enemyData.nuisanceBall.debuffs);
+            if (!nuisanceEffects.empty())
+                enemy["nuisance_status_effects"] = nuisanceEffects;
+        }
         result["enemies"].push_back(std::move(enemy));
     }
     const auto positions = stage.hasBreakBallLayout
@@ -127,6 +134,29 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
                 seen[effectIndex] = true;
             }
             spawn.enemyData.initialStatusEffects = ReadStatusEffects(effects);
+        }
+        if (e.contains("nuisance_status_effects"))
+        {
+            if (!spawn.enemyData.nuisanceBall.enabled)
+                throw std::runtime_error("お邪魔ボールを生成しない敵にデバフは設定できません。");
+            const auto& effects = e.at("nuisance_status_effects");
+            if (!effects.is_array() || effects.size() != 1)
+                throw std::runtime_error("お邪魔ボールのデバフは1個選択してください。");
+            const auto& effect = effects.front();
+            StatusEffectType effectType{};
+            if (!effect.is_object() || !effect.contains("type") ||
+                !effect.at("type").is_string() || !effect.contains("magnitude") ||
+                !effect.at("magnitude").is_number_integer() ||
+                !TryParseStatusEffectType(effect.at("type").get<std::string>(), effectType) ||
+                (effectType != StatusEffectType::AttackDown &&
+                    effectType != StatusEffectType::DefenseDown))
+            {
+                throw std::runtime_error("お邪魔ボールには攻撃低下または防御低下を設定してください。");
+            }
+            const int magnitude = effect.at("magnitude").get<int>();
+            if (magnitude < 1 || magnitude > StatusEffectCollection::MaxMagnitude)
+                throw std::runtime_error("お邪魔ボールの効果量は1～999の整数です。");
+            spawn.enemyData.nuisanceBall.debuffs = ReadStatusEffects(effects);
         }
         stage.enemies.push_back(spawn);
         cores += spawn.enemyId == "enemy_boss_core";
@@ -245,6 +275,13 @@ void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vecto
         Json enemy = {{"enemyId", e.enemyId}, {"position", {e.position.x, e.position.y, e.position.z}}};
         const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
         if (!effects.empty()) enemy["statusEffects"] = effects;
+        if (e.enemyData.nuisanceBall.enabled)
+        {
+            const Json nuisanceEffects =
+                WriteStatusEffects(e.enemyData.nuisanceBall.debuffs);
+            if (!nuisanceEffects.empty())
+                enemy["nuisanceStatusEffects"] = nuisanceEffects;
+        }
         (*target)["enemies"].push_back(std::move(enemy));
     }
     if (stage.stageType == StageType::Boss)

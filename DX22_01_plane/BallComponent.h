@@ -37,12 +37,14 @@ public:
     int GetAttack() const
     {
         return (std::max)(0, m_StatusComponent->GetAttack() +
-            m_StatusEffects.GetAttackModifier());
+            m_StatusEffects.GetAttackModifier() +
+            m_AuraStatusEffects.GetAttackModifier());
     }
     int GetDefense() const
     {
         return (std::max)(0, m_StatusComponent->GetDefense() +
-            m_StatusEffects.GetDefenseModifier());
+            m_StatusEffects.GetDefenseModifier() +
+            m_AuraStatusEffects.GetDefenseModifier());
     }
     int CalculateDamageTaken(int damage) const
     {
@@ -60,6 +62,14 @@ public:
     }
     StatusEffectCollection& GetMutableStatusEffects() { return m_StatusEffects; }
     const StatusEffectCollection& GetStatusEffects() const { return m_StatusEffects; }
+    void SetAuraStatusEffects(const StatusEffectCollection& effects)
+    {
+        m_AuraStatusEffects = effects;
+    }
+    const StatusEffectCollection& GetAuraStatusEffects() const
+    {
+        return m_AuraStatusEffects;
+    }
     bool HasSplitAbility() const { return GetStatus().abilities.split; }
     bool HasPierceAbility() const { return GetStatus().abilities.pierce; }
     bool HasAnchorAbility() const { return GetStatus().abilities.anchor; }
@@ -128,6 +138,9 @@ private:
     BallRenderComponent* m_RenderComponent = nullptr;
     BallCollisionComponent* m_BallCollisionComponent = nullptr;
     StatusEffectCollection m_StatusEffects;
+    // Rebuilt from currently active field objects. It never overwrites the
+    // player's permanent/run status effects.
+    StatusEffectCollection m_AuraStatusEffects;
 
     std::function<void()> m_PocketHandler;
     std::function<void()> m_DefeatHandler;

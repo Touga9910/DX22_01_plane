@@ -6,10 +6,13 @@
 
 #include <string>
 #include <optional>
+#include <cstdint>
+#include <unordered_map>
 
 class PlayerBall;
 class Camera;
 class BallRenderComponent;
+class NuisanceBall;
 
 class EnemyBall final : public Component
 {
@@ -47,13 +50,26 @@ public:
     void EndBossShot();
     void HitBreakBall(int ballId);
     int AdjustCollisionDamage(int damage, const DirectX::SimpleMath::Vector3& sourcePosition) const;
+    void RegisterCollisionForStage(std::uintptr_t otherBallId);
+    int GetCollisionStage() const { return m_CollisionStage; }
+    float GetCollisionStageDamageMultiplier() const;
+    int GetCollisionCountGraceTicks() const { return m_EnemyData.collisionCountGraceTicks; }
+    const std::vector<float>& GetCollisionDamageMultipliers() const
+    {
+        return m_EnemyData.collisionDamageMultipliers;
+    }
+    bool HasCollisionStages() const { return !m_EnemyData.collisionDamageMultipliers.empty(); }
     int ApplyPocketDamage();
     float GetPocketDamageRatio() const { return m_EnemyData.pocketDamageRatio; }
     float GetFrontalDamageMultiplier() const { return m_EnemyData.frontalDamageMultiplier; }
     void OnPocketHit();
-    void EnterPocketQueue();
+    void EnterPocketQueue(
+        const DirectX::SimpleMath::Vector3& pocketEntryPosition);
     void ReturnFromPocket(
         const DirectX::SimpleMath::Vector3& position);
+    void AdvanceTurnGimmicks();
+    void ApplyStun(int turns) { m_StunTurnsRemaining = (std::max)(m_StunTurnsRemaining, turns); }
+    bool IsStunned() const { return m_StunTurnsRemaining > 0; }
 
     void SetStatus(const BallStatus& status) { m_Ball->SetStatus(status); }
     const BallStatus& GetStatus() const { return m_Ball->GetStatus(); }
@@ -72,6 +88,10 @@ public:
     }
     bool IsDefeated() const { return m_Ball->IsDefeated(); }
     bool IsPocketed() const { return m_IsPocketed; }
+    DirectX::SimpleMath::Vector3 GetPocketEntryPosition() const
+    {
+        return m_PocketEntryPosition;
+    }
     bool IsStopped() const { return m_Ball->IsStopped(); }
     float GetRadius() const { return m_Ball->GetRadius(); }
     DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
@@ -99,6 +119,11 @@ private:
     void Draw(Camera* cam);
     void Uninit();
     void ApplyStatusValuesOnly(const BallStatus& status);
+    void UpdateCollisionStageTint();
+    void DrawNuisanceWarning();
+    void DestroyNuisanceBall();
+    bool HasLiveNuisanceBall() const;
+    void SpawnNuisanceBall();
 
 private:
     BallComponent* m_Ball = nullptr;
@@ -108,5 +133,17 @@ private:
     EnemyData m_EnemyData;                                                                     // 敵データ
     DirectX::SimpleMath::Vector3 m_InitPosition = DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f); // 敵の初期位置
     bool m_IsPocketed = false;
+    DirectX::SimpleMath::Vector3 m_PocketEntryPosition =
+        DirectX::SimpleMath::Vector3::Zero;
     BossCombatRules::State m_BossState;
+    DirectX::SimpleMath::Color m_BaseTint =
+        DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f);
+    int m_CollisionStage = 0;
+    std::unordered_map<std::uintptr_t, int> m_CollisionGraceByBall;
+    GameObject* m_NuisanceBallObject = nullptr;
+    DirectX::SimpleMath::Vector3 m_NuisanceSpawnPosition = DirectX::SimpleMath::Vector3::Zero;
+    int m_NuisanceTurnsUntilSpawn = 0;
+    bool m_NuisanceWarningVisible = false;
+    int m_StunTurnsRemaining = 0;
+    bool m_SkipNextGimmickAdvance = false;
 };

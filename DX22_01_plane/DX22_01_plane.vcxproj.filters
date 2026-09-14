@@ -97,6 +97,15 @@
     <ClInclude Include="BreakBall.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Boss</Filter>
     </ClInclude>
+    <ClInclude Include="NuisanceBall.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyGimmickRules.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="PocketReturnRules.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Pocket</Filter>
+    </ClInclude>
     <ClInclude Include="ShotRelicRules.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Relic</Filter>
     </ClInclude>
@@ -748,6 +757,9 @@
     </ClCompile>
     <ClCompile Include="BreakBall.cpp">
       <Filter>ソース ファイル\02_Gameplay\Boss</Filter>
+    </ClCompile>
+    <ClCompile Include="NuisanceBall.cpp">
+      <Filter>ソース ファイル\02_Gameplay\Enemy</Filter>
     </ClCompile>
     <ClCompile Include="EnemyAttackComponent.cpp">
       <Filter>ソース ファイル\02_Gameplay\Enemy</Filter>

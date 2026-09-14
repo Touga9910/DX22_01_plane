@@ -73,6 +73,7 @@ public:
 	// ステータス系
 	//=======================================
 	void TakeDamage(int damage);
+	void RefreshNuisanceDebuffs();
 
 	//=======================================
 	// ショット・軌跡系
@@ -94,6 +95,10 @@ public:
 	int GetMaxHP() const { return m_Ball->GetMaxHP(); }
 	int GetAttack() const { return m_Ball->GetAttack(); }
 	int GetDefense() const { return m_Ball->GetDefense(); }
+	const StatusEffectCollection& GetAuraStatusEffects() const
+	{
+		return m_Ball->GetAuraStatusEffects();
+	}
 	int CalculateDamageTaken(int damage) const
 	{
 		return m_Ball->CalculateDamageTaken(damage);

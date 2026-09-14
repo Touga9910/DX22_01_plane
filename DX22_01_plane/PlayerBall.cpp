@@ -9,6 +9,7 @@
 #include "Application.h"
 #include "imgui/imgui.h"
 #include "GameObject.h"
+#include "NuisanceBall.h"
 
 #include <algorithm>
 #include <cmath>
@@ -110,6 +111,7 @@ void PlayerBall::Init()
 void PlayerBall::Update()
 {
 	if (IsDefeated()) return;    // 倒されている場合は更新しない
+	RefreshNuisanceDebuffs();
 	// Sample held debug keys once; fixed ticks apply the sampled acceleration.
 	m_DebugMoveInput = Vector3::Zero;
 	if (Input::GetKeyPress(VK_W)) m_DebugMoveInput.z += 4.0f;
@@ -293,6 +295,29 @@ void PlayerBall::TakeDamage(int damage)
 		m_Ball->DamageAfterDefense(hpDamage);
 	}
 	Game::GetInstance()->CapturePlayerStatusFrom(this);
+}
+
+void PlayerBall::RefreshNuisanceDebuffs()
+{
+	if (m_Ball == nullptr) return;
+	StatusEffectCollection aura;
+	for (const NuisanceBall* nuisance :
+		Game::GetInstance()->GetComponents<NuisanceBall>())
+	{
+		if (nuisance == nullptr || nuisance->GetGameObject() == nullptr ||
+			!nuisance->GetGameObject()->IsActive() ||
+			nuisance->GetGameObject()->IsDestroyRequested())
+		{
+			continue;
+		}
+		for (const StatusEffectType type : AllStatusEffectTypes)
+		{
+			const int total = aura.GetMagnitude(type) +
+				nuisance->GetDebuffs().GetMagnitude(type);
+			aura.Set(type, total);
+		}
+	}
+	m_Ball->SetAuraStatusEffects(aura);
 }
 
 void PlayerBall::UpdateSimulation()

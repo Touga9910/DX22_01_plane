@@ -97,6 +97,48 @@ namespace
             const auto& gimmick = value["gimmick"];
             data.frontalDamageMultiplier = std::clamp(gimmick.value("frontalDamageMultiplier", 1.0f), 0.0f, 1.0f);
             data.pocketDamageRatio = std::clamp(gimmick.value("pocketDamageRatio", 0.0f), 0.0f, 1.0f);
+            if (gimmick.contains("collisionDamageMultipliers") &&
+                gimmick["collisionDamageMultipliers"].is_array())
+            {
+                for (const auto& multiplier : gimmick["collisionDamageMultipliers"])
+                {
+                    if (multiplier.is_number())
+                    {
+                        data.collisionDamageMultipliers.push_back(
+                            std::clamp(multiplier.get<float>(), 0.0f, 10.0f));
+                    }
+                }
+            }
+            data.collisionCountGraceTicks = std::clamp(
+                gimmick.value("collisionCountGraceTicks", data.collisionCountGraceTicks),
+                0,
+                120);
+            if (gimmick.contains("nuisanceBall") && gimmick["nuisanceBall"].is_object())
+            {
+                const auto& nuisance = gimmick["nuisanceBall"];
+                data.nuisanceBall.enabled = nuisance.value("enabled", true);
+                data.nuisanceBall.initialDelayTurns = std::clamp(
+                    nuisance.value("initialDelayTurns", data.nuisanceBall.initialDelayTurns), 1, 99);
+                data.nuisanceBall.respawnDelayTurns = std::clamp(
+                    nuisance.value("respawnDelayTurns", data.nuisanceBall.respawnDelayTurns), 1, 99);
+                data.nuisanceBall.radius = std::clamp(
+                    nuisance.value("radius", data.nuisanceBall.radius), 0.25f, 10.0f);
+                data.nuisanceBall.mass = std::clamp(
+                    nuisance.value("mass", data.nuisanceBall.mass), 0.1f, 100.0f);
+                data.nuisanceBall.restitution = std::clamp(
+                    nuisance.value("restitution", data.nuisanceBall.restitution), 0.0f, 1.0f);
+                data.nuisanceBall.friction = std::clamp(
+                    nuisance.value("friction", data.nuisanceBall.friction), 0.0f, 1.0f);
+                if (nuisance.contains("spawnOffset"))
+                {
+                    data.nuisanceBall.spawnOffset = LoadVector3(
+                        nuisance["spawnOffset"], data.nuisanceBall.spawnOffset);
+                }
+                if (nuisance.contains("statusEffects"))
+                {
+                    data.nuisanceBall.debuffs = ReadStatusEffects(nuisance["statusEffects"]);
+                }
+            }
         }
         return data;
     }
@@ -362,6 +404,12 @@ std::vector<StageData> StageDataLoader::LoadAll(
                 {
                     spawn.enemyData.initialStatusEffects =
                         ReadStatusEffects(spawnJson["statusEffects"]);
+                }
+                if (spawnJson.contains("nuisanceStatusEffects") &&
+                    spawn.enemyData.nuisanceBall.enabled)
+                {
+                    spawn.enemyData.nuisanceBall.debuffs =
+                        ReadStatusEffects(spawnJson["nuisanceStatusEffects"]);
                 }
                 stage.enemies.push_back(spawn);
             }

@@ -180,6 +180,78 @@
       "gimmick": {
         "pocketDamageRatio": 0.45
       }
+    },
+    {
+      "id": "enemy_nuisance_spawner",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 8,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.4,
+        "radius": 2.7,
+        "restitution": 0.75,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.7,
+        "y": 2.7,
+        "z": 2.7
+      },
+      "rewardMoney": 12,
+      "rewardExp": 8,
+      "gimmick": {
+        "nuisanceBall": {
+          "enabled": true,
+          "initialDelayTurns": 2,
+          "respawnDelayTurns": 3,
+          "spawnOffset": [12.0, 0.0, 0.0],
+          "radius": 2.0,
+          "mass": 1.0,
+          "restitution": 0.8,
+          "friction": 0.025,
+          "statusEffects": [
+            {
+              "type": "attack_down",
+              "magnitude": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enemy_collision_shell",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 15,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.8,
+        "radius": 2.8,
+        "restitution": 0.72,
+        "friction": 0.025,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.8,
+        "y": 2.8,
+        "z": 2.8
+      },
+      "rewardMoney": 14,
+      "rewardExp": 10,
+      "gimmick": {
+        "collisionDamageMultipliers": [3.0, 2.0, 1.0, 0.75, 0.5],
+        "collisionCountGraceTicks": 6
+      }
     }
   ]
 }

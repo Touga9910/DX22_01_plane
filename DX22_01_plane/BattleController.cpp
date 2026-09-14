@@ -495,6 +495,7 @@ void BattleController::ProcessEnemyAttack()
     enemies = m_World->GetComponents<EnemyBall>();
 
     PlayerBall* player = players.front();
+    player->RefreshNuisanceDebuffs();
 
     int predictedDamage = 0;
     if (m_Hooks.beginEnemyAttackForecast)
@@ -510,7 +511,8 @@ void BattleController::ProcessEnemyAttack()
     {
         if (enemy == nullptr ||
             enemy->IsDefeated() ||
-            enemy->IsPocketed())
+            enemy->IsPocketed() ||
+            enemy->IsStunned())
         {
             continue;
         }
@@ -592,6 +594,14 @@ void BattleController::ProcessEnemyAttack()
 
 void BattleController::ProcessTurnEnd()
 {
+    if (m_World != nullptr)
+    {
+        for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+        {
+            if (enemy != nullptr) enemy->AdvanceTurnGimmicks();
+        }
+    }
+
     if (!m_Hooks.prepareNextTurn)
     {
         FinishBattle(BattleResult::Defeat);

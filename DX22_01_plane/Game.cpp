@@ -30,6 +30,7 @@
 #include "StageDataLoader.h"
 #include "EnemyData.h"
 #include "TableConfig.h"
+#include "PocketReturnRules.h"
 #include "UiText.h"
 
 #include "imgui/imgui.h"
@@ -367,7 +368,8 @@ namespace
 	{
 		if (enemy == nullptr ||
 			enemy->IsDefeated() ||
-			enemy->IsPocketed())
+			enemy->IsPocketed() ||
+			enemy->IsStunned())
 		{
 			return false;
 		}
@@ -1784,7 +1786,7 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		return;
 	}
 
-	enemy->EnterPocketQueue();
+	enemy->EnterPocketQueue(pocketPosition);
 	NotifyPocketFeedback(
 		pocketPosition,
 		false,
@@ -1882,47 +1884,72 @@ void Game::RestorePocketedPlayer()
 Vector3 Game::FindEnemyPocketReturnPosition(
 	const EnemyBall* returningEnemy) const
 {
-	const float baseZ = TableConfig::GetFieldDepth() * 0.5f -
-		m_BattleController.PocketRules().enemyReturnTopEdgeOffset;
 	const float radius = returningEnemy != nullptr
 		? returningEnemy->GetRadius()
 		: 2.4f;
+	const Vector3 pocketEntryPosition = returningEnemy != nullptr
+		? returningEnemy->GetPocketEntryPosition()
+		: Vector3(0.0f, TableConfig::FIELD_HEIGHT,
+			TableConfig::GetFieldDepth() * 0.5f);
+	const float inwardDistance = (std::max)(
+		m_BattleController.PocketRules().enemyReturnTopEdgeOffset,
+		TableConfig::POCKET_RADIUS + radius + 0.5f);
+	const Vector3 basePosition = PocketReturnRules::ReturnAnchor(
+		pocketEntryPosition,
+		inwardDistance);
+	const Vector3 inward = PocketReturnRules::InwardDirection(
+		pocketEntryPosition);
+	const Vector3 tangent(-inward.z, 0.0f, inward.x);
 	const float spacing = radius * 2.0f + 1.0f;
 	const std::array<int, 9> offsets{ 0, -1, 1, -2, 2, -3, 3, -4, 4 };
-	for (int offset : offsets)
+	const float horizontalLimit =
+		TableConfig::GetFieldWidth() * 0.5f - radius - 0.5f;
+	const float verticalLimit =
+		TableConfig::GetFieldDepth() * 0.5f - radius - 0.5f;
+	for (int depthStep = 0; depthStep < 5; ++depthStep)
 	{
-		const Vector3 candidate(
-			m_BattleController.PocketRules().enemyReturnX + static_cast<float>(offset) * spacing,
-			TableConfig::FIELD_HEIGHT,
-			baseZ);
-		bool blocked = false;
-		for (BallComponent* ball : m_Instance->GetComponents<BallComponent>())
+		for (int offset : offsets)
 		{
-			if (ball == nullptr || ball->GetGameObject() == nullptr ||
-				!ball->GetGameObject()->IsActive() ||
-				(returningEnemy != nullptr &&
-					ball == returningEnemy->GetBall()))
+			const float depthOffset = static_cast<float>(depthStep) * spacing;
+			const float lateralOffset = static_cast<float>(offset) * spacing;
+			const Vector3 candidate(
+				basePosition.x + inward.x * depthOffset + tangent.x * lateralOffset,
+				TableConfig::FIELD_HEIGHT,
+				basePosition.z + inward.z * depthOffset + tangent.z * lateralOffset);
+			if (std::abs(candidate.x) > horizontalLimit ||
+				std::abs(candidate.z) > verticalLimit)
 			{
 				continue;
 			}
-			Vector3 difference = candidate - ball->GetPosition();
-			difference.y = 0.0f;
-			const float clearance = radius + ball->GetRadius() + 0.5f;
-			if (difference.LengthSquared() < clearance * clearance)
+			bool blocked = false;
+			for (BallComponent* ball : m_Instance->GetComponents<BallComponent>())
 			{
-				blocked = true;
-				break;
+				if (ball == nullptr || ball->GetGameObject() == nullptr ||
+					!ball->GetGameObject()->IsActive() ||
+					(returningEnemy != nullptr &&
+						ball == returningEnemy->GetBall()))
+				{
+					continue;
+				}
+				Vector3 difference = candidate - ball->GetPosition();
+				difference.y = 0.0f;
+				const float clearance = radius + ball->GetRadius() + 0.5f;
+				if (difference.LengthSquared() < clearance * clearance)
+				{
+					blocked = true;
+					break;
+				}
 			}
-		}
-		if (!blocked)
-		{
-			return candidate;
+			if (!blocked)
+			{
+				return candidate;
+			}
 		}
 	}
 	return Vector3(
-		m_BattleController.PocketRules().enemyReturnX,
+		std::clamp(basePosition.x, -horizontalLimit, horizontalLimit),
 		TableConfig::FIELD_HEIGHT,
-		baseZ);
+		std::clamp(basePosition.z, -verticalLimit, verticalLimit));
 }
 
 // Next Pocketed Enemyを復元する。
@@ -1944,6 +1971,8 @@ void Game::RestoreNextPocketedEnemy()
 			"enemy_pocket_returned",
 			{
 				{ "enemy_id", enemy->GetEnemyId() },
+				{ "pocket_entry_x", enemy->GetPocketEntryPosition().x },
+				{ "pocket_entry_z", enemy->GetPocketEntryPosition().z },
 				{ "position_x", returnPosition.x },
 				{ "position_z", returnPosition.z },
 				{ "remaining_queue_size", m_BattleController.GetPocketQueueSize() },

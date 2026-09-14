@@ -3,6 +3,8 @@
 #include "../BallStatusComponent.h"
 #include "../CushionChargeRules.h"
 #include "../StageDataLoader.h"
+#include "../EnemyGimmickRules.h"
+#include "../PocketReturnRules.h"
 #include <cassert>
 #include <iostream>
 
@@ -204,6 +206,33 @@ int main()
     assert(BallMechanics::DirectionalDamage(1, 1.0f, 0.5f) == 1);
     assert(BallMechanics::PocketDamage(18, 0.45f) == 9);
     assert(BallMechanics::PocketDamage(18, 0) == 0);
+    const auto topLeftPocket = PocketReturnRules::ClosestPocketCenter(
+        Vector3(-70.0f, 1.0f, 34.0f));
+    assert(topLeftPocket.x < 0.0f && topLeftPocket.z > 0.0f);
+    const auto topLeftReturn = PocketReturnRules::ReturnAnchor(
+        Vector3(-70.0f, 1.0f, 34.0f), 10.0f);
+    assert(topLeftReturn.x > topLeftPocket.x && topLeftReturn.z < topLeftPocket.z);
+    const auto bottomSideReturn = PocketReturnRules::ReturnAnchor(
+        Vector3(1.0f, 1.0f, -35.0f), 10.0f);
+    assert(std::abs(bottomSideReturn.x) < 0.0001f);
+    assert(std::abs(bottomSideReturn.z + 26.0f) < 0.0001f);
+    const std::vector<float> collisionMultipliers = {3.0f, 2.0f, 1.0f, 0.75f, 0.5f};
+    assert(EnemyGimmickRules::ScaleCollisionDamage(4,
+        EnemyGimmickRules::CollisionDamageMultiplier(collisionMultipliers, 0)) == 12);
+    assert(EnemyGimmickRules::ScaleCollisionDamage(4,
+        EnemyGimmickRules::CollisionDamageMultiplier(collisionMultipliers, 1)) == 8);
+    assert(EnemyGimmickRules::ScaleCollisionDamage(4,
+        EnemyGimmickRules::CollisionDamageMultiplier(collisionMultipliers, 99)) == 2);
+    const auto enemyDefinitions = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
+    const auto nuisanceDefinition = std::find_if(enemyDefinitions.begin(), enemyDefinitions.end(),
+        [](const EnemyData& data) { return data.id == "enemy_nuisance_spawner"; });
+    const auto shellDefinition = std::find_if(enemyDefinitions.begin(), enemyDefinitions.end(),
+        [](const EnemyData& data) { return data.id == "enemy_collision_shell"; });
+    assert(nuisanceDefinition != enemyDefinitions.end());
+    assert(nuisanceDefinition->nuisanceBall.enabled);
+    assert(nuisanceDefinition->nuisanceBall.debuffs.GetMagnitude(StatusEffectType::AttackDown) == 1);
+    assert(shellDefinition != enemyDefinitions.end());
+    assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
     assert(stages.size() == 8);
     int guarded = 0, pocket = 0;

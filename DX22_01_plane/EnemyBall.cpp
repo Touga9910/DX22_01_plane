@@ -1,6 +1,7 @@
 ﻿#include "EnemyBall.h"
 #include "BallPhysicsRules.h"
 #include "BallMechanics.h"
+#include "EnemyGimmickRules.h"
 
 #include "Camera.h"
 #include "BallRenderComponent.h"
@@ -8,6 +9,9 @@
 #include "Game.h"
 #include "Ground.h"
 #include "PlayerBall.h"
+#include "BallFactory.h"
+#include "NuisanceBall.h"
+#include "TableConfig.h"
 #include "imgui/imgui.h"
 #include "GameObject.h"
 
@@ -52,6 +56,8 @@ void EnemyBall::Draw()
 
 void EnemyBall::OnDestroy()
 {
+    m_NuisanceWarningVisible = false;
+    DestroyNuisanceBall();
     if (m_Ball != nullptr)
     {
         m_Ball->SetPocketHandler({});
@@ -69,6 +75,13 @@ void EnemyBall::Init()
 void EnemyBall::Init(const EnemyData& data)
 {
     m_BossState = {};
+    m_IsPocketed = false;
+    m_PocketEntryPosition = Vector3::Zero;
+    m_CollisionStage = 0;
+    m_CollisionGraceByBall.clear();
+    m_NuisanceBallObject = nullptr;
+    m_StunTurnsRemaining = 0;
+    m_SkipNextGimmickAdvance = false;
     m_EnemyData = data;                        // 読み込んだ敵データを保持
 
     m_Ball->SetMaxHP(m_EnemyData.maxHp);
@@ -99,7 +112,10 @@ void EnemyBall::Init(const EnemyData& data)
     }
     if (m_EnemyData.frontalDamageMultiplier < 1.0f) enemyTint = Color(0.15f, 0.7f, 0.9f, 1.0f);
     else if (m_EnemyData.pocketDamageRatio > 0.0f) enemyTint = Color(0.3f, 0.85f, 0.4f, 1.0f);
-    m_RenderComponent->SetTint(enemyTint);
+    else if (m_EnemyData.nuisanceBall.enabled) enemyTint = Color(0.72f, 0.22f, 0.95f, 1.0f);
+    else if (!m_EnemyData.collisionDamageMultipliers.empty()) enemyTint = Color(0.95f, 0.72f, 0.18f, 1.0f);
+    m_BaseTint = enemyTint;
+    UpdateCollisionStageTint();
 
     m_Ball->SetPosition(m_EnemyData.initPosition); // 初期位置を反映
     m_Ball->SetScale(m_EnemyData.scale);           // スケールを反映
@@ -119,6 +135,23 @@ void EnemyBall::Init(const EnemyData& data)
     m_CurrentFrame = 0;                         // フレームカウントを初期化
 
     m_Ball->ResetDefeated();                            // 撃破状態を解除
+
+    m_NuisanceSpawnPosition = m_EnemyData.initPosition +
+        m_EnemyData.nuisanceBall.spawnOffset;
+    m_NuisanceSpawnPosition.y = TableConfig::FIELD_HEIGHT;
+    const float nuisanceMargin = m_EnemyData.nuisanceBall.radius + 1.0f;
+    m_NuisanceSpawnPosition.x = std::clamp(
+        m_NuisanceSpawnPosition.x,
+        -TableConfig::GetFieldWidth() * 0.5f + nuisanceMargin,
+        TableConfig::GetFieldWidth() * 0.5f - nuisanceMargin);
+    m_NuisanceSpawnPosition.z = std::clamp(
+        m_NuisanceSpawnPosition.z,
+        -TableConfig::GetFieldDepth() * 0.5f + nuisanceMargin,
+        TableConfig::GetFieldDepth() * 0.5f - nuisanceMargin);
+    m_NuisanceTurnsUntilSpawn = m_EnemyData.nuisanceBall.enabled
+        ? (std::max)(1, m_EnemyData.nuisanceBall.initialDelayTurns)
+        : 0;
+    m_NuisanceWarningVisible = m_NuisanceTurnsUntilSpawn == 1;
 }
 
 void EnemyBall::FixedUpdate()
@@ -129,6 +162,13 @@ void EnemyBall::FixedUpdate()
     }
 
     m_CurrentFrame++;
+
+    for (auto it = m_CollisionGraceByBall.begin();
+        it != m_CollisionGraceByBall.end();)
+    {
+        if (--it->second <= 0) it = m_CollisionGraceByBall.erase(it);
+        else ++it;
+    }
 
     BallPhysicsRules::EnemyFriction(m_Ball->GetMutableVelocity(), m_Ball->GetMutableFriction());
 
@@ -159,6 +199,7 @@ void EnemyBall::Draw(Camera* cam)
 
     // BallComponentの共通描画関数を呼び出す
     m_RenderComponent->DrawMesh(worldmtx);
+    DrawNuisanceWarning();
 }
 
 void EnemyBall::Uninit()
@@ -174,6 +215,8 @@ void EnemyBall::Defeat()
     }
 
     m_Ball->Defeat();
+    m_NuisanceWarningVisible = false;
+    DestroyNuisanceBall();
 }
 
 void EnemyBall::RemoveFromFieldAfterPocket()
@@ -204,6 +247,9 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     m_EnemyData.maxHp = data.maxHp;
     m_EnemyData.frontalDamageMultiplier = data.frontalDamageMultiplier;
     m_EnemyData.pocketDamageRatio = data.pocketDamageRatio;
+    m_EnemyData.collisionDamageMultipliers = data.collisionDamageMultipliers;
+    m_EnemyData.collisionCountGraceTicks = data.collisionCountGraceTicks;
+    m_EnemyData.nuisanceBall = data.nuisanceBall;
     m_EnemyData.rewardMoney = data.rewardMoney;
     m_EnemyData.rewardExp = data.rewardExp;
     m_EnemyData.scale = data.scale;
@@ -212,6 +258,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     // HP割合を維持したままステータス更新
     ApplyStatusKeepHpRate(data.status);
     SetStatusEffects(data.initialStatusEffects);
+    UpdateCollisionStageTint();
 
     // スケールも反映
     m_Ball->SetScale(data.scale);
@@ -275,13 +322,20 @@ void EnemyBall::OnPocketHit()
     if (!IsArmorBoss()) Game::GetInstance()->HandleEnemyPocket(this);
 }
 
-void EnemyBall::EnterPocketQueue()
+void EnemyBall::EnterPocketQueue(const Vector3& pocketEntryPosition)
 {
     if (m_Ball == nullptr || IsDefeated() || m_IsPocketed)
     {
         return;
     }
     m_IsPocketed = true;
+    m_PocketEntryPosition = pocketEntryPosition;
+    m_SkipNextGimmickAdvance = true;
+    m_NuisanceWarningVisible = false;
+    if (m_EnemyData.nuisanceBall.enabled)
+    {
+        m_NuisanceTurnsUntilSpawn = (std::max)(1, m_EnemyData.nuisanceBall.respawnDelayTurns);
+    }
     m_Ball->ResetAtPosition(Vector3(0.0f, -1000.0f, 0.0f));
     if (GameObject* owner = GetGameObject())
     {
@@ -297,6 +351,21 @@ void EnemyBall::ReturnFromPocket(const Vector3& position)
     }
     m_Ball->ResetAtPosition(position);
     m_IsPocketed = false;
+    m_NuisanceSpawnPosition = position + m_EnemyData.nuisanceBall.spawnOffset;
+    m_NuisanceSpawnPosition.y = TableConfig::FIELD_HEIGHT;
+    const float nuisanceMargin = m_EnemyData.nuisanceBall.radius + 1.0f;
+    m_NuisanceSpawnPosition.x = std::clamp(
+        m_NuisanceSpawnPosition.x,
+        -TableConfig::GetFieldWidth() * 0.5f + nuisanceMargin,
+        TableConfig::GetFieldWidth() * 0.5f - nuisanceMargin);
+    m_NuisanceSpawnPosition.z = std::clamp(
+        m_NuisanceSpawnPosition.z,
+        -TableConfig::GetFieldDepth() * 0.5f + nuisanceMargin,
+        TableConfig::GetFieldDepth() * 0.5f - nuisanceMargin);
+    m_NuisanceWarningVisible =
+        m_EnemyData.nuisanceBall.enabled &&
+        !HasLiveNuisanceBall() &&
+        m_NuisanceTurnsUntilSpawn == 1;
     if (GameObject* owner = GetGameObject())
     {
         owner->SetActive(true);
@@ -324,6 +393,8 @@ void EnemyBall::TakeDamage(int damage)
 	{
 		m_Ball->GetMutableVelocity() = collisionVelocity;
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
+		m_NuisanceWarningVisible = false;
+		DestroyNuisanceBall();
 		Game::GetInstance()->NotifyEnemyDefeated(m_EnemyData.id);
 	}
 
@@ -334,7 +405,158 @@ void EnemyBall::TakeDamage(int damage)
 
 int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
 {
-    return BallPhysicsRules::DirectionalDamage(damage, GetPosition(), sourcePosition, m_EnemyData.frontalDamageMultiplier);
+    damage = BallPhysicsRules::DirectionalDamage(
+        damage,
+        GetPosition(),
+        sourcePosition,
+        m_EnemyData.frontalDamageMultiplier);
+    return EnemyGimmickRules::ScaleCollisionDamage(
+        damage,
+        GetCollisionStageDamageMultiplier());
+}
+
+float EnemyBall::GetCollisionStageDamageMultiplier() const
+{
+    return EnemyGimmickRules::CollisionDamageMultiplier(
+        m_EnemyData.collisionDamageMultipliers,
+        m_CollisionStage);
+}
+
+void EnemyBall::RegisterCollisionForStage(std::uintptr_t otherBallId)
+{
+    if (!HasCollisionStages() || IsDefeated() || otherBallId == 0 ||
+        m_CollisionGraceByBall.contains(otherBallId))
+    {
+        return;
+    }
+
+    ++m_CollisionStage;
+    if (m_EnemyData.collisionCountGraceTicks > 0)
+    {
+        m_CollisionGraceByBall[otherBallId] =
+            m_EnemyData.collisionCountGraceTicks;
+    }
+    UpdateCollisionStageTint();
+}
+
+void EnemyBall::UpdateCollisionStageTint()
+{
+    if (m_RenderComponent == nullptr) return;
+    const float brightness = EnemyGimmickRules::CollisionStageBrightness(
+        m_EnemyData.collisionDamageMultipliers,
+        m_CollisionStage);
+    m_RenderComponent->SetTint(Color(
+        m_BaseTint.x * brightness,
+        m_BaseTint.y * brightness,
+        m_BaseTint.z * brightness,
+        m_BaseTint.w));
+}
+
+bool EnemyBall::HasLiveNuisanceBall() const
+{
+    return m_NuisanceBallObject != nullptr &&
+        Game::GetInstance()->ContainsGameObject(m_NuisanceBallObject);
+}
+
+void EnemyBall::DestroyNuisanceBall()
+{
+    const bool destroyed = HasLiveNuisanceBall();
+    if (destroyed)
+    {
+        m_NuisanceBallObject->Destroy();
+    }
+    m_NuisanceBallObject = nullptr;
+    if (destroyed)
+    {
+        for (PlayerBall* player : Game::GetInstance()->GetComponents<PlayerBall>())
+            if (player != nullptr) player->RefreshNuisanceDebuffs();
+    }
+}
+
+void EnemyBall::SpawnNuisanceBall()
+{
+    if (!m_EnemyData.nuisanceBall.enabled || HasLiveNuisanceBall() ||
+        IsDefeated() || IsPocketed())
+    {
+        return;
+    }
+    NuisanceBall* nuisance = BallFactory::CreateNuisanceBall(
+        *Game::GetInstance(),
+        m_EnemyData.nuisanceBall,
+        m_NuisanceSpawnPosition);
+    m_NuisanceBallObject = nuisance != nullptr
+        ? nuisance->GetGameObject()
+        : nullptr;
+    for (PlayerBall* player : Game::GetInstance()->GetComponents<PlayerBall>())
+        if (player != nullptr) player->RefreshNuisanceDebuffs();
+    m_NuisanceTurnsUntilSpawn = 0;
+    m_NuisanceWarningVisible = false;
+}
+
+void EnemyBall::AdvanceTurnGimmicks()
+{
+    if (m_SkipNextGimmickAdvance)
+    {
+        m_SkipNextGimmickAdvance = false;
+        return;
+    }
+    if (m_StunTurnsRemaining > 0)
+    {
+        --m_StunTurnsRemaining;
+        return;
+    }
+    if (!m_EnemyData.nuisanceBall.enabled || IsDefeated() || IsPocketed()) return;
+
+    if (HasLiveNuisanceBall())
+    {
+        m_NuisanceWarningVisible = false;
+        return;
+    }
+    m_NuisanceBallObject = nullptr;
+    if (m_NuisanceTurnsUntilSpawn <= 0)
+    {
+        // The previous ball disappeared during the completed shot. Start the
+        // full cooldown now; do not consume one turn on the same boundary.
+        m_NuisanceTurnsUntilSpawn =
+            (std::max)(1, m_EnemyData.nuisanceBall.respawnDelayTurns);
+    }
+    else
+    {
+        --m_NuisanceTurnsUntilSpawn;
+    }
+
+    if (m_NuisanceTurnsUntilSpawn == 0) SpawnNuisanceBall();
+    else m_NuisanceWarningVisible = m_NuisanceTurnsUntilSpawn == 1;
+}
+
+void EnemyBall::DrawNuisanceWarning()
+{
+    if (!m_NuisanceWarningVisible || IsDefeated() || IsPocketed() ||
+        m_RenderComponent == nullptr || m_Ball == nullptr)
+    {
+        return;
+    }
+
+    Vector3 delta = m_NuisanceSpawnPosition - GetPosition();
+    delta.y = 0.0f;
+    const float distance = delta.Length();
+    if (distance > 0.001f)
+    {
+        delta /= distance;
+        m_RenderComponent->SetTint(Color(1.0f, 0.8f, 0.15f, 0.55f));
+        constexpr float spacing = 3.0f;
+        for (float along = spacing; along < distance; along += spacing)
+        {
+            const Vector3 position = GetPosition() + delta * along + Vector3(0.0f, 0.15f, 0.0f);
+            m_RenderComponent->DrawMesh(
+                Matrix::CreateScale(0.28f) * Matrix::CreateTranslation(position));
+        }
+        const float ghostScale = (std::max)(0.6f, m_EnemyData.nuisanceBall.radius * 0.75f);
+        m_RenderComponent->DrawMesh(
+            Matrix::CreateScale(ghostScale) *
+            Matrix::CreateTranslation(m_NuisanceSpawnPosition + Vector3(0.0f, 0.15f, 0.0f)));
+        UpdateCollisionStageTint();
+    }
 }
 
 int EnemyBall::ApplyPocketDamage()
