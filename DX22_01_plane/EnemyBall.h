@@ -37,6 +37,8 @@ public:
     void Defeat();
     void RemoveFromFieldAfterPocket();
     void TakeDamage(int damage);
+	int GetAnchorStacks() const { return m_AnchorStacks; }
+	int& MutableAnchorStacks() { return m_AnchorStacks; }
     bool IsArmorBoss() const { return m_EnemyData.id == "enemy_boss_core"; }
     const BossCombatRules::State& GetBossState() const { return m_BossState; }
     void SetDebugBossState(int armor, int breakShots)
@@ -140,6 +142,7 @@ private:
         DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f);
     int m_CollisionStage = 0;
     std::unordered_map<std::uintptr_t, int> m_CollisionGraceByBall;
+	int m_AnchorStacks = 0;
     GameObject* m_NuisanceBallObject = nullptr;
     DirectX::SimpleMath::Vector3 m_NuisanceSpawnPosition = DirectX::SimpleMath::Vector3::Zero;
     int m_NuisanceTurnsUntilSpawn = 0;

@@ -81,7 +81,7 @@ void BallCollisionComponent::ResolveEnvironment(
         if (bounced && body.player)
         {
             Game::GetInstance()->NotifyPlayerWallCollision(
-                CushionChargeRules::RegionFromContact(wall, contact), body.velocity);
+				CushionChargeRules::RegionFromContact(wall, contact), body.position, body.velocity);
         }
     }
     // Walls only change motion; rebuilding unchanged contact histories for each
@@ -112,6 +112,10 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	BallComponent* other = otherCollision->m_BallComponent;
     auto first = CapturePhysicsBody();
     auto second = otherContact.CapturePhysicsBody();
+	const Vector3 firstVelocityBefore = first.velocity;
+	const Vector3 secondVelocityBefore = second.velocity;
+	const int firstPierceUsesBefore = first.pierceUses;
+	const int secondPierceUsesBefore = second.pierceUses;
     const bool impact = BallPhysicsRules::Pair(first, second);
     CommitPhysicsBody(first);
     otherContact.CommitPhysicsBody(second);
@@ -120,6 +124,17 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     auto* otherEnemy = other->GetGameObject()->GetComponent<EnemyBall>();
     auto* myPlayer = GetGameObject()->GetComponent<PlayerBall>();
     auto* otherPlayer = other->GetGameObject()->GetComponent<PlayerBall>();
+	const auto directionChanged = [](const Vector3& before, const Vector3& after)
+	{
+		const float lengths = before.Length() * after.Length();
+		return lengths > 0.0001f && before.Dot(after) / lengths < 0.9999f;
+	};
+	if (myPlayer != nullptr && first.pierceUses == firstPierceUsesBefore &&
+		directionChanged(firstVelocityBefore, first.velocity))
+		Game::GetInstance()->NotifyPlayerDirectionChange(first.position);
+	if (otherPlayer != nullptr && second.pierceUses == secondPierceUsesBefore &&
+		directionChanged(secondVelocityBefore, second.velocity))
+		Game::GetInstance()->NotifyPlayerDirectionChange(second.position);
     // Neutral contacts do not deal direct contact damage or consume damage relics.
     // A player's chain-impact ability may still use the neutral as its blast center.
     if (first.breakBall || second.breakBall)
@@ -148,9 +163,36 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     }
     const bool isPlayerEnemyCollision = (myPlayer && otherEnemy) || (myEnemy && otherPlayer);
     const bool isEnemyEnemyCollision = myEnemy && otherEnemy;
-    const auto damage = BallPhysicsRules::ContactDamage(first, second, GetAttack(), other->GetAttack(),
+	if (isEnemyEnemyCollision)
+	{
+		Game::GetInstance()->NotifyEnemyEnemySynergyCollision(
+			myEnemy, otherEnemy, firstVelocityBefore, secondVelocityBefore);
+	}
+	if (isPlayerEnemyCollision)
+	{
+		EnemyBall* target = myEnemy != nullptr ? myEnemy : otherEnemy;
+		const bool playerPierced =
+			(myPlayer != nullptr && first.pierceUses > firstPierceUsesBefore) ||
+			(otherPlayer != nullptr && second.pierceUses > secondPierceUsesBefore);
+		if (playerPierced)
+		{
+			const BallPhysicsRules::Body& playerBody = myPlayer != nullptr ? first : second;
+			Game::GetInstance()->NotifyPlayerPiercedEnemy(
+				target,
+				playerBody.position,
+				playerBody.status.abilities.refractAfterPierce);
+		}
+	}
+    auto damage = BallPhysicsRules::ContactDamage(first, second, GetAttack(), other->GetAttack(),
         myEnemy && myEnemy->IsDefeated(), otherEnemy && otherEnemy->IsDefeated(), *Game::GetInstance());
-    const int damageToThis = damage.first, damageToOther = damage.second;
+	int damageToThis = damage.first, damageToOther = damage.second;
+	if (isPlayerEnemyCollision)
+	{
+		const int synergyBonus = Game::GetInstance()->NotifyPlayerEnemySynergyCollision(
+			myEnemy != nullptr ? myEnemy : otherEnemy);
+		if (myEnemy != nullptr) damageToThis += synergyBonus;
+		else damageToOther += synergyBonus;
+	}
 			const bool myEnemyWasFullHp =
 				myEnemy != nullptr &&
 				otherPlayer != nullptr &&
@@ -176,14 +218,12 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			{
 				BalanceLogger::GetInstance().RecordDamageCollision(
 					BalanceCollisionType::PlayerEnemy);
-				Game::GetInstance()->DynamicBalance().OnHit();
 			}
 			else if (isEnemyEnemyCollision)
 			{
 				// 両方の敵にダメージが入っても、衝突回数は1回。
 				BalanceLogger::GetInstance().RecordDamageCollision(
 					BalanceCollisionType::EnemyEnemy);
-				Game::GetInstance()->DynamicBalance().OnHit();
 			}
 
 			if (myEnemy != nullptr)
@@ -262,9 +302,9 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
         first = CapturePhysicsBody();
         second = otherContact.CapturePhysicsBody();
         if (BallPhysicsRules::StopAnchor(first, m_PhysicsComponent->Acceleration()))
-            Game::GetInstance()->NotifyAnchorStopped();
+			Game::GetInstance()->NotifyAnchorStopped(otherEnemy);
         if (BallPhysicsRules::StopAnchor(second, otherCollision->m_PhysicsComponent->Acceleration()))
-            Game::GetInstance()->NotifyAnchorStopped();
+			Game::GetInstance()->NotifyAnchorStopped(myEnemy);
         CommitPhysicsBody(first);
         otherContact.CommitPhysicsBody(second);
     }

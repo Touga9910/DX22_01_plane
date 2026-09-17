@@ -3,6 +3,7 @@
 #include "BallShotPrediction.h"
 #include "BallCollisionComponent.h"
 #include "Game.h"
+#include "input.h"
 #include "Ground.h"
 #include "TableFrame.h"
 #include "Camera.h"
@@ -198,6 +199,7 @@ void PlayerBall::Draw(Camera* cam)
 
 	// ★ 弾道予測線の描画（新しいメソッド）
 	DrawTrajectoryLine();
+	DrawPierceTraces();
 }
 
 void PlayerBall::Uninit()
@@ -412,8 +414,7 @@ void PlayerBall::UpdateAim()
 	BattleState battleState = Game::GetInstance()->GetBattleState();
 
 	if (battleState != BattleState::AimingDirection &&
-		battleState != BattleState::AimingPower &&
-		battleState != BattleState::ConfirmShot)
+		battleState != BattleState::AimingPower)
 	{
 		return;
 	}
@@ -784,6 +785,7 @@ void PlayerBall::InitTrajectoryVisualModel()
 	addGuideMaterial({ 1.0f, 1.0f, 1.0f, 0.9f });     // 接触時のプレイヤーボール半径の色
 	addGuideMaterial({ 1.0f, 0.86f, 0.25f, 1.0f });   // 当たったボールが飛ぶ方向の色
 	addGuideMaterial({ 0.78f, 0.34f, 1.0f, 1.0f });   // 連鎖衝撃の実寸範囲
+	addGuideMaterial({ 0.72f, 0.22f, 1.0f, 0.88f });  // Pierce Trace
 
 	// サブセットを作成
 	SUBSET subset;
@@ -865,6 +867,21 @@ void PlayerBall::DrawTrajectoryLine()
 		}
 	}
 
+	Renderer::SetDepthEnable(true);
+}
+
+void PlayerBall::DrawPierceTraces()
+{
+	const auto& state = Game::GetInstance()->GetPierceTraceState();
+	if (state.traces.empty()) return;
+	Renderer::SetDepthEnable(true);
+	m_PreviewMeshRenderer.BeforeDraw();
+	for (const auto& trace : state.traces)
+	{
+		DrawGuideSegment(trace.start, trace.end, 0.16f, 0.13f, 4);
+		const Vector3 markerStart = trace.end - trace.direction * 2.0f;
+		DrawGuideSegment(markerStart, trace.end, 0.30f, 0.16f, 4);
+	}
 	Renderer::SetDepthEnable(true);
 }
 

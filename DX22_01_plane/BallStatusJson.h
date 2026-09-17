@@ -22,6 +22,31 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
         "cushionChargeSpeedMultiplier", status.cushionChargeSpeedMultiplier);
 	status.stopShieldAmount = value.value("stopShieldAmount", status.stopShieldAmount);
 	status.chainImpactRadius = value.value("chainImpactRadius", status.chainImpactRadius);
+	status.heavyFinisherDamagePerCollision = value.value("heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision);
+	status.heavyCollisionConsumeAmount = value.value("heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount);
+	status.traceDurability = value.value("traceDurability", status.traceDurability);
+	status.traceUseAngleTolerance = value.value("traceUseAngleTolerance", status.traceUseAngleTolerance);
+	status.traceUseDistance = value.value("traceUseDistance", status.traceUseDistance);
+	status.traceWidth = value.value("traceWidth", status.traceWidth);
+	status.tracePierceMaxUsesBonus = value.value("tracePierceMaxUsesBonus", status.tracePierceMaxUsesBonus);
+	status.tracePierceSpeedRetentionBonus = value.value("tracePierceSpeedRetentionBonus", status.tracePierceSpeedRetentionBonus);
+	status.traceNonPierceSpeedMultiplier = value.value("traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier);
+	status.pierceFinisherBaseBonus = value.value("pierceFinisherBaseBonus", status.pierceFinisherBaseBonus);
+	status.pierceFinisherMultiTargetBonus = value.value("pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus);
+	status.cushionStackGenerateAmount = value.value("cushionStackGenerateAmount", status.cushionStackGenerateAmount);
+	status.cushionMaxStack = value.value("cushionMaxStack", status.cushionMaxStack);
+	status.cushionStackConsumeAmount = value.value("cushionStackConsumeAmount", status.cushionStackConsumeAmount);
+	status.cushionBounceAttackBonus = value.value("cushionBounceAttackBonus", status.cushionBounceAttackBonus);
+	status.cushionNonBounceSpeedMultiplier = value.value("cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier);
+	status.ricochetFinisherBonusPerUse = value.value("ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse);
+	status.anchorPlayerStackGenerate = value.value("anchorPlayerStackGenerate", status.anchorPlayerStackGenerate);
+	status.anchorEnemyStackGenerate = value.value("anchorEnemyStackGenerate", status.anchorEnemyStackGenerate);
+	status.anchorStackRadius = value.value("anchorStackRadius", status.anchorStackRadius);
+	status.anchorStackMax = value.value("anchorStackMax", status.anchorStackMax);
+	status.anchorFinisherStackConsume = value.value("anchorFinisherStackConsume", status.anchorFinisherStackConsume);
+	status.anchorFinisherDamagePerStack = value.value("anchorFinisherDamagePerStack", status.anchorFinisherDamagePerStack);
+	status.anchorFinisherAoeThreshold = value.value("anchorFinisherAoeThreshold", status.anchorFinisherAoeThreshold);
+	status.anchorFinisherAoeRadius = value.value("anchorFinisherAoeRadius", status.anchorFinisherAoeRadius);
     if (value.contains("abilities") && value["abilities"].is_object())
     {
         const auto& abilities = value["abilities"];
@@ -52,6 +77,31 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
         { "cushionChargeSpeedMultiplier", status.cushionChargeSpeedMultiplier },
 		{ "stopShieldAmount", status.stopShieldAmount },
 		{ "chainImpactRadius", status.chainImpactRadius },
+		{ "heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision },
+		{ "heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount },
+		{ "traceDurability", status.traceDurability },
+		{ "traceUseAngleTolerance", status.traceUseAngleTolerance },
+		{ "traceUseDistance", status.traceUseDistance },
+		{ "traceWidth", status.traceWidth },
+		{ "tracePierceMaxUsesBonus", status.tracePierceMaxUsesBonus },
+		{ "tracePierceSpeedRetentionBonus", status.tracePierceSpeedRetentionBonus },
+		{ "traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier },
+		{ "pierceFinisherBaseBonus", status.pierceFinisherBaseBonus },
+		{ "pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus },
+		{ "cushionStackGenerateAmount", status.cushionStackGenerateAmount },
+		{ "cushionMaxStack", status.cushionMaxStack },
+		{ "cushionStackConsumeAmount", status.cushionStackConsumeAmount },
+		{ "cushionBounceAttackBonus", status.cushionBounceAttackBonus },
+		{ "cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier },
+		{ "ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse },
+		{ "anchorPlayerStackGenerate", status.anchorPlayerStackGenerate },
+		{ "anchorEnemyStackGenerate", status.anchorEnemyStackGenerate },
+		{ "anchorStackRadius", status.anchorStackRadius },
+		{ "anchorStackMax", status.anchorStackMax },
+		{ "anchorFinisherStackConsume", status.anchorFinisherStackConsume },
+		{ "anchorFinisherDamagePerStack", status.anchorFinisherDamagePerStack },
+		{ "anchorFinisherAoeThreshold", status.anchorFinisherAoeThreshold },
+		{ "anchorFinisherAoeRadius", status.anchorFinisherAoeRadius },
 		{ "abilities", { { "split", status.abilities.split }, { "pierce", status.abilities.pierce }, { "anchor", status.abilities.anchor },
 			{ "refractAfterPierce", status.abilities.refractAfterPierce } } },
     };
@@ -73,5 +123,30 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.cushionChargeSpeedMultiplier <= 3.0f &&
 		s.stopShieldAmount >= 0 && s.stopShieldAmount <= 100 &&
 		std::isfinite(s.chainImpactRadius) && s.chainImpactRadius >= 0.0f &&
-		s.chainImpactRadius <= 100.0f;
+		s.chainImpactRadius <= 100.0f &&
+		std::isfinite(s.heavyFinisherDamagePerCollision) && s.heavyFinisherDamagePerCollision >= 0.0f && s.heavyFinisherDamagePerCollision <= 100.0f &&
+		s.heavyCollisionConsumeAmount >= 0 && s.heavyCollisionConsumeAmount <= 9999 &&
+		s.traceDurability >= 0 && s.traceDurability <= 99 &&
+		std::isfinite(s.traceUseAngleTolerance) && s.traceUseAngleTolerance >= 1.0f && s.traceUseAngleTolerance <= 89.0f &&
+		std::isfinite(s.traceUseDistance) && s.traceUseDistance >= 0.1f && s.traceUseDistance <= 200.0f &&
+		std::isfinite(s.traceWidth) && s.traceWidth >= 0.1f && s.traceWidth <= 50.0f &&
+		s.tracePierceMaxUsesBonus >= 0 && s.tracePierceMaxUsesBonus <= 16 &&
+		std::isfinite(s.tracePierceSpeedRetentionBonus) && s.tracePierceSpeedRetentionBonus >= 0.0f && s.tracePierceSpeedRetentionBonus <= 1.0f &&
+		std::isfinite(s.traceNonPierceSpeedMultiplier) && s.traceNonPierceSpeedMultiplier >= 1.0f && s.traceNonPierceSpeedMultiplier <= 1.25f &&
+		s.pierceFinisherBaseBonus >= 0 && s.pierceFinisherBaseBonus <= 1000 &&
+		s.pierceFinisherMultiTargetBonus >= 0 && s.pierceFinisherMultiTargetBonus <= 1000 &&
+		s.cushionStackGenerateAmount >= 0 && s.cushionStackGenerateAmount <= 99 &&
+		s.cushionMaxStack >= 1 && s.cushionMaxStack <= 99 &&
+		s.cushionStackConsumeAmount >= 1 && s.cushionStackConsumeAmount <= 99 &&
+		s.cushionBounceAttackBonus >= 0 && s.cushionBounceAttackBonus <= 1000 &&
+		std::isfinite(s.cushionNonBounceSpeedMultiplier) && s.cushionNonBounceSpeedMultiplier >= 1.0f && s.cushionNonBounceSpeedMultiplier <= 1.25f &&
+		s.ricochetFinisherBonusPerUse >= 0 && s.ricochetFinisherBonusPerUse <= 1000 &&
+		s.anchorPlayerStackGenerate >= 0 && s.anchorPlayerStackGenerate <= 99 &&
+		s.anchorEnemyStackGenerate >= 0 && s.anchorEnemyStackGenerate <= 99 &&
+		std::isfinite(s.anchorStackRadius) && s.anchorStackRadius >= 0.0f && s.anchorStackRadius <= 100.0f &&
+		s.anchorStackMax >= 1 && s.anchorStackMax <= 9999 &&
+		s.anchorFinisherStackConsume >= 0 && s.anchorFinisherStackConsume <= 9999 &&
+		s.anchorFinisherDamagePerStack >= 0 && s.anchorFinisherDamagePerStack <= 1000 &&
+		s.anchorFinisherAoeThreshold >= 0 && s.anchorFinisherAoeThreshold <= 9999 &&
+		std::isfinite(s.anchorFinisherAoeRadius) && s.anchorFinisherAoeRadius >= 0.0f && s.anchorFinisherAoeRadius <= 100.0f;
 }

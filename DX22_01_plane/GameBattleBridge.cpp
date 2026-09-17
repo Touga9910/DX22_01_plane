@@ -32,12 +32,6 @@ void Game::InitializeBattleController()
 				defeatedEnemies);
 		};
 
-	hooks.finishDynamicBalanceShot =
-		[this]()
-		{
-			m_DynamicBalanceController.OnShotFinished();
-		};
-
 	hooks.beginEnemyAttackForecast =
 		[this]() -> int
 		{
@@ -121,11 +115,6 @@ void Game::NotifyBattleAimDirectionStarted()
 void Game::NotifyBattlePowerSelectionStarted()
 {
 	m_BattleController.BeginAimingPower();
-}
-
-void Game::NotifyBattleShotConfirmed()
-{
-	m_BattleController.BeginConfirmShot();
 }
 
 void Game::NotifyBattleShotCancelled()

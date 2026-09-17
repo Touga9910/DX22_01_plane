@@ -214,7 +214,7 @@ void Application::MainLoop()
     // ゲーム初期化処理
     Game::Init();
 
-    // ★ ImGui初期化
+    // ImGui初期化
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
@@ -230,13 +230,18 @@ void Application::MainLoop()
     // 対応するWindows環境に同梱されるフォントを使い、
     // UIがデバッグ用のASCIIフォントへ依存しないようにする。
     ImFont* japaneseFont = io.Fonts->AddFontFromFileTTF(
-        "C:/Windows/Fonts/meiryo.ttc",
+        "assets/fonts/BIZUDPGothic-Regular.ttf",
         18.0f,
         nullptr,
         io.Fonts->GetGlyphRangesJapanese());
+
     if (japaneseFont != nullptr)
     {
         io.FontDefault = japaneseFont;
+    }
+    else
+    {
+        io.Fonts->AddFontDefault();
     }
 
     ImGui_ImplWin32_Init(m_hWnd);
@@ -261,7 +266,7 @@ void Application::MainLoop()
 
    int renderHz = 60;
 #if defined(_DEBUG)
-   // Only for isolated regression captures; production rendering remains 60 Hz.
+   // 回帰テスト用に環境変数でFPSを指定できるようにする
    wchar_t testRenderHz[16] = {};
    if (GetEnvironmentVariableW(L"DX22_TEST_RENDER_HZ", testRenderHz, 16) > 0)
    {
@@ -294,7 +299,7 @@ void Application::MainLoop()
            // 1/60秒が経過したか？
            if (nowCount >= oldCount + frequency / renderHz) {
 
-               // ★ ImGuiフレーム開始（Game::Draw()より前に必ず呼ぶ）
+               // ImGuiフレーム開始（Game::Draw()より前に必ず呼ぶ）
                ImGui_ImplDX11_NewFrame();
                ImGui_ImplWin32_NewFrame();
                ImGui::NewFrame();
@@ -306,7 +311,7 @@ void Application::MainLoop()
                Game::Draw();
 
                
-               // ★ ImGui描画（Game::Draw()より後に呼ぶ）
+               // ImGui描画（Game::Draw()より後に呼ぶ）
                ImGui::Render();
                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
@@ -354,7 +359,7 @@ void Application::MainLoop()
         }
     }
 
-   // ★ ImGui終了処理
+   // ImGui終了処理
    ImGui_ImplDX11_Shutdown();
    ImGui_ImplWin32_Shutdown();
    ImGui::DestroyContext();

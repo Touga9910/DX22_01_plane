@@ -297,12 +297,12 @@ bool GameSaveManager::Save(
 				{ "relic_state", SerializeEngine(game.m_RunController.RelicRandomEngine()) },
 			} },
 			{ "dynamic_balance", {
-				{ "enabled", game.m_DynamicBalanceController.IsEnabled() },
-				{ "level", game.m_DynamicBalanceController.GetLevel() },
-				{ "applied_enabled", game.m_DynamicBalanceController.IsAppliedEnabled() },
-				{ "applied_level", game.m_DynamicBalanceController.GetAppliedLevel() },
-				{ "last_result", game.m_DynamicBalanceController.GetLastResult() },
-				{ "last_reason", game.m_DynamicBalanceController.GetLastReason() },
+				{ "enabled", false },
+				{ "level", 0 },
+				{ "applied_enabled", false },
+				{ "applied_level", 0 },
+				{ "last_result", "not_evaluated" },
+				{ "last_reason", "Dynamic difficulty was retired; fixed difficulty is active." },
 			} },
 			{ "run_statistics", {
 				{ "reached_floor", runStatistics.reachedFloor },
@@ -385,7 +385,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		const json& run = payload.at("run");
 		const int activeAscension = std::clamp(run.value("ascension", 0), 0, ProgressionProfile::MaximumAscension);
 		const json& random = payload.at("random");
-		const json& dynamicBalance = payload.at("dynamic_balance");
 		const json& deckJson = payload.at("deck");
 		RunResultSnapshot restoredStatistics{};
 		if (payload.contains("run_statistics"))
@@ -578,11 +577,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			}
 		}
 
-		// 旧セーブのDDA値は読み取るが、復元時には適用しない。
-		// これによりDDA撤去前のランも固定難度で再開できる。
-		const int dynamicLevel = dynamicBalance.value("level", 0);
-		const int appliedLevel = dynamicBalance.value("applied_level", 0);
-
 		RunMap restoredMap;
 		if (payload.contains("run_map"))
 		{
@@ -641,13 +635,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		game.m_RunController.StageSelection().m_RandomEngine = stageEngine;
 		game.m_BattleController.PocketRandomEngine() = pocketEngine;
 		game.m_RunController.RelicRandomEngine() = relicEngine;
-		game.m_DynamicBalanceController.RestoreRunState(
-			dynamicBalance.at("enabled").get<bool>(),
-			dynamicLevel,
-			dynamicBalance.at("applied_enabled").get<bool>(),
-			appliedLevel,
-			dynamicBalance.at("last_result").get<std::string>(),
-			dynamicBalance.at("last_reason").get<std::string>());
 		game.m_RunStatistics.Restore(restoredStatistics);
 		game.m_RunActive = true;
 

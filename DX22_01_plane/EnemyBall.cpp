@@ -74,6 +74,7 @@ void EnemyBall::Init()
 
 void EnemyBall::Init(const EnemyData& data)
 {
+	m_AnchorStacks = 0;
     m_BossState = {};
     m_IsPocketed = false;
     m_PocketEntryPosition = Vector3::Zero;

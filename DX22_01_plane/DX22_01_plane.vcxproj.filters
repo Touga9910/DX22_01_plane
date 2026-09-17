@@ -334,6 +334,15 @@
     <ClInclude Include="CushionChargeRules.h">
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
     </ClInclude>
+    <ClInclude Include="HeavyCollisionRules.h">
+      <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
+    </ClInclude>
+    <ClInclude Include="PierceTraceRules.h">
+      <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
+    </ClInclude>
+    <ClInclude Include="AnchorStackRules.h">
+      <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
+    </ClInclude>
     <ClInclude Include="BalanceAutoPlayer.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
     </ClInclude>

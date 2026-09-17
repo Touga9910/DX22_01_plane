@@ -178,23 +178,6 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
     return true;
 }
 
-bool PlayerDeck::DrawNext()
-{
-    PlayerBallData drawnBall;
-    if (!DrawOneFromPile(drawnBall))
-    {
-        m_CurrentBall.reset();
-        m_IsCurrentBallUsed = false;
-        return false;
-    }
-
-    m_CurrentBall = std::move(drawnBall);
-    m_CurrentBall->status = NormalizeBallStatus(m_CurrentBall->status); // ステータス値を安全な範囲に補正
-    m_IsCurrentBallUsed = false;                                  // 引いた直後は未使用扱い
-
-    return true;
-}
-
 bool PlayerDeck::DiscardCurrentIfUsed()
 {
     // 現在ボールが無い場合は捨て札に送れない

@@ -101,7 +101,6 @@ inline const char* RelicUtf8(const char8_t* text) noexcept
 struct BalanceValidationVariant
 {
 	std::string id;
-	bool disableDynamicBalance = true;
 };
 
 inline const std::array<
@@ -186,4 +185,4 @@ enum class DamageBallCollisionType
 {
 	PlayerEnemy,
 	EnemyEnemy
-};	
+};

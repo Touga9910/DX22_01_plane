@@ -279,6 +279,7 @@ void BalanceLogger::BeginShot(
 		{ "enemies_alive_before", enemiesAlive },
 		{ "shot_context", shotContext },
 		{ "enemy_damage_events", json::array() },
+		{ "shot_events", json::array() },
 		{
 			"controller_type",
 			m_Root.value("controller_type", "human")
@@ -407,6 +408,13 @@ void BalanceLogger::RecordEvent(
 		},
 		{ "details", details },
 	};
+	if (m_ShotActive && m_PendingShot.is_object())
+	{
+		m_PendingShot["shot_events"].push_back({
+			{ "event_type", eventType },
+			{ "details", details },
+		});
+	}
 	if (m_StageActive && m_CurrentStageIndex != NoStage)
 	{
 		event["stage_index"] =

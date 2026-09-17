@@ -95,6 +95,46 @@ namespace
 			drawList->AddTriangleFilled(ImVec2(center.x, tipY + 3.0f), ImVec2(center.x - 5.0f, tipY - 3.0f), ImVec2(center.x + 5.0f, tipY - 3.0f), color);
 	}
 
+	struct ResourceBadge
+	{
+		const char* label = "";
+		const char* title = "";
+		int value = 0;
+		ImU32 color = IM_COL32_WHITE;
+		bool showCushionRegions = false;
+	};
+
+	constexpr float kResourceBadgeWidth = 43.0f;
+	constexpr float kResourceBadgeHeight = 25.0f;
+
+	void DrawResourceBadge(
+		ImDrawList* drawList,
+		const ImVec2& minimum,
+		const ResourceBadge& badge)
+	{
+		const ImVec2 maximum(
+			minimum.x + kResourceBadgeWidth,
+			minimum.y + kResourceBadgeHeight);
+		drawList->AddRectFilled(minimum, maximum, IM_COL32(12, 18, 28, 238), 5.0f);
+		drawList->AddRect(minimum, maximum, badge.color, 5.0f, 0, 1.7f);
+		char text[32]{};
+		sprintf_s(text, "%s %d", badge.label, badge.value);
+		const ImVec2 textSize = ImGui::CalcTextSize(text);
+		drawList->AddText(
+			ImVec2(
+				minimum.x + (kResourceBadgeWidth - textSize.x) * 0.5f,
+				minimum.y + (kResourceBadgeHeight - textSize.y) * 0.5f),
+			badge.color,
+			text);
+	}
+
+	bool IsMouseInside(const ImVec2& minimum, const ImVec2& maximum)
+	{
+		const ImVec2 mouse = ImGui::GetIO().MousePos;
+		return mouse.x >= minimum.x && mouse.x < maximum.x &&
+			mouse.y >= minimum.y && mouse.y < maximum.y;
+	}
+
 	bool DrawPileButton(
 		const char* id,
 		const char* label,
@@ -360,6 +400,7 @@ void GamePresentation::Draw(Game& game)
 	}
 	if (IsBattleScene(game))
 	{
+		DrawPierceTraces(game);
 		DrawEnemyStatusEffects(game);
 		DrawBattleHud(game);
 		return;
@@ -423,11 +464,9 @@ void GamePresentation::Draw(Game& game)
 void GamePresentation::DrawEnemyStatusEffects(Game& game)
 {
 	const BattleState state = game.GetBattleState();
-	if (state != BattleState::AimingDirection && state != BattleState::AimingPower &&
-		state != BattleState::ConfirmShot)
-	{
-		return;
-	}
+	const bool showTimedStatusEffects =
+		state == BattleState::AimingDirection ||
+		state == BattleState::AimingPower;
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
@@ -442,8 +481,12 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		const int currentIndex = enemyIndex++;
 		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
 		const auto& effects = enemy->GetStatusEffects();
-		const int effectCount = effects.GetActiveCount();
-		if (effectCount == 0) continue;
+		const int effectCount = showTimedStatusEffects
+			? effects.GetActiveCount()
+			: 0;
+		const int anchorStacks = enemy->GetAnchorStacks();
+		const int itemCount = effectCount + (anchorStacks > 0 ? 1 : 0);
+		if (itemCount == 0) continue;
 
 		ImVec2 center;
 		ImVec2 top;
@@ -453,7 +496,9 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			continue;
 		}
 		const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
-		const float rowWidth = effectCount * 25.0f + (effectCount - 1) * 4.0f;
+		const float rowWidth = effectCount * 25.0f +
+			(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
+			(itemCount - 1) * 4.0f;
 		const ImVec2 rowPosition(center.x - rowWidth * 0.5f, center.y + projectedRadius + 7.0f);
 		if (rowPosition.x + rowWidth < viewport->Pos.x || rowPosition.x > viewport->Pos.x + viewport->Size.x ||
 			rowPosition.y + 25.0f < viewport->Pos.y || rowPosition.y > viewport->Pos.y + viewport->Size.y)
@@ -473,6 +518,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			int drawn = 0;
 			for (const StatusEffectType effectType : AllStatusEffectTypes)
 			{
+				if (!showTimedStatusEffects) break;
 				const int magnitude = effects.GetMagnitude(effectType);
 				if (magnitude <= 0) continue;
 				if (drawn++ > 0) ImGui::SameLine();
@@ -498,9 +544,148 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					ImGui::EndTooltip();
 				}
 			}
+			if (anchorStacks > 0)
+			{
+				if (drawn++ > 0) ImGui::SameLine();
+				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+				const ImVec2 iconMaximum(
+					iconMinimum.x + kResourceBadgeWidth,
+					iconMinimum.y + kResourceBadgeHeight);
+				ImGui::Dummy(ImVec2(kResourceBadgeWidth, kResourceBadgeHeight));
+				DrawResourceBadge(
+					ImGui::GetWindowDrawList(),
+					iconMinimum,
+					{ PresentationUtf8(u8"錨"), PresentationUtf8(u8"敵の錨スタック"),
+						anchorStacks, IM_COL32(75, 225, 183, 255) });
+				if (IsMouseInside(iconMinimum, iconMaximum))
+				{
+					ImGui::BeginTooltip();
+					ImGui::TextColored(ImVec4(0.29f, 0.88f, 0.72f, 1.0f), "%s",
+						PresentationUtf8(u8"敵の錨スタック"));
+					ImGui::TextUnformatted(PresentationUtf8(u8"衝突した相手へ全量転移します。"));
+					ImGui::EndTooltip();
+				}
+			}
 		}
 		ImGui::End();
 		ImGui::PopStyleVar(2);
+	}
+
+	const auto players = game.GetComponents<PlayerBall>();
+	const PlayerBall* player = players.empty() ? nullptr : players.front();
+	if (player == nullptr || player->IsDefeated()) return;
+	std::vector<ResourceBadge> resources;
+	resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"敵同士の衝突回数"),
+		game.GetHeavyCollisionCount(), IM_COL32(255, 146, 61, 255) });
+	const int traceCount = static_cast<int>(game.GetPierceTraceState().traces.size());
+	if (traceCount > 0)
+		resources.push_back({ PresentationUtf8(u8"痕"), PresentationUtf8(u8"貫通痕"),
+			traceCount, IM_COL32(198, 92, 255, 255) });
+	const int cushionStacks = CushionChargeRules::TotalStacks(game.GetCushionCharges());
+	if (cushionStacks > 0)
+		resources.push_back({ PresentationUtf8(u8"跳"), PresentationUtf8(u8"クッションスタック合計"),
+			cushionStacks, IM_COL32(255, 221, 58, 255), true });
+	if (game.GetPlayerAnchorStacks() > 0)
+		resources.push_back({ PresentationUtf8(u8"錨"), PresentationUtf8(u8"プレイヤー錨スタック"),
+			game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255) });
+	if (resources.empty()) return;
+
+	ImVec2 center;
+	ImVec2 top;
+	if (!TryProjectToScreen(player->GetPosition(), center) ||
+		!TryProjectToScreen(player->GetPosition() + Vector3(
+			0.0f, player->GetBall()->GetRadius(), 0.0f), top))
+		return;
+	const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
+	const float rowWidth = resources.size() * kResourceBadgeWidth +
+		(resources.size() - 1) * 4.0f;
+	const ImVec2 rowPosition(center.x - rowWidth * 0.5f, center.y + projectedRadius + 7.0f);
+	if (rowPosition.x + rowWidth < viewport->Pos.x ||
+		rowPosition.x > viewport->Pos.x + viewport->Size.x ||
+		rowPosition.y + kResourceBadgeHeight < viewport->Pos.y ||
+		rowPosition.y > viewport->Pos.y + viewport->Size.y)
+		return;
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(rowPosition);
+	ImGui::SetNextWindowSize(ImVec2(rowWidth, kResourceBadgeHeight));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+	if (ImGui::Begin("##player_synergy_resources", nullptr, flags))
+	{
+		for (std::size_t index = 0; index < resources.size(); ++index)
+		{
+			if (index > 0) ImGui::SameLine();
+			const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+			const ImVec2 iconMaximum(
+				iconMinimum.x + kResourceBadgeWidth,
+				iconMinimum.y + kResourceBadgeHeight);
+			ImGui::Dummy(ImVec2(kResourceBadgeWidth, kResourceBadgeHeight));
+			DrawResourceBadge(ImGui::GetWindowDrawList(), iconMinimum, resources[index]);
+			if (IsMouseInside(iconMinimum, iconMaximum))
+			{
+				ImGui::BeginTooltip();
+				ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(resources[index].color),
+					"%s: %d", resources[index].title, resources[index].value);
+				if (resources[index].showCushionRegions)
+				{
+					for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
+					{
+						const auto& charge = game.GetCushionCharges()[static_cast<std::size_t>(region)];
+						if (charge.stackCount > 0)
+							ImGui::Text(PresentationUtf8(u8"区画 %d: %d / %d"),
+								region, charge.stackCount, charge.maxStack);
+					}
+				}
+				ImGui::EndTooltip();
+			}
+		}
+	}
+	ImGui::End();
+	ImGui::PopStyleVar(2);
+}
+
+void GamePresentation::DrawPierceTraces(Game& game)
+{
+	const auto& traces = game.GetPierceTraceState().traces;
+	if (traces.empty()) return;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImDrawList* foreground = ImGui::GetForegroundDrawList(viewport);
+	const ImU32 purple = IM_COL32(205, 91, 255, 255);
+	for (const auto& trace : traces)
+	{
+		ImVec2 start;
+		ImVec2 end;
+		ImVec2 directionBase;
+		const Vector3 height(0.0f, 0.55f, 0.0f);
+		if (!TryProjectToScreen(trace.start + height, start) ||
+			!TryProjectToScreen(trace.end + height, end) ||
+			!TryProjectToScreen(trace.end - trace.direction * 2.0f + height, directionBase))
+			continue;
+		foreground->AddLine(start, end, IM_COL32(18, 6, 28, 235), 9.0f);
+		foreground->AddLine(start, end, purple, 5.0f);
+		ImVec2 direction(end.x - directionBase.x, end.y - directionBase.y);
+		const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+		if (length > 0.001f)
+		{
+			direction.x /= length;
+			direction.y /= length;
+			const ImVec2 perpendicular(-direction.y, direction.x);
+			const ImVec2 base(end.x - direction.x * 15.0f, end.y - direction.y * 15.0f);
+			foreground->AddTriangleFilled(
+				end,
+				ImVec2(base.x + perpendicular.x * 7.0f, base.y + perpendicular.y * 7.0f),
+				ImVec2(base.x - perpendicular.x * 7.0f, base.y - perpendicular.y * 7.0f),
+				purple);
+		}
+		char label[64]{};
+		sprintf_s(label, PresentationUtf8(u8"貫通痕 #%llu  耐久%d"),
+			static_cast<unsigned long long>(trace.id), trace.durability);
+		const ImVec2 midpoint((start.x + end.x) * 0.5f, (start.y + end.y) * 0.5f);
+		const ImVec2 textSize = ImGui::CalcTextSize(label);
+		const ImVec2 textAt(midpoint.x - textSize.x * 0.5f, midpoint.y - textSize.y - 9.0f);
+		foreground->AddText(ImVec2(textAt.x + 2.0f, textAt.y + 2.0f), IM_COL32(0, 0, 0, 235), label);
+		foreground->AddText(textAt, purple, label);
 	}
 }
 

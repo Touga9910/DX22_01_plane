@@ -9,9 +9,8 @@ Edit `assets/data/balance_validation.json`:
   "enabled": true,
   "experiment_id": "fixed_baseline",
   "random_seeds": [20260807, 20260817, 20260827, 20260906, 20260916],
-  "disable_dynamic_balance": true,
   "variants": [
-    { "id": "fixed", "disable_dynamic_balance": true }
+    { "id": "fixed" }
   ],
   "minimum_runs_per_variant": 5,
   "minimum_paired_seeds": 0,

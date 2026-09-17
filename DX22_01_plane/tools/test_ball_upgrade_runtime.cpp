@@ -17,7 +17,7 @@ int main()
 {
     const auto loaded = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
     assert(loaded.defaultRunStatus.maxHp == 50 && loaded.defaultRunStatus.currentHp == 50);
-	assert(loaded.ballDefinitions.size() == 9);
+	assert(loaded.ballDefinitions.size() == 13);
     PlayerRunStatus fallback;
     fallback.maxHp = 73;
     fallback.currentHp = 41;
@@ -82,6 +82,10 @@ int main()
 	const auto& chainImpact = loaded.ballDefinitions[6];
 	const auto& refractivePierce = loaded.ballDefinitions[7];
 	const auto& stopShield = loaded.ballDefinitions[8];
+	const auto& traceDriver = loaded.ballDefinitions[9];
+	const auto& pierceFinisher = loaded.ballDefinitions[10];
+	const auto& ricochetFinisher = loaded.ballDefinitions[11];
+	const auto& anchorFinisher = loaded.ballDefinitions[12];
 	assert(standard.category == BallCategory::Standard);
 	assert(heavy.category == BallCategory::Heavy);
 	assert(pierce.category == BallCategory::Pierce);
@@ -91,14 +95,23 @@ int main()
 	assert(chainImpact.category == BallCategory::Heavy);
 	assert(refractivePierce.category == BallCategory::Pierce);
 	assert(stopShield.category == BallCategory::Anchor);
+	assert(traceDriver.category == BallCategory::Pierce);
+	assert(pierceFinisher.category == BallCategory::Pierce);
+	assert(ricochetFinisher.category == BallCategory::Bounce);
+	assert(anchorFinisher.category == BallCategory::Anchor);
 	assert(chainImpact.status.chainImpactRadius == 12.0f);
-	assert(chainImpact.upgradeTable[1].chainImpactRadius == 20.0f);
+	assert(chainImpact.upgradeTable[1].chainImpactRadius == 18.0f);
+	assert(chainImpact.upgradeTable[1].heavyFinisherDamagePerCollision == 2.0f);
 	assert(refractivePierce.status.abilities.pierce &&
 		refractivePierce.status.abilities.refractAfterPierce);
 	assert(refractivePierce.upgradeTable[1].pierceMaxUses == 3);
 	assert(stopShield.status.stopShieldAmount == 3);
 	assert(stopShield.upgradeTable[0].stopShieldAmount == 5);
 	assert(stopShield.upgradeTable[1].stopShieldAmount == 7);
+	assert(!traceDriver.status.abilities.pierce && traceDriver.status.traceDurability == 2);
+	assert(pierceFinisher.status.pierceFinisherBaseBonus == 1);
+	assert(ricochetFinisher.upgradeTable[1].ricochetFinisherBonusPerUse == 3);
+	assert(anchorFinisher.status.anchorFinisherAoeThreshold == 5);
     assert(standard.upgradeTable[1].attack > standard.status.attack);
     float lastEnemySpeed = 0;
     for (const BallStatus& status : { heavy.status, heavy.upgradeTable[0], heavy.upgradeTable[1] })
@@ -154,51 +167,29 @@ int main()
 		leftWall, { -halfWidth, 0, halfDepth * 0.5f }) == 9);
 	CushionChargeRules::State cushionState{};
 	bool cushionBoostConsumed = false;
+	int strongUses = 0;
 	Vector3 reflectedVelocity(4.0f, 0.0f, -3.0f);
-	assert(!CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 2, cushion.status.cushionChargeSpeedMultiplier,
-		cushionBoostConsumed, reflectedVelocity));
-	assert(cushionState[2].active && !cushionState[2].usableThisShot &&
-		reflectedVelocity.Length() == 5.0f);
-	assert(!CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 2, cushion.upgradeTable[0].cushionChargeSpeedMultiplier,
-		cushionBoostConsumed, reflectedVelocity));
-	assert(cushionState[2].active && !cushionState[2].usableThisShot);
+	auto generated = CushionChargeRules::ApplyStackContact(
+		cushionState, 2, 2, 3, 1, true, false, 1.2f, 1.03f, 1, 0,
+		cushionBoostConsumed, strongUses, reflectedVelocity);
+	assert(generated.generated == 2 && cushionState[2].stackCount == 2);
+	generated = CushionChargeRules::ApplyStackContact(
+		cushionState, 2, 2, 3, 1, true, false, 1.2f, 1.03f, 1, 0,
+		cushionBoostConsumed, strongUses, reflectedVelocity);
+	assert(generated.generated == 1 && cushionState[2].stackCount == 3);
 	CushionChargeRules::BeginPlayerShot(cushionState);
-	assert(cushionState[2].usableThisShot);
-	assert(CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 2, 1.0f, cushionBoostConsumed, reflectedVelocity));
-	assert(!cushionState[2].active);
+	auto used = CushionChargeRules::ApplyStackContact(
+		cushionState, 2, 0, 3, 1, true, false, 1.0f, 1.03f, 2, 0,
+		cushionBoostConsumed, strongUses, reflectedVelocity);
+	assert(used.kind == CushionChargeRules::UseKind::Strong && used.consumed == 1);
+	assert(cushionState[2].stackCount == 2 && strongUses == 1);
 	assert(std::abs(reflectedVelocity.Length() - 6.0f) < 0.0001f);
-
-	// One shot can consume several regions, but its speed boost is applied once.
-	cushionState[3] = { true, false, 1.2f };
-	cushionState[4] = { true, false, 1.3f };
-	CushionChargeRules::BeginPlayerShot(cushionState);
-	cushionBoostConsumed = false;
-	reflectedVelocity = Vector3(3.0f, 0.0f, 4.0f);
-	assert(CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 3, 1.0f, cushionBoostConsumed, reflectedVelocity));
-	assert(std::abs(reflectedVelocity.Length() - 6.0f) < 0.0001f);
-	assert(!CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 4, 1.0f, cushionBoostConsumed, reflectedVelocity));
-	assert(!cushionState[3].active && !cushionState[4].active);
-	assert(std::abs(reflectedVelocity.Length() - 6.0f) < 0.0001f);
-
-	// Untouched old charges expire, while charges refreshed this shot survive.
-	cushionState[5] = { true, false, 1.2f };
-	cushionState[6] = { true, false, 1.2f };
-	CushionChargeRules::BeginPlayerShot(cushionState);
-	assert(!CushionChargeRules::ApplyPlayerWallContact(
-		cushionState, 6, cushion.upgradeTable[1].cushionChargeSpeedMultiplier,
-		cushionBoostConsumed, reflectedVelocity));
 	CushionChargeRules::EndPlayerShot(cushionState);
-	assert(!cushionState[5].active);
-	assert(cushionState[6].active && !cushionState[6].usableThisShot);
-	assert(CushionChargeRules::PendingNextShotCount(cushionState) == 1);
+	assert(cushionState[2].active && !cushionState[2].usableThisShot);
+	assert(CushionChargeRules::TotalStacks(cushionState) == 2);
 	assert(cushion.status.cushionChargeSpeedMultiplier == 1.1f);
-	assert(cushion.upgradeTable[0].cushionChargeSpeedMultiplier == 1.2f);
-	assert(cushion.upgradeTable[1].cushionChargeSpeedMultiplier == 1.3f);
+	assert(cushion.upgradeTable[0].cushionChargeSpeedMultiplier == 1.15f);
+	assert(cushion.upgradeTable[1].cushionChargeSpeedMultiplier == 1.2f);
 
     assert(BallMechanics::DirectionalDamage(6, 1.0f, 0.5f) == 3);
     assert(BallMechanics::DirectionalDamage(6, 0.0f, 0.5f) == 6);
@@ -253,5 +244,5 @@ int main()
         }
     }
     assert(guarded == 1 && pocket == 1);
-	std::cout << "PASS: HP independence, 27 save round trips, five categories, three variant abilities, cushion lifetime, legacy migrations, invalid saves, collision order, anchor lock, pierce/refraction, directional guard, pocket damage and stage loading.\n";
+	std::cout << "PASS: HP independence, 39 save round trips, 13 ball definitions, five categories, synergy resources, legacy migrations, invalid saves, collision order, anchor lock, pierce/refraction, directional guard, pocket damage and stage loading.\n";
 }

@@ -105,13 +105,23 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         ):
             self.assertNotIn(old_member, game)
 
-        for event in (
-            "void DynamicBalanceController::OnRunStarted()",
-            "void DynamicBalanceController::OnBattleStarted(int enemyCount)",
-            "void DynamicBalanceController::OnShotStarted()",
-            "void DynamicBalanceController::OnBattleFinished(",
+        self.assertIn(
+            "int DynamicBalanceController::CalculateProgressionHpModifier(",
+            dynamic,
+        )
+        self.assertIn(
+            "int DynamicBalanceController::CalculateProgressionAttackModifier(",
+            dynamic,
+        )
+        for retired_event in (
+            "DynamicBalanceController::OnRunStarted",
+            "DynamicBalanceController::OnBattleStarted",
+            "DynamicBalanceController::OnShotStarted",
+            "DynamicBalanceController::OnHit",
+            "DynamicBalanceController::OnShotFinished",
+            "DynamicBalanceController::OnBattleFinished",
         ):
-            self.assertIn(event, dynamic)
+            self.assertNotIn(retired_event, dynamic)
         self.assertIn(
             "BalanceValidationRun BalanceValidationController::OnRunStarted(",
             validation,

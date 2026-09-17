@@ -11,7 +11,6 @@ struct BalanceValidationRun final
 {
 	bool enabled = false;
 	std::uint32_t seed = 0;
-	bool disableDynamicBalance = true;
 };
 
 // 固定条件の比較実験と、シード／バリアント巡回を所有する。
@@ -28,10 +27,6 @@ public:
 
 	bool IsEnabled() const { return m_Enabled; }
 	void SetEnabled(bool enabled) { m_Enabled = enabled; }
-	bool IsDynamicBalanceLockedOff() const
-	{
-		return m_Enabled && m_CurrentDisableDynamicBalance;
-	}
 	bool UsesFixedStageSchedule() const { return m_FixedStageSchedule; }
 	bool IsEnduranceMode() const { return m_EnduranceMode; }
 	bool UsesExtendedRoute(int normalRouteGoal) const
@@ -68,8 +63,6 @@ public:
 
 private:
 	bool m_Enabled = false;
-	bool m_DisableDynamicBalance = true;
-	bool m_CurrentDisableDynamicBalance = true;
 	bool m_FixedStageSchedule = true;
 	bool m_EnduranceMode = false;
 	std::uint32_t m_Seed = 20260807u;
@@ -80,7 +73,7 @@ private:
 	std::string m_ExperimentId = "fixed_baseline";
 	std::string m_CurrentVariantId = "fixed";
 	std::vector<BalanceValidationVariant> m_Variants{
-		{ "fixed", true },
+		{ "fixed" },
 	};
 	int m_MaximumClearedStages = 30;
 };

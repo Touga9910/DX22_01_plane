@@ -41,6 +41,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
@@ -93,6 +94,14 @@ namespace
 			return PlayerBallText::Utf8(u8"狙い：衝突後の屈折先まで読む");
 		if (definitionId == "player_stop_shield")
 			return PlayerBallText::Utf8(u8"狙い：早めに止めて次の被弾を防ぐ");
+		if (definitionId == "player_trace_driver")
+			return PlayerBallText::Utf8(u8"狙い：既存射線をなぞり、その先で壁反射する");
+		if (definitionId == "player_pierce_finisher")
+			return PlayerBallText::Utf8(u8"狙い：射線を再利用し、異なる敵を連続で貫く");
+		if (definitionId == "player_ricochet_finisher")
+			return PlayerBallText::Utf8(u8"狙い：育てた壁を複数経由してから敵へ当てる");
+		if (definitionId == "player_anchor_finisher")
+			return PlayerBallText::Utf8(u8"狙い：印を持つ敵へ一撃を集中して回収する");
 		return PlayerBallText::Utf8(u8"狙い：配置に合わせて確実に連鎖を始める");
 	}
 
@@ -386,7 +395,6 @@ namespace
 		case BattleState::Inactive:        return "Inactive";
 		case BattleState::AimingDirection: return "AimingDirection";
 		case BattleState::AimingPower:     return "AimingPower";
-		case BattleState::ConfirmShot:     return "ConfirmShot";
 		case BattleState::BallsMoving:     return "BallsMoving";
 		case BattleState::EnemyAttack:     return "EnemyAttack";
 		case BattleState::TurnEnd:         return "TurnEnd";
@@ -408,7 +416,6 @@ namespace
 		{
 		case BattleState::AimingDirection:
 		case BattleState::AimingPower:
-		case BattleState::ConfirmShot:
 		case BattleState::BallsMoving:
 			return "このターンの敵攻撃前";
 
@@ -432,7 +439,6 @@ namespace
 		{
 		case BattleState::AimingDirection:
 		case BattleState::AimingPower:
-		case BattleState::ConfirmShot:
 		case BattleState::BallsMoving:
 		case BattleState::EnemyAttack:
 			return "このターンの予測被ダメージ";
@@ -645,11 +651,6 @@ void GameDebugController::ResetDiagnostics(const char* reason)
 void Game::InvalidateDebugCombatForecast(const char* reason)
 {
 	m_DebugController.InvalidateCombatForecast(reason);
-}
-
-void Game::RefreshDebugCombatForecast()
-{
-	m_DebugController.RefreshCombatForecast(*this);
 }
 
 void Game::RecordDebugPlayerDamage(
@@ -979,6 +980,31 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		game.GetComponents<PlayerBall>();
 	const std::vector<EnemyBall*> enemies =
 		game.GetComponents<EnemyBall>();
+	ImGui::Text("Heavy Collision Count: %d", game.GetHeavyCollisionCount());
+	ImGui::Text("Pierce Trace: %d / %d",
+		static_cast<int>(game.GetPierceTraceState().traces.size()),
+		static_cast<int>(PierceTraceRules::MaxTraceCount));
+	for (const auto& trace : game.GetPierceTraceState().traces)
+	{
+		ImGui::BulletText(
+			"Trace #%llu  durability=%d  (%.1f, %.1f)->(%.1f, %.1f) dir=(%.2f, %.2f)",
+			static_cast<unsigned long long>(trace.id), trace.durability,
+			trace.start.x, trace.start.z, trace.end.x, trace.end.z,
+			trace.direction.x, trace.direction.z);
+	}
+	ImGui::Text("Player Anchor Stack: %d", game.GetPlayerAnchorStacks());
+	for (std::size_t index = 0; index < enemies.size(); ++index)
+		if (enemies[index] != nullptr)
+			ImGui::BulletText("Enemy[%d] Anchor Stack: %d",
+				static_cast<int>(index), enemies[index]->GetAnchorStacks());
+	ImGui::TextUnformatted("Cushion Stacks (regions 0-11):");
+	for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
+	{
+		if (region > 0) ImGui::SameLine();
+		ImGui::Text("%d:%d", region,
+			game.GetCushionCharges()[static_cast<std::size_t>(region)].stackCount);
+	}
+	ImGui::Separator();
 	if (this->m_DebugCombatForecastDirty)
 	{
 		RefreshCombatForecast(game);

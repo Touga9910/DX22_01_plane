@@ -157,8 +157,6 @@ namespace
 			return "aiming_direction";
 		case BattleState::AimingPower:
 			return "aiming_power";
-		case BattleState::ConfirmShot:
-			return "confirm_shot";
 		case BattleState::BallsMoving:
 			return "balls_moving";
 		case BattleState::EnemyAttack:
@@ -578,10 +576,14 @@ nlohmann::json GameMcpBridge::BuildState(
 		{{ "definition_id", "player_chain_impact" }, { "unlocked", true }},
 		{{ "definition_id", "player_pierce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_pierce") }},
 		{{ "definition_id", "player_refractive_pierce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_refractive_pierce") }},
+		{{ "definition_id", "player_trace_driver" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_trace_driver") }},
+		{{ "definition_id", "player_pierce_finisher" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_pierce_finisher") }},
 		{{ "definition_id", "player_bounce" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_bounce") }},
 		{{ "definition_id", "player_cushion_charge" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_cushion_charge") }},
+		{{ "definition_id", "player_ricochet_finisher" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_ricochet_finisher") }},
 		{{ "definition_id", "player_anchor" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_anchor") }},
 		{{ "definition_id", "player_stop_shield" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_stop_shield") }},
+		{{ "definition_id", "player_anchor_finisher" }, { "unlocked", game.m_ProgressionProfile.IsBallUnlocked("player_anchor_finisher") }},
 	};
 	const std::vector<TableFrame*> tableFrames =
 		game.GetComponents<TableFrame>();
@@ -981,51 +983,33 @@ nlohmann::json GameMcpBridge::BuildState(
 			std::move(candidate));
 	}
 
-	const int dynamicHpDelta =
-		game.m_DynamicBalanceController.IsEnabled()
-			? game.m_DynamicBalanceController.GetLevel() *
-				game.m_DynamicBalanceController.GetHpStep()
-			: 0;
-	const int dynamicAttackDelta =
-		game.m_DynamicBalanceController.IsEnabled()
-			? game.m_DynamicBalanceController.CalculateAttackModifier(
-				game.m_DynamicBalanceController.GetLevel())
-			: 0;
 	state["dynamic_balance"] = {
 		{ "role", "retired_compatibility" },
 		{ "retired", true },
-		{ "enabled", game.m_DynamicBalanceController.IsEnabled() },
-		{ "current_battle_enabled",
-			game.m_DynamicBalanceController.IsAppliedEnabled() },
-		{ "level", game.m_DynamicBalanceController.GetLevel() },
-		{ "current_battle_level",
-			game.m_DynamicBalanceController.GetAppliedLevel() },
-		{ "minimum_level", game.m_DynamicBalanceController.GetMinimumLevel() },
-		{ "maximum_level", game.m_DynamicBalanceController.GetMaximumLevel() },
+		{ "enabled", false },
+		{ "current_battle_enabled", false },
+		{ "level", 0 },
+		{ "current_battle_level", 0 },
+		{ "minimum_level", 0 },
+		{ "maximum_level", 0 },
 		{ "application_timing", "next_battle_spawn" },
 		{ "next_enemy_modifier", {
-			{ "max_hp_delta", dynamicHpDelta },
-			{ "attack_delta", dynamicAttackDelta },
+			{ "max_hp_delta", 0 },
+			{ "attack_delta", 0 },
 		} },
 		{ "current_stage_metrics", {
-			{ "active", game.m_DynamicBalanceController.IsStageActive() },
-			{ "shots", game.m_DynamicBalanceController.GetStageShots() },
-			{ "no_hit_shots",
-				game.m_DynamicBalanceController.GetStageNoHitShots() },
-			{ "enemy_count",
-				game.m_DynamicBalanceController.GetStageEnemyCount() },
+			{ "active", false },
+			{ "shots", 0 },
+			{ "no_hit_shots", 0 },
+			{ "enemy_count", 0 },
 		} },
 		{ "last_evaluation", {
-			{ "result", game.m_DynamicBalanceController.GetLastResult() },
-			{ "reason", game.m_DynamicBalanceController.GetLastReason() },
-			{ "level_change",
-				game.m_DynamicBalanceController.GetLastLevelChange() },
-			{ "remaining_hp_ratio",
-				game.m_DynamicBalanceController.GetLastHpRatio() },
-			{ "no_hit_rate",
-				game.m_DynamicBalanceController.GetLastNoHitRate() },
-			{ "shots_per_enemy",
-				game.m_DynamicBalanceController.GetLastShotsPerEnemy() },
+			{ "result", "not_evaluated" },
+			{ "reason", "Dynamic difficulty was retired; fixed difficulty is active." },
+			{ "level_change", 0 },
+			{ "remaining_hp_ratio", 1.0f },
+			{ "no_hit_rate", 0.0f },
+			{ "shots_per_enemy", 0.0f },
 		} },
 	};
 	state["progression_scaling"] = {
@@ -1068,7 +1052,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "cleared_stage_count", game.m_RunController.Progress().GetClearedBattleCount() },
 		{
 			"dynamic_balance_forced_off",
-			game.m_BalanceValidationController.IsDynamicBalanceLockedOff()
+			true
 		},
 	};
 
@@ -1243,6 +1227,30 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["table"]["cushions"] = nlohmann::json::array();
 	state["table"]["cushion_boost_consumed_this_shot"] =
 		game.WasCushionBoostConsumedThisShot();
+	state["ball_synergies"] = {
+		{ "heavy_collision_count", game.GetHeavyCollisionCount() },
+		{ "player_anchor_stacks", game.GetPlayerAnchorStacks() },
+		{ "cushion_strong_uses_this_shot", game.GetCushionStrongUsesThisShot() },
+		{ "pierce_traces", nlohmann::json::array() },
+		{ "enemy_anchor_stacks", nlohmann::json::array() },
+	};
+	for (const auto& trace : game.GetPierceTraceState().traces)
+	{
+		state["ball_synergies"]["pierce_traces"].push_back({
+			{ "id", trace.id }, { "durability", trace.durability },
+			{ "start", { trace.start.x, trace.start.y, trace.start.z } },
+			{ "end", { trace.end.x, trace.end.y, trace.end.z } },
+			{ "direction", { trace.direction.x, trace.direction.y, trace.direction.z } },
+		});
+	}
+	for (EnemyBall* enemy : game.GetComponents<EnemyBall>())
+	{
+		if (enemy == nullptr) continue;
+		state["ball_synergies"]["enemy_anchor_stacks"].push_back({
+			{ "enemy_id", enemy->GetEnemyId() },
+			{ "stacks", enemy->GetAnchorStacks() },
+		});
+	}
 	const auto& cushionCharges = game.GetCushionCharges();
 	for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
 	{
@@ -1259,6 +1267,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "charged", charge.active },
 			{ "usable_this_shot", charge.usableThisShot },
 			{ "speed_multiplier", charge.speedMultiplier },
+			{ "stack_count", charge.stackCount },
+			{ "max_stack", charge.maxStack },
 		});
 	}
 	if (debug.IsEditorOpen()) state["available_actions"] = {"validate_stage_layout", "propose_stage_layout"};

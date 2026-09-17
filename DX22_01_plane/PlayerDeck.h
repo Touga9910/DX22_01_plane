@@ -37,7 +37,6 @@ public:
     // -------------------------
     // 山札・捨て札操作
     // -------------------------
-    bool DrawNext();
     bool DiscardCurrentIfUsed();
     void MarkCurrentUsed();
     void ClearCurrentUsed();

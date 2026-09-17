@@ -95,7 +95,7 @@ def prepare(label, case, ball):
     for cso in PROJECT.glob("*.cso"):
         shutil.copy2(cso, folder / cso.name)
     # PowerShell creates junctions to immutable graphical resources; data is copied.
-    for resource in ("model", "texture"):
+    for resource in ("model", "texture", "fonts"):
         destination = str(folder / "assets" / resource).replace("'", "''")
         source = str(PROJECT / "assets" / resource).replace("'", "''")
         subprocess.run(["powershell", "-NoProfile", "-Command",

@@ -25,6 +25,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
@@ -70,6 +71,15 @@ void Game::ResetPlayerRuntimeStatus()
 	ResetShotRelicState();
 	m_CushionCharges = {};
 	m_CushionBoostConsumedThisShot = false;
+	m_CushionStrongUsesThisShot = 0;
+	m_SynergyDamageBonusThisShot = 0;
+	HeavyCollisionRules::Reset(m_HeavyCollisions);
+	m_PierceTraces = {};
+	m_PierceTraceUse = {};
+	m_AnchorStacks = {};
+	m_PiercedEnemiesThisShot.clear();
+	m_TraceSegmentValid = false;
+	m_AnchorContactTarget = nullptr;
 	m_PlayerShield = 0;
 	m_IsMidBossRelicSelectionActive = false;
 	m_RunController.Progress().Reset(0);
@@ -90,7 +100,6 @@ void Game::StartNewRun(
 {
 	if (!IsDebugMode()) LoadPlayerStatusFromJson(); // Refresh the catalog after newly completed achievements.
 	ResetPlayerRuntimeStatus();
-	m_DynamicBalanceController.OnRunStarted();
 	const std::string effectiveControllerType = !controllerType.empty()
 		? controllerType
 		: (m_BalanceAutoPlayer.IsEnabled() ? "autoplay" : "human");
@@ -118,10 +127,6 @@ void Game::StartNewRun(
 	if (validationRun.enabled)
 	{
 		m_RunRandomSeed = validationRun.seed;
-		if (validationRun.disableDynamicBalance)
-		{
-			m_DynamicBalanceController.ForceDisabled();
-		}
 	}
 	else if (m_BalanceAutoPlayer.IsEnabled())
 	{
@@ -210,7 +215,7 @@ void Game::StartNewRun(
 					m_BalanceValidationController.GetMaximumClearedStages() },
 				{
 					"dynamic_balance_forced_off",
-					m_BalanceValidationController.IsDynamicBalanceLockedOff()
+					true
 				},
 				{ "fixed_stage_schedule", m_BalanceValidationController.UsesFixedStageSchedule() },
 				{ "endurance_mode", m_BalanceValidationController.IsEnduranceMode() },
@@ -226,8 +231,8 @@ void Game::StartNewRun(
 				{ "enemy_attack_delta", m_BaselineEnemyAttackDelta },
 			}
 		},
-		{ "dynamic_balance_enabled_at_start", m_DynamicBalanceController.IsEnabled() },
-		{ "dynamic_balance_level_at_start", m_DynamicBalanceController.GetLevel() },
+		{ "dynamic_balance_enabled_at_start", false },
+		{ "dynamic_balance_level_at_start", 0 },
 		{ "initial_money", m_RunController.Status().money },
 		{ "initial_progress", m_RunController.Status().progress },
 		{ "ascension", m_ActiveAscension },

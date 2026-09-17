@@ -41,17 +41,23 @@ def verify_fresh_profile(label):
         assert progression["highest_unlocked_ascension"] == 0
         assert len(progression["ascension_rules"]) == 11
         assert not any(item["unlocked"] for item in progression["achievements"])
+		# The isolated fixture deliberately uses the archived five-ball data set.
+		# New code must remain compatible with it, so only its two always-unlocked
+		# definitions appear in the catalog.
         assert [item["definition_id"] for item in state["catalog_balls"]] == [
-			"player_standard", "player_heavy", "player_chain_impact"]
+			"player_standard", "player_heavy"]
         ball_unlocks = {item["definition_id"]: item["unlocked"]
                         for item in progression["ball_unlocks"]}
         assert ball_unlocks == {
             "player_standard": True, "player_heavy": True,
 			"player_chain_impact": True,
-            "player_pierce": False, "player_bounce": False,
+			"player_pierce": False, "player_bounce": False,
 			"player_cushion_charge": False,
 			"player_refractive_pierce": False,
-			"player_anchor": False, "player_stop_shield": False}
+			"player_trace_driver": False, "player_pierce_finisher": False,
+			"player_ricochet_finisher": False,
+			"player_anchor": False, "player_stop_shield": False,
+			"player_anchor_finisher": False}
         assert sum(not relic["unlocked"] for relic in state["relics"]) == 5
         h.write(folder / "verified.json", {"passed": True, "state": state})
 

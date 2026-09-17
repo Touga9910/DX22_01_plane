@@ -25,7 +25,6 @@ void BalanceValidationController::LoadConfig(
 		nlohmann::json config;
 		file >> config;
 		m_Enabled = config.value("enabled", false);
-		m_DisableDynamicBalance = true;
 		m_FixedStageSchedule = config.value("fixed_stage_schedule", true);
 		m_EnduranceMode = config.value("endurance_mode", false);
 		m_Seed = config.value("random_seed", 20260807u);
@@ -69,21 +68,16 @@ void BalanceValidationController::LoadConfig(
 				const std::string id = variant.value("id", std::string());
 				if (!id.empty())
 				{
-					m_Variants.push_back({
-						id,
-						true,
-					});
+					m_Variants.push_back({ id });
 				}
 			}
 		}
 		if (m_Variants.empty())
 		{
-			m_Variants.push_back({ m_ExperimentId, m_DisableDynamicBalance });
+			m_Variants.push_back({ m_ExperimentId });
 		}
 		m_VariantIndex = 0;
 		m_CurrentVariantId = m_Variants.front().id;
-		m_CurrentDisableDynamicBalance =
-			m_Variants.front().disableDynamicBalance;
 
 		if (m_Enabled && config.contains("baseline_profile") &&
 			config["baseline_profile"].is_string())
@@ -146,15 +140,12 @@ BalanceValidationRun BalanceValidationController::OnRunStarted(
 		{
 			const BalanceValidationVariant& variant = m_Variants[m_VariantIndex];
 			m_CurrentVariantId = variant.id;
-			m_CurrentDisableDynamicBalance = variant.disableDynamicBalance;
 		}
 		else
 		{
 			m_CurrentVariantId = m_ExperimentId;
-			m_CurrentDisableDynamicBalance = m_DisableDynamicBalance;
 		}
 		result.seed = m_Seeds.empty() ? m_Seed : m_Seeds[m_SeedIndex];
-		result.disableDynamicBalance = m_CurrentDisableDynamicBalance;
 		++m_RunCounter;
 	}
 

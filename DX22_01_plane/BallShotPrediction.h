@@ -4,9 +4,11 @@
 #include "ShotRelicRules.h"
 #include "BossCombatRules.h"
 #include "CushionChargeRules.h"
+#include "PierceTraceRules.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Game;
@@ -20,6 +22,7 @@ namespace BallShotPrediction
         BallPhysicsRules::Body physics;
         DirectX::SimpleMath::Vector3 acceleration = DirectX::SimpleMath::Vector3::Zero;
         int hp = 0, maxHp = 1, attack = 0, defense = 0;
+		int anchorStacks = 0;
         std::string enemyId;
         float frontalMultiplier = 1.0f, pocketDamageRatio = 0.0f;
         std::vector<float> collisionDamageMultipliers;
@@ -57,7 +60,19 @@ namespace BallShotPrediction
         int ticks = 0, substeps = 0, damage = 0;
         int bossFixedDamage = 0, breakBallHits = 0;
 		int chainImpactHits = 0;
-		int stopShieldGranted = 0;
+        int stopShieldGranted = 0;
+		BallStatus shotStatus{};
+		PierceTraceRules::State pierceTraces{};
+		PierceTraceRules::ShotUseState traceUse{};
+		int heavyCollisionCount = 0;
+		int playerAnchorStacks = 0;
+		int cushionStrongUses = 0;
+		int synergyDamageBonus = 0;
+		bool cushionStrongConsumed = false;
+		bool heavyFinisherConsumed = false;
+		bool anchorFinisherTriggered = false;
+		bool tracePierceBenefitActive = false;
+		std::unordered_set<std::uintptr_t> uniquePiercedEnemies;
         double milliseconds = 0.0;
 
         std::size_t PreviewPointCount(std::size_t reflections) const

@@ -17,10 +17,26 @@ namespace CushionChargeRules
 	struct Charge
 	{
 		bool active = false;
-		// A charge becomes usable at the beginning of the following player shot.
-		// Charges created or refreshed during the current shot remain false.
 		bool usableThisShot = false;
 		float speedMultiplier = 1.0f;
+		int stackCount = 0;
+		int maxStack = 3;
+	};
+
+	enum class UseKind
+	{
+		None,
+		Generated,
+		Strong,
+		Weak,
+	};
+
+	struct ContactResult
+	{
+		UseKind kind = UseKind::None;
+		int generated = 0;
+		int consumed = 0;
+		int damageBonus = 0;
 	};
 
 	using State = std::array<Charge, RegionCount>;
@@ -55,24 +71,74 @@ namespace CushionChargeRules
 	{
 		for (Charge& charge : state)
 		{
-			if (charge.active)
+			if (charge.stackCount > 0)
 			{
+				charge.active = true;
 				charge.usableThisShot = true;
 			}
 		}
 	}
 
-	// Unused charges are valid for exactly one following player shot.
-	// Fresh charges have usableThisShot == false and survive for that next shot.
+	// Stacks no longer decay just because a shot ended. Fresh stacks become
+	// usable on the next shot; unspent stacks remain on the table.
 	inline void EndPlayerShot(State& state)
 	{
 		for (Charge& charge : state)
 		{
-			if (charge.active && charge.usableThisShot)
-			{
-				charge = {};
-			}
+			charge.active = charge.stackCount > 0;
+			charge.usableThisShot = false;
 		}
+	}
+
+	inline ContactResult ApplyStackContact(
+		State& state,
+		int region,
+		int generateAmount,
+		int maximumStack,
+		int consumeAmount,
+		bool strongUse,
+		bool allowMultipleStrongUses,
+		float generatedSpeedMultiplier,
+		float weakSpeedMultiplier,
+		int strongDamageBonus,
+		int finisherBonusPerUse,
+		bool& strongUseConsumedThisShot,
+		int& strongUseCountThisShot,
+		Vector3& reflectedVelocity)
+	{
+		if (region < 0 || region >= RegionCount) return {};
+		Charge& charge = state[static_cast<std::size_t>(region)];
+		charge.maxStack = std::clamp(maximumStack, 1, 99);
+		if (generateAmount > 0)
+		{
+			const int before = charge.stackCount;
+			charge.stackCount = std::clamp(
+				charge.stackCount + generateAmount, 0, charge.maxStack);
+			charge.active = charge.stackCount > 0;
+			charge.usableThisShot = false;
+			charge.speedMultiplier = std::clamp(generatedSpeedMultiplier, 1.0f, 3.0f);
+			return { UseKind::Generated, charge.stackCount - before, 0, 0 };
+		}
+		if (!charge.active || !charge.usableThisShot || charge.stackCount <= 0)
+			return {};
+		if (strongUse && strongUseConsumedThisShot && !allowMultipleStrongUses)
+			return {};
+
+		const int requested = strongUse ? (std::max)(1, consumeAmount) : 1;
+		const int consumed = (std::min)(charge.stackCount, requested);
+		charge.stackCount -= consumed;
+		charge.active = charge.stackCount > 0;
+		if (!charge.active) charge.usableThisShot = false;
+		if (strongUse)
+		{
+			reflectedVelocity *= charge.speedMultiplier;
+			strongUseConsumedThisShot = true;
+			++strongUseCountThisShot;
+			return { UseKind::Strong, 0, consumed,
+				strongDamageBonus + finisherBonusPerUse };
+		}
+		reflectedVelocity *= std::clamp(weakSpeedMultiplier, 1.0f, 1.25f);
+		return { UseKind::Weak, 0, consumed, 0 };
 	}
 
 	// Returns true only when this contact applies the one speed boost for the shot.
@@ -83,30 +149,18 @@ namespace CushionChargeRules
 		bool& boostConsumedThisShot,
 		Vector3& reflectedVelocity)
 	{
-		if (region < 0 || region >= RegionCount) return false;
-		Charge& charge = state[static_cast<std::size_t>(region)];
-		if (IsCharger(chargerSpeedMultiplier))
-		{
-			charge.active = true;
-			charge.usableThisShot = false;
-			charge.speedMultiplier = std::clamp(chargerSpeedMultiplier, 1.0f, 3.0f);
-			return false;
-		}
-		if (!charge.active || !charge.usableThisShot) return false;
-		const bool applyBoost = !boostConsumedThisShot;
-		if (applyBoost)
-		{
-			reflectedVelocity *= charge.speedMultiplier;
-			boostConsumedThisShot = true;
-		}
-		charge = {};
-		return applyBoost;
+		int useCount = 0;
+		const ContactResult result = ApplyStackContact(
+			state, region, IsCharger(chargerSpeedMultiplier) ? 1 : 0, 1, 1,
+			true, false, chargerSpeedMultiplier, 1.0f, 0, 0,
+			boostConsumedThisShot, useCount, reflectedVelocity);
+		return result.kind == UseKind::Strong;
 	}
 
 	inline int ActiveCount(const State& state)
 	{
 		return static_cast<int>(std::count_if(
-			state.begin(), state.end(), [](const Charge& charge) { return charge.active; }));
+			state.begin(), state.end(), [](const Charge& charge) { return charge.stackCount > 0; }));
 	}
 
 	inline int PendingNextShotCount(const State& state)
@@ -114,7 +168,14 @@ namespace CushionChargeRules
 		return static_cast<int>(std::count_if(
 			state.begin(), state.end(), [](const Charge& charge)
 			{
-				return charge.active && !charge.usableThisShot;
+				return charge.stackCount > 0 && !charge.usableThisShot;
 			}));
+	}
+
+	inline int TotalStacks(const State& state)
+	{
+		int total = 0;
+		for (const Charge& charge : state) total += (std::max)(0, charge.stackCount);
+		return total;
 	}
 }

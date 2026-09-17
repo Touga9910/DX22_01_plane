@@ -77,11 +77,14 @@ bool ProgressionProfile::IsAchievementUnlocked(AchievementId id) const
 }
 bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 {
-	if (id == "player_pierce" || id == "player_refractive_pierce")
+	if (id == "player_pierce" || id == "player_refractive_pierce" ||
+		id == "player_trace_driver" || id == "player_pierce_finisher")
 		return IsAchievementUnlocked(AchievementId::FirstVictory);
-    if (id == "player_bounce" || id == "player_cushion_charge")
+    if (id == "player_bounce" || id == "player_cushion_charge" ||
+		id == "player_ricochet_finisher")
         return IsAchievementUnlocked(AchievementId::AreaFive);
-	if (id == "player_anchor" || id == "player_stop_shield")
+	if (id == "player_anchor" || id == "player_stop_shield" ||
+		id == "player_anchor_finisher")
 		return IsAchievementUnlocked(AchievementId::MidBoss);
 	return id == "player_standard" || id == "player_heavy" ||
 		id == "player_chain_impact";

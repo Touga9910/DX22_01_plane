@@ -42,6 +42,22 @@ BALL_METADATA: dict[str, dict[str, Any]] = {
         "standalone_value": 14.0,
         "tags": ("anchor", "defense", "control"),
     },
+	"player_trace_driver": {
+		"standalone_value": 11.0,
+		"tags": ("pierce", "trace", "setup"),
+	},
+	"player_pierce_finisher": {
+		"standalone_value": 14.0,
+		"tags": ("pierce", "trace", "finisher"),
+	},
+	"player_ricochet_finisher": {
+		"standalone_value": 14.0,
+		"tags": ("bounce", "bank", "finisher"),
+	},
+	"player_anchor_finisher": {
+		"standalone_value": 14.0,
+		"tags": ("anchor", "control", "finisher"),
+	},
 }
 
 CORE_RELICS: dict[str, tuple[str, ...]] = {

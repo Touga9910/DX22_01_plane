@@ -33,7 +33,6 @@ enum class BattleState
 
     AimingDirection,
     AimingPower,
-    ConfirmShot,
 
     BallsMoving,
     EnemyAttack,
@@ -62,7 +61,6 @@ struct BattleControllerHooks
     std::function<void(PlayerBall*)> applyEndOfShotEffects;
     std::function<void(int playerHp, int aliveEnemies, int defeatedEnemies)>
         endShotLog;
-    std::function<void()> finishDynamicBalanceShot;
 
     // 敵攻撃時
     std::function<int()> beginEnemyAttackForecast;
@@ -109,7 +107,6 @@ public:
     // PlayerBall等から受け取る「起きた事実」の通知。
     void BeginAimingDirection();
     void BeginAimingPower();
-    void BeginConfirmShot();
     void NotifyShotFired();
     void NotifyPlayerDefeated();
 

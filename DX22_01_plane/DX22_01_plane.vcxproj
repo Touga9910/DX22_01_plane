@@ -156,6 +156,9 @@
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
     <ClInclude Include="CushionChargeRules.h" />
+	<ClInclude Include="HeavyCollisionRules.h" />
+	<ClInclude Include="PierceTraceRules.h" />
+	<ClInclude Include="AnchorStackRules.h" />
     <ClInclude Include="ShotRelicRules.h" />
     <ClInclude Include="BallShotPrediction.h" />
     <ClInclude Include="BossCombatRules.h" />

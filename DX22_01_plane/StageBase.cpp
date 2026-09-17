@@ -46,7 +46,7 @@ void StageBase::Update()
         break;
 
     default:
-        // TC-22: AimingDirection / AimingPower / ConfirmShot では
+		// TC-22: AimingDirection / AimingPower では
         //        何もしない（PlayerBall::UpdateAim() が入力を処理）
         break;
     }

@@ -98,34 +98,41 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertIn('state["route_options"]', bridge_source)
         self.assertNotIn('{ "offered_routes", nullptr }', bridge_source)
 
-    def test_new_run_keeps_dynamic_balance_retired(self) -> None:
+    def test_dynamic_balance_runtime_lifecycle_is_removed(self) -> None:
         game_source = load_game_sources()
 
-        self.assertIn("m_DynamicBalanceController.OnRunStarted();", game_source)
-        self.assertIn(
-            "m_Enabled = false;",
-            game_source,
-        )
-        self.assertIn(
-            "m_Level = 0;",
-            game_source,
-        )
+        for retired_symbol in (
+            "m_DynamicBalanceController.OnRunStarted()",
+            "m_DynamicBalanceController.OnBattleStarted(",
+            "m_DynamicBalanceController.OnShotStarted()",
+            "m_DynamicBalanceController.OnShotFinished()",
+            "DynamicBalance().OnHit()",
+        ):
+            self.assertNotIn(retired_symbol, game_source)
 
     def test_dynamic_balance_is_retired(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
         game_source = load_game_sources()
 
-        self.assertFalse(dynamic["enabled"])
-        self.assertEqual(dynamic["initial_level"], 0)
-        self.assertEqual(dynamic["maximum_level"], 0)
-        self.assertEqual(dynamic["minimum_level"], 0)
-        self.assertEqual(dynamic["hp_step_per_level"], 0)
-        self.assertEqual(dynamic["attack_step"], 0)
-        self.assertFalse(dynamic["positive_attack_scaling_enabled"])
-        self.assertIn(
-            "Dynamic difficulty was retired; fixed difficulty is active.",
-            game_source,
-        )
+        self.assertTrue(dynamic["retired"])
+        for retired_key in (
+            "enabled",
+            "initial_level",
+            "maximum_level",
+            "minimum_level",
+            "hp_step_per_level",
+            "attack_step",
+            "positive_attack_scaling_enabled",
+            "strong_clear_hp_ratio",
+            "weak_clear_hp_ratio",
+            "strong_no_hit_rate",
+            "weak_no_hit_rate",
+            "target_shots_per_enemy",
+            "weak_shot_multiplier",
+        ):
+            self.assertNotIn(retired_key, dynamic)
+        self.assertIn("ApplyEnemyDifficultyScaling", game_source)
+        self.assertNotIn("ApplyDynamicBalanceToEnemyData", game_source)
         self.assertNotIn(
             "enemyData.maxHp + effectiveLevel * m_HpStep",
             game_source,

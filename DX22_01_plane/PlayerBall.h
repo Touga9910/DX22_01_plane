@@ -172,6 +172,7 @@ private:
 	//=======================================
 	void InitTrajectoryVisualModel();
 	void DrawTrajectoryLine();
+	void DrawPierceTraces();
 
 	void DrawGuideSegment(
 		const DirectX::SimpleMath::Vector3& start,

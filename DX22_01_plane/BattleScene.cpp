@@ -118,7 +118,7 @@ void BattleScene::Init()
 		StageData adjustedStage = *stageData;
 		for (EnemySpawnData& spawn : adjustedStage.enemies)
 		{
-			Game::GetInstance()->ApplyDynamicBalanceToEnemyData(
+			Game::GetInstance()->ApplyEnemyDifficultyScaling(
 				spawn.enemyData);
 		}
 		if (!usesMcpStageOverride)
@@ -326,7 +326,7 @@ void BattleScene::ReloadEnemyStatusFromJson()
 	for (const EnemySpawnData& spawn : stageData->enemies)
 	{
 		EnemyData enemyData = spawn.enemyData;
-		Game::GetInstance()->ApplyDynamicBalanceToEnemyData(
+		Game::GetInstance()->ApplyEnemyDifficultyScaling(
 			enemyData);
 		enemyDataMap[enemyData.id].push_back(std::move(enemyData));
 	}

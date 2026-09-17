@@ -21,6 +21,10 @@ class JapaneseItemTextTests(unittest.TestCase):
 			"player_chain_impact",
 			"player_refractive_pierce",
 			"player_stop_shield",
+			"player_trace_driver",
+			"player_pierce_finisher",
+			"player_ricochet_finisher",
+			"player_anchor_finisher",
         ):
             self.assertGreaterEqual(text.count(f'"{definition_id}"'), 2)
         self.assertIn("GetName", text)

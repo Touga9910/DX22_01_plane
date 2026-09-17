@@ -75,8 +75,6 @@ const char* ToString(BattleState state)
         return "aiming_direction";
     case BattleState::AimingPower:
         return "aiming_power";
-    case BattleState::ConfirmShot:
-        return "confirm_shot";
     case BattleState::BallsMoving:
         return "balls_moving";
     case BattleState::EnemyAttack:
@@ -241,16 +239,6 @@ void BattleController::BeginAimingPower()
     }
 
     m_State = BattleState::AimingPower;
-}
-
-void BattleController::BeginConfirmShot()
-{
-    if (!m_Active || IsFinished())
-    {
-        return;
-    }
-
-    m_State = BattleState::ConfirmShot;
 }
 
 void BattleController::NotifyShotFired()
@@ -418,11 +406,6 @@ void BattleController::CompleteShot()
             player->GetHP(),
             CountAliveEnemies(enemies),
             CountDefeatedEnemies(enemies));
-    }
-
-    if (m_Hooks.finishDynamicBalanceShot)
-    {
-        m_Hooks.finishDynamicBalanceShot();
     }
 
     for (EnemyBall* enemy : enemies)

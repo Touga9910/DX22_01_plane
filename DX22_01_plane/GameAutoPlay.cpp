@@ -34,6 +34,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
@@ -1013,12 +1014,16 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 		return -1;
 	}
 
-	const std::array<const char*, 6> priority =
+	const std::array<const char*, 10> priority =
 	{
 		"player_bounce",
 		"player_cushion_charge",
+		"player_ricochet_finisher",
 		"player_anchor",
+		"player_anchor_finisher",
 		"player_pierce",
+		"player_trace_driver",
+		"player_pierce_finisher",
 		"player_heavy",
 		"player_standard",
 	};
@@ -1241,6 +1246,15 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	m_BattleController.BeginStage(stage.stageType);
 	m_CushionCharges = {};
 	m_CushionBoostConsumedThisShot = false;
+	m_CushionStrongUsesThisShot = 0;
+	m_SynergyDamageBonusThisShot = 0;
+	HeavyCollisionRules::Reset(m_HeavyCollisions);
+	m_PierceTraces = {};
+	m_PierceTraceUse = {};
+	m_AnchorStacks = {};
+	m_PiercedEnemiesThisShot.clear();
+	m_TraceSegmentValid = false;
+	m_AnchorContactTarget = nullptr;
 	m_PlayerShield = 0;
 	InvalidateDebugCombatForecast("戦闘開始");
 	m_RunStatistics.ReachFloor(m_RunController.Status().progress);
@@ -1254,9 +1268,6 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		stage.stageType == StageType::Boss &&
 			m_RunController.Progress().GetPhase() == RunPhase::FinalBoss,
 		stage.id);
-	m_DynamicBalanceController.OnBattleStarted(
-		static_cast<int>(stage.enemies.size()));
-
 	std::vector<BalanceEnemySnapshot> enemies;
 	enemies.reserve(stage.enemies.size());
 
@@ -1308,16 +1319,8 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		}
 	}
 
-	const int appliedHpModifier =
-		m_DynamicBalanceController.IsAppliedEnabled()
-		? m_DynamicBalanceController.GetAppliedLevel() *
-			m_DynamicBalanceController.GetHpStep()
-		: 0;
-	const int appliedAttackModifier =
-		m_DynamicBalanceController.IsAppliedEnabled()
-		? m_DynamicBalanceController.CalculateAttackModifier(
-			m_DynamicBalanceController.GetAppliedLevel())
-		: 0;
+	constexpr int appliedHpModifier = 0;
+	constexpr int appliedAttackModifier = 0;
 	const int progressionAttackModifier =
 		m_DynamicBalanceController.CalculateProgressionAttackModifier(
 			m_RunController.Status().progress);
@@ -1391,8 +1394,8 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		{
 			"dynamic_balance",
 			{
-				{ "enabled", m_DynamicBalanceController.IsAppliedEnabled() },
-				{ "applied_level", m_DynamicBalanceController.GetAppliedLevel() },
+				{ "enabled", false },
+				{ "applied_level", 0 },
 				{ "enemy_hp_modifier", appliedHpModifier },
 				{ "enemy_attack_modifier", appliedAttackModifier },
 			}
@@ -1418,8 +1421,8 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		{
 			"assist_mode",
 			{
-				{ "enabled", m_DynamicBalanceController.IsAppliedEnabled() },
-				{ "applied_level", m_DynamicBalanceController.GetAppliedLevel() },
+				{ "enabled", false },
+				{ "applied_level", 0 },
 			}
 		},
 	};

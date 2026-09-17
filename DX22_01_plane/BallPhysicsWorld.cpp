@@ -52,7 +52,10 @@ namespace
         }
         void Move(std::size_t i, float interval)
         {
+			const Vector3 from = bodies[i].ball->GetPosition();
             bodies[i].ball->Translate(Velocity(i) * interval);
+			game.NotifyTraceMovement(
+				*bodies[i].ball, from, bodies[i].ball->GetPosition());
         }
         void ResolveEnvironment(std::size_t i)
         {

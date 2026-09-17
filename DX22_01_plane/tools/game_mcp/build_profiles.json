@@ -167,6 +167,8 @@
       "new_ball_priority": [
         "player_pierce",
 		"player_refractive_pierce",
+		"player_trace_driver",
+		"player_pierce_finisher",
         "player_standard",
         "player_heavy",
         "player_bounce",
@@ -176,6 +178,8 @@
       "upgrade_priority": [
         "player_pierce",
 		"player_refractive_pierce",
+		"player_trace_driver",
+		"player_pierce_finisher",
         "player_standard",
         "player_heavy",
         "player_bounce",
@@ -198,7 +202,9 @@
         "anchor_bonus": 0.0,
         "definition_bonus": {
           "player_pierce": 320.0,
-          "player_refractive_pierce": 340.0
+		  "player_refractive_pierce": 340.0,
+		  "player_trace_driver": 330.0,
+		  "player_pierce_finisher": 350.0
         }
       },
       "stage_choice_policy": {
@@ -250,6 +256,7 @@
       "new_ball_priority": [
         "player_bounce",
         "player_cushion_charge",
+		"player_ricochet_finisher",
         "player_standard",
         "player_heavy",
         "player_pierce",
@@ -258,6 +265,7 @@
       "upgrade_priority": [
         "player_bounce",
         "player_cushion_charge",
+		"player_ricochet_finisher",
         "player_standard",
         "player_heavy",
         "player_pierce",
@@ -279,7 +287,8 @@
         "anchor_bonus": 0.0,
         "definition_bonus": {
           "player_bounce": 350.0,
-          "player_cushion_charge": 320.0
+		  "player_cushion_charge": 320.0,
+		  "player_ricochet_finisher": 350.0
         }
       },
       "stage_choice_policy": {
@@ -331,6 +340,7 @@
       "new_ball_priority": [
         "player_anchor",
 		"player_stop_shield",
+		"player_anchor_finisher",
         "player_standard",
         "player_heavy",
         "player_pierce",
@@ -340,6 +350,7 @@
       "upgrade_priority": [
         "player_anchor",
 		"player_stop_shield",
+		"player_anchor_finisher",
         "player_standard",
         "player_heavy",
         "player_pierce",
@@ -362,7 +373,8 @@
         "anchor_bonus": 220.0,
         "definition_bonus": {
 		  "player_anchor": 350.0,
-		  "player_stop_shield": 330.0
+		  "player_stop_shield": 330.0,
+		  "player_anchor_finisher": 350.0
         }
       },
       "stage_choice_policy": {

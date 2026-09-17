@@ -94,7 +94,6 @@ void GameDebugController::ApplyRunSettings(Game& game)
         game.m_DefaultRestHealRatio -
             ProgressionProfile::RestHealPenalty(game.m_ActiveAscension));
     game.m_RunController.Relics() = m_DebugSetup.relics;
-	game.m_DynamicBalanceController.ForceDisabled();
 }
 
 // Debug Battleを開始する。
@@ -182,7 +181,6 @@ void GameDebugController::End(Game& game)
     }
     game.m_ActiveAscension = 0;
     game.LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
-	game.m_DynamicBalanceController.OnRunStarted();
 }
 
 // Debug Battleを終了する。
@@ -514,5 +512,4 @@ void Game::EndDebugMode() { m_DebugController.End(*this); }
 void Game::FinishDebugBattle(bool victory) { m_DebugController.FinishBattle(*this, victory); }
 bool Game::UpdateDebugMode() { return m_DebugController.Update(*this); }
 void Game::DrawDebugMode() { m_DebugController.Draw(*this); }
-void Game::SaveDebugPreset() { m_DebugController.SavePreset(); }
 bool Game::LoadDebugPreset() { return m_DebugController.LoadPreset(); }
