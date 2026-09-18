@@ -59,7 +59,6 @@ void PlayerBall::Init()
 	// ステータス設定
 	BallStatus status;
 	status.attack = 1;     // 攻撃力
-	status.defense = 0;     // 防御力
 
 	SetStatus(status);
 	Game::GetInstance()->ApplyPlayerStatusTo(this);
@@ -290,7 +289,7 @@ void PlayerBall::ReturnFromPocket(const Vector3& position)
 
 void PlayerBall::TakeDamage(int damage)
 {
-	const int finalDamage = CalculateDamageTaken(damage);
+	const int finalDamage = (std::max)(1, damage);
 	const int hpDamage = Game::GetInstance()->AbsorbPlayerShieldDamage(finalDamage);
 	if (hpDamage > 0)
 	{

@@ -95,9 +95,9 @@ namespace
 		if (definitionId == "player_stop_shield")
 			return PlayerBallText::Utf8(u8"狙い：早めに止めて次の被弾を防ぐ");
 		if (definitionId == "player_trace_driver")
-			return PlayerBallText::Utf8(u8"狙い：既存射線をなぞり、その先で壁反射する");
+			return PlayerBallText::Utf8(u8"狙い：既存の貫通痕をなぞり、その先で壁反射する");
 		if (definitionId == "player_pierce_finisher")
-			return PlayerBallText::Utf8(u8"狙い：射線を再利用し、異なる敵を連続で貫く");
+			return PlayerBallText::Utf8(u8"狙い：貫通痕を再利用し、異なる敵を連続で貫く");
 		if (definitionId == "player_ricochet_finisher")
 			return PlayerBallText::Utf8(u8"狙い：育てた壁を複数経由してから敵へ当てる");
 		if (definitionId == "player_anchor_finisher")
@@ -109,13 +109,13 @@ namespace
 	{
 		bool select = false;
 		bool toggleHold = false;
+		bool openDetails = false;
 	};
 
 	BallCardInteraction DrawBallSelectionCard(
 		const PlayerBallData& ball,
 		int index,
 		int attack,
-		int defense,
 		const ImVec2& position,
 		const ImVec2& size,
 		bool selected,
@@ -167,6 +167,7 @@ namespace
 			ImVec2(size.x, detailsVisible ? size.y - footerHeight : size.y));
 		const bool cardHovered = ImGui::IsItemHovered();
 		interaction.select = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+		interaction.openDetails = interaction.select && selected;
 		interaction.toggleHold =
 			!selected && cardHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
 
@@ -204,22 +205,46 @@ namespace
 		drawList->PushClipRect(position, cardMax, true);
 		if (!detailsVisible)
 		{
-			const ImVec2 ballCenter(position.x + 30.0f, cardMax.y - 36.0f);
+			sprintf_s(text, "[%s] %s",
+				GetPlayerBallAbilityName(ball),
+				PlayerBallText::GetRoles(ball.definitionId));
+			drawList->AddText(
+				font,
+				fontSize * 0.76f,
+				ImVec2(position.x + padding, position.y + 12.0f),
+				IM_COL32(224, 231, 242, 255),
+				text);
+			const ImVec2 ballCenter(position.x + 30.0f, position.y + 54.0f);
 			drawList->AddCircleFilled(ballCenter, 18.0f, IM_COL32(3, 7, 12, 210), 28);
 			drawList->AddCircleFilled(ballCenter, 14.0f, accent, 28);
 			drawList->AddCircle(ballCenter, 18.0f, accent, 28, 2.0f);
 			drawList->AddText(
 				font,
 				fontSize * 0.95f,
-				ImVec2(position.x + 56.0f, cardMax.y - 47.0f),
+				ImVec2(position.x + 56.0f, position.y + 42.0f),
 				IM_COL32(255, 255, 255, 255),
 				PlayerBallText::GetName(ball.definitionId));
+			sprintf_s(text, PlayerBallText::Utf8(u8"攻撃力：%d"), attack);
+			drawList->AddText(
+				font,
+				fontSize * 0.78f,
+				ImVec2(position.x + 56.0f, position.y + 65.0f),
+				IM_COL32(241, 224, 158, 255),
+				text);
+			drawList->AddText(
+				font,
+				fontSize * 0.71f,
+				ImVec2(position.x + padding, position.y + 91.0f),
+				IM_COL32(184, 195, 211, 255),
+				PlayerBallText::GetShortDescription(ball.definitionId),
+				nullptr,
+				contentWidth);
 			const char* stateText = selected
 				? PlayerBallText::Utf8(u8"選択中")
 				: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
 			const ImVec2 stateSize = ImGui::CalcTextSize(stateText);
 			drawList->AddText(
-				ImVec2(cardMax.x - stateSize.x - 10.0f, cardMax.y - 21.0f),
+				ImVec2(cardMax.x - stateSize.x - 10.0f, cardMax.y - 20.0f),
 				selected
 					? IM_COL32(255, 221, 118, 255)
 					: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(145, 156, 174, 230)),
@@ -229,7 +254,9 @@ namespace
 			return interaction;
 		}
 
-		sprintf_s(text, "%d  %s", index + 1, GetPlayerBallAbilityName(ball));
+		sprintf_s(text, "%d  [%s] %s", index + 1,
+			GetPlayerBallAbilityName(ball),
+			PlayerBallText::GetRoles(ball.definitionId));
 		drawList->AddText(
 			font,
 			fontSize * 0.83f,
@@ -260,9 +287,8 @@ namespace
 		// 数値を埋め込む文もUTF-8の書式文字列を使い、ImGuiへ渡す。
 		sprintf_s(
 			text,
-			PlayerBallText::Utf8(u8"攻撃 %d   防御 %d"),
-			attack,
-			defense);
+			PlayerBallText::Utf8(u8"攻撃力：%d"),
+			attack);
 		drawList->AddText(
 			font,
 			fontSize * 0.83f,
@@ -349,6 +375,95 @@ namespace
 		drawList->PopClipRect();
 		ImGui::PopID();
 		return interaction;
+	}
+
+	void DrawTermTooltip(const char* term, const char* explanation)
+	{
+		ImGui::TextColored(ImVec4(0.72f, 0.84f, 1.0f, 1.0f), "%s (?)", term);
+		if (!ImGui::IsItemHovered()) return;
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
+		ImGui::TextWrapped("%s", explanation);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+
+	void DrawBallDetailPopup(const PlayerBallData& ball, int effectiveAttack)
+	{
+		const BallStatus& status = ball.status;
+		ImGui::Text("%s  Lv.%d", PlayerBallText::GetName(ball.definitionId), ball.upgradeLevel);
+		ImGui::Text("[%s]  %s", PlayerBallText::GetTrait(ball), PlayerBallText::GetRoles(ball.definitionId));
+		ImGui::Text("攻撃力：%d", effectiveAttack);
+		ImGui::Separator();
+		ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball.definitionId));
+
+		ImGui::Spacing();
+		ImGui::TextUnformatted("主要能力値");
+		ImGui::BulletText("質量 %.1f / 反発 %.0f%% / 摩擦 %.3f",
+			status.mass, status.restitution * 100.0f, status.friction);
+		if (ball.category == BallCategory::Heavy)
+		{
+			ImGui::BulletText("押し出し倍率 %.2f", status.knockbackTransfer);
+			if (status.heavyFinisherDamagePerCollision > 0.0f)
+				ImGui::BulletText("重量カウント1ごとの決着倍率 %.1f", status.heavyFinisherDamagePerCollision);
+		}
+		else if (ball.category == BallCategory::Pierce)
+		{
+			ImGui::BulletText("貫通回数 %d / 貫通時速度維持率 %.0f%%",
+				status.pierceMaxUses, status.pierceSpeedRetention * 100.0f);
+			ImGui::BulletText("貫通痕耐久 %d / 強利用速度 %.0f%% / 攻撃 +%d",
+				status.traceDurability, status.tracePierceSpeedMultiplier * 100.0f,
+				status.tracePierceAttackBonus);
+			ImGui::BulletText("不一致利用速度 %.0f%%", status.traceNonPierceSpeedMultiplier * 100.0f);
+			if (status.pierceFinisherBaseBonus > 0)
+				ImGui::BulletText("決着基本 +%d / 追加対象ごと +%d",
+					status.pierceFinisherBaseBonus, status.pierceFinisherMultiTargetBonus);
+		}
+		else if (ball.category == BallCategory::Bounce)
+		{
+			if (status.cushionStackGenerateAmount > 0)
+			{
+				ImGui::BulletText("スタック生成 %d / 区画上限 %d",
+					status.cushionStackGenerateAmount, status.cushionMaxStack);
+				ImGui::BulletText("生成時の保存加速倍率 %.0f%%",
+					status.cushionChargeSpeedMultiplier * 100.0f);
+			}
+			ImGui::BulletText("強利用：保存加速倍率 / 攻撃 +%d",
+				status.cushionBounceAttackBonus);
+			ImGui::BulletText("不一致利用速度 %.0f%%",
+				status.cushionNonBounceSpeedMultiplier * 100.0f);
+			if (status.ricochetFinisherBonusPerUse > 0)
+				ImGui::BulletText("スタック利用ごとの決着攻撃 +%d",
+					status.ricochetFinisherBonusPerUse);
+		}
+		else if (ball.category == BallCategory::Anchor)
+		{
+			ImGui::BulletText("錨生成：自分 %d / 敵 %d / 範囲 %.1f",
+				status.anchorPlayerStackGenerate,
+				status.anchorEnemyStackGenerate,
+				status.anchorStackRadius);
+			if (status.stopShieldAmount > 0)
+				ImGui::BulletText("停止時シールド %d", status.stopShieldAmount);
+			if (status.anchorFinisherDamagePerStack > 0)
+				ImGui::BulletText("錨1個ごとの決着攻撃 +%d / 範囲発動 %d個",
+					status.anchorFinisherDamagePerStack,
+					status.anchorFinisherAoeThreshold);
+		}
+
+		ImGui::Spacing();
+		ImGui::TextUnformatted("次回強化");
+		ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(ball).c_str());
+
+		ImGui::Separator();
+		ImGui::TextUnformatted("用語（マウスオーバーで説明）");
+		DrawTermTooltip("重量カウント",
+			"重量カテゴリのショット中に敵同士を衝突させると増える。重量系の決着球がダメージへ変換できる。");
+		DrawTermTooltip("貫通痕",
+			"貫通カテゴリが敵を貫通した軌道に残す資源。痕に沿って一定距離進むと耐久を1消費する。貫通カテゴリなら速度と攻撃が強化され、それ以外は小さく加速する。");
+		DrawTermTooltip("クッションスタック",
+			"反発カテゴリによって壁区画に生成される資源。その壁に触れたボールが1スタック消費する。反発カテゴリなら強化効果、それ以外は小さく加速する。");
+		DrawTermTooltip("錨スタック",
+			"アンカー系ボールが生成する資源。敵同士の衝突で移動し、プレイヤーボールが敵へ接触すると回収できる。錨回収球でダメージへ変換できる。");
 	}
 
 	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
@@ -531,7 +646,6 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 		next.hasPlayer = true;
 		next.playerCurrentHp = player->GetHP();
 		next.playerMaxHp = player->GetMaxHP();
-		next.playerDefense = player->GetDefense();
 		next.playerShield = game.GetPlayerShield();
 		next.hpAfterAttack = (std::max)(0, player->GetHP());
 	}
@@ -565,10 +679,8 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 		if (canAttack && player != nullptr && !player->IsDefeated())
 		{
 			next.attackerCount++;
-			enemySnapshot.damageBeforeMinimum =
-				enemy->GetAttack() - player->GetDefense();
-			enemySnapshot.expectedDamage =
-				player->CalculateDamageTaken(enemy->GetAttack());
+			enemySnapshot.damageBeforeMinimum = enemy->GetAttack();
+			enemySnapshot.expectedDamage = (std::max)(1, enemy->GetAttack());
 			enemySnapshot.minimumDamageApplied =
 				enemySnapshot.damageBeforeMinimum < 1;
 			next.theoreticalDamage += enemySnapshot.expectedDamage;
@@ -1043,10 +1155,9 @@ void GameDebugController::DrawDiagnostics(Game& game)
 	if (forecast.hasPlayer)
 	{
 		ImGui::Text(
-			"プレイヤーHP: %d / %d  防御: %d  シールド: %d",
+			"プレイヤーHP: %d / %d  シールド: %d",
 			forecast.playerCurrentHp,
 			forecast.playerMaxHp,
-			forecast.playerDefense,
 			forecast.playerShield);
 		drawHpBar(
 			"player_hp",
@@ -1192,9 +1303,8 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		if (enemy.canAttack)
 		{
 			ImGui::TextDisabled(
-				"    攻撃%d - 防御%d = %d%s",
+				"    攻撃%d = %d%s",
 				enemy.attack,
-				forecast.playerDefense,
 				enemy.expectedDamage,
 				enemy.minimumDamageApplied ? "（最低保証）" : "");
 		}
@@ -2701,11 +2811,11 @@ void GamePresentation::DrawBallSelection(Game& game)
 		70.0f,
 		132.0f);
 	const float gap = 14.0f;
-	const float collapsedCardHeight = 76.0f;
+	const float collapsedCardHeight = 158.0f;
 	const float expandedCardHeight = std::clamp(
-		viewport->WorkSize.y * 0.37f,
-		218.0f,
-		280.0f);
+		viewport->WorkSize.y * 0.43f,
+		270.0f,
+		330.0f);
 	const float cardBottom =
 		viewport->WorkPos.y + viewport->WorkSize.y - 12.0f;
 	const float availableCardWidth =
@@ -2817,12 +2927,17 @@ void GamePresentation::DrawBallSelection(Game& game)
 			*ball,
 			index,
 			game.GetEffectivePlayerBallAttack(ball),
-			game.GetEffectivePlayerBallDefense(ball),
 			cardPosition,
 			ImVec2(cardWidth, cardHeight),
 			selected,
 			held,
 			expansion);
+
+		if (interaction.openDetails)
+		{
+			m_BallDetailOfferIndex = index;
+			ImGui::OpenPopup("ボール詳細");
+		}
 
 		if (interaction.select && !selected)
 		{
@@ -2842,6 +2957,18 @@ void GamePresentation::DrawBallSelection(Game& game)
 	if (selectionChanged)
 	{
 		game.ApplySelectedBallPreview();
+	}
+
+	ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_Appearing);
+	if (ImGui::BeginPopupModal("ボール詳細", nullptr, ImGuiWindowFlags_NoResize))
+	{
+		const PlayerBallData* detailBall =
+			game.m_RunController.Deck().GetOffer(m_BallDetailOfferIndex);
+		if (detailBall != nullptr)
+			DrawBallDetailPopup(*detailBall, game.GetEffectivePlayerBallAttack(detailBall));
+		if (ImGui::Button("閉じる", ImVec2(-1.0f, 38.0f)))
+			ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
 	}
 
 	ImGui::End();

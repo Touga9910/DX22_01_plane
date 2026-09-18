@@ -660,7 +660,6 @@ public:
 	int GetOwnedRelicCount() const;
 	ShotRelicRules MakePredictionShotRules(float launchPower) const;
 	int GetRelicAttackBonus() const;
-	int GetRelicDefenseBonus() const;
 
 	// ===== 現在ショットのレリック実績 =====
 	// 衝突ボーナス、衝突回数、バンクショット効果の残り状態と、有効な攻防値を返す。
@@ -692,7 +691,6 @@ public:
 		return rules.bankReady && !rules.bankConsumed;
 	}
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
-	int GetEffectivePlayerBallDefense(const PlayerBallData* ball) const;
 	// ボール報酬として提示する候補数を返す。
 	int GetBallOfferSize() const
 	{

@@ -13,6 +13,7 @@ struct BallAbilities
 struct BallStatus
 {
 	int attack = 1;
+	// Enemy-only compatibility field. Player data loaders and saves force this to zero.
 	int defense = 0;
 	float mass = 1.0f;
 	float radius = 0.0f;
@@ -38,6 +39,8 @@ struct BallStatus
 	float traceUseAngleTolerance = 12.0f;
 	float traceUseDistance = 8.0f;
 	float traceWidth = 2.0f;
+	float tracePierceSpeedMultiplier = 1.1f;
+	int tracePierceAttackBonus = 1;
 	int tracePierceMaxUsesBonus = 0;
 	float tracePierceSpeedRetentionBonus = 0.0f;
 	float traceNonPierceSpeedMultiplier = 1.0f;
@@ -82,6 +85,9 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.traceUseAngleTolerance = std::clamp(status.traceUseAngleTolerance, 1.0f, 89.0f);
 	status.traceUseDistance = std::clamp(status.traceUseDistance, 0.1f, 200.0f);
 	status.traceWidth = std::clamp(status.traceWidth, 0.1f, 50.0f);
+	status.tracePierceSpeedMultiplier = std::clamp(
+		status.tracePierceSpeedMultiplier, 1.0f, 3.0f);
+	status.tracePierceAttackBonus = std::clamp(status.tracePierceAttackBonus, 0, 1000);
 	status.tracePierceMaxUsesBonus = std::clamp(status.tracePierceMaxUsesBonus, 0, 16);
 	status.tracePierceSpeedRetentionBonus = std::clamp(
 		status.tracePierceSpeedRetentionBonus, 0.0f, 1.0f);

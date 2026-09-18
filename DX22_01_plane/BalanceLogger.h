@@ -20,7 +20,6 @@ struct BalanceBallSnapshot
 	std::uint64_t instanceId = 0;
 	int upgradeLevel = 0;
 	int attack = 0;
-	int defense = 0;
 	float mass = 0.0f;
 	float radius = 0.0f;
 	float restitution = 0.0f;

@@ -39,6 +39,7 @@ int main()
             assert(runtime.GetMaxHp() == 50 && runtime.GetCurrentHp() == 23);
             const json saved = BallToJson(ball);
             assert(!saved.at("status").contains("max_hp") && !saved.at("status").contains("maxHp"));
+			assert(!saved.at("status").contains("defense"));
             const PlayerBallData restored = BallFromJson(json::parse(saved.dump()));
             assert(BallToJson(restored) == saved);
 			json categoryLegacy = saved;
@@ -121,7 +122,7 @@ int main()
         const auto reversed = BallMechanics::ResolveNormalImpact(0, 5, 1, status.mass, status.restitution, 1, status.knockbackTransfer, false, false);
         assert(std::abs(hit.second + reversed.first) < 0.0001f);
         lastEnemySpeed = -hit.second;
-        assert(status.attack == heavy.status.attack && status.defense == heavy.status.defense);
+		assert(status.attack == heavy.status.attack && status.defense == 0);
     }
     for (int level = 0; level < 3; ++level)
     {

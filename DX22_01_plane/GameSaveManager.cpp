@@ -509,13 +509,19 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 
 		std::array<bool, static_cast<std::size_t>(RelicType::Count)> relics{};
 		const json& relicJson = run.at("owned_relics");
-		if (!relicJson.is_array() || relicJson.size() > relics.size())
+		if (!relicJson.is_array() || relicJson.size() > relics.size() + 1)
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}
+		// Legacy arrays contained the removed AllBallDefenseUp entry at index 1.
+		const bool legacyDefenseRelic = relicJson.size() == relics.size() + 1;
 		for (std::size_t index = 0; index < relicJson.size(); ++index)
 		{
-			relics[index] = relicJson[index].get<bool>();
+			if (legacyDefenseRelic && index == 1) continue;
+			const std::size_t target = legacyDefenseRelic && index > 1
+				? index - 1
+				: index;
+			if (target < relics.size()) relics[target] = relicJson[index].get<bool>();
 		}
 
 		RestoredDeckState restoredDeck;

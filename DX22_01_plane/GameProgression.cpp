@@ -260,8 +260,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 			{ "upgrade_level_before", upgradeLevelBefore },
 			{ "upgrade_level_after", ball->upgradeLevel },
 			{ "attack_after", ball->status.attack },
-			{ "defense_after", ball->status.defense },
-			{ "status_after", WriteBallStatus(ball->status) },
+			{ "status_after", WritePlayerBallStatus(ball->status) },
 			{ "source_scene", GetSceneDebugName(m_SceneManager.Get()) },
 		});
 	return true;
@@ -487,12 +486,6 @@ int Game::GetRelicAttackBonus() const
 	return HasRelic(RelicType::AllBallAttackUp) ? 1 : 0;
 }
 
-// Relic Defense Bonusを取得する。
-int Game::GetRelicDefenseBonus() const
-{
-	return HasRelic(RelicType::AllBallDefenseUp) ? 1 : 0;
-}
-
 // Effective Player Ball Attackを取得する。
 int Game::GetEffectivePlayerBallAttack(
 	const PlayerBallData* ball) const
@@ -500,15 +493,6 @@ int Game::GetEffectivePlayerBallAttack(
 	return ball == nullptr
 		? 0
 		: ball->status.attack + GetRelicAttackBonus();
-}
-
-// Effective Player Ball Defenseを取得する。
-int Game::GetEffectivePlayerBallDefense(
-	const PlayerBallData* ball) const
-{
-	return ball == nullptr
-		? 0
-		: ball->status.defense + GetRelicDefenseBonus();
 }
 
 // Player Status Toを適用する。
@@ -531,7 +515,9 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 		return;
 	}
 
-	player->SetStatus(selectedBall->status);
+	BallStatus playerStatus = selectedBall->status;
+	playerStatus.defense = 0;
+	player->SetStatus(playerStatus);
 	if (auto* render = player->GetGameObject()->GetComponent<BallRenderComponent>())
 	{
 		const auto color = PlayerBallText::GetColor(*selectedBall);
@@ -574,18 +560,13 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 		return;
 	}
 
-	const int defenseBefore = player->GetDefense();
 	const int collisionBonus =
 		HasRelic(RelicType::CollisionAttackUp)
 			? m_BattleController.GetShotRelicRules().collisionBonus
 			: 0;
 	player->GetBall()->SetCombatModifiers(
 		GetRelicAttackBonus() + collisionBonus,
-		GetRelicDefenseBonus());
-	if (player->GetDefense() != defenseBefore)
-	{
-		InvalidateDebugCombatForecast("プレイヤー防御力変更");
-	}
+		0);
 }
 
 // Shot Relic Stateを初期状態へ戻す。
@@ -602,7 +583,8 @@ void Game::ResetShotRelicState(PlayerBall* player)
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
 	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
-	if (player != nullptr && currentBall != nullptr && m_TraceSegmentValid &&
+	if (player != nullptr && currentBall != nullptr &&
+		currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
 		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
 	{
 		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
@@ -892,7 +874,6 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			{ "held_offer_index", m_SelectedHoldIndex },
 			{ "selected_instance_id", currentBall->instanceId },
 			{ "effective_attack", player->GetAttack() },
-			{ "effective_defense", player->GetDefense() },
 			{ "offers", std::move(offers) },
 			{ "mcp_telemetry", m_PendingShotTelemetry },
 		};
@@ -930,7 +911,8 @@ void Game::NotifyPlayerWallCollision(
 	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	if (currentBall == nullptr) return;
 	const BallStatus& status = currentBall->status;
-	if (m_TraceSegmentValid && (m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
+	if (currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
+		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
 	{
 		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
 		if (PierceTraceRules::AddTrace(
@@ -1047,6 +1029,8 @@ void Game::NotifyPlayerPiercedEnemy(
 	bool refracted)
 {
 	if (enemy == nullptr) return;
+	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	if (currentBall == nullptr || currentBall->category != BallCategory::Pierce) return;
 	m_PiercedEnemiesThisShot.insert(enemy);
 	m_TraceSegmentPierced = true;
 	if (!m_TraceSegmentValid)
@@ -1056,7 +1040,6 @@ void Game::NotifyPlayerPiercedEnemy(
 	}
 	if (!refracted) return;
 
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	if (currentBall != nullptr)
 	{
 		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
@@ -1081,7 +1064,8 @@ void Game::NotifyPlayerDirectionChange(
 {
 	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
 	if (currentBall == nullptr) return;
-	if (m_TraceSegmentValid && (m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
+	if (currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
+		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
 	{
 		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
 		if (PierceTraceRules::AddTrace(
@@ -1126,6 +1110,7 @@ void Game::NotifyTraceMovement(
 	config.angleToleranceDegrees = status.traceUseAngleTolerance;
 	config.requiredDistance = status.traceUseDistance;
 	config.width = status.traceWidth;
+	config.pierceSpeedMultiplier = status.tracePierceSpeedMultiplier;
 	config.nonPierceSpeedMultiplier = status.traceNonPierceSpeedMultiplier;
 	const auto result = PierceTraceRules::AccumulateMovement(
 		m_PierceTraces,
@@ -1139,6 +1124,7 @@ void Game::NotifyTraceMovement(
 	if (strongUse)
 	{
 		m_TracePierceBenefitActive = true;
+		m_SynergyDamageBonusThisShot += status.tracePierceAttackBonus;
 		if (currentBall->definitionId == "player_trace_driver")
 			m_TraceDriverExpansionArmed = true;
 	}
@@ -1146,6 +1132,7 @@ void Game::NotifyTraceMovement(
 		{ "trace_id", result.traceId },
 		{ "remaining_durability", result.remainingDurability },
 		{ "strong", strongUse },
+		{ "attack_bonus", strongUse ? status.tracePierceAttackBonus : 0 },
 		{ "break_ball", breakMovement },
 	});
 }

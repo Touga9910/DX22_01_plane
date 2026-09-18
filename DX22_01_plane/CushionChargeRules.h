@@ -109,8 +109,11 @@ namespace CushionChargeRules
 		if (region < 0 || region >= RegionCount) return {};
 		Charge& charge = state[static_cast<std::size_t>(region)];
 		charge.maxStack = std::clamp(maximumStack, 1, 99);
-		if (generateAmount > 0)
+		// An already-usable stack is always consumed on contact. Generation is
+		// only used when this wall region has no resource available this shot.
+		if (!charge.active || !charge.usableThisShot || charge.stackCount <= 0)
 		{
+			if (generateAmount <= 0) return {};
 			const int before = charge.stackCount;
 			charge.stackCount = std::clamp(
 				charge.stackCount + generateAmount, 0, charge.maxStack);
@@ -119,17 +122,14 @@ namespace CushionChargeRules
 			charge.speedMultiplier = std::clamp(generatedSpeedMultiplier, 1.0f, 3.0f);
 			return { UseKind::Generated, charge.stackCount - before, 0, 0 };
 		}
-		if (!charge.active || !charge.usableThisShot || charge.stackCount <= 0)
-			return {};
-		if (strongUse && strongUseConsumedThisShot && !allowMultipleStrongUses)
-			return {};
-
-		const int requested = strongUse ? (std::max)(1, consumeAmount) : 1;
+		const bool applyStrong = strongUse &&
+			(!strongUseConsumedThisShot || allowMultipleStrongUses);
+		const int requested = applyStrong ? (std::max)(1, consumeAmount) : 1;
 		const int consumed = (std::min)(charge.stackCount, requested);
 		charge.stackCount -= consumed;
 		charge.active = charge.stackCount > 0;
 		if (!charge.active) charge.usableThisShot = false;
-		if (strongUse)
+		if (applyStrong)
 		{
 			reflectedVelocity *= charge.speedMultiplier;
 			strongUseConsumedThisShot = true;

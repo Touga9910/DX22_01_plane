@@ -77,7 +77,6 @@ private:
 		bool hasPlayer = false;
 		int playerCurrentHp = 0;
 		int playerMaxHp = 0;
-		int playerDefense = 0;
 		int playerShield = 0;
 		int theoreticalDamage = 0;
 		int expectedDamage = 0;

@@ -51,7 +51,6 @@ namespace
 	{
 		float value =
 			static_cast<float>(ball.status.attack) * 4.0f +
-			static_cast<float>(ball.status.defense) * 2.0f +
 			static_cast<float>(ball.upgradeLevel) * 5.0f;
 		if (ball.status.abilities.pierce)
 		{
@@ -501,9 +500,6 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 	int bestIndex = 0;
 	float bestScore =
 		-(std::numeric_limits<float>::max)();
-	const bool needsDefense =
-		game.m_RunController.Status().currentHp * 2 <=
-		game.m_RunController.Status().maxHp;
 	const auto& shotCounts =
 		game.m_RunStatistics.GetState().ballShotCounts;
 
@@ -516,9 +512,7 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 			continue;
 		}
 
-		float score = GetAutoBallValue(*ball) +
-			static_cast<float>(ball->status.defense) *
-				(needsDefense ? 2.0f : 0.0f);
+		float score = GetAutoBallValue(*ball);
 		score += (std::max)(0.0f, ball->status.mass - 2.0f);
 		const auto usage = shotCounts.find(ball->definitionId);
 		if (usage != shotCounts.end())
@@ -915,21 +909,19 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 		return dynamic_cast<ShopScene*>(game.m_SceneManager.Get()) == nullptr ||
 			game.m_RunController.ShopRelicOffers().empty() || game.IsShopRelicOffered(index);
 	};
-	const bool needsDefense =
+	const bool needsRecovery =
 		game.m_RunController.Status().currentHp * 2 <=
 		game.m_RunController.Status().maxHp;
-	const std::array<RelicType, 5> priority = needsDefense
-		? std::array<RelicType, 5>{
+	const std::array<RelicType, 4> priority = needsRecovery
+		? std::array<RelicType, 4>{
 			RelicType::EmergencyRepairKit,
-			RelicType::AllBallDefenseUp,
 			RelicType::AllBallAttackUp,
 			RelicType::CollisionAttackUp,
 			RelicType::BankShot }
-		: std::array<RelicType, 5>{
+		: std::array<RelicType, 4>{
 			RelicType::AllBallAttackUp,
 			RelicType::CollisionAttackUp,
 			RelicType::EmergencyRepairKit,
-			RelicType::AllBallDefenseUp,
 			RelicType::BankShot };
 
 	for (RelicType type : priority)
@@ -1306,7 +1298,6 @@ void Game::OnBattleStageStarted(const StageData& stage)
 				{ "id", ball->definitionId },
 				{ "upgrade_level", ball->upgradeLevel },
 				{ "attack", GetEffectivePlayerBallAttack(ball) },
-				{ "defense", GetEffectivePlayerBallDefense(ball) },
 			});
 	}
 

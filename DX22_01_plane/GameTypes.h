@@ -51,7 +51,6 @@ inline RunPhase RunPhaseFromString(const std::string& value)
 enum class RelicType
 {
 	AllBallAttackUp,
-	AllBallDefenseUp,
 	CollisionAttackUp,
 	BankShot,
 	EmergencyRepairKit,
@@ -111,12 +110,6 @@ inline const std::array<
 		RelicType::AllBallAttackUp,
 		RelicUtf8(u8"\u653b\u6483\u30b3\u30a2"),
 		RelicUtf8(u8"\u6240\u6301\u3057\u3066\u3044\u308b\u3059\u3079\u3066\u306e\u30dc\u30fc\u30eb\u306e\u653b\u6483\u529b\u304c1\u4e0a\u304c\u308b\u3002"),
-		20, RelicRarity::Common, 1, 1
-	},
-	{
-		RelicType::AllBallDefenseUp,
-		RelicUtf8(u8"\u9632\u5fa1\u30b3\u30a2"),
-		RelicUtf8(u8"\u6240\u6301\u3057\u3066\u3044\u308b\u3059\u3079\u3066\u306e\u30dc\u30fc\u30eb\u306e\u9632\u5fa1\u529b\u304c1\u4e0a\u304c\u308b\u3002"),
 		20, RelicRarity::Common, 1, 1
 	},
 	{

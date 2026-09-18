@@ -14,7 +14,7 @@ edit('BallShotPrediction.cpp', [('#include "PlayerBall.h"', '#include "PlayerBal
  ('        ball.attack = ball.physics.status.attack + game.GetRelicAttackBonus();', '''        if (offer)
         {
             ball.physics.status = offer->status;
-            ball.defense = offer->status.defense + game.GetRelicDefenseBonus();
+            ball.defense = 0;
             ball.physics.pierceLimit = offer->status.pierceMaxUses;
             ball.physics.pierceRetention = offer->status.pierceSpeedRetention;
             if (offer->definitionId == "player_pierce" && game.HasRelic(RelicType::PierceBallCharger))

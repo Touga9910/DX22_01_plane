@@ -19,10 +19,11 @@ namespace
     {
         return PlayerBallText::GetName(id);
     }
-    void EditStatus(BallStatus& s)
+    void EditStatus(BallStatus& s, bool includeDefense)
     {
         ImGui::SliderInt("攻撃", &s.attack, 0, 999, "%d", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderInt("防御", &s.defense, 0, 999, "%d", ImGuiSliderFlags_AlwaysClamp);
+		if (includeDefense)
+			ImGui::SliderInt("防御", &s.defense, 0, 999, "%d", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("質量", &s.mass, 0.1f, 100, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("半径", &s.radius, 0.1f, 12, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("反発係数", &s.restitution, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -313,7 +314,7 @@ void GameDebugController::Draw(Game& game)
             {
                 auto& ball = m_DebugSetup.deck[i]; ImGui::PushID(static_cast<int>(i));
                 bool remove = ImGui::SmallButton("削除"); ImGui::SameLine();
-                const bool open = ImGui::TreeNode("ball", "#%d %s +%d  攻撃%d / 防御%d", static_cast<int>(i + 1), BallLabel(ball.definitionId), ball.upgradeLevel, ball.status.attack, ball.status.defense);
+				const bool open = ImGui::TreeNode("ball", "#%d %s +%d  攻撃%d", static_cast<int>(i + 1), BallLabel(ball.definitionId), ball.upgradeLevel, ball.status.attack);
                 if (open)
                 {
                     int level = ball.upgradeLevel;
@@ -322,7 +323,7 @@ void GameDebugController::Draw(Game& game)
                         const auto found = std::find_if(m_DebugBallCatalog.begin(), m_DebugBallCatalog.end(), [&](const auto& b) { return b.definitionId == ball.definitionId; });
                         if (found != m_DebugBallCatalog.end()) { ball = *found; ball.upgradeLevel = level; if (level > 0) ball.status = ball.upgradeTable[level - 1]; }
                     }
-                    if (ImGui::TreeNode("性能を個別に変更")) { EditStatus(ball.status); ImGui::TreePop(); }
+					if (ImGui::TreeNode("性能を個別に変更")) { EditStatus(ball.status, false); ImGui::TreePop(); }
                     ImGui::TreePop();
                 }
                 ImGui::PopID();
@@ -490,7 +491,7 @@ void GameDebugController::Draw(Game& game)
                     ImGui::SliderInt("最大HP", &enemy.spawn.enemyData.maxHp, 1, 9999, "%d", ImGuiSliderFlags_AlwaysClamp);
                     enemy.hp = (std::min)(enemy.hp, enemy.spawn.enemyData.maxHp);
                     ImGui::SliderInt("現在HP", &enemy.hp, 1, enemy.spawn.enemyData.maxHp, "%d", ImGuiSliderFlags_AlwaysClamp);
-                    if (ImGui::TreeNode("性能")) { EditStatus(enemy.spawn.enemyData.status); ImGui::TreePop(); }
+					if (ImGui::TreeNode("性能")) { EditStatus(enemy.spawn.enemyData.status, true); ImGui::TreePop(); }
                     ImGui::TreePop();
                 }
                 ImGui::PopID();

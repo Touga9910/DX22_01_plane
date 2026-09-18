@@ -150,10 +150,10 @@ def run_shield(label):
         final = fire_and_finish(folder, process, state_path, 1, 0, 1)
         expected, _, error = assert_prediction_matches(folder)
         assert expected["stop_shield_granted"] == 3
-        # enemy_strong attacks for 2; ball defense 1 reduces this to 1,
-        # leaving two points of the freshly granted shield.
+        # enemy_strong attacks for 2. Player-ball defense no longer exists,
+        # leaving one point of the freshly granted shield.
         assert final["player"]["current_hp"] == hp_before
-        assert final["player"]["temporary_shield"] == 2
+        assert final["player"]["temporary_shield"] == 1
 
         wait_offer(folder, process, state_path, "player_stop_shield")
         moving = harness.command(
@@ -161,7 +161,7 @@ def run_shield(label):
         assert moving["game_state"] == "balls_moving"
         assert moving["player"]["temporary_shield"] == 0
         return {"prediction_max_error": error, "shield_granted": 3,
-                "shield_after_enemy_attack": 2, "cleared_on_next_shot": True}
+                "shield_after_enemy_attack": 1, "cleared_on_next_shot": True}
     finally:
         close_game(process)
         log.close()

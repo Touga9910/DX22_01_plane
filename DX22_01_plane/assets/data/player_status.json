@@ -1,10 +1,11 @@
 {
   "status": {
-    "attack": 1, "defense": 0, "mass": 1.0, "radius": 2.4,
+    "attack": 1, "mass": 1.0, "radius": 2.4,
     "restitution": 0.8, "friction": 0.02,
     "traceUseAngleTolerance": 12.0, "traceUseDistance": 8.0,
-    "traceWidth": 2.5, "traceNonPierceSpeedMultiplier": 1.03,
-    "cushionNonBounceSpeedMultiplier": 1.03,
+    "traceWidth": 2.5, "tracePierceSpeedMultiplier": 1.1,
+    "tracePierceAttackBonus": 1, "traceNonPierceSpeedMultiplier": 1.03,
+    "cushionNonBounceSpeedMultiplier": 1.03, "cushionBounceAttackBonus": 1,
     "cushionMaxStack": 3, "cushionStackConsumeAmount": 1,
     "anchorStackMax": 99,
     "abilities": { "split": false, "pierce": false, "anchor": false }
@@ -12,18 +13,18 @@
   "balls": [
     {
       "id": "player_standard", "category": "standard",
-      "status": { "attack": 2, "defense": 0, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02 },
-      "upgrades": [ { "attack": 3, "defense": 1 }, { "attack": 5, "defense": 2 } ]
+      "status": { "attack": 2, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02 },
+      "upgrades": [ { "attack": 3 }, { "attack": 5 } ]
     },
     {
       "id": "player_heavy", "category": "heavy",
-      "status": { "attack": 2, "defense": 0, "mass": 4.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02, "knockbackTransfer": 1.0 },
+      "status": { "attack": 2, "mass": 4.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02, "knockbackTransfer": 1.0 },
       "upgrades": [ { "mass": 5.0, "knockbackTransfer": 1.15 }, { "mass": 6.0, "knockbackTransfer": 1.3 } ]
     },
     {
       "id": "player_pierce", "category": "pierce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02,
+        "attack": 1, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02,
         "pierceMaxUses": 1, "pierceSpeedRetention": 0.75, "traceDurability": 2,
         "tracePierceMaxUsesBonus": 1, "tracePierceSpeedRetentionBonus": 0.1,
         "abilities": { "pierce": true }
@@ -35,7 +36,7 @@
     },
     {
       "id": "player_bounce", "category": "bounce",
-      "status": { "attack": 1, "defense": 0, "mass": 1.5, "radius": 2.2, "restitution": 0.9, "friction": 0.01, "cushionBounceAttackBonus": 1 },
+      "status": { "attack": 1, "mass": 1.5, "radius": 2.2, "restitution": 0.9, "friction": 0.01, "cushionBounceAttackBonus": 1 },
       "upgrades": [
         { "restitution": 0.95, "friction": 0.008, "cushionBounceAttackBonus": 2 },
         { "restitution": 1.0, "friction": 0.006, "cushionBounceAttackBonus": 3 }
@@ -44,7 +45,7 @@
     {
       "id": "player_anchor", "category": "anchor",
       "status": {
-        "attack": 2, "defense": 2, "mass": 6.0, "radius": 2.6, "restitution": 0.35, "friction": 0.06,
+        "attack": 2, "mass": 6.0, "radius": 2.6, "restitution": 0.35, "friction": 0.06,
         "anchorBrakeMultiplier": 1.0, "anchorStopSpeedSquared": 0.03, "anchorKnockbackImmune": false,
         "anchorPlayerStackGenerate": 1, "anchorEnemyStackGenerate": 1, "anchorStackRadius": 8.0,
         "abilities": { "anchor": true }
@@ -57,7 +58,7 @@
     {
       "id": "player_cushion_charge", "category": "bounce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 1.5, "radius": 2.2, "restitution": 0.85, "friction": 0.015,
+        "attack": 1, "mass": 1.5, "radius": 2.2, "restitution": 0.85, "friction": 0.015,
         "cushionChargeSpeedMultiplier": 1.1, "cushionStackGenerateAmount": 1, "cushionMaxStack": 3
       },
       "upgrades": [
@@ -68,7 +69,7 @@
     {
       "id": "player_chain_impact", "category": "heavy",
       "status": {
-        "attack": 1, "defense": 0, "mass": 3.0, "radius": 2.5, "restitution": 0.75, "friction": 0.025,
+        "attack": 1, "mass": 3.0, "radius": 2.5, "restitution": 0.75, "friction": 0.025,
         "knockbackTransfer": 1.1, "chainImpactRadius": 12.0,
         "heavyFinisherDamagePerCollision": 1.0, "heavyCollisionConsumeAmount": 0
       },
@@ -80,7 +81,7 @@
     {
       "id": "player_refractive_pierce", "category": "pierce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 1.5, "radius": 2.0, "restitution": 0.85, "friction": 0.015,
+        "attack": 1, "mass": 1.5, "radius": 2.0, "restitution": 0.85, "friction": 0.015,
         "pierceMaxUses": 1, "pierceSpeedRetention": 0.7, "traceDurability": 2,
         "tracePierceMaxUsesBonus": 1, "tracePierceSpeedRetentionBonus": 0.08,
         "abilities": { "pierce": true, "refractAfterPierce": true }
@@ -93,7 +94,7 @@
     {
       "id": "player_stop_shield", "category": "anchor",
       "status": {
-        "attack": 1, "defense": 1, "mass": 4.0, "radius": 2.5, "restitution": 0.35, "friction": 0.08,
+        "attack": 1, "mass": 4.0, "radius": 2.5, "restitution": 0.35, "friction": 0.08,
         "stopShieldAmount": 3, "anchorPlayerStackGenerate": 1, "anchorEnemyStackGenerate": 1,
         "anchorStackRadius": 6.0, "abilities": { "anchor": false }
       },
@@ -105,7 +106,7 @@
     {
       "id": "player_trace_driver", "category": "pierce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 1.5, "radius": 2.2, "restitution": 0.9, "friction": 0.012,
+        "attack": 1, "mass": 1.5, "radius": 2.2, "restitution": 0.9, "friction": 0.012,
         "traceDurability": 2, "abilities": { "pierce": false }
       },
       "upgrades": [
@@ -116,7 +117,7 @@
     {
       "id": "player_pierce_finisher", "category": "pierce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 1.8, "radius": 2.3, "restitution": 0.78, "friction": 0.02,
+        "attack": 1, "mass": 1.8, "radius": 2.3, "restitution": 0.78, "friction": 0.02,
         "pierceMaxUses": 1, "pierceSpeedRetention": 0.72, "traceDurability": 1,
         "tracePierceMaxUsesBonus": 1, "tracePierceSpeedRetentionBonus": 0.1,
         "pierceFinisherBaseBonus": 1, "pierceFinisherMultiTargetBonus": 1,
@@ -130,7 +131,7 @@
     {
       "id": "player_ricochet_finisher", "category": "bounce",
       "status": {
-        "attack": 1, "defense": 0, "mass": 1.4, "radius": 2.2, "restitution": 0.92, "friction": 0.012,
+        "attack": 1, "mass": 1.4, "radius": 2.2, "restitution": 0.92, "friction": 0.012,
         "ricochetFinisherBonusPerUse": 1
       },
       "upgrades": [
@@ -141,7 +142,7 @@
     {
       "id": "player_anchor_finisher", "category": "anchor",
       "status": {
-        "attack": 1, "defense": 1, "mass": 5.0, "radius": 2.5, "restitution": 0.3, "friction": 0.07,
+        "attack": 1, "mass": 5.0, "radius": 2.5, "restitution": 0.3, "friction": 0.07,
         "anchorBrakeMultiplier": 1.2, "anchorStopSpeedSquared": 0.05,
         "anchorFinisherStackConsume": 0, "anchorFinisherDamagePerStack": 1,
         "anchorFinisherAoeThreshold": 5, "anchorFinisherAoeRadius": 8.0,

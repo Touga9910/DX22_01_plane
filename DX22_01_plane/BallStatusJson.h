@@ -28,6 +28,8 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.traceUseAngleTolerance = value.value("traceUseAngleTolerance", status.traceUseAngleTolerance);
 	status.traceUseDistance = value.value("traceUseDistance", status.traceUseDistance);
 	status.traceWidth = value.value("traceWidth", status.traceWidth);
+	status.tracePierceSpeedMultiplier = value.value("tracePierceSpeedMultiplier", status.tracePierceSpeedMultiplier);
+	status.tracePierceAttackBonus = value.value("tracePierceAttackBonus", status.tracePierceAttackBonus);
 	status.tracePierceMaxUsesBonus = value.value("tracePierceMaxUsesBonus", status.tracePierceMaxUsesBonus);
 	status.tracePierceSpeedRetentionBonus = value.value("tracePierceSpeedRetentionBonus", status.tracePierceSpeedRetentionBonus);
 	status.traceNonPierceSpeedMultiplier = value.value("traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier);
@@ -83,6 +85,8 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "traceUseAngleTolerance", status.traceUseAngleTolerance },
 		{ "traceUseDistance", status.traceUseDistance },
 		{ "traceWidth", status.traceWidth },
+		{ "tracePierceSpeedMultiplier", status.tracePierceSpeedMultiplier },
+		{ "tracePierceAttackBonus", status.tracePierceAttackBonus },
 		{ "tracePierceMaxUsesBonus", status.tracePierceMaxUsesBonus },
 		{ "tracePierceSpeedRetentionBonus", status.tracePierceSpeedRetentionBonus },
 		{ "traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier },
@@ -130,6 +134,8 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		std::isfinite(s.traceUseAngleTolerance) && s.traceUseAngleTolerance >= 1.0f && s.traceUseAngleTolerance <= 89.0f &&
 		std::isfinite(s.traceUseDistance) && s.traceUseDistance >= 0.1f && s.traceUseDistance <= 200.0f &&
 		std::isfinite(s.traceWidth) && s.traceWidth >= 0.1f && s.traceWidth <= 50.0f &&
+		std::isfinite(s.tracePierceSpeedMultiplier) && s.tracePierceSpeedMultiplier >= 1.0f && s.tracePierceSpeedMultiplier <= 3.0f &&
+		s.tracePierceAttackBonus >= 0 && s.tracePierceAttackBonus <= 1000 &&
 		s.tracePierceMaxUsesBonus >= 0 && s.tracePierceMaxUsesBonus <= 16 &&
 		std::isfinite(s.tracePierceSpeedRetentionBonus) && s.tracePierceSpeedRetentionBonus >= 0.0f && s.tracePierceSpeedRetentionBonus <= 1.0f &&
 		std::isfinite(s.traceNonPierceSpeedMultiplier) && s.traceNonPierceSpeedMultiplier >= 1.0f && s.traceNonPierceSpeedMultiplier <= 1.25f &&
@@ -149,4 +155,28 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.anchorFinisherDamagePerStack >= 0 && s.anchorFinisherDamagePerStack <= 1000 &&
 		s.anchorFinisherAoeThreshold >= 0 && s.anchorFinisherAoeThreshold <= 9999 &&
 		std::isfinite(s.anchorFinisherAoeRadius) && s.anchorFinisherAoeRadius >= 0.0f && s.anchorFinisherAoeRadius <= 100.0f;
+}
+
+// Player balls no longer use defense. Generic helpers above keep the field for
+// enemy/debug data, while these helpers make old player data load safely.
+inline BallStatus ReadPlayerBallStatus(
+	const nlohmann::json& value,
+	BallStatus status = {})
+{
+	status = ReadBallStatus(value, status);
+	status.defense = 0;
+	return status;
+}
+
+inline nlohmann::json WritePlayerBallStatus(const BallStatus& status)
+{
+	nlohmann::json value = WriteBallStatus(status);
+	value.erase("defense");
+	return value;
+}
+
+inline bool IsValidPlayerBallStatus(BallStatus status)
+{
+	status.defense = 0;
+	return IsValidBallStatus(status);
 }

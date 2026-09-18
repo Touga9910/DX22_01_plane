@@ -58,7 +58,6 @@ void BalanceLogger::BeginRun(
 				{ "instance_id", ball.instanceId },
 				{ "upgrade_level", ball.upgradeLevel },
 				{ "attack", ball.attack },
-				{ "defense", ball.defense },
 				{ "mass", ball.mass },
 				{ "radius", ball.radius },
 				{ "restitution", ball.restitution },

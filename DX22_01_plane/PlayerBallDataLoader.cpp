@@ -18,12 +18,12 @@ namespace
 		{
 			BallStatus step = previous;
 			step.attack += 1;
-			step.defense += 1;
 			if (ballJson.contains("upgrades") && ballJson["upgrades"].is_array() &&
 				index < static_cast<int>(ballJson["upgrades"].size()) && ballJson["upgrades"][index].is_object())
 			{
-				step = ReadBallStatus(ballJson["upgrades"][index], previous);
+				step = ReadPlayerBallStatus(ballJson["upgrades"][index], previous);
 			}
+			step.defense = 0;
 			ballData.upgradeTable[index] = NormalizeBallStatus(step);
 			previous = ballData.upgradeTable[index];
 		}
@@ -38,6 +38,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 {
 	PlayerBallDataLoadResult result;
 	result.defaultBallStatus = fallbackBallStatus;
+	result.defaultBallStatus.defense = 0;
 	result.defaultRunStatus = fallbackRunStatus;
 
 	std::ifstream file(filePath);
@@ -51,7 +52,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 			if (root.contains("status") && root["status"].is_object())
 			{
 				result.defaultBallStatus =
-					ReadBallStatus(root["status"], result.defaultBallStatus);
+					ReadPlayerBallStatus(root["status"], result.defaultBallStatus);
 			}
 
 			result.defaultBallStatus = NormalizeBallStatus(result.defaultBallStatus);
@@ -85,14 +86,14 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 					if (ballJson.contains("status") && ballJson["status"].is_object())
 					{
 						ballData.status = NormalizeBallStatus(
-							ReadBallStatus(
+							ReadPlayerBallStatus(
 								ballJson["status"],
 								result.defaultBallStatus));
 					}
 					else
 					{
 						ballData.status = NormalizeBallStatus(
-							ReadBallStatus(
+							ReadPlayerBallStatus(
 								ballJson,
 								result.defaultBallStatus));
 					}
@@ -113,6 +114,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 	}
 
 	result.defaultBallStatus = NormalizeBallStatus(result.defaultBallStatus);
+	result.defaultBallStatus.defense = 0;
 	result.defaultRunStatus = NormalizePlayerRunStatus(result.defaultRunStatus);
 
 	if (result.ballDefinitions.empty())

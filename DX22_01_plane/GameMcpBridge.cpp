@@ -287,10 +287,9 @@ namespace
 			{ "instance_id", ball.instanceId },
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "can_upgrade", ball.CanUpgrade() },
-			{ "next_upgrade", ball.CanUpgrade() ? WriteBallStatus(ball.upgradeTable[ball.upgradeLevel]) : nlohmann::json(nullptr) },
+			{ "next_upgrade", ball.CanUpgrade() ? WritePlayerBallStatus(ball.upgradeTable[ball.upgradeLevel]) : nlohmann::json(nullptr) },
 			{ "status", {
 				{ "attack", ball.status.attack },
-				{ "defense", ball.status.defense },
 				{ "mass", ball.status.mass },
 				{ "radius", ball.status.radius },
 				{ "restitution", ball.status.restitution },
@@ -705,7 +704,6 @@ nlohmann::json GameMcpBridge::BuildState(
 			VectorToJson(player->GetPosition());
 		state["player"]["attack"] = player->GetAttack();
 		state["player"]["velocity"] = VectorToJson(player->GetVelocity());
-		state["player"]["defense"] = player->GetDefense();
 		state["player"]["idle"] = player->IsIdle();
 		if (player->GetBall() != nullptr)
 		{
@@ -755,7 +753,6 @@ nlohmann::json GameMcpBridge::BuildState(
 	};
 	state["relic_effects"] = {
 		{ "all_ball_attack_bonus", game.GetRelicAttackBonus() },
-		{ "all_ball_defense_bonus", game.GetRelicDefenseBonus() },
 		{
 			"current_shot_collision_attack_bonus",
 			game.GetCurrentShotCollisionAttackBonus()

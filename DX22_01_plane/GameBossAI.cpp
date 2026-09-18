@@ -49,7 +49,7 @@ json BossShotPlanner::Evaluate(Game& game)
     for (int i = 0; i < game.m_RunController.Deck().GetOfferCount(); ++i)
     {
         const auto* offer = game.m_RunController.Deck().GetOffer(i);
-        if (offer) key += ":" + std::to_string(offer->instanceId) + offer->definitionId + WriteBallStatus(offer->status).dump();
+        if (offer) key += ":" + std::to_string(offer->instanceId) + offer->definitionId + WritePlayerBallStatus(offer->status).dump();
     }
     // Expose an opaque compact key; comparison uses the complete key internally.
     std::uint64_t hash = 14695981039346656037ull;
@@ -70,7 +70,7 @@ json BossShotPlanner::Evaluate(Game& game)
     {
         const auto* offer = game.m_RunController.Deck().GetOffer(offerIndex);
         if (!offer) continue;
-        const std::string signature = offer->definitionId + WriteBallStatus(offer->status).dump();
+        const std::string signature = offer->definitionId + WritePlayerBallStatus(offer->status).dump();
         if (equivalentOffers.contains(signature))
         {
             auto aliases = equivalentOffers.at(signature);
@@ -154,7 +154,8 @@ json BossShotPlanner::Evaluate(Game& game)
             const float hpLoss = static_cast<float>((std::max)(0,player->GetHP()-endPlayer->hp));
             float incoming = 0;
             for (const auto& ball : prediction.balls)
-                if (ball.physics.enemy && !ball.defeated && !ball.pocketed) incoming += (std::max)(1,ball.attack-endPlayer->defense);
+                if (ball.physics.enemy && !ball.defeated && !ball.pocketed)
+					incoming += (std::max)(1, ball.attack);
 			incoming = (std::max)(0.0f, incoming - static_cast<float>(prediction.stopShieldGranted));
             const float urgency = player->GetHP() <= 10 ? 3.0f : 1.0f;
             const float followup = static_cast<float>((std::max)(0,prediction.shot.playerEnemyContacts-1));

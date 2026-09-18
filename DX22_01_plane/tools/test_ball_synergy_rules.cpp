@@ -62,8 +62,14 @@ int main()
 	assert(!firstPart.activated);
 	const auto secondPart = PierceTraceRules::AccumulateMovement(
 		traces, parallel, { 4, 0, 5 }, { 8, 0, 5 }, use, true, parallelVelocity);
-	assert(secondPart.activated && parallelVelocity == Vector3(5, 0, 0));
+	assert(secondPart.activated && std::abs(parallelVelocity.x - 5.5f) < 0.001f);
 	assert(secondPart.remainingDurability == 1 && traces.durabilityConsumed == 1);
+	PierceTraceRules::ShotUseState weakTrace{};
+	Vector3 weakTraceVelocity(5, 0, 0);
+	const auto weakTraceUse = PierceTraceRules::AccumulateMovement(
+		traces, weakTrace, { 1, 0, 5 }, { 8, 0, 5 }, use, false, weakTraceVelocity);
+	assert(weakTraceUse.activated && std::abs(weakTraceVelocity.x - 5.25f) < 0.001f);
+	assert(weakTraceUse.remainingDurability == 0 && traces.durabilityConsumed == 2);
 
 	CushionChargeRules::State cushions{};
 	static_assert(CushionChargeRules::RegionCount == 12);
@@ -82,8 +88,18 @@ int main()
 	auto blockedSecondStrong = CushionChargeRules::ApplyStackContact(
 		cushions, 0, 0, 3, 1, true, false, 1.0f, 1.03f, 2, 0,
 		strongConsumed, strongUses, velocity);
-	assert(blockedSecondStrong.kind == CushionChargeRules::UseKind::None);
-	assert(cushions[0].stackCount == 2);
+	assert(blockedSecondStrong.kind == CushionChargeRules::UseKind::Weak);
+	assert(blockedSecondStrong.consumed == 1 && blockedSecondStrong.damageBonus == 0);
+	assert(cushions[0].stackCount == 1);
+	CushionChargeRules::BeginPlayerShot(cushions);
+	Vector3 weakVelocity(4, 0, 0);
+	auto weak = CushionChargeRules::ApplyStackContact(
+		cushions, 0, 0, 3, 1, false, false, 1.0f, 1.03f, 9, 0,
+		strongConsumed, strongUses, weakVelocity);
+	assert(weak.kind == CushionChargeRules::UseKind::Weak && weak.consumed == 1);
+	assert(std::abs(weakVelocity.x - 4.12f) < 0.001f && weak.damageBonus == 0);
+	cushions[0].stackCount = 2;
+	CushionChargeRules::BeginPlayerShot(cushions);
 	strongConsumed = false;
 	strongUses = 0;
 	auto finisherOne = CushionChargeRules::ApplyStackContact(

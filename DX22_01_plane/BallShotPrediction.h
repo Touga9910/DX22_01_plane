@@ -66,6 +66,7 @@ namespace BallShotPrediction
 		PierceTraceRules::ShotUseState traceUse{};
 		int heavyCollisionCount = 0;
 		bool heavyCategoryShot = false;
+		bool pierceCategoryShot = false;
 		bool bounceCategoryShot = false;
 		int playerAnchorStacks = 0;
 		int cushionStrongUses = 0;

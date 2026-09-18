@@ -39,6 +39,7 @@ namespace PierceTraceRules
 		float angleToleranceDegrees = 12.0f;
 		float requiredDistance = 8.0f;
 		float width = 2.0f;
+		float pierceSpeedMultiplier = 1.1f;
 		float nonPierceSpeedMultiplier = 1.0f;
 	};
 
@@ -140,12 +141,10 @@ namespace PierceTraceRules
 			--trace.durability;
 			++state.durabilityConsumed;
 			const int remaining = (std::max)(0, trace.durability);
-			if (!strongUse)
-			{
-				const float multiplier = std::clamp(
-					config.nonPierceSpeedMultiplier, 1.0f, 1.25f);
-				velocity *= multiplier;
-			}
+			const float multiplier = strongUse
+				? std::clamp(config.pierceSpeedMultiplier, 1.0f, 3.0f)
+				: std::clamp(config.nonPierceSpeedMultiplier, 1.0f, 1.25f);
+			velocity *= multiplier;
 			if (trace.durability <= 0)
 				state.traces.erase(state.traces.begin() + static_cast<std::ptrdiff_t>(index));
 			return { true, usedId, remaining };

@@ -142,7 +142,7 @@ void ShopScene::DrawUI()
 			{
 				ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
 				ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
-				ImGui::Text("レリック込み：攻撃 %d / 防御 %d", game->GetEffectivePlayerBallAttack(ball), game->GetEffectivePlayerBallDefense(ball));
+				ImGui::Text("レリック込み：攻撃 %d", game->GetEffectivePlayerBallAttack(ball));
 				const int cost = buying ? kBallPrice : kRemovePrice;
 				ImGui::BeginDisabled(game->GetPlayerMoney() < cost || (!buying && count <= game->GetMinimumDeckSize()));
 				const std::string label = std::string(buying ? "このボールを購入" : "この個体を削除") + " (" + std::to_string(cost) + " Money)";

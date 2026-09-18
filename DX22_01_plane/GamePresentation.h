@@ -146,6 +146,7 @@ private:
 	int m_CurrentShotHitCount = 0;
 	int m_CurrentShotDamage = 0;
 	std::array<float, 4> m_BallCardExpansion{};
+	int m_BallDetailOfferIndex = -1;
 	bool m_DeckListOpen = false;
 	bool m_RelicListOpen = false;
 	DeckListView m_DeckListView = DeckListView::All;

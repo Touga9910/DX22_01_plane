@@ -176,7 +176,6 @@ void Game::StartNewRun(
 		snapshot.instanceId = ball->instanceId;
 		snapshot.upgradeLevel = ball->upgradeLevel;
 		snapshot.attack = ball->status.attack;
-		snapshot.defense = ball->status.defense;
 		snapshot.mass = ball->status.mass;
 		snapshot.radius = ball->status.radius;
 		snapshot.restitution = ball->status.restitution;

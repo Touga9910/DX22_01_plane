@@ -31,12 +31,6 @@ namespace
     constexpr int MaxTotalSubsteps = 60000;
     constexpr std::size_t MaxPathPoints = 1000;
 
-	bool IsPierceCategoryBall(const std::string& id)
-	{
-		return id == "player_pierce" || id == "player_refractive_pierce" ||
-			id == "player_trace_driver" || id == "player_pierce_finisher";
-	}
-
     std::vector<Ball> Capture(Game& game)
     {
         std::vector<Ball> result;
@@ -69,6 +63,7 @@ namespace
             if (const auto* player = owner->GetComponent<PlayerBall>())
             {
                 ball.physics.player = true;
+				ball.defense = 0;
                 ball.pocketed = player->IsPocketed();
             }
             if (const auto* enemy = owner->GetComponent<EnemyBall>())
@@ -160,8 +155,9 @@ namespace
 			config.angleToleranceDegrees = result.shotStatus.traceUseAngleTolerance;
 			config.requiredDistance = result.shotStatus.traceUseDistance;
 			config.width = result.shotStatus.traceWidth;
+			config.pierceSpeedMultiplier = result.shotStatus.tracePierceSpeedMultiplier;
 			config.nonPierceSpeedMultiplier = result.shotStatus.traceNonPierceSpeedMultiplier;
-			const bool strongUse = ball.physics.player && IsPierceCategoryBall(result.shot.ballId);
+			const bool strongUse = ball.physics.player && result.pierceCategoryShot;
 			const auto used = PierceTraceRules::AccumulateMovement(
 				result.pierceTraces, result.traceUse, from, ball.physics.position,
 				config, strongUse, ball.physics.velocity);
@@ -173,6 +169,8 @@ namespace
 					ball.physics.pierceRetention + result.shotStatus.tracePierceSpeedRetentionBonus,
 					0.0f, 1.0f);
 			}
+			if (used.activated && strongUse)
+				result.synergyDamageBonus += result.shotStatus.tracePierceAttackBonus;
 		}
 
         void RecordPreviewReflection(const Ball& ball, const Ball* other = nullptr)
@@ -589,6 +587,8 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
 		: game.GetCurrentPlayerBallData();
 	result.heavyCategoryShot = selectedBall != nullptr &&
 		selectedBall->category == BallCategory::Heavy;
+	result.pierceCategoryShot = selectedBall != nullptr &&
+		selectedBall->category == BallCategory::Pierce;
 	result.bounceCategoryShot = selectedBall != nullptr &&
 		selectedBall->category == BallCategory::Bounce;
 	result.playerAnchorStacks = game.GetPlayerAnchorStacks();
@@ -613,7 +613,7 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
         {
             ball.physics.status = offer->status;
 			result.shotStatus = offer->status;
-            ball.defense = offer->status.defense + game.GetRelicDefenseBonus();
+			ball.defense = 0;
             ball.physics.pierceLimit = offer->status.pierceMaxUses;
             ball.physics.pierceRetention = offer->status.pierceSpeedRetention;
             if (offer->definitionId == "player_pierce" && game.HasRelic(RelicType::PierceBallCharger))
@@ -621,7 +621,6 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
         }
         ball.attack = ball.physics.status.attack + game.GetRelicAttackBonus() +
             player.GetAuraStatusEffects().GetAttackModifier();
-		ball.defense += player.GetAuraStatusEffects().GetDefenseModifier();
 		result.stopShieldGranted = ball.physics.status.stopShieldAmount;
         world.AddPoint(ball, true);
         found = true;
