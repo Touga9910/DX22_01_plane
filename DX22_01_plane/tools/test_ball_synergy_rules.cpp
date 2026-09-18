@@ -13,7 +13,13 @@ int main()
 {
 	HeavyCollisionRules::State heavy{};
 	assert(heavy.collisionCount == 0); // Player->Enemy has no heavy recording call.
-	HeavyCollisionRules::RecordEnemyEnemyCollision(heavy);
+	const bool standardRecorded =
+		HeavyCollisionRules::RecordEnemyEnemyCollision(heavy, false);
+	assert(!standardRecorded);
+	assert(heavy.collisionCount == 0); // 重量以外のショットでは敵同士でも蓄積しない。
+	const bool heavyRecorded =
+		HeavyCollisionRules::RecordEnemyEnemyCollision(heavy, true);
+	assert(heavyRecorded);
 	assert(heavy.collisionCount == 1);
 	const auto heavyFinish = HeavyCollisionRules::ConsumeForFinisher(heavy, 2.0f, 0);
 	assert(heavyFinish.referenced == 1 && heavyFinish.consumed == 1);

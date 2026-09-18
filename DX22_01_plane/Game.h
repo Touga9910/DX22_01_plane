@@ -614,6 +614,8 @@ public:
 	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
 	// 指定位置のデッキ内ボールを返す。
 	const PlayerBallData* GetDeckBall(int index) const { return m_RunController.Deck().GetRewardTarget(index); }
+	// 現在のショットに割り当てられたボールを返す。
+	const PlayerBallData* GetCurrentPlayerBallData() const { return m_RunController.Deck().GetCurrent(); }
 	const CushionChargeRules::State& GetCushionCharges() const { return m_CushionCharges; }
 	bool WasCushionBoostConsumedThisShot() const { return m_CushionBoostConsumedThisShot; }
 	int GetHeavyCollisionCount() const { return m_HeavyCollisions.collisionCount; }

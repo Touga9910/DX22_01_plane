@@ -957,7 +957,7 @@ void Game::NotifyPlayerWallCollision(
 	const auto result = CushionChargeRules::ApplyStackContact(
 		m_CushionCharges,
 		cushionRegion,
-		status.cushionStackGenerateAmount,
+		bounceCategory ? status.cushionStackGenerateAmount : 0,
 		status.cushionMaxStack,
 		status.cushionStackConsumeAmount,
 		bounceCategory,
@@ -992,10 +992,17 @@ void Game::NotifyEnemyEnemySynergyCollision(
 	const DirectX::SimpleMath::Vector3& secondVelocityBefore)
 {
 	if (first == nullptr || second == nullptr) return;
-	HeavyCollisionRules::RecordEnemyEnemyCollision(m_HeavyCollisions);
-	RecordBalanceEvent("heavy_collision_recorded", {
-		{ "count", m_HeavyCollisions.collisionCount },
-	});
+	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	if (HeavyCollisionRules::RecordEnemyEnemyCollision(
+		m_HeavyCollisions,
+		currentBall != nullptr && currentBall->category == BallCategory::Heavy))
+	{
+		RecordBalanceEvent("heavy_collision_recorded", {
+			{ "count", m_HeavyCollisions.collisionCount },
+			{ "ball_id", currentBall->definitionId },
+			{ "category", BallCategoryId(currentBall->category) },
+		});
+	}
 
 	int* source = nullptr;
 	int* target = nullptr;

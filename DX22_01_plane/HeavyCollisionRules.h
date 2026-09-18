@@ -14,9 +14,11 @@ namespace HeavyCollisionRules
 		state = {};
 	}
 
-	inline void RecordEnemyEnemyCollision(State& state)
+	inline bool RecordEnemyEnemyCollision(State& state, bool heavyCategoryShot)
 	{
+		if (!heavyCategoryShot) return false;
 		state.collisionCount = (std::min)(9999, state.collisionCount + 1);
+		return true;
 	}
 
 	struct FinisherResult

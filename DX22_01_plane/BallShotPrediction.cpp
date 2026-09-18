@@ -37,12 +37,6 @@ namespace
 			id == "player_trace_driver" || id == "player_pierce_finisher";
 	}
 
-	bool IsBounceCategoryBall(const std::string& id)
-	{
-		return id == "player_bounce" || id == "player_cushion_charge" ||
-			id == "player_ricochet_finisher";
-	}
-
     std::vector<Ball> Capture(Game& game)
     {
         std::vector<Ball> result;
@@ -264,15 +258,16 @@ namespace
                     if (ball.physics.player)
                     {
                         result.shot.Wall();
-						const bool bounceCategory = IsBounceCategoryBall(result.shot.ballId);
 						const bool finisher = result.shot.ballId == "player_ricochet_finisher";
 						const auto cushion = CushionChargeRules::ApplyStackContact(
 							result.cushionCharges,
 							CushionChargeRules::RegionFromContact(wall, contact),
-							result.shotStatus.cushionStackGenerateAmount,
+							result.bounceCategoryShot
+								? result.shotStatus.cushionStackGenerateAmount
+								: 0,
 							result.shotStatus.cushionMaxStack,
 							result.shotStatus.cushionStackConsumeAmount,
-							bounceCategory,
+							result.bounceCategoryShot,
 							finisher,
 							result.shotStatus.cushionChargeSpeedMultiplier,
 							result.shotStatus.cushionNonBounceSpeedMultiplier,
@@ -398,10 +393,13 @@ namespace
                 else
                 {
                 const bool playerEnemy = (a.physics.player && b.physics.enemy) || (b.physics.player && a.physics.enemy);
-                const bool enemyEnemy = a.physics.enemy && b.physics.enemy;
-				if (enemyEnemy)
+				const bool enemyEnemy = a.physics.enemy && b.physics.enemy;
+				if (enemyEnemy && result.heavyCategoryShot)
 				{
 					++result.heavyCollisionCount;
+				}
+				if (enemyEnemy)
+				{
 					Ball* source = nullptr;
 					Ball* target = nullptr;
 					if (a.anchorStacks > 0 && b.anchorStacks == 0) { source = &a; target = &b; }
@@ -586,6 +584,13 @@ Result BallShotPrediction::Predict(Game& game, const PlayerBall& player, const V
 	result.cushionCharges = game.GetCushionCharges();
 	result.pierceTraces = game.GetPierceTraceState();
 	result.heavyCollisionCount = game.GetHeavyCollisionCount();
+	const PlayerBallData* selectedBall = offer != nullptr
+		? offer
+		: game.GetCurrentPlayerBallData();
+	result.heavyCategoryShot = selectedBall != nullptr &&
+		selectedBall->category == BallCategory::Heavy;
+	result.bounceCategoryShot = selectedBall != nullptr &&
+		selectedBall->category == BallCategory::Bounce;
 	result.playerAnchorStacks = game.GetPlayerAnchorStacks();
 	CushionChargeRules::BeginPlayerShot(result.cushionCharges);
     result.shot = game.MakePredictionShotRules(velocity.Length());
@@ -704,6 +709,8 @@ std::uint64_t BallShotPrediction::WorldKey(Game& game)
     const auto shot = game.MakePredictionShotRules(0.0f);
     for (bool owned : shot.relics) add(owned);
     for (unsigned char c : shot.ballId) add(c);
+	if (const PlayerBallData* currentBall = game.GetCurrentPlayerBallData())
+		add(static_cast<std::uint64_t>(currentBall->category));
     scalar(game.GetCurrentPocketFinisherRatio()); add(game.GetPlayerPocketDamageAmount());
 	for (const auto& charge : game.GetCushionCharges())
 	{
