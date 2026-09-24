@@ -93,6 +93,7 @@ private:
 	BattleResult m_LastBattleResult = BattleResult::None;
 
 	// ClearRewardは戦闘内部状態ではないためGame側で保持する。
+	static constexpr int kClearRewardBallOfferSize = 3;
 	bool m_IsClearRewardActive = false;
 
 	// ===== 固定ステップ物理更新 =====
@@ -124,6 +125,7 @@ private:
 	// 報酬種別、対象ボール、レリック候補の選択状態と結果メッセージを保持する。
 	int m_SelectedRewardIndex = 0;
 	int m_SelectedRewardBallIndex = 0;
+	std::vector<int> m_ClearRewardBallOfferCatalogIndices;
 
 	std::string m_RewardMessage;           // 購入結果などの表示
 	bool m_IsClearRewardChosen = false;
@@ -207,6 +209,7 @@ private:
 	// 敗北終了、勝利報酬の開始・更新・描画、ボール選択とプレビューを行う。
 	void ProcessGameOver();
 	void StartClearReward();
+	void RollClearRewardBallOffers();
 	void UpdateClearReward();
 	void DrawClearRewardUI();
 	bool BeginBallSelection();
@@ -365,6 +368,26 @@ public:
 	bool IsClearRewardActive() const
 	{
 		return m_IsClearRewardActive;
+	}
+	int GetClearRewardBallOfferCount() const
+	{
+		return static_cast<int>(m_ClearRewardBallOfferCatalogIndices.size());
+	}
+	int GetClearRewardBallOfferCatalogIndex(int offerIndex) const
+	{
+		return offerIndex >= 0 && offerIndex < GetClearRewardBallOfferCount()
+			? m_ClearRewardBallOfferCatalogIndices[static_cast<std::size_t>(offerIndex)]
+			: -1;
+	}
+	const PlayerBallData* GetClearRewardBallOffer(int offerIndex) const
+	{
+		return m_RunController.Deck().GetCatalogBall(
+			GetClearRewardBallOfferCatalogIndex(offerIndex));
+	}
+	bool AddClearRewardBallOffer(int offerIndex)
+	{
+		return m_RunController.Deck().AddCatalogBall(
+			GetClearRewardBallOfferCatalogIndex(offerIndex));
 	}
 
 	bool AreAllBallsStopped() const

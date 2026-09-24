@@ -8,7 +8,27 @@ def evaluate_boss_choices(store, state):
     result = store.submit_command('evaluate_boss_shots', {})
     if not result.get('ok') or not isinstance(result.get('evaluation'), dict):
         raise GameBridgeError(result.get('message', 'ボス候補の評価に失敗しました。'))
-    return result['evaluation']
+    evaluation = result['evaluation']
+    boss_target_id = state['boss_state'].get('target_id', 'boss')
+
+    def public_choice(choice):
+        if not isinstance(choice, dict):
+            return choice
+        mapped = dict(choice)
+        if mapped.get('target_id') == 'boss':
+            mapped['simulation_target_id'] = 'boss'
+            mapped['target_id'] = boss_target_id
+        elif mapped.get('target_id') == 'position':
+            mapped['simulation_target_id'] = 'position'
+            mapped['target_id'] = None
+        return mapped
+
+    return dict(
+        evaluation,
+        recommended=public_choice(evaluation.get('recommended')),
+        choices=[public_choice(choice) for choice in evaluation.get('choices', [])],
+        offer_choices=[public_choice(choice) for choice in evaluation.get('offer_choices', [])],
+    )
 
 
 def fire_boss_choice(store, state, candidate_id, state_key):

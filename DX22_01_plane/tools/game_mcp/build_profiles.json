@@ -4,6 +4,12 @@
   "profiles": {
     "standard": {
       "label": "標準型",
+      "core_parts": [
+        "player_standard"
+      ],
+      "support_parts": [
+        "player_heavy"
+      ],
       "new_ball_priority": [
         "player_standard",
         "player_heavy",
@@ -81,6 +87,11 @@
     },
     "heavy": {
       "label": "重量衝突型",
+      "core_parts": [
+        "player_heavy",
+        "player_chain_impact"
+      ],
+      "support_parts": [],
       "new_ball_priority": [
         "player_heavy",
 		"player_chain_impact",
@@ -164,6 +175,14 @@
     },
     "pierce": {
       "label": "貫通整列型",
+      "core_parts": [
+        "player_pierce",
+        "player_trace_driver",
+        "player_pierce_finisher"
+      ],
+      "support_parts": [
+        "player_refractive_pierce"
+      ],
       "new_ball_priority": [
         "player_pierce",
 		"player_refractive_pierce",
@@ -253,6 +272,12 @@
     },
     "bounce": {
       "label": "反射型",
+      "core_parts": [
+        "player_bounce",
+        "player_cushion_charge",
+        "player_ricochet_finisher"
+      ],
+      "support_parts": [],
       "new_ball_priority": [
         "player_bounce",
         "player_cushion_charge",
@@ -337,6 +362,12 @@
     },
     "anchor": {
       "label": "防御制御型",
+      "core_parts": [
+        "player_anchor",
+        "player_stop_shield",
+        "player_anchor_finisher"
+      ],
+      "support_parts": [],
       "new_ball_priority": [
         "player_anchor",
 		"player_stop_shield",

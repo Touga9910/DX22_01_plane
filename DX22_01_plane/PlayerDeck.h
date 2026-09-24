@@ -70,6 +70,7 @@ public:
     // -------------------------
     int GetCatalogCount() const;
     const PlayerBallData* GetCatalogBall(int index) const;
+    std::vector<int> RollCatalogOfferIndices(int offerSize = 3);
     bool AddCatalogBall(int index);
     bool RemoveRewardTarget(int index);
 

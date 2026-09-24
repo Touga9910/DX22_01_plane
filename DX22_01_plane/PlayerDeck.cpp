@@ -346,6 +346,27 @@ const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
         : nullptr;
 }
 
+std::vector<int> PlayerDeck::RollCatalogOfferIndices(int offerSize)
+{
+    std::vector<int> result;
+    if (offerSize <= 0 || m_Catalog.empty())
+    {
+        return result;
+    }
+
+    result.reserve(static_cast<std::size_t>(offerSize));
+    std::uniform_int_distribution<int> distribution(
+        0,
+        static_cast<int>(m_Catalog.size()) - 1);
+    for (int index = 0; index < offerSize; ++index)
+    {
+        // Each slot is sampled independently so the same ball may be offered
+        // more than once, matching the intended with-replacement reward draw.
+        result.push_back(distribution(m_RandomEngine));
+    }
+    return result;
+}
+
 bool PlayerDeck::AddCatalogBall(int index)
 {
     const PlayerBallData* catalogBall = GetCatalogBall(index);

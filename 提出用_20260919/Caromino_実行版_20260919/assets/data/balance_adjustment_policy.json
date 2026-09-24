@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "minimum_enemy_confidence": 0.65,
+  "maximum_step_per_iteration": 1,
+  "adjustable_fields": [
+    "maxHp",
+    "attack"
+  ],
+  "limits": {
+    "maxHp": {
+      "min": 1,
+      "max": 100
+    },
+    "attack": {
+      "min": 0,
+      "max": 50
+    }
+  }
+}

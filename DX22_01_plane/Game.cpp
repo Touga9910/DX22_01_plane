@@ -2260,6 +2260,7 @@ void Game::LeaveRestSite()
 void Game::ContinueAfterClearReward()
 {
 	m_IsClearRewardActive = false;
+	m_ClearRewardBallOfferCatalogIndices.clear();
 	EnterNextRouteAfterArea();
 }
 
@@ -2292,6 +2293,7 @@ void Game::CompleteFinalBossRun()
 void Game::ProcessGameOver()
 {
 	m_IsClearRewardActive = false;
+	m_ClearRewardBallOfferCatalogIndices.clear();
 	if (IsDebugMode()) { FinishDebugBattle(false); return; }
 	DiscardCurrentPlayerBall();
 
@@ -2317,6 +2319,14 @@ void Game::ProcessGameOver()
 	GameSaveManager::Remove();
 
 	ChangeScene(SceneType::Result);
+}
+
+// Clear Rewardの新規ボール候補を、重複を許して3枠抽選する。
+void Game::RollClearRewardBallOffers()
+{
+	m_ClearRewardBallOfferCatalogIndices =
+		m_RunController.Deck().RollCatalogOfferIndices(
+			kClearRewardBallOfferSize);
 }
 
 // Clear Rewardを開始する。
@@ -2400,15 +2410,22 @@ void Game::StartClearReward()
 		ChangeScene(SceneType::Result);
 		return;
 	}
+	RollClearRewardBallOffers();
 	nlohmann::json newBallCandidates = nlohmann::json::array();
-	for (int index = 0; index < m_RunController.Deck().GetCatalogCount(); index++)
+	for (int offerIndex = 0;
+		offerIndex < GetClearRewardBallOfferCount();
+		offerIndex++)
 	{
-		const PlayerBallData* ball = m_RunController.Deck().GetCatalogBall(index);
+		const int catalogIndex =
+			GetClearRewardBallOfferCatalogIndex(offerIndex);
+		const PlayerBallData* ball =
+			GetClearRewardBallOffer(offerIndex);
 		if (ball != nullptr)
 		{
 			newBallCandidates.push_back(
 				{
-					{ "catalog_index", index },
+					{ "offer_index", offerIndex },
+					{ "catalog_index", catalogIndex },
 					{ "ball_id", ball->definitionId },
 				});
 		}
@@ -2597,7 +2614,7 @@ void Game::UpdateClearReward()
 	int targetCount = 0;
 	if (m_SelectedRewardIndex == 0)
 	{
-		targetCount = m_RunController.Deck().GetCatalogCount();
+		targetCount = GetClearRewardBallOfferCount();
 	}
 	else if (m_SelectedRewardIndex == 1)
 	{
@@ -2632,14 +2649,18 @@ void Game::UpdateClearReward()
 	case 0:
 	{
 		std::string acquiredBallId;
+		const int catalogIndex =
+			GetClearRewardBallOfferCatalogIndex(m_SelectedRewardBallIndex);
 		if (const PlayerBallData* selected =
-			m_RunController.Deck().GetCatalogBall(m_SelectedRewardBallIndex))
+			GetClearRewardBallOffer(m_SelectedRewardBallIndex))
 		{
 			acquiredBallId = selected->definitionId;
 			rewardDetails["reward"] = "new_ball";
 			rewardDetails["ball_id"] = selected->definitionId;
+			rewardDetails["offer_index"] = m_SelectedRewardBallIndex;
+			rewardDetails["catalog_index"] = catalogIndex;
 		}
-		rewardApplied = m_RunController.Deck().AddCatalogBall(m_SelectedRewardBallIndex);
+		rewardApplied = AddClearRewardBallOffer(m_SelectedRewardBallIndex);
 		if (rewardApplied)
 		{
 			PublishGameEvent(BallAcquiredEvent{ acquiredBallId });
@@ -3019,11 +3040,11 @@ void GamePresentation::DrawClearReward(Game& game)
 		}
 		ImGui::BeginChild("reward_targets", ImVec2(0, -96), ImGuiChildFlags_Borders);
 		const bool upgrading = game.m_SelectedRewardIndex == 1;
-		const int count = game.m_SelectedRewardIndex == 0 ? game.m_RunController.Deck().GetCatalogCount() :
+		const int count = game.m_SelectedRewardIndex == 0 ? game.GetClearRewardBallOfferCount() :
 			(upgrading ? game.m_RunController.Deck().GetRewardTargetCount() : 0);
 		for (int index = 0; index < count; ++index)
 		{
-			const auto* ball = upgrading ? game.m_RunController.Deck().GetRewardTarget(index) : game.m_RunController.Deck().GetCatalogBall(index);
+			const auto* ball = upgrading ? game.m_RunController.Deck().GetRewardTarget(index) : game.GetClearRewardBallOffer(index);
 			if (ball == nullptr) continue;
 			ImGui::PushID(index);
 			if (PlayerBallUI::Select(*ball, index == game.m_SelectedRewardBallIndex)) game.m_SelectedRewardBallIndex = index;

@@ -18,6 +18,10 @@ VALID_SHOT_GOALS = ("auto", "damage", "pocket")
 _HUMAN_ERROR_RANDOM = random.SystemRandom()
 
 
+class UnreachableShotError(GameBridgeError):
+    """盤面上の候補不成立。状態を再取得して別候補を試せる。"""
+
+
 def load_player_profiles(path: Path) -> dict[str, dict[str, Any]]:
     try:
         with path.open("r", encoding="utf-8") as file:
@@ -114,9 +118,11 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "空間上の任意方向を指定したり、敵がいない方向へ撃ってはいけません。"
         "戦闘中はtable.pockets、pocket_rules、"
         "enemies[].pocket_finisher_eligibleを比較してください。"
-        "get_game_stateのbuild_shot_choices.recommendedでボール・標的・接触点を一緒に比較してください。"
-        "推奨ボールをselect_ballで選んだ後は状態を再取得してください。"
-        "shot_tacticsは現在選択中のボールに対する推定です。"
+        "get_game_stateのrecommended_actionを優先してください。"
+        "選択中の球に到達可能ショットがあれば再選択せずに撃ち、"
+        "なければbuild_shot_choicesから別球を選択してください。"
+        "select_ball後は必ず状態を再取得してください。"
+        "shot_tacticsは現在選択中のボールで到達可能な候補だけを推奨します。"
         "shot_type=autoとpower_mode=autoで実行時に再評価してください。"
         "推定命中数や停止位置は概算なので、実測ログと比較してください。"
         "get_game_stateのshot_tacticsで敵ごとの通常攻撃と"
@@ -130,6 +136,8 @@ def build_server_instructions(profile: dict[str, Any]) -> str:
         "最大HPの4%ダメージを受けるため、残HPと利得を比較してください。"
         "ショット後はボールが停止してfire_shotが再び利用可能になるまで"
         "状態を確認してください。"
+        "fire_shotがretryable=trueを返したら最新状態を取得して別候補を選び、"
+        "物理シミュレーション中は操作を待ってください。"
         "run_mapがある場合はnodesのnext_node_idsで先の休憩所・ショップ・中ボスへの"
         "到達経路を比較し、選ぶノードに対応するroute_optionsのroute_indexを明示してください。"
         "明示したマップ経路はサーバーが変更しません。route_indexを省略した場合は"
@@ -453,6 +461,49 @@ def build_tactical_shot_context(
     state: dict[str, Any],
     profile: dict[str, Any],
 ) -> dict[str, Any]:
+    current_ball = selected_ball(state)
+    if current_ball and current_ball.get("status"):
+        # The tactical pocket score alone does not prove that the selected
+        # ball can reach the target. Use the same geometry as fire_shot.
+        ensure_enemy_target_ids(state)
+        candidates = evaluate_build_shots(state, profile)
+        best_by_target: dict[str, dict[str, Any]] = {}
+        for candidate in candidates:
+            best_by_target.setdefault(candidate["target_id"], candidate)
+        recommendations = []
+        for enemy in state.get("enemies", []):
+            if not isinstance(enemy, dict) or enemy.get("defeated") or enemy.get("pocketed"):
+                continue
+            target_id = str(enemy.get("target_id", ""))
+            candidate = best_by_target.get(target_id)
+            recommendations.append({
+                "target_id": target_id,
+                "enemy_id": enemy.get("enemy_id"),
+                "reachable": candidate is not None,
+                "recommended_goal": candidate["shot_goal"] if candidate else None,
+                "recommended_pocket_index": candidate["pocket_index"] if candidate else -1,
+                "recommended_shot_type": candidate["shot_type"] if candidate else None,
+                "recommended_wall_index": candidate["wall_index"] if candidate else -1,
+                "score": candidate["score"] if candidate else None,
+                "reason": candidate["reason"] if candidate else "no_valid_contact_path_or_insufficient_range",
+            })
+        recommendations.sort(key=lambda item: (
+            not item["reachable"], -(item["score"] or 0), item["target_id"],
+        ))
+        best = candidates[0] if candidates else None
+        return {
+            "model": "build_geometry_v1",
+            "state_sequence": state.get("sequence"),
+            "selected_ball_index": current_ball.get("index"),
+            "selected_ball_instance_id": current_ball.get("instance_id"),
+            "recommended_target_id": best["target_id"] if best else None,
+            "recommended_goal": best["shot_goal"] if best else None,
+            "recommended_pocket_index": best["pocket_index"] if best else -1,
+            "recommended_shot_type": best["shot_type"] if best else None,
+            "recommended_wall_index": best["wall_index"] if best else -1,
+            "recommendations": recommendations,
+            "usage": "現在選択中の球の到達可能候補だけを推奨します。select_ball後はget_game_stateで再計算してください。",
+        }
     recommended_power = profile.get("recommended_power", {})
     if not isinstance(recommended_power, dict):
         recommended_power = {}
@@ -895,7 +946,7 @@ def plan_build_shot(
         shot_goal=shot_goal, pocket_index=pocket_index,
     )
     if not candidates:
-        raise GameBridgeError("No reachable shot for this ball and target. Refresh shot_tactics or select another offered ball.")
+        raise UnreachableShotError("No reachable shot for this ball and target. Refresh shot_tactics or select another offered ball.")
     choice = candidates[0]
     player_position = _xz_position(state["player"]["position"], "player.position")
     ideal_aim = _xz_position(choice["aim_point"], "aim_point")
@@ -911,7 +962,7 @@ def plan_build_shot(
         bank = _plan_bank_shot(player_position, actual_aim,
                               state["table"]["walls"][choice["wall_index"]], choice["wall_index"])
         if bank is None:
-            raise GameBridgeError("Aim error invalidated the bank path; refresh the recommendation.")
+            raise UnreachableShotError("Aim error invalidated the bank path; refresh the recommendation.")
         direction_target = bank["contact_point"]
     direction = _normalized_direction(player_position, direction_target)
     return {

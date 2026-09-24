@@ -70,6 +70,7 @@ private:
     int FindRelicToBuy(const Game& game) const;
     int FindWeakestBall(const Game& game) const;
     int FindMissingCatalogBall(const Game& game) const;
+    int FindMissingClearRewardBallOffer(const Game& game) const;
     int FindUpgradeTarget(const Game& game) const;
     bool HasShopAction(const Game& game) const;
     int FindPendingUpgradeableBall(const Game& game) const;

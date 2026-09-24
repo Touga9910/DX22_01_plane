@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import random
@@ -12,7 +13,9 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from bridge_store import GameBridgeError, GameBridgeStore
-from build_shot_evaluator import build_joint_shot_context
+from ball_aim_guidance import attach_ball_aim_guidance
+from build_comparison_jobs import BuildComparisonJobManager
+from build_shot_evaluator import build_joint_shot_context, selected_ball
 from boss_shot_policy import evaluate_boss_choices, fire_boss_choice
 from build_decision import (
     build_decision_snapshot,
@@ -29,11 +32,11 @@ from shot_planner import (
     build_server_instructions,
     ensure_enemy_target_ids,
     load_player_profiles,
-    plan_targeted_shot,
     plan_build_shot,
-    recommend_shot_power,
     resolve_target_id_argument,
+    UnreachableShotError,
 )
+from shot_recovery import fallback_shot_candidates, recommended_action
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +70,12 @@ NEED_SIGNAL_PRIORITY = (
     "new_ball",
     "money",
 )
+
+
+def shot_debug(event: str, **details: Any) -> None:
+    if os.environ.get("GAME_MCP_SHOT_DEBUG", "").lower() not in ("1", "true", "yes"):
+        return
+    print("[MCP Shot] " + json.dumps({"event": event, **details}, ensure_ascii=False), flush=True)
 
 
 def _rest_heal_available(state: dict[str, Any]) -> bool:
@@ -899,6 +908,75 @@ def create_server(
         destructiveHint=True,
         openWorldHint=False,
     )
+    comparison_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    comparison_jobs = BuildComparisonJobManager(
+        PROJECT_ROOT,
+        f"http://{comparison_host}:{port}/mcp",
+    )
+
+    @mcp.tool(
+        title="ビルド比較収集を開始",
+        description=(
+            "collect_fixed_balance_runs.pyの既存自動プレイを別プロセスで開始し、"
+            "同一seedのビルド比較ログを収集します。要求は待機せず直ちに返ります。"
+            "resume_output_directory指定時は条件一致を検証して不足分から再開します。"
+            "進捗はget_build_comparison_statusで確認してください。"
+        ),
+        annotations=destructive_write,
+        structured_output=True,
+    )
+    def run_build_comparison(
+        seeds: list[int],
+        build_profiles: list[
+            Literal["standard", "heavy", "pierce", "bounce", "anchor"]
+        ],
+        player_level: Literal["beginner", "intermediate", "advanced"],
+        validation_variant: str,
+        valid_runs_per_build: int,
+        dynamic_balance: bool,
+        resume_output_directory: str | None = None,
+    ) -> GameToolResult:
+        try:
+            result = comparison_jobs.start(
+                seeds,
+                list(build_profiles),
+                player_level,
+                validation_variant,
+                valid_runs_per_build,
+                dynamic_balance,
+                resume_output_directory,
+            )
+        except (OSError, ValueError) as error:
+            result = {
+                "ok": False,
+                "message": str(error),
+                "error": str(error),
+            }
+        return GameToolResult(result=result)
+
+    @mcp.tool(
+        title="ビルド比較収集の状態を取得",
+        description=(
+            "バックグラウンド収集のrunning/completed/failed、現在のbuild/seed、"
+            "正常終了数、除外数、再接続回数、最後のエラー、停止位置、出力先を返します。"
+        ),
+        annotations=read_only,
+        structured_output=True,
+    )
+    def get_build_comparison_status() -> GameToolResult:
+        return GameToolResult(result=comparison_jobs.status())
+
+    @mcp.tool(
+        title="完了したビルド比較結果を取得",
+        description=(
+            "収集完了後、build別集計、seed別横比較、エラー・除外ラン、"
+            "保存パスと主要指標を返します。"
+        ),
+        annotations=read_only,
+        structured_output=True,
+    )
+    def get_build_comparison_result() -> GameToolResult:
+        return GameToolResult(result=comparison_jobs.result())
 
     @mcp.tool(
         title="ゲーム状態を取得",
@@ -907,6 +985,10 @@ def create_server(
             "現在実行可能な操作を取得します。mcp_controlには現在の"
             "プレイヤーレベルと行動方針が含まれます。build_decisionには"
             "複数ビルドの完成度・確信度と、候補別スコア内訳が含まれます。"
+            "offered_balls、deck_balls、catalog_ballsのaim_guidanceには"
+            "球種ごとの狙う配置・軌道・連鎖先と現在の連鎖資源が含まれます。"
+            "shot_tacticsは選択中の球で到達できる敵だけを推奨し、"
+            "recommended_actionは撃つか別球を選ぶ次の操作を示します。"
             "操作の前に必ず使用します。"
         ),
         annotations=read_only,
@@ -914,6 +996,7 @@ def create_server(
     )
     def get_game_state() -> GameToolResult:
         state = read_control_state()
+        attach_ball_aim_guidance(state)
         profile = control_profile()
         state["mcp_control"] = profile
         state["build_decision"] = build_decision_snapshot(
@@ -922,10 +1005,14 @@ def create_server(
             build_profile_controller.profile_id,
         )
         if state.get("boss_state"):
+            boss_actions = set(state.get("available_actions", []))
             evaluation = (evaluate_boss_choices(store, state)
-                          if "evaluate_boss_shots" in state.get("available_actions", []) else None)
+                          if "evaluate_boss_shots" in boss_actions else None)
             state["boss_shot_choices"] = evaluation
-            state["shot_tactics"] = {"model": "boss_shared_ccd_v1", "use_tool": "fire_boss_shot"}
+            state["shot_tactics"] = {
+                "model": "boss_shared_ccd_v1",
+                "use_tool": "fire_boss_shot" if "fire_boss_shot" in boss_actions else None,
+            }
             state["build_shot_choices"] = dict(evaluation, choices=evaluation["offer_choices"]) if evaluation else {
                 "model": "boss_shared_ccd_v1", "recommended": None, "choices": []}
         else:
@@ -940,6 +1027,26 @@ def create_server(
                 "recommended": dict(geometric["recommended"], index=geometric["recommended"]["offer_index"]),
                 "choices": [dict(c, index=c["offer_index"]) for c in geometric["choices"]],
             }
+        if state.get("boss_state"):
+            boss_plan = geometric.get("recommended")
+            state["recommended_action"] = (
+                {"action": "fire_boss_shot", "candidate_id": boss_plan["candidate_id"],
+                 "state_key": geometric["state_key"]}
+                if boss_plan and state["shot_tactics"]["use_tool"] else None
+            )
+        else:
+            state["recommended_action"] = recommended_action(
+                state, state["shot_tactics"], geometric,
+            )
+        current_ball = selected_ball(state)
+        shot_debug(
+            "state_recomputed", sequence=state.get("sequence"),
+            selected_ball=current_ball.get("definition_id") if current_ball else None,
+            selected_instance_id=current_ball.get("instance_id") if current_ball else None,
+            reachable_targets=[c["target_id"] for c in state["shot_tactics"].get("recommendations", [])
+                               if c.get("reachable")],
+            recommended_action=state["recommended_action"],
+        )
         state["stage_choice"] = build_stage_choice_context(
             state,
             profile,
@@ -1318,8 +1425,20 @@ def create_server(
             raise GameBridgeError(
                 "offer_indexは0以上で指定してください。"
             )
-        return GameToolResult(
-            result=store.submit_command(
+        state = read_control_state()
+        current = next((ball for ball in state.get("offered_balls", [])
+                        if ball.get("selected")), None)
+        if current and current.get("index") == offer_index:
+            shot_debug("selection_unchanged", ball=current.get("definition_id"),
+                       instance_id=current.get("instance_id"), offer_index=offer_index)
+            return GameToolResult(result={
+                "ok": True, "action": "select_ball", "status": "already_selected",
+                "offer_index": offer_index, "shot_tactics_refresh_required": False,
+            })
+        shot_debug("select_ball", previous_ball=current.get("definition_id") if current else None,
+                   previous_instance_id=current.get("instance_id") if current else None,
+                   offer_index=offer_index, shot_tactics_refresh_required=True)
+        result = store.submit_command(
                 "select_ball",
                 {
                     "offer_index": offer_index,
@@ -1332,24 +1451,30 @@ def create_server(
                     },
                 },
             )
-        )
+        result["shot_tactics_refresh_required"] = bool(result.get("ok", False))
+        return GameToolResult(result=result)
 
     @mcp.tool(
         title="ショットを実行",
         description=(
             "Armorボス戦では専用のevaluate_boss_shots/fire_boss_shotを推奨します。"
             "この旧ツールでもボスまたは中立球のtarget_idから共通物理予測の候補を選び、"
-            "選択中の球で誤差なしに実行します。ボス指定では中立球や位置取りも選びます。"
+            "推奨候補の球を選択して誤差なしに実行します。ボス指定では中立球や位置取りも選びます。"
+            "ボス戦のautoは推奨候補の直射・反射を使い、明示条件に候補がなければ"
+            "requested_boss_plan_unavailableとrecommended_planを返します。"
             "以下は通常戦・中ボス戦の規則です。照準待ち中にenemies[].target_idを指定して撃ちます。"
             "先にget_game_stateのbuild_shot_choicesでボールと標的を比較し、"
             "select_ball後は状態を再取得してください。"
+            "指定した敵や経路が到達不能なら選択中の球で別候補を探し、"
+            "全滅ならretryableとnext_actionを返します。"
             "shot_type=autoは直射と1回反射を比較し、direct/bankは経路を固定します。"
             "power_mode=autoでは、現在のボールの摩擦・質量・貫通回数・減速、"
             "敵配置とHP、レリックから接触点とパワーを再評価します。"
             "貫通の後続命中、敵同士の衝突、反射の増加ダメージ、アンカーの"
             "接触時停止と被害軽減をビルド別の評価軸で採点します。"
             "shot_goal=autoは通常攻撃・連鎖接触・ポケット制御を比較します。"
-            "damage/pocketやmanualのpower指定は検証用の制約です。"
+            "damage/pocketやdirect/bankは優先条件で、到達不能なら別候補へ切り替えます。"
+            "manualのpower値は切り替え後も維持します。"
             "推定値はshot_plan.build_evaluationに記録され、実行には"
             "プレイヤーレベル別の照準・パワー誤差が加わります。"
             "任意の空間座標は指定できず、生存中の敵に接触する経路が必要です。"
@@ -1394,62 +1519,137 @@ def create_server(
                 if power is None or not math.isfinite(power):
                     raise GameBridgeError("manualでは有限のpowerを指定してください。")
                 choices = [c for c in choices if abs(c["power"] - power) < 0.001]
+            if shot_type == "auto" and power_mode == "auto" and requested == state["boss_state"]["target_id"]:
+                recommended = evaluation.get("recommended")
+                if recommended:
+                    choices = [recommended]
             if not choices:
-                raise GameBridgeError("指定条件に合うボス候補がありません。evaluate_boss_shotsで比較してください。")
+                recommended = evaluation.get("recommended")
+                recommended_plan = None if recommended is None else {
+                    "candidate_id": recommended["candidate_id"],
+                    "state_key": evaluation["state_key"],
+                    "offer_index": recommended["offer_index"],
+                    "target_id": recommended["target_id"],
+                    "contact_kind": recommended["contact_kind"],
+                    "shot_type": "bank" if recommended["contact_kind"] == "bank" else "direct",
+                }
+                return GameToolResult(result={
+                    "ok": False, "reason": "requested_boss_plan_unavailable",
+                    "retryable": recommended_plan is not None,
+                    "recommended_plan": recommended_plan,
+                    "message": "指定条件の候補はありません。recommended_planかfire_boss_shotを使用してください。",
+                })
             choice = choices[0]
             result = fire_boss_choice(store, state, choice["candidate_id"], evaluation["state_key"])
             result["shot_plan"] = {"model": evaluation["model"], "boss_evaluation": choice,
-                                   "deterministic": True, "legacy_tool_compatibility": True}
+                                   "deterministic": True, "legacy_tool_compatibility": True,
+                                   "shot_type": "bank" if choice["contact_kind"] == "bank" else "direct"}
             return GameToolResult(result=result)
         resolved_target_id = resolve_target_id_argument(
             target_id,
             target_enemy_id,
         )
         profile = control_profile()
-        shot_plan = plan_build_shot(
-            state, resolved_target_id, profile,
-            power_mode=power_mode, power=power, shot_type=shot_type,
-            wall_index=wall_index, shot_goal=shot_goal,
-            pocket_index=pocket_index, random_source=deterministic_shot_random,
-        )
-        if shot_plan is None:
-            legacy_shot_type = "direct" if shot_type == "auto" else shot_type
-            power_policy = recommend_shot_power(
-                state,
-                resolved_target_id,
-                legacy_shot_type,
-                profile,
+        if state.get("game_state") not in (None, "aiming_direction"):
+            return GameToolResult(result={
+                "ok": False, "reason": "state_not_ready", "retryable": True,
+                "game_state": state.get("game_state"),
+                "message": "物理シミュレーション中です。get_game_stateで照準待ちを確認してください。",
+            })
+        current_ball = selected_ball(state)
+        requested = {
+            "target_id": resolved_target_id, "shot_goal": shot_goal,
+            "shot_type": shot_type, "wall_index": wall_index,
+            "pocket_index": pocket_index, "power_mode": power_mode,
+        }
+        if current_ball and current_ball.get("status"):
+            if power_mode == "manual" and (
+                power is None or not math.isfinite(power) or not 1 <= power <= 8
+            ):
+                raise GameBridgeError("manual power must be between 1 and 8.")
+            candidates = fallback_shot_candidates(
+                state, profile, resolved_target_id, shot_goal, shot_type,
+                wall_index, pocket_index,
+                power if power_mode == "manual" else None,
             )
-            power_policy["power_mode"] = power_mode
-            power_policy["requested_power"] = power
-            if power_mode == "manual":
-                if power is None:
-                    raise GameBridgeError(
-                        "power_mode=manualではpowerを指定してください。"
+            shot_debug(
+                "candidate_search", selected_ball=current_ball.get("definition_id"),
+                selected_instance_id=current_ball.get("instance_id"),
+                requested=requested, reachable_count=len(candidates),
+                before_candidates=[{
+                    "target_id": c["target_id"], "shot_goal": c["shot_goal"],
+                    "shot_type": c["shot_type"], "score": c["score"],
+                } for c in candidates[:5]],
+            )
+            shot_plan = None
+            used = None
+            for choice in candidates:
+                try:
+                    shot_plan = plan_build_shot(
+                        state, choice["target_id"], profile,
+                        power_mode=power_mode, power=power,
+                        shot_type=choice["shot_type"],
+                        wall_index=choice["wall_index"],
+                        shot_goal=choice["shot_goal"],
+                        pocket_index=choice["pocket_index"],
+                        random_source=deterministic_shot_random,
                     )
-                effective_power = power
-                power_policy["reason"] = "manual_power"
-            else:
-                effective_power = float(
-                    power_policy["recommended_power"]
+                except UnreachableShotError as error:
+                    shot_debug("candidate_invalidated", target_id=choice["target_id"],
+                               shot_goal=choice["shot_goal"], shot_type=choice["shot_type"],
+                               reason=str(error))
+                    continue
+                used = choice
+                break
+            if shot_plan is None or used is None:
+                joint = build_joint_shot_context(state, profile)
+                next_action = recommended_action(
+                    state, {"recommended_target_id": None}, joint,
                 )
-                if power is not None:
-                    power_policy["reason"] = (
-                        "distance_adaptive_power_requested_value_ignored"
-                    )
-            power_policy["effective_power"] = effective_power
-            shot_plan = plan_targeted_shot(
-                state,
-                resolved_target_id,
-                effective_power,
-                legacy_shot_type,
-                wall_index,
-                profile,
-                deterministic_shot_random,
-                shot_goal=shot_goal,
-                pocket_index=pocket_index,
+                can_retry = bool(next_action and next_action["action"] == "select_ball")
+                reason = "unreachable_shot" if can_retry else "no_reachable_shot"
+                shot_debug("no_reachable_shot", selected_ball=current_ball.get("definition_id"),
+                           selected_instance_id=current_ball.get("instance_id"),
+                           requested=requested, next_action=next_action)
+                return GameToolResult(result={
+                    "ok": False, "reason": reason, "retryable": can_retry,
+                    "selected_ball": current_ball.get("definition_id"),
+                    "selected_instance_id": current_ball.get("instance_id"),
+                    "requested": requested, "next_action": next_action,
+                })
+            shot_plan["shot_plan"]["requested_shot_goal"] = shot_goal
+            shot_plan["shot_plan"]["requested_shot_type"] = shot_type
+            shot_plan["shot_plan"]["fallback"] = {
+                "requested": requested,
+                "used": {key: used[key] for key in (
+                    "target_id", "shot_goal", "shot_type", "wall_index", "pocket_index",
+                )},
+                "changed": (
+                    used["target_id"] != resolved_target_id
+                    or (shot_goal != "auto" and used["shot_goal"] != shot_goal)
+                    or (shot_type != "auto" and used["shot_type"] != shot_type)
+                    or (wall_index >= 0 and used["wall_index"] != wall_index)
+                    or (pocket_index >= 0 and used["pocket_index"] != pocket_index)
+                ),
+            }
+            shot_debug("candidate_selected", selected_ball=current_ball.get("definition_id"),
+                       selected_instance_id=current_ball.get("instance_id"),
+                       requested=requested, used=shot_plan["shot_plan"]["fallback"]["used"],
+                       reachable=True)
+        else:
+            # Without selected-ball mechanics the server cannot prove a
+            # contact path. Do not synthesize a direction to fire.
+            joint = build_joint_shot_context(state, profile)
+            next_action = recommended_action(
+                state, {"recommended_target_id": None}, joint,
             )
-            shot_plan["shot_plan"]["power_policy"] = power_policy
+            shot_debug("ball_mechanics_unavailable", requested=requested,
+                       next_action=next_action)
+            return GameToolResult(result={
+                "ok": False, "reason": "ball_selection_required",
+                "retryable": bool(next_action and next_action["action"] == "select_ball"),
+                "requested": requested, "next_action": next_action,
+            })
         build_profile = build_profile_controller.snapshot()
         shot_plan["arguments"]["telemetry"] = {
             "controller_profile": profile_controller.level,
@@ -1463,6 +1663,12 @@ def create_server(
             shot_plan["arguments"],
         )
         result["shot_plan"] = shot_plan["shot_plan"]
+        if not result.get("ok", False):
+            result["retryable"] = True
+            result["reason"] = result.get("reason", "game_rejected_shot")
+            shot_debug("shot_rejected", requested=requested,
+                       used=shot_plan["shot_plan"].get("fallback", {}).get("used"),
+                       game_result=result)
         return GameToolResult(result=result)
 
     @mcp.tool(
@@ -1652,7 +1858,10 @@ def create_server(
         description=(
             "クリア報酬画面で新規ボール、既存ボール強化、"
             "追加Moneyのいずれかを選択します。新規ボールには"
-            "catalog_index、強化にはinstance_idが必要です。"
+            "clear_reward_ball_offersにあるoffer_index、強化には"
+            "instance_idが必要です。新規ボールはランダムな3候補から選び、"
+            "同じボールが複数候補に含まれる場合があります。"
+            "catalog_indexは旧クライアント互換用で、現在の候補にある場合だけ有効です。"
             "強化ではdeck_ballsのcan_upgradeがtrueかつ"
             "clear_reward_upgrade_affordableがtrueのボールを指定します。"
             "0から+1は15 Money、+1から+2は30 Moneyを消費します。"
@@ -1666,24 +1875,28 @@ def create_server(
             "upgrade_ball",
             "extra_money",
         ],
+        offer_index: int = -1,
         catalog_index: int = -1,
         instance_id: int = 0,
         decision_reason: str = "",
+        decision_details: dict[str, Any] | None = None,
     ) -> GameToolResult:
+        decision_context = {
+            "action": "choose_reward",
+            "reason": decision_reason,
+            "build_profile": build_profile_controller.profile_id,
+        }
+        if decision_details:
+            decision_context["details"] = decision_details
         return GameToolResult(
             result=store.submit_command(
                 "choose_reward",
                 {
                     "reward": reward,
+                    "offer_index": offer_index,
                     "catalog_index": catalog_index,
                     "instance_id": instance_id,
-                    "decision_context": {
-                        "action": "choose_reward",
-                        "reason": decision_reason,
-                        "build_profile": (
-                            build_profile_controller.profile_id
-                        ),
-                    },
+                    "decision_context": decision_context,
                 },
             )
         )

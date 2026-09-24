@@ -928,6 +928,24 @@ nlohmann::json GameMcpBridge::BuildState(
 				BallDataToJson(*ball, index));
 		}
 	}
+	state["clear_reward_ball_offers"] = nlohmann::json::array();
+	for (int offerIndex = 0;
+		offerIndex < game.GetClearRewardBallOfferCount();
+		offerIndex++)
+	{
+		const int catalogIndex =
+			game.GetClearRewardBallOfferCatalogIndex(offerIndex);
+		const PlayerBallData* ball =
+			game.GetClearRewardBallOffer(offerIndex);
+		if (ball == nullptr)
+		{
+			continue;
+		}
+		nlohmann::json offer = BallDataToJson(*ball, offerIndex);
+		offer["offer_index"] = offerIndex;
+		offer["catalog_index"] = catalogIndex;
+		state["clear_reward_ball_offers"].push_back(std::move(offer));
+	}
 
 	const int deckBallCount =
 		game.m_RunController.Deck().GetRewardTargetCount();
@@ -1190,6 +1208,9 @@ nlohmann::json GameMcpBridge::BuildState(
 	if (game.IsClearRewardActive())
 	{
 		state["clear_reward_rule"] = {
+			{ "new_ball_offer_count", Game::kClearRewardBallOfferSize },
+			{ "new_ball_duplicates_allowed", true },
+			{ "new_ball_selection_source", "clear_reward_ball_offers" },
 			{ "upgrade_requires_money", true },
 			{ "upgrade_cost_by_current_level", {
 				{ "0", 15 },
@@ -1977,14 +1998,48 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			arguments.value("reward", std::string());
 		bool applied = false;
 		int chargedUpgradeCost = 0;
+		int selectedOfferIndex = -1;
+		int selectedCatalogIndex = -1;
+		std::string selectedBallId;
 		if (reward == "new_ball")
 		{
-			const int catalogIndex =
-				arguments.value("catalog_index", -1);
-			applied =
-				game.m_RunController.Deck().AddCatalogBall(catalogIndex);
+			selectedOfferIndex = arguments.value("offer_index", -1);
+			if (selectedOfferIndex < 0)
+			{
+				// Backward compatibility: a catalog index is accepted only when
+				// that definition is one of the three currently offered slots.
+				const int requestedCatalogIndex =
+					arguments.value("catalog_index", -1);
+				for (int offerIndex = 0;
+					offerIndex < game.GetClearRewardBallOfferCount();
+					offerIndex++)
+				{
+					if (game.GetClearRewardBallOfferCatalogIndex(offerIndex) ==
+						requestedCatalogIndex)
+					{
+						selectedOfferIndex = offerIndex;
+						break;
+					}
+				}
+			}
+			selectedCatalogIndex =
+				game.GetClearRewardBallOfferCatalogIndex(selectedOfferIndex);
+			const PlayerBallData* selectedBall =
+				game.GetClearRewardBallOffer(selectedOfferIndex);
+			if (selectedBall == nullptr)
+			{
+				return CommandResult(
+					false,
+					"offer_index must identify a current clear_reward_ball_offers entry.");
+			}
+			selectedBallId = selectedBall->definitionId;
+			applied = game.AddClearRewardBallOffer(selectedOfferIndex);
 			game.m_SelectedRewardIndex = 0;
-			game.m_SelectedRewardBallIndex = catalogIndex;
+			game.m_SelectedRewardBallIndex = selectedOfferIndex;
+			if (applied)
+			{
+				game.PublishGameEvent(BallAcquiredEvent{ selectedBallId });
+			}
 		}
 		else if (reward == "upgrade_ball")
 		{
@@ -2047,6 +2102,12 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		if (reward == "upgrade_ball")
 		{
 			rewardDetails["upgrade_cost"] = chargedUpgradeCost;
+		}
+		else if (reward == "new_ball")
+		{
+			rewardDetails["offer_index"] = selectedOfferIndex;
+			rewardDetails["catalog_index"] = selectedCatalogIndex;
+			rewardDetails["ball_id"] = selectedBallId;
 		}
 		game.RecordBalanceEvent(
 			"clear_reward_choice",

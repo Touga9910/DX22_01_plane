@@ -787,28 +787,35 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 		return;
 	}
 
-	const int missingCatalogIndex = FindMissingCatalogBall(game);
-	if (missingCatalogIndex >= 0 &&
-		game.m_RunController.Deck().AddCatalogBall(missingCatalogIndex))
+	const int missingOfferIndex = FindMissingClearRewardBallOffer(game);
+	if (missingOfferIndex >= 0)
 	{
-		const PlayerBallData* catalogBall =
-			game.m_RunController.Deck().GetCatalogBall(missingCatalogIndex);
-		game.MarkBalanceAutoRewardChosen(
-			0,
-			missingCatalogIndex,
-			"Auto Play: added a missing ball type.");
-		game.RecordBalanceEvent(
-			"clear_reward_choice",
-			{
-				{ "controller", "autoplay" },
-				{ "reward", "new_ball" },
-				{ "reason", "fill_missing_ball_type" },
-				{ "catalog_index", missingCatalogIndex },
-				{ "ball_id", catalogBall != nullptr
-					? catalogBall->definitionId
-					: std::string() },
-			});
-		return;
+		const int catalogIndex =
+			game.GetClearRewardBallOfferCatalogIndex(missingOfferIndex);
+		const PlayerBallData* offeredBall =
+			game.GetClearRewardBallOffer(missingOfferIndex);
+		const std::string definitionId = offeredBall != nullptr
+			? offeredBall->definitionId
+			: std::string();
+		if (game.AddClearRewardBallOffer(missingOfferIndex))
+		{
+			game.PublishGameEvent(BallAcquiredEvent{ definitionId });
+			game.MarkBalanceAutoRewardChosen(
+				0,
+				missingOfferIndex,
+				"Auto Play: added an offered missing ball type.");
+			game.RecordBalanceEvent(
+				"clear_reward_choice",
+				{
+					{ "controller", "autoplay" },
+					{ "reward", "new_ball" },
+					{ "reason", "fill_missing_ball_type" },
+					{ "offer_index", missingOfferIndex },
+					{ "catalog_index", catalogIndex },
+					{ "ball_id", definitionId },
+				});
+			return;
+		}
 	}
 
 	const int upgradeTarget = FindUpgradeTarget(game);
@@ -1049,6 +1056,65 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 				catalogBall->definitionId == definitionId)
 			{
 				return catalogIndex;
+			}
+		}
+	}
+
+	return -1;
+}
+
+// Balance Auto Clear Reward内の未所持ボール提示を検索する。
+int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
+{
+	if (game.m_RunController.Deck().GetRewardTargetCount() >=
+		kAutoMaximumDeckSize)
+	{
+		return -1;
+	}
+
+	const std::array<const char*, 10> priority =
+	{
+		"player_bounce",
+		"player_cushion_charge",
+		"player_ricochet_finisher",
+		"player_anchor",
+		"player_anchor_finisher",
+		"player_pierce",
+		"player_trace_driver",
+		"player_pierce_finisher",
+		"player_heavy",
+		"player_standard",
+	};
+	for (const char* definitionId : priority)
+	{
+		bool alreadyOwned = false;
+		for (int index = 0;
+			index < game.m_RunController.Deck().GetRewardTargetCount();
+			index++)
+		{
+			const PlayerBallData* ball =
+				game.m_RunController.Deck().GetRewardTarget(index);
+			if (ball != nullptr && ball->definitionId == definitionId)
+			{
+				alreadyOwned = true;
+				break;
+			}
+		}
+		if (alreadyOwned)
+		{
+			continue;
+		}
+
+		for (int offerIndex = 0;
+			offerIndex < game.GetClearRewardBallOfferCount();
+			offerIndex++)
+		{
+			const PlayerBallData* offeredBall =
+				game.GetClearRewardBallOffer(offerIndex);
+			if (offeredBall != nullptr &&
+				offeredBall->definitionId == definitionId)
+			{
+				return offerIndex;
 			}
 		}
 	}

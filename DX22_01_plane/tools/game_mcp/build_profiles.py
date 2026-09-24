@@ -81,6 +81,8 @@ def load_build_profiles(
                 f"ビルド方針設定に{profile_id}がありません。"
             )
         for key in (
+            "core_parts",
+            "support_parts",
             "new_ball_priority",
             "upgrade_priority",
             "reward_priority",
@@ -93,6 +95,27 @@ def load_build_profiles(
                 raise RuntimeError(
                     f"{profile_id}.{key}が必要です。"
                 )
+        core_parts = profile["core_parts"]
+        support_parts = profile["support_parts"]
+        if (
+            not isinstance(core_parts, list)
+            or not core_parts
+            or len(set(core_parts)) != len(core_parts)
+            or not all(value in VALID_BALL_IDS for value in core_parts)
+        ):
+            raise RuntimeError(
+                f"{profile_id}.core_partsに重複のない有効なボールIDが必要です。"
+            )
+        if (
+            not isinstance(support_parts, list)
+            or len(set(support_parts)) != len(support_parts)
+            or not all(value in VALID_BALL_IDS for value in support_parts)
+            or set(core_parts) & set(support_parts)
+        ):
+            raise RuntimeError(
+                f"{profile_id}.support_partsはcore_partsと重複しない"
+                "有効なボールID配列にしてください。"
+            )
         for key in ("new_ball_priority", "upgrade_priority"):
             values = profile[key]
             if (

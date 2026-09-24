@@ -50,6 +50,7 @@ class RunFilters:
 LoadedRun = tuple[Path, dict[str, Any], dict[str, Any]]
 TERMINAL_RUN_RESULTS = {
     "clear",
+    "completed",
     "game_over",
     "validation_complete",
     "victory",

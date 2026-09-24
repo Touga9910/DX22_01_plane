@@ -1,0 +1,20 @@
+使用ライブラリと素材
+作成日：2026年9月19日
+
+・Microsoft DirectXTK
+  MIT License。LICENSES\DirectXTK_LICENSE.txtを参照してください。
+
+・Assimp 5.2.5
+  BSD 3-Clause License。LICENSES\Assimp_LICENSE.txtを参照してください。
+  提出版ではVisual C++ランタイムを静的リンクしたx64 Release DLLを使用しています。
+
+・Dear ImGui 1.92.9 WIP
+  MIT License。LICENSES\Dear_ImGui_LICENSE.txtを参照してください。
+
+・JSON for Modern C++ 3.12.0
+  MIT License。LICENSES\nlohmann_json_LICENSE.txtを参照してください。
+
+・ゲーム内のゴルフボールモデル、画像、設定データ
+  本提出版で実際に参照しているファイルのみを同梱しています。
+
+未使用の「JACK式ピピ美」モデル一式は、再配布条件を考慮して提出版から除外しています。

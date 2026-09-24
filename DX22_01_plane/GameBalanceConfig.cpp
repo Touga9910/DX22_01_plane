@@ -82,6 +82,7 @@ void Game::ResetPlayerRuntimeStatus()
 	m_AnchorContactTarget = nullptr;
 	m_PlayerShield = 0;
 	m_IsMidBossRelicSelectionActive = false;
+	m_ClearRewardBallOfferCatalogIndices.clear();
 	m_RunController.Progress().Reset(0);
 	m_BalanceAutoPlayer.ResetPendingBallAdjustments();
 	m_BattleController.BeginStage(StageType::Normal);

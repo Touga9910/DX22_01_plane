@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
 from bridge_store import GameBridgeStore
+from mcp.shared.memory import create_connected_server_and_client_session
 from server import (
     build_dynamic_wanted_reward_order,
     build_stage_choice_context,
@@ -18,6 +20,15 @@ from shot_planner import load_player_profiles
 
 
 class ServerSchemaTests(unittest.TestCase):
+    def test_bridge_advertised_actions_are_registered_tools(self):
+        bridge_source = (Path(__file__).resolve().parents[2] / "GameMcpBridge.cpp").read_text(encoding="utf-8-sig")
+        advertised = set(re.findall(
+            r'available_actions"\]\.push_back\(\s*"([a-z_]+)"', bridge_source,
+        ))
+        advertised.update(("validate_stage_layout", "propose_stage_layout"))
+        registered = {tool.name for tool in self._list_tools()}
+        self.assertTrue(advertised.issubset(registered), advertised - registered)
+
     def test_stage_editor_tools_expose_review_workflow(self):
         tools = {tool.name: tool for tool in self._list_tools()}
         self.assertIn("open_stage_editor", tools)
@@ -49,6 +60,54 @@ class ServerSchemaTests(unittest.TestCase):
                 "intermediate",
             )
             return asyncio.run(server.list_tools())
+
+    def _list_tools_through_client(self):
+        async def request_tools():
+            profiles_path = Path(__file__).resolve().parent / "player_profiles.json"
+            with tempfile.TemporaryDirectory() as directory:
+                server = create_server(
+                    GameBridgeStore(Path(directory)),
+                    "127.0.0.1",
+                    8765,
+                    load_player_profiles(profiles_path),
+                    "intermediate",
+                )
+                async with create_connected_server_and_client_session(server) as session:
+                    response = await session.list_tools()
+                    return response.tools
+
+        return asyncio.run(request_tools())
+
+    def test_build_comparison_tools_are_visible_to_mcp_client_tools_list(self):
+        tools = {tool.name: tool for tool in self._list_tools_through_client()}
+        expected = {
+            "run_build_comparison",
+            "get_build_comparison_status",
+            "get_build_comparison_result",
+        }
+        self.assertTrue(expected.issubset(tools), expected - set(tools))
+        run = tools["run_build_comparison"]
+        self.assertEqual(
+            set(run.inputSchema["required"]),
+            {
+                "seeds",
+                "build_profiles",
+                "player_level",
+                "validation_variant",
+                "valid_runs_per_build",
+                "dynamic_balance",
+            },
+        )
+        self.assertEqual(
+            set(run.inputSchema["properties"]["build_profiles"]["items"]["enum"]),
+            {"standard", "heavy", "pierce", "bounce", "anchor"},
+        )
+        self.assertIn("resume_output_directory", run.inputSchema["properties"])
+        self.assertNotIn("resume_output_directory", run.inputSchema["required"])
+        self.assertTrue(
+            tools["get_build_comparison_status"].annotations.readOnlyHint
+        )
+        self.assertTrue(tools["get_build_comparison_result"].annotations.readOnlyHint)
 
     def test_fire_shot_accepts_new_and_legacy_target_fields(
         self,
@@ -626,6 +685,12 @@ class ServerSchemaTests(unittest.TestCase):
         )
         self.assertIn("15 Money", choose_reward.description)
         self.assertIn("30 Money", choose_reward.description)
+        self.assertIn(
+            "offer_index",
+            choose_reward.inputSchema["properties"],
+        )
+        self.assertIn("clear_reward_ball_offers", choose_reward.description)
+        self.assertIn("3候補", choose_reward.description)
 
     def test_buy_relic_accepts_catalog_index(self) -> None:
         tools = self._list_tools()

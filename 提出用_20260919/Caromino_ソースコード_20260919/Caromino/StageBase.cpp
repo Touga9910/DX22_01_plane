@@ -1,0 +1,98 @@
+﻿#include "StageBase.h"
+#include "Game.h"
+#include "Input.h"
+#include "PlayerBall.h"
+//#include "Arrow.h"
+#include "Texture2D.h"
+
+StageBase::StageBase() {}
+StageBase::~StageBase() { Uninit(); }
+
+PlayerBall* StageBase::GetPlayerBall() const {
+    const auto players = Game::GetInstance()->GetGameObjectsWithTag(GameObjectTag::Player);
+    for (GameObject* playerObject : players)
+    {
+        if (PlayerBall* player = playerObject->GetComponent<PlayerBall>())
+        {
+            return player;
+        }
+    }
+
+    return nullptr;
+}
+
+void StageBase::Update()
+{
+    RemoveInvalidSceneObjectRefs();
+
+    PlayerBall* ball = GetPlayerBall();
+    if (!ball) return;
+   
+    switch (Game::GetInstance()->GetBattleState())
+    {
+    case BattleState::TurnEnd:
+        // TC-20: ショット完了（全ボール停止）のタイミングで打数カウント
+        m_StrokeCount++;
+        UpdateStrokeUI();
+        // 次の戦闘更新で AimingDirection へ遷移する
+        break;
+
+    case BattleState::BallsMoving:
+        // TC-21: ゴール判定
+        if (ball->GetState() == PlayerBall::State::Goal)
+        {
+            Game::GetInstance()->CompleteCurrentStage();
+        }
+        break;
+
+    default:
+		// TC-22: AimingDirection / AimingPower では
+        //        何もしない（PlayerBall::UpdateAim() が入力を処理）
+        break;
+    }
+}
+
+void StageBase::UpdateStrokeUI()
+{
+    RemoveInvalidSceneObjectRefs();
+
+    std::vector<Texture2D*> textures;
+
+    for (GameObject* gameObject : m_SceneGameObjects)
+    {
+        if (Texture2D* tex = gameObject->GetComponent<Texture2D>())
+        {
+            textures.push_back(tex);
+        }
+    }
+
+    if (textures.size() < 2) return;
+
+    Texture2D* count[2] = {
+        textures[textures.size() - 2],
+        textures[textures.size() - 1]
+    };
+
+    for (int i = 0; i < 2; i++)
+    {
+        int cnt = m_StrokeCount % (int)pow(10, i + 1) / (int)pow(10, i);
+        count[i]->SetUV((float)(cnt + 1), 1, 10, 1);
+    }
+}
+
+void StageBase::Uninit() {
+    for (GameObject* gameObject : m_SceneGameObjects)
+    {
+        Game::GetInstance()->DeleteGameObject(gameObject);
+    }
+    m_SceneGameObjects.clear();
+}
+
+void StageBase::RemoveInvalidSceneObjectRefs()
+{
+    Game* game = Game::GetInstance();
+
+    std::erase_if(m_SceneGameObjects, [game](GameObject* gameObject) {
+        return !game->ContainsGameObject(gameObject);
+        });
+}

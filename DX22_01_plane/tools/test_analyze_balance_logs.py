@@ -227,23 +227,24 @@ class BalanceMetricGateTests(unittest.TestCase):
             loaded_run("game_over", 10, ["clear"]),
             loaded_run("validation_complete", 20, ["clear", "clear"]),
             loaded_run("game_over", 5, []),
+            loaded_run("completed", 30, ["clear", "clear", "clear"]),
             loaded_run("application_exit", 12, ["clear"]),
         ]
 
         report = calculate_run_report(runs, targets)
 
-        self.assertEqual(report["sample_count"], 4)
-        self.assertEqual(report["balance_sample_count"], 3)
+        self.assertEqual(report["sample_count"], 5)
+        self.assertEqual(report["balance_sample_count"], 4)
         self.assertEqual(report["excluded_incomplete_run_count"], 1)
         self.assertEqual(
             report["metrics"]["first_boss_reach_rate"],
-            0.6667,
+            0.75,
         )
-        self.assertEqual(report["metrics"]["median_reached_progress"], 10.0)
-        self.assertEqual(report["metrics"]["terminal_run_rate"], 0.75)
+        self.assertEqual(report["metrics"]["median_reached_progress"], 15.0)
+        self.assertEqual(report["metrics"]["terminal_run_rate"], 0.8)
         self.assertEqual(
             report["milestones"]["second_boss_reached_count"],
-            1,
+            2,
         )
 
 

@@ -66,6 +66,14 @@ tools\game_mcp\start_game_mcp.cmd --player-level intermediate --build-profile pi
 `tools/game_mcp/build_profiles.json`にあり、変更時はMCPサーバーを
 再起動してください。設定内容はSHA-256とともにランログへ残ります。
 
+`get_game_state` の `offered_balls`、`deck_balls`、`catalog_balls` には
+各球の `aim_guidance` も含まれます。`role` は生成・利用・決着などの役割、
+`target_pattern` は狙う敵配置、`shot_path` は通したい軌道、`follow_up` は
+次の球へつなぐ意図です。連鎖資源を使う球の `current_resource` には
+現在の重量カウント、貫通痕、クッションスタック、錨スタックの数を示します。
+これは狙いを選ぶための指標で、命中やダメージの予測値ではありません。
+実際の射撃候補は `build_shot_choices` と `shot_tactics` でも確認してください。
+
 固定条件の自動収集は次のように実行します。
 
 ```bat
@@ -83,6 +91,27 @@ tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_run
 `start_new_run` からも任意の `run_seed` と `validation_variant` を渡せます。
 固定シード時はステージ・経路・ポケット配置・山札シャッフルと、
 MCPの人間的ショット誤差が再現されます。
+
+5ビルドを共通20シード（1001～1020）で各20正常終了ラン、合計100ラン
+比較する場合は比較スイートを使います。異常ランは集計せず同じseed/buildを
+補充し、出力先を再指定すれば受理済みの組み合わせから再開します。
+
+```bat
+tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_runs.py --comparison-suite --output-directory logs\balance\comparison_1001_1020
+```
+
+出力は `all_runs.jsonl`、`build_summaries.json`、
+`seed_build_comparison.csv`、`errors_and_exclusions.jsonl`、
+`final_comparison_report.md` です。比較スイートは `intermediate`、DDA無効、
+共通seed、設定フィンガープリント不変を各ログで監査します。
+
+MCPの`run_build_comparison`から再開する場合は、初回と同じ引数に
+`resume_output_directory`を追加します。保存済みの要求条件、ビルド設定
+ハッシュ、各受理済みログの設定フィンガープリントが一致するときだけ、
+不足しているseed/buildから再開します。一時的なHTTP/MCP切断は最大5回、
+指数バックオフで新しいセッションへ再接続し、最新状態が同じseed/buildなら
+実行中ランを続行します。再接続イベントと除外ランは
+`errors_and_exclusions.jsonl`へ区別して記録されます。
 
 収集AIはビルド方針に従って経路、報酬、新規ボール、強化、レリック、
 射撃種別を選び、判断理由もログへ送ります。MCPサーバーと収集AIで設定
@@ -199,13 +228,23 @@ MCPサーバーが敵の列挙順から同じ形式のIDを補完します。
 
 操作の流れ：
 
-1. `get_game_state.build_shot_choices.recommended`で候補ボールと攻撃を比較。
-2. `select_ball`後に`get_game_state`を再取得。
-3. 現在のボール用`shot_tactics`を確認して、`fire_shot`を
-   `shot_type=auto`, `power_mode=auto`, `shot_goal=auto`で実行。
-4. `shot_plan.build_evaluation`の評価内訳・予測命中・停止位置を実測ログと比較。
+1. `get_game_state.recommended_action`を確認する。選択中の球で到達可能な敵がいれば
+   `fire_shot`、なければ到達可能な別球への`select_ball`を返す。
+2. `select_ball`後は必ず`get_game_state`を再取得する。同じ球が選択済みなら再選択しない。
+3. `shot_tactics.recommendations`の`reachable`と推奨する標的・goal・direct/bank・
+   壁・ポケットを確認して撃つ。`recommended_target_id`は選択中の球で到達可能な敵だけを示す。
+4. `fire_shot`が`ok=false, retryable=true`を返したら最新状態を取得して別候補へ進む。
+   全球で到達可能なショットがない場合は`reason=no_reachable_shot`を返す。
+5. `shot_plan.build_evaluation`の評価内訳・予測命中・停止位置を実測ログと比較する。
+
+`fire_shot`は指定した敵・goal・direct/bankが不成立なら、同じ球の別の敵、
+同じ敵の別goal、許可されたbank、残りの敵を順に調べます。現在の球に候補が
+なければ`next_action`で別の提示球を案内します。選ばれた実際の条件は
+`shot_plan.fallback.used`で確認できます。manualのpower値は探索中も固定します。
 
 自動収集も持ち替え後に再取得し、同じ評価と自動パワーで発射します。
+物理シミュレーション中に操作候補が一時的に減っても、照準待ちへ戻るまで状態を確認します。
+`GAME_MCP_SHOT_DEBUG=1`でサーバーと自動収集の候補探索・持ち替え・再計算ログを出せます。
 HP不足ならビルド特性の加点より致死的な被害を強く避けます。
 衝突ダメージは敵HPで上限を設け、防御しても最低1ダメージのルールを反映します。
 
@@ -270,6 +309,9 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 - `get_game_state`
 - `set_player_level`
 - `set_build_profile`
+- `run_build_comparison`
+- `get_build_comparison_status`
+- `get_build_comparison_result`
 - `set_next_stage_layout`
 - `clear_next_stage_layout`
 - `start_new_run`
@@ -287,6 +329,12 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 
 ボール操作の条件は`get_game_state`で確認できます。
 
+`run_build_comparison`は既存の`collect_fixed_balance_runs.py`を
+バックグラウンドプロセスで起動し、開始要求へすぐ応答します。長時間の収集中は
+`get_build_comparison_status`で進捗を確認し、完了後は
+`get_build_comparison_result`でbuild別集計、seed別比較、除外一覧と保存パスを
+取得します。同時に開始できる比較ジョブは1件です。
+
 - `choose_destination`: `wanted_rewards`に`money`、`new_ball`、`ball_upgrade`、`hp_recovery`、`relic`を欲しい順で指定。省略時は既定順を使用し、一部だけ指定した場合は不足項目を自動補完。希望に合う`route_options`がなければ次順位へ自動フォールバック。マップがある場合は`route_index`で経路を明示するとその選択を実行（HP・報酬方針で変更しない）。省略時のみ上記の自動選択を使用
 - `get_game_state.run_progress`: `phase`、`area_progress`、15エリアの`area_goal`、総戦闘数、中ボス戦績、最終ボス到達・撃破状態を公開
 - 通常ルートの候補1枠は通常戦闘63.33%、中ボス12.67%、ショップ12%、休憩所12%（戦闘内の比率は5:1）。15エリア後は保証休憩を経て`final_boss`一択になり、撃破後は報酬選択を行わずResultへ移行
@@ -296,8 +344,11 @@ runtime API keyやトンネルIDはリポジトリへ保存しないでくださ
 - `remove_ball`: ショップで15 Moneyを支払い任意のボールを削除（デッキの最小数は5個）
 - `buy_relic`: ショップ入店時に抽選された`relics[].shop_offered=true`の3候補から1つを購入。1回の入店で購入できるレリックは1つまで。購入直前のHPとデッキ平均attackを確認し、購入可能な候補内で低HP時は回復・防御系、攻撃不足時は攻撃系を優先
 - `choose_relic`: 中ボス撃破後、`relics[].midboss_offered=true`の3候補から1つを無料獲得。この選択を終えてから通常の`choose_reward`を行う
+- `choose_reward`の`new_ball`: 戦闘終了時に全カタログから重複を許して抽選された`clear_reward_ball_offers`の3枠だけが対象。`offer_index`で選択する（旧`catalog_index`は現在の3枠に含まれる場合のみ互換対応）
 
 `relics[]`は`rarity`、`midboss_weight`、`shop_weight`、`price`を公開します。現在は全レリックが同価格・同ウェイトですが、後から抽選率とショップ価格を個別に調整できます。
+
+`get_game_state.build_decision.relic_choices.recommended` は現在選択可能な候補に限ります。中ボス報酬では未所持の `midboss_offered=true`、ショップでは未所持で所持金内の `shop_offered=true` を対象にします。`offered_choices` は現在の候補、`global_evaluation` は未所持レリック全体のビルド評価です。
 
 `player_profiles.json`の`relic_policy`で、低HP判定の
 `low_hp_ratio`（既定0.5）、攻撃不足判定の
@@ -346,11 +397,13 @@ Armorボス戦はC++自動操作と同じ `boss_shared_ccd_v1` を使います�
 2. `recommended` または `choices` から選びます。`offer_choices` は候補球ごとの最良案です。直接／固定ダメージ、Armor減少、Break開始、停止位置、採点内訳を比較できます。
 3. 同じ応答の `candidate_id` と `state_key` を `fire_boss_shot` に渡します。球選択と発射が一度に実行され、照準誤差は加えません。
 
+ボス候補の `target_id` は `boss_state.target_id` と同じ `enemy:N` 形式です。C++シミュレーションの内部IDは `simulation_target_id` に分離しました。位置取り候補は標的個体を持たないため `target_id=null`、`simulation_target_id=position` です。
+
 盤面や候補球が変われば再取得してください。古いキーは拒否されます。中立球押しや位置取りも候補になるため、通常戦の「生存敵への接触経路が必須」という制約はArmorボス戦には適用しません。現在の1ショットは実物理と共通ですが、終了後の再配置・次ショット・敵ターン被害は完全な先読みではありません。
 
 同じ状態の評価はキャッシュします。異なる性能の候補球ごとに最大128案を計算するため、Debug版では応答に時間がかかります。人間操作の毎フレームには評価しません。
 
-最新ゲームとMCPサーバーを起動し直して再接続すると専用ツールが公開されます。旧ツール一覧のクライアント向けに `fire_shot` も対応しました。選択中の球を保ち、ボスの `target_id` 指定時は中立球・位置取りも含めたボス攻略候補を比較します。中立球指定はその対象の候補に限定します。手動条件に合う公開候補がなければエラーです。
+専用の2ツールはMCPの `tools/list` に登録されています。クライアントが古いツール一覧を保持している場合は接続を更新してください。旧ツール一覧のクライアント向けに `fire_shot` も対応しています。ボスの `target_id` と `shot_type=auto` を指定すると、球の持ち替えも含む推奨候補の直射・壁反射をそのまま使います。旧スキーマで `auto` を指定できない場合は `shot_type` を省略してください。明示した条件に合う候補がない場合は例外ではなく `ok=false`、`reason=requested_boss_plan_unavailable`、`retryable`、`recommended_plan` を返します。推奨プランの `candidate_id` と `state_key` は専用ツールへ渡せます。
 
 比較記録は `../runtime_tests/boss_ai/final_verification.json`、再現用は `../compare_boss_builds.py` です。固定配置・レリックなしの比較であり、通しランの勝率を示すものではありません。
 
