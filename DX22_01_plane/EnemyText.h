@@ -2,6 +2,13 @@
 #pragma execution_character_set("utf-8")
 #include <string>
 
+// 敵定義IDをプレイヤー向けの日本語表示名へ変換
+// 
+// 
+// 
+// 
+// 
+// 対応する表示名がない場合は、受け取ったID文字列をそのまま返す。
 inline const char* EnemyLabel(const std::string& id)
 {
     if (id == "enemy_normal") return "通常球";
@@ -15,3 +22,4 @@ inline const char* EnemyLabel(const std::string& id)
     if (id == "enemy_boss_core") return "最終ボス：Armor球";
     return id.c_str();
 }
+    

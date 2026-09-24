@@ -10,25 +10,64 @@
 
 class TransformComponent;
 
+// 複数のComponentをまとめて管理するゲームオブジェクト。
+// 更新・描画・破棄要求を各コンポーネントへ伝え、TransformComponentを常に1つ保持する。
 class GameObject
 {
 public:
+    // -------------------------
+    // 生成・終了
+    // -------------------------
+
+    // 指定した名前でGameObjectを生成し、TransformComponentを自動追加する。
     explicit GameObject(const std::string& name);
+
+    // 終了時に各コンポーネントへOnDestroyを通知する。
     ~GameObject();
 
+    // 各コンポーネントへOnDestroyを通知し、終了処理済み状態へ移行する。
+    // すでに終了処理済みの場合は何もしない。
+    void Uninit();
+
+    // -------------------------
+    // 更新・描画
+    // -------------------------
+
+    // 有効なコンポーネントを毎フレーム更新する。
+    // 各コンポーネントのStartは最初のUpdateまたはFixedUpdate前に一度だけ呼ばれる。
     void Update();
+
+    // 有効なコンポーネントを固定時間刻みで更新する。
+    // 各コンポーネントのStartは最初のUpdateまたはFixedUpdate前に一度だけ呼ばれる。
     void FixedUpdate();
+
+    // 通常のUpdate後に、有効なコンポーネントのLateUpdateを呼び出す。
     void LateUpdate();
+
+    // 有効なコンポーネントのDrawを呼び出す。
     void Draw();
 
-    void Destroy();
+    // -------------------------
+    // 破棄状態
+    // -------------------------
 
-    void Uninit();
+    // このGameObjectへ破棄要求を設定する。
+    // 実際の削除は管理側で行い、要求後は更新・描画処理を行わない。
+    void Destroy();
 
     bool IsDead() const
     {
         return m_DestroyRequested;
     }
+
+    bool IsDestroyRequested() const
+    {
+        return m_DestroyRequested;
+    }
+
+    // -------------------------
+    // 名前
+    // -------------------------
 
     const std::string& GetName() const
     {
@@ -40,27 +79,39 @@ public:
         m_Name = name;
     }
 
+    // -------------------------
+    // 有効状態
+    // -------------------------
+
     bool IsActive() const
     {
         return m_IsActive;
     }
 
+    // GameObject全体の更新・描画有効状態を設定する。
+    // falseの場合、各コンポーネントのUpdate・FixedUpdate・LateUpdate・Drawは実行されない。
     void SetActive(bool active)
     {
         m_IsActive = active;
     }
 
-    bool IsDestroyRequested() const
-    {
-        return m_DestroyRequested;
-    }
+    // -------------------------
+    // Transform取得
+    // -------------------------
 
+    // このGameObjectが保持するTransformComponentを返す。
     TransformComponent* GetTransform() const
     {
         return m_Transform;
     }
 
-    // 指定した型のコンポーネントを追加する
+    // -------------------------
+    // コンポーネント追加・取得
+    // -------------------------
+
+    // 指定したComponent派生型を追加する。
+    // 同じ型のコンポーネントをすでに持っている場合は、新規生成せず既存のものを返す。
+    // 追加時に所有元を設定し、登録直後にAwakeを呼び出す。
     template<class T, class... Args>
     T* AddComponent(Args&&... args)
     {
@@ -88,7 +139,8 @@ public:
         return componentPointer;
     }
 
-    // 指定した型のコンポーネントを取得する
+    // 指定したComponent派生型を1つ取得する。
+    // 対象型のコンポーネントを持っていない場合はnullptrを返す。
     template<class T>
     T* GetComponent() const
     {
@@ -110,13 +162,15 @@ public:
         return nullptr;
     }
 
-    // 指定した型のコンポーネントを持っているか調べる
+    // 指定したComponent派生型を持っている場合はtrueを返す。
     template<class T>
     bool HasComponent() const
     {
         return GetComponent<T>() != nullptr;
     }
 
+    // 指定したComponent派生型に一致するすべてのコンポーネントを取得する。
+    // 一致するコンポーネントがない場合は空のvectorを返す。
     template<class T>
     std::vector<T*> GetComponents() const
     {
@@ -139,13 +193,17 @@ public:
     }
 
 private:
-    std::string m_Name;
+    // -------------------------
+    // メンバー変数
+    // -------------------------
 
-    std::vector<std::unique_ptr<Component>> m_Components;
+    std::string m_Name;                                      // GameObjectの識別用名称
 
-    TransformComponent* m_Transform = nullptr;
+    std::vector<std::unique_ptr<Component>> m_Components;    // このGameObjectが所有するコンポーネント一覧
 
-    bool m_IsActive = true;
-    bool m_DestroyRequested = false;
-    bool m_IsFinalized = false;
+    TransformComponent* m_Transform = nullptr;               // 自動追加されるTransformComponentへの参照
+
+    bool m_IsActive = true;                                  // trueの場合、更新・描画処理の対象となる
+    bool m_DestroyRequested = false;                         // trueの場合、破棄要求済みとして更新・描画を停止する
+    bool m_IsFinalized = false;                              // Uninitによる終了処理が完了済みか
 };

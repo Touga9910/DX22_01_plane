@@ -177,7 +177,7 @@ void Game::PruneBalanceAutoPendingBalls()
 	m_BalanceAutoPlayer.PrunePendingBalls(*this);
 }
 
-// Balance Auto Playを更新する。
+// Balance Auto Playを更新
 bool BalanceAutoPlayer::Update(Game& game)
 {
 	if (game.IsDebugMode() || game.m_DebugController.IsEditorOpen()) return false;
@@ -481,7 +481,7 @@ bool Game::ContainsComponent(const Component* component) const
 	return m_World.Contains(component);
 }
 
-// Balance Auto Ballを選択する。
+// Balance Auto Ballを選択
 void BalanceAutoPlayer::SelectBall(Game& game)
 {
     const auto bossChoices = game.EvaluateBossShots();
@@ -530,7 +530,7 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 	game.ApplyBalanceAutoBallSelection(bestIndex);
 }
 
-// Balance Auto Shotを発射する。
+// Balance Auto Shotを発射
 bool BalanceAutoPlayer::FireShot(Game& game)
 {
     const auto bossChoices = game.EvaluateBossShots();
@@ -751,7 +751,7 @@ bool BalanceAutoPlayer::FireShot(Game& game)
 	return true;
 }
 
-// Balance Auto Rewardを適用する。
+// Balance Auto Rewardを適用
 void BalanceAutoPlayer::ApplyReward(Game& game)
 {
 	bool hasMissingRelic = false;
@@ -766,7 +766,7 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 		}
 	}
 
-	// 戦闘報酬の資金でレリックを買えるなら、球の過剰増加より先に資金を確保する。
+	// 戦闘報酬の資金でレリックを買えるなら、球の過剰増加より先に資金を確保
 	if (hasMissingRelic && game.m_RunController.Status().money < nextRelicPrice)
 	{
 		const int moneyBefore = game.m_RunController.Status().money;
@@ -894,7 +894,7 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 		});
 }
 
-// Balance Auto Heal Neededかどうかを判定する。
+// Balance Auto Heal Neededかどうかを判定
 bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 {
 	if (game.m_RunController.Status().maxHp <= 0 ||
@@ -908,7 +908,7 @@ bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 		game.m_RunController.Status().maxHp * thresholdPercent;
 }
 
-// Balance Auto Relic To Buyを検索する。
+// Balance Auto Relic To Buyを検索
 int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 {
 	const auto isCandidate = [this, &game](int index)
@@ -960,7 +960,7 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Weakest Ballを検索する。
+// Balance Auto Weakest Ballを検索
 int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 {
 	const int ballCount = game.m_RunController.Deck().GetRewardTargetCount();
@@ -992,7 +992,7 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 			}
 		}
 
-		// タイプの種類を減らさないよう、重複球から削除する。
+		// タイプの種類を減らさないよう、重複球から削除
 		const float score = GetAutoBallValue(*ball) +
 			(sameTypeCount <= 1 ? 1000.0f : 0.0f);
 		if (score < weakestScore)
@@ -1005,7 +1005,7 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 	return weakestIndex;
 }
 
-// Balance Auto Missing Catalog Ballを検索する。
+// Balance Auto Missing Catalog Ballを検索
 int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 {
 	if (game.m_RunController.Deck().GetRewardTargetCount() >= kAutoMaximumDeckSize)
@@ -1063,7 +1063,7 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Clear Reward内の未所持ボール提示を検索する。
+// Balance Auto Clear Reward内の未所持ボール提示を検索
 int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 {
 	if (game.m_RunController.Deck().GetRewardTargetCount() >=
@@ -1122,7 +1122,7 @@ int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Upgrade Targetを検索する。
+// Balance Auto Upgrade Targetを検索
 int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 {
 	int bestIndex = -1;
@@ -1150,7 +1150,7 @@ int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 	return bestIndex;
 }
 
-// Balance Auto Shop Actionを保持しているか判定する。
+// Balance Auto Shop Actionを保持しているか判定
 bool BalanceAutoPlayer::HasShopAction(const Game& game) const
 {
 	return FindRelicToBuy(game) >= 0 ||
@@ -1159,7 +1159,7 @@ bool BalanceAutoPlayer::HasShopAction(const Game& game) const
 			FindMissingCatalogBall(game) >= 0);
 }
 
-// Balance Auto Pending Upgradeable Ballを検索する。
+// Balance Auto Pending Upgradeable Ballを検索
 int BalanceAutoPlayer::FindPendingUpgradeableBall(const Game& game) const
 {
 	for (const std::uint64_t instanceId :
@@ -1183,7 +1183,7 @@ int BalanceAutoPlayer::FindPendingUpgradeableBall(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Pending Removal Ballを検索する。
+// Balance Auto Pending Removal Ballを検索
 int BalanceAutoPlayer::FindPendingRemovalBall(const Game& game) const
 {
 	for (const std::uint64_t instanceId :
@@ -1207,7 +1207,7 @@ int BalanceAutoPlayer::FindPendingRemovalBall(const Game& game) const
 	return -1;
 }
 
-// Ball Adjustment Candidateかどうかを判定する。
+// Ball Adjustment Candidateかどうかを判定
 bool BalanceAutoPlayer::IsBallAdjustmentCandidate(
 	std::uint64_t instanceId) const
 {
@@ -1237,7 +1237,7 @@ void BalanceAutoPlayer::NotifyFullHpEnemySurvived(
 		<< std::endl;
 }
 
-// Available Rest Benefitを保持しているか判定する。
+// Available Rest Benefitを保持しているか判定
 bool BalanceAutoPlayer::HasAvailableRestBenefit(const Game& game) const
 {
 	if (game.CanRestHeal())
@@ -1272,7 +1272,7 @@ void BalanceAutoPlayer::RemovePendingBall(
 		m_PendingBallAdjustments.end());
 }
 
-// Prune Balance Auto Pending Balls の処理を実行する。
+// Prune Balance Auto Pending Balls の処理を実行
 void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 {
 	m_PendingBallAdjustments.erase(
@@ -1298,7 +1298,7 @@ void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 		m_PendingBallAdjustments.end());
 }
 
-// On Battle Stage Started の処理を実行する。
+// On Battle Stage Started の処理を実行
 void Game::OnBattleStageStarted(const StageData& stage)
 {
 	m_BattleController.BeginStage(stage.stageType);

@@ -4,28 +4,38 @@
 #include <cstddef>
 #include <string>
 
+// ゲーム内で使用するシーン種別を表す。
+// SceneManagerなどで遷移先や現在のシーンを識別するために使用
+
+
+
+
+
 enum class SceneType
 {
-	Title,
-	Select,
-	Battle,
-	RestSite,
-	Shop,
-	Result,
-	Max
+	Title,		// タイトル画面
+	Select,		// ステージ・進行先などの選択画面
+	Battle,		// 戦闘画面
+	RestSite,	// 休憩所
+	Shop,		// ショップ
+	Result,		// ラン終了後のリザルト画面
+	Max			// SceneTypeの要素数を表す終端値
 };
 
-// 通常ルートの進行値と、ラン終盤の特別区間を分離する。
+// ラン全体の進行段階を表す。
+// 通常ルートの進行値と、ラン終盤の特別区間を分離して管理
 // FinalBossは16番目の通常エリアとして数えない。
 enum class RunPhase
 {
-	NormalRoute,
-	BossPreparation,
-	FinalBossReady,
-	FinalBoss,
-	Completed
+	NormalRoute,		// 通常ルートを進行している状態
+	BossPreparation,	// 最終ボス前の準備区間
+	FinalBossReady,		// 最終ボスへ進入可能な状態
+	FinalBoss,			// 最終ボス戦を進行している状態
+	Completed			// 最終ボスを終え、ランが完了した状態
 };
 
+// RunPhaseをセーブデータなどで扱う文字列へ変換
+// 未定義の値が渡された場合は"normal_route"を返す。
 inline const char* ToString(RunPhase phase)
 {
 	switch (phase)
@@ -39,6 +49,8 @@ inline const char* ToString(RunPhase phase)
 	}
 }
 
+// 文字列からRunPhaseを復元
+// 対応する文字列がない場合はNormalRouteを返す。
 inline RunPhase RunPhaseFromString(const std::string& value)
 {
 	if (value == "boss_preparation") return RunPhase::BossPreparation;
@@ -48,29 +60,33 @@ inline RunPhase RunPhaseFromString(const std::string& value)
 	return RunPhase::NormalRoute;
 }
 
+// ラン中に取得できるレリックの種類を表す。
 enum class RelicType
 {
-	AllBallAttackUp,
-	CollisionAttackUp,
-	BankShot,
-	EmergencyRepairKit,
-	StandardBallScope,
-	HeavyBallCore,
-	PierceBallCharger,
-	BounceBallSpring,
-	AnchorBallChain,
-	BountyList,
-	ExpandedBallOffer,
-	Count
+	AllBallAttackUp,		// 所持するすべてのボールの攻撃力を上げる
+	CollisionAttackUp,		// ボール同士の衝突後に敵へ与えるダメージを増やす
+	BankShot,				// 壁反射後の最初の直接攻撃を強化する
+	EmergencyRepairKit,		// 1ショット中の一定回数以上のボール接触でHPを回復する
+	StandardBallScope,		// 条件を満たしたスタンダードボールの命中ダメージを増やす
+	HeavyBallCore,			// ヘビーボールの敵への衝突ダメージを増やす
+	PierceBallCharger,		// 貫通ボールの貫通回数を増やし、貫通時の減速をなくす
+	BounceBallSpring,		// バウンドボールの壁接触回数に応じて次の命中ダメージを増やす
+	AnchorBallChain,		// 停止中のアンカーボールへ敵が衝突した際のダメージを増やす
+	BountyList,				// 各バトルで最初に倒した敵から追加Moneyを得る
+	ExpandedBallOffer,		// ショット前に提示されるボールの選択肢を増やす
+	Count					// RelicTypeの要素数。レリック定義配列のサイズとして使用する
 };
 
+// レリックのレア度を表す。
 enum class RelicRarity
 {
-	Common,
-	Rare,
-	Legendary
+	Common,		// 通常レア度
+	Rare,		// レア
+	Legendary	// 最高レア度
 };
 
+// RelicRarityを保存・表示用の文字列へ変換
+// Commonおよび未定義の値は"common"を返す。
 inline const char* ToString(RelicRarity rarity)
 {
 	switch (rarity)
@@ -81,31 +97,36 @@ inline const char* ToString(RelicRarity rarity)
 	}
 }
 
+// レリック1種類分の定義情報を保持
 struct RelicDefinition
 {
-	RelicType type;
-	const char* name;
-	const char* description;
-	int price;
-	RelicRarity rarity;
-	int midBossWeight;
-	int shopWeight;
+	RelicType type;				// レリックの種類
+	const char* name;			// プレイヤーへ表示するレリック名
+	const char* description;	// プレイヤーへ表示する効果説明
+	int price;					// ショップでの購入価格
+	RelicRarity rarity;			// レリックのレア度
+	int midBossWeight;			// 中ボス報酬の抽選で使用する重み
+	int shopWeight;				// ショップの抽選で使用する重み
 };
 
+// char8_tで記述したUTF-8文字列を、既存のconst char*として扱うために変換
 inline const char* RelicUtf8(const char8_t* text) noexcept
 {
 	return reinterpret_cast<const char*>(text);
 }
 
+// バランス検証時に使用する検証条件の識別情報を保持
 struct BalanceValidationVariant
 {
-	std::string id;
+	std::string id;	// 検証条件を識別するID
 };
 
+// RelicTypeごとの表示情報、価格、レア度、抽選重みをまとめた定義一覧。
+// RelicType::Countを配列サイズとして使用し、列挙値を対応する定義の参照に利用
 inline const std::array<
 	RelicDefinition,
 	static_cast<std::size_t>(RelicType::Count)> RelicCatalog =
-{{
+{ {
 	{
 		RelicType::AllBallAttackUp,
 		RelicUtf8(u8"\u653b\u6483\u30b3\u30a2"),
@@ -172,10 +193,11 @@ inline const std::array<
 		RelicUtf8(u8"ショット前に提示されるボールの選択肢が3つから4つに増える。"),
 		20, RelicRarity::Common, 1, 1
 	}
-}};
+} };
 
+// ダメージ計算対象となるボール同士の衝突種別を表す。
 enum class DamageBallCollisionType
 {
-	PlayerEnemy,
-	EnemyEnemy
+	PlayerEnemy,	// プレイヤーボールと敵ボールの衝突
+	EnemyEnemy		// 敵ボール同士の衝突
 };

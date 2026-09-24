@@ -10,11 +10,11 @@
 #include <type_traits>
 #include <vector>
 
-// ゲーム空間に存在するGameObjectの所有権と検索を一元管理する。
+// ゲーム空間に存在するGameObjectの所有権と検索を一元管理
 class GameWorld final
 {
 public:
-	// 名前を指定してGameObjectを生成し、ゲーム空間へ登録する。
+	// 名前を指定してGameObjectを生成し、ゲーム空間へ登録
 	GameObject* Create(const std::string& name);
 
 	// 指定したGameObjectへ遅延削除要求を送る。
@@ -23,19 +23,19 @@ public:
 	// 削除要求済みのGameObjectをゲーム空間から取り除く。
 	void RemoveDestroyed();
 
-	// 有効なGameObjectのフレーム更新を実行する。
+	// 有効なGameObjectのフレーム更新を実行
 	void Update();
 
-	// 有効なGameObjectの固定時間更新を実行する。
+	// 有効なGameObjectの固定時間更新を実行
 	void FixedUpdate();
 
-	// 有効なGameObjectの後処理更新を実行する。
+	// 有効なGameObjectの後処理更新を実行
 	void LateUpdate();
 
-	// 有効なGameObjectの描画を実行する。
+	// 有効なGameObjectの描画を実行
 	void Draw();
 
-	// すべてのGameObjectを終了処理して破棄する。
+	// すべてのGameObjectを終了処理して破棄
 	void Clear();
 
 	// 指定したGameObjectが現在のゲーム空間に存在するかを返す。
@@ -44,7 +44,7 @@ public:
 	// 指定したComponentが現在のゲーム空間に属しているかを返す。
 	bool Contains(const Component* component) const;
 
-	// 指定した型のComponentをゲーム空間全体から取得する。
+	// 指定した型のComponentをゲーム空間全体から取得
 	template<typename T>
 	std::vector<T*> GetComponents() const
 	{
@@ -68,7 +68,7 @@ public:
 		return result;
 	}
 
-	// 指定した型のComponentを持つGameObjectをゲーム空間全体から取得する。
+	// 指定した型のComponentを持つGameObjectをゲーム空間全体から取得
 	template<typename T>
 	std::vector<GameObject*> GetObjectsWith() const
 	{
@@ -92,7 +92,7 @@ public:
 		return result;
 	}
 
-	// 指定したタグを持つGameObjectをゲーム空間全体から取得する。
+	// 指定したタグを持つGameObjectをゲーム空間全体から取得
 	std::vector<GameObject*> GetObjectsWithTag(GameObjectTag tag) const;
 
 private:

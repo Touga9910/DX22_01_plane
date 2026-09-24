@@ -6,8 +6,10 @@
 #include <cmath>
 #include <limits>
 
+// ポケットへ入ったボールをフィールド内へ戻す際の位置計算をまとめる
 namespace PocketReturnRules
 {
+    // entryPositionからXZ平面上で最も近いポケット中心座標を返す
     inline DirectX::SimpleMath::Vector3 ClosestPocketCenter(
         const DirectX::SimpleMath::Vector3& entryPosition)
     {
@@ -28,6 +30,8 @@ namespace PocketReturnRules
         return closest;
     }
 
+    // 最寄りのポケット中心からテーブル中央側を向くXZ方向の単位ベクトルを返す
+    // 長さを求められない場合は-Z方向を返す
     inline DirectX::SimpleMath::Vector3 InwardDirection(
         const DirectX::SimpleMath::Vector3& entryPosition)
     {
@@ -45,6 +49,8 @@ namespace PocketReturnRules
             -pocketCenter.z / length);
     }
 
+    // 最寄りポケット中心からテーブル内側へinwardDistanceだけ移動した復帰座標を返す
+    // inwardDistanceが負の場合は0として扱い、Y座標はFIELD_HEIGHTを使用する
     inline DirectX::SimpleMath::Vector3 ReturnAnchor(
         const DirectX::SimpleMath::Vector3& entryPosition,
         float inwardDistance)

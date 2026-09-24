@@ -3,7 +3,12 @@
 #include <algorithm>
 #include <utility>
 
-// 新規ラン向けに進行状態とルートマップを初期化する。
+// 新規ラン向けに進行状態とルートマップを初期化
+
+
+
+
+
 void RunProgressController::Reset(std::uint32_t routeSeed)
 {
 	m_Map.Generate(routeSeed);
@@ -12,7 +17,7 @@ void RunProgressController::Reset(std::uint32_t routeSeed)
 	m_Phase = RunPhase::NormalRoute;
 }
 
-// セーブデータから検証済みの進行状態を復元する。
+// セーブデータから検証済みの進行状態を復元
 void RunProgressController::Restore(RunProgressState state)
 {
 	m_Map = std::move(state.map);
@@ -24,7 +29,7 @@ void RunProgressController::Restore(RunProgressState state)
 	m_Phase = state.phase;
 }
 
-// 現在の進行状態をセーブ用の値オブジェクトとして複製する。
+// 現在の進行状態をセーブ用の値オブジェクトとして複製
 RunProgressState RunProgressController::Capture() const
 {
 	return {

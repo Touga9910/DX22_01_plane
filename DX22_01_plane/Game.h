@@ -55,7 +55,7 @@ class Game
 {
 private:
 	// ===== ゲーム全体の基盤 =====
-	// 唯一のGameインスタンスと、シーン・カメラ・ゲーム空間を管理する。
+	// 唯一のGameインスタンスと、シーン・カメラ・ゲーム空間を管理
 	static Game* m_Instance;//ゲームインスタンス
 
 	SceneManager m_SceneManager;
@@ -66,7 +66,7 @@ private:
 	GameWorld m_World;
 
 	// ===== 戦闘状態とショット中の効果 =====
-	// 戦闘の進行、クッション蓄積、シールド、直近の戦闘結果を保持する。
+	// 戦闘の進行、クッション蓄積、シールド、直近の戦闘結果を保持
 	BattleController m_BattleController;
 	CushionChargeRules::State m_CushionCharges{};
 	bool m_CushionBoostConsumedThisShot = false;
@@ -89,15 +89,15 @@ private:
 	int m_PlayerShield = 0;
 
 	// 直近に確定した戦闘結果。
-	// MCPやResult側から参照できるようGameが履歴だけ保持する。
+	// MCPやResult側から参照できるようGameが履歴だけ保持
 	BattleResult m_LastBattleResult = BattleResult::None;
 
-	// ClearRewardは戦闘内部状態ではないためGame側で保持する。
+	// ClearRewardは戦闘内部状態ではないためGame側で保持
 	static constexpr int kClearRewardBallOfferSize = 3;
 	bool m_IsClearRewardActive = false;
 
 	// ===== 固定ステップ物理更新 =====
-	// 表示フレームレートに依存せず物理演算を進め、実行回数や上限到達を計測する。
+	// 表示フレームレートに依存せず物理演算を進め、実行回数や上限到達を計測
 	FixedStepClock m_PhysicsClock;
 	bool m_ResetPhysicsElapsed = true;
 	std::uint64_t m_PhysicsTickCount = 0;
@@ -108,7 +108,7 @@ private:
 	void InitializeBattleController();
 
 	// ===== プレイヤー状態とラン進行 =====
-	// 初期ステータス、デッキ・所持金・マップ進行、MCPからのステージ差し替えを管理する。
+	// 初期ステータス、デッキ・所持金・マップ進行、MCPからのステージ差し替えを管理
 	BallStatus m_DefaultPlayerStatus{};
 	PlayerRunStatus m_DefaultPlayerRunStatus{};
 	RunController m_RunController;
@@ -116,13 +116,13 @@ private:
 	std::optional<StageData> m_McpCurrentStageOverride;
 
 	// ===== ボスAIとボール選択UI =====
-	// ボスのショット計画と、手球候補の選択・ホールド位置を保持する。
+	// ボスのショット計画と、手球候補の選択・ホールド位置を保持
 	BossShotPlanner m_BossShotPlanner;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
 	// ===== 報酬・ショップUI =====
-	// 報酬種別、対象ボール、レリック候補の選択状態と結果メッセージを保持する。
+	// 報酬種別、対象ボール、レリック候補の選択状態と結果メッセージを保持
 	int m_SelectedRewardIndex = 0;
 	int m_SelectedRewardBallIndex = 0;
 	std::vector<int> m_ClearRewardBallOfferCatalogIndices;
@@ -136,7 +136,7 @@ private:
 		RunProgressController::NormalRouteAreaGoal;
 
 	// ===== 自動検証・MCP連携・再現用テレメトリ =====
-	// 自動プレイ、外部AI連携、画面表示、ショット記録、再現可能な乱数シードを管理する。
+	// 自動プレイ、外部AI連携、画面表示、ショット記録、再現可能な乱数シードを管理
 	BalanceAutoPlayer m_BalanceAutoPlayer;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
 	std::unique_ptr<GamePresentation> m_GamePresentation;
@@ -148,13 +148,13 @@ private:
 	BalanceValidationController m_BalanceValidationController;
 
 	// ===== 難易度とエンカウントバランス =====
-	// ラン開始時の基準難易度と、敵編成・配置ごとの脅威度計算条件を保持する。
-	// 基準難易度はラン中に固定し、進行度に応じた敵補正を適用する。
+	// ラン開始時の基準難易度と、敵編成・配置ごとの脅威度計算条件を保持
+	// 基準難易度はラン中に固定し、進行度に応じた敵補正を適用
 	std::string m_BaselineDifficultyProfile = "normal";
 	float m_BaselineEnemyHpMultiplier = 1.0f;
 	int m_BaselineEnemyAttackDelta = 0;
 
-	// エンカウントの脅威度コストは、単純な敵数とは分けてログへ記録する。
+	// エンカウントの脅威度コストは、単純な敵数とは分けてログへ記録
 	std::unordered_map<std::string, float> m_EnemyThreatCosts;
 	std::unordered_map<std::string, float> m_StageThreatTargets;
 	float m_StageDataLayoutThreatMultiplier = 1.0f;
@@ -162,7 +162,7 @@ private:
 	float m_McpLayoutThreatMultiplier = 1.0f;
 
 	// ===== 固定難易度・セーブ・永続進行 =====
-	// 進行度補正、ラン復元、統計、解放状態、アセンション、ゲーム設定を管理する。
+	// 進行度補正、ラン復元、統計、解放状態、アセンション、ゲーム設定を管理
 	DynamicBalanceController m_DynamicBalanceController;
 	bool m_IsRestoringRunSave = false;
 	std::string m_SaveLoadMessage;
@@ -187,7 +187,7 @@ private:
 	bool LoadDebugPreset();
 
 	// ===== ポーズ・入力要求・ラン結果 =====
-	// UIから受けた操作要求を次回更新で処理し、直近の確定済みラン結果を保持する。
+	// UIから受けた操作要求を次回更新で処理し、直近の確定済みラン結果を保持
 	bool m_IsPaused = false;
 	bool m_MousePauseToggle = false;
 	bool m_MouseSaveRequested = false;
@@ -197,7 +197,7 @@ private:
 	RunResultSnapshot m_LastRunResult{};
 
 	// ===== 密接に連携するサブシステム =====
-	// Gameの内部状態を直接読み書きする管理クラスに限定してアクセスを許可する。
+	// Gameの内部状態を直接読み書きする管理クラスに限定してアクセスを許可
 	friend class GameMcpBridge;
 	friend class GameSaveManager;
 	friend class BalanceAutoPlayer;
@@ -229,7 +229,7 @@ private:
 	void ApplyEndOfShotRelicEffects(PlayerBall* player);
 
 	// ===== デッキ循環とステージ報酬 =====
-	// 現在ボールの状態を保存し、山札・捨て札を更新して次のボールを準備し、報酬金を集計する。
+	// 現在ボールの状態を保存し、山札・捨て札を更新して次のボールを準備し、報酬金を集計
 	void SaveDebugSnapshot();
 	void CaptureCurrentPlayerStatus();
 	void DiscardCurrentPlayerBall();
@@ -238,7 +238,7 @@ private:
 	void CollectStageRewardMoney();
 
 	// ===== バランス設定の読み込み =====
-	// 難易度、エンカウント脅威度、ポケットルールをJSONから構築する。
+	// 難易度、エンカウント脅威度、ポケットルールをJSONから構築
 	void LoadDifficultyProfileConfig(
 		const std::string& filePath =
 			"assets/data/difficulty_profiles.json");
@@ -257,7 +257,7 @@ private:
 		const EnemyBall* returningEnemy) const;
 
 	// ===== 自動プレイの報酬選択 =====
-	// 次のステージ種別を判定し、自動検証でのボール報酬・強化選択と保留候補を整理する。
+	// 次のステージ種別を判定し、自動検証でのボール報酬・強化選択と保留候補を整理
 	StageType GetScheduledStageType() const;
 	void ApplyBalanceAutoBallSelection(int offerIndex);
 	void MarkBalanceAutoRewardChosen(
@@ -290,7 +290,7 @@ private:
 	void CompleteFinalBossRun();
 
 	// ===== イベント配信とデバッグ戦闘情報 =====
-	// 戦闘イベントを各記録系へ通知し、予測値とプレイヤー被弾履歴を更新する。
+	// 戦闘イベントを各記録系へ通知し、予測値とプレイヤー被弾履歴を更新
 	void PublishGameEvent(const GameEvent& event);
 	void RecordDebugPlayerDamage(
 		const std::string& source,
@@ -301,7 +301,7 @@ private:
 
 public:
 	// ===== デバッグ機能の公開操作 =====
-	// デバッグモードの起動・状態取得と、検証用のプレイヤー・敵・ブレイクボール設定を反映する。
+	// デバッグモードの起動・状態取得と、検証用のプレイヤー・敵・ブレイクボール設定を反映
 	void OpenDebugMode();
 	// デバッグモードが有効かを返す。
 	bool IsDebugMode() const { return m_DebugController.IsActive(); }
@@ -337,17 +337,17 @@ public:
 	void DeleteAllGameObjects();
 
 	// ===== カメラとポーズ中の入力要求 =====
-	// カメラを公開し、ポーズ・セーブ・全画面切り替えを次回更新へ予約する。
+	// カメラを公開し、ポーズ・セーブ・全画面切り替えを次回更新へ予約
 	// ゲームで使用するカメラを返す。
 	static Camera* GetCamera() { return &m_Instance->m_Camera; }
 
 	// 現在ポーズメニューを開けるかを返す。
 	bool CanOpenPauseMenu() const { return CanPause(); }
-	// 次回更新時のポーズ切り替えを要求する。
+	// 次回更新時のポーズ切り替えを要求
 	void RequestPauseToggle() { m_MousePauseToggle = true; }
-	// 次回更新時の手動セーブを要求する。
+	// 次回更新時の手動セーブを要求
 	void RequestManualSave() { m_MouseSaveRequested = true; }
-	// 次回更新時の全画面切り替えを要求する。
+	// 次回更新時の全画面切り替えを要求
 	void RequestFullscreenToggle() { m_MouseFullscreenToggle = true; }
 	// ゲームがポーズ中かを返す。
 	bool IsPaused() const { return m_IsPaused; }
@@ -428,12 +428,12 @@ public:
 	bool SaveCurrentRun();
 	bool LoadSavedRun();
 	// ===== ボスショットAI =====
-	// 現在盤面の候補ショットを評価し、指定された計画を検証済み状態で実行する。
+	// 現在盤面の候補ショットを評価し、指定された計画を検証済み状態で実行
     nlohmann::json EvaluateBossShots();
     bool FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey);
 
 	// ===== 永続進行とアセンション =====
-	// 直近のラン結果、解放済み要素、選択中のアセンションを参照・更新する。
+	// 直近のラン結果、解放済み要素、選択中のアセンションを参照・更新
 	// 直近に確定したラン結果を返す。
 	const RunResultSnapshot& GetLastRunResult() const
 	{
@@ -484,7 +484,7 @@ public:
 	}
 
 	// ===== ショットと戦闘イベント通知 =====
-	// 照準・威力決定・発射・衝突・撃破を戦闘ルール、レリック、統計、演出へ通知する。
+	// 照準・威力決定・発射・衝突・撃破を戦闘ルール、レリック、統計、演出へ通知
 	void OnPlayerShotFired(PlayerBall* player);
 	void NotifyBattleAimDirectionStarted();
 	void NotifyBattlePowerSelectionStarted();
@@ -545,7 +545,7 @@ public:
 	void InvalidateDebugCombatForecast(const char* reason);
 
 	// ===== ポケット判定と復帰位置 =====
-	// 敵・プレイヤーの落下処理、フィニッシャー条件、復帰順と復帰位置、落下ダメージを決定する。
+	// 敵・プレイヤーの落下処理、フィニッシャー条件、復帰順と復帰位置、落下ダメージを決定
 	void HandleEnemyPocket(EnemyBall* enemy);
 	DirectX::SimpleMath::Vector3 FindPlayerPocketReturnPosition(
 		const PlayerBall* player);
@@ -555,7 +555,7 @@ public:
 	int GetPlayerPocketDamageAmount() const;
 
 	// ===== 難易度補正とバランス検証 =====
-	// 検証イベントを記録し、敵データへ固定難易度と進行度の補正を適用する。
+	// 検証イベントを記録し、敵データへ固定難易度と進行度の補正を適用
 	void RecordBalanceEvent(
 		const std::string& eventType,
 		const nlohmann::json& details = nlohmann::json::object());
@@ -570,23 +570,23 @@ public:
 	int GetPlayerDiscardCount() const { return m_RunController.Deck().GetDiscardPileCount(); }
 
 	// ===== 戦闘対象とWorld内オブジェクト検索 =====
-	// 敵全滅を判定し、型・保持コンポーネント・タグを条件にWorldを検索する。
+	// 敵全滅を判定し、型・保持コンポーネント・タグを条件にWorldを検索
 	bool AreAllEnemiesDefeated() const;
 
-	// ゲーム空間から、指定した型のコンポーネントをすべて取得する。
+	// ゲーム空間から、指定した型のコンポーネントをすべて取得
 	template<typename T> std::vector<T*> GetComponents()
 	{
 		return m_World.GetComponents<T>();
 	}
 
-	// 指定したタグを持つゲームオブジェクトを取得する。
+	// 指定したタグを持つゲームオブジェクトを取得
 	std::vector<GameObject*> GetGameObjectsWithTag(GameObjectTag tag)
 	{
 		return m_World.GetObjectsWithTag(tag);
 	}
 
 	// ===== プレイヤー資源とランマップ進行 =====
-	// 所持金・HP・休憩回復量を参照し、現在の進行と選択可能なマップノードを管理する。
+	// 所持金・HP・休憩回復量を参照し、現在の進行と選択可能なマップノードを管理
 	// プレイヤーの所持金を返す。
 	int GetPlayerMoney() const
 	{
@@ -630,7 +630,7 @@ public:
 	}
 
 	// ===== デッキ・クッション効果・シールド =====
-	// 報酬対象のボールとデッキ下限を参照し、クッション蓄積とシールドによるダメージ軽減を管理する。
+	// 報酬対象のボールとデッキ下限を参照し、クッション蓄積とシールドによるダメージ軽減を管理
 	// 報酬対象となるデッキ内ボール数を返す。
 	int GetDeckBallCount() const { return m_RunController.Deck().GetRewardTargetCount(); }
 	
@@ -658,7 +658,7 @@ public:
 	int AbsorbPlayerShieldDamage(int damage);
 
 	// ===== ショップと休憩所のボール操作 =====
-	// ボールの候補取得、購入・削除・強化と、休憩所で実行できる回復・強化を管理する。
+	// ボールの候補取得、購入・削除・強化と、休憩所で実行できる回復・強化を管理
 	// ショップの商品候補となるボール数を返す。
 	int GetShopBallCount() const { return m_RunController.Deck().GetCatalogCount(); }
 	// 指定位置のショップ用ボール情報を返す。
@@ -671,7 +671,7 @@ public:
 	bool RemoveShopBall(int ballIndex, int cost);
 
 	// ===== レリック所持とステータス補正 =====
-	// レリック定義と所持状態を参照し、予測用ショットルールと攻防補正値を生成する。
+	// レリック定義と所持状態を参照し、予測用ショットルールと攻防補正値を生成
 	// 登録されているレリック総数を返す。
 	int GetRelicCount() const
 	{
@@ -730,7 +730,7 @@ public:
 	}
 
 	// ===== ショップのレリック候補 =====
-	// ショップ用の候補を抽選し、表示位置から定義を取得して購入を適用する。
+	// ショップ用の候補を抽選し、表示位置から定義を取得して購入を適用
 	void RollShopRelicOffers();
 	// ショップに提示中のレリック数を返す。
 	int GetShopRelicOfferCount() const
@@ -754,7 +754,7 @@ public:
 	bool BuyShopRelic(int relicIndex);
 
 	// ===== 中ボス報酬のレリック候補 =====
-	// 中ボス報酬用の候補を抽選し、表示位置から定義を取得して無料獲得を適用する。
+	// 中ボス報酬用の候補を抽選し、表示位置から定義を取得して無料獲得を適用
 	void RollMidBossRelicOffers();
 	// 中ボス報酬として提示中のレリック数を返す。
 	int GetMidBossRelicOfferCount() const

@@ -9,54 +9,63 @@
 #include <unordered_set>
 #include <vector>
 
+// 貫通カテゴリが敵を貫通した軌道へ残す「貫通痕」と、その利用状態を管理
 namespace PierceTraceRules
 {
 	using DirectX::SimpleMath::Vector3;
 
-	static constexpr std::size_t MaxTraceCount = 2;
+	static constexpr std::size_t MaxTraceCount = 2; // 同時に保持できる貫通痕の最大数
 
+	// フィールド上へ残る貫通痕1本分の情報
 	struct Trace
 	{
-		Vector3 start = Vector3::Zero;
-		Vector3 end = Vector3::Zero;
-		Vector3 direction = Vector3::UnitZ;
-		int durability = 0;
-		std::uint64_t id = 0;
+		Vector3 start = Vector3::Zero;      // 痕の開始位置
+		Vector3 end = Vector3::Zero;        // 痕の終了位置
+		Vector3 direction = Vector3::UnitZ; // 開始位置から終了位置へ向くXZ平面上の単位方向
+		int durability = 0;                 // 残り利用可能回数。利用ごとに1減少する
+		std::uint64_t id = 0;               // 痕を一意に識別するID
 	};
 
+	// ラン・戦闘中に保持する貫通痕全体の状態と計測値
 	struct State
 	{
-		std::vector<Trace> traces;
-		std::uint64_t nextId = 1;
-		int generatedCount = 0;
-		int overwrittenCount = 0;
-		int usedCount = 0;
-		int durabilityConsumed = 0;
+		std::vector<Trace> traces;          // 現在フィールド上に存在する貫通痕
+		std::uint64_t nextId = 1;           // 次に生成する痕へ割り当てるID
+		int generatedCount = 0;             // 生成した痕の累計本数
+		int overwrittenCount = 0;           // 上限超過により古い痕を上書きした累計回数
+		int usedCount = 0;                  // 痕の利用が成立した累計回数
+		int durabilityConsumed = 0;         // 利用によって消費した耐久値の累計
 	};
 
+	// 貫通痕を利用したと判定する条件と、利用時の速度倍率
 	struct UseConfig
 	{
-		float angleToleranceDegrees = 12.0f;
-		float requiredDistance = 8.0f;
-		float width = 2.0f;
-		float pierceSpeedMultiplier = 1.1f;
-		float nonPierceSpeedMultiplier = 1.0f;
+		float angleToleranceDegrees = 12.0f; // 痕の方向と移動方向の許容角度差（度）
+		float requiredDistance = 8.0f;        // 利用成立に必要な痕上の累積移動距離
+		float width = 2.0f;                   // 痕の中心線から許容する距離
+		float pierceSpeedMultiplier = 1.1f;   // 貫通カテゴリが強利用した際の速度倍率
+		float nonPierceSpeedMultiplier = 1.0f;// 非貫通カテゴリが利用した際の速度倍率
 	};
 
+	// 1ショット中の貫通痕利用進捗を保持
 	struct ShotUseState
 	{
-		std::unordered_map<std::uint64_t, float> alignedDistance;
-		std::unordered_set<std::uint64_t> usedTraceIds;
-		bool usedAnyTrace = false;
+		std::unordered_map<std::uint64_t, float> alignedDistance; // 痕IDごとの累積沿線移動距離
+		std::unordered_set<std::uint64_t> usedTraceIds;           // このショットですでに利用済みの痕ID
+		bool usedAnyTrace = false;                                // このショットで1本以上の痕を利用したか
 	};
 
+	// 移動処理によって貫通痕の利用が成立した結果
 	struct UseResult
 	{
-		bool activated = false;
-		std::uint64_t traceId = 0;
-		int remainingDurability = 0;
+		bool activated = false;       // 今回の移動で痕利用が成立したか
+		std::uint64_t traceId = 0;    // 利用した痕のID。未発動時は0
+		int remainingDurability = 0;  // 利用後に残った痕の耐久値
 	};
 
+	// startからendまでの新しい貫通痕を追加
+	// durabilityが0以下、または軌道が短すぎる場合はfalseを返して追加しない
+	// 保持上限に達している場合は最も古い痕を削除してから追加
 	inline bool AddTrace(
 		State& state,
 		const Vector3& start,
@@ -77,6 +86,7 @@ namespace PierceTraceRules
 		return true;
 	}
 
+	// pointから貫通痕の延長直線までのXZ平面上の距離を返す
 	inline float DistanceToTraceLine(const Trace& trace, const Vector3& point)
 	{
 		Vector3 offset = point - trace.start;
@@ -85,6 +95,8 @@ namespace PierceTraceRules
 		return (offset - trace.direction * along).Length();
 	}
 
+	// fromからtoへの移動が痕の方向・幅条件を満たす場合、痕区間と重なる移動距離を返す
+	// 移動量が小さい、角度条件外、痕から離れすぎている場合は0を返す
 	inline float AlignedOverlap(
 		const Trace& trace,
 		const Vector3& from,
@@ -114,6 +126,9 @@ namespace PierceTraceRules
 		return (std::max)(0.0f, overlapEnd - overlapStart);
 	}
 
+	// 1回の移動区間について、各痕上を進んだ距離をショット状態へ累積
+	// requiredDistanceへ到達した最初の未使用痕を1回利用し、耐久を1消費して速度倍率を適用
+	// 耐久が0になった痕は削除し、利用が成立しなかった場合は既定値のUseResultを返す
 	inline UseResult AccumulateMovement(
 		State& state,
 		ShotUseState& shot,

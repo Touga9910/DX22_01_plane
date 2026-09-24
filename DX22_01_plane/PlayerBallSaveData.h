@@ -5,9 +5,13 @@
 #include "UiText.h"
 #include <stdexcept>
 
+// PlayerBallDataのセーブ用JSON変換と復元処理をまとめる
 namespace PlayerBallSaveData
 {
 	using nlohmann::json;
+
+	// ボール1個分の実行時データをセーブ用JSONへ変換
+	// プレイヤーボールではdefenseを保存せず、強化モデルのバージョン3として出力
 	inline nlohmann::json BallToJson(const PlayerBallData& ball)
 	{
 		json upgrades = json::array();
@@ -26,13 +30,16 @@ namespace PlayerBallSaveData
 		};
 	}
 
+	// セーブJSONからPlayerBallDataを復元
+	// 必須項目、ID、強化段階、性能値が不正な場合はInvalidSaveDataを例外として通知
+	// categoryを持たない旧データはdefinitionIdからカテゴリを補完
 	inline PlayerBallData BallFromJson(const json& value)
 	{
 		PlayerBallData ball;
 		ball.definitionId = value.at("definition_id").get<std::string>();
 		if (value.contains("category") &&
 			(!value.at("category").is_string() ||
-			!IsBallCategoryId(value.at("category").get<std::string>())))
+				!IsBallCategoryId(value.at("category").get<std::string>())))
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}
@@ -73,7 +80,7 @@ namespace PlayerBallSaveData
 			if (!IsValidPlayerBallStatus(ball.upgradeTable[index])) throw std::runtime_error(UiText::InvalidSaveData);
 			previous = ball.upgradeTable[index];
 		}
-		// 旧セーブの個体IDと強化段階を保ち、性能を新しい強化軸へ移行する。
+		// 旧セーブの個体IDと強化段階を保ち、性能を新しい強化軸へ移行
 		if (upgradeModelVersion < 2)
 		{
 			const auto definitions = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});

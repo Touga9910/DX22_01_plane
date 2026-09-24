@@ -32,8 +32,11 @@ void PlayerDeck::Seed(std::uint32_t seed)
 
 void PlayerDeck::Reset()
 {
-    // 現在ボール・提示・保持・山札・捨て札をすべて回収する。
-    // 実行中に強化された能力値を維持するため、ランタイムのデータを優先する。
+    // 現在ボール・提示・保持・山札・捨て札をすべて回収
+    // 
+    // 
+    // 
+    // 実行中に強化された能力値を維持するため、ランタイムのデータを優先
     std::vector<PlayerBallData> rebuiltDeck;
     rebuiltDeck.reserve(
         m_DrawPile.size() +
@@ -66,7 +69,7 @@ void PlayerDeck::Reset()
         m_DiscardPile.begin(),
         m_DiscardPile.end());
 
-    // 初回起動時など、ランタイムのデッキが空なら設定デッキを使用する。
+    // 初回起動時など、ランタイムのデッキが空なら設定デッキを使用
     if (rebuiltDeck.empty())
     {
         rebuiltDeck = m_DefaultDeck;
@@ -109,7 +112,7 @@ bool PlayerDeck::PrepareOffer(int offerSize)
 
     m_PreviousHeldOfferIndex = -1;
 
-    // 保持中のボールは先頭の選択肢として提示する。
+    // 保持中のボールは先頭の選択肢として提示
     if (m_HeldBall.has_value())
     {
         m_PreviousHeldOfferIndex = 0;
@@ -437,7 +440,7 @@ bool PlayerDeck::RemoveRewardTarget(int index)
 
 bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)
 {
-    // 山札が空になった時点で、捨て札だけをシャッフルして補充する。
+    // 山札が空になった時点で、捨て札だけをシャッフルして補充
     if (m_DrawPile.empty() && !m_DiscardPile.empty())
     {
         m_DrawPile = std::move(m_DiscardPile);

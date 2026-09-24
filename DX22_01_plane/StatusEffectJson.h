@@ -3,6 +3,8 @@
 #include "StatusEffect.h"
 #include "json/json.hpp"
 
+// JSON配列から状態効果一覧を読み込む
+// 配列でない場合は空のStatusEffectCollectionを返し、不正な要素は読み飛ばす
 inline StatusEffectCollection ReadStatusEffects(const nlohmann::json& value)
 {
 	StatusEffectCollection effects;
@@ -27,6 +29,8 @@ inline StatusEffectCollection ReadStatusEffects(const nlohmann::json& value)
 	return effects;
 }
 
+// 状態効果一覧をJSON配列へ変換
+// 効果量が0の状態効果は保存対象に含めない
 inline nlohmann::json WriteStatusEffects(const StatusEffectCollection& effects)
 {
 	nlohmann::json result = nlohmann::json::array();

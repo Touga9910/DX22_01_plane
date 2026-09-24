@@ -84,7 +84,7 @@ struct BattleControllerHooks
         BattleState previousState)> onClearStateRecovered;
 };
 
-// 戦闘中の状態遷移・ターン進行・勝敗判定を一元管理する。
+// 戦闘中の状態遷移・ターン進行・勝敗判定を一元管理
 class BattleController final
 {
 public:
@@ -101,7 +101,7 @@ public:
     void Update();
 
     // 1 FixedStep終了後にGameから呼ぶ。
-    // trueを返した場合は、そのフレームの物理catch-upを終了する。
+    // trueを返した場合は、そのフレームの物理catch-upを終了
     bool OnFixedStepCompleted();
 
     // PlayerBall等から受け取る「起きた事実」の通知。
@@ -140,7 +140,7 @@ public:
         return m_AllBallsStoppedTickCount;
     }
 
-    // Gameが結果を1回だけ処理するために取得する。
+    // Gameが結果を1回だけ処理するために取得
     BattleResult ConsumeResult();
 
     bool AreAllBallsStopped() const;

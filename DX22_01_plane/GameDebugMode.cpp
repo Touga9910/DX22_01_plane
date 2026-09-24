@@ -72,7 +72,7 @@ void GameDebugController::Open(Game& game)
     Game::ResetFrameTiming();
 }
 
-// Debug Run Settingsを適用する。
+// Debug Run Settingsを適用
 void GameDebugController::ApplyRunSettings(Game& game)
 {
     m_DebugSetup.ApplyProgressionTo(game.m_ProgressionProfile);
@@ -97,7 +97,7 @@ void GameDebugController::ApplyRunSettings(Game& game)
     game.m_RunController.Relics() = m_DebugSetup.relics;
 }
 
-// Debug Battleを開始する。
+// Debug Battleを開始
 bool GameDebugController::StartBattle(Game& game)
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -138,7 +138,7 @@ bool GameDebugController::StartBattle(Game& game)
     return true;
 }
 
-// Debug Battle Playerを適用する。
+// Debug Battle Playerを適用
 void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
 {
     if (!m_DebugMode || !player) return;
@@ -146,7 +146,7 @@ void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
     player->GetBall()->SetInitialPosition(m_DebugSetup.playerPosition);
 }
 
-// Debug Battle Enemyを適用する。
+// Debug Battle Enemyを適用
 void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
     if (!m_DebugMode || !enemy || index >= m_DebugSetup.enemies.size()) return;
@@ -164,7 +164,7 @@ void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
     enemy->SetDebugBossState(m_DebugSetup.armor, m_DebugSetup.breakShots);
 }
 
-// Debug Modeを終了する。
+// Debug Modeを終了
 void GameDebugController::End(Game& game)
 {
     if (!m_DebugMode) return;
@@ -184,7 +184,7 @@ void GameDebugController::End(Game& game)
     game.LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
 }
 
-// Debug Battleを終了する。
+// Debug Battleを終了
 void GameDebugController::FinishBattle(Game& game, bool victory)
 {
     if (m_DebugBattleFinished) return;
@@ -201,7 +201,7 @@ void GameDebugController::FinishBattle(Game& game, bool victory)
     Game::ResetFrameTiming();
 }
 
-// Debug Modeを更新する。
+// Debug Modeを更新
 bool GameDebugController::Update(Game& game)
 {
     const int request = std::exchange(m_DebugRequest, 0);
@@ -214,14 +214,14 @@ bool GameDebugController::Update(Game& game)
     }
     if (m_DebugEditorOpen)
     {
-        // 編集中も状態を公開するが、外部からの戦闘操作はBridge側で拒否する。
+        // 編集中も状態を公開するが、外部からの戦闘操作はBridge側で拒否
         if (game.m_GameMcpBridge) game.m_GameMcpBridge->Update(game);
         Game::ResetFrameTiming(); return true;
     }
     return false;
 }
 
-// Debug Presetを保存する。
+// Debug Presetを保存
 void GameDebugController::SavePreset()
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -246,7 +246,7 @@ bool GameDebugController::LoadPreset()
         if (std::filesystem::file_size(PresetPath) > 1024 * 1024) throw std::runtime_error("ファイルが大きすぎます。");
         std::ifstream file(PresetPath); nlohmann::json value; file >> value;
         auto next = DebugBattleSetup::FromJson(value, m_DebugBallCatalog, m_DebugEnemyCatalog);
-        m_DebugSetup = std::move(next); // 検証に失敗したときは編集中の条件を維持する。
+        m_DebugSetup = std::move(next); // 検証に失敗したときは編集中の条件を維持
         m_DebugMessage = "デバッグ条件を読み込みました。「この条件で戦闘開始」で適用します。";
         return true;
     }
@@ -254,7 +254,7 @@ bool GameDebugController::LoadPreset()
     return false;
 }
 
-// Debug Modeを描画する。
+// Debug Modeを描画
 void GameDebugController::Draw(Game& game)
 {
     static bool stageTabActive = true;
@@ -504,7 +504,7 @@ void GameDebugController::Draw(Game& game)
     ImGui::End();
 }
 
-// Gameは呼び出し窓口だけを保ち、デバッグの手順はControllerへ委譲する。
+// Gameは呼び出し窓口だけを保ち、デバッグの手順はControllerへ委譲
 void Game::OpenDebugMode() { m_DebugController.Open(*this); }
 void Game::ApplyDebugBattlePlayer(PlayerBall* player) { m_DebugController.ApplyBattlePlayer(player); }
 void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index) { m_DebugController.ApplyBattleEnemy(enemy, index); }

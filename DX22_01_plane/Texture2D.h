@@ -10,7 +10,7 @@
 #include "Texture.h"
 #include "VertexBuffer.h"
 
-// スクリーン空間へ2Dテクスチャを描画する。
+// スクリーン空間へ2Dテクスチャを描画
 class Texture2D final : public Component
 {
 public:
@@ -22,7 +22,7 @@ public:
 	void SetPosition(float x, float y, float z);
 	void SetPosition(const DirectX::SimpleMath::Vector3& position);
 
-	// 回転値は度数法で指定する。
+	// 回転値は度数法で指定
 	void SetRotation(float x, float y, float z);
 	void SetRotation(const DirectX::SimpleMath::Vector3& rotationDegrees);
 

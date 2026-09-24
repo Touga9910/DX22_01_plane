@@ -1,7 +1,10 @@
 {
   "stages": [
     {
+      "id": "normal_001",
+      "stageType": "normal",
       "difficulty": 1,
+      "par": 4,
       "enemies": [
         {
           "position": [
@@ -17,13 +20,13 @@
             12.0
           ]
         }
-      ],
-      "id": "normal_001",
-      "par": 4,
-      "stageType": "normal"
+      ]
     },
     {
+      "id": "normal_002",
+      "stageType": "normal",
       "difficulty": 1,
+      "par": 4,
       "enemies": [
         {
           "position": [
@@ -46,13 +49,13 @@
             -14.0
           ]
         }
-      ],
-      "id": "normal_002",
-      "par": 4,
-      "stageType": "normal"
+      ]
     },
     {
+      "id": "normal_003",
+      "stageType": "normal",
       "difficulty": 2,
+      "par": 5,
       "enemies": [
         {
           "enemyId": "enemy_strong",
@@ -83,13 +86,13 @@
             12.0
           ]
         }
-      ],
-      "id": "normal_003",
-      "par": 5,
-      "stageType": "normal"
+      ]
     },
     {
+      "id": "normal_004",
+      "stageType": "normal",
       "difficulty": 3,
+      "par": 6,
       "enemies": [
         {
           "enemyId": "enemy_strong",
@@ -128,13 +131,13 @@
             -9.0
           ]
         }
-      ],
-      "id": "normal_004",
-      "par": 6,
-      "stageType": "normal"
+      ]
     },
     {
+      "id": "midboss_001",
+      "stageType": "midBoss",
       "difficulty": 3,
+      "par": 6,
       "enemies": [
         {
           "enemyId": "enemy_midboss_guard",
@@ -158,13 +161,13 @@
             8.0
           ]
         }
-      ],
-      "id": "midboss_001",
-      "par": 6,
-      "stageType": "midBoss"
+      ]
     },
     {
+      "id": "midboss_002",
+      "stageType": "midBoss",
       "difficulty": 3,
+      "par": 6,
       "enemies": [
         {
           "enemyId": "enemy_midboss_pocket",
@@ -188,42 +191,13 @@
             10.0
           ]
         }
-      ],
-      "id": "midboss_002",
-      "par": 6,
-      "stageType": "midBoss"
+      ]
     },
     {
-      "breakBalls": [
-        [
-          -20.0,
-          1.0,
-          20.0
-        ],
-        [
-          20.0,
-          1.0,
-          20.0
-        ]
-      ],
-      "difficulty": 3,
-      "enemies": [
-        {
-          "enemyId": "enemy_boss_core",
-          "position": [
-            0.0,
-            1.0,
-            20.0
-          ]
-        }
-      ],
       "id": "boss_001",
-      "par": 7,
-      "preserveLayout": true,
-      "stageType": "boss"
-    },
-    {
+      "stageType": "boss",
       "difficulty": 3,
+      "par": 7,
       "enemies": [
         {
           "enemyId": "enemy_boss_core",
@@ -233,10 +207,23 @@
             20.0
           ]
         }
-      ],
+      ]
+    },
+    {
       "id": "boss_002",
+      "stageType": "boss",
+      "difficulty": 3,
       "par": 7,
-      "stageType": "boss"
+      "enemies": [
+        {
+          "enemyId": "enemy_boss_core",
+          "position": [
+            0.0,
+            1.0,
+            20.0
+          ]
+        }
+      ]
     }
   ]
 }
