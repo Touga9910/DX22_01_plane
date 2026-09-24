@@ -577,22 +577,61 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 	const auto players = game.GetComponents<PlayerBall>();
 	const PlayerBall* player = players.empty() ? nullptr : players.front();
+
+
+	// 各ビルドのスタックを表示する //
 	if (player == nullptr || player->IsDefeated()) return;
 	std::vector<ResourceBadge> resources;
-	resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"敵同士の衝突回数"),
-		game.GetHeavyCollisionCount(), IM_COL32(255, 146, 61, 255) });
-	const int traceCount = static_cast<int>(game.GetPierceTraceState().traces.size());
-	if (traceCount > 0)
-		resources.push_back({ PresentationUtf8(u8"痕"), PresentationUtf8(u8"貫通痕"),
-			traceCount, IM_COL32(198, 92, 255, 255) });
-	const int cushionStacks = CushionChargeRules::TotalStacks(game.GetCushionCharges());
-	if (cushionStacks > 0)
-		resources.push_back({ PresentationUtf8(u8"跳"), PresentationUtf8(u8"クッションスタック合計"),
-			cushionStacks, IM_COL32(255, 221, 58, 255), true });
-	if (game.GetPlayerAnchorStacks() > 0)
-		resources.push_back({ PresentationUtf8(u8"錨"), PresentationUtf8(u8"プレイヤー錨スタック"),
-			game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255) });
-	if (resources.empty()) return;
+
+	const int heavyCollisionCount = game.GetHeavyCollisionCount();
+	if (heavyCollisionCount > 0)
+	{
+		resources.push_back({
+			PresentationUtf8(u8"重"),
+			PresentationUtf8(u8"敵同士の衝突回数"),
+			heavyCollisionCount,
+			IM_COL32(255, 146, 61, 255)
+			});
+	}
+
+	const int pierceTraceCount = game.GetPierceTraceCount();
+	if (pierceTraceCount > 0)
+	{
+		resources.push_back({
+			PresentationUtf8(u8"痕"),
+			PresentationUtf8(u8"貫通痕"),
+			pierceTraceCount,
+			IM_COL32(198, 92, 255, 255)
+			});
+	}
+
+	const int cushionStackCount = game.GetTotalCushionStacks();
+	if (cushionStackCount > 0)
+	{
+		resources.push_back({
+			PresentationUtf8(u8"跳"),
+			PresentationUtf8(u8"クッションスタック合計"),
+			cushionStackCount,
+			IM_COL32(255, 221, 58, 255),
+			true
+			});
+	}
+
+	const int playerAnchorStackCount = game.GetPlayerAnchorStacks();
+	if (playerAnchorStackCount > 0)
+	{
+		resources.push_back({
+			PresentationUtf8(u8"錨"),
+			PresentationUtf8(u8"プレイヤー錨スタック"),
+			playerAnchorStackCount,
+			IM_COL32(75, 225, 183, 255)
+			});
+	}
+
+	if (resources.empty())
+	{
+		return;
+	}
 
 	ImVec2 center;
 	ImVec2 top;

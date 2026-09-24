@@ -633,17 +633,26 @@ public:
 	// 報酬対象のボールとデッキ下限を参照し、クッション蓄積とシールドによるダメージ軽減を管理する。
 	// 報酬対象となるデッキ内ボール数を返す。
 	int GetDeckBallCount() const { return m_RunController.Deck().GetRewardTargetCount(); }
-	// デッキの最小構成数を返す。
+	
+	// デッキの最小構成数
 	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
-	// 指定位置のデッキ内ボールを返す。
+	
+	// 指定位置のデッキ内ボールを返す
 	const PlayerBallData* GetDeckBall(int index) const { return m_RunController.Deck().GetRewardTarget(index); }
-	// 現在のショットに割り当てられたボールを返す。
+	
+	// 現在のショットに割り当てられたボールを返す
 	const PlayerBallData* GetCurrentPlayerBallData() const { return m_RunController.Deck().GetCurrent(); }
+	
 	const CushionChargeRules::State& GetCushionCharges() const { return m_CushionCharges; }
 	bool WasCushionBoostConsumedThisShot() const { return m_CushionBoostConsumedThisShot; }
-	int GetHeavyCollisionCount() const { return m_HeavyCollisions.collisionCount; }
 	const PierceTraceRules::State& GetPierceTraceState() const { return m_PierceTraces; }
-	int GetPlayerAnchorStacks() const { return m_AnchorStacks.playerStacks; }
+
+	// 各スタックを返す
+	int GetHeavyCollisionCount() const { return m_HeavyCollisions.collisionCount; }
+	int GetPierceTraceCount() const	   { return static_cast<int>(m_PierceTraces.traces.size()); }
+	int GetTotalCushionStacks() const  { return CushionChargeRules::TotalStacks(m_CushionCharges); }
+	int GetPlayerAnchorStacks() const  { return m_AnchorStacks.playerStacks; }
+	
 	int GetCushionStrongUsesThisShot() const { return m_CushionStrongUsesThisShot; }
 	int GetPlayerShield() const { return m_PlayerShield; }
 	int AbsorbPlayerShieldDamage(int damage);
