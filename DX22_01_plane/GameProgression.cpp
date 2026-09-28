@@ -2,6 +2,8 @@
 #include "BallStatusJson.h"
 #include "PlayerBallText.h"
 #include "BallMechanics.h"
+#include "json/json.hpp"
+#include "RunProgressController.h"
 
 #pragma execution_character_set("utf-8")
 #include "Renderer.h"
@@ -117,6 +119,36 @@ namespace
 		file << "IsDefeated = " << (ball->IsDefeated() ? "true" : "false") << "\n";
 		file << "\n";
 	}
+}
+
+int Game::GetAreaProgress() const
+{
+	return m_RunController.Progress().GetAreaProgress();
+}
+
+const RunMap& Game::GetRunMap() const
+{
+	return m_RunController.Progress().GetMap();
+}
+
+bool Game::ChooseMapNode(int nodeId)
+{
+	return m_RunController.Progress().ChooseNode(nodeId);
+}
+
+RunPhase Game::GetRunPhase() const
+{
+	return m_RunController.Progress().GetPhase();
+}
+
+bool Game::IsBossPreparation() const
+{
+	return m_RunController.Progress().IsBossPreparation();
+}
+
+bool Game::IsFinalBossRoute() const
+{
+	return m_RunController.Progress().IsFinalBossReady();
 }
 
 // Rest Heal の処理を実行する。
@@ -875,7 +907,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			{ "selected_instance_id", currentBall->instanceId },
 			{ "effective_attack", player->GetAttack() },
 			{ "offers", std::move(offers) },
-			{ "mcp_telemetry", m_PendingShotTelemetry },
+			{ "mcp_telemetry", *m_PendingShotTelemetry },
 		};
 
 		BalanceLogger::GetInstance().BeginShot(
@@ -892,7 +924,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			CountAliveEnemies(enemies),
 			CountDefeatedEnemies(enemies),
 			shotContext);
-		m_PendingShotTelemetry = nlohmann::json::object();
+		*m_PendingShotTelemetry = nlohmann::json::object();
 	}
 
 	m_RunController.Deck().MarkCurrentUsed();

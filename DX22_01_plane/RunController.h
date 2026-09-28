@@ -3,21 +3,29 @@
 #include "GameTypes.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
-#include "RunProgressController.h"
 #include "StageSelector.h"
+#include "RunProgressConstants.h"
 
 #include <array>
 #include <cstdint>
 #include <random>
+#include <memory>
 #include <vector>
 
 class ProgressionProfile;
+class RunProgressController;
 
 // 1回のランを通して保持される状態の所有者。
 // Gameは進行の指示だけを行い、ラン状態へはこの境界を通してアクセスする。
 class RunController final
 {
 public:
+    RunController();
+    ~RunController();
+
+    RunController(const RunController&) = delete;
+    RunController& operator=(const RunController&) = delete;
+
     void ResetRuntimeState(const PlayerRunStatus& defaultStatus);
 
     PlayerRunStatus& Status() { return m_Status; }
@@ -36,8 +44,8 @@ public:
         return m_OwnedRelics;
     }
 
-    RunProgressController& Progress() { return m_Progress; }
-    const RunProgressController& Progress() const { return m_Progress; }
+    RunProgressController& Progress();
+    const RunProgressController& Progress() const;
 
     StageSelector& StageSelection() { return m_StageSelector; }
     const StageSelector& StageSelection() const { return m_StageSelector; }
@@ -77,6 +85,10 @@ public:
 
     void SeedRelics(std::uint32_t seed) { m_RelicRandomEngine.seed(seed); }
     std::mt19937& RelicRandomEngine() { return m_RelicRandomEngine; }
+    const std::mt19937& RelicRandomEngine() const
+    {
+        return m_RelicRandomEngine;
+    }
 
     std::vector<int>& ShopRelicOffers() { return m_ShopRelicOffers; }
     const std::vector<int>& ShopRelicOffers() const { return m_ShopRelicOffers; }
@@ -88,7 +100,7 @@ private:
     PlayerRunStatus m_Status{};
     PlayerDeck m_Deck{};
     std::array<bool, static_cast<std::size_t>(RelicType::Count)> m_OwnedRelics{};
-    RunProgressController m_Progress{};
+    std::unique_ptr<RunProgressController> m_Progress;
     StageSelector m_StageSelector{};
     float m_RestHealRatio = 0.25f;
     std::vector<int> m_ShopRelicOffers{};

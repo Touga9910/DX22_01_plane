@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "SettingsManager.h"
+
 #include <SimpleMath.h>
 
 #include <array>
@@ -7,6 +9,76 @@
 #include <vector>
 
 class Game;
+struct PlayerBallData;
+struct RelicDefinition;
+
+struct PausePresentationModel
+{
+	GameSettings settings{};
+	bool debugMode = false;
+	bool confirmReturnToTitle = false;
+	bool battleScene = false;
+	bool clearRewardActive = false;
+};
+
+struct PausePresentationIntent
+{
+	GameSettings settings{};
+	bool settingsChanged = false;
+	bool resume = false;
+	bool applyDisplay = false;
+	bool requestDebugExit = false;
+	bool requestReturnConfirmation = false;
+	bool saveAndReturnToTitle = false;
+	bool cancelReturnToTitle = false;
+};
+
+struct BallSelectionPresentationModel
+{
+	std::vector<const PlayerBallData*> offers;
+	std::vector<int> effectiveAttacks;
+	int selectedOfferIndex = 0;
+	int selectedHoldIndex = -1;
+};
+
+struct BallSelectionPresentationIntent
+{
+	int selectedOfferIndex = 0;
+	int selectedHoldIndex = -1;
+	bool selectionChanged = false;
+};
+
+struct ClearRewardBallView
+{
+	const PlayerBallData* ball = nullptr;
+	int upgradeCost = -1;
+};
+
+struct ClearRewardPresentationModel
+{
+	int stageRewardMoney = 0;
+	int playerMoney = 0;
+	int playerCurrentHp = 0;
+	int playerMaxHp = 0;
+	bool midBossRelicSelectionActive = false;
+	bool clearRewardChosen = false;
+	int selectedRelicOfferIndex = 0;
+	int selectedRewardIndex = 0;
+	int selectedRewardBallIndex = 0;
+	int extraMoneyAmount = 0;
+	std::string rewardMessage;
+	std::vector<const RelicDefinition*> relicOffers;
+	std::vector<const PlayerBallData*> newBallOffers;
+	std::vector<ClearRewardBallView> upgradeTargets;
+};
+
+struct ClearRewardPresentationIntent
+{
+	int selectedRelicOfferIndex = 0;
+	int selectedRewardIndex = 0;
+	int selectedRewardBallIndex = 0;
+	bool confirm = false;
+};
 
 // プレイヤー向けのチュートリアル、戦闘フィードバック、バランス可視化を扱う。
 // 自動ランの決定性を保つため、ゲームルールから分離する。
@@ -16,9 +88,11 @@ public:
 	void Initialize(Game& game);
 	void Update(Game& game);
 	void Draw(Game& game);
-	void DrawPause(Game& game);
-	void DrawBallSelection(Game& game);
-	void DrawClearReward(Game& game);
+	PausePresentationIntent DrawPause(const PausePresentationModel& model);
+	BallSelectionPresentationIntent DrawBallSelection(
+		const BallSelectionPresentationModel& model);
+	ClearRewardPresentationIntent DrawClearReward(
+		const ClearRewardPresentationModel& model);
 
 	void OnBattleStarted(Game& game);
 	void OnShotFired();

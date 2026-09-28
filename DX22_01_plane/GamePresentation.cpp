@@ -6,6 +6,7 @@
 #include "BattleScene.h"
 #include "Camera.h"
 #include "Game.h"
+#include "GameDebugController.h"
 #include "GameUi.h"
 #include "EnemyBall.h"
 #include "BreakBall.h"
@@ -857,7 +858,7 @@ void GamePresentation::DrawDeckList(Game& game)
 		if (ImGui::Selectable("捨て札", m_DeckListView == DeckListView::DiscardPile, 0, ImVec2(88.0f, 24.0f)))
 			m_DeckListView = DeckListView::DiscardPile;
 
-		const PlayerDeck& deck = game.m_RunController.Deck();
+		const PlayerDeck& deck = game.GetPlayerDeckView();
 		int count = 0;
 		auto ballAt = [&](int index) -> const PlayerBallData*
 		{
@@ -1698,15 +1699,133 @@ bool GamePresentation::IsBattleScene(const Game& game) const
 // Game keeps only the timing decision; presentation owns the UI details.
 void Game::DrawPauseUI()
 {
-	if (m_GamePresentation != nullptr) m_GamePresentation->DrawPause(*this);
+	if (m_GamePresentation == nullptr)
+	{
+		return;
+	}
+
+	PausePresentationModel model{};
+	model.settings = m_SettingsManager.Get();
+	model.debugMode = IsDebugMode();
+	model.confirmReturnToTitle = m_PauseConfirmTitle;
+	model.battleScene = GetCurrentSceneType() == SceneType::Battle;
+	model.clearRewardActive = m_IsClearRewardActive;
+	const PausePresentationIntent intent = m_GamePresentation->DrawPause(model);
+
+	if (intent.settingsChanged)
+	{
+		const bool vibrationWasEnabled =
+			m_SettingsManager.Get().vibrationEnabled;
+		m_SettingsManager.Edit() = intent.settings;
+		m_SettingsManager.MarkDirty();
+		if (vibrationWasEnabled && !intent.settings.vibrationEnabled)
+		{
+			Input::SetVibration(0, 0.0f);
+		}
+	}
+	if (intent.applyDisplay)
+	{
+		m_PendingDisplayApply = true;
+		m_SettingsManager.SaveIfDirty();
+	}
+	if (intent.resume)
+	{
+		m_SettingsManager.SaveIfDirty();
+		m_IsPaused = false;
+		m_PauseConfirmTitle = false;
+	}
+	if (intent.requestDebugExit)
+	{
+		m_DebugController->RequestExit();
+	}
+	if (intent.requestReturnConfirmation)
+	{
+		m_PauseConfirmTitle = true;
+	}
+	if (intent.saveAndReturnToTitle)
+	{
+		SaveAndReturnToTitle();
+	}
+	if (intent.cancelReturnToTitle)
+	{
+		m_PauseConfirmTitle = false;
+	}
 }
 
 void Game::DrawBallSelectionUI()
 {
-	if (m_GamePresentation != nullptr) m_GamePresentation->DrawBallSelection(*this);
+	if (m_GamePresentation == nullptr)
+	{
+		return;
+	}
+
+	BallSelectionPresentationModel model{};
+	model.selectedOfferIndex = m_SelectedOfferIndex;
+	model.selectedHoldIndex = m_SelectedHoldIndex;
+	const int offerCount = m_RunController.Deck().GetOfferCount();
+	model.offers.reserve(static_cast<std::size_t>(offerCount));
+	model.effectiveAttacks.reserve(static_cast<std::size_t>(offerCount));
+	for (int index = 0; index < offerCount; ++index)
+	{
+		const PlayerBallData* ball = m_RunController.Deck().GetOffer(index);
+		model.offers.push_back(ball);
+		model.effectiveAttacks.push_back(GetEffectivePlayerBallAttack(ball));
+	}
+
+	const BallSelectionPresentationIntent intent =
+		m_GamePresentation->DrawBallSelection(model);
+	m_SelectedOfferIndex = intent.selectedOfferIndex;
+	m_SelectedHoldIndex = intent.selectedHoldIndex;
+	if (intent.selectionChanged)
+	{
+		ApplySelectedBallPreview();
+	}
 }
 
 void Game::DrawClearRewardUI()
 {
-	if (m_GamePresentation != nullptr) m_GamePresentation->DrawClearReward(*this);
+	if (m_GamePresentation == nullptr)
+	{
+		return;
+	}
+
+	ClearRewardPresentationModel model{};
+	model.stageRewardMoney = m_RunController.GetCurrentStageRewardMoney();
+	model.playerMoney = m_RunController.Status().money;
+	model.playerCurrentHp = m_RunController.Status().currentHp;
+	model.playerMaxHp = m_RunController.Status().maxHp;
+	model.midBossRelicSelectionActive = m_IsMidBossRelicSelectionActive;
+	model.clearRewardChosen = m_IsClearRewardChosen;
+	model.selectedRelicOfferIndex = m_SelectedRelicOfferIndex;
+	model.selectedRewardIndex = m_SelectedRewardIndex;
+	model.selectedRewardBallIndex = m_SelectedRewardBallIndex;
+	model.extraMoneyAmount = kClearRewardExtraMoney;
+	model.rewardMessage = m_RewardMessage;
+	for (int index = 0; index < GetMidBossRelicOfferCount(); ++index)
+	{
+		model.relicOffers.push_back(GetMidBossRelicOffer(index));
+	}
+	for (int index = 0; index < GetClearRewardBallOfferCount(); ++index)
+	{
+		model.newBallOffers.push_back(GetClearRewardBallOffer(index));
+	}
+	const int targetCount = m_RunController.Deck().GetRewardTargetCount();
+	model.upgradeTargets.reserve(static_cast<std::size_t>(targetCount));
+	for (int index = 0; index < targetCount; ++index)
+	{
+		model.upgradeTargets.push_back({
+			m_RunController.Deck().GetRewardTarget(index),
+			GetClearRewardUpgradeCost(index),
+		});
+	}
+
+	const ClearRewardPresentationIntent intent =
+		m_GamePresentation->DrawClearReward(model);
+	m_SelectedRelicOfferIndex = intent.selectedRelicOfferIndex;
+	m_SelectedRewardIndex = intent.selectedRewardIndex;
+	m_SelectedRewardBallIndex = intent.selectedRewardBallIndex;
+	if (intent.confirm)
+	{
+		m_ClearRewardMouseConfirmed = true;
+	}
 }

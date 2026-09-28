@@ -12,7 +12,10 @@ struct DifficultyRange
     int max = 1;
 };
 
-class GameSaveManager;
+struct StageSelectorSnapshot
+{
+    std::mt19937 randomEngine;
+};
 
 DifficultyRange GetDifficultyRange(int progress);
 
@@ -28,7 +31,9 @@ public:
         int progress,
         const std::string& lastStageId);
 
+    StageSelectorSnapshot CaptureSnapshot() const;
+    void RestoreSnapshot(const StageSelectorSnapshot& snapshot);
+
 private:
-    friend class GameSaveManager;
     std::mt19937 m_RandomEngine;
 };

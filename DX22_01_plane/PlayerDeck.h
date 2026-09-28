@@ -7,7 +7,18 @@
 #include <random>
 #include <vector>
 
-class GameSaveManager;
+struct PlayerDeckSnapshot
+{
+    std::vector<PlayerBallData> drawPile;
+    std::vector<PlayerBallData> discardPile;
+    std::vector<PlayerBallData> offeredBalls;
+    std::optional<PlayerBallData> heldBall;
+    std::optional<PlayerBallData> currentBall;
+    int previousHeldOfferIndex = -1;
+    bool currentBallUsed = false;
+    std::uint64_t nextInstanceId = 1;
+    std::mt19937 randomEngine;
+};
 
 class PlayerDeck
 {
@@ -74,9 +85,11 @@ public:
     bool AddCatalogBall(int index);
     bool RemoveRewardTarget(int index);
 
-private:
-    friend class GameSaveManager;
+    // Save I/O receives a typed copy instead of privileged field access.
+    PlayerDeckSnapshot CaptureSnapshot() const;
+    bool RestoreSnapshot(PlayerDeckSnapshot snapshot);
 
+private:
     bool DrawOneFromPile(PlayerBallData& result);
     void ShuffleDrawPile();
 

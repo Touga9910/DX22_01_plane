@@ -1,6 +1,7 @@
 ﻿#include "Game.h"
 
 #include "BalanceLogger.h"
+#include "GameDebugController.h"
 #include "PlayerBall.h"
 
 #include <utility>
@@ -35,13 +36,13 @@ void Game::InitializeBattleController()
 	hooks.beginEnemyAttackForecast =
 		[this]() -> int
 		{
-			return m_DebugController.BeginEnemyAttackForecast(*this);
+			return m_DebugController->BeginEnemyAttackForecast(*this);
 		};
 
 	hooks.endEnemyAttackForecast =
 		[this](int predictedDamage, int actualDamage)
 		{
-			m_DebugController.EndEnemyAttackForecast(
+			m_DebugController->EndEnemyAttackForecast(
 				predictedDamage,
 				actualDamage);
 		};

@@ -1,6 +1,7 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "StageSelectScene.h"
 #include "Game.h"
+#include "json/json.hpp"
 #include "GameUi.h"
 #include "Input.h"
 #include "Texture2D.h"

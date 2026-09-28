@@ -12,6 +12,18 @@ def source(name: str) -> str:
 
 
 class GameResponsibilitySplitContractTests(unittest.TestCase):
+    def test_game_header_keeps_heavy_implementation_headers_private(self) -> None:
+        game = source("Game.h")
+
+        self.assertIn('#include "json/json_fwd.hpp"', game)
+        for implementation_header in (
+            '#include "json/json.hpp"',
+            '#include "BossShotPlanner.h"',
+            '#include "GameDebugController.h"',
+            '#include "RunProgressController.h"',
+        ):
+            self.assertNotIn(implementation_header, game)
+
     def test_battle_state_and_turn_flow_are_owned_by_battle_controller(self) -> None:
         game = source("Game.h")
         battle = source("BattleController.h") + source("BattleController.cpp")
@@ -49,7 +61,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertNotIn("RunProgressController m_RunProgress", game)
         self.assertIn("PlayerRunStatus m_Status", run)
         self.assertIn("PlayerDeck m_Deck", run)
-        self.assertIn("RunProgressController m_Progress", run)
+        self.assertIn("std::unique_ptr<RunProgressController> m_Progress", run)
+        self.assertNotIn('#include "RunProgressController.h"', source("RunController.h"))
         self.assertIn("bool RunController::RestHeal()", run)
         self.assertIn("bool RunController::BuyShopBall", run)
         self.assertIn("bool RunController::BuyRelic", run)
@@ -136,7 +149,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             + source("Game.cpp")
         )
 
-        self.assertIn("GameDebugController m_DebugController", game)
+        self.assertIn("std::unique_ptr<GameDebugController> m_DebugController", game)
+        self.assertNotIn('#include "GameDebugController.h"', game)
         for old_member in (
             "bool m_DebugMode",
             "bool m_DebugEditorOpen",
@@ -164,15 +178,21 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
     def test_player_facing_draw_workflows_are_owned_by_presentation(self) -> None:
         game_header = source("Game.h")
         game_source = source("Game.cpp")
-        presentation = source("GamePresentation.h") + game_source
+        presentation_header = source("GamePresentation.h")
+        presentation = presentation_header + game_source
 
         self.assertIn("std::unique_ptr<GamePresentation> m_GamePresentation", game_header)
         for workflow in (
-            "void GamePresentation::DrawPause(Game& game)",
-            "void GamePresentation::DrawBallSelection(Game& game)",
-            "void GamePresentation::DrawClearReward(Game& game)",
+            "PausePresentationIntent GamePresentation::DrawPause(",
+            "BallSelectionPresentationIntent GamePresentation::DrawBallSelection(",
+            "ClearRewardPresentationIntent GamePresentation::DrawClearReward(",
         ):
             self.assertIn(workflow, presentation)
+        self.assertNotIn("friend class GamePresentation", game_header)
+        self.assertNotIn("game.m_", source("GamePresentation.cpp"))
+        self.assertIn("PausePresentationModel", presentation_header)
+        self.assertIn("BallSelectionPresentationModel", presentation_header)
+        self.assertIn("ClearRewardPresentationModel", presentation_header)
         for old_workflow in (
             "void Game::DrawPauseUI()",
             "void Game::DrawBallSelectionUI()",
@@ -184,11 +204,47 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         game = source("Game.h")
         planner = source("BossShotPlanner.h") + source("GameBossAI.cpp")
 
-        self.assertIn("BossShotPlanner m_BossShotPlanner", game)
+        self.assertIn("std::unique_ptr<BossShotPlanner> m_BossShotPlanner", game)
+        self.assertNotIn('#include "BossShotPlanner.h"', game)
+        self.assertNotIn("friend class BossShotPlanner", game)
         self.assertNotIn("m_BossShotCache", game)
         self.assertNotIn("m_BossShotCacheKey", game)
         self.assertIn("json BossShotPlanner::Evaluate(Game& game)", planner)
         self.assertIn("bool BossShotPlanner::Fire(Game& game", planner)
+
+    def test_automated_shot_sources_share_the_validated_game_boundary(self) -> None:
+        game = source("Game.h") + source("GameBossAI.cpp")
+        autoplay = source("GameAutoPlay.cpp")
+        mcp = source("GameMcpBridge.cpp")
+
+        self.assertIn("bool Game::TryFireAutomatedShot(", game)
+        self.assertIn("GetBattleState() != BattleState::AimingDirection", game)
+        self.assertIn("!AreAllBallsStopped()", game)
+        self.assertIn("game.TryFireAutomatedShot(", autoplay)
+        self.assertIn("game.TryFireAutomatedShot(", mcp)
+        self.assertNotIn("friend class BalanceAutoPlayer", source("Game.h"))
+
+    def test_save_uses_typed_owner_snapshots(self) -> None:
+        game = source("Game.h")
+        deck = source("PlayerDeck.h")
+        selector = source("StageSelector.h")
+        save = source("GameSaveManager.cpp")
+        bridge = source("GameSaveBridge.cpp")
+        boundary = source("GameRunSaveState.h")
+
+        self.assertIn("PlayerDeckSnapshot CaptureSnapshot() const", deck)
+        self.assertIn("bool RestoreSnapshot(PlayerDeckSnapshot snapshot)", deck)
+        self.assertIn("StageSelectorSnapshot CaptureSnapshot() const", selector)
+        self.assertNotIn("friend class GameSaveManager", game + deck + selector)
+        self.assertNotIn("game.m_", save)
+        self.assertIn("GameRunSaveSnapshot", boundary)
+        self.assertIn("GameRunRestoreRequest", boundary)
+        self.assertIn("game.CaptureRunSaveSnapshot()", save)
+        self.assertIn("game.RestoreRunSaveSnapshot(", save)
+        self.assertIn("GameRunSaveSnapshot Game::CaptureRunSaveSnapshot() const", bridge)
+        self.assertIn("void Game::RestoreRunSaveSnapshot(", bridge)
+        self.assertIn("m_RunController.Deck().CaptureSnapshot()", bridge)
+        self.assertIn("m_RunController.Deck().RestoreSnapshot(", bridge)
 
 
 if __name__ == "__main__":

@@ -438,6 +438,43 @@ bool PlayerDeck::RemoveRewardTarget(int index)
     return false;
 }
 
+PlayerDeckSnapshot PlayerDeck::CaptureSnapshot() const
+{
+    return {
+        m_DrawPile,
+        m_DiscardPile,
+        m_OfferedBalls,
+        m_HeldBall,
+        m_CurrentBall,
+        m_PreviousHeldOfferIndex,
+        m_IsCurrentBallUsed,
+        m_NextInstanceId,
+        m_RandomEngine,
+    };
+}
+
+bool PlayerDeck::RestoreSnapshot(PlayerDeckSnapshot snapshot)
+{
+    if (snapshot.previousHeldOfferIndex < -1 ||
+        snapshot.previousHeldOfferIndex >=
+            static_cast<int>(snapshot.offeredBalls.size()) ||
+        snapshot.nextInstanceId == 0)
+    {
+        return false;
+    }
+
+    m_DrawPile = std::move(snapshot.drawPile);
+    m_DiscardPile = std::move(snapshot.discardPile);
+    m_OfferedBalls = std::move(snapshot.offeredBalls);
+    m_HeldBall = std::move(snapshot.heldBall);
+    m_CurrentBall = std::move(snapshot.currentBall);
+    m_PreviousHeldOfferIndex = snapshot.previousHeldOfferIndex;
+    m_IsCurrentBallUsed = snapshot.currentBallUsed;
+    m_NextInstanceId = snapshot.nextInstanceId;
+    m_RandomEngine = snapshot.randomEngine;
+    return true;
+}
+
 bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)
 {
     // 山札が空になった時点で、捨て札だけをシャッフルして補充

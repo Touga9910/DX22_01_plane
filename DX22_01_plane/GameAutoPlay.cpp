@@ -6,12 +6,10 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
-#include "BattleScene.h"
-#include "ResultScene.h"
-#include "RestSiteScene.h"
-#include "ShopScene.h"
+#include "GameDebugController.h"
+#include "RunProgressController.h"
 #include "StageSelectScene.h"
-#include "TitleScene.h"
+#include "json/json.hpp"
 #include "BallPhysicsComponent.h"
 #include "input.h"
 
@@ -144,6 +142,35 @@ void Game::ApplyBalanceAutoBallSelection(int offerIndex)
 	ApplySelectedBallPreview();
 }
 
+bool Game::IsDebugEditorOpen() const
+{
+	return m_DebugController->IsEditorOpen();
+}
+
+int Game::GetBallShotCount(const std::string& definitionId) const
+{
+	const auto& shotCounts = m_RunStatistics.GetState().ballShotCounts;
+	const auto found = shotCounts.find(definitionId);
+	return found != shotCounts.end() ? found->second : 0;
+}
+
+bool Game::GrantBalanceAutoMoney(int amount)
+{
+	if (!m_BalanceAutoPlayer.IsEnabled() ||
+		!m_IsClearRewardActive ||
+		amount <= 0)
+	{
+		return false;
+	}
+	m_RunController.AddMoney(amount);
+	return true;
+}
+
+void Game::NotifyBallAcquired(const std::string& definitionId)
+{
+	PublishGameEvent(BallAcquiredEvent{ definitionId });
+}
+
 void Game::MarkBalanceAutoRewardChosen(
 	int rewardIndex,
 	int rewardBallIndex,
@@ -180,7 +207,7 @@ void Game::PruneBalanceAutoPendingBalls()
 // Balance Auto Playを更新
 bool BalanceAutoPlayer::Update(Game& game)
 {
-	if (game.IsDebugMode() || game.m_DebugController.IsEditorOpen()) return false;
+	if (game.IsDebugMode() || game.IsDebugEditorOpen()) return false;
 	if (Input::GetKeyTrigger(VK_F8))
 	{
 		const bool startAutoPlay = !m_Enabled;
@@ -204,7 +231,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 			<< std::endl;
 	}
 
-	if (!m_Enabled || game.m_SceneManager.Get() == nullptr)
+	if (!m_Enabled || game.GetCurrentScene() == nullptr)
 	{
 		return false;
 	}
@@ -221,7 +248,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	};
 
-	if (dynamic_cast<TitleScene*>(game.m_SceneManager.Get()) != nullptr)
+	if (game.GetCurrentSceneType() == SceneType::Title)
 	{
 		if (!isDecisionReady())
 		{
@@ -244,7 +271,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	}
 
-	if (dynamic_cast<ResultScene*>(game.m_SceneManager.Get()) != nullptr)
+	if (game.GetCurrentSceneType() == SceneType::Result)
 	{
 		if (m_StopAfterCurrentRunRequested)
 		{
@@ -271,7 +298,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 	}
 
 	if (StageSelectScene* stageSelect =
-		dynamic_cast<StageSelectScene*>(game.m_SceneManager.Get()))
+		dynamic_cast<StageSelectScene*>(game.GetCurrentScene()))
 	{
 		if (!isDecisionReady())
 		{
@@ -327,7 +354,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	}
 
-	if (dynamic_cast<RestSiteScene*>(game.m_SceneManager.Get()) != nullptr)
+	if (game.GetCurrentSceneType() == SceneType::RestSite)
 	{
 		if (!isDecisionReady())
 		{
@@ -347,7 +374,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 			const int ballIndex =
 				FindUpgradeTarget(game);
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(ballIndex);
+				game.GetPlayerDeckView().GetRewardTarget(ballIndex);
 			if (ball != nullptr)
 			{
 				const std::uint64_t instanceId = ball->instanceId;
@@ -367,7 +394,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	}
 
-	if (dynamic_cast<ShopScene*>(game.m_SceneManager.Get()) != nullptr)
+	if (game.GetCurrentSceneType() == SceneType::Shop)
 	{
 		if (!isDecisionReady())
 		{
@@ -387,10 +414,10 @@ bool BalanceAutoPlayer::Update(Game& game)
 		{
 			const int ballIndex = FindWeakestBall(game);
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(ballIndex);
+				game.GetPlayerDeckView().GetRewardTarget(ballIndex);
 			if (ball != nullptr &&
-				game.m_RunController.Status().money >= kAutoShopRemoveCost &&
-				game.m_RunController.Deck().GetRewardTargetCount() >
+				game.GetPlayerMoney() >= kAutoShopRemoveCost &&
+				game.GetPlayerDeckView().GetRewardTargetCount() >
 					PlayerDeck::MinimumDeckSize)
 			{
 				const std::uint64_t instanceId = ball->instanceId;
@@ -422,18 +449,18 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	}
 
-	if (game.m_IsClearRewardActive)
+	if (game.IsClearRewardActive())
 	{
 		if (!isDecisionReady())
 		{
 			return false;
 		}
 
-		if (game.m_IsMidBossRelicSelectionActive)
+		if (game.IsMidBossRelicSelectionActive())
 		{
 			game.AcquireMidBossRelicOffer(0);
 		}
-		else if (!game.m_IsClearRewardChosen)
+		else if (!game.IsClearRewardChosen())
 		{
 			ApplyReward(game);
 		}
@@ -444,7 +471,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 		return true;
 	}
 
-	if (dynamic_cast<BattleScene*>(game.m_SceneManager.Get()) != nullptr &&
+	if (game.GetCurrentSceneType() == SceneType::Battle &&
 		game.GetBattleState() == BattleState::AimingDirection)
 	{
 		if (game.AreAllEnemiesDefeated())
@@ -491,7 +518,7 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 			bossChoices["recommended"]["offer_index"].get<int>());
         return;
     }
-	const int offerCount = game.m_RunController.Deck().GetOfferCount();
+	const int offerCount = game.GetBallOfferCount();
 	if (offerCount <= 0)
 	{
 		return;
@@ -500,13 +527,10 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 	int bestIndex = 0;
 	float bestScore =
 		-(std::numeric_limits<float>::max)();
-	const auto& shotCounts =
-		game.m_RunStatistics.GetState().ballShotCounts;
-
 	for (int index = 0; index < offerCount; index++)
 	{
 		const PlayerBallData* ball =
-			game.m_RunController.Deck().GetOffer(index);
+			game.GetBallOffer(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -514,11 +538,8 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 
 		float score = GetAutoBallValue(*ball);
 		score += (std::max)(0.0f, ball->status.mass - 2.0f);
-		const auto usage = shotCounts.find(ball->definitionId);
-		if (usage != shotCounts.end())
-		{
-			score -= static_cast<float>(usage->second) * 1.5f;
-		}
+		score -= static_cast<float>(
+			game.GetBallShotCount(ball->definitionId)) * 1.5f;
 
 		if (score > bestScore)
 		{
@@ -708,8 +729,7 @@ bool BalanceAutoPlayer::FireShot(Game& game)
 		3.14159265358979323846f / 180.0f;
 	const bool needsSafeShot =
 		bestPocketRisk > 0.0f ||
-		game.m_RunController.Status().currentHp * 2 <=
-			game.m_RunController.Status().maxHp;
+		game.GetPlayerCurrentHp() * 2 <= game.GetPlayerMaxHp();
 	const float appliedJitterDegrees = needsSafeShot
 		? m_AimJitterDegrees * 0.5f
 		: m_AimJitterDegrees;
@@ -746,9 +766,7 @@ bool BalanceAutoPlayer::FireShot(Game& game)
 		<< " PocketRisk=" << bestPocketRisk
 		<< std::endl;
 
-	player->FireAutomatedShot(
-		shotDirection * shotPower);
-	return true;
+	return game.TryFireAutomatedShot(shotDirection * shotPower);
 }
 
 // Balance Auto Rewardを適用
@@ -767,10 +785,10 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 	}
 
 	// 戦闘報酬の資金でレリックを買えるなら、球の過剰増加より先に資金を確保
-	if (hasMissingRelic && game.m_RunController.Status().money < nextRelicPrice)
+	if (hasMissingRelic && game.GetPlayerMoney() < nextRelicPrice)
 	{
-		const int moneyBefore = game.m_RunController.Status().money;
-		game.m_RunController.AddMoney(kExtraRewardMoney);
+		const int moneyBefore = game.GetPlayerMoney();
+		game.GrantBalanceAutoMoney(kExtraRewardMoney);
 		game.MarkBalanceAutoRewardChosen(
 			2,
 			0,
@@ -782,7 +800,7 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 				{ "reward", "extra_money" },
 				{ "reason", "save_for_relic" },
 				{ "money_before", moneyBefore },
-				{ "money_after", game.m_RunController.Status().money },
+				{ "money_after", game.GetPlayerMoney() },
 			});
 		return;
 	}
@@ -799,7 +817,7 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 			: std::string();
 		if (game.AddClearRewardBallOffer(missingOfferIndex))
 		{
-			game.PublishGameEvent(BallAcquiredEvent{ definitionId });
+			game.NotifyBallAcquired(definitionId);
 			game.MarkBalanceAutoRewardChosen(
 				0,
 				missingOfferIndex,
@@ -820,7 +838,7 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 
 	const int upgradeTarget = FindUpgradeTarget(game);
 	const PlayerBallData* ball =
-		game.m_RunController.Deck().GetRewardTarget(upgradeTarget);
+		game.GetPlayerDeckView().GetRewardTarget(upgradeTarget);
 	if (ball != nullptr)
 	{
 		const std::uint64_t instanceId = ball->instanceId;
@@ -828,10 +846,10 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 		const int upgradeLevelBefore = ball->upgradeLevel;
 		const int upgradeCost =
 			game.GetClearRewardUpgradeCost(upgradeTarget);
-		const int moneyBefore = game.m_RunController.Status().money;
+		const int moneyBefore = game.GetPlayerMoney();
 		int chargedCost = 0;
 		if (upgradeCost >= 0 &&
-			game.m_RunController.Status().money >= upgradeCost &&
+			game.GetPlayerMoney() >= upgradeCost &&
 			game.ApplyClearRewardUpgrade(upgradeTarget, chargedCost))
 		{
 			game.MarkBalanceAutoRewardChosen(
@@ -849,15 +867,15 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 					{ "upgrade_level_before", upgradeLevelBefore },
 					{ "upgrade_cost", chargedCost },
 					{ "money_before", moneyBefore },
-					{ "money_after", game.m_RunController.Status().money },
+					{ "money_after", game.GetPlayerMoney() },
 				});
 			return;
 		}
 
 		if (upgradeCost >= 0 &&
-			game.m_RunController.Status().money < upgradeCost)
+			game.GetPlayerMoney() < upgradeCost)
 		{
-			game.m_RunController.AddMoney(kExtraRewardMoney);
+			game.GrantBalanceAutoMoney(kExtraRewardMoney);
 			game.MarkBalanceAutoRewardChosen(
 				2,
 				0,
@@ -872,14 +890,14 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 					{ "target_upgrade_level", upgradeLevelBefore },
 					{ "required_upgrade_cost", upgradeCost },
 					{ "money_before", moneyBefore },
-					{ "money_after", game.m_RunController.Status().money },
+					{ "money_after", game.GetPlayerMoney() },
 				});
 			return;
 		}
 	}
 
-	const int moneyBefore = game.m_RunController.Status().money;
-	game.m_RunController.AddMoney(kExtraRewardMoney);
+	const int moneyBefore = game.GetPlayerMoney();
+	game.GrantBalanceAutoMoney(kExtraRewardMoney);
 	game.MarkBalanceAutoRewardChosen(
 		2,
 		0,
@@ -890,22 +908,22 @@ void BalanceAutoPlayer::ApplyReward(Game& game)
 			{ "controller", "autoplay" },
 			{ "reward", "extra_money" },
 			{ "money_before", moneyBefore },
-			{ "money_after", game.m_RunController.Status().money },
+			{ "money_after", game.GetPlayerMoney() },
 		});
 }
 
 // Balance Auto Heal Neededかどうかを判定
 bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 {
-	if (game.m_RunController.Status().maxHp <= 0 ||
-		game.m_RunController.Status().currentHp >= game.m_RunController.Status().maxHp)
+	if (game.GetPlayerMaxHp() <= 0 ||
+		game.GetPlayerCurrentHp() >= game.GetPlayerMaxHp())
 	{
 		return false;
 	}
 
 	const int thresholdPercent = game.IsBossPreparation() ? 75 : 60;
-	return game.m_RunController.Status().currentHp * 100 <=
-		game.m_RunController.Status().maxHp * thresholdPercent;
+	return game.GetPlayerCurrentHp() * 100 <=
+		game.GetPlayerMaxHp() * thresholdPercent;
 }
 
 // Balance Auto Relic To Buyを検索
@@ -913,12 +931,11 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 {
 	const auto isCandidate = [this, &game](int index)
 	{
-		return dynamic_cast<ShopScene*>(game.m_SceneManager.Get()) == nullptr ||
-			game.m_RunController.ShopRelicOffers().empty() || game.IsShopRelicOffered(index);
+		return game.GetCurrentSceneType() != SceneType::Shop ||
+			game.GetShopRelicOfferCount() == 0 || game.IsShopRelicOffered(index);
 	};
 	const bool needsRecovery =
-		game.m_RunController.Status().currentHp * 2 <=
-		game.m_RunController.Status().maxHp;
+		game.GetPlayerCurrentHp() * 2 <= game.GetPlayerMaxHp();
 	const std::array<RelicType, 4> priority = needsRecovery
 		? std::array<RelicType, 4>{
 			RelicType::EmergencyRepairKit,
@@ -940,7 +957,7 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 				relic->type == type &&
 				isCandidate(index) &&
 				!game.HasRelic(type) &&
-				game.m_RunController.Status().money >= relic->price)
+				game.GetPlayerMoney() >= relic->price)
 			{
 				return index;
 			}
@@ -951,7 +968,7 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 		const RelicDefinition* relic = game.GetRelic(index);
 		if (relic != nullptr && isCandidate(index) &&
 			!game.HasRelic(relic->type) &&
-			game.m_RunController.Status().money >= relic->price)
+			game.GetPlayerMoney() >= relic->price)
 		{
 			return index;
 		}
@@ -963,9 +980,9 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 // Balance Auto Weakest Ballを検索
 int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 {
-	const int ballCount = game.m_RunController.Deck().GetRewardTargetCount();
+	const int ballCount = game.GetPlayerDeckView().GetRewardTargetCount();
 	if (ballCount <= PlayerDeck::MinimumDeckSize ||
-		game.m_RunController.Status().money < kAutoShopRemoveCost)
+		game.GetPlayerMoney() < kAutoShopRemoveCost)
 	{
 		return -1;
 	}
@@ -974,7 +991,7 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 	float weakestScore = (std::numeric_limits<float>::max)();
 	for (int index = 0; index < ballCount; index++)
 	{
-		const PlayerBallData* ball = game.m_RunController.Deck().GetRewardTarget(index);
+		const PlayerBallData* ball = game.GetPlayerDeckView().GetRewardTarget(index);
 		if (ball == nullptr)
 		{
 			continue;
@@ -984,7 +1001,7 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 		for (int otherIndex = 0; otherIndex < ballCount; otherIndex++)
 		{
 			const PlayerBallData* other =
-				game.m_RunController.Deck().GetRewardTarget(otherIndex);
+				game.GetPlayerDeckView().GetRewardTarget(otherIndex);
 			if (other != nullptr &&
 				other->definitionId == ball->definitionId)
 			{
@@ -1008,7 +1025,7 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 // Balance Auto Missing Catalog Ballを検索
 int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 {
-	if (game.m_RunController.Deck().GetRewardTargetCount() >= kAutoMaximumDeckSize)
+	if (game.GetPlayerDeckView().GetRewardTargetCount() >= kAutoMaximumDeckSize)
 	{
 		return -1;
 	}
@@ -1030,11 +1047,11 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 	{
 		bool alreadyOwned = false;
 		for (int index = 0;
-			index < game.m_RunController.Deck().GetRewardTargetCount();
+			index < game.GetPlayerDeckView().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(index);
+				game.GetPlayerDeckView().GetRewardTarget(index);
 			if (ball != nullptr && ball->definitionId == definitionId)
 			{
 				alreadyOwned = true;
@@ -1047,11 +1064,11 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 		}
 
 		for (int catalogIndex = 0;
-			catalogIndex < game.m_RunController.Deck().GetCatalogCount();
+			catalogIndex < game.GetPlayerDeckView().GetCatalogCount();
 			catalogIndex++)
 		{
 			const PlayerBallData* catalogBall =
-				game.m_RunController.Deck().GetCatalogBall(catalogIndex);
+				game.GetPlayerDeckView().GetCatalogBall(catalogIndex);
 			if (catalogBall != nullptr &&
 				catalogBall->definitionId == definitionId)
 			{
@@ -1066,7 +1083,7 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 // Balance Auto Clear Reward内の未所持ボール提示を検索
 int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 {
-	if (game.m_RunController.Deck().GetRewardTargetCount() >=
+	if (game.GetPlayerDeckView().GetRewardTargetCount() >=
 		kAutoMaximumDeckSize)
 	{
 		return -1;
@@ -1089,11 +1106,11 @@ int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 	{
 		bool alreadyOwned = false;
 		for (int index = 0;
-			index < game.m_RunController.Deck().GetRewardTargetCount();
+			index < game.GetPlayerDeckView().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(index);
+				game.GetPlayerDeckView().GetRewardTarget(index);
 			if (ball != nullptr && ball->definitionId == definitionId)
 			{
 				alreadyOwned = true;
@@ -1128,11 +1145,11 @@ int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 	int bestIndex = -1;
 	float bestScore = -(std::numeric_limits<float>::max)();
 	for (int index = 0;
-		index < game.m_RunController.Deck().GetRewardTargetCount();
+		index < game.GetPlayerDeckView().GetRewardTargetCount();
 		index++)
 	{
 		const PlayerBallData* ball =
-			game.m_RunController.Deck().GetRewardTarget(index);
+			game.GetPlayerDeckView().GetRewardTarget(index);
 		if (ball == nullptr || !ball->CanUpgrade())
 		{
 			continue;
@@ -1155,7 +1172,7 @@ bool BalanceAutoPlayer::HasShopAction(const Game& game) const
 {
 	return FindRelicToBuy(game) >= 0 ||
 		FindWeakestBall(game) >= 0 ||
-		(game.m_RunController.Status().money >= kAutoShopBallCost &&
+		(game.GetPlayerMoney() >= kAutoShopBallCost &&
 			FindMissingCatalogBall(game) >= 0);
 }
 
@@ -1166,11 +1183,11 @@ int BalanceAutoPlayer::FindPendingUpgradeableBall(const Game& game) const
 		m_PendingBallAdjustments)
 	{
 		for (int index = 0;
-			index < game.m_RunController.Deck().GetRewardTargetCount();
+			index < game.GetPlayerDeckView().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(index);
+				game.GetPlayerDeckView().GetRewardTarget(index);
 			if (ball != nullptr &&
 				ball->instanceId == instanceId &&
 				ball->CanUpgrade())
@@ -1190,11 +1207,11 @@ int BalanceAutoPlayer::FindPendingRemovalBall(const Game& game) const
 		m_PendingBallAdjustments)
 	{
 		for (int index = 0;
-			index < game.m_RunController.Deck().GetRewardTargetCount();
+			index < game.GetPlayerDeckView().GetRewardTargetCount();
 			index++)
 		{
 			const PlayerBallData* ball =
-				game.m_RunController.Deck().GetRewardTarget(index);
+				game.GetPlayerDeckView().GetRewardTarget(index);
 			if (ball != nullptr &&
 				ball->instanceId == instanceId &&
 				!ball->CanUpgrade())
@@ -1246,11 +1263,11 @@ bool BalanceAutoPlayer::HasAvailableRestBenefit(const Game& game) const
 	}
 
 	const int ballCount =
-		game.m_RunController.Deck().GetRewardTargetCount();
+		game.GetPlayerDeckView().GetRewardTargetCount();
 	for (int index = 0; index < ballCount; index++)
 	{
 		const PlayerBallData* ball =
-			game.m_RunController.Deck().GetRewardTarget(index);
+			game.GetPlayerDeckView().GetRewardTarget(index);
 		if (ball != nullptr && ball->CanUpgrade())
 		{
 			return true;
@@ -1282,11 +1299,11 @@ void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 			[this, &game](std::uint64_t instanceId)
 			{
 				for (int index = 0;
-					index < game.m_RunController.Deck().GetRewardTargetCount();
+					index < game.GetPlayerDeckView().GetRewardTargetCount();
 					index++)
 				{
 					const PlayerBallData* ball =
-						game.m_RunController.Deck().GetRewardTarget(index);
+						game.GetPlayerDeckView().GetRewardTarget(index);
 					if (ball != nullptr &&
 						ball->instanceId == instanceId)
 					{

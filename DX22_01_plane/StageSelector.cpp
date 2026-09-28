@@ -97,3 +97,13 @@ const StageData* StageSelector::SelectStage(
 
     return selected;
 }
+
+StageSelectorSnapshot StageSelector::CaptureSnapshot() const
+{
+    return { m_RandomEngine };
+}
+
+void StageSelector::RestoreSnapshot(const StageSelectorSnapshot& snapshot)
+{
+    m_RandomEngine = snapshot.randomEngine;
+}

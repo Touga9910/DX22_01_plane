@@ -2,7 +2,10 @@
 
 #pragma execution_character_set("utf-8")
 
+#include "json/json.hpp"
 #include "Game.h"
+#include "GameRunSaveState.h"
+#include "RunProgressController.h"
 #include "PlayerBallSaveData.h"
 #include "RestSiteScene.h"
 #include "UiText.h"
@@ -19,6 +22,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 using nlohmann::json;
 
@@ -27,19 +31,6 @@ namespace
 	constexpr int kSchemaVersion = 1;
 	const std::filesystem::path kSavePath =
 		std::filesystem::path("saves") / "run_save.json";
-
-	struct RestoredDeckState
-	{
-		std::vector<PlayerBallData> drawPile;
-		std::vector<PlayerBallData> discardPile;
-		std::vector<PlayerBallData> offeredBalls;
-		std::optional<PlayerBallData> heldBall;
-		std::optional<PlayerBallData> currentBall;
-		int previousHeldOfferIndex = -1;
-		bool currentBallUsed = false;
-		std::uint64_t nextInstanceId = 1;
-		std::mt19937 randomEngine;
-	};
 
 	std::string SceneToId(SceneType scene)
 	{
@@ -170,7 +161,7 @@ namespace
 		return payload;
 	}
 
-	void ValidateUniqueInstances(const RestoredDeckState& deck)
+	void ValidateUniqueInstances(const PlayerDeckSnapshot& deck)
 	{
 		std::set<std::uint64_t> ids;
 		std::uint64_t maximumId = 0;
@@ -237,7 +228,8 @@ bool GameSaveManager::Save(
 	}
 	try
 	{
-		const std::uint32_t routeCounter = game.m_RouteSelectionCounter;
+		const GameRunSaveSnapshot snapshot =
+			game.CaptureRunSaveSnapshot();
 		bool restActionUsed = false;
 		if (sceneAlreadyActive && resumeScene == SceneType::RestSite)
 		{
@@ -247,12 +239,11 @@ bool GameSaveManager::Save(
 		}
 
 		json relics = json::array();
-		for (const bool owned : game.m_RunController.Relics())
+		for (const bool owned : snapshot.relics)
 		{
 			relics.push_back(owned);
 		}
-		const RunResultSnapshot& runStatistics =
-			game.m_RunStatistics.GetState();
+		const RunResultSnapshot& runStatistics = snapshot.statistics;
 		json acquiredBalls = json::array();
 		for (const std::string& ballId :
 			runStatistics.acquiredBallIds)
@@ -265,36 +256,37 @@ bool GameSaveManager::Save(
 		{
 			ballUsage[ballId] = shotCount;
 		}
-		const PlayerDeck& deck = game.m_RunController.Deck();
+		const PlayerDeckSnapshot& deck = snapshot.deck;
+		const StageSelectorSnapshot& stageSelector = snapshot.stageSelector;
 		const json payload = {
-			{ "run_map", game.m_RunController.Progress().GetMap().Save() },
+			{ "run_map", snapshot.progress.map.Save() },
 			{ "saved_at_utc", MakeUtcTimestamp() },
 			{ "resume_scene", SceneToId(resumeScene) },
 			{ "scene_state", {
 				{ "rest_action_used", restActionUsed },
-				{ "shop_relic_offers", game.m_RunController.ShopRelicOffers() },
+				{ "shop_relic_offers", snapshot.shopRelicOffers },
 			} },
 			{ "run", {
-				{ "max_hp", game.m_RunController.Status().maxHp },
-				{ "current_hp", game.m_RunController.Status().currentHp },
-				{ "money", game.m_RunController.Status().money },
-				{ "progress", game.m_RunController.Status().progress },
-				{ "cleared_stage_count", game.m_RunController.Progress().GetClearedBattleCount() },
-				{ "area_progress", game.m_RunController.Progress().GetAreaProgress() },
-				{ "ascension", game.m_ActiveAscension },
-				{ "run_phase", ToString(game.m_RunController.Progress().GetPhase()) },
-				{ "selected_stage_id", game.m_RunController.Status().GetSelectedStageId() },
-				{ "last_stage_id", game.m_RunController.Status().GetLastStageId() },
+				{ "max_hp", snapshot.status.maxHp },
+				{ "current_hp", snapshot.status.currentHp },
+				{ "money", snapshot.status.money },
+				{ "progress", snapshot.status.progress },
+				{ "cleared_stage_count", snapshot.progress.clearedBattles },
+				{ "area_progress", snapshot.progress.areaProgress },
+				{ "ascension", snapshot.activeAscension },
+				{ "run_phase", ToString(snapshot.progress.phase) },
+				{ "selected_stage_id", snapshot.status.GetSelectedStageId() },
+				{ "last_stage_id", snapshot.status.GetLastStageId() },
 				{ "owned_relics", std::move(relics) },
 			} },
 			{ "random", {
-				{ "run_seed", game.m_RunRandomSeed },
-				{ "stage_selection_seed", game.m_StageSelectionSeed },
-				{ "route_selection_seed", game.m_RouteSelectionSeed },
-				{ "route_selection_counter", routeCounter },
-				{ "stage_selector_state", SerializeEngine(game.m_RunController.StageSelection().m_RandomEngine) },
-				{ "pocket_state", SerializeEngine(game.m_BattleController.PocketRandomEngine()) },
-				{ "relic_state", SerializeEngine(game.m_RunController.RelicRandomEngine()) },
+				{ "run_seed", snapshot.runSeed },
+				{ "stage_selection_seed", snapshot.stageSelectionSeed },
+				{ "route_selection_seed", snapshot.routeSelectionSeed },
+				{ "route_selection_counter", snapshot.routeSelectionCounter },
+				{ "stage_selector_state", SerializeEngine(stageSelector.randomEngine) },
+				{ "pocket_state", SerializeEngine(snapshot.pocketRandomEngine) },
+				{ "relic_state", SerializeEngine(snapshot.relicRandomEngine) },
 			} },
 			{ "dynamic_balance", {
 				{ "enabled", false },
@@ -323,17 +315,17 @@ bool GameSaveManager::Save(
 				{ "ball_shot_counts", std::move(ballUsage) },
 			} },
 			{ "deck", {
-				{ "draw_pile", BallListToJson(deck.m_DrawPile) },
-				{ "discard_pile", BallListToJson(deck.m_DiscardPile) },
-				{ "offered_balls", BallListToJson(deck.m_OfferedBalls) },
-				{ "held_ball", deck.m_HeldBall.has_value()
-					? BallToJson(*deck.m_HeldBall) : json(nullptr) },
-				{ "current_ball", deck.m_CurrentBall.has_value()
-					? BallToJson(*deck.m_CurrentBall) : json(nullptr) },
-				{ "previous_held_offer_index", deck.m_PreviousHeldOfferIndex },
-				{ "current_ball_used", deck.m_IsCurrentBallUsed },
-				{ "next_instance_id", deck.m_NextInstanceId },
-				{ "random_state", SerializeEngine(deck.m_RandomEngine) },
+				{ "draw_pile", BallListToJson(deck.drawPile) },
+				{ "discard_pile", BallListToJson(deck.discardPile) },
+				{ "offered_balls", BallListToJson(deck.offeredBalls) },
+				{ "held_ball", deck.heldBall.has_value()
+					? BallToJson(*deck.heldBall) : json(nullptr) },
+				{ "current_ball", deck.currentBall.has_value()
+					? BallToJson(*deck.currentBall) : json(nullptr) },
+				{ "previous_held_offer_index", deck.previousHeldOfferIndex },
+				{ "current_ball_used", deck.currentBallUsed },
+				{ "next_instance_id", deck.nextInstanceId },
+				{ "random_state", SerializeEngine(deck.randomEngine) },
 			} },
 		};
 		const json document = {
@@ -495,14 +487,14 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		// Migrate legacy normal-route saves past the finite endpoint to the
 		// guaranteed boss-preparation rest.
 		const bool migratedToBossPreparation =
-			!game.m_BalanceValidationController.IsEnduranceMode() &&
+			!game.IsEnduranceMode() &&
 			runPhase == RunPhase::NormalRoute &&
-			areaProgress >= Game::kNormalRouteAreaGoal;
+			areaProgress >= game.GetNormalRouteAreaGoal();
 		if (migratedToBossPreparation)
 		{
-			areaProgress = Game::kNormalRouteAreaGoal;
-			restoredStatus.progress = Game::kNormalRouteAreaGoal;
-			restoredStatistics.areaProgress = Game::kNormalRouteAreaGoal;
+			areaProgress = game.GetNormalRouteAreaGoal();
+			restoredStatus.progress = game.GetNormalRouteAreaGoal();
+			restoredStatistics.areaProgress = game.GetNormalRouteAreaGoal();
 			runPhase = RunPhase::BossPreparation;
 			resumeScene = SceneType::RestSite;
 		}
@@ -524,7 +516,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			if (target < relics.size()) relics[target] = relicJson[index].get<bool>();
 		}
 
-		RestoredDeckState restoredDeck;
+		PlayerDeckSnapshot restoredDeck;
 		restoredDeck.drawPile = BallListFromJson(deckJson.at("draw_pile"));
 		restoredDeck.discardPile = BallListFromJson(deckJson.at("discard_pile"));
 		restoredDeck.offeredBalls = BallListFromJson(deckJson.at("offered_balls"));
@@ -591,7 +583,10 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		else
 		{
 			// Historical choices are unknown. Start the visible map at this checkpoint.
-			restoredMap.Generate(routeSeed, areaProgress, (std::max)(0, Game::kNormalRouteAreaGoal - areaProgress));
+			restoredMap.Generate(
+				routeSeed,
+				areaProgress,
+				(std::max)(0, game.GetNormalRouteAreaGoal() - areaProgress));
 			if (runPhase == RunPhase::BossPreparation || runPhase == RunPhase::FinalBossReady || runPhase == RunPhase::FinalBoss)
 			{
 				restoredMap.Choose(0);
@@ -623,74 +618,39 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		if (restoredMap.CompletedAreas() != areaProgress || !mapSceneValid)
 			throw std::runtime_error(UiText::InvalidSaveData);
 
-		game.StartNewRun("human", "save_load", "", "", runSeed);
-		game.m_ActiveAscension = activeAscension;
-		game.m_RunController.RestHealRatio() = (std::max)(0.05f, game.m_DefaultRestHealRatio - ProgressionProfile::RestHealPenalty(activeAscension));
-		game.m_RunController.Status() = std::move(restoredStatus);
-		game.m_RunController.Progress().Restore({
+		GameRunRestoreRequest request{};
+		request.snapshot.status = std::move(restoredStatus);
+		request.snapshot.progress = {
 			std::move(restoredMap),
 			clearedStages,
 			areaProgress,
 			runPhase,
-		});
-		game.m_RunController.Relics() = relics;
-		game.m_RunRandomSeed = runSeed;
-		game.m_StageSelectionSeed = stageSeed;
-		game.m_RouteSelectionSeed = routeSeed;
-		game.m_RouteSelectionCounter = routeCounter;
-		game.m_RunController.StageSelection().m_RandomEngine = stageEngine;
-		game.m_BattleController.PocketRandomEngine() = pocketEngine;
-		game.m_RunController.RelicRandomEngine() = relicEngine;
-		game.m_RunStatistics.Restore(restoredStatistics);
-		game.m_RunActive = true;
-
-		PlayerDeck& deck = game.m_RunController.Deck();
-		deck.m_DrawPile = std::move(restoredDeck.drawPile);
-		deck.m_DiscardPile = std::move(restoredDeck.discardPile);
-		deck.m_OfferedBalls = std::move(restoredDeck.offeredBalls);
-		deck.m_HeldBall = std::move(restoredDeck.heldBall);
-		deck.m_CurrentBall = std::move(restoredDeck.currentBall);
-		deck.m_PreviousHeldOfferIndex = restoredDeck.previousHeldOfferIndex;
-		deck.m_IsCurrentBallUsed = restoredDeck.currentBallUsed;
-		deck.m_NextInstanceId = restoredDeck.nextInstanceId;
-		deck.m_RandomEngine = restoredDeck.randomEngine;
-
-		game.m_IsRestoringRunSave = true;
-		game.ChangeScene(resumeScene);
-		game.m_IsRestoringRunSave = false;
-		if (hasRelicRandomState)
-		{
-			// Undo the temporary shop roll so the next saved roll stays deterministic.
-			game.m_RunController.RelicRandomEngine() = relicEngine;
-		}
-		if (resumeScene == SceneType::Shop && !shopRelicOffers.empty())
-		{
-			game.m_RunController.ShopRelicOffers() = std::move(shopRelicOffers);
-		}
-		if (migratedToBossPreparation)
-		{
-			game.RecordBalanceEvent(
-				"run_endpoint_save_migrated",
-				{
-					{ "area_progress", areaProgress },
-					{ "run_phase", ToString(runPhase) },
-				});
-		}
-		if (!migratedToBossPreparation &&
+		};
+		request.snapshot.relics = relics;
+		request.snapshot.deck = std::move(restoredDeck);
+		request.snapshot.stageSelector = { stageEngine };
+		request.snapshot.shopRelicOffers = std::move(shopRelicOffers);
+		request.snapshot.statistics = std::move(restoredStatistics);
+		request.snapshot.activeAscension = activeAscension;
+		request.snapshot.runSeed = runSeed;
+		request.snapshot.stageSelectionSeed = stageSeed;
+		request.snapshot.routeSelectionSeed = routeSeed;
+		request.snapshot.routeSelectionCounter = routeCounter;
+		request.snapshot.pocketRandomEngine = pocketEngine;
+		request.snapshot.relicRandomEngine = relicEngine;
+		request.resumeScene = resumeScene;
+		request.migratedToBossPreparation = migratedToBossPreparation;
+		request.hasRelicRandomState = hasRelicRandomState;
+		request.restActionUsed =
+			!migratedToBossPreparation &&
 			resumeScene == SceneType::RestSite &&
-			payload.at("scene_state").at("rest_action_used").get<bool>())
-		{
-			if (RestSiteScene* rest = dynamic_cast<RestSiteScene*>(game.GetCurrentScene()))
-			{
-				rest->MarkActionUsed();
-			}
-		}
+			payload.at("scene_state").at("rest_action_used").get<bool>();
+		game.RestoreRunSaveSnapshot(std::move(request));
 		message = UiText::RunLoaded;
 		return true;
 	}
 	catch (const std::exception& exception)
 	{
-		game.m_IsRestoringRunSave = false;
 		message = std::string(UiText::LoadFailedPrefix) + exception.what();
 		return false;
 	}

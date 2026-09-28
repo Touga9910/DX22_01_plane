@@ -1,9 +1,12 @@
 ﻿#include "GameMcpBridge.h"
 #include "BallStatusJson.h"
+#include "json/json.hpp"
 
 #include "EnemyBall.h"
 #include "BreakBall.h"
 #include "Game.h"
+#include "GameDebugController.h"
+#include "RunProgressController.h"
 #include "BattleScene.h"
 #include "ResultScene.h"
 #include "RestSiteScene.h"
@@ -1234,7 +1237,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		}
 	}
 
-	auto& debug = game.m_DebugController;
+	auto& debug = *game.m_DebugController;
 	state["debug_mode"] = {{"active", debug.IsActive()}, {"editor_open", debug.IsEditorOpen()},
 		{"finished", debug.IsBattleFinished()}};
 	if (!debug.GetStageEditor().draft.is_null())
@@ -1339,7 +1342,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	}
 	if (action == "validate_stage_layout" || action == "propose_stage_layout")
 	{
-		auto& debug = game.m_DebugController;
+		auto& debug = *game.m_DebugController;
 		if (!debug.IsEditorOpen()) return CommandResult(false, "Open the stage editor first.");
 		const auto args = command.value("arguments", nlohmann::json::object());
 		const auto layout = args.value("layout", nlohmann::json());
@@ -1359,7 +1362,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 		}
 		return result;
 	}
-	if (game.m_DebugController.IsEditorOpen())
+	if (game.m_DebugController->IsEditorOpen())
 		return CommandResult(false, "Debug setup is open. Resume or start the battle from its window.");
 	if (game.IsDebugMode() && action != "select_ball" && action != "fire_shot" &&
 		action != "evaluate_boss_shots" && action != "fire_boss_shot")
@@ -1799,12 +1802,20 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 			directionX / length,
 			0.0f,
 			directionZ / length);
-		game.m_PendingShotTelemetry =
+		const nlohmann::json telemetry =
 			arguments.contains("telemetry") &&
 			arguments["telemetry"].is_object()
 			? arguments["telemetry"]
 			: nlohmann::json::object();
-		players[0]->FireAutomatedShot(direction * power);
+		if (!game.TryFireAutomatedShot(
+			direction * power,
+			-1,
+			&telemetry))
+		{
+			return CommandResult(
+				false,
+				"The shot is no longer valid for the current battle state.");
+		}
 		return CommandResult(true, "Fired the requested shot.");
 	}
 

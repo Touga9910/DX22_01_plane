@@ -1,5 +1,7 @@
 ﻿#include "BalanceLogger.h"
 
+#include "json/json.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>

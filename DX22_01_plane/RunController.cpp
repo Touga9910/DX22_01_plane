@@ -1,9 +1,27 @@
 #include "RunController.h"
 
 #include "ProgressionProfile.h"
+#include "RunProgressController.h"
 
 #include <algorithm>
 #include <cmath>
+
+RunController::RunController()
+    : m_Progress(std::make_unique<RunProgressController>())
+{
+}
+
+RunController::~RunController() = default;
+
+RunProgressController& RunController::Progress()
+{
+    return *m_Progress;
+}
+
+const RunProgressController& RunController::Progress() const
+{
+    return *m_Progress;
+}
 
 void RunController::ResetRuntimeState(
     const PlayerRunStatus& defaultStatus)

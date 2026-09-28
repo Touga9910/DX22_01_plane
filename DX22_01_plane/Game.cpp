@@ -9,6 +9,10 @@
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
 #include "GameSaveManager.h"
+#include "BossShotPlanner.h"
+#include "GameDebugController.h"
+#include "RunProgressController.h"
+#include "json/json.hpp"
 #include "BattleScene.h"
 #include "ResultScene.h"
 #include "RestSiteScene.h"
@@ -60,7 +64,6 @@ namespace
 	};
 	constexpr int kClearRewardCount =
 		static_cast<int>(sizeof(kClearRewardNames) / sizeof(kClearRewardNames[0]));
-	constexpr int kExtraRewardMoney = 10;
 	constexpr int kAutoShopRemoveCost = 15;
 	constexpr int kBankShotDamageMultiplier = 2;
 	constexpr int kEmergencyRepairContactThreshold = 3;
@@ -301,6 +304,7 @@ namespace
 			ball.status.mass,
 			ball.status.radius);
 		drawList->AddText(
+
 			font,
 			fontSize * 0.75f,
 			ImVec2(position.x + padding, position.y + 115.0f),
@@ -606,6 +610,10 @@ namespace
 
 // コンストラクタ
 Game::Game()
+	: m_BossShotPlanner(std::make_unique<BossShotPlanner>())
+	, m_PendingShotTelemetry(std::make_unique<nlohmann::json>(
+		nlohmann::json::object()))
+	, m_DebugController(std::make_unique<GameDebugController>())
 {
 }
 
@@ -736,6 +744,11 @@ void GameDebugController::RecordPlayerDamage(
 	}
 }
 
+const PlayerDeck& Game::GetPlayerDeckView() const
+{
+	return m_RunController.Deck();
+}
+
 int GameDebugController::BeginEnemyAttackForecast(Game& game)
 {
 	InvalidateCombatForecast("敵攻撃開始");
@@ -762,7 +775,7 @@ void GameDebugController::ResetDiagnostics(const char* reason)
 
 void Game::InvalidateDebugCombatForecast(const char* reason)
 {
-	m_DebugController.InvalidateCombatForecast(reason);
+	m_DebugController->InvalidateCombatForecast(reason);
 }
 
 void Game::RecordDebugPlayerDamage(
@@ -772,7 +785,7 @@ void Game::RecordDebugPlayerDamage(
 	int hpBefore,
 	int hpAfter)
 {
-	m_DebugController.RecordPlayerDamage(
+	m_DebugController->RecordPlayerDamage(
 		source,
 		sourceId,
 		damage,
@@ -793,7 +806,7 @@ bool Game::CanPause() const
 // And Return To Titleを保存
 bool Game::SaveAndReturnToTitle()
 {
-	if (IsDebugMode()) { m_DebugController.RequestExit(); return true; }
+	if (IsDebugMode()) { m_DebugController->RequestExit(); return true; }
 	if (m_IsClearRewardActive && !m_IsClearRewardChosen)
 	{
 		SetSaveLoadMessage(
@@ -879,7 +892,7 @@ void Game::Init()
 	if (std::wstring(GetCommandLineW()).find(L"--debug-battle") != std::wstring::npos)
 	{
 		m_Instance->OpenDebugMode();
-		if (m_Instance->LoadDebugPreset()) m_Instance->m_DebugController.RequestStart();
+		if (m_Instance->LoadDebugPreset()) m_Instance->m_DebugController->RequestStart();
 	}
 }
 
@@ -1462,13 +1475,13 @@ void Game::Draw()
 
 	m_Instance->m_World.Draw();
 
-	ImGui::BeginDisabled(m_Instance->m_IsPaused || m_Instance->m_DebugController.IsEditorOpen());
+	ImGui::BeginDisabled(m_Instance->m_IsPaused || m_Instance->m_DebugController->IsEditorOpen());
 	if (m_Instance->m_SceneManager.Get() != nullptr)
 	{
 		m_Instance->m_SceneManager.Get()->DrawUI();
 	}
 
-	m_Instance->m_DebugController.DrawDiagnostics(*m_Instance);
+	m_Instance->m_DebugController->DrawDiagnostics(*m_Instance);
 	if (dynamic_cast<BattleScene*>(m_Instance->m_SceneManager.Get()) != nullptr &&
 		m_Instance->m_RunController.Deck().GetOfferCount() > 0)
 	{
@@ -1491,7 +1504,7 @@ void Game::Draw()
 	}
 
 	m_Instance->DrawDebugMode();
-	if (m_Instance->m_IsPaused && !m_Instance->m_DebugController.IsEditorOpen())
+	if (m_Instance->m_IsPaused && !m_Instance->m_DebugController->IsEditorOpen())
 	{
 		m_Instance->DrawPauseUI();
 	}
@@ -1519,9 +1532,12 @@ void Game::Draw()
 
 
 
-void GamePresentation::DrawPause(Game& game)
+PausePresentationIntent GamePresentation::DrawPause(
+	const PausePresentationModel& model)
 {
-	GameSettings& settings = game.m_SettingsManager.Edit();
+	PausePresentationIntent intent{};
+	intent.settings = model.settings;
+	GameSettings& settings = intent.settings;
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
@@ -1546,9 +1562,7 @@ void GamePresentation::DrawPause(Game& game)
 
 	if (ImGui::Button("ポーズ解除", ImVec2(-1.0f, 42.0f)))
 	{
-		game.m_SettingsManager.SaveIfDirty();
-		game.m_IsPaused = false;
-		game.m_PauseConfirmTitle = false;
+		intent.resume = true;
 	}
 	ImGui::TextDisabled("Escでもゲームへ戻れます");
 	ImGui::SeparatorText("音量");
@@ -1612,47 +1626,47 @@ void GamePresentation::DrawPause(Game& game)
 	}
 	if (ImGui::Button("画面設定を適用", ImVec2(-1.0f, 34.0f)))
 	{
-		game.m_PendingDisplayApply = true;
-		game.m_SettingsManager.SaveIfDirty();
+		intent.applyDisplay = true;
 	}
 
 	ImGui::SeparatorText("ランを中断");
-	if (game.IsDebugMode())
+	if (model.debugMode)
 	{
-		if (ImGui::Button("デバッグを終了してタイトルへ", ImVec2(-1, 40))) game.m_DebugController.RequestExit();
+		if (ImGui::Button("デバッグを終了してタイトルへ", ImVec2(-1, 40)))
+			intent.requestDebugExit = true;
 	}
-	else if (!game.m_PauseConfirmTitle)
+	else if (!model.confirmReturnToTitle)
 	{
 		if (ImGui::Button("セーブしてタイトルへ戻る", ImVec2(-1.0f, 40.0f)))
 		{
-			game.m_PauseConfirmTitle = true;
+			intent.requestReturnConfirmation = true;
 		}
 	}
 	else
 	{
 		ImGui::TextWrapped(
 			"ランのセーブデータは1個だけです。現在のセーブを上書きしてタイトルへ戻ります。");
-		if (dynamic_cast<BattleScene*>(game.m_SceneManager.Get()) != nullptr &&
-			!game.m_IsClearRewardActive)
+		if (model.battleScene && !model.clearRewardActive)
 		{
 			ImGui::TextDisabled("戦闘中のランは、この戦闘の最初から再開します。");
 		}
 		if (ImGui::Button("上書きして戻る", ImVec2(260.0f, 38.0f)))
 		{
-			game.SaveAndReturnToTitle();
+			intent.saveAndReturnToTitle = true;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("キャンセル", ImVec2(260.0f, 38.0f)))
 		{
-			game.m_PauseConfirmTitle = false;
+			intent.cancelReturnToTitle = true;
 		}
 	}
 
 	if (settingsChanged)
 	{
-		game.m_SettingsManager.MarkDirty();
+		intent.settingsChanged = true;
 	}
 	ImGui::End();
+	return intent;
 }
 
 // 終了処理
@@ -2473,7 +2487,7 @@ void Game::StartClearReward()
 					{ "1", 30 },
 				}
 			},
-			{ "extra_money_amount", kExtraRewardMoney },
+			{ "extra_money_amount", kClearRewardExtraMoney },
 		});
 	m_IsClearRewardActive = true;
 }
@@ -2711,7 +2725,7 @@ void Game::UpdateClearReward()
 	}
 	case 2:
 		rewardDetails["reward"] = "extra_money";
-		m_RunController.AddMoney(kExtraRewardMoney);
+		m_RunController.AddMoney(kClearRewardExtraMoney);
 		rewardApplied = true;
 		m_RewardMessage = UiText::ExtraMoneyReceived;
 		break;
@@ -2821,12 +2835,18 @@ void Game::ApplySelectedBallPreview()
 }
 
 // Ball Selection UIを描画
-void GamePresentation::DrawBallSelection(Game& game)
+BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
+	const BallSelectionPresentationModel& model)
 {
-	const int offerCount = game.m_RunController.Deck().GetOfferCount();
+	BallSelectionPresentationIntent intent{
+		model.selectedOfferIndex,
+		model.selectedHoldIndex,
+		false,
+	};
+	const int offerCount = static_cast<int>(model.offers.size());
 	if (offerCount <= 0)
 	{
-		return;
+		return intent;
 	}
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -2930,17 +2950,16 @@ void GamePresentation::DrawBallSelection(Game& game)
 		IM_COL32(5, 9, 15, 218),
 		IM_COL32(5, 9, 15, 218));
 
-	bool selectionChanged = false;
 	for (int index = 0; index < offerCount; index++)
 	{
-		const PlayerBallData* ball = game.m_RunController.Deck().GetOffer(index);
+		const PlayerBallData* ball = model.offers[static_cast<std::size_t>(index)];
 		if (ball == nullptr)
 		{
 			continue;
 		}
 
-		const bool selected = game.m_SelectedOfferIndex == index;
-		const bool held = game.m_SelectedHoldIndex == index;
+		const bool selected = intent.selectedOfferIndex == index;
+		const bool held = intent.selectedHoldIndex == index;
 		const float expansion = index < static_cast<int>(m_BallCardExpansion.size())
 			? m_BallCardExpansion[static_cast<std::size_t>(index)]
 			: 0.0f;
@@ -2951,7 +2970,7 @@ void GamePresentation::DrawBallSelection(Game& game)
 		const BallCardInteraction interaction = DrawBallSelectionCard(
 			*ball,
 			index,
-			game.GetEffectivePlayerBallAttack(ball),
+			model.effectiveAttacks[static_cast<std::size_t>(index)],
 			cardPosition,
 			ImVec2(cardWidth, cardHeight),
 			selected,
@@ -2966,31 +2985,32 @@ void GamePresentation::DrawBallSelection(Game& game)
 
 		if (interaction.select && !selected)
 		{
-			game.m_SelectedOfferIndex = index;
+			intent.selectedOfferIndex = index;
 			if (held)
 			{
-				game.m_SelectedHoldIndex = -1;
+				intent.selectedHoldIndex = -1;
 			}
-			selectionChanged = true;
+			intent.selectionChanged = true;
 		}
 		if (interaction.toggleHold && !selected)
 		{
-			game.m_SelectedHoldIndex = held ? -1 : index;
+			intent.selectedHoldIndex = held ? -1 : index;
 		}
-	}
-
-	if (selectionChanged)
-	{
-		game.ApplySelectedBallPreview();
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_Appearing);
 	if (ImGui::BeginPopupModal("ボール詳細", nullptr, ImGuiWindowFlags_NoResize))
 	{
 		const PlayerBallData* detailBall =
-			game.m_RunController.Deck().GetOffer(m_BallDetailOfferIndex);
+			m_BallDetailOfferIndex >= 0 && m_BallDetailOfferIndex < offerCount
+			? model.offers[static_cast<std::size_t>(m_BallDetailOfferIndex)]
+			: nullptr;
 		if (detailBall != nullptr)
-			DrawBallDetailPopup(*detailBall, game.GetEffectivePlayerBallAttack(detailBall));
+		{
+			DrawBallDetailPopup(
+				*detailBall,
+				model.effectiveAttacks[static_cast<std::size_t>(m_BallDetailOfferIndex)]);
+		}
 		if (ImGui::Button("閉じる", ImVec2(-1.0f, 38.0f)))
 			ImGui::CloseCurrentPopup();
 		ImGui::EndPopup();
@@ -2998,84 +3018,123 @@ void GamePresentation::DrawBallSelection(Game& game)
 
 	ImGui::End();
 	ImGui::PopStyleVar(2);
+	return intent;
 }
 
 // Clear Reward UIを描画
-void GamePresentation::DrawClearReward(Game& game)
+ClearRewardPresentationIntent GamePresentation::DrawClearReward(
+	const ClearRewardPresentationModel& model)
 {
+	ClearRewardPresentationIntent intent{
+		model.selectedRelicOfferIndex,
+		model.selectedRewardIndex,
+		model.selectedRewardBallIndex,
+		false,
+	};
 	GameUi::PrepareWindow("clear_reward", ImVec2(290, 90), ImVec2(700, 550));
 	ImGui::Begin(UiText::ClearWindow, nullptr, ImGuiWindowFlags_NoCollapse);
 	ImGui::TextUnformatted(UiText::StageClear);
 	ImGui::Text(
 		UiText::RewardMoneyFormat,
-		game.m_RunController.GetCurrentStageRewardMoney());
-	ImGui::Text(UiText::MoneyFormat, game.m_RunController.Status().money);
-	ImGui::Text("HP %d / %d", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp);
+		model.stageRewardMoney);
+	ImGui::Text(UiText::MoneyFormat, model.playerMoney);
+	ImGui::Text("HP %d / %d", model.playerCurrentHp, model.playerMaxHp);
 	ImGui::Separator();
-	if (game.m_IsMidBossRelicSelectionActive)
+	if (model.midBossRelicSelectionActive)
 	{
 		ImGui::TextUnformatted("中ボス撃破報酬：レリックを1つ選択");
-		for (int index = 0; index < game.GetMidBossRelicOfferCount(); ++index)
+		for (int index = 0; index < static_cast<int>(model.relicOffers.size()); ++index)
 		{
-			const auto* relic = game.GetMidBossRelicOffer(index);
+			const auto* relic = model.relicOffers[static_cast<std::size_t>(index)];
 			if (relic == nullptr) continue;
 			ImGui::PushID(index);
-			if (ImGui::Selectable(relic->name, index == game.m_SelectedRelicOfferIndex)) game.m_SelectedRelicOfferIndex = index;
+			if (ImGui::Selectable(
+				relic->name,
+				index == intent.selectedRelicOfferIndex))
+			{
+				intent.selectedRelicOfferIndex = index;
+			}
 			ImGui::TextWrapped("%s", relic->description);
 			ImGui::PopID();
 		}
-		if (ImGui::Button("選択したレリックを獲得", ImVec2(-1, 40))) game.m_ClearRewardMouseConfirmed = true;
+		if (ImGui::Button("選択したレリックを獲得", ImVec2(-1, 40)))
+			intent.confirm = true;
 	}
-	else if (game.m_IsClearRewardChosen)
+	else if (model.clearRewardChosen)
 	{
-		ImGui::TextWrapped("%s", game.m_RewardMessage.c_str());
-		if (ImGui::Button("次のルートへ", ImVec2(-1, 44))) game.m_ClearRewardMouseConfirmed = true;
+		ImGui::TextWrapped("%s", model.rewardMessage.c_str());
+		if (ImGui::Button("次のルートへ", ImVec2(-1, 44)))
+			intent.confirm = true;
 	}
 	else
 	{
 		ImGui::TextUnformatted(UiText::ChooseReward);
 		for (int index = 0; index < kClearRewardCount; ++index)
 		{
-			if (ImGui::RadioButton(kClearRewardNames[index], index == game.m_SelectedRewardIndex))
+			if (ImGui::RadioButton(
+				kClearRewardNames[index],
+				index == intent.selectedRewardIndex))
 			{
-				game.m_SelectedRewardIndex = index;
-				game.m_SelectedRewardBallIndex = 0;
+				intent.selectedRewardIndex = index;
+				intent.selectedRewardBallIndex = 0;
 			}
 		}
 		ImGui::BeginChild("reward_targets", ImVec2(0, -96), ImGuiChildFlags_Borders);
-		const bool upgrading = game.m_SelectedRewardIndex == 1;
-		const int count = game.m_SelectedRewardIndex == 0 ? game.GetClearRewardBallOfferCount() :
-			(upgrading ? game.m_RunController.Deck().GetRewardTargetCount() : 0);
+		const bool upgrading = intent.selectedRewardIndex == 1;
+		const int count = intent.selectedRewardIndex == 0
+			? static_cast<int>(model.newBallOffers.size())
+			: (upgrading ? static_cast<int>(model.upgradeTargets.size()) : 0);
 		for (int index = 0; index < count; ++index)
 		{
-			const auto* ball = upgrading ? game.m_RunController.Deck().GetRewardTarget(index) : game.GetClearRewardBallOffer(index);
+			const auto* ball = upgrading
+				? model.upgradeTargets[static_cast<std::size_t>(index)].ball
+				: model.newBallOffers[static_cast<std::size_t>(index)];
 			if (ball == nullptr) continue;
 			ImGui::PushID(index);
-			if (PlayerBallUI::Select(*ball, index == game.m_SelectedRewardBallIndex)) game.m_SelectedRewardBallIndex = index;
-			if (index == game.m_SelectedRewardBallIndex)
+			if (PlayerBallUI::Select(
+				*ball,
+				index == intent.selectedRewardBallIndex))
+			{
+				intent.selectedRewardBallIndex = index;
+			}
+			if (index == intent.selectedRewardBallIndex)
 			{
 				ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
 				if (upgrading)
 				{
 					ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(*ball).c_str());
-					const int upgradeCost = game.GetClearRewardUpgradeCost(index);
+					const int upgradeCost =
+						model.upgradeTargets[static_cast<std::size_t>(index)].upgradeCost;
 					if (upgradeCost >= 0) ImGui::Text(UiText::UpgradeCostFormat, upgradeCost);
-					if (upgradeCost > game.m_RunController.Status().money) ImGui::TextUnformatted(UiText::UpgradeMoneyShortage);
+					if (upgradeCost > model.playerMoney) ImGui::TextUnformatted(UiText::UpgradeMoneyShortage);
 				}
 				else ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
 			}
 			ImGui::Separator();
 			ImGui::PopID();
 		}
-		if (game.m_SelectedRewardIndex == 2) ImGui::Text("追加で %d Money を受け取ります。", kExtraRewardMoney);
+		if (intent.selectedRewardIndex == 2)
+			ImGui::Text("追加で %d Money を受け取ります。", model.extraMoneyAmount);
 		ImGui::EndChild();
-		const int cost = upgrading ? game.GetClearRewardUpgradeCost(game.m_SelectedRewardBallIndex) : 0;
-		const bool unavailable = upgrading ? cost < 0 || cost > game.m_RunController.Status().money :
-			(game.m_SelectedRewardIndex == 0 && count == 0);
+		const int cost = upgrading &&
+			intent.selectedRewardBallIndex >= 0 &&
+			intent.selectedRewardBallIndex < static_cast<int>(model.upgradeTargets.size())
+			? model.upgradeTargets[static_cast<std::size_t>(intent.selectedRewardBallIndex)].upgradeCost
+			: 0;
+		const bool unavailable = upgrading
+			? cost < 0 || cost > model.playerMoney
+			: (intent.selectedRewardIndex == 0 && count == 0);
 		ImGui::BeginDisabled(unavailable);
-		if (ImGui::Button(upgrading ? "選択した個体を強化" : "選択した報酬を獲得", ImVec2(-1, 40))) game.m_ClearRewardMouseConfirmed = true;
+		if (ImGui::Button(
+			upgrading ? "選択した個体を強化" : "選択した報酬を獲得",
+			ImVec2(-1, 40)))
+		{
+			intent.confirm = true;
+		}
 		ImGui::EndDisabled();
-		if (!game.m_RewardMessage.empty()) ImGui::TextWrapped("%s", game.m_RewardMessage.c_str());
+		if (!model.rewardMessage.empty())
+			ImGui::TextWrapped("%s", model.rewardMessage.c_str());
 	}
 	ImGui::End();
+	return intent;
 }

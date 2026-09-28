@@ -192,6 +192,7 @@
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameSaveBridge.cpp" />
     <ClCompile Include="GameBattleBridge.cpp" />
     <ClCompile Include="GameWorld.cpp" />
     <ClCompile Include="SceneManager.cpp" />
@@ -281,6 +282,7 @@
     <ClInclude Include="EnemyAttackComponent.h" />
     <ClInclude Include="EnemyData.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameRunSaveState.h" />
     <ClInclude Include="GameWorld.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="RunProgressController.h" />

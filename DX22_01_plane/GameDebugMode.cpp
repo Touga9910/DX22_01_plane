@@ -1,5 +1,8 @@
 ﻿#include "Game.h"
 #pragma execution_character_set("utf-8")
+#include "BossShotPlanner.h"
+#include "GameDebugController.h"
+#include "json/json.hpp"
 #include "GameUi.h"
 #include "GameMcpBridge.h"
 #include "TitleScene.h"
@@ -114,7 +117,7 @@ bool GameDebugController::StartBattle(Game& game)
     m_DebugMode = true;
     m_DebugActiveSetup = m_DebugSetup;
     m_DebugEditorOpen = m_DebugBattleFinished = false;
-    game.m_BossShotPlanner.Reset();
+    game.m_BossShotPlanner->Reset();
     game.m_McpNextStageOverride.reset();
     game.StartNewRun("debug_sandbox", "manual_debug", "", "", m_DebugSetup.seed);
     StageData stage;
@@ -174,7 +177,7 @@ void GameDebugController::End(Game& game)
     game.m_BalanceAutoPlayer.SetEnabled(m_DebugPreviousAutoPlay);
 	game.m_BalanceValidationController.SetEnabled(m_DebugPreviousValidation);
     game.m_McpNextStageOverride.reset();
-    game.m_BossShotPlanner.Reset();
+    game.m_BossShotPlanner->Reset();
     if (m_DebugProgressionSnapshotValid)
     {
         game.m_ProgressionProfile = m_DebugPreviousProgressionProfile;
@@ -505,12 +508,17 @@ void GameDebugController::Draw(Game& game)
 }
 
 // Gameは呼び出し窓口だけを保ち、デバッグの手順はControllerへ委譲
-void Game::OpenDebugMode() { m_DebugController.Open(*this); }
-void Game::ApplyDebugBattlePlayer(PlayerBall* player) { m_DebugController.ApplyBattlePlayer(player); }
-void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index) { m_DebugController.ApplyBattleEnemy(enemy, index); }
-void Game::ApplyDebugRunSettings() { m_DebugController.ApplyRunSettings(*this); }
-void Game::EndDebugMode() { m_DebugController.End(*this); }
-void Game::FinishDebugBattle(bool victory) { m_DebugController.FinishBattle(*this, victory); }
-bool Game::UpdateDebugMode() { return m_DebugController.Update(*this); }
-void Game::DrawDebugMode() { m_DebugController.Draw(*this); }
-bool Game::LoadDebugPreset() { return m_DebugController.LoadPreset(); }
+void Game::OpenDebugMode() { m_DebugController->Open(*this); }
+bool Game::IsDebugMode() const { return m_DebugController->IsActive(); }
+const std::vector<DirectX::SimpleMath::Vector3>& Game::GetDebugBreakBallPositions() const
+{
+    return m_DebugController->GetActiveBreakBallPositions();
+}
+void Game::ApplyDebugBattlePlayer(PlayerBall* player) { m_DebugController->ApplyBattlePlayer(player); }
+void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index) { m_DebugController->ApplyBattleEnemy(enemy, index); }
+void Game::ApplyDebugRunSettings() { m_DebugController->ApplyRunSettings(*this); }
+void Game::EndDebugMode() { m_DebugController->End(*this); }
+void Game::FinishDebugBattle(bool victory) { m_DebugController->FinishBattle(*this, victory); }
+bool Game::UpdateDebugMode() { return m_DebugController->Update(*this); }
+void Game::DrawDebugMode() { m_DebugController->Draw(*this); }
+bool Game::LoadDebugPreset() { return m_DebugController->LoadPreset(); }

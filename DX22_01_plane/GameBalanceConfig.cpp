@@ -1,6 +1,9 @@
 ﻿#include "Game.h"
 
 #pragma execution_character_set("utf-8")
+#include "json/json.hpp"
+#include "GameDebugController.h"
+#include "RunProgressController.h"
 #include "Renderer.h"
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
@@ -87,7 +90,7 @@ void Game::ResetPlayerRuntimeStatus()
 	m_BalanceAutoPlayer.ResetPendingBallAdjustments();
 	m_BattleController.BeginStage(StageType::Normal);
 	m_McpCurrentStageOverride.reset();
-	m_DebugController.ResetDiagnostics("ラン初期化");
+	m_DebugController->ResetDiagnostics("ラン初期化");
 }
 
 // New Runを開始する。
@@ -120,7 +123,7 @@ void Game::StartNewRun(
 	m_IsPaused = false;
 	m_PauseConfirmTitle = false;
 	m_LastRunResult = RunResultSnapshot{};
-	m_PendingShotTelemetry = nlohmann::json::object();
+	*m_PendingShotTelemetry = nlohmann::json::object();
 	const BalanceValidationRun validationRun =
 		m_BalanceValidationController.OnRunStarted(
 			forcedValidationVariant,

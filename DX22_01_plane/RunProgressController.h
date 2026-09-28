@@ -2,6 +2,7 @@
 
 #include "GameTypes.h"
 #include "RunMap.h"
+#include "RunProgressConstants.h"
 
 #include <cstdint>
 
@@ -27,7 +28,9 @@ enum class AreaCompletionResult
 class RunProgressController final
 {
 public:
+	// 既存の公開契約にある値表現を保ち、Game側の軽量定数とも一致させる。
 	static constexpr int NormalRouteAreaGoal = 15;
+	static_assert(NormalRouteAreaGoal == kNormalRouteAreaGoal);
 
 	// 新規ラン向けに進行状態とルートマップを初期化する。
 	void Reset(std::uint32_t routeSeed);

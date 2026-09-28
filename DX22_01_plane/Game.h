@@ -1,7 +1,5 @@
 ﻿#pragma once
 #include "ShotRelicRules.h"
-#include "BossShotPlanner.h"
-#include "GameDebugController.h"
 #include "GameWorld.h"
 #include "BattleController.h"
 #include "BalanceAutoPlayer.h"
@@ -9,7 +7,7 @@
 #include "DynamicBalanceController.h"
 #include "RunController.h"
 #include "SceneManager.h"
-#include "RunProgressController.h"
+#include "RunProgressConstants.h"
 #include "ProgressionProfile.h"
 #include <cstdint>
 #include <memory>
@@ -40,16 +38,20 @@
 #include "PlayerRunStatus.h"
 #include "GameObject.h"
 #include "FixedStepClock.h"
-#include "json/json.hpp"
+#include "json/json_fwd.hpp"
 
 class EnemyBall;
 class BallComponent;
 struct EnemyData;
+class BossShotPlanner;
+class GameDebugController;
 class GameMcpBridge;
 class GamePresentation;
-class GameSaveManager;
+struct GameRunRestoreRequest;
+struct GameRunSaveSnapshot;
 class PlayerBall;
 class Scene;
+class RunMap;
 
 class Game
 {
@@ -117,7 +119,7 @@ private:
 
 	// ===== ボスAIとボール選択UI =====
 	// ボスのショット計画と、手球候補の選択・ホールド位置を保持
-	BossShotPlanner m_BossShotPlanner;
+	std::unique_ptr<BossShotPlanner> m_BossShotPlanner;
 	int m_SelectedOfferIndex = 0;
 	int m_SelectedHoldIndex = -1;
 
@@ -132,15 +134,15 @@ private:
 	bool m_ClearRewardMouseConfirmed = false;
 	bool m_IsMidBossRelicSelectionActive = false;
 	int m_SelectedRelicOfferIndex = 0;
-	static constexpr int kNormalRouteAreaGoal =
-		RunProgressController::NormalRouteAreaGoal;
+	static constexpr int kClearRewardExtraMoney = 10;
+	static constexpr int kNormalRouteAreaGoal = ::kNormalRouteAreaGoal;
 
 	// ===== 自動検証・MCP連携・再現用テレメトリ =====
 	// 自動プレイ、外部AI連携、画面表示、ショット記録、再現可能な乱数シードを管理
 	BalanceAutoPlayer m_BalanceAutoPlayer;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
 	std::unique_ptr<GamePresentation> m_GamePresentation;
-	nlohmann::json m_PendingShotTelemetry = nlohmann::json::object();
+	std::unique_ptr<nlohmann::json> m_PendingShotTelemetry;
 	std::uint32_t m_RunRandomSeed = 0;
 	std::uint32_t m_StageSelectionSeed = 0;
 	std::uint32_t m_RouteSelectionSeed = 0;
@@ -178,7 +180,7 @@ private:
 
 	// ===== デバッグモード =====
 	// デバッグ戦闘の起動・表示・終了と、検証用設定の保存・復元を行う。
-	GameDebugController m_DebugController;
+	std::unique_ptr<GameDebugController> m_DebugController;
 	void DrawDebugMode();
 	bool UpdateDebugMode();
 	void EndDebugMode();
@@ -197,13 +199,9 @@ private:
 	RunResultSnapshot m_LastRunResult{};
 
 	// ===== 密接に連携するサブシステム =====
-	// Gameの内部状態を直接読み書きする管理クラスに限定してアクセスを許可
+	// 専用境界への移行が未完了の開発・外部連携だけに内部アクセスを限定する。
 	friend class GameMcpBridge;
-	friend class GameSaveManager;
-	friend class BalanceAutoPlayer;
 	friend class GameDebugController;
-	friend class GamePresentation;
-	friend class BossShotPlanner;
 
 	// ===== 戦闘終了とクリア報酬 =====
 	// 敗北終了、勝利報酬の開始・更新・描画、ボール選択とプレビューを行う。
@@ -259,13 +257,6 @@ private:
 	// ===== 自動プレイの報酬選択 =====
 	// 次のステージ種別を判定し、自動検証でのボール報酬・強化選択と保留候補を整理
 	StageType GetScheduledStageType() const;
-	void ApplyBalanceAutoBallSelection(int offerIndex);
-	void MarkBalanceAutoRewardChosen(
-		int rewardIndex,
-		int rewardBallIndex,
-		const std::string& message);
-	int GetClearRewardUpgradeCost(int ballIndex) const;
-	bool ApplyClearRewardUpgrade(int ballIndex, int& chargedCost);
 	void RemoveBalanceAutoPendingBall(std::uint64_t instanceId);
 	void PruneBalanceAutoPendingBalls();
 
@@ -304,13 +295,10 @@ public:
 	// デバッグモードの起動・状態取得と、検証用のプレイヤー・敵・ブレイクボール設定を反映
 	void OpenDebugMode();
 	// デバッグモードが有効かを返す。
-	bool IsDebugMode() const { return m_DebugController.IsActive(); }
+	bool IsDebugMode() const;
 	void ApplyDebugBattlePlayer(PlayerBall* player);
 	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
-	const std::vector<DirectX::SimpleMath::Vector3>& GetDebugBreakBallPositions() const
-	{
-		return m_DebugController.GetActiveBreakBallPositions();
-	}
+	const std::vector<DirectX::SimpleMath::Vector3>& GetDebugBreakBallPositions() const;
 
 	// ===== ライフサイクル =====
 	// Gameの生成・破棄と、初期化、フレーム更新、描画、終了処理を行う。
@@ -399,6 +387,24 @@ public:
 	{
 		return m_BalanceAutoPlayer.IsEnabled();
 	}
+	bool IsDebugEditorOpen() const;
+	bool IsMidBossRelicSelectionActive() const
+	{
+		return m_IsMidBossRelicSelectionActive;
+	}
+	bool IsClearRewardChosen() const { return m_IsClearRewardChosen; }
+	// 表示層へ変更不能なデッキ状態だけを公開する。
+	const PlayerDeck& GetPlayerDeckView() const;
+	int GetBallShotCount(const std::string& definitionId) const;
+	bool GrantBalanceAutoMoney(int amount);
+	void NotifyBallAcquired(const std::string& definitionId);
+	void ApplyBalanceAutoBallSelection(int offerIndex);
+	void MarkBalanceAutoRewardChosen(
+		int rewardIndex,
+		int rewardBallIndex,
+		const std::string& message);
+	int GetClearRewardUpgradeCost(int ballIndex) const;
+	bool ApplyClearRewardUpgrade(int ballIndex, int& chargedCost);
 
 	// ===== オブジェクト所属確認 =====
 	// 指定オブジェクトまたはコンポーネントが現在のWorldに存在するかを返す。
@@ -427,10 +433,25 @@ public:
 	}
 	bool SaveCurrentRun();
 	bool LoadSavedRun();
+	// セーブ形式から切り離した型付きラン状態の取得と一括復元。
+	GameRunSaveSnapshot CaptureRunSaveSnapshot() const;
+	void RestoreRunSaveSnapshot(GameRunRestoreRequest request);
+	bool IsEnduranceMode() const
+	{
+		return m_BalanceValidationController.IsEnduranceMode();
+	}
 	// ===== ボスショットAI =====
 	// 現在盤面の候補ショットを評価し、指定された計画を検証済み状態で実行
     nlohmann::json EvaluateBossShots();
     bool FireBossPlannedShot(const std::string& candidateId, const std::string& stateKey);
+	int GetBallOfferCount() const;
+	const PlayerBallData* GetBallOffer(int offerIndex) const;
+	std::uint64_t GetTotalShotCount() const;
+	// 自動プレイ・ボスAI・MCPが共有する検証済みの発射境界。
+	bool TryFireAutomatedShot(
+		const DirectX::SimpleMath::Vector3& velocity,
+		int offerIndex = -1,
+		const nlohmann::json* telemetry = nullptr);
 
 	// ===== 永続進行とアセンション =====
 	// 直近のラン結果、解放済み要素、選択中のアセンションを参照・更新
@@ -558,7 +579,7 @@ public:
 	// 検証イベントを記録し、敵データへ固定難易度と進行度の補正を適用
 	void RecordBalanceEvent(
 		const std::string& eventType,
-		const nlohmann::json& details = nlohmann::json::object());
+		const nlohmann::json& details);
 	void ApplyEnemyDifficultyScaling(EnemyData& enemyData) const;
 	void NotifyBalanceAutoFullHpEnemySurvived();
 
@@ -604,25 +625,19 @@ public:
 		return m_RunController.CanRestHeal();
 	}
 	// 通常ルートの現在進行数を返す。
-	int GetAreaProgress() const { return m_RunController.Progress().GetAreaProgress(); }
+	int GetAreaProgress() const;
 	// 現在のランマップを読み取り専用で返す。
-	const RunMap& GetRunMap() const { return m_RunController.Progress().GetMap(); }
+	const RunMap& GetRunMap() const;
 	// 選択可能なマップノードを選ぶ。
-	bool ChooseMapNode(int nodeId) { return m_RunController.Progress().ChooseNode(nodeId); }
+	bool ChooseMapNode(int nodeId);
 	// 通常ルートの完了目標エリア数を返す。
 	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
 	// 現在のランフェーズを返す。
-	RunPhase GetRunPhase() const { return m_RunController.Progress().GetPhase(); }
+	RunPhase GetRunPhase() const;
 	// 最終ボス前の準備フェーズかを返す。
-	bool IsBossPreparation() const
-	{
-		return m_RunController.Progress().IsBossPreparation();
-	}
+	bool IsBossPreparation() const;
 	// 最終ボスを選択可能なフェーズかを返す。
-	bool IsFinalBossRoute() const
-	{
-		return m_RunController.Progress().IsFinalBossReady();
-	}
+	bool IsFinalBossRoute() const;
 	// 現在選択されているステージIDを返す。
 	const std::string& GetSelectedStageId() const
 	{

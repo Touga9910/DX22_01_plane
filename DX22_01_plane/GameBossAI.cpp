@@ -1,5 +1,7 @@
 ﻿#include "Game.h"
 #include "BallShotPrediction.h"
+#include "BossShotPlanner.h"
+#include "json/json.hpp"
 #include "BallStatusJson.h"
 #include "BreakBall.h"
 #include "EnemyBall.h"
@@ -45,10 +47,10 @@ json BossShotPlanner::Evaluate(Game& game)
         if (enemy->IsArmorBoss() && !enemy->IsDefeated()) { boss = enemy; break; }
     if (!boss || players.empty() || !players[0]->IsIdle() || game.GetBattleState() != BattleState::AimingDirection || !game.AreAllBallsStopped()) return {};
     auto* player = players[0];
-    std::string key = std::to_string(BallShotPrediction::WorldKey(game)) + ":" + std::to_string(game.m_RunStatistics.GetState().totalShots);
-    for (int i = 0; i < game.m_RunController.Deck().GetOfferCount(); ++i)
+    std::string key = std::to_string(BallShotPrediction::WorldKey(game)) + ":" + std::to_string(game.GetTotalShotCount());
+    for (int i = 0; i < game.GetBallOfferCount(); ++i)
     {
-        const auto* offer = game.m_RunController.Deck().GetOffer(i);
+        const auto* offer = game.GetBallOffer(i);
         if (offer) key += ":" + std::to_string(offer->instanceId) + offer->definitionId + WritePlayerBallStatus(offer->status).dump();
     }
     // Expose an opaque compact key; comparison uses the complete key internally.
@@ -66,9 +68,9 @@ json BossShotPlanner::Evaluate(Game& game)
     json choices = json::array(), offerChoices = json::array();
     std::map<std::string,json> equivalentOffers;
     int evaluated = 0, incomplete = 0;
-    for (int offerIndex = 0; offerIndex < game.m_RunController.Deck().GetOfferCount(); ++offerIndex)
+    for (int offerIndex = 0; offerIndex < game.GetBallOfferCount(); ++offerIndex)
     {
-        const auto* offer = game.m_RunController.Deck().GetOffer(offerIndex);
+        const auto* offer = game.GetBallOffer(offerIndex);
         if (!offer) continue;
         const std::string signature = offer->definitionId + WritePlayerBallStatus(offer->status).dump();
         if (equivalentOffers.contains(signature))
@@ -219,16 +221,21 @@ bool BossShotPlanner::Fire(Game& game, const std::string& candidateId, const std
     for (const auto& choice : evaluation["choices"])
     {
         if (choice["candidate_id"] != candidateId) continue;
-        const auto players = game.GetComponents<PlayerBall>();
-        if (players.empty()) return false;
-        game.m_SelectedOfferIndex = choice["offer_index"].get<int>();
-        if (game.m_SelectedHoldIndex == game.m_SelectedOfferIndex) game.m_SelectedHoldIndex = -1;
-        game.ApplySelectedBallPreview();
         const auto& d = choice["velocity"];
         const Vector3 velocity(d["x"].get<float>(),0,d["z"].get<float>());
-        game.m_PendingShotTelemetry = {{"boss_evaluation",choice},{"model",evaluation["model"]},{"state_key",stateKey}};
-        game.RecordBalanceEvent("boss_ai_decision",game.m_PendingShotTelemetry);
-        players[0]->FireAutomatedShot(velocity);
+        const json telemetry = {
+            {"boss_evaluation", choice},
+            {"model", evaluation["model"]},
+            {"state_key", stateKey},
+        };
+        if (!game.TryFireAutomatedShot(
+            velocity,
+            choice["offer_index"].get<int>(),
+            &telemetry))
+        {
+            return false;
+        }
+        game.RecordBalanceEvent("boss_ai_decision", telemetry);
         return true;
     }
     return false;
@@ -236,12 +243,69 @@ bool BossShotPlanner::Fire(Game& game, const std::string& candidateId, const std
 
 json Game::EvaluateBossShots()
 {
-    return m_BossShotPlanner.Evaluate(*this);
+    return m_BossShotPlanner->Evaluate(*this);
 }
 
 bool Game::FireBossPlannedShot(
     const std::string& candidateId,
     const std::string& stateKey)
 {
-    return m_BossShotPlanner.Fire(*this, candidateId, stateKey);
+    return m_BossShotPlanner->Fire(*this, candidateId, stateKey);
+}
+
+int Game::GetBallOfferCount() const
+{
+    return m_RunController.Deck().GetOfferCount();
+}
+
+const PlayerBallData* Game::GetBallOffer(int offerIndex) const
+{
+    return m_RunController.Deck().GetOffer(offerIndex);
+}
+
+std::uint64_t Game::GetTotalShotCount() const
+{
+    return static_cast<std::uint64_t>(m_RunStatistics.GetState().totalShots);
+}
+
+bool Game::TryFireAutomatedShot(
+    const Vector3& velocity,
+    int offerIndex,
+    const nlohmann::json* telemetry)
+{
+    if (!std::isfinite(velocity.x) ||
+        !std::isfinite(velocity.y) ||
+        !std::isfinite(velocity.z) ||
+        velocity.LengthSquared() <= 0.0001f ||
+        GetBattleState() != BattleState::AimingDirection ||
+        !AreAllBallsStopped())
+    {
+        return false;
+    }
+
+    const auto players = GetComponents<PlayerBall>();
+    if (players.empty() || players[0] == nullptr || !players[0]->IsIdle())
+    {
+        return false;
+    }
+
+    if (offerIndex >= 0)
+    {
+        if (GetBallOffer(offerIndex) == nullptr)
+        {
+            return false;
+        }
+        m_SelectedOfferIndex = offerIndex;
+        if (m_SelectedHoldIndex == m_SelectedOfferIndex)
+        {
+            m_SelectedHoldIndex = -1;
+        }
+        ApplySelectedBallPreview();
+    }
+
+    *m_PendingShotTelemetry = telemetry != nullptr
+        ? *telemetry
+        : nlohmann::json::object();
+    players[0]->FireAutomatedShot(velocity);
+    return true;
 }
