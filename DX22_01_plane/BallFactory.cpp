@@ -8,7 +8,7 @@
 #include "BallStatusComponent.h"
 #include "EnemyBall.h"
 #include "EnemyAttackComponent.h"
-#include "Game.h"
+#include "GameRuntime.h"
 #include "GameObject.h"
 #include "PlayerBall.h"
 #include "NuisanceBall.h"
@@ -22,7 +22,7 @@ namespace
         const char* name,
         GameObjectTag tag)
     {
-        GameObject* object = game.CreateGameObject(name);
+        GameObject* object = GameRuntime::CreateObject(game, name);
 
         object->AddComponent<TagComponent>(tag);
         object->AddComponent<BallStatusComponent>();

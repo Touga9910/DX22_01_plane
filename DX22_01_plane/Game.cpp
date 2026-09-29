@@ -1,5 +1,8 @@
 ﻿#include "Game.h"
 #include "BallShotPrediction.h"
+#include "GameObject.h"
+#include "GameRuntime.h"
+#include "Camera.h"
 #include "GameUi.h"
 #include "BallMechanics.h"
 
@@ -53,6 +56,58 @@
 using DirectX::SimpleMath::Vector3;
 
 Game* Game::m_Instance;//ゲームインスタンス
+
+void GameRuntime::Initialize()
+{
+	Game::Init();
+}
+
+void GameRuntime::Update(double elapsedSeconds)
+{
+	Game::Update(elapsedSeconds);
+}
+
+void GameRuntime::ResetFrameTiming()
+{
+	Game::ResetFrameTiming();
+}
+
+void GameRuntime::Draw()
+{
+	Game::Draw();
+}
+
+void GameRuntime::Shutdown()
+{
+	Game::Uninit();
+}
+
+Camera& GameRuntime::MainCamera()
+{
+	return Camera::GetInstance();
+}
+
+GameWorld& GameRuntime::World()
+{
+	return Game::GetInstance()->m_World;
+}
+
+Game& GameRuntime::CurrentGame()
+{
+	return *Game::GetInstance();
+}
+
+GameObject* GameRuntime::CreateObject(
+	Game& game,
+	const std::string& name)
+{
+	return game.CreateGameObject(name);
+}
+
+void GameRuntime::DestroyObject(GameObject* object)
+{
+	Game::GetInstance()->DeleteGameObject(object);
+}
 
 namespace
 {
@@ -610,7 +665,8 @@ namespace
 
 // コンストラクタ
 Game::Game()
-	: m_BossShotPlanner(std::make_unique<BossShotPlanner>())
+	: m_Camera(Camera::GetInstance())
+	, m_BossShotPlanner(std::make_unique<BossShotPlanner>())
 	, m_PendingShotTelemetry(std::make_unique<nlohmann::json>(
 		nlohmann::json::object()))
 	, m_DebugController(std::make_unique<GameDebugController>())

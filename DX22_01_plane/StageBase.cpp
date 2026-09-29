@@ -1,5 +1,6 @@
 ﻿#include "StageBase.h"
 #include "Game.h"
+#include "GameObject.h"
 #include "Input.h"
 #include "PlayerBall.h"
 //#include "Arrow.h"

@@ -1,5 +1,29 @@
 ﻿#include "GameWorld.h"
 
+#include "GameObject.h"
+#include "TagComponent.h"
+
+#include <algorithm>
+
+GameWorld::~GameWorld() = default;
+
+void GameWorld::VisitComponents(
+	ComponentVisitor visitor,
+	void* context) const
+{
+	for (const auto& gameObject : m_Objects)
+	{
+		if (gameObject->IsDestroyRequested())
+		{
+			continue;
+		}
+		for (const auto& component : gameObject->m_Components)
+		{
+			visitor(component.get(), context);
+		}
+	}
+}
+
 // 名前を指定してGameObjectを生成し、ゲーム空間へ登録する。
 GameObject* GameWorld::Create(const std::string& name)
 {

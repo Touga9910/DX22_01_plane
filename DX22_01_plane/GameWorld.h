@@ -1,19 +1,25 @@
 ﻿#pragma once
 
 #include "Component.h"
-#include "GameObject.h"
-#include "TagComponent.h"
+#include "GameObjectTag.h"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
 
+class GameObject;
+
 // ゲーム空間に存在するGameObjectの所有権と検索を一元管理
 class GameWorld final
 {
 public:
+	GameWorld() = default;
+	~GameWorld();
+
+	GameWorld(const GameWorld&) = delete;
+	GameWorld& operator=(const GameWorld&) = delete;
+
 	// 名前を指定してGameObjectを生成し、ゲーム空間へ登録
 	GameObject* Create(const std::string& name);
 
@@ -53,18 +59,7 @@ public:
 			"T must inherit from Component");
 
 		std::vector<T*> result;
-		for (const auto& gameObject : m_Objects)
-		{
-			if (gameObject->IsDestroyRequested())
-			{
-				continue;
-			}
-
-			if (T* component = gameObject->GetComponent<T>())
-			{
-				result.emplace_back(component);
-			}
-		}
+		VisitComponents(&CollectComponent<T>, &result);
 		return result;
 	}
 
@@ -77,18 +72,7 @@ public:
 			"T must inherit from Component");
 
 		std::vector<GameObject*> result;
-		for (const auto& gameObject : m_Objects)
-		{
-			if (gameObject->IsDestroyRequested())
-			{
-				continue;
-			}
-
-			if (gameObject->HasComponent<T>())
-			{
-				result.push_back(gameObject.get());
-			}
-		}
+		VisitComponents(&CollectOwner<T>, &result);
 		return result;
 	}
 
@@ -96,5 +80,29 @@ public:
 	std::vector<GameObject*> GetObjectsWithTag(GameObjectTag tag) const;
 
 private:
+	using ComponentVisitor = void (*)(Component*, void*);
+
+	// Keep GameObject's storage private without allocating an intermediate list.
+	void VisitComponents(ComponentVisitor visitor, void* context) const;
+
+	template<typename T>
+	static void CollectComponent(Component* component, void* context)
+	{
+		if (T* typed = dynamic_cast<T*>(component))
+		{
+			static_cast<std::vector<T*>*>(context)->push_back(typed);
+		}
+	}
+
+	template<typename T>
+	static void CollectOwner(Component* component, void* context)
+	{
+		if (T* typed = dynamic_cast<T*>(component))
+		{
+			static_cast<std::vector<GameObject*>*>(context)->push_back(
+				typed->GetGameObject());
+		}
+	}
+
 	std::vector<std::unique_ptr<GameObject>> m_Objects;
 };

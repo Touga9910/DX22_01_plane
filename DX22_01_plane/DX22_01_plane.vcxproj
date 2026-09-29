@@ -192,10 +192,12 @@
     <ClCompile Include="EnemyBall.cpp" />
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GameSceneAccess.cpp" />
     <ClCompile Include="GameSaveBridge.cpp" />
     <ClCompile Include="GameBattleBridge.cpp" />
     <ClCompile Include="GameWorld.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="SceneObjectFactory.cpp" />
     <ClCompile Include="RunProgressController.cpp" />
     <ClCompile Include="RunController.cpp" />
     <ClCompile Include="BalanceValidationController.cpp" />
@@ -285,6 +287,7 @@
     <ClInclude Include="GameRunSaveState.h" />
     <ClInclude Include="GameWorld.h" />
     <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="SceneObjectFactory.h" />
     <ClInclude Include="RunProgressController.h" />
     <ClInclude Include="DebugBattleSetup.h" />
     <ClInclude Include="StageLayoutEditor.h" />
@@ -294,6 +297,10 @@
     <ClInclude Include="GameEvent.h" />
     <ClInclude Include="GameMcpBridge.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GameObjectTag.h" />
+    <ClInclude Include="GameRuntime.h" />
+    <ClInclude Include="GameSceneCommands.h" />
+    <ClInclude Include="GameView.h" />
     <ClInclude Include="GamePresentation.h" />
     <ClInclude Include="GameSaveManager.h" />
     <ClInclude Include="PlayerBall.h" />
@@ -340,6 +347,8 @@
     <ClInclude Include="StageSelector.h" />
     <ClInclude Include="StageSelectScene.h" />
     <ClInclude Include="RunMap.h" />
+    <ClInclude Include="RunRouteCommands.h" />
+    <ClInclude Include="RunRouteView.h" />
     <ClInclude Include="FixedStepClock.h" />
     <ClInclude Include="BallPhysicsWorld.h" />
     <ClInclude Include="SynchronizedBallStepper.h" />
@@ -348,6 +357,7 @@
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="TableConfig.h" />
+    <ClInclude Include="TableGeometry.h" />
     <ClInclude Include="TagComponent.h" />
     <ClInclude Include="TableFrame.h" />
     <ClInclude Include="TableFrameCollisionComponent.h" />

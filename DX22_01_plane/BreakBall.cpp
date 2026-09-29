@@ -5,7 +5,8 @@
 #include "BalanceLogger.h"
 #include "Camera.h"
 #include "EnemyBall.h"
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "GameObject.h"
 #include "Pocket.h"
 #include "TableConfig.h"
@@ -41,7 +42,7 @@ void BreakBall::FixedUpdate()
 
 void BreakBall::Draw()
 {
-    auto* camera = Game::GetCamera();
+    auto* camera = &GameRuntime::MainCamera();
     if (!camera || !m_Ball) return;
     camera->SetCamera();
     auto* render = GetGameObject()->GetComponent<BallRenderComponent>();
@@ -87,10 +88,10 @@ void BreakBall::PlaceAt(const Vector3& position)
 bool BreakBall::Reposition()
 {
     if (!m_Ball || GetGameObject()->IsActive()) return true;
-    auto& game = *Game::GetInstance();
-    const auto balls = game.GetComponents<BallComponent>();
-    const auto pockets = game.GetComponents<Pocket>();
-    const auto frames = game.GetComponents<TableFrame>();
+    auto& world = GameRuntime::World();
+    const auto balls = world.GetComponents<BallComponent>();
+    const auto pockets = world.GetComponents<Pocket>();
+    const auto frames = world.GetComponents<TableFrame>();
     const float radius = m_Ball->GetRadius();
     auto safe = [&](const Vector3& p) {
         if (std::abs(p.x) + radius + 1 > TableConfig::GetFieldWidth() * 0.5f ||

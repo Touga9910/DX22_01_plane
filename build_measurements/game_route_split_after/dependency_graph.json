@@ -1,0 +1,5667 @@
+{
+  "project": "C:\\HAL\\HAL_Program\\DX22\\DX22_01_plane - コピー\\DX22_01_plane\\DX22_01_plane\\DX22_01_plane.vcxproj",
+  "authored_cpp": [
+    "BattleController.cpp",
+    "BreakBall.cpp",
+    "NuisanceBall.cpp",
+    "BallShotPrediction.cpp",
+    "Application.cpp",
+    "AssimpPerse.cpp",
+    "BallComponent.cpp",
+    "BallCollisionComponent.cpp",
+    "BallPhysicsWorld.cpp",
+    "BallFactory.cpp",
+    "BallRenderComponent.cpp",
+    "BalanceLogger.cpp",
+    "Camera.cpp",
+    "Collision.cpp",
+    "Component.cpp",
+    "EnemyBall.cpp",
+    "EnemyAttackComponent.cpp",
+    "Game.cpp",
+    "GameSceneAccess.cpp",
+    "GameSaveBridge.cpp",
+    "GameBattleBridge.cpp",
+    "GameWorld.cpp",
+    "SceneManager.cpp",
+    "SceneObjectFactory.cpp",
+    "RunProgressController.cpp",
+    "RunController.cpp",
+    "BalanceValidationController.cpp",
+    "DynamicBalanceController.cpp",
+    "GameAutoPlay.cpp",
+    "GameBossAI.cpp",
+    "GameBalanceConfig.cpp",
+    "GameDebugMode.cpp",
+    "GameStageEditor.cpp",
+    "StageLayoutEditor.cpp",
+    "GameMcpBridge.cpp",
+    "GameObject.cpp",
+    "GameProgression.cpp",
+    "ProgressionProfile.cpp",
+    "GamePresentation.cpp",
+    "GameSaveManager.cpp",
+    "GameSaveSystem.cpp",
+    "PlayerBall.cpp",
+    "PlayerRunAnalysis.cpp",
+    "MenuSelection.cpp",
+    "PlayerDeck.cpp",
+    "PlayerBallDataLoader.cpp",
+    "Ground.cpp",
+    "GroundRenderComponent.cpp",
+    "input.cpp",
+    "main.cpp",
+    "Pocket.cpp",
+    "PocketFactory.cpp",
+    "Renderer.cpp",
+    "ResultScene.cpp",
+    "RunStatisticsTracker.cpp",
+    "RestSiteScene.cpp",
+    "Scene.cpp",
+    "Shader.cpp",
+    "sound.cpp",
+    "BattleScene.cpp",
+    "StageBase.cpp",
+    "StageDataLoader.cpp",
+    "StageSelector.cpp",
+    "StageSelectScene.cpp",
+    "ShopScene.cpp",
+    "SettingsManager.cpp",
+    "StaticMesh.cpp",
+    "TableFrame.cpp",
+    "TableFrameCollisionComponent.cpp",
+    "TableFrameRenderComponent.cpp",
+    "Texture.cpp",
+    "Texture2D.cpp",
+    "Texture2DFactory.cpp",
+    "TitleScene.cpp",
+    "utility.cpp"
+  ],
+  "embedded_third_party_cpp": [
+    "imgui/imgui.cpp",
+    "imgui/imgui_demo.cpp",
+    "imgui/imgui_draw.cpp",
+    "imgui/imgui_impl_dx11.cpp",
+    "imgui/imgui_impl_win32.cpp",
+    "imgui/imgui_tables.cpp",
+    "imgui/imgui_widgets.cpp",
+    "stb_image.cpp"
+  ],
+  "registered_header_count": 129,
+  "header_impact": [
+    {
+      "header": "Component.h",
+      "direct_consumer_count": 27,
+      "transitive_authored_cpp_count": 44,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "Component.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameWorld.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameObject.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameCollisionComponent.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "IndexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 44,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "VertexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 44,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "BallStatus.h",
+      "direct_consumer_count": 13,
+      "transitive_authored_cpp_count": 38,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerDeck.cpp",
+        "PlayerBallDataLoader.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "ShopScene.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "GameTypes.h",
+      "direct_consumer_count": 19,
+      "transitive_authored_cpp_count": 35,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "SceneManager.cpp",
+        "RunProgressController.cpp",
+        "RunController.cpp",
+        "BalanceValidationController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "ProgressionProfile.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerRunAnalysis.cpp",
+        "ResultScene.cpp",
+        "RunStatisticsTracker.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "ShopScene.cpp",
+        "TableFrameRenderComponent.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "Texture.h",
+      "direct_consumer_count": 11,
+      "transitive_authored_cpp_count": 35,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "AssimpPerse.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "StaticMesh.cpp",
+        "Texture.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "Mesh.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 35,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "StaticMesh.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "Shader.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 35,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "Shader.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "TableConfig.h",
+      "direct_consumer_count": 20,
+      "transitive_authored_cpp_count": 34,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrame.cpp",
+        "TableFrameCollisionComponent.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "Material.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 34,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "MeshRenderer.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 34,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "utility.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 33,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp",
+        "utility.cpp"
+      ]
+    },
+    {
+      "header": "StatusEffect.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 33,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "Collision.h",
+      "direct_consumer_count": 19,
+      "transitive_authored_cpp_count": 32,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "Collision.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrame.cpp",
+        "TableFrameCollisionComponent.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "EnemyData.h",
+      "direct_consumer_count": 11,
+      "transitive_authored_cpp_count": 32,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "TransformComponent.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 31,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "Component.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameObject.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp"
+      ]
+    },
+    {
+      "header": "RunResultSnapshot.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 30,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "SceneManager.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "ProgressionProfile.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerRunAnalysis.cpp",
+        "ResultScene.cpp",
+        "RunStatisticsTracker.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBallData.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 28,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerDeck.cpp",
+        "PlayerBallDataLoader.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "ShopScene.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "GameObjectTag.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 28,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameWorld.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2DFactory.cpp"
+      ]
+    },
+    {
+      "header": "GameObject.h",
+      "direct_consumer_count": 31,
+      "transitive_authored_cpp_count": 27,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "Component.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameWorld.cpp",
+        "GameBossAI.cpp",
+        "GameMcpBridge.cpp",
+        "GameObject.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "ResultScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrame.cpp",
+        "Texture2DFactory.cpp"
+      ]
+    },
+    {
+      "header": "StageData.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 27,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageDataLoader.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "ProgressionProfile.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 26,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "ProgressionProfile.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "GameWorld.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 25,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameWorld.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "PlayerRunStatus.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 24,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerBallDataLoader.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "StaticMesh.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 24,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StaticMesh.cpp"
+      ]
+    },
+    {
+      "header": "SphereColliderComponent.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 24,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "BallRenderComponent.h",
+      "direct_consumer_count": 12,
+      "transitive_authored_cpp_count": 23,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "BallRenderComponent.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "PlayerDeck.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 23,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "PlayerDeck.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "StageSelector.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 23,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelector.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "RunProgressConstants.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 23,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunProgressController.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "BallComponent.h",
+      "direct_consumer_count": 17,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "BallPhysicsComponent.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "SettingsManager.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "SettingsManager.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "ShotRelicRules.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "RunStatisticsTracker.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "RunStatisticsTracker.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "BallStatusComponent.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "BalanceValidationController.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "BalanceValidationController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "BattleController.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "DynamicBalanceController.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "DynamicBalanceController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "RunController.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "SceneManager.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 22,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "SceneManager.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "Game.h",
+      "direct_consumer_count": 21,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "GameEvent.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "FixedStepClock.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "CushionChargeRules.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "BalanceAutoPlayer.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "PierceTraceRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "AnchorStackRules.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "HeavyCollisionRules.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 21,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBall.h",
+      "direct_consumer_count": 20,
+      "transitive_authored_cpp_count": 20,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "Scene.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 18,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveBridge.cpp",
+        "SceneManager.cpp",
+        "GameAutoPlay.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "Scene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "BossCombatRules.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 18,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "imgui/imgui.h",
+      "direct_consumer_count": 36,
+      "transitive_authored_cpp_count": 17,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "BallComponent.cpp",
+        "Camera.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "EnemyBall.h",
+      "direct_consumer_count": 17,
+      "transitive_authored_cpp_count": 17,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "imgui/imconfig.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 17,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "BallComponent.cpp",
+        "Camera.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "UiText.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 16,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveBridge.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "Renderer.h",
+      "direct_consumer_count": 16,
+      "transitive_authored_cpp_count": 15,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "BallRenderComponent.cpp",
+        "Camera.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameProgression.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "Renderer.cpp",
+        "BattleScene.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp"
+      ]
+    },
+    {
+      "header": "GameRuntime.h",
+      "direct_consumer_count": 15,
+      "transitive_authored_cpp_count": 15,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "Application.cpp",
+        "BallFactory.cpp",
+        "Game.cpp",
+        "SceneObjectFactory.cpp",
+        "GroundRenderComponent.cpp",
+        "PocketFactory.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "BallMechanics.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 14,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "BallPhysicsRules.h",
+      "direct_consumer_count": 12,
+      "transitive_authored_cpp_count": 13,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "MenuSelection.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 13,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveBridge.cpp",
+        "SceneManager.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "MenuSelection.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "RunMap.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 13,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSceneAccess.cpp",
+        "GameSaveBridge.cpp",
+        "SceneManager.cpp",
+        "RunProgressController.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "StageSelectScene.cpp"
+      ]
+    },
+    {
+      "header": "BallCcdGeometry.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 13,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "StageDataLoader.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 12,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "BattleScene.cpp",
+        "StageDataLoader.cpp"
+      ]
+    },
+    {
+      "header": "BallStatusJson.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 12,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "PlayerBallDataLoader.cpp"
+      ]
+    },
+    {
+      "header": "BreakBall.h",
+      "direct_consumer_count": 11,
+      "transitive_authored_cpp_count": 11,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BreakBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallFactory.cpp",
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBallDataLoader.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 11,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp",
+        "PlayerBallDataLoader.cpp"
+      ]
+    },
+    {
+      "header": "Camera.h",
+      "direct_consumer_count": 14,
+      "transitive_authored_cpp_count": 10,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "NuisanceBall.cpp",
+        "Camera.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "GroundRenderComponent.cpp",
+        "TableFrameRenderComponent.cpp",
+        "Texture2D.cpp"
+      ]
+    },
+    {
+      "header": "BalanceLogger.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 10,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "BallCollisionComponent.cpp",
+        "BalanceLogger.cpp",
+        "EnemyBall.cpp",
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameProgression.cpp"
+      ]
+    },
+    {
+      "header": "Pocket.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 10,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "GameAutoPlay.cpp",
+        "GameBossAI.cpp",
+        "GameMcpBridge.cpp",
+        "Pocket.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "input.h",
+      "direct_consumer_count": 13,
+      "transitive_authored_cpp_count": 9,
+      "affected_authored_cpp": [
+        "Camera.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "MenuSelection.cpp",
+        "input.cpp"
+      ]
+    },
+    {
+      "header": "RunProgressController.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 9,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveBridge.cpp",
+        "RunProgressController.cpp",
+        "RunController.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveManager.cpp"
+      ]
+    },
+    {
+      "header": "Texture2D.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 9,
+      "affected_authored_cpp": [
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "Texture2D.cpp",
+        "Texture2DFactory.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBallSaveData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 9,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GamePresentation.cpp",
+        "GameSaveManager.cpp"
+      ]
+    },
+    {
+      "header": "StageLayoutEditor.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 9,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GamePresentation.cpp"
+      ]
+    },
+    {
+      "header": "RestSiteScene.h",
+      "direct_consumer_count": 12,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveBridge.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp",
+        "RestSiteScene.cpp"
+      ]
+    },
+    {
+      "header": "Application.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "Camera.cpp",
+        "GamePresentation.cpp",
+        "PlayerBall.cpp",
+        "input.cpp",
+        "main.cpp",
+        "Renderer.cpp",
+        "SettingsManager.cpp"
+      ]
+    },
+    {
+      "header": "GameDebugController.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GamePresentation.cpp"
+      ]
+    },
+    {
+      "header": "GameUi.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameDebugMode.cpp",
+        "GamePresentation.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "TableFrame.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "BreakBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "GameMcpBridge.cpp",
+        "PlayerBall.cpp",
+        "BattleScene.cpp",
+        "TableFrame.cpp"
+      ]
+    },
+    {
+      "header": "DebugBattleSetup.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 8,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBattleBridge.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp",
+        "GameMcpBridge.cpp",
+        "GamePresentation.cpp"
+      ]
+    },
+    {
+      "header": "StageSelectScene.h",
+      "direct_consumer_count": 11,
+      "transitive_authored_cpp_count": 7,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameAutoPlay.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveSystem.cpp",
+        "StageSelectScene.cpp"
+      ]
+    },
+    {
+      "header": "TitleScene.h",
+      "direct_consumer_count": 11,
+      "transitive_authored_cpp_count": 7,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveSystem.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBallText.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 7,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameDebugMode.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "ShopScene.cpp"
+      ]
+    },
+    {
+      "header": "EnemyAttackComponent.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 7,
+      "affected_authored_cpp": [
+        "BattleController.cpp",
+        "BallFactory.cpp",
+        "EnemyAttackComponent.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameProgression.cpp"
+      ]
+    },
+    {
+      "header": "StageBase.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 7,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "BattleScene.cpp",
+        "StageBase.cpp"
+      ]
+    },
+    {
+      "header": "BattleScene.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "ShopScene.h",
+      "direct_consumer_count": 10,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "GameSaveSystem.cpp",
+        "ShopScene.cpp"
+      ]
+    },
+    {
+      "header": "BallCollisionComponent.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallComponent.cpp",
+        "BallCollisionComponent.cpp",
+        "BallPhysicsWorld.cpp",
+        "BallFactory.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "GameMcpBridge.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameDebugMode.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp"
+      ]
+    },
+    {
+      "header": "SceneObjectFactory.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "SceneObjectFactory.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "StageSelectScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerRunAnalysis.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 6,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "PlayerRunAnalysis.cpp",
+        "ResultScene.cpp"
+      ]
+    },
+    {
+      "header": "ResultScene.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "SceneManager.cpp",
+        "GameMcpBridge.cpp",
+        "GameProgression.cpp",
+        "ResultScene.cpp"
+      ]
+    },
+    {
+      "header": "TagComponent.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "BallFactory.cpp",
+        "GameWorld.cpp",
+        "PocketFactory.cpp",
+        "BattleScene.cpp",
+        "Texture2DFactory.cpp"
+      ]
+    },
+    {
+      "header": "imgui/imgui_impl_dx11.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameProgression.cpp"
+      ]
+    },
+    {
+      "header": "imgui/imgui_impl_win32.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "Application.cpp",
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameBalanceConfig.cpp",
+        "GameProgression.cpp"
+      ]
+    },
+    {
+      "header": "BallPhysicsWorld.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallPhysicsWorld.cpp",
+        "Game.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp"
+      ]
+    },
+    {
+      "header": "GameSceneCommands.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "GameSceneAccess.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "GameView.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "GameSceneAccess.cpp",
+        "ResultScene.cpp",
+        "RestSiteScene.cpp",
+        "ShopScene.cpp",
+        "TitleScene.cpp"
+      ]
+    },
+    {
+      "header": "NuisanceBall.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "NuisanceBall.cpp",
+        "BallShotPrediction.cpp",
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "SynchronizedBallStepper.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallPhysicsWorld.cpp",
+        "Game.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp"
+      ]
+    },
+    {
+      "header": "ContinuousBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 5,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "BallPhysicsWorld.cpp",
+        "Game.cpp",
+        "GameBalanceConfig.cpp",
+        "GameMcpBridge.cpp"
+      ]
+    },
+    {
+      "header": "BallShotPrediction.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 4,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "PlayerBall.cpp"
+      ]
+    },
+    {
+      "header": "GamePresentation.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 4,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameAutoPlay.cpp",
+        "GameProgression.cpp",
+        "GamePresentation.cpp"
+      ]
+    },
+    {
+      "header": "Ground.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 4,
+      "affected_authored_cpp": [
+        "EnemyBall.cpp",
+        "PlayerBall.cpp",
+        "Ground.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "TableGeometry.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 4,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameStageEditor.cpp",
+        "StageLayoutEditor.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "BallFactory.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "BallFactory.cpp",
+        "EnemyBall.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "BossShotPlanner.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameBossAI.cpp",
+        "GameDebugMode.cpp"
+      ]
+    },
+    {
+      "header": "GameSaveManager.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "GameSaveManager.cpp",
+        "GameSaveSystem.cpp"
+      ]
+    },
+    {
+      "header": "GroundRenderComponent.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "Ground.cpp",
+        "GroundRenderComponent.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "PlayerBallUI.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "Game.cpp",
+        "RestSiteScene.cpp",
+        "ShopScene.cpp"
+      ]
+    },
+    {
+      "header": "TableFrameCollisionComponent.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "BattleScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameCollisionComponent.cpp"
+      ]
+    },
+    {
+      "header": "TableFrameRenderComponent.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "BattleScene.cpp",
+        "TableFrame.cpp",
+        "TableFrameRenderComponent.cpp"
+      ]
+    },
+    {
+      "header": "Texture2DFactory.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 3,
+      "affected_authored_cpp": [
+        "SceneObjectFactory.cpp",
+        "BattleScene.cpp",
+        "Texture2DFactory.cpp"
+      ]
+    },
+    {
+      "header": "AssimpPerse.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "AssimpPerse.cpp",
+        "StaticMesh.cpp"
+      ]
+    },
+    {
+      "header": "EnemyGimmickRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "BallShotPrediction.cpp",
+        "EnemyBall.cpp"
+      ]
+    },
+    {
+      "header": "EnemyText.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "GameDebugMode.cpp",
+        "GameStageEditor.cpp"
+      ]
+    },
+    {
+      "header": "GameRunSaveState.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "GameSaveBridge.cpp",
+        "GameSaveManager.cpp"
+      ]
+    },
+    {
+      "header": "PocketFactory.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "PocketFactory.cpp",
+        "BattleScene.cpp"
+      ]
+    },
+    {
+      "header": "RunRouteCommands.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "GameSceneAccess.cpp",
+        "StageSelectScene.cpp"
+      ]
+    },
+    {
+      "header": "RunRouteView.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "GameSceneAccess.cpp",
+        "StageSelectScene.cpp"
+      ]
+    },
+    {
+      "header": "StatusEffectJson.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 2,
+      "affected_authored_cpp": [
+        "StageLayoutEditor.cpp",
+        "StageDataLoader.cpp"
+      ]
+    },
+    {
+      "header": "stb_image.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 1,
+      "affected_authored_cpp": [
+        "Texture.cpp"
+      ]
+    },
+    {
+      "header": "PocketReturnRules.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 1,
+      "affected_authored_cpp": [
+        "Game.cpp"
+      ]
+    },
+    {
+      "header": "main.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 1,
+      "affected_authored_cpp": [
+        "main.cpp"
+      ]
+    },
+    {
+      "header": "sound.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 1,
+      "affected_authored_cpp": [
+        "sound.cpp"
+      ]
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Component.h",
+      "direct_consumer_count": 18,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Component.h",
+      "direct_consumer_count": 18,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Component.h",
+      "direct_consumer_count": 18,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Component.h",
+      "direct_consumer_count": 17,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Collision.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Collision.h",
+      "direct_consumer_count": 9,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Collision.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Collision.h",
+      "direct_consumer_count": 8,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallStatus.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallStatus.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallStatus.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallStatus.h",
+      "direct_consumer_count": 7,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Scene.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Scene.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Scene.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Scene.h",
+      "direct_consumer_count": 6,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Material.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Texture.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Material.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Texture.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Material.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Texture.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameTypes.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Material.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Texture.h",
+      "direct_consumer_count": 5,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "imgui/imgui_internal.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameTypes.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/IndexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/MenuSelection.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/RunResultSnapshot.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Shader.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/VertexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameTypes.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/IndexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/MenuSelection.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/RunResultSnapshot.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Shader.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/VertexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameTypes.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/IndexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/MenuSelection.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/RunResultSnapshot.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Shader.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/VertexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/IndexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/MenuSelection.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/RunResultSnapshot.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Shader.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TableConfig.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/VertexBuffer.h",
+      "direct_consumer_count": 4,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallPhysicsRules.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Mesh.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/MeshRenderer.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBallData.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TableConfig.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallPhysicsRules.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Mesh.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/MeshRenderer.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBallData.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallPhysicsRules.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Mesh.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/MeshRenderer.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBallData.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TableConfig.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallPhysicsRules.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Mesh.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/MeshRenderer.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBallData.h",
+      "direct_consumer_count": 3,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallRenderComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BossCombatRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/EnemyData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerRunStatus.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Renderer.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/ShotRelicRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StageData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StaticMesh.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/utility.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallRenderComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/EnemyData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerRunStatus.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Renderer.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/ShotRelicRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StageData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StaticMesh.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TableConfig.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/utility.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/BallPhysicsRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallRenderComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BossCombatRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/EnemyData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerRunStatus.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Renderer.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/ShotRelicRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StageData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StaticMesh.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/utility.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallRenderComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BossCombatRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/EnemyData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerRunStatus.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Renderer.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/ShotRelicRules.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StageData.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StaticMesh.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/utility.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/BallComponent.h",
+      "direct_consumer_count": 2,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "imgui/imstb_rectpack.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "imgui/imstb_textedit.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "imgui/imstb_truetype.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/cffi/_cffi_errors.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/cffi/parse_c_type.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/win32com/include/PythonCOMServer.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallCcdGeometry.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallMechanics.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallPhysicsComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallStatusComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallStatusJson.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BattleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Camera.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/ContinuousBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/FixedStepClock.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameEvent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameObject.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBallDataLoader.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBallText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerDeck.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerRunAnalysis.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/RestSiteScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/ResultScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/RunMap.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/RunStatisticsTracker.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/SettingsManager.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/ShopScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/SphereColliderComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StageBase.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StageSelectScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StageSelector.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/SynchronizedBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TagComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TitleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TransformComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/UiText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/input.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/stb_image.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallCcdGeometry.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallMechanics.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallPhysicsComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallStatusComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallStatusJson.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BattleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Camera.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/ContinuousBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/FixedStepClock.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameEvent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameObject.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBallDataLoader.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBallText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerDeck.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerRunAnalysis.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/RestSiteScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/ResultScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/RunMap.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/RunStatisticsTracker.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/SettingsManager.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/ShopScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/SphereColliderComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StageBase.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StageSelectScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StageSelector.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/SynchronizedBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TagComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TitleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TransformComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/UiText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/input.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/stb_image.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/SynchronizedBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallCcdGeometry.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallMechanics.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallPhysicsComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallStatusComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallStatusJson.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BattleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Camera.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/ContinuousBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/FixedStepClock.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameEvent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameObject.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBallDataLoader.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBallText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerDeck.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerRunAnalysis.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/RestSiteScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/ResultScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/RunMap.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/RunStatisticsTracker.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/SettingsManager.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/ShopScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/SphereColliderComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StageBase.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StageSelectScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StageSelector.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/SynchronizedBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TagComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TitleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TransformComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/UiText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/input.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/stb_image.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/Component.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallCcdGeometry.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallMechanics.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallPhysicsComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallStatusComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallStatusJson.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BattleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Camera.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/ContinuousBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/DebugBattleSetup.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/FixedStepClock.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameEvent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameObject.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBallDataLoader.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBallSaveData.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBallText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerDeck.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerRunAnalysis.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/RestSiteScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/ResultScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/RunMap.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/RunStatisticsTracker.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/SettingsManager.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/ShopScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/SphereColliderComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StageBase.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StageDataLoader.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StageSelectScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/StageSelector.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/SynchronizedBallStepper.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TagComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TitleScene.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TransformComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/UiText.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/input.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/stb_image.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/BallPhysicsComponent.h",
+      "direct_consumer_count": 1,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/cffi/_cffi_include.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/cffi/_embedding.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/win32/include/PyWinTypes.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/win32/test/win32rcparser/test.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/win32com/include/PythonCOM.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/game_mcp/.venv/Lib/site-packages/win32com/include/PythonCOMRegister.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Application.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/AssimpPerse.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BalanceLogger.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/BreakBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/EnemyAttackComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameMcpBridge.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GamePresentation.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameSaveManager.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GameUi.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Ground.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/GroundRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBallSaveData.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PlayerBallUI.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Pocket.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/PocketFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/StageDataLoader.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TableFrame.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TableFrameCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TableFrameRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Texture2D.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/Texture2DFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/TrajectoryModel.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/main.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_ai/before/sound.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Application.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/AssimpPerse.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BalanceLogger.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/EnemyAttackComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameMcpBridge.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GamePresentation.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameSaveManager.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GameUi.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Ground.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/GroundRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBallSaveData.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PlayerBallUI.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Pocket.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/PocketFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/StageDataLoader.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TableFrame.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TableFrameCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TableFrameRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Texture2D.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/Texture2DFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/TrajectoryModel.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/main.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/boss_armor/before/sound.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/ccd_toi/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/code_cleanup/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/code_cleanup/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/code_cleanup/before/ContinuousBallStepper.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/code_cleanup/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/code_cleanup/before/TrajectoryModel.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Application.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/AssimpPerse.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BalanceLogger.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/BreakBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/EnemyAttackComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameMcpBridge.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GamePresentation.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameSaveManager.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GameUi.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Ground.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/GroundRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBallSaveData.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PlayerBallUI.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Pocket.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/PocketFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/StageDataLoader.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TableFrame.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TableFrameCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/TableFrameRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Texture2D.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/Texture2DFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/main.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/debug_mode/before/sound.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/BallMechanics.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/BallPhysicsComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/fixed_timestep/baseline/source/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/pierce_exit/before/BallPhysicsRules.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/preview_one_reflection/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/shared_prediction/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/shared_prediction/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/shared_prediction/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/shared_prediction/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Application.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/AssimpPerse.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BalanceLogger.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallPhysicsWorld.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BallShotPrediction.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/BreakBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/EnemyAttackComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameMcpBridge.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GamePresentation.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameSaveManager.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GameUi.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Ground.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/GroundRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PlayerBallUI.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Pocket.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/PocketFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TableFrame.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TableFrameCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/TableFrameRenderComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Texture2D.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/Texture2DFactory.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/main.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/stage_editor/before/sound.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/BallCollisionComponent.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/BallMechanics.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/EnemyBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/Game.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    },
+    {
+      "header": "tools/runtime_tests/synchronized_physics/before/source/PlayerBall.h",
+      "direct_consumer_count": 0,
+      "transitive_authored_cpp_count": 0,
+      "affected_authored_cpp": []
+    }
+  ],
+  "cycles": [],
+  "unresolved_quoted_includes": {
+    "BalanceLogger.cpp": [
+      "json/json.hpp"
+    ],
+    "BalanceLogger.h": [
+      "json/json.hpp"
+    ],
+    "BalanceValidationController.cpp": [
+      "json/json.hpp"
+    ],
+    "BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "BallFactory.h": [
+      "SimpleMath.h"
+    ],
+    "BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "BallShotPrediction.cpp": [
+      "json/json.hpp"
+    ],
+    "BallStatusJson.h": [
+      "json/json.hpp"
+    ],
+    "BattleScene.cpp": [
+      "Input.h"
+    ],
+    "BossShotPlanner.h": [
+      "json/json.hpp"
+    ],
+    "BreakBall.h": [
+      "SimpleMath.h"
+    ],
+    "DynamicBalanceController.cpp": [
+      "json/json.hpp"
+    ],
+    "Game.cpp": [
+      "json/json.hpp"
+    ],
+    "Game.h": [
+      "json/json_fwd.hpp"
+    ],
+    "GameAutoPlay.cpp": [
+      "json/json.hpp"
+    ],
+    "GameBalanceConfig.cpp": [
+      "json/json.hpp"
+    ],
+    "GameBossAI.cpp": [
+      "json/json.hpp"
+    ],
+    "GameDebugMode.cpp": [
+      "json/json.hpp"
+    ],
+    "GameMcpBridge.cpp": [
+      "json/json.hpp"
+    ],
+    "GameMcpBridge.h": [
+      "json/json.hpp"
+    ],
+    "GamePresentation.cpp": [
+      "json/json.hpp"
+    ],
+    "GameProgression.cpp": [
+      "json/json.hpp"
+    ],
+    "GameSaveManager.cpp": [
+      "json/json.hpp"
+    ],
+    "GameSceneAccess.cpp": [
+      "json/json.hpp"
+    ],
+    "GameStageEditor.cpp": [
+      "json/json.hpp"
+    ],
+    "IndexBuffer.h": [
+      "renderer.h"
+    ],
+    "Material.h": [
+      "renderer.h"
+    ],
+    "Mesh.h": [
+      "renderer.h"
+    ],
+    "PierceTraceRules.h": [
+      "SimpleMath.h"
+    ],
+    "PlayerBallDataLoader.cpp": [
+      "json/json.hpp"
+    ],
+    "PocketFactory.h": [
+      "SimpleMath.h"
+    ],
+    "ProgressionProfile.cpp": [
+      "json/json.hpp"
+    ],
+    "RestSiteScene.cpp": [
+      "Input.h"
+    ],
+    "ResultScene.cpp": [
+      "Input.h"
+    ],
+    "RunMap.h": [
+      "json/json.hpp"
+    ],
+    "SettingsManager.cpp": [
+      "json/json.hpp"
+    ],
+    "Shader.cpp": [
+      "renderer.h"
+    ],
+    "ShopScene.cpp": [
+      "Input.h"
+    ],
+    "StageBase.cpp": [
+      "Input.h"
+    ],
+    "StageDataLoader.cpp": [
+      "json/json.hpp"
+    ],
+    "StageLayoutEditor.h": [
+      "json/json.hpp"
+    ],
+    "StageSelectScene.cpp": [
+      "Input.h"
+    ],
+    "StaticMesh.h": [
+      "renderer.h"
+    ],
+    "StatusEffectJson.h": [
+      "json/json.hpp"
+    ],
+    "TableGeometry.h": [
+      "SimpleMath.h"
+    ],
+    "Texture.cpp": [
+      "renderer.h"
+    ],
+    "TitleScene.cpp": [
+      "Input.h"
+    ],
+    "VertexBuffer.h": [
+      "renderer.h"
+    ],
+    "imgui/imgui.cpp": [
+      "stb_sprintf.h",
+      "imgui_user.inl"
+    ],
+    "imgui/imgui.h": [
+      "imgui_user.h"
+    ],
+    "imgui/imgui_draw.cpp": [
+      "misc/freetype/imgui_freetype.h",
+      "../stb/stb_image_write.h"
+    ],
+    "imgui/imstb_truetype.h": [
+      "stb_truetype.h",
+      "stb_truetype.h"
+    ],
+    "tools/game_mcp/.venv/Lib/site-packages/win32/include/PyWinTypes.h": [
+      "Python.h",
+      "structmember.h",
+      "windows.h",
+      "mmsystem.h",
+      "winsock.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/BalanceLogger.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_ai/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/BallStatusJson.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_ai/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_ai/before/GameMcpBridge.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_ai/before/IndexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/Material.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/Mesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/PocketFactory.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/RunMap.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_ai/before/StaticMesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/TableConfig.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/TrajectoryModel.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_ai/before/VertexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/BalanceLogger.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_armor/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/BallStatusJson.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_armor/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_armor/before/GameMcpBridge.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_armor/before/IndexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/Material.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/Mesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/PocketFactory.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/RunMap.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/boss_armor/before/StaticMesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/TableConfig.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/TrajectoryModel.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/boss_armor/before/VertexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/ccd_toi/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/ccd_toi/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/code_cleanup/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/code_cleanup/before/TrajectoryModel.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/BalanceLogger.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/debug_mode/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/BallStatusJson.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/debug_mode/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/debug_mode/before/GameMcpBridge.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/debug_mode/before/IndexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/Material.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/Mesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/PocketFactory.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/RunMap.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/debug_mode/before/StaticMesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/TableConfig.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/debug_mode/before/VertexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/fixed_timestep/baseline/source/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/fixed_timestep/baseline/source/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/fixed_timestep/baseline/source/PlayerBall.h": [
+      "TrajectoryModel.h"
+    ],
+    "tools/runtime_tests/shared_prediction/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/shared_prediction/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/shared_prediction/before/PlayerBall.h": [
+      "TrajectoryModel.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/BalanceLogger.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/stage_editor/before/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/BallStatusJson.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/stage_editor/before/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/stage_editor/before/GameMcpBridge.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/stage_editor/before/IndexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/Material.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/Mesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/PocketFactory.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/RunMap.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/stage_editor/before/StaticMesh.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/TableConfig.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/stage_editor/before/VertexBuffer.h": [
+      "renderer.h"
+    ],
+    "tools/runtime_tests/synchronized_physics/before/source/BallCollisionComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/synchronized_physics/before/source/BallPhysicsComponent.h": [
+      "SimpleMath.h"
+    ],
+    "tools/runtime_tests/synchronized_physics/before/source/Game.h": [
+      "json/json.hpp"
+    ],
+    "tools/runtime_tests/synchronized_physics/before/source/PlayerBall.h": [
+      "TrajectoryModel.h"
+    ]
+  }
+}

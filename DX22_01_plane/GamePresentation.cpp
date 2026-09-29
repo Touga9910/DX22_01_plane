@@ -3,6 +3,7 @@
 #pragma execution_character_set("utf-8")
 
 #include "Application.h"
+#include "GameObject.h"
 #include "BattleScene.h"
 #include "Camera.h"
 #include "Game.h"

@@ -5,6 +5,7 @@
 #include "BallCcdGeometry.h"
 #include "TableConfig.h"
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <tuple>
 #include <string>

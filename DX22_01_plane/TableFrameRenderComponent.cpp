@@ -3,7 +3,7 @@
 #include "Camera.h"
 #include "Game.h"
 #include "Renderer.h"
-#include "TableConfig.h"
+#include "TableGeometry.h"
 #include "TransformComponent.h"
 
 #include <algorithm>

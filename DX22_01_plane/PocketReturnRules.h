@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TableConfig.h"
+#include "TableGeometry.h"
 
 #include <algorithm>
 #include <cmath>

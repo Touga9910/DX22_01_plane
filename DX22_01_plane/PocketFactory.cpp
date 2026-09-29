@@ -1,6 +1,6 @@
 #include "PocketFactory.h"
 
-#include "Game.h"
+#include "GameRuntime.h"
 #include "GameObject.h"
 #include "Pocket.h"
 #include "SphereColliderComponent.h"
@@ -11,7 +11,7 @@ Pocket* PocketFactory::Create(
     const DirectX::SimpleMath::Vector3& position,
     float radius)
 {
-    GameObject* object = game.CreateGameObject("Pocket");
+    GameObject* object = GameRuntime::CreateObject(game, "Pocket");
 
     object->AddComponent<TagComponent>(GameObjectTag::Pocket);
     object->AddComponent<SphereColliderComponent>(radius, true);

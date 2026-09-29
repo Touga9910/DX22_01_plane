@@ -1,22 +1,10 @@
 ﻿#pragma once
 
 #include "Component.h"
+#include "GameObjectTag.h"
 
 // GameObjectの用途や種類を識別するためのタグを表す。
 // 衝突判定やオブジェクト種別の判定などで使用
-enum class GameObjectTag
-{
-    None,       // タグ未設定
-    Player,     // プレイヤー
-    Enemy,      // 敵
-    Ground,     // 地面・フィールド
-    Rail,       // 壁・レール
-    Pocket,     // ポケット
-    Goal,       // ゴール
-    WorldUi,    // ワールド空間上に表示するUI
-    ScreenUi,   // 画面空間に表示するUI
-};
-
 // GameObjectへタグ情報を付与するためのコンポーネント。
 // 1つのGameObjectに対して、現在設定されているGameObjectTagを保持
 class TagComponent final : public Component

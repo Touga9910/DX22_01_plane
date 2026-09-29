@@ -4,7 +4,8 @@
 #include "BallPhysicsRules.h"
 #include "BallRenderComponent.h"
 #include "Camera.h"
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "GameObject.h"
 #include "PlayerBall.h"
 #include "TableConfig.h"
@@ -56,7 +57,7 @@ void NuisanceBall::FixedUpdate()
 
 void NuisanceBall::Draw()
 {
-    Camera* camera = Game::GetCamera();
+    Camera* camera = &GameRuntime::MainCamera();
     if (camera == nullptr || m_Ball == nullptr) return;
     auto* render = GetGameObject()->GetComponent<BallRenderComponent>();
     if (render == nullptr) return;
@@ -80,6 +81,6 @@ void NuisanceBall::Pocket()
     m_Ball->GetMutableVelocity() = Vector3::Zero;
     m_Ball->GetMutableAcceleration() = Vector3::Zero;
     GetGameObject()->Destroy();
-    for (PlayerBall* player : Game::GetInstance()->GetComponents<PlayerBall>())
+    for (PlayerBall* player : GameRuntime::World().GetComponents<PlayerBall>())
         if (player != nullptr) player->RefreshNuisanceDebuffs();
 }

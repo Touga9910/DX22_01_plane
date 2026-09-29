@@ -246,6 +246,39 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("m_RunController.Deck().CaptureSnapshot()", bridge)
         self.assertIn("m_RunController.Deck().RestoreSnapshot(", bridge)
 
+    def test_non_battle_scenes_do_not_depend_on_game_header(self) -> None:
+        for scene_name in (
+            "RestSiteScene.cpp",
+            "ShopScene.cpp",
+            "TitleScene.cpp",
+            "ResultScene.cpp",
+            "StageSelectScene.cpp",
+        ):
+            scene = source(scene_name)
+            self.assertNotIn('#include "Game.h"', scene)
+            self.assertNotIn("Game::GetInstance()", scene)
+
+        view = source("GameView.h")
+        self.assertIn("RestSiteViewSnapshot", view)
+        self.assertIn("ShopViewSnapshot", view)
+        self.assertIn("TitleViewSnapshot", view)
+        self.assertNotIn('#include "Game.h"', view)
+
+    def test_route_sources_share_one_validated_command(self) -> None:
+        stage_select = source("StageSelectScene.cpp")
+        autoplay = source("GameAutoPlay.cpp")
+        mcp = source("GameMcpBridge.cpp")
+        boundary = source("GameSceneAccess.cpp")
+
+        self.assertIn("RunRouteCommands::Choose(", stage_select)
+        self.assertIn('stageSelect->ChooseRoute(selectedRoute, "autoplay")', autoplay)
+        self.assertIn('stageSelect->ChooseRoute(routeIndex, "mcp")', mcp)
+        self.assertIn("bool RunRouteCommands::Choose(", boundary)
+        self.assertIn("game.ChooseMapNode(nodeId)", boundary)
+        self.assertIn('game.RecordBalanceEvent(\n        "route_choice"', boundary)
+        self.assertIn("game.StartNextBattle(StageType::Normal)", boundary)
+        self.assertIn("game.ChangeScene(SceneType::Shop)", boundary)
+
 
 if __name__ == "__main__":
     unittest.main()

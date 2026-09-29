@@ -1,31 +1,23 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "StageSelectScene.h"
-#include "Game.h"
-#include "json/json.hpp"
+#include "GameRuntime.h"
 #include "GameUi.h"
 #include "Input.h"
+#include "RunRouteCommands.h"
+#include "RunRouteView.h"
+#include "SceneObjectFactory.h"
 #include "Texture2D.h"
-#include "Texture2DFactory.h"
 #include "UiText.h"
 #include "imgui/imgui.h"
 
+#include <algorithm>
+#include <cstdio>
+
 namespace
 {
-	const char* GetRouteName(StageRouteType routeType)
+	const char* UiUtf8(const char8_t* text) noexcept
 	{
-		switch (routeType)
-		{
-		case StageRouteType::NormalBattle: return "Normal Battle";
-		case StageRouteType::MidBoss: return "Mid Boss";
-		case StageRouteType::Shop:
-			return "Shop";
-		case StageRouteType::RestSite:
-			return "Rest Site";
-		case StageRouteType::FinalBoss: return "Final Boss";
-		case StageRouteType::BossPreparation: return "Boss Preparation";
-		default:
-			return "Unknown";
-		}
+		return reinterpret_cast<const char*>(text);
 	}
 
 	const char* GetLocalizedRouteName(StageRouteType routeType)
@@ -35,11 +27,11 @@ namespace
 		case StageRouteType::NormalBattle: return "通常戦闘";
 		case StageRouteType::BossPreparation: return "ボス前休憩";
 		case StageRouteType::MidBoss:
-			return RelicUtf8(u8"\u4e2d\u30dc\u30b9");
+			return UiUtf8(u8"\u4e2d\u30dc\u30b9");
 		case StageRouteType::Shop: return UiText::RouteShop;
 		case StageRouteType::RestSite: return UiText::RouteRest;
 		case StageRouteType::FinalBoss:
-			return RelicUtf8(u8"\u6700\u7d42\u30dc\u30b9");
+			return UiUtf8(u8"\u6700\u7d42\u30dc\u30b9");
 		default: return "Unknown";
 		}
 	}
@@ -87,10 +79,10 @@ StageSelectScene::~StageSelectScene()
 void StageSelectScene::Init()
 {
 	m_SelectedNode = 0;
-	m_RouteNodes = Game::GetInstance()->GetRunMap().Available();
+	m_RouteNodes = RunRouteView::AvailableNodeIds();
 
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt = SceneObjectFactory::CreateTexture2D();
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
 	pt->SetRotation(0.0f, 0.0f, 0.0f);
@@ -137,7 +129,7 @@ const char* StageSelectScene::GetRouteIdAt(int routeIndex) const
 	{
 		return "unknown";
 	}
-	return RunMapRouteId(Game::GetInstance()->GetRunMap().Node(m_RouteNodes[routeIndex])->type);
+	return RunMapRouteId(RunRouteView::NodeType(m_RouteNodes[routeIndex]));
 }
 
 const char* StageSelectScene::GetRouteDisplayNameAt(int routeIndex) const
@@ -146,7 +138,7 @@ const char* StageSelectScene::GetRouteDisplayNameAt(int routeIndex) const
 	{
 		return "Unknown";
 	}
-	return GetRouteName(Game::GetInstance()->GetRunMap().Node(m_RouteNodes[routeIndex])->type);
+	return RunRouteView::LogName(RunRouteView::NodeType(m_RouteNodes[routeIndex]));
 }
 
 bool StageSelectScene::ChooseRoute(
@@ -158,49 +150,11 @@ bool StageSelectScene::ChooseRoute(
 		return false;
 	}
 
-	const int nodeId = m_RouteNodes[routeIndex];
-	const StageRouteType routeType = Game::GetInstance()->GetRunMap().Node(nodeId)->type;
-	Game* game = Game::GetInstance();
-	nlohmann::json offeredRoutes = nlohmann::json::array();
-	for (const int offeredRoute : m_RouteNodes)
-	{
-		offeredRoutes.push_back(GetRouteName(game->GetRunMap().Node(offeredRoute)->type));
-	}
-	if (!game->ChooseMapNode(nodeId)) return false;
-	game->RecordBalanceEvent(
-		"route_choice",
-		{
-			{ "controller", controllerType },
-			{ "offered_routes", std::move(offeredRoutes) },
-			{ "selected_index", routeIndex },
-			{ "map_node_id", nodeId },
-			{ "map_path", game->GetRunMap().Path() },
-			{ "map_version", 1 },
-			{ "selected_route", GetRouteName(routeType) },
-			{ "area_progress", game->GetAreaProgress() },
-			{ "run_phase", ToString(game->GetRunPhase()) },
-		});
-	switch (routeType)
-	{
-	case StageRouteType::NormalBattle:
-		game->StartNextBattle(StageType::Normal);
-		break;
-	case StageRouteType::MidBoss:
-		game->StartNextBattle(StageType::MidBoss);
-		break;
-	case StageRouteType::Shop:
-		game->ChangeScene(SceneType::Shop);
-		break;
-	case StageRouteType::RestSite:
-		game->ChangeScene(SceneType::RestSite);
-		break;
-	case StageRouteType::FinalBoss:
-		game->StartNextBattle(StageType::Boss);
-		break;
-	default:
-		return false;
-	}
-	return game->GetRunMap().Active() == nodeId;
+	return RunRouteCommands::Choose(
+		m_RouteNodes[routeIndex],
+		routeIndex,
+		m_RouteNodes,
+		controllerType);
 }
 
 void StageSelectScene::DrawUI()
@@ -212,11 +166,11 @@ void StageSelectScene::DrawUI()
         ImGui::End();
         return;
     }
-    Game* game = Game::GetInstance();
-    const RunMap& map = game->GetRunMap();
-    ImGui::Text("通常エリア %d / %d", game->GetAreaProgress(), game->GetNormalRouteAreaGoal());
+	const RunRouteStatusSnapshot status = RunRouteView::CaptureStatus();
+    const RunMap& map = RunRouteView::Map();
+    ImGui::Text("通常エリア %d / %d", status.areaProgress, status.normalRouteAreaGoal);
     ImGui::SameLine(260);
-    ImGui::Text(UiText::RunStatusFormat, game->GetPlayerCurrentHp(), game->GetPlayerMaxHp(), game->GetPlayerMoney(), game->GetDeckBallCount());
+    ImGui::Text(UiText::RunStatusFormat, status.playerCurrentHp, status.playerMaxHp, status.playerMoney, status.deckBallCount);
     ImGui::TextUnformatted("下から上へ進みます。光っている行き先をクリックして出発。先の道はスクロールで確認できます。");
     if (ImGui::Button("現在地へ")) m_FocusCurrent = true;
     ImGui::SameLine();
@@ -338,7 +292,7 @@ void StageSelectScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
 	for (GameObject* gameObject : m_SceneGameObjects) {
-		Game::GetInstance()->DeleteGameObject(gameObject);
+		GameRuntime::DestroyObject(gameObject);
 	}
 	m_SceneGameObjects.clear();
 }

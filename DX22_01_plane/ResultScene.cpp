@@ -1,9 +1,13 @@
 ﻿#include "ResultScene.h"
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameSceneCommands.h"
+#include "GameView.h"
+#include "GameTypes.h"
+#include "GameObject.h"
 #include "GameUi.h"
 #include "Input.h"
+#include "SceneObjectFactory.h"
 #include "Texture2D.h"
-#include "Texture2DFactory.h"
 #include "PlayerBallText.h"
 #include "imgui/imgui.h"
 
@@ -28,16 +32,16 @@ ResultScene::~ResultScene()
 // 初期化
 void ResultScene::Init()
 {
-	m_Result = Game::GetInstance()->GetLastRunResult();
+	m_Result = GameView::LastRunResult();
 	m_Analysis = AnalyzeRun(m_Result);
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt = SceneObjectFactory::CreateTexture2D();
 	pt->SetTexture("assets/texture/background2.png");
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
 	m_SceneGameObjects.emplace_back(pt->GetGameObject());
 
 	//リザルト文字列オブジェクトを作成
-	Texture2D* pt2 = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt2 = SceneObjectFactory::CreateTexture2D();
 	pt2->SetTexture("assets/texture/resultString.png");
 	pt2->SetScale(700.0f, 100.0f, 0.0f);
 	pt2->SetUV(1, 1, 1, 13);//縦1横13分割の、左から1番目上から5番目を指定
@@ -45,7 +49,7 @@ void ResultScene::Init()
 
 	/*
 	// 人オブジェクトを作成
-	Texture2D* pt3 = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt3 = SceneObjectFactory::CreateTexture2D();
 	pt3->SetTexture("assets/texture/golf_jou_man.png");
 	pt3->SetPosition(-300.0f, 0.0f, 0.0f);
 	pt3->SetScale(361.0f, 400.0f, 0.0f);
@@ -78,12 +82,12 @@ void ResultScene::Update()
 	}
 	else if (m_Menu.GetIndex() == 1)
 	{
-		Game::GetInstance()->StartNewRun();
-		Game::GetInstance()->ChangeScene(SceneType::Select);
+		GameSceneCommands::StartNewRun();
+		GameSceneCommands::ChangeScene(SceneType::Select);
 	}
 	else
 	{
-		Game::GetInstance()->ChangeScene(SceneType::Title);
+		GameSceneCommands::ChangeScene(SceneType::Title);
 	}
 }
 
@@ -120,7 +124,7 @@ void ResultScene::DrawSummary()
 			: ImVec4(1.0f, 0.48f, 0.38f, 1.0f),
 		statistics.completed ? "ラン完了！" : "ラン終了");
 	ImGui::SameLine();
-	ImGui::TextDisabled("アセンション%d", Game::GetInstance()->GetActiveAscension());
+	ImGui::TextDisabled("アセンション%d", GameView::CaptureResult().activeAscension);
 	ImGui::Separator();
 	if (ImGui::BeginTable("result_summary", 2, ImGuiTableFlags_SizingStretchSame))
 	{
@@ -211,7 +215,7 @@ void ResultScene::DrawSummary()
 	{
 		ImGui::TextDisabled("なし");
 	}
-	const auto& progressionUnlocks = Game::GetInstance()->GetLastProgressionUnlocks();
+	const auto& progressionUnlocks = GameView::LastProgressionUnlocks();
 	if (!progressionUnlocks.empty())
 	{
 		ImGui::SeparatorText("新しい解放");
@@ -293,7 +297,7 @@ void ResultScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
 	for (GameObject* gameObject : m_SceneGameObjects) {
-		Game::GetInstance()->DeleteGameObject(gameObject);
+		GameRuntime::DestroyObject(gameObject);
 	}
 	m_SceneGameObjects.clear();
 }

@@ -23,7 +23,6 @@
 //#include "Ground.h"
 
 
-#include "Camera.h"
 #include "BallStatus.h"
 #include "CushionChargeRules.h"
 #include "HeavyCollisionRules.h"
@@ -36,17 +35,19 @@
 #include "SettingsManager.h"
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
-#include "GameObject.h"
 #include "FixedStepClock.h"
 #include "json/json_fwd.hpp"
 
 class EnemyBall;
 class BallComponent;
+class Camera;
 struct EnemyData;
 class BossShotPlanner;
 class GameDebugController;
 class GameMcpBridge;
 class GamePresentation;
+class GameObject;
+class GameRuntime;
 struct GameRunRestoreRequest;
 struct GameRunSaveSnapshot;
 class PlayerBall;
@@ -63,7 +64,7 @@ private:
 	SceneManager m_SceneManager;
 
 	// カメラ
-	Camera&  m_Camera = Camera::GetInstance();
+	Camera& m_Camera;
 
 	GameWorld m_World;
 
@@ -202,6 +203,7 @@ private:
 	// 専用境界への移行が未完了の開発・外部連携だけに内部アクセスを限定する。
 	friend class GameMcpBridge;
 	friend class GameDebugController;
+	friend class GameRuntime;
 
 	// ===== 戦闘終了とクリア報酬 =====
 	// 敗北終了、勝利報酬の開始・更新・描画、ボール選択とプレビューを行う。

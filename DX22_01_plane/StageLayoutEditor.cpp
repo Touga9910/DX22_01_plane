@@ -1,6 +1,7 @@
 ﻿#include "StageLayoutEditor.h"
 #pragma execution_character_set("utf-8")
 #include "StatusEffectJson.h"
+#include "TableGeometry.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>

@@ -1,13 +1,15 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "RestSiteScene.h"
 
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameSceneCommands.h"
+#include "GameView.h"
 #include "GameUi.h"
 #include "Input.h"
 #include "PlayerBallText.h"
 #include "PlayerBallUI.h"
+#include "SceneObjectFactory.h"
 #include "Texture2D.h"
-#include "Texture2DFactory.h"
 #include "UiText.h"
 #include "imgui/imgui.h"
 
@@ -25,7 +27,7 @@ RestSiteScene::~RestSiteScene()
 
 void RestSiteScene::Init()
 {
-	Texture2D* background = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* background = SceneObjectFactory::CreateTexture2D();
 	background->SetTexture("assets/texture/background1.png");
 	background->SetScale(1280.0f, 720.0f, 0.0f);
 	m_SceneGameObjects.emplace_back(background->GetGameObject());
@@ -35,7 +37,8 @@ void RestSiteScene::Update()
 {
 	const bool confirmed = m_Menu.UpdateVertical(3);
 
-	const int ballCount = Game::GetInstance()->GetDeckBallCount();
+	const RestSiteViewSnapshot view = GameView::CaptureRestSite();
+	const int ballCount = view.deckBallCount;
 	if (m_Menu.GetIndex() == 1 && ballCount > 0)
 	{
 		if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A))
@@ -56,12 +59,12 @@ void RestSiteScene::Update()
 	if (m_Menu.GetIndex() == 2)
 	{
 		if (!m_ActionUsed &&
-			Game::GetInstance()->HasAvailableRestBenefit())
+			view.availableRestBenefit)
 		{
 			m_Message = UiText::MustChooseRest;
 			return;
 		}
-		Game::GetInstance()->LeaveRestSite();
+		GameSceneCommands::LeaveRestSite();
 		return;
 	}
 
@@ -73,14 +76,14 @@ void RestSiteScene::Update()
 
 	if (m_Menu.GetIndex() == 0)
 	{
-		if (Game::GetInstance()->RestHeal())
+		if (GameSceneCommands::RestHeal())
 		{
 			m_ActionUsed = true;
 			char message[128]{};
 			sprintf_s(
 				message,
 				UiText::RecoveredFormat,
-				Game::GetInstance()->GetRestHealPercent());
+				view.restHealPercent);
 			m_Message = message;
 		}
 		else
@@ -88,7 +91,7 @@ void RestSiteScene::Update()
 			m_Message = UiText::HpAlreadyFull;
 		}
 	}
-	else if (Game::GetInstance()->RestUpgradeBall(m_SelectedBall))
+	else if (GameSceneCommands::RestUpgradeBall(m_SelectedBall))
 	{
 		m_ActionUsed = true;
 		m_Message = UiText::BallUpgraded;
@@ -102,20 +105,20 @@ void RestSiteScene::Update()
 void RestSiteScene::DrawUI()
 {
 	GameUi::PrepareWindow("rest", ImVec2(300, 100), ImVec2(680, 520));
-	Game* game = Game::GetInstance();
-	ImGui::Begin(game->IsBossPreparation() ? "最終準備" : UiText::RestWindow, nullptr, ImGuiWindowFlags_NoCollapse);
-	if (game->IsBossPreparation()) ImGui::TextUnformatted("この休憩の後、最終ボスへ進みます。");
-	ImGui::Text("HP %d / %d", game->GetPlayerCurrentHp(), game->GetPlayerMaxHp());
+	const RestSiteViewSnapshot view = GameView::CaptureRestSite();
+	ImGui::Begin(view.bossPreparation ? "最終準備" : UiText::RestWindow, nullptr, ImGuiWindowFlags_NoCollapse);
+	if (view.bossPreparation) ImGui::TextUnformatted("この休憩の後、最終ボスへ進みます。");
+	ImGui::Text("HP %d / %d", view.playerCurrentHp, view.playerMaxHp);
 	ImGui::TextUnformatted(UiText::ChooseRestAction);
-	ImGui::BeginDisabled(m_ActionUsed || !game->CanRestHeal());
-	const std::string heal = "回復する (最大HPの" + std::to_string(game->GetRestHealPercent()) + "% / " + std::to_string(game->GetRestHealAmount()) + " HP)";
+	ImGui::BeginDisabled(m_ActionUsed || !view.canRestHeal);
+	const std::string heal = "回復する (最大HPの" + std::to_string(view.restHealPercent) + "% / " + std::to_string(view.restHealAmount) + " HP)";
 	if (ImGui::Button(heal.c_str(), ImVec2(-1, 36))) m_Menu.Confirm(0, 3);
 	ImGui::EndDisabled();
 	if (ImGui::RadioButton("ボールを強化", m_Menu.GetIndex() == 1)) m_Menu.SetIndex(1, 3);
 	ImGui::BeginChild("upgrade_targets", ImVec2(0, -95), ImGuiChildFlags_Borders);
-	for (int index = 0; index < game->GetDeckBallCount(); ++index)
+	for (int index = 0; index < view.deckBallCount; ++index)
 	{
-		const auto* ball = game->GetDeckBall(index);
+		const auto* ball = GameView::DeckBall(index);
 		if (ball == nullptr) continue;
 		ImGui::PushID(index);
 		if (PlayerBallUI::Select(*ball, index == m_SelectedBall))
@@ -136,7 +139,7 @@ void RestSiteScene::DrawUI()
 	}
 	ImGui::EndChild();
 	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
-	ImGui::BeginDisabled(!m_ActionUsed && game->HasAvailableRestBenefit());
+	ImGui::BeginDisabled(!m_ActionUsed && view.availableRestBenefit);
 	if (ImGui::Button("次へ進む", ImVec2(-1, 36))) m_Menu.Confirm(2, 3);
 	ImGui::EndDisabled();
 	ImGui::End();
@@ -147,7 +150,7 @@ void RestSiteScene::Uninit()
 {
 	for (GameObject* gameObject : m_SceneGameObjects)
 	{
-		Game::GetInstance()->DeleteGameObject(gameObject);
+		GameRuntime::DestroyObject(gameObject);
 	}
 	m_SceneGameObjects.clear();
 }

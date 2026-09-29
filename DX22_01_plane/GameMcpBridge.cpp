@@ -1,5 +1,6 @@
 ﻿#include "GameMcpBridge.h"
 #include "BallStatusJson.h"
+#include "GameObject.h"
 #include "json/json.hpp"
 
 #include "EnemyBall.h"

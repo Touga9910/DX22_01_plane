@@ -1,12 +1,15 @@
 ﻿#pragma execution_character_set("utf-8")
 
 #include "TitleScene.h"
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameSceneCommands.h"
+#include "GameView.h"
 #include "GameUi.h"
 #include "Input.h"
+#include "SceneObjectFactory.h"
 #include "Texture2D.h"
-#include "Texture2DFactory.h"
 #include "UiText.h"
+#include "ProgressionProfile.h"
 #include "imgui/imgui.h"
 
 // コンストラクタ
@@ -24,17 +27,17 @@ TitleScene::~TitleScene()
 // 初期化
 void TitleScene::Init()
 {
-	m_CanContinue = Game::GetInstance()->HasValidRunSave();
-	m_SaveSummary = Game::GetInstance()->GetRunSaveSummary();
+	m_CanContinue = GameView::CaptureTitle().validRunSave;
+	m_SaveSummary = GameView::RunSaveSummary();
 	//背景画像オブジェクトを作成
-	Texture2D* pt = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt = SceneObjectFactory::CreateTexture2D();
 	pt->SetTexture("assets/texture/background1.png");
 	pt->SetPosition(0.0f, 0.0f, 0.0f);
 	pt->SetRotation(0.0f, 0.0f, 0.0f);
 	pt->SetScale(1280.0f, 720.0f, 0.0f);
 	m_SceneGameObjects.emplace_back(pt->GetGameObject());
 
-	Texture2D* pt2 = Texture2DFactory::Create(*Game::GetInstance());
+	Texture2D* pt2 = SceneObjectFactory::CreateTexture2D();
 	pt2->SetTexture("assets/texture/titlerogo.png");
 	pt2->SetPosition(0.0f, 100.0f, 0.0f);
 	pt2->SetRotation(0.0f, 0.0f, 0.0f);
@@ -69,8 +72,8 @@ void TitleScene::Update()
 				m_Message = UiText::OverwriteConfirm;
 				return;
 			}
-			Game::GetInstance()->StartNewRun();
-			Game::GetInstance()->ChangeScene(SceneType::Select);
+			GameSceneCommands::StartNewRun();
+			GameSceneCommands::ChangeScene(SceneType::Select);
 			return;
 		case 1:
 			if (!m_CanContinue)
@@ -78,14 +81,14 @@ void TitleScene::Update()
 				m_Message = m_SaveSummary;
 				return;
 			}
-			if (Game::GetInstance()->LoadSavedRun())
+			if (GameSceneCommands::LoadSavedRun())
 			{
 				return;
 			}
-			m_Message = Game::GetInstance()->GetSaveLoadMessage();
+			m_Message = GameView::SaveLoadMessage();
 			return;
 		case 2:
-			Game::GetInstance()->OpenDebugMode();
+			GameSceneCommands::OpenDebugMode();
 			return;
 		default:
 			break;
@@ -110,7 +113,7 @@ void TitleScene::DrawUI()
 	ImGui::EndDisabled();
 	if (ImGui::Button("デバッグモード：デッキ・戦闘設定", ImVec2(-1, 40))) m_Menu.Confirm(2, 3);
 	if (ImGui::Button("アセンション・実績", ImVec2(-1, 40))) m_ShowProgression = true;
-	ImGui::Text("次の通常ラン：アセンション%d", Game::GetInstance()->GetProgressionProfile().selectedAscension);
+	ImGui::Text("次の通常ラン：アセンション%d", GameView::Progression().selectedAscension);
 	ImGui::TextWrapped("%s", m_SaveSummary.c_str());
 	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
 	ImGui::TextDisabled("ボタンをクリックして進めます。");
@@ -120,9 +123,8 @@ void TitleScene::DrawUI()
 
 void TitleScene::DrawProgressionUI()
 {
-	Game* game = Game::GetInstance();
-	const auto& profile = game->GetProgressionProfile();
-	const bool hasRunSave = game->HasValidRunSave();
+	const auto& profile = GameView::Progression();
+	const bool hasRunSave = GameView::CaptureTitle().validRunSave;
 	GameUi::PrepareWindow("progression", ImVec2(270, 60), ImVec2(740, 610));
 	ImGui::Begin("アセンション・実績", nullptr, ImGuiWindowFlags_NoCollapse);
 	ImGui::Text("クリア %d回 / 挑戦 %d回 / 最高到達エリア %d", profile.totalClears, profile.totalRuns, profile.highestArea);
@@ -132,10 +134,10 @@ void TitleScene::DrawProgressionUI()
 	for (int level = 1; level <= profile.selectedAscension; ++level) ImGui::BulletText("A%d  %s", level, ProgressionProfile::AscensionRule(level));
 	if (profile.selectedAscension == 0) ImGui::BulletText("A0  %s", ProgressionProfile::AscensionRule(0));
 	ImGui::BeginDisabled(hasRunSave || profile.selectedAscension <= 0);
-	if (ImGui::Button("難易度を下げる", ImVec2(180, 34))) game->SetSelectedAscension(profile.selectedAscension - 1);
+	if (ImGui::Button("難易度を下げる", ImVec2(180, 34))) GameSceneCommands::SetSelectedAscension(profile.selectedAscension - 1);
 	ImGui::EndDisabled(); ImGui::SameLine();
 	ImGui::BeginDisabled(hasRunSave || profile.selectedAscension >= profile.highestUnlockedAscension);
-	if (ImGui::Button("難易度を上げる", ImVec2(180, 34))) game->SetSelectedAscension(profile.selectedAscension + 1);
+	if (ImGui::Button("難易度を上げる", ImVec2(180, 34))) GameSceneCommands::SetSelectedAscension(profile.selectedAscension + 1);
 	ImGui::EndDisabled();
 	if (hasRunSave) ImGui::TextDisabled("中断ランがある間は難易度を変更できません。");
 	if (profile.highestUnlockedAscension < ProgressionProfile::MaximumAscension)
@@ -162,7 +164,7 @@ void TitleScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
 	for (GameObject* gameObject : m_SceneGameObjects) {
-		Game::GetInstance()->DeleteGameObject(gameObject);
+		GameRuntime::DestroyObject(gameObject);
 	}
 	m_SceneGameObjects.clear();
 }

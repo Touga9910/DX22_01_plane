@@ -1,13 +1,16 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "ShopScene.h"
 
-#include "Game.h"
+#include "GameRuntime.h"
+#include "GameSceneCommands.h"
+#include "GameView.h"
+#include "GameTypes.h"
 #include "GameUi.h"
 #include "Input.h"
 #include "PlayerBallText.h"
 #include "PlayerBallUI.h"
+#include "SceneObjectFactory.h"
 #include "Texture2D.h"
-#include "Texture2DFactory.h"
 #include "UiText.h"
 #include "imgui/imgui.h"
 
@@ -23,8 +26,8 @@ ShopScene::~ShopScene()
 
 void ShopScene::Init()
 {
-	Game::GetInstance()->RollShopRelicOffers();
-	Texture2D* background = Texture2DFactory::Create(*Game::GetInstance());
+	GameSceneCommands::RollShopRelicOffers();
+	Texture2D* background = SceneObjectFactory::CreateTexture2D();
 	background->SetTexture("assets/texture/background2.png");
 	background->SetScale(1280.0f, 720.0f, 0.0f);
 	m_SceneGameObjects.emplace_back(background->GetGameObject());
@@ -33,24 +36,25 @@ void ShopScene::Init()
 void ShopScene::Update()
 {
 	const bool confirmed = m_Menu.UpdateVertical(4);
+	const ShopViewSnapshot view = GameView::CaptureShop();
 
 	const bool moveLeft = Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A);
 	const bool moveRight = Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D);
-	if (m_Menu.GetIndex() == 0 && Game::GetInstance()->GetShopBallCount() > 0)
+	if (m_Menu.GetIndex() == 0 && view.shopBallCount > 0)
 	{
-		const int count = Game::GetInstance()->GetShopBallCount();
+		const int count = view.shopBallCount;
 		if (moveLeft) m_SelectedBuyBall = (m_SelectedBuyBall + count - 1) % count;
 		if (moveRight) m_SelectedBuyBall = (m_SelectedBuyBall + 1) % count;
 	}
-	else if (m_Menu.GetIndex() == 1 && Game::GetInstance()->GetDeckBallCount() > 0)
+	else if (m_Menu.GetIndex() == 1 && view.deckBallCount > 0)
 	{
-		const int count = Game::GetInstance()->GetDeckBallCount();
+		const int count = view.deckBallCount;
 		if (moveLeft) m_SelectedRemoveBall = (m_SelectedRemoveBall + count - 1) % count;
 		if (moveRight) m_SelectedRemoveBall = (m_SelectedRemoveBall + 1) % count;
 	}
-	else if (m_Menu.GetIndex() == 2 && Game::GetInstance()->GetShopRelicOfferCount() > 0)
+	else if (m_Menu.GetIndex() == 2 && view.shopRelicOfferCount > 0)
 	{
-		const int count = Game::GetInstance()->GetShopRelicOfferCount();
+		const int count = view.shopRelicOfferCount;
 		if (moveLeft) m_SelectedRelic = (m_SelectedRelic + count - 1) % count;
 		if (moveRight) m_SelectedRelic = (m_SelectedRelic + 1) % count;
 	}
@@ -62,20 +66,20 @@ void ShopScene::Update()
 
 	if (m_Menu.GetIndex() == 3)
 	{
-		Game::GetInstance()->LeaveShop();
+		GameSceneCommands::LeaveShop();
 		return;
 	}
 	if (m_Menu.GetIndex() == 2)
 	{
 		const RelicDefinition* relic =
-			Game::GetInstance()->GetShopRelicOffer(m_SelectedRelic);
-		if (Game::GetInstance()->BuyShopRelicOffer(m_SelectedRelic))
+			GameView::ShopRelicOffer(m_SelectedRelic);
+		if (GameSceneCommands::BuyShopRelicOffer(m_SelectedRelic))
 		{
 			m_Message = std::string(relic != nullptr ? relic->name : "Relic") +
 				UiText::RelicPurchasedSuffix;
 		}
 		else if (relic != nullptr &&
-			Game::GetInstance()->HasRelic(relic->type))
+			GameView::IsShopRelicOfferOwned(m_SelectedRelic))
 		{
 			m_Message = UiText::RelicAlreadyOwned;
 		}
@@ -88,7 +92,7 @@ void ShopScene::Update()
 
 	if (m_Menu.GetIndex() == 0)
 	{
-		if (Game::GetInstance()->BuyShopBall(m_SelectedBuyBall, kBallPrice))
+		if (GameSceneCommands::BuyShopBall(m_SelectedBuyBall, kBallPrice))
 		{
 			m_Message = UiText::BallPurchased;
 		}
@@ -99,10 +103,10 @@ void ShopScene::Update()
 	}
 	else
 	{
-		if (Game::GetInstance()->RemoveShopBall(m_SelectedRemoveBall, kRemovePrice))
+		if (GameSceneCommands::RemoveShopBall(m_SelectedRemoveBall, kRemovePrice))
 		{
 			m_Message = UiText::BallRemoved;
-			const int count = Game::GetInstance()->GetDeckBallCount();
+			const int count = GameView::CaptureShop().deckBallCount;
 			if (count > 0) m_SelectedRemoveBall %= count;
 		}
 		else
@@ -116,8 +120,8 @@ void ShopScene::DrawUI()
 {
 	GameUi::PrepareWindow("shop", ImVec2(260, 70), ImVec2(760, 580));
 	ImGui::Begin(UiText::ShopWindow, nullptr, ImGuiWindowFlags_NoCollapse);
-	Game* game = Game::GetInstance();
-	ImGui::Text(UiText::ShopStatusFormat, game->GetPlayerMoney(), game->GetDeckBallCount(), game->GetOwnedRelicCount(), game->GetRelicCount());
+	const ShopViewSnapshot view = GameView::CaptureShop();
+	ImGui::Text(UiText::ShopStatusFormat, view.playerMoney, view.deckBallCount, view.ownedRelicCount, view.relicCount);
 	const char* categories[] = { "ボール購入", "デッキから削除", "レリック購入" };
 	for (int category = 0; category < 3; ++category)
 	{
@@ -130,11 +134,11 @@ void ShopScene::DrawUI()
 	{
 		const bool buying = m_Menu.GetIndex() == 0;
 		int& selected = buying ? m_SelectedBuyBall : m_SelectedRemoveBall;
-		const int count = buying ? game->GetShopBallCount() : game->GetDeckBallCount();
-		if (!buying) ImGui::Text(UiText::MinimumDeckFormat, game->GetMinimumDeckSize());
+		const int count = buying ? view.shopBallCount : view.deckBallCount;
+		if (!buying) ImGui::Text(UiText::MinimumDeckFormat, view.minimumDeckSize);
 		for (int index = 0; index < count; ++index)
 		{
-			const auto* ball = buying ? game->GetShopBall(index) : game->GetDeckBall(index);
+			const auto* ball = buying ? GameView::ShopBall(index) : GameView::DeckBall(index);
 			if (ball == nullptr) continue;
 			ImGui::PushID(index);
 			if (PlayerBallUI::Select(*ball, index == selected)) selected = index;
@@ -142,9 +146,9 @@ void ShopScene::DrawUI()
 			{
 				ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
 				ImGui::TextWrapped("%s", PlayerBallText::GetStats(*ball, ball->status).c_str());
-				ImGui::Text("レリック込み：攻撃 %d", game->GetEffectivePlayerBallAttack(ball));
+				ImGui::Text("レリック込み：攻撃 %d", GameView::EffectivePlayerBallAttack(ball));
 				const int cost = buying ? kBallPrice : kRemovePrice;
-				ImGui::BeginDisabled(game->GetPlayerMoney() < cost || (!buying && count <= game->GetMinimumDeckSize()));
+				ImGui::BeginDisabled(view.playerMoney < cost || (!buying && count <= view.minimumDeckSize));
 				const std::string label = std::string(buying ? "このボールを購入" : "この個体を削除") + " (" + std::to_string(cost) + " Money)";
 				if (ImGui::Button(label.c_str(), ImVec2(-1, 34))) m_Menu.Confirm(buying ? 0 : 1, 4);
 				ImGui::EndDisabled();
@@ -156,16 +160,16 @@ void ShopScene::DrawUI()
 	else if (m_Menu.GetIndex() == 2)
 	{
 		ImGui::TextWrapped("入荷中のレリックは、所持金の範囲で複数購入できます。");
-		for (int index = 0; index < game->GetShopRelicOfferCount(); ++index)
+		for (int index = 0; index < view.shopRelicOfferCount; ++index)
 		{
-			const auto* relic = game->GetShopRelicOffer(index);
+			const auto* relic = GameView::ShopRelicOffer(index);
 			if (relic == nullptr) continue;
 			ImGui::PushID(index);
-			const bool owned = game->HasRelic(relic->type);
+			const bool owned = GameView::IsShopRelicOfferOwned(index);
 			if (ImGui::Selectable(relic->name, m_SelectedRelic == index)) m_SelectedRelic = index;
 			ImGui::TextWrapped("%s", relic->description);
 			ImGui::Text("%d Money  %s", relic->price, owned ? UiText::OwnedSuffix : "");
-			ImGui::BeginDisabled(owned || game->GetPlayerMoney() < relic->price);
+			ImGui::BeginDisabled(owned || view.playerMoney < relic->price);
 			if (ImGui::Button(owned ? "購入済み" : "購入する", ImVec2(-1, 32)))
 			{
 				m_SelectedRelic = index;
@@ -175,7 +179,7 @@ void ShopScene::DrawUI()
 			ImGui::Separator();
 			ImGui::PopID();
 		}
-		if (game->GetShopRelicOfferCount() == 0) ImGui::TextUnformatted("入荷品はありません。");
+		if (view.shopRelicOfferCount == 0) ImGui::TextUnformatted("入荷品はありません。");
 	}
 	ImGui::EndChild();
 	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
@@ -188,7 +192,7 @@ void ShopScene::Uninit()
 {
 	for (GameObject* gameObject : m_SceneGameObjects)
 	{
-		Game::GetInstance()->DeleteGameObject(gameObject);
+		GameRuntime::DestroyObject(gameObject);
 	}
 	m_SceneGameObjects.clear();
 }

@@ -1,7 +1,7 @@
 ﻿#include "GroundRenderComponent.h"
 
 #include "Camera.h"
-#include "Game.h"
+#include "GameRuntime.h"
 #include "Renderer.h"
 #include "TransformComponent.h"
 
@@ -69,7 +69,7 @@ void GroundRenderComponent::Awake()
 
 void GroundRenderComponent::Draw()
 {
-    Camera* camera = Game::GetCamera();
+    Camera* camera = &GameRuntime::MainCamera();
     TransformComponent* transform = GetTransform();
     if (camera == nullptr || transform == nullptr || m_Material == nullptr)
     {

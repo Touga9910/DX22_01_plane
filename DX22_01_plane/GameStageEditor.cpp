@@ -1,9 +1,9 @@
-﻿#include "Game.h"
-#pragma execution_character_set("utf-8")
+﻿#pragma execution_character_set("utf-8")
 #include "GameDebugController.h"
 #include "json/json.hpp"
 #include "imgui/imgui.h"
 #include "EnemyText.h"
+#include "TableGeometry.h"
 #include <cmath>
 #include <cstdio>
 

@@ -1,4 +1,5 @@
 #include "ProgressionProfile.h"
+#include "json/json.hpp"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -6,6 +7,31 @@
 
 int main()
 {
+    // GameMcpBridge publishes these player-facing strings through nlohmann::json.
+    // Keep this test compiled without /utf-8 so it catches locale-dependent literals.
+    nlohmann::json achievementState = nlohmann::json::array();
+    for (const AchievementDefinition& achievement : AchievementCatalog)
+    {
+        achievementState.push_back({
+            {"name", achievement.name},
+            {"condition", achievement.condition},
+            {"reward", achievement.reward},
+        });
+    }
+    std::string serializedAchievements;
+    try
+    {
+        serializedAchievements = achievementState.dump();
+    }
+    catch (const nlohmann::json::type_error& error)
+    {
+        std::cerr << "Achievement JSON is not UTF-8: " << error.what() << '\n';
+        return 2;
+    }
+    const char* expectedFirstVictory = reinterpret_cast<const char*>(
+        u8"\u6700\u521d\u306e\u52dd\u5229");
+    assert(serializedAchievements.find(expectedFirstVictory) != std::string::npos);
+
     const auto path = std::filesystem::path("tools/runtime_tests/progression/profile.json");
     std::filesystem::create_directories(path.parent_path());
     std::filesystem::remove(path);

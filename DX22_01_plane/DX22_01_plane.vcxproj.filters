@@ -10,6 +10,27 @@
     <ClInclude Include="GameObject.h">
       <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
+    <ClInclude Include="GameObjectTag.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRuntime.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSceneCommands.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameView.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RunRouteCommands.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="RunRouteView.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneObjectFactory.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
     <ClInclude Include="TransformComponent.h">
       <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
@@ -128,6 +149,9 @@
       <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
     </ClInclude>
     <ClInclude Include="TableConfig.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
+    </ClInclude>
+    <ClInclude Include="TableGeometry.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
     </ClInclude>
     <ClInclude Include="GameEvent.h">
@@ -702,6 +726,12 @@
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
     <ClCompile Include="Game.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneAccess.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneObjectFactory.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
     <ClCompile Include="GameSaveBridge.cpp">

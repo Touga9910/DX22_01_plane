@@ -3,7 +3,7 @@
 #include <cassert>
 
 #include "Camera.h"
-#include "Game.h"
+#include "GameRuntime.h"
 #include "Renderer.h"
 #include "TransformComponent.h"
 
@@ -46,7 +46,7 @@ void Texture2D::Awake()
 
 void Texture2D::Draw()
 {
-	Camera* camera = Game::GetCamera();
+	Camera* camera = &GameRuntime::MainCamera();
 	TransformComponent* transform = GetTransform();
 	if (camera == nullptr || transform == nullptr || m_Material == nullptr)
 	{

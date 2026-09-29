@@ -9,6 +9,7 @@
 #include "Component.h"
 
 class TransformComponent;
+class GameWorld;
 
 // 複数のComponentをまとめて管理するゲームオブジェクト。
 // 更新・描画・破棄要求を各コンポーネントへ伝え、TransformComponentを常に1つ保持する。
@@ -193,6 +194,8 @@ public:
     }
 
 private:
+	friend class GameWorld;
+
     // -------------------------
     // メンバー変数
     // -------------------------

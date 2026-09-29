@@ -5,7 +5,7 @@
 #include "Application.h"
 
 #pragma execution_character_set("utf-8")
-#include "Game.h"
+#include "GameRuntime.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"   // ← 追加
 #include "imgui/imgui_impl_dx11.h"    // ← 追加
@@ -212,7 +212,7 @@ void Application::MainLoop()
     MSG msg = {};
 
     // ゲーム初期化処理
-    Game::Init();
+    GameRuntime::Initialize();
 
     // ImGui初期化
     IMGUI_CHECKVERSION();
@@ -304,11 +304,11 @@ void Application::MainLoop()
                ImGui_ImplWin32_NewFrame();
                ImGui::NewFrame();
 
-               Game::Update(static_cast<double>(nowCount - oldCount) /
+               GameRuntime::Update(static_cast<double>(nowCount - oldCount) /
                    static_cast<double>(frequency));
 
                // ゲーム描画
-               Game::Draw();
+               GameRuntime::Draw();
 
                
                // ImGui描画（Game::Draw()より後に呼ぶ）
@@ -365,7 +365,7 @@ void Application::MainLoop()
    ImGui::DestroyContext();
 
    // ゲーム終了処理
-   Game::Uninit();
+   GameRuntime::Shutdown();
 }
 
 //-----------------------------------------------------------------------------
@@ -385,7 +385,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     case WM_CLOSE:  // 「x」ボタンが押されたら
     {
         int res = MessageBoxW(NULL, L"終了しますか？", L"確認", MB_OKCANCEL);
-        Game::ResetFrameTiming();
+        GameRuntime::ResetFrameTiming();
         if (res == IDOK) {
             DestroyWindow(hWnd);  // 「WM_DESTROY」メッセージを送る
         }
@@ -408,7 +408,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
     case WM_SIZE: //ウィンドウサイズに変更があったメッセージ
 
-        Game::ResetFrameTiming();
+        GameRuntime::ResetFrameTiming();
         if (wParam != SIZE_MINIMIZED)
         {
             int width = LOWORD(lParam); //横幅
@@ -418,7 +418,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
         break;
 
     case WM_EXITSIZEMOVE:
-        Game::ResetFrameTiming();
+        GameRuntime::ResetFrameTiming();
         break;
 
     default:

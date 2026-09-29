@@ -1,5 +1,6 @@
 ﻿#include "Game.h"
 #include "BallStatusJson.h"
+#include "GameObject.h"
 #include "PlayerBallText.h"
 #include "BallMechanics.h"
 #include "json/json.hpp"
