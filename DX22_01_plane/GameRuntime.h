@@ -25,6 +25,7 @@ public:
     static GameObject* CreateObject(
         Game& game,
         const std::string& name);
+    static GameObject* CreateObject(const std::string& name);
     static void DestroyObject(GameObject* object);
 
     GameRuntime() = delete;

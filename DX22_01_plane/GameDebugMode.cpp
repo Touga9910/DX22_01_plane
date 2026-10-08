@@ -1,11 +1,19 @@
 ﻿#include "Game.h"
 #pragma execution_character_set("utf-8")
+#include "GameRuntime.h"
+#include "GameWorld.h"
+#include "GameBalanceRuntime.h"
+#include "GamePersistenceRuntime.h"
+#include "GameStageOverrideState.h"
+#include "PlayerDeck.h"
+#include "PlayerRunStatus.h"
+#include "RunController.h"
 #include "BossShotPlanner.h"
 #include "GameDebugController.h"
+#include "GameDebugHost.h"
 #include "json/json.hpp"
 #include "GameUi.h"
 #include "GameMcpBridge.h"
-#include "TitleScene.h"
 #include "BalanceLogger.h"
 #include "EnemyBall.h"
 #include "PlayerBall.h"
@@ -47,10 +55,148 @@ namespace
     const std::filesystem::path PresetPath = "saves/debug_battle_setup.json";
 }
 
+bool GameDebugHost::CanOpenEditor(const Game& game)
+{
+    return game.GetCurrentSceneType() == SceneType::Title;
+}
+
+DebugRunSnapshot GameDebugHost::CaptureRunSnapshot(const Game& game)
+{
+    DebugRunSnapshot snapshot;
+    snapshot.progressionProfile = game.m_PersistenceRuntime->Profile();
+    snapshot.autoPlayEnabled = game.m_BalanceRuntime->IsAutoPlayEnabled();
+    snapshot.validationEnabled = game.m_BalanceRuntime->IsValidationEnabled();
+    return snapshot;
+}
+
+void GameDebugHost::PrepareSession(
+    Game& game,
+    const DebugBattleSetup& setup)
+{
+    setup.ApplyProgressionTo(game.m_PersistenceRuntime->Profile());
+    game.m_BalanceRuntime->SetAutoPlayEnabled(false);
+    game.m_BalanceRuntime->SetValidationEnabled(false);
+}
+
+void GameDebugHost::ApplyRunSettings(
+    Game& game,
+    const DebugBattleSetup& setup,
+    const std::vector<PlayerBallData>& ballCatalog)
+{
+    setup.ApplyProgressionTo(game.m_PersistenceRuntime->Profile());
+    game.m_PersistenceRuntime->ActiveAscension() = setup.selectedAscension;
+    std::vector<PlayerBallData> unlockedCatalog;
+    for (const PlayerBallData& ball : ballCatalog)
+    {
+        if (game.m_PersistenceRuntime->Profile().IsBallUnlocked(ball.definitionId))
+        {
+            unlockedCatalog.push_back(ball);
+        }
+    }
+    game.m_RunController->Deck().SetCatalog(unlockedCatalog);
+    game.m_RunController->Deck().SetDefaultDeck(setup.deck);
+    game.m_RunController->Deck().ResetToDefault();
+    game.m_RunController->Status().maxHp = setup.EffectiveMaxHp();
+    game.m_RunController->Status().currentHp = std::clamp(
+        setup.hp,
+        1,
+        game.m_RunController->Status().maxHp);
+    game.m_RunController->Status().money = setup.money;
+    game.m_RunController->RestHealRatio() = (std::max)(
+        0.05f,
+        game.m_PersistenceRuntime->DefaultRestHealRatio() -
+            ProgressionProfile::RestHealPenalty(
+                game.m_PersistenceRuntime->ActiveAscension()));
+    game.m_RunController->Relics() = setup.relics;
+}
+
+void GameDebugHost::StartBattle(
+    Game& game,
+    std::uint32_t seed,
+    StageData stage)
+{
+    const StageType stageType = stage.stageType;
+    game.m_BossShotPlanner->Reset();
+    game.m_StageOverrideState->ClearQueued();
+    game.StartNewRun("debug_sandbox", "manual_debug", "", "", seed);
+    game.m_StageOverrideState->Queue(std::move(stage));
+    game.StartNextBattle(stageType);
+}
+
+void GameDebugHost::EndSession(
+    Game& game,
+    const DebugRunSnapshot& snapshot)
+{
+    game.DeactivateRunSession();
+	game.SetPaused(false);
+    game.m_BalanceRuntime->SetAutoPlayEnabled(snapshot.autoPlayEnabled);
+    game.m_BalanceRuntime->SetValidationEnabled(snapshot.validationEnabled);
+    game.m_StageOverrideState->ClearQueued();
+    game.m_BossShotPlanner->Reset();
+    game.m_PersistenceRuntime->Profile() = snapshot.progressionProfile;
+    game.m_PersistenceRuntime->ActiveAscension() = 0;
+    game.LoadPlayerStatusFromJson();
+}
+
+void GameDebugHost::CaptureCurrentPlayerStatus(Game& game)
+{
+    game.CaptureCurrentPlayerStatus();
+}
+
+void GameDebugHost::SetPaused(Game& game, bool paused)
+{
+	game.SetPaused(paused);
+}
+
+void GameDebugHost::UpdateExternalBridge(Game& game)
+{
+    if (game.m_GameMcpBridge != nullptr)
+    {
+        game.m_GameMcpBridge->Update(game);
+    }
+}
+
+float GameDebugHost::GetDefaultRestHealRatio(const Game& game)
+{
+    return game.m_PersistenceRuntime->DefaultRestHealRatio();
+}
+
+DebugAutomationSnapshot GameDebugHost::CaptureAutomation(const Game& game)
+{
+    DebugAutomationSnapshot snapshot;
+    const GameBalanceAutomationSnapshot automation =
+        game.m_BalanceRuntime->CaptureAutomationSnapshot();
+    snapshot.enabled = automation.enabled;
+    snapshot.stopAfterCurrentRunRequested =
+        automation.stopAfterCurrentRunRequested;
+    snapshot.stopAfterCurrentRunDefault =
+        automation.stopAfterCurrentRunDefault;
+    snapshot.runCount = automation.runCount;
+    snapshot.maximumRuns = automation.maximumRuns;
+    return snapshot;
+}
+
+void GameDebugHost::SetAutoPlayEnabled(Game& game, bool enabled)
+{
+    game.m_BalanceRuntime->SetAutoPlayEnabled(enabled);
+}
+
+void GameDebugHost::SetStopAfterCurrentRunRequested(
+    Game& game,
+    bool requested)
+{
+    game.m_BalanceRuntime->SetStopAfterCurrentRunRequested(requested);
+}
+
+void GameDebugHost::SaveSnapshot(Game& game)
+{
+    game.SaveDebugSnapshot();
+}
+
 // Debug Modeを開く。
 void GameDebugController::Open(Game& game)
 {
-    if (!m_DebugMode && dynamic_cast<TitleScene*>(game.m_SceneManager.Get()) == nullptr) return;
+    if (!m_DebugMode && !GameDebugHost::CanOpenEditor(game)) return;
     if (m_DebugBallCatalog.empty())
     {
         m_DebugBallCatalog = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {}).ballDefinitions;
@@ -78,26 +224,7 @@ void GameDebugController::Open(Game& game)
 // Debug Run Settingsを適用
 void GameDebugController::ApplyRunSettings(Game& game)
 {
-    m_DebugSetup.ApplyProgressionTo(game.m_ProgressionProfile);
-    game.m_ActiveAscension = m_DebugSetup.selectedAscension;
-    std::vector<PlayerBallData> unlockedCatalog;
-    for (const PlayerBallData& ball : m_DebugBallCatalog)
-        if (game.m_ProgressionProfile.IsBallUnlocked(ball.definitionId))
-            unlockedCatalog.push_back(ball);
-    game.m_RunController.Deck().SetCatalog(unlockedCatalog);
-    game.m_RunController.Deck().SetDefaultDeck(m_DebugSetup.deck);
-    game.m_RunController.Deck().ResetToDefault();
-    game.m_RunController.Status().maxHp = m_DebugSetup.EffectiveMaxHp();
-    game.m_RunController.Status().currentHp = std::clamp(
-        m_DebugSetup.hp,
-        1,
-        game.m_RunController.Status().maxHp);
-    game.m_RunController.Status().money = m_DebugSetup.money;
-    game.m_RunController.RestHealRatio() = (std::max)(
-        0.05f,
-        game.m_DefaultRestHealRatio -
-            ProgressionProfile::RestHealPenalty(game.m_ActiveAscension));
-    game.m_RunController.Relics() = m_DebugSetup.relics;
+    GameDebugHost::ApplyRunSettings(game, m_DebugSetup, m_DebugBallCatalog);
 }
 
 // Debug Battleを開始
@@ -107,19 +234,11 @@ bool GameDebugController::StartBattle(Game& game)
     if (!m_DebugMessage.empty()) return false;
     // 描画中にSceneを破棄しない。再戦でも前の球を破棄してから初期状態を作る。
     if (m_DebugMode) game.ChangeScene(SceneType::Title);
-    m_DebugPreviousProgressionProfile = game.m_ProgressionProfile;
-    m_DebugProgressionSnapshotValid = true;
-    m_DebugSetup.ApplyProgressionTo(game.m_ProgressionProfile);
-    m_DebugPreviousAutoPlay = game.m_BalanceAutoPlayer.IsEnabled();
-	m_DebugPreviousValidation = game.m_BalanceValidationController.IsEnabled();
-    game.m_BalanceAutoPlayer.SetEnabled(false);
-	game.m_BalanceValidationController.SetEnabled(false);
+    m_DebugPreviousRun = GameDebugHost::CaptureRunSnapshot(game);
+    GameDebugHost::PrepareSession(game, m_DebugSetup);
     m_DebugMode = true;
     m_DebugActiveSetup = m_DebugSetup;
     m_DebugEditorOpen = m_DebugBattleFinished = false;
-    game.m_BossShotPlanner->Reset();
-    game.m_McpNextStageOverride.reset();
-    game.StartNewRun("debug_sandbox", "manual_debug", "", "", m_DebugSetup.seed);
     StageData stage;
     stage.id = "debug_battle";
     for (const auto& enemy : m_DebugSetup.enemies)
@@ -132,9 +251,8 @@ bool GameDebugController::StartBattle(Game& game)
         else if (stage.stageType != StageType::Boss && enemy.spawn.enemyData.id.find("midboss") != std::string::npos)
             stage.stageType = StageType::MidBoss;
     }
-    game.m_McpNextStageOverride = stage;
-    game.StartNextBattle(stage.stageType);
-    for (auto* player : game.GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
+    GameDebugHost::StartBattle(game, m_DebugSetup.seed, std::move(stage));
+    for (auto* player : GameRuntime::World().GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
     BalanceLogger::GetInstance().RecordEvent("debug_battle_setup", m_DebugSetup.ToJson());
     m_DebugMessage = "設定した条件で戦闘を開始しました。";
     Game::ResetFrameTiming();
@@ -171,35 +289,34 @@ void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 void GameDebugController::End(Game& game)
 {
     if (!m_DebugMode) return;
-    BalanceLogger::GetInstance().EndRun("debug_closed", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, 0);
+    BalanceLogger::GetInstance().EndRun(
+        "debug_closed",
+        game.GetPlayerCurrentHp(),
+        game.GetPlayerMaxHp(),
+        0);
     m_DebugMode = m_DebugEditorOpen = m_DebugBattleFinished = false;
-    game.m_RunActive = game.m_IsPaused = false;
-    game.m_BalanceAutoPlayer.SetEnabled(m_DebugPreviousAutoPlay);
-	game.m_BalanceValidationController.SetEnabled(m_DebugPreviousValidation);
-    game.m_McpNextStageOverride.reset();
-    game.m_BossShotPlanner->Reset();
-    if (m_DebugProgressionSnapshotValid)
+    if (m_DebugPreviousRun.has_value())
     {
-        game.m_ProgressionProfile = m_DebugPreviousProgressionProfile;
-        m_DebugProgressionSnapshotValid = false;
+        GameDebugHost::EndSession(game, *m_DebugPreviousRun);
+        m_DebugPreviousRun.reset();
     }
-    game.m_ActiveAscension = 0;
-    game.LoadPlayerStatusFromJson(); // 実験用デッキを次の通常ランへ持ち越さない。
 }
 
 // Debug Battleを終了
 void GameDebugController::FinishBattle(Game& game, bool victory)
 {
     if (m_DebugBattleFinished) return;
-    game.CaptureCurrentPlayerStatus();
-    const auto enemies = game.GetComponents<EnemyBall>();
+    GameDebugHost::CaptureCurrentPlayerStatus(game);
+    const auto enemies = GameRuntime::World().GetComponents<EnemyBall>();
     const int defeated = static_cast<int>(std::count_if(enemies.begin(), enemies.end(), [](auto* e) { return e->IsDefeated(); }));
     auto& logger = BalanceLogger::GetInstance();
-    logger.EndShot(game.m_RunController.Status().currentHp, static_cast<int>(enemies.size()) - defeated, defeated);
-    logger.EndStage(victory ? "clear" : "game_over", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, defeated);
-    logger.EndRun(victory ? "debug_clear" : "debug_game_over", game.m_RunController.Status().currentHp, game.m_RunController.Status().maxHp, victory ? 1 : 0);
+    const int currentHp = game.GetPlayerCurrentHp();
+    const int maximumHp = game.GetPlayerMaxHp();
+    logger.EndShot(currentHp, static_cast<int>(enemies.size()) - defeated, defeated);
+    logger.EndStage(victory ? "clear" : "game_over", currentHp, maximumHp, defeated);
+    logger.EndRun(victory ? "debug_clear" : "debug_game_over", currentHp, maximumHp, victory ? 1 : 0);
     m_DebugBattleFinished = m_DebugEditorOpen = true;
-    game.m_IsPaused = false;
+    GameDebugHost::SetPaused(game, false);
     m_DebugMessage = victory ? "戦闘クリア。条件を変えるか、同じ条件で再戦できます。" : "戦闘終了（HP 0）。条件を変えるか、同じ条件で再戦できます。";
     Game::ResetFrameTiming();
 }
@@ -218,7 +335,7 @@ bool GameDebugController::Update(Game& game)
     if (m_DebugEditorOpen)
     {
         // 編集中も状態を公開するが、外部からの戦闘操作はBridge側で拒否
-        if (game.m_GameMcpBridge) game.m_GameMcpBridge->Update(game);
+        GameDebugHost::UpdateExternalBridge(game);
         Game::ResetFrameTiming(); return true;
     }
     return false;
@@ -282,7 +399,7 @@ void GameDebugController::Draw(Game& game)
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(!m_DebugMode || m_DebugBattleFinished);
-    if (ImGui::Button("編集中の条件を適用せず再開", ImVec2(260, 36))) { m_DebugEditorOpen = false; game.m_IsPaused = false; Game::ResetFrameTiming(); }
+    if (ImGui::Button("編集中の条件を適用せず再開", ImVec2(260, 36))) { m_DebugEditorOpen = false; GameDebugHost::SetPaused(game, false); Game::ResetFrameTiming(); }
     ImGui::EndDisabled(); ImGui::SameLine();
     if (ImGui::Button("タイトルへ戻る", ImVec2(180, 36))) m_DebugRequest = 2;
     ImGui::BeginDisabled(stageTabActive);
@@ -360,8 +477,8 @@ void GameDebugController::Draw(Game& game)
                 "ここでの解除状態はデバッグ戦とMCP表示だけに適用され、通常プロフィールへは保存されません。");
             if (ImGui::Button("現在の通常プロフィールをコピー"))
             {
-                const ProgressionProfile& profile = m_DebugProgressionSnapshotValid
-                    ? m_DebugPreviousProgressionProfile
+                const ProgressionProfile& profile = m_DebugPreviousRun.has_value()
+                    ? m_DebugPreviousRun->progressionProfile
                     : game.GetProgressionProfile();
                 m_DebugSetup.highestUnlockedAscension =
                     profile.highestUnlockedAscension;
@@ -391,7 +508,7 @@ void GameDebugController::Draw(Game& game)
                 m_DebugSetup.EffectiveMaxHp(),
                 ProgressionProfile::EnemyHpMultiplier(m_DebugSetup.selectedAscension),
                 ProgressionProfile::EnemyAttackBonus(m_DebugSetup.selectedAscension),
-                (std::max)(0.05f, game.m_DefaultRestHealRatio -
+                (std::max)(0.05f, GameDebugHost::GetDefaultRestHealRatio(game) -
                     ProgressionProfile::RestHealPenalty(m_DebugSetup.selectedAscension)) * 100.0f);
             if (m_DebugSetup.selectedAscension == 0)
                 ImGui::BulletText("A0  %s", ProgressionProfile::AscensionRule(0));

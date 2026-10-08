@@ -1,7 +1,8 @@
 ﻿#include "TableFrameRenderComponent.h"
 
 #include "Camera.h"
-#include "Game.h"
+#include "GameBattleView.h"
+#include "GameRuntime.h"
 #include "Renderer.h"
 #include "TableGeometry.h"
 #include "TransformComponent.h"
@@ -39,14 +40,14 @@ void TableFrameRenderComponent::Awake()
 
 void TableFrameRenderComponent::Draw()
 {
-    Camera* camera = Game::GetCamera();
+    Camera& camera = GameRuntime::MainCamera();
     TransformComponent* transform = GetTransform();
-    if (camera == nullptr || transform == nullptr || m_Material == nullptr)
+    if (transform == nullptr || m_Material == nullptr)
     {
         return;
     }
 
-    camera->SetCamera();
+    camera.SetCamera();
 
     Matrix worldMatrix = transform->GetWorldMatrix();
     Renderer::SetWorldMatrix(&worldMatrix);
@@ -64,15 +65,14 @@ void TableFrameRenderComponent::Draw()
         0,
         0);
 
-	const auto& charges = Game::GetInstance()->GetCushionCharges();
 	if (m_ChargeMaterial != nullptr)
 	{
 		m_ChargeVertexBuffer.SetGPU();
 		m_ChargeIndexBuffer.SetGPU();
 		m_ChargeMaterial->SetGPU();
-		for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
+		for (int region = 0; region < GameBattleView::CushionRegionCount(); ++region)
 		{
-			if (!charges[static_cast<std::size_t>(region)].active) continue;
+			if (!GameBattleView::IsCushionChargeActive(region)) continue;
 			deviceContext->DrawIndexed(6, static_cast<UINT>(region * 6), 0);
 		}
 	}

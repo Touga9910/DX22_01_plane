@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Local submission archives are generated deliverables and exceed GitHub's file-size limit.
+/提出用_*.zip

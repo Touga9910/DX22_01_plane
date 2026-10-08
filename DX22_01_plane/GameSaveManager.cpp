@@ -3,11 +3,10 @@
 #pragma execution_character_set("utf-8")
 
 #include "json/json.hpp"
-#include "Game.h"
 #include "GameRunSaveState.h"
+#include "ProgressionProfile.h"
 #include "RunProgressController.h"
 #include "PlayerBallSaveData.h"
-#include "RestSiteScene.h"
 #include "UiText.h"
 
 #include <Windows.h>
@@ -215,12 +214,13 @@ RunSaveInfo GameSaveManager::Inspect()
 }
 
 bool GameSaveManager::Save(
-	Game& game,
+	const GameRunSaveSnapshot& snapshot,
 	SceneType resumeScene,
-	bool sceneAlreadyActive,
+	bool debugMode,
+	bool restActionUsed,
 	std::string& message)
 {
-	if (game.IsDebugMode()) { message = "Debug battles do not overwrite run saves."; return false; }
+	if (debugMode) { message = "Debug battles do not overwrite run saves."; return false; }
 	if (SceneToId(resumeScene) == "invalid")
 	{
 		message = UiText::SavingUnavailable;
@@ -228,16 +228,6 @@ bool GameSaveManager::Save(
 	}
 	try
 	{
-		const GameRunSaveSnapshot snapshot =
-			game.CaptureRunSaveSnapshot();
-		bool restActionUsed = false;
-		if (sceneAlreadyActive && resumeScene == SceneType::RestSite)
-		{
-			const RestSiteScene* rest =
-				dynamic_cast<const RestSiteScene*>(game.GetCurrentScene());
-			restActionUsed = rest != nullptr && rest->HasUsedAction();
-		}
-
 		json relics = json::array();
 		for (const bool owned : snapshot.relics)
 		{
@@ -264,6 +254,7 @@ bool GameSaveManager::Save(
 			{ "resume_scene", SceneToId(resumeScene) },
 			{ "scene_state", {
 				{ "rest_action_used", restActionUsed },
+				{ "shop_ball_offers", snapshot.shopBallOffers },
 				{ "shop_relic_offers", snapshot.shopRelicOffers },
 			} },
 			{ "run", {
@@ -367,7 +358,10 @@ bool GameSaveManager::Save(
 	}
 }
 
-bool GameSaveManager::Load(Game& game, std::string& message)
+bool GameSaveManager::Load(
+	const GameRunLoadRules& rules,
+	GameRunRestoreRequest& request,
+	std::string& message)
 {
 	try
 	{
@@ -487,14 +481,14 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		// Migrate legacy normal-route saves past the finite endpoint to the
 		// guaranteed boss-preparation rest.
 		const bool migratedToBossPreparation =
-			!game.IsEnduranceMode() &&
+			!rules.enduranceMode &&
 			runPhase == RunPhase::NormalRoute &&
-			areaProgress >= game.GetNormalRouteAreaGoal();
+			areaProgress >= rules.normalRouteAreaGoal;
 		if (migratedToBossPreparation)
 		{
-			areaProgress = game.GetNormalRouteAreaGoal();
-			restoredStatus.progress = game.GetNormalRouteAreaGoal();
-			restoredStatistics.areaProgress = game.GetNormalRouteAreaGoal();
+			areaProgress = rules.normalRouteAreaGoal;
+			restoredStatus.progress = rules.normalRouteAreaGoal;
+			restoredStatistics.areaProgress = rules.normalRouteAreaGoal;
 			runPhase = RunPhase::BossPreparation;
 			resumeScene = SceneType::RestSite;
 		}
@@ -560,15 +554,25 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			? DeserializeEngine<std::mt19937>(
 				random.at("relic_state").get<std::string>())
 			: std::mt19937(runSeed ^ 0xd3a2646cu);
+		std::vector<int> shopBallOffers;
 		std::vector<int> shopRelicOffers;
 		if (payload.contains("scene_state"))
 		{
 			const json& sceneState = payload.at("scene_state");
+			shopBallOffers = sceneState.value(
+				"shop_ball_offers", std::vector<int>{});
+			for (int ballIndex : shopBallOffers)
+			{
+				if (ballIndex < 0 || ballIndex >= rules.ballCatalogCount)
+				{
+					throw std::runtime_error(UiText::InvalidSaveData);
+				}
+			}
 			shopRelicOffers = sceneState.value(
 				"shop_relic_offers", std::vector<int>{});
 			for (int relicIndex : shopRelicOffers)
 			{
-				if (relicIndex < 0 || relicIndex >= game.GetRelicCount())
+				if (relicIndex < 0 || relicIndex >= rules.relicCount)
 				{
 					throw std::runtime_error(UiText::InvalidSaveData);
 				}
@@ -586,7 +590,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			restoredMap.Generate(
 				routeSeed,
 				areaProgress,
-				(std::max)(0, game.GetNormalRouteAreaGoal() - areaProgress));
+				(std::max)(0, rules.normalRouteAreaGoal - areaProgress));
 			if (runPhase == RunPhase::BossPreparation || runPhase == RunPhase::FinalBossReady || runPhase == RunPhase::FinalBoss)
 			{
 				restoredMap.Choose(0);
@@ -618,7 +622,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		if (restoredMap.CompletedAreas() != areaProgress || !mapSceneValid)
 			throw std::runtime_error(UiText::InvalidSaveData);
 
-		GameRunRestoreRequest request{};
+		request = {};
 		request.snapshot.status = std::move(restoredStatus);
 		request.snapshot.progress = {
 			std::move(restoredMap),
@@ -629,6 +633,7 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 		request.snapshot.relics = relics;
 		request.snapshot.deck = std::move(restoredDeck);
 		request.snapshot.stageSelector = { stageEngine };
+		request.snapshot.shopBallOffers = std::move(shopBallOffers);
 		request.snapshot.shopRelicOffers = std::move(shopRelicOffers);
 		request.snapshot.statistics = std::move(restoredStatistics);
 		request.snapshot.activeAscension = activeAscension;
@@ -645,7 +650,6 @@ bool GameSaveManager::Load(Game& game, std::string& message)
 			!migratedToBossPreparation &&
 			resumeScene == SceneType::RestSite &&
 			payload.at("scene_state").at("rest_action_used").get<bool>();
-		game.RestoreRunSaveSnapshot(std::move(request));
 		message = UiText::RunLoaded;
 		return true;
 	}

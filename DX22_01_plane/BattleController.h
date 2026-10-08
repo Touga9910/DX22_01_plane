@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "BattleTypes.h"
 #include "GameTypes.h"
 #include "ShotRelicRules.h"
 #include "StageData.h"
@@ -24,33 +25,6 @@ struct BattlePocketRules
     float enemyReturnX = 0.0f;
     float enemyReturnTopEdgeOffset = 10.0f;
 };
-
-// 1回の戦闘内部だけで使用する進行状態。
-// ClearReward / GameOverは戦闘外の処理なので含めない。
-enum class BattleState
-{
-    Inactive,
-
-    AimingDirection,
-    AimingPower,
-
-    BallsMoving,
-    EnemyAttack,
-    TurnEnd,
-
-    Finished,
-};
-
-// 1回の戦闘結果。
-enum class BattleResult
-{
-    None,
-    Victory,
-    Defeat,
-};
-
-const char* ToString(BattleState state);
-const char* ToString(BattleResult result);
 
 // BattleController自身が所有しないGame側処理だけを受け取る。
 // BattleControllerからGame全体へ直接アクセスしないための境界。

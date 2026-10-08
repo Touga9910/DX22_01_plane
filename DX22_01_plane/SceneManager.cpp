@@ -1,6 +1,5 @@
 ﻿#include "SceneManager.h"
 
-#include "BattleScene.h"
 #include "RestSiteScene.h"
 #include "ResultScene.h"
 #include "Scene.h"
@@ -8,11 +7,18 @@
 #include "StageSelectScene.h"
 #include "TitleScene.h"
 
+#include <utility>
+
 // SceneManagerを未初期化状態で生成する。
 SceneManager::SceneManager() = default;
 
 // 所有している現在のシーンを安全に破棄する。
 SceneManager::~SceneManager() = default;
+
+void SceneManager::SetBattleSceneFactory(BattleSceneFactory factory)
+{
+	m_BattleSceneFactory = std::move(factory);
+}
 
 // 初期シーンを生成して管理対象に設定する。
 bool SceneManager::Initialize(SceneType sceneType)
@@ -64,7 +70,9 @@ std::unique_ptr<Scene> SceneManager::Create(SceneType sceneType) const
 	case SceneType::Select:
 		return std::make_unique<StageSelectScene>();
 	case SceneType::Battle:
-		return std::make_unique<BattleScene>();
+		return m_BattleSceneFactory
+			? m_BattleSceneFactory()
+			: nullptr;
 	case SceneType::RestSite:
 		return std::make_unique<RestSiteScene>();
 	case SceneType::Shop:

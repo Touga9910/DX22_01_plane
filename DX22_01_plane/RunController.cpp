@@ -1,44 +1,116 @@
 #include "RunController.h"
 
+#include "PlayerDeck.h"
+#include "PlayerRunStatus.h"
 #include "ProgressionProfile.h"
 #include "RunProgressController.h"
+#include "StageSelector.h"
 
 #include <algorithm>
 #include <cmath>
 
+struct RunController::Impl
+{
+    PlayerRunStatus status{};
+    PlayerDeck deck{};
+    std::array<bool, static_cast<std::size_t>(RelicType::Count)> ownedRelics{};
+    RunProgressController progress{};
+    StageSelector stageSelector{};
+    float restHealRatio = 0.25f;
+    std::vector<int> shopBallOffers{};
+    std::vector<int> shopRelicOffers{};
+    std::vector<int> midBossRelicOffers{};
+    std::mt19937 relicRandomEngine{ std::random_device{}() };
+    int currentStageRewardMoney = 0;
+    bool isStageRewardCollected = false;
+};
+
 RunController::RunController()
-    : m_Progress(std::make_unique<RunProgressController>())
+    : m_Impl(std::make_unique<Impl>())
 {
 }
 
 RunController::~RunController() = default;
 
+PlayerRunStatus& RunController::Status()
+{
+    return m_Impl->status;
+}
+
+const PlayerRunStatus& RunController::Status() const
+{
+    return m_Impl->status;
+}
+
+PlayerDeck& RunController::Deck()
+{
+    return m_Impl->deck;
+}
+
+const PlayerDeck& RunController::Deck() const
+{
+    return m_Impl->deck;
+}
+
+std::array<bool, static_cast<std::size_t>(RelicType::Count)>&
+RunController::Relics()
+{
+    return m_Impl->ownedRelics;
+}
+
+const std::array<bool, static_cast<std::size_t>(RelicType::Count)>&
+RunController::Relics() const
+{
+    return m_Impl->ownedRelics;
+}
+
 RunProgressController& RunController::Progress()
 {
-    return *m_Progress;
+    return m_Impl->progress;
 }
 
 const RunProgressController& RunController::Progress() const
 {
-    return *m_Progress;
+    return m_Impl->progress;
+}
+
+StageSelector& RunController::StageSelection()
+{
+    return m_Impl->stageSelector;
+}
+
+const StageSelector& RunController::StageSelection() const
+{
+    return m_Impl->stageSelector;
+}
+
+float& RunController::RestHealRatio()
+{
+    return m_Impl->restHealRatio;
+}
+
+float RunController::RestHealRatio() const
+{
+    return m_Impl->restHealRatio;
 }
 
 void RunController::ResetRuntimeState(
     const PlayerRunStatus& defaultStatus)
 {
-    m_Status = NormalizePlayerRunStatus(defaultStatus);
-    m_Status.progress = 1;
-    m_Status.SetSelectedStageId("");
-    m_Status.SetLastStageId("");
-    m_Deck.ResetToDefault();
-    m_OwnedRelics.fill(false);
-    m_ShopRelicOffers.clear();
-    m_MidBossRelicOffers.clear();
+    m_Impl->status = NormalizePlayerRunStatus(defaultStatus);
+    m_Impl->status.progress = 1;
+    m_Impl->status.SetSelectedStageId("");
+    m_Impl->status.SetLastStageId("");
+    m_Impl->deck.ResetToDefault();
+    m_Impl->ownedRelics.fill(false);
+    m_Impl->shopBallOffers.clear();
+    m_Impl->shopRelicOffers.clear();
+    m_Impl->midBossRelicOffers.clear();
 }
 
 bool RunController::CanRestHeal() const
 {
-    return m_Status.currentHp < m_Status.maxHp;
+    return m_Impl->status.currentHp < m_Impl->status.maxHp;
 }
 
 int RunController::GetRestHealAmount() const
@@ -46,14 +118,14 @@ int RunController::GetRestHealAmount() const
     return (std::max)(
         1,
         static_cast<int>(std::ceil(
-            static_cast<float>(m_Status.maxHp) *
-            m_RestHealRatio)));
+            static_cast<float>(m_Impl->status.maxHp) *
+            m_Impl->restHealRatio)));
 }
 
 int RunController::GetRestHealPercent() const
 {
     return static_cast<int>(
-        std::lround(m_RestHealRatio * 100.0f));
+        std::lround(m_Impl->restHealRatio * 100.0f));
 }
 
 bool RunController::RestHeal()
@@ -63,33 +135,33 @@ bool RunController::RestHeal()
         return false;
     }
 
-    m_Status.currentHp = (std::min)(
-        m_Status.maxHp,
-        m_Status.currentHp + GetRestHealAmount());
+    m_Impl->status.currentHp = (std::min)(
+        m_Impl->status.maxHp,
+        m_Impl->status.currentHp + GetRestHealAmount());
     return true;
 }
 
 void RunController::AddMoney(int amount)
 {
-    m_Status.money += (std::max)(0, amount);
-    m_Status = NormalizePlayerRunStatus(m_Status);
+    m_Impl->status.money += (std::max)(0, amount);
+    m_Impl->status = NormalizePlayerRunStatus(m_Impl->status);
 }
 
 bool RunController::SpendMoney(int amount)
 {
     amount = (std::max)(0, amount);
-    if (m_Status.money < amount)
+    if (m_Impl->status.money < amount)
     {
         return false;
     }
 
-    m_Status.money -= amount;
+    m_Impl->status.money -= amount;
     return true;
 }
 
 bool RunController::UpgradeBall(int ballIndex)
 {
-    PlayerBallData* ball = m_Deck.GetRewardTarget(ballIndex);
+    PlayerBallData* ball = m_Impl->deck.GetRewardTarget(ballIndex);
     if (ball == nullptr || !ball->CanUpgrade())
     {
         return false;
@@ -105,60 +177,71 @@ bool RunController::UpgradeBall(int ballIndex)
 bool RunController::BuyShopBall(int catalogIndex, int cost)
 {
     cost = (std::max)(0, cost);
-    if (m_Status.money < cost ||
-        !m_Deck.AddCatalogBall(catalogIndex))
+    if (m_Impl->status.money < cost ||
+        !m_Impl->deck.AddCatalogBall(catalogIndex))
     {
         return false;
     }
 
-    m_Status.money -= cost;
+    m_Impl->status.money -= cost;
     return true;
 }
 
 bool RunController::RemoveShopBall(int ballIndex, int cost)
 {
     cost = (std::max)(0, cost);
-    if (m_Status.money < cost ||
-        m_Deck.GetRewardTargetCount() <= PlayerDeck::MinimumDeckSize ||
-        !m_Deck.RemoveRewardTarget(ballIndex))
+    if (m_Impl->status.money < cost ||
+        m_Impl->deck.GetRewardTargetCount() <= PlayerDeck::MinimumDeckSize ||
+        !m_Impl->deck.RemoveRewardTarget(ballIndex))
     {
         return false;
     }
 
-    m_Status.money -= cost;
+    m_Impl->status.money -= cost;
     return true;
 }
 
 void RunController::BeginStageReward()
 {
-    m_CurrentStageRewardMoney = 0;
-    m_IsStageRewardCollected = false;
+    m_Impl->currentStageRewardMoney = 0;
+    m_Impl->isStageRewardCollected = false;
 }
 
 bool RunController::CollectStageReward(int amount)
 {
-    if (m_IsStageRewardCollected)
+    if (m_Impl->isStageRewardCollected)
     {
         return false;
     }
 
-    m_CurrentStageRewardMoney = (std::max)(0, amount);
-    AddMoney(m_CurrentStageRewardMoney);
-    m_IsStageRewardCollected = true;
+    m_Impl->currentStageRewardMoney = (std::max)(0, amount);
+    AddMoney(m_Impl->currentStageRewardMoney);
+    m_Impl->isStageRewardCollected = true;
     return true;
+}
+
+int RunController::GetCurrentStageRewardMoney() const
+{
+    return m_Impl->currentStageRewardMoney;
+}
+
+bool RunController::IsStageRewardCollected() const
+{
+    return m_Impl->isStageRewardCollected;
 }
 
 bool RunController::HasRelic(RelicType type) const
 {
     const std::size_t index = static_cast<std::size_t>(type);
-    return index < m_OwnedRelics.size() && m_OwnedRelics[index];
+    return index < m_Impl->ownedRelics.size() &&
+        m_Impl->ownedRelics[index];
 }
 
 int RunController::GetOwnedRelicCount() const
 {
     return static_cast<int>(std::count(
-        m_OwnedRelics.begin(),
-        m_OwnedRelics.end(),
+        m_Impl->ownedRelics.begin(),
+        m_Impl->ownedRelics.end(),
         true));
 }
 
@@ -177,7 +260,7 @@ bool RunController::GrantRelic(int relicIndex)
         return false;
     }
 
-    m_OwnedRelics[static_cast<std::size_t>(relic.type)] = true;
+    m_Impl->ownedRelics[static_cast<std::size_t>(relic.type)] = true;
     return true;
 }
 
@@ -192,13 +275,13 @@ bool RunController::BuyRelic(int relicIndex)
     const RelicDefinition& relic =
         RelicCatalog[static_cast<std::size_t>(relicIndex)];
     const int cost = (std::max)(0, relic.price);
-    if (HasRelic(relic.type) || m_Status.money < cost)
+    if (HasRelic(relic.type) || m_Impl->status.money < cost)
     {
         return false;
     }
 
-    m_Status.money -= cost;
-    m_OwnedRelics[static_cast<std::size_t>(relic.type)] = true;
+    m_Impl->status.money -= cost;
+    m_Impl->ownedRelics[static_cast<std::size_t>(relic.type)] = true;
     return true;
 }
 
@@ -238,7 +321,7 @@ std::vector<int> RunController::RollRelicOffers(
         }
 
         std::uniform_int_distribution<int> distribution(1, totalWeight);
-        int roll = distribution(m_RelicRandomEngine);
+        int roll = distribution(m_Impl->relicRandomEngine);
         std::size_t selected = 0;
         for (; selected < candidates.size(); ++selected)
         {
@@ -256,4 +339,49 @@ std::vector<int> RunController::RollRelicOffers(
     }
 
     return offers;
+}
+
+void RunController::SeedRelics(std::uint32_t seed)
+{
+    m_Impl->relicRandomEngine.seed(seed);
+}
+
+std::mt19937& RunController::RelicRandomEngine()
+{
+    return m_Impl->relicRandomEngine;
+}
+
+const std::mt19937& RunController::RelicRandomEngine() const
+{
+    return m_Impl->relicRandomEngine;
+}
+
+std::vector<int>& RunController::ShopRelicOffers()
+{
+    return m_Impl->shopRelicOffers;
+}
+
+const std::vector<int>& RunController::ShopRelicOffers() const
+{
+    return m_Impl->shopRelicOffers;
+}
+
+std::vector<int>& RunController::ShopBallOffers()
+{
+    return m_Impl->shopBallOffers;
+}
+
+const std::vector<int>& RunController::ShopBallOffers() const
+{
+    return m_Impl->shopBallOffers;
+}
+
+std::vector<int>& RunController::MidBossRelicOffers()
+{
+    return m_Impl->midBossRelicOffers;
+}
+
+const std::vector<int>& RunController::MidBossRelicOffers() const
+{
+    return m_Impl->midBossRelicOffers;
 }

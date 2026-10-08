@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('before', 'after', 'game_header_split_after', 'game_scene_split_after', 'game_scene_boundary_headers', 'game_route_split_after')]
+    [ValidateSet('before', 'after', 'game_header_split_after', 'game_scene_split_after', 'game_scene_boundary_headers', 'game_route_split_after', 'battle_scene_split_after', 'game_battle_state_after', 'game_battle_access_after', 'game_collision_boundary_after', 'game_enemy_boundary_after', 'game_player_boundary_after', 'game_physics_context_after', 'game_prediction_input_after', 'game_save_context_after', 'game_mcp_read_snapshot_after', 'game_mcp_commands_after', 'game_debug_host_after', 'game_balance_runtime_after', 'game_balance_owner_after', 'game_runtime_state_before', 'game_runtime_state_after', 'game_settings_runtime_after', 'game_persistence_runtime_after', 'game_shot_relic_forward_after', 'game_run_defaults_after', 'game_run_session_after', 'game_reward_state_after', 'game_encounter_balance_after', 'game_ball_selection_after', 'game_pause_state_after', 'game_run_controller_pimpl_after', 'game_stage_override_state_after', 'run_controller_impl_after', 'game_world_runtime_state_after', 'game_deck_read_boundary_before', 'game_deck_read_boundary_after')]
     [string]$Phase,
 
     [int]$Runs = 3,

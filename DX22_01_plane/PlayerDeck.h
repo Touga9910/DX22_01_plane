@@ -31,6 +31,8 @@ public:
     void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
     void SetCatalog(const std::vector<PlayerBallData>& catalog);
     void Seed(std::uint32_t seed);
+    std::mt19937& RandomEngine() { return m_RandomEngine; }
+    const std::mt19937& RandomEngine() const { return m_RandomEngine; }
     void Reset();
     void ResetToDefault();
 
@@ -82,6 +84,7 @@ public:
     int GetCatalogCount() const;
     const PlayerBallData* GetCatalogBall(int index) const;
     std::vector<int> RollCatalogOfferIndices(int offerSize = 3);
+    std::vector<int> RollDistinctCatalogOfferIndices(int offerSize = 3);
     bool AddCatalogBall(int index);
     bool RemoveRewardTarget(int index);
 

@@ -12,104 +12,92 @@ using DirectX::SimpleMath::Vector3;
 int main()
 {
 	HeavyCollisionRules::State heavy{};
-	assert(heavy.collisionCount == 0); // Player->Enemy has no heavy recording call.
-	const bool standardRecorded =
-		HeavyCollisionRules::RecordEnemyEnemyCollision(heavy, false);
-	assert(!standardRecorded);
-	assert(heavy.collisionCount == 0); // 重量以外のショットでは敵同士でも蓄積しない。
-	const bool heavyRecorded =
-		HeavyCollisionRules::RecordEnemyEnemyCollision(heavy, true);
-	assert(heavyRecorded);
-	assert(heavy.collisionCount == 1);
-	const auto heavyFinish = HeavyCollisionRules::ConsumeForFinisher(heavy, 2.0f, 0);
-	assert(heavyFinish.referenced == 1 && heavyFinish.consumed == 1);
-	assert(heavyFinish.bonusDamage == 2 && heavy.collisionCount == 0);
+	HeavyCollisionRules::BeginShot(heavy);
+	HeavyCollisionRules::RecordEnemyMovement(heavy, 1, 14.0f, true);
+	HeavyCollisionRules::RecordEnemyMovement(heavy, 2, 23.0f, true);
+	HeavyCollisionRules::RecordEnemyMovement(heavy, 3, 99.0f, false);
+	assert(HeavyCollisionRules::EndShot(heavy) == 6);
+	assert(heavy.stackCount == 6);
+	HeavyCollisionRules::BeginShot(heavy);
+	assert(HeavyCollisionRules::GenerateOncePerEnemy(heavy, 1));
+	assert(!HeavyCollisionRules::GenerateOncePerEnemy(heavy, 1));
+	assert(HeavyCollisionRules::GenerateOncePerEnemy(heavy, 2));
+	const auto heavyFinish = HeavyCollisionRules::ConsumeForFinisher(heavy, 2.0f, 5);
+	assert(heavyFinish.referenced == 8 && heavyFinish.consumed == 5);
+	assert(heavyFinish.bonusDamage == 10 && heavy.stackCount == 3);
+	HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(heavy, 1.5f);
+	HeavyCollisionRules::BeginShot(heavy);
+	assert(HeavyCollisionRules::ScaleEnemyCollisionDamage(heavy, 3) == 5);
+	HeavyCollisionRules::EndShot(heavy);
+	assert(HeavyCollisionRules::ScaleEnemyCollisionDamage(heavy, 3) == 3);
 
 	AnchorStackRules::State anchor{};
-	int enemyA = 5;
-	int enemyB = 0;
-	assert(AnchorStackRules::TransferEnemyToEnemy(enemyA, enemyB, 99) == 5);
-	assert(enemyA == 0 && enemyB == 5);
-	assert(AnchorStackRules::TransferEnemyToPlayer(enemyB, anchor, 99) == 5);
-	assert(enemyB == 0 && anchor.playerStacks == 5);
-	assert(AnchorStackRules::ConsumePlayerStacks(anchor, 3) == 3);
-	assert(anchor.playerStacks == 2);
+	int enemyA = 3;
+	int enemyB = 4;
+	auto firstConversion = AnchorStackRules::ConsumeEnemyStacks(
+		enemyA, anchor, 0, 99);
+	assert(firstConversion.consumed == 3 && firstConversion.playerStacksGenerated == 0);
+	assert(enemyA == 0 && anchor.playerStacks == 0 && anchor.conversionProgress == 3);
+	auto secondConversion = AnchorStackRules::ConsumeEnemyStacks(
+		enemyB, anchor, 0, 99);
+	assert(secondConversion.consumed == 4 && secondConversion.playerStacksGenerated == 1);
+	assert(enemyB == 0 && anchor.playerStacks == 1 && anchor.conversionProgress == 2);
+	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 4, 0) == 3);
+	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 3, 1) == 5);
+	Vector3 returnPosition;
+	AnchorStackRules::SaveReturnPosition(anchor, { 4.0f, 1.0f, 2.0f });
+	assert(AnchorStackRules::ConsumeReturnPosition(anchor, returnPosition));
+	assert(returnPosition == Vector3(4.0f, 1.0f, 2.0f));
+	assert(!AnchorStackRules::ConsumeReturnPosition(anchor, returnPosition));
 
 	PierceTraceRules::State traces{};
-	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 0 }, { 20, 0, 0 }, 2));
-	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 5 }, { 20, 0, 5 }, 2));
+	PierceTraceRules::BeginShot(traces);
+	assert(PierceTraceRules::RecordPierce(traces, 1));
+	assert(!PierceTraceRules::RecordPierce(traces, 1));
+	for (std::uintptr_t id = 2; id <= 20; ++id)
+		PierceTraceRules::RecordPierce(traces, id);
+	assert(traces.stackCount == PierceTraceRules::MaxStackCount);
+	assert(PierceTraceRules::ConsumeStacks(traces, 9) == 9);
+	assert(traces.stackCount == 6);
+	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 0 }, { 20, 0, 0 }));
+	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 5 }, { 20, 0, 5 }));
 	const auto oldest = traces.traces.front().id;
-	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 10 }, { 20, 0, 10 }, 2));
-	assert(traces.traces.size() == 2 && traces.overwrittenCount == 1);
+	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 10 }, { 20, 0, 10 }));
+	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 15 }, { 20, 0, 15 }));
+	assert(traces.traces.size() == 3 && traces.overwrittenCount == 1);
 	assert(traces.traces.front().id != oldest);
 
-	PierceTraceRules::UseConfig use;
-	use.angleToleranceDegrees = 10.0f;
-	use.requiredDistance = 6.0f;
-	use.width = 1.5f;
-	use.nonPierceSpeedMultiplier = 1.05f;
-	PierceTraceRules::ShotUseState crossing{};
-	Vector3 crossingVelocity(0, 0, 5);
-	const Vector3 crossingDirection = crossingVelocity;
-	const auto cross = PierceTraceRules::AccumulateMovement(
-		traces, crossing, { 10, 0, 0 }, { 10, 0, 10 }, use, false, crossingVelocity);
-	assert(!cross.activated && crossingVelocity == crossingDirection);
-
-	PierceTraceRules::ShotUseState parallel{};
-	Vector3 parallelVelocity(5, 0, 0);
-	const auto firstPart = PierceTraceRules::AccumulateMovement(
-		traces, parallel, { 1, 0, 5 }, { 4, 0, 5 }, use, true, parallelVelocity);
-	assert(!firstPart.activated);
-	const auto secondPart = PierceTraceRules::AccumulateMovement(
-		traces, parallel, { 4, 0, 5 }, { 8, 0, 5 }, use, true, parallelVelocity);
-	assert(secondPart.activated && std::abs(parallelVelocity.x - 5.5f) < 0.001f);
-	assert(secondPart.remainingDurability == 1 && traces.durabilityConsumed == 1);
-	PierceTraceRules::ShotUseState weakTrace{};
-	Vector3 weakTraceVelocity(5, 0, 0);
-	const auto weakTraceUse = PierceTraceRules::AccumulateMovement(
-		traces, weakTrace, { 1, 0, 5 }, { 8, 0, 5 }, use, false, weakTraceVelocity);
-	assert(weakTraceUse.activated && std::abs(weakTraceVelocity.x - 5.25f) < 0.001f);
-	assert(weakTraceUse.remainingDurability == 0 && traces.durabilityConsumed == 2);
-
 	CushionChargeRules::State cushions{};
-	static_assert(CushionChargeRules::RegionCount == 12);
-	bool strongConsumed = false;
-	int strongUses = 0;
-	Vector3 velocity(4, 0, 3);
-	auto generated = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 4, 3, 1, true, false, 1.2f, 1.03f, 1, 0,
-		strongConsumed, strongUses, velocity);
-	assert(generated.generated == 3 && cushions[0].stackCount == 3);
 	CushionChargeRules::BeginPlayerShot(cushions);
-	auto strong = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 0, 3, 1, true, false, 1.0f, 1.03f, 2, 0,
-		strongConsumed, strongUses, velocity);
-	assert(strong.consumed == 1 && strong.damageBonus == 2);
-	auto blockedSecondStrong = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 0, 3, 1, true, false, 1.0f, 1.03f, 2, 0,
-		strongConsumed, strongUses, velocity);
-	assert(blockedSecondStrong.kind == CushionChargeRules::UseKind::Weak);
-	assert(blockedSecondStrong.consumed == 1 && blockedSecondStrong.damageBonus == 0);
-	assert(cushions[0].stackCount == 1);
+	CushionChargeRules::ReflectionConfig charger;
+	charger.generatesStacks = true;
+	charger.generationLimit = 3;
+	charger.stacksPerReflection = 1;
+	Vector3 velocity(4.0f, 0.0f, 3.0f);
+	for (int index = 0; index < 5; ++index)
+		CushionChargeRules::ApplyValidReflection(cushions, charger, velocity);
+	assert(cushions.stackCount == 3);
+	CushionChargeRules::EndPlayerShot(cushions);
+	CushionChargeRules::ArmSetupForNextShot(cushions, 2);
 	CushionChargeRules::BeginPlayerShot(cushions);
-	Vector3 weakVelocity(4, 0, 0);
-	auto weak = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 0, 3, 1, false, false, 1.0f, 1.03f, 9, 0,
-		strongConsumed, strongUses, weakVelocity);
-	assert(weak.kind == CushionChargeRules::UseKind::Weak && weak.consumed == 1);
-	assert(std::abs(weakVelocity.x - 4.12f) < 0.001f && weak.damageBonus == 0);
-	cushions[0].stackCount = 2;
-	CushionChargeRules::BeginPlayerShot(cushions);
-	strongConsumed = false;
-	strongUses = 0;
-	auto finisherOne = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 0, 3, 1, true, true, 1.0f, 1.03f, 0, 2,
-		strongConsumed, strongUses, velocity);
-	auto finisherTwo = CushionChargeRules::ApplyStackContact(
-		cushions, 0, 0, 3, 1, true, true, 1.0f, 1.03f, 0, 2,
-		strongConsumed, strongUses, velocity);
-	assert(finisherOne.damageBonus == 2 && finisherTwo.damageBonus == 2);
-	assert(cushions[0].stackCount == 0);
+	CushionChargeRules::ReflectionConfig bounce;
+	bounce.consumesStacks = true;
+	bounce.consumptionLimit = 2;
+	bounce.reflectedSpeedMultiplier = 1.2f;
+	const auto firstBounce = CushionChargeRules::ApplyValidReflection(
+		cushions, bounce, velocity);
+	const auto secondBounce = CushionChargeRules::ApplyValidReflection(
+		cushions, bounce, velocity);
+	const auto thirdBounce = CushionChargeRules::ApplyValidReflection(
+		cushions, bounce, velocity);
+	assert(firstBounce.consumed == 1 && firstBounce.setupTriggered);
+	assert(secondBounce.consumed == 1 && thirdBounce.consumed == 0);
+	assert(cushions.stackCount == 3 && cushions.empoweredHitsRemaining == 2);
+	assert(CushionChargeRules::ConsumeEmpoweredHit(cushions, 1));
+	assert(!CushionChargeRules::ConsumeEmpoweredHit(cushions, 1));
+	assert(CushionChargeRules::ConsumeEmpoweredHit(cushions, 2));
+	assert(!CushionChargeRules::ConsumeEmpoweredHit(cushions, 3));
+	assert(std::abs(velocity.Length() - 7.2f) < 0.001f);
 
 	std::cout << "ball synergy rules: OK\n";
 	return 0;

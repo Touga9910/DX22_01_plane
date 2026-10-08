@@ -29,18 +29,19 @@ class DebugCombatForecastContractTests(unittest.TestCase):
 
     def test_damage_changes_invalidate_the_cached_forecast(self) -> None:
         progression = source("GameProgression.cpp")
-        battle = source("BattleScene.cpp")
+        battle = source("BattleDebugHotReload.cpp")
         autoplay = source("GameAutoPlay.cpp")
 
         for reason in (
             "エネミー被ダメージ",
             "プレイヤー被ダメージ",
             "プレイヤーHP回復",
-            "プレイヤー防御力変更",
+            "プレイヤー状態変更",
             "エネミーポケット",
         ):
             self.assertIn(reason, progression)
-        self.assertIn("エネミーステータス再読込", battle)
+        self.assertIn("ApplyHotReloadData", battle)
+        self.assertIn("m_Services.InvalidateCombatForecast(", battle)
         self.assertIn("戦闘開始", autoplay)
 
     def test_phase_and_damage_breakdown_are_visible(self) -> None:
@@ -82,14 +83,19 @@ class DebugCombatForecastContractTests(unittest.TestCase):
         self.assertIn("m_DebugLastEnemyAttackPredictedDamage", debug)
 
     def test_real_and_preview_damage_share_the_same_formula(self) -> None:
-        status = source("BallStatusComponent.h")
+        player_cpp = source("PlayerBall.cpp")
         player = source("PlayerBall.h")
         game = source("Game.cpp")
 
-        self.assertIn("int CalculateDamageTaken(int damage) const", status)
-        self.assertIn("const int finalDamage = CalculateDamageTaken(damage);", status)
-        self.assertIn("CalculateDamageTaken(int damage) const", player)
-        self.assertIn("player->CalculateDamageTaken(enemy->GetAttack())", game)
+        self.assertIn("static int CalculateIncomingDamage(int damage)", player)
+        self.assertIn(
+            "const int finalDamage = CalculateIncomingDamage(damage);",
+            player_cpp,
+        )
+        self.assertIn(
+            "PlayerBall::CalculateIncomingDamage(enemy->GetAttack())",
+            game,
+        )
 
 
 if __name__ == "__main__":

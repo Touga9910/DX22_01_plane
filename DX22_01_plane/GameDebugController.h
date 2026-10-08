@@ -5,12 +5,21 @@
 
 #include <cstdint>
 #include <deque>
+#include <optional>
 #include <string>
 #include <vector>
 
 class EnemyBall;
 class Game;
 class PlayerBall;
+
+// State that must be restored when an isolated debug battle ends.
+struct DebugRunSnapshot
+{
+	ProgressionProfile progressionProfile{};
+	bool autoPlayEnabled = false;
+	bool validationEnabled = false;
+};
 
 // Owns debug battles, stage editing, combat forecasts, and their UI state.
 class GameDebugController
@@ -106,10 +115,7 @@ private:
 	bool m_DebugMode = false;
 	bool m_DebugEditorOpen = false;
 	bool m_DebugBattleFinished = false;
-	bool m_DebugPreviousAutoPlay = false;
-	bool m_DebugPreviousValidation = false;
-	bool m_DebugProgressionSnapshotValid = false;
-	ProgressionProfile m_DebugPreviousProgressionProfile{};
+	std::optional<DebugRunSnapshot> m_DebugPreviousRun;
 	int m_DebugRequest = 0;
 	DebugBattleSetup m_DebugSetup;
 	DebugBattleSetup m_DebugActiveSetup;
@@ -131,6 +137,4 @@ private:
 	bool m_DebugShowPocketedEnemies = true;
 	bool m_DebugOnlyAttackers = false;
 	int m_DebugEnemySortMode = 0;
-
-	friend class Game;
 };

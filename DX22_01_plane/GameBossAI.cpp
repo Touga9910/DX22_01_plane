@@ -1,5 +1,11 @@
 ﻿#include "Game.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "BallShotPrediction.h"
+#include "GameShotPrediction.h"
+#include "GamePersistenceRuntime.h"
+#include "PlayerDeck.h"
+#include "RunController.h"
 #include "GameObject.h"
 #include "BossShotPlanner.h"
 #include "json/json.hpp"
@@ -42,13 +48,13 @@ namespace
 // Boss Shotsを評価する。
 json BossShotPlanner::Evaluate(Game& game)
 {
-    const auto players = game.GetComponents<PlayerBall>();
+    const auto players = GameRuntime::World().GetComponents<PlayerBall>();
     EnemyBall* boss = nullptr;
-    for (auto* enemy : game.GetComponents<EnemyBall>())
+    for (auto* enemy : GameRuntime::World().GetComponents<EnemyBall>())
         if (enemy->IsArmorBoss() && !enemy->IsDefeated()) { boss = enemy; break; }
     if (!boss || players.empty() || !players[0]->IsIdle() || game.GetBattleState() != BattleState::AimingDirection || !game.AreAllBallsStopped()) return {};
     auto* player = players[0];
-    std::string key = std::to_string(BallShotPrediction::WorldKey(game)) + ":" + std::to_string(game.GetTotalShotCount());
+    std::string key = std::to_string(GameShotPrediction::WorldKey()) + ":" + std::to_string(game.GetTotalShotCount());
     for (int i = 0; i < game.GetBallOfferCount(); ++i)
     {
         const auto* offer = game.GetBallOffer(i);
@@ -63,7 +69,7 @@ json BossShotPlanner::Evaluate(Game& game)
     const Vector3 start = player->GetPosition(), bossPosition = boss->GetPosition();
     std::vector<BreakBall*> neutrals;
     std::vector<Vector3> initialNeutrals;
-    for (auto* neutral : game.GetComponents<BreakBall>())
+    for (auto* neutral : GameRuntime::World().GetComponents<BreakBall>())
         if (neutral->GetGameObject()->IsActive()) { neutrals.push_back(neutral); initialNeutrals.push_back(neutral->GetBall()->GetPosition()); }
     const float initialOpportunity = Opportunity(start,bossPosition,initialNeutrals);
     json choices = json::array(), offerChoices = json::array();
@@ -135,7 +141,8 @@ json BossShotPlanner::Evaluate(Game& game)
         for (const auto& aim : aims)
         {
             ++evaluated;
-            const auto prediction = BallShotPrediction::Predict(game,*player,aim.velocity,false,offer);
+            const auto prediction = GameShotPrediction::Predict(
+                *player, aim.velocity, false, offer);
             if (!prediction.complete) { ++incomplete; continue; }
             const BallShotPrediction::Ball* endPlayer = nullptr;
             const BallShotPrediction::Ball* endBoss = nullptr;
@@ -256,17 +263,18 @@ bool Game::FireBossPlannedShot(
 
 int Game::GetBallOfferCount() const
 {
-    return m_RunController.Deck().GetOfferCount();
+    return m_RunController->Deck().GetOfferCount();
 }
 
 const PlayerBallData* Game::GetBallOffer(int offerIndex) const
 {
-    return m_RunController.Deck().GetOffer(offerIndex);
+    return m_RunController->Deck().GetOffer(offerIndex);
 }
 
 std::uint64_t Game::GetTotalShotCount() const
 {
-    return static_cast<std::uint64_t>(m_RunStatistics.GetState().totalShots);
+    return static_cast<std::uint64_t>(
+        m_PersistenceRuntime->Statistics().GetState().totalShots);
 }
 
 bool Game::TryFireAutomatedShot(
@@ -284,7 +292,7 @@ bool Game::TryFireAutomatedShot(
         return false;
     }
 
-    const auto players = GetComponents<PlayerBall>();
+    const auto players = GameRuntime::World().GetComponents<PlayerBall>();
     if (players.empty() || players[0] == nullptr || !players[0]->IsIdle())
     {
         return false;
@@ -296,12 +304,7 @@ bool Game::TryFireAutomatedShot(
         {
             return false;
         }
-        m_SelectedOfferIndex = offerIndex;
-        if (m_SelectedHoldIndex == m_SelectedOfferIndex)
-        {
-            m_SelectedHoldIndex = -1;
-        }
-        ApplySelectedBallPreview();
+        ApplyBalanceAutoBallSelection(offerIndex);
     }
 
     *m_PendingShotTelemetry = telemetry != nullptr

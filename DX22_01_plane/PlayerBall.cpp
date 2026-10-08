@@ -2,7 +2,14 @@
 #include "BallPhysicsRules.h"
 #include "BallShotPrediction.h"
 #include "BallCollisionComponent.h"
-#include "Game.h"
+#include "GameBattleCommands.h"
+#include "GameBattleEvents.h"
+#include "GameBattleView.h"
+#include "GamePlayerState.h"
+#include "GameRuntime.h"
+#include "GameShotPrediction.h"
+#include "GameShotTraceView.h"
+#include "GameWorld.h"
 #include "input.h"
 #include "Ground.h"
 #include "TableFrame.h"
@@ -41,7 +48,7 @@ void PlayerBall::Awake()
 
 void PlayerBall::Draw()
 {
-	Draw(Game::GetCamera());
+	Draw(&GameRuntime::MainCamera());
 }
 
 void PlayerBall::OnDestroy()
@@ -61,11 +68,11 @@ void PlayerBall::Init()
 	status.attack = 1;     // 攻撃力
 
 	SetStatus(status);
-	Game::GetInstance()->ApplyPlayerStatusTo(this);
+	GamePlayerState::ApplyTo(this);
 
 	// モデルの読み込み
 	LoadModel("assets/model/GolfBall/golf_ball.obj", "assets/model/GolfBall");
-	Game::GetInstance()->ApplyPlayerStatusTo(this);
+	GamePlayerState::ApplyTo(this);
 
 	m_Ball->SetPosition(Vector3(0.0f, 1.0f, 0.0f));
 
@@ -82,7 +89,8 @@ void PlayerBall::Init()
 	UpdateRadius();
 
 	// Groundから台の高さを取得して合わせる
-	std::vector<Ground*> grounds = Game::GetInstance()->GetComponents<Ground>();
+	std::vector<Ground*> grounds =
+		GameRuntime::World().GetComponents<Ground>();
 	if (grounds.size() > 0)
 	{
 		Vector3 position = m_Ball->GetPosition();
@@ -118,7 +126,7 @@ void PlayerBall::Update()
 	if (Input::GetKeyPress(VK_S)) m_DebugMoveInput.z -= 4.0f;
 	if (Input::GetKeyPress(VK_A)) m_DebugMoveInput.x -= 4.0f;
 	if (Input::GetKeyPress(VK_D)) m_DebugMoveInput.x += 4.0f;
-	if (m_State == State::Idle && !Game::GetInstance()->IsBalanceAutoPlayEnabled())
+	if (m_State == State::Idle && GameBattleView::AcceptsHumanInput())
 	{
 		UpdateAim();
 	}
@@ -133,7 +141,7 @@ void PlayerBall::FixedUpdate()
 		UpdateSimulation();
 	}
     else if (!m_SkipSimulationOnNextFixedUpdate && m_Ball->HasPierceAbility() &&
-		Game::GetInstance()->GetBattleState() == BattleState::BallsMoving)
+		GameBattleView::State() == BattleState::BallsMoving)
     {
         // Another moving enemy can enter a piercer that has already gone idle.
         UpdateStopByFriction();
@@ -211,7 +219,7 @@ void PlayerBall::Defeat()
 	m_Ball->Defeat();
 
 	// プレイヤー専用：ゲームオーバーへ移行
-	Game::GetInstance()->NotifyBattlePlayerDefeated();
+	GameBattleEvents::PlayerDefeated();
 }
 
 void PlayerBall::OnPocketHit()
@@ -223,23 +231,19 @@ void PlayerBall::OnPocketHit()
 
 	const Vector3 pocketPosition = GetPosition();
 	const int hpBefore = GetHP();
-	const int pocketDamage =
-		Game::GetInstance()->GetPlayerPocketDamageAmount();
-	const int hpDamage = Game::GetInstance()->AbsorbPlayerShieldDamage(pocketDamage);
+	const int pocketDamage = GamePlayerState::PocketDamageAmount();
+	const int hpDamage = GamePlayerState::AbsorbShieldDamage(pocketDamage);
 	const int hpAfter = (std::max)(0, hpBefore - hpDamage);
 	m_Ball->SetHP(hpAfter);
-	Game::GetInstance()->NotifyPlayerDamage(
+	GameBattleEvents::PlayerDamage(
 		"pocket",
 		(std::max)(0, hpBefore - hpAfter),
 		std::string(),
 		hpBefore,
 		hpAfter);
-	Game::GetInstance()->NotifyPocketFeedback(
-		pocketPosition,
-		true,
-		false,
-		(std::max)(0, hpBefore - hpAfter));
-	Game::GetInstance()->CapturePlayerStatusFrom(this);
+	GameBattleEvents::PlayerPocketFeedback(
+		pocketPosition, (std::max)(0, hpBefore - hpAfter));
+	GamePlayerState::CaptureFrom(this);
 	if (hpAfter <= 0)
 	{
 		m_Ball->Defeat();
@@ -289,13 +293,13 @@ void PlayerBall::ReturnFromPocket(const Vector3& position)
 
 void PlayerBall::TakeDamage(int damage)
 {
-	const int finalDamage = (std::max)(1, damage);
-	const int hpDamage = Game::GetInstance()->AbsorbPlayerShieldDamage(finalDamage);
+	const int finalDamage = CalculateIncomingDamage(damage);
+	const int hpDamage = GamePlayerState::AbsorbShieldDamage(finalDamage);
 	if (hpDamage > 0)
 	{
 		m_Ball->DamageAfterDefense(hpDamage);
 	}
-	Game::GetInstance()->CapturePlayerStatusFrom(this);
+	GamePlayerState::CaptureFrom(this);
 }
 
 void PlayerBall::RefreshNuisanceDebuffs()
@@ -303,7 +307,7 @@ void PlayerBall::RefreshNuisanceDebuffs()
 	if (m_Ball == nullptr) return;
 	StatusEffectCollection aura;
 	for (const NuisanceBall* nuisance :
-		Game::GetInstance()->GetComponents<NuisanceBall>())
+		GameRuntime::World().GetComponents<NuisanceBall>())
 	{
 		if (nuisance == nullptr || nuisance->GetGameObject() == nullptr ||
 			!nuisance->GetGameObject()->IsActive() ||
@@ -410,7 +414,7 @@ void PlayerBall::UpdateTrailLife()
 
 void PlayerBall::UpdateAim()
 {
-	BattleState battleState = Game::GetInstance()->GetBattleState();
+	BattleState battleState = GameBattleView::State();
 
 	if (battleState != BattleState::AimingDirection &&
 		battleState != BattleState::AimingPower)
@@ -453,7 +457,7 @@ void PlayerBall::UpdateAim()
 	{
 		if (battleState != BattleState::AimingDirection)
 		{
-			Game::GetInstance()->NotifyBattleAimDirectionStarted();
+			GameBattleCommands::BeginAimDirection();
 		}
 
 		UpdateAimDirectionFromMouse();
@@ -473,7 +477,7 @@ void PlayerBall::UpdateAim()
 		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
 		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f ||
-        m_LastPreviewWorldKey != BallShotPrediction::WorldKey(*Game::GetInstance());
+		m_LastPreviewWorldKey != GameShotPrediction::WorldKey();
 
 	constexpr int kPreviewRefreshCooldownFrames = 1;
 	const bool immediateRefresh =
@@ -664,7 +668,7 @@ void PlayerBall::BeginMousePowerDrag()
 	m_PowerDragStartMousePos = Input::GetMousePosition();                 // パワー計算の基準位置を保存する
 	m_ShotPower = m_MinShotPower;                                         // ドラッグ開始時は最小パワーにする
 	m_PreTrajectoryDirty = true;                                          // 予測線を再計算対象にする
-	Game::GetInstance()->NotifyBattlePowerSelectionStarted();
+	GameBattleCommands::BeginPowerSelection();
 }
 
 void PlayerBall::UpdateShotPowerFromMouseDrag()
@@ -693,7 +697,7 @@ void PlayerBall::CancelMousePowerDrag()
 {
 	m_IsPowerDragging = false;                                      // パワードラッグを終了する
 	m_PreTrajectoryDirty = true;                                    // 方向合わせに戻るため予測線を更新対象にする
-	Game::GetInstance()->NotifyBattleShotCancelled();				// 方向合わせ状態へ戻す
+	GameBattleCommands::CancelShot();				// 方向合わせ状態へ戻す
 }
 
 void PlayerBall::FireMouseShot()
@@ -707,8 +711,9 @@ void PlayerBall::FireMouseShot()
 	m_PrePositions.clear();                                         // ショット開始後は予測線を消す
 	m_PreTrajectoryDirty = true;                                    // 次回停止後に予測線を再計算できるようにする
 	m_StopCount = 0;                                                // 停止判定カウントをリセットする
-    BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
-	Game::GetInstance()->OnPlayerShotFired(this);
+	GameShotPrediction::WriteVerification(
+		*this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
+	GameBattleEvents::PlayerShotFired(this);
 }
 
 void PlayerBall::FireAutomatedShot(
@@ -723,8 +728,9 @@ void PlayerBall::FireAutomatedShot(
 	m_PreTrajectoryDirty = true;
 	m_StopCount = 0;
 
-    BallShotPrediction::WriteVerificationPrediction(*Game::GetInstance(), *this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
-	Game::GetInstance()->OnPlayerShotFired(this);
+	GameShotPrediction::WriteVerification(
+		*this, GetVelocity(), m_SkipSimulationOnNextFixedUpdate);
+	GameBattleEvents::PlayerShotFired(this);
 }
 
 Vector3 PlayerBall::GetShotVector() const
@@ -740,7 +746,8 @@ Vector3 PlayerBall::GetShotVector() const
 
 void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
-    const auto prediction = BallShotPrediction::Predict(*Game::GetInstance(), *this, initialVelocity, true);
+	const auto prediction =
+		GameShotPrediction::Predict(*this, initialVelocity, true);
     m_PrePositions.clear();
     constexpr std::size_t previewReflections = 0;
     const auto previewPoints = prediction.PreviewPointCount(previewReflections);
@@ -755,7 +762,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
     m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
     m_PreviewComplete = prediction.PreviewReachesLimit(previewReflections) ||
         (prediction.complete && !prediction.pathTruncated);
-    m_LastPreviewWorldKey = BallShotPrediction::WorldKey(*Game::GetInstance());
+	m_LastPreviewWorldKey = GameShotPrediction::WorldKey();
 }
 
 void PlayerBall::InitTrajectoryVisualModel()
@@ -871,7 +878,7 @@ void PlayerBall::DrawTrajectoryLine()
 
 void PlayerBall::DrawPierceTraces()
 {
-	const auto& state = Game::GetInstance()->GetPierceTraceState();
+	const auto& state = GameShotTraceView::Current();
 	if (state.traces.empty()) return;
 	Renderer::SetDepthEnable(true);
 	m_PreviewMeshRenderer.BeforeDraw();
@@ -958,8 +965,7 @@ void PlayerBall::DrawImGui()
 		ImGui::SliderFloat("Shot Power", &m_ShotPower, m_MinShotPower, m_MaxShotPower);
 
 		// 現在の GameState 表示
-		const BattleState battleState =
-			Game::GetInstance()->GetBattleState();
+		const BattleState battleState = GameBattleView::State();
 
 		ImGui::Text(
 			"BattleState: %s",
@@ -967,7 +973,7 @@ void PlayerBall::DrawImGui()
 
 		ImGui::Text(
 			"ClearReward: %s",
-			Game::GetInstance()->IsClearRewardActive()
+			GameBattleView::ClearRewardActive()
 			? "true"
 			: "false");
 

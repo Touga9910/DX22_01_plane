@@ -27,6 +27,10 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.chainImpactRadius = value.value("chainImpactRadius", status.chainImpactRadius);
 	status.heavyFinisherDamagePerCollision = value.value("heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision);
 	status.heavyCollisionConsumeAmount = value.value("heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount);
+	status.heavySetupStackConsume = value.value("heavySetupStackConsume", status.heavySetupStackConsume);
+	status.heavyEnemyCollisionMultiplier = value.value("heavyEnemyCollisionMultiplier", status.heavyEnemyCollisionMultiplier);
+	status.lightweightKnockbackMultiplier = value.value("lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier);
+	status.lightweightSelfSpeedRetention = value.value("lightweightSelfSpeedRetention", status.lightweightSelfSpeedRetention);
 	status.traceDurability = value.value("traceDurability", status.traceDurability);
 	status.traceUseAngleTolerance = value.value("traceUseAngleTolerance", status.traceUseAngleTolerance);
 	status.traceUseDistance = value.value("traceUseDistance", status.traceUseDistance);
@@ -38,12 +42,20 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.traceNonPierceSpeedMultiplier = value.value("traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier);
 	status.pierceFinisherBaseBonus = value.value("pierceFinisherBaseBonus", status.pierceFinisherBaseBonus);
 	status.pierceFinisherMultiTargetBonus = value.value("pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus);
+	status.pierceStackConsumeLimit = value.value("pierceStackConsumeLimit", status.pierceStackConsumeLimit);
 	status.cushionStackGenerateAmount = value.value("cushionStackGenerateAmount", status.cushionStackGenerateAmount);
 	status.cushionMaxStack = value.value("cushionMaxStack", status.cushionMaxStack);
 	status.cushionStackConsumeAmount = value.value("cushionStackConsumeAmount", status.cushionStackConsumeAmount);
 	status.cushionBounceAttackBonus = value.value("cushionBounceAttackBonus", status.cushionBounceAttackBonus);
 	status.cushionNonBounceSpeedMultiplier = value.value("cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier);
 	status.ricochetFinisherBonusPerUse = value.value("ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse);
+	status.cushionReflectionLimit = value.value("cushionReflectionLimit", status.cushionReflectionLimit);
+	status.cushionConsumptionLimit = value.value("cushionConsumptionLimit", status.cushionConsumptionLimit);
+	status.cushionReflectionSpeedMultiplier = value.value("cushionReflectionSpeedMultiplier", status.cushionReflectionSpeedMultiplier);
+	status.reflectionSetupAmount = value.value("reflectionSetupAmount", status.reflectionSetupAmount);
+	status.ricochetStackConsume = value.value("ricochetStackConsume", status.ricochetStackConsume);
+	status.pinballCollisionsPerStage = value.value("pinballCollisionsPerStage", status.pinballCollisionsPerStage);
+	status.pinballSpeedRetention = value.value("pinballSpeedRetention", status.pinballSpeedRetention);
 	status.anchorPlayerStackGenerate = value.value("anchorPlayerStackGenerate", status.anchorPlayerStackGenerate);
 	status.anchorEnemyStackGenerate = value.value("anchorEnemyStackGenerate", status.anchorEnemyStackGenerate);
 	status.anchorStackRadius = value.value("anchorStackRadius", status.anchorStackRadius);
@@ -52,6 +64,9 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.anchorFinisherDamagePerStack = value.value("anchorFinisherDamagePerStack", status.anchorFinisherDamagePerStack);
 	status.anchorFinisherAoeThreshold = value.value("anchorFinisherAoeThreshold", status.anchorFinisherAoeThreshold);
 	status.anchorFinisherAoeRadius = value.value("anchorFinisherAoeRadius", status.anchorFinisherAoeRadius);
+	status.anchorPlayerStacksPerBonus = value.value("anchorPlayerStacksPerBonus", status.anchorPlayerStacksPerBonus);
+	status.anchorEnemyConsumeLimit = value.value("anchorEnemyConsumeLimit", status.anchorEnemyConsumeLimit);
+	status.nextAnchorGrantBonus = value.value("nextAnchorGrantBonus", status.nextAnchorGrantBonus);
 	if (value.contains("abilities") && value["abilities"].is_object())
 	{
 		const auto& abilities = value["abilities"];
@@ -60,6 +75,10 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 		status.abilities.anchor = abilities.value("anchor", status.abilities.anchor);
 		status.abilities.refractAfterPierce = abilities.value(
 			"refractAfterPierce", status.abilities.refractAfterPierce);
+		status.abilities.heavyDistanceStacks = abilities.value("heavyDistanceStacks", status.abilities.heavyDistanceStacks);
+		status.abilities.lightweight = abilities.value("lightweight", status.abilities.lightweight);
+		status.abilities.reflectionSetup = abilities.value("reflectionSetup", status.abilities.reflectionSetup);
+		status.abilities.returnToShotStart = abilities.value("returnToShotStart", status.abilities.returnToShotStart);
 	}
 	return status;
 }
@@ -86,6 +105,10 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "chainImpactRadius", status.chainImpactRadius },
 		{ "heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision },
 		{ "heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount },
+		{ "heavySetupStackConsume", status.heavySetupStackConsume },
+		{ "heavyEnemyCollisionMultiplier", status.heavyEnemyCollisionMultiplier },
+		{ "lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier },
+		{ "lightweightSelfSpeedRetention", status.lightweightSelfSpeedRetention },
 		{ "traceDurability", status.traceDurability },
 		{ "traceUseAngleTolerance", status.traceUseAngleTolerance },
 		{ "traceUseDistance", status.traceUseDistance },
@@ -97,12 +120,20 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier },
 		{ "pierceFinisherBaseBonus", status.pierceFinisherBaseBonus },
 		{ "pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus },
+		{ "pierceStackConsumeLimit", status.pierceStackConsumeLimit },
 		{ "cushionStackGenerateAmount", status.cushionStackGenerateAmount },
 		{ "cushionMaxStack", status.cushionMaxStack },
 		{ "cushionStackConsumeAmount", status.cushionStackConsumeAmount },
 		{ "cushionBounceAttackBonus", status.cushionBounceAttackBonus },
 		{ "cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier },
 		{ "ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse },
+		{ "cushionReflectionLimit", status.cushionReflectionLimit },
+		{ "cushionConsumptionLimit", status.cushionConsumptionLimit },
+		{ "cushionReflectionSpeedMultiplier", status.cushionReflectionSpeedMultiplier },
+		{ "reflectionSetupAmount", status.reflectionSetupAmount },
+		{ "ricochetStackConsume", status.ricochetStackConsume },
+		{ "pinballCollisionsPerStage", status.pinballCollisionsPerStage },
+		{ "pinballSpeedRetention", status.pinballSpeedRetention },
 		{ "anchorPlayerStackGenerate", status.anchorPlayerStackGenerate },
 		{ "anchorEnemyStackGenerate", status.anchorEnemyStackGenerate },
 		{ "anchorStackRadius", status.anchorStackRadius },
@@ -111,8 +142,15 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "anchorFinisherDamagePerStack", status.anchorFinisherDamagePerStack },
 		{ "anchorFinisherAoeThreshold", status.anchorFinisherAoeThreshold },
 		{ "anchorFinisherAoeRadius", status.anchorFinisherAoeRadius },
+		{ "anchorPlayerStacksPerBonus", status.anchorPlayerStacksPerBonus },
+		{ "anchorEnemyConsumeLimit", status.anchorEnemyConsumeLimit },
+		{ "nextAnchorGrantBonus", status.nextAnchorGrantBonus },
 		{ "abilities", { { "split", status.abilities.split }, { "pierce", status.abilities.pierce }, { "anchor", status.abilities.anchor },
-			{ "refractAfterPierce", status.abilities.refractAfterPierce } } },
+			{ "refractAfterPierce", status.abilities.refractAfterPierce },
+			{ "heavyDistanceStacks", status.abilities.heavyDistanceStacks },
+			{ "lightweight", status.abilities.lightweight },
+			{ "reflectionSetup", status.abilities.reflectionSetup },
+			{ "returnToShotStart", status.abilities.returnToShotStart } } },
 	};
 }
 
@@ -137,6 +175,10 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.chainImpactRadius <= 100.0f &&
 		std::isfinite(s.heavyFinisherDamagePerCollision) && s.heavyFinisherDamagePerCollision >= 0.0f && s.heavyFinisherDamagePerCollision <= 100.0f &&
 		s.heavyCollisionConsumeAmount >= 0 && s.heavyCollisionConsumeAmount <= 9999 &&
+		s.heavySetupStackConsume >= 0 && s.heavySetupStackConsume <= 9999 &&
+		std::isfinite(s.heavyEnemyCollisionMultiplier) && s.heavyEnemyCollisionMultiplier >= 1.0f && s.heavyEnemyCollisionMultiplier <= 10.0f &&
+		std::isfinite(s.lightweightKnockbackMultiplier) && s.lightweightKnockbackMultiplier >= 1.0f && s.lightweightKnockbackMultiplier <= 10.0f &&
+		std::isfinite(s.lightweightSelfSpeedRetention) && s.lightweightSelfSpeedRetention >= 0.0f && s.lightweightSelfSpeedRetention <= 1.0f &&
 		s.traceDurability >= 0 && s.traceDurability <= 99 &&
 		std::isfinite(s.traceUseAngleTolerance) && s.traceUseAngleTolerance >= 1.0f && s.traceUseAngleTolerance <= 89.0f &&
 		std::isfinite(s.traceUseDistance) && s.traceUseDistance >= 0.1f && s.traceUseDistance <= 200.0f &&
@@ -148,12 +190,20 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		std::isfinite(s.traceNonPierceSpeedMultiplier) && s.traceNonPierceSpeedMultiplier >= 1.0f && s.traceNonPierceSpeedMultiplier <= 1.25f &&
 		s.pierceFinisherBaseBonus >= 0 && s.pierceFinisherBaseBonus <= 1000 &&
 		s.pierceFinisherMultiTargetBonus >= 0 && s.pierceFinisherMultiTargetBonus <= 1000 &&
+		s.pierceStackConsumeLimit >= 0 && s.pierceStackConsumeLimit <= 15 &&
 		s.cushionStackGenerateAmount >= 0 && s.cushionStackGenerateAmount <= 99 &&
 		s.cushionMaxStack >= 1 && s.cushionMaxStack <= 99 &&
 		s.cushionStackConsumeAmount >= 1 && s.cushionStackConsumeAmount <= 99 &&
 		s.cushionBounceAttackBonus >= 0 && s.cushionBounceAttackBonus <= 1000 &&
 		std::isfinite(s.cushionNonBounceSpeedMultiplier) && s.cushionNonBounceSpeedMultiplier >= 1.0f && s.cushionNonBounceSpeedMultiplier <= 1.25f &&
 		s.ricochetFinisherBonusPerUse >= 0 && s.ricochetFinisherBonusPerUse <= 1000 &&
+		s.cushionReflectionLimit >= 0 && s.cushionReflectionLimit <= 99 &&
+		s.cushionConsumptionLimit >= 0 && s.cushionConsumptionLimit <= 99 &&
+		std::isfinite(s.cushionReflectionSpeedMultiplier) && s.cushionReflectionSpeedMultiplier >= 1.0f && s.cushionReflectionSpeedMultiplier <= 3.0f &&
+		s.reflectionSetupAmount >= 0 && s.reflectionSetupAmount <= 99 &&
+		s.ricochetStackConsume >= 0 && s.ricochetStackConsume <= 99 &&
+		s.pinballCollisionsPerStage >= 0 && s.pinballCollisionsPerStage <= 99 &&
+		std::isfinite(s.pinballSpeedRetention) && s.pinballSpeedRetention >= 0.0f && s.pinballSpeedRetention <= 1.0f &&
 		s.anchorPlayerStackGenerate >= 0 && s.anchorPlayerStackGenerate <= 99 &&
 		s.anchorEnemyStackGenerate >= 0 && s.anchorEnemyStackGenerate <= 99 &&
 		std::isfinite(s.anchorStackRadius) && s.anchorStackRadius >= 0.0f && s.anchorStackRadius <= 100.0f &&
@@ -161,7 +211,10 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.anchorFinisherStackConsume >= 0 && s.anchorFinisherStackConsume <= 9999 &&
 		s.anchorFinisherDamagePerStack >= 0 && s.anchorFinisherDamagePerStack <= 1000 &&
 		s.anchorFinisherAoeThreshold >= 0 && s.anchorFinisherAoeThreshold <= 9999 &&
-		std::isfinite(s.anchorFinisherAoeRadius) && s.anchorFinisherAoeRadius >= 0.0f && s.anchorFinisherAoeRadius <= 100.0f;
+		std::isfinite(s.anchorFinisherAoeRadius) && s.anchorFinisherAoeRadius >= 0.0f && s.anchorFinisherAoeRadius <= 100.0f &&
+		s.anchorPlayerStacksPerBonus >= 0 && s.anchorPlayerStacksPerBonus <= 99 &&
+		s.anchorEnemyConsumeLimit >= 0 && s.anchorEnemyConsumeLimit <= 9999 &&
+		s.nextAnchorGrantBonus >= 0 && s.nextAnchorGrantBonus <= 99;
 }
 
 // -------------------------

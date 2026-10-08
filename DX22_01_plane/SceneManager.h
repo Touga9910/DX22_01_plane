@@ -2,6 +2,7 @@
 
 #include "GameTypes.h"
 
+#include <functional>
 #include <memory>
 
 class Scene;
@@ -15,6 +16,12 @@ public:
 
 	SceneManager(const SceneManager&) = delete;
 	SceneManager& operator=(const SceneManager&) = delete;
+
+	using BattleSceneFactory =
+		std::function<std::unique_ptr<Scene>()>;
+
+	// Gameが構成した戦闘シーン生成処理を受け取る。
+	void SetBattleSceneFactory(BattleSceneFactory factory);
 
 	// 初期シーンを生成して管理対象に設定する。
 	bool Initialize(SceneType sceneType);
@@ -36,5 +43,6 @@ private:
 	std::unique_ptr<Scene> Create(SceneType sceneType) const;
 
 	std::unique_ptr<Scene> m_Current;
+	BattleSceneFactory m_BattleSceneFactory;
 	SceneType m_CurrentType = SceneType::Max;
 };

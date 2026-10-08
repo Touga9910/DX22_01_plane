@@ -1,19 +1,18 @@
 ﻿#pragma once
 
 #include "GameTypes.h"
-#include "PlayerDeck.h"
-#include "PlayerRunStatus.h"
-#include "StageSelector.h"
-#include "RunProgressConstants.h"
 
 #include <array>
 #include <cstdint>
-#include <random>
 #include <memory>
+#include <random>
 #include <vector>
 
+class PlayerDeck;
+struct PlayerRunStatus;
 class ProgressionProfile;
 class RunProgressController;
+class StageSelector;
 
 // 1回のランを通して保持される状態の所有者。
 // Gameは進行の指示だけを行い、ラン状態へはこの境界を通してアクセスする。
@@ -28,30 +27,23 @@ public:
 
     void ResetRuntimeState(const PlayerRunStatus& defaultStatus);
 
-    PlayerRunStatus& Status() { return m_Status; }
-    const PlayerRunStatus& Status() const { return m_Status; }
+    PlayerRunStatus& Status();
+    const PlayerRunStatus& Status() const;
 
-    PlayerDeck& Deck() { return m_Deck; }
-    const PlayerDeck& Deck() const { return m_Deck; }
+    PlayerDeck& Deck();
+    const PlayerDeck& Deck() const;
 
-    std::array<bool, static_cast<std::size_t>(RelicType::Count)>& Relics()
-    {
-        return m_OwnedRelics;
-    }
-
-    const std::array<bool, static_cast<std::size_t>(RelicType::Count)>& Relics() const
-    {
-        return m_OwnedRelics;
-    }
+    std::array<bool, static_cast<std::size_t>(RelicType::Count)>& Relics();
+    const std::array<bool, static_cast<std::size_t>(RelicType::Count)>& Relics() const;
 
     RunProgressController& Progress();
     const RunProgressController& Progress() const;
 
-    StageSelector& StageSelection() { return m_StageSelector; }
-    const StageSelector& StageSelection() const { return m_StageSelector; }
+    StageSelector& StageSelection();
+    const StageSelector& StageSelection() const;
 
-    float& RestHealRatio() { return m_RestHealRatio; }
-    float RestHealRatio() const { return m_RestHealRatio; }
+    float& RestHealRatio();
+    float RestHealRatio() const;
 
     bool CanRestHeal() const;
     int GetRestHealAmount() const;
@@ -65,14 +57,8 @@ public:
 
     void BeginStageReward();
     bool CollectStageReward(int amount);
-    int GetCurrentStageRewardMoney() const
-    {
-        return m_CurrentStageRewardMoney;
-    }
-    bool IsStageRewardCollected() const
-    {
-        return m_IsStageRewardCollected;
-    }
+    int GetCurrentStageRewardMoney() const;
+    bool IsStageRewardCollected() const;
 
     bool HasRelic(RelicType type) const;
     int GetOwnedRelicCount() const;
@@ -83,29 +69,20 @@ public:
         bool midBoss,
         const ProgressionProfile& progressionProfile);
 
-    void SeedRelics(std::uint32_t seed) { m_RelicRandomEngine.seed(seed); }
-    std::mt19937& RelicRandomEngine() { return m_RelicRandomEngine; }
-    const std::mt19937& RelicRandomEngine() const
-    {
-        return m_RelicRandomEngine;
-    }
+    void SeedRelics(std::uint32_t seed);
+    std::mt19937& RelicRandomEngine();
+    const std::mt19937& RelicRandomEngine() const;
 
-    std::vector<int>& ShopRelicOffers() { return m_ShopRelicOffers; }
-    const std::vector<int>& ShopRelicOffers() const { return m_ShopRelicOffers; }
+    std::vector<int>& ShopRelicOffers();
+    const std::vector<int>& ShopRelicOffers() const;
 
-    std::vector<int>& MidBossRelicOffers() { return m_MidBossRelicOffers; }
-    const std::vector<int>& MidBossRelicOffers() const { return m_MidBossRelicOffers; }
+    std::vector<int>& ShopBallOffers();
+    const std::vector<int>& ShopBallOffers() const;
+
+    std::vector<int>& MidBossRelicOffers();
+    const std::vector<int>& MidBossRelicOffers() const;
 
 private:
-    PlayerRunStatus m_Status{};
-    PlayerDeck m_Deck{};
-    std::array<bool, static_cast<std::size_t>(RelicType::Count)> m_OwnedRelics{};
-    std::unique_ptr<RunProgressController> m_Progress;
-    StageSelector m_StageSelector{};
-    float m_RestHealRatio = 0.25f;
-    std::vector<int> m_ShopRelicOffers{};
-    std::vector<int> m_MidBossRelicOffers{};
-    std::mt19937 m_RelicRandomEngine{ std::random_device{}() };
-    int m_CurrentStageRewardMoney = 0;
-    bool m_IsStageRewardCollected = false;
+    struct Impl;
+    std::unique_ptr<Impl> m_Impl;
 };

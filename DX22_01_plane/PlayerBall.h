@@ -10,6 +10,7 @@
 #include <cstdint>
 #include "Mesh.h"
 
+#include <algorithm>
 #include <vector>
 #include <memory>
 
@@ -73,6 +74,10 @@ public:
 	// ステータス系
 	//=======================================
 	void TakeDamage(int damage);
+	static int CalculateIncomingDamage(int damage)
+	{
+		return (std::max)(1, damage);
+	}
 	void RefreshNuisanceDebuffs();
 
 	//=======================================

@@ -370,6 +370,24 @@ std::vector<int> PlayerDeck::RollCatalogOfferIndices(int offerSize)
     return result;
 }
 
+std::vector<int> PlayerDeck::RollDistinctCatalogOfferIndices(int offerSize)
+{
+    const int count = (std::min)(
+        (std::max)(0, offerSize),
+        static_cast<int>(m_Catalog.size()));
+    std::vector<int> result;
+    result.reserve(m_Catalog.size());
+    for (int catalogIndex = 0;
+        catalogIndex < static_cast<int>(m_Catalog.size());
+        ++catalogIndex)
+    {
+        result.push_back(catalogIndex);
+    }
+    std::shuffle(result.begin(), result.end(), m_RandomEngine);
+    result.resize(static_cast<std::size_t>(count));
+    return result;
+}
+
 bool PlayerDeck::AddCatalogBall(int index)
 {
     const PlayerBallData* catalogBall = GetCatalogBall(index);

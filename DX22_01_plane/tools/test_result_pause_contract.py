@@ -49,7 +49,10 @@ class ResultPauseContractTests(unittest.TestCase):
         ):
             self.assertIn(phase, game_types)
         self.assertIn("NormalRouteAreaGoal = 15", run_progress)
-        self.assertIn("RunController m_RunController", source("Game.h"))
+        self.assertIn(
+            "std::unique_ptr<RunController> m_RunController",
+            source("Game.h"),
+        )
         self.assertIn("CompleteNormalRouteArea", game)
         self.assertIn("CompleteFinalBossRun", game)
         self.assertIn("m_BalanceValidationController", game)

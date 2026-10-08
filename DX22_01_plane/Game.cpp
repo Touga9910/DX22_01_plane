@@ -1,7 +1,26 @@
 ﻿#include "Game.h"
-#include "BallShotPrediction.h"
+#include "GameBattleState.h"
+#include "GameBalanceRuntime.h"
+#include "GameShotPrediction.h"
 #include "GameObject.h"
 #include "GameRuntime.h"
+#include "GameRuntimeState.h"
+#include "GameWorld.h"
+#include "GameSettingsRuntime.h"
+#include "GamePersistenceRuntime.h"
+#include "GameRunDefaults.h"
+#include "GameRunSession.h"
+#include "GameRewardState.h"
+#include "GameEncounterBalance.h"
+#include "GameBallSelectionState.h"
+#include "GamePauseState.h"
+#include "GameStageOverrideState.h"
+#include "PlayerDeck.h"
+#include "PlayerRunStatus.h"
+#include "RunController.h"
+#include "RunProgressConstants.h"
+#include "RunProgressController.h"
+#include "StageSelector.h"
 #include "Camera.h"
 #include "GameUi.h"
 #include "BallMechanics.h"
@@ -14,6 +33,7 @@
 #include "GameSaveManager.h"
 #include "BossShotPlanner.h"
 #include "GameDebugController.h"
+#include "GameDebugHost.h"
 #include "RunProgressController.h"
 #include "json/json.hpp"
 #include "BattleScene.h"
@@ -89,7 +109,7 @@ Camera& GameRuntime::MainCamera()
 
 GameWorld& GameRuntime::World()
 {
-	return Game::GetInstance()->m_World;
+	return Game::GetInstance()->m_RuntimeState->World();
 }
 
 Game& GameRuntime::CurrentGame()
@@ -102,6 +122,11 @@ GameObject* GameRuntime::CreateObject(
 	const std::string& name)
 {
 	return game.CreateGameObject(name);
+}
+
+GameObject* GameRuntime::CreateObject(const std::string& name)
+{
+	return CurrentGame().CreateGameObject(name);
 }
 
 void GameRuntime::DestroyObject(GameObject* object)
@@ -464,16 +489,12 @@ namespace
 		{
 			ImGui::BulletText("押し出し倍率 %.2f", status.knockbackTransfer);
 			if (status.heavyFinisherDamagePerCollision > 0.0f)
-				ImGui::BulletText("重量カウント1ごとの決着倍率 %.1f", status.heavyFinisherDamagePerCollision);
+				ImGui::BulletText("重量スタック1個ごとの追加攻撃 %.1f", status.heavyFinisherDamagePerCollision);
 		}
 		else if (ball.category == BallCategory::Pierce)
 		{
 			ImGui::BulletText("貫通回数 %d / 貫通時速度維持率 %.0f%%",
 				status.pierceMaxUses, status.pierceSpeedRetention * 100.0f);
-			ImGui::BulletText("貫通痕耐久 %d / 強利用速度 %.0f%% / 攻撃 +%d",
-				status.traceDurability, status.tracePierceSpeedMultiplier * 100.0f,
-				status.tracePierceAttackBonus);
-			ImGui::BulletText("不一致利用速度 %.0f%%", status.traceNonPierceSpeedMultiplier * 100.0f);
 			if (status.pierceFinisherBaseBonus > 0)
 				ImGui::BulletText("決着基本 +%d / 追加対象ごと +%d",
 					status.pierceFinisherBaseBonus, status.pierceFinisherMultiTargetBonus);
@@ -482,31 +503,25 @@ namespace
 		{
 			if (status.cushionStackGenerateAmount > 0)
 			{
-				ImGui::BulletText("スタック生成 %d / 区画上限 %d",
-					status.cushionStackGenerateAmount, status.cushionMaxStack);
-				ImGui::BulletText("生成時の保存加速倍率 %.0f%%",
-					status.cushionChargeSpeedMultiplier * 100.0f);
+				ImGui::BulletText("有効反射1回のスタック生成 %d / 最大回数 %d",
+					status.cushionStackGenerateAmount, status.cushionReflectionLimit);
 			}
-			ImGui::BulletText("強利用：保存加速倍率 / 攻撃 +%d",
-				status.cushionBounceAttackBonus);
-			ImGui::BulletText("不一致利用速度 %.0f%%",
-				status.cushionNonBounceSpeedMultiplier * 100.0f);
+			if (status.cushionConsumptionLimit > 0)
+				ImGui::BulletText("1ショットの最大消費 %d / 反射速度 %.0f%% / 攻撃 +%d",
+					status.cushionConsumptionLimit,
+					status.cushionReflectionSpeedMultiplier * 100.0f,
+					status.cushionBounceAttackBonus);
 			if (status.ricochetFinisherBonusPerUse > 0)
-				ImGui::BulletText("スタック利用ごとの決着攻撃 +%d",
+				ImGui::BulletText("スタック消費1個ごとの決着攻撃 +%d",
 					status.ricochetFinisherBonusPerUse);
 		}
 		else if (ball.category == BallCategory::Anchor)
 		{
-			ImGui::BulletText("錨生成：自分 %d / 敵 %d / 範囲 %.1f",
-				status.anchorPlayerStackGenerate,
-				status.anchorEnemyStackGenerate,
-				status.anchorStackRadius);
-			if (status.stopShieldAmount > 0)
-				ImGui::BulletText("停止時シールド %d", status.stopShieldAmount);
-			if (status.anchorFinisherDamagePerStack > 0)
-				ImGui::BulletText("錨1個ごとの決着攻撃 +%d / 範囲発動 %d個",
-					status.anchorFinisherDamagePerStack,
-					status.anchorFinisherAoeThreshold);
+			ImGui::BulletText("対象へのEnemy Anchor付与 %d",
+				status.anchorEnemyStackGenerate);
+			if (status.anchorPlayerStacksPerBonus > 0)
+				ImGui::BulletText("Player Anchor %d個ごとに付与 +1",
+					status.anchorPlayerStacksPerBonus);
 		}
 
 		ImGui::Spacing();
@@ -515,14 +530,14 @@ namespace
 
 		ImGui::Separator();
 		ImGui::TextUnformatted("用語（マウスオーバーで説明）");
-		DrawTermTooltip("重量カウント",
-			"重量カテゴリのショット中に敵同士を衝突させると増える。重量系の決着球がダメージへ変換できる。");
+		DrawTermTooltip("重量スタック",
+			"重量球で動かした敵の距離から、敵ごとに生成される資源。");
 		DrawTermTooltip("貫通痕",
-			"貫通カテゴリが敵を貫通した軌道に残す資源。痕に沿って一定距離進むと耐久を1消費貫通カテゴリなら速度と攻撃が強化され、それ以外は小さく加速");
+			"敵を貫通した始点と方向を保存する発射軌道。最大3本保持する。");
 		DrawTermTooltip("クッションスタック",
-			"反発カテゴリによって壁区画に生成される資源。その壁に触れたボールが1スタック消費反発カテゴリなら強化効果、それ以外は小さく加速");
+			"クッション蓄積球の有効反射でプレイヤー側に生成される共有資源。");
 		DrawTermTooltip("錨スタック",
-			"アンカー系ボールが生成する資源。敵同士の衝突で移動し、プレイヤーボールが敵へ接触すると回収できる。錨回収球でダメージへ変換できる。");
+			"敵ごとに保持するEnemy Anchorと、5消費ごとに増えるPlayer Anchorの2種類。");
 	}
 
 	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
@@ -665,18 +680,32 @@ namespace
 
 // コンストラクタ
 Game::Game()
-	: m_Camera(Camera::GetInstance())
+	: m_RuntimeState(std::make_unique<GameRuntimeState>())
+	, m_Camera(Camera::GetInstance())
+	, m_BattleState(std::make_unique<GameBattleState>())
+	, m_RewardState(std::make_unique<GameRewardState>())
+	, m_RunDefaults(std::make_unique<GameRunDefaults>())
+	, m_RunSession(std::make_unique<GameRunSession>())
+	, m_RunController(std::make_unique<RunController>())
+	, m_StageOverrideState(std::make_unique<GameStageOverrideState>())
 	, m_BossShotPlanner(std::make_unique<BossShotPlanner>())
+	, m_BallSelectionState(std::make_unique<GameBallSelectionState>())
+	, m_BalanceRuntime(std::make_unique<GameBalanceRuntime>())
+	, m_SettingsRuntime(std::make_unique<GameSettingsRuntime>())
+	, m_PersistenceRuntime(std::make_unique<GamePersistenceRuntime>())
 	, m_PendingShotTelemetry(std::make_unique<nlohmann::json>(
 		nlohmann::json::object()))
+	, m_EncounterBalance(std::make_unique<GameEncounterBalance>())
 	, m_DebugController(std::make_unique<GameDebugController>())
+	, m_PauseState(std::make_unique<GamePauseState>())
 {
+	InitializeBattleSceneFactory();
 }
 
 // デストラクタ
 Game::~Game()
 {
-	m_SceneManager.Reset();
+	m_RuntimeState->ResetScene();
 	DeleteAllGameObjects();
 }
 
@@ -702,8 +731,10 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 	next.updateRevision = m_DebugCombatForecast.updateRevision + 1;
 	next.updateReason = m_DebugCombatForecastPendingReason;
 
-	const std::vector<PlayerBall*> players = game.GetComponents<PlayerBall>();
-	const std::vector<EnemyBall*> enemies = game.GetComponents<EnemyBall>();
+	const std::vector<PlayerBall*> players =
+		GameRuntime::World().GetComponents<PlayerBall>();
+	const std::vector<EnemyBall*> enemies =
+		GameRuntime::World().GetComponents<EnemyBall>();
 	const PlayerBall* player = players.empty() ? nullptr : players.front();
 	if (player != nullptr)
 	{
@@ -744,7 +775,8 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 		{
 			next.attackerCount++;
 			enemySnapshot.damageBeforeMinimum = enemy->GetAttack();
-			enemySnapshot.expectedDamage = (std::max)(1, enemy->GetAttack());
+			enemySnapshot.expectedDamage =
+				PlayerBall::CalculateIncomingDamage(enemy->GetAttack());
 			enemySnapshot.minimumDamageApplied =
 				enemySnapshot.damageBeforeMinimum < 1;
 			next.theoreticalDamage += enemySnapshot.expectedDamage;
@@ -800,9 +832,86 @@ void GameDebugController::RecordPlayerDamage(
 	}
 }
 
-const PlayerDeck& Game::GetPlayerDeckView() const
+bool Game::IsRunSessionActive() const
 {
-	return m_RunController.Deck();
+	return m_RunSession->IsActive();
+}
+
+void Game::BeginRunSession()
+{
+	m_RunSession->Begin();
+}
+
+void Game::ActivateRunSession()
+{
+	m_RunSession->Activate();
+}
+
+void Game::DeactivateRunSession()
+{
+	m_RunSession->Deactivate();
+}
+
+void Game::CompleteRunSession(RunResultSnapshot result)
+{
+	m_RunSession->Complete(std::move(result));
+}
+
+const RunResultSnapshot& Game::GetLastRunResult() const
+{
+	return m_RunSession->LastResult();
+}
+
+bool Game::IsClearRewardActive() const
+{
+	return m_RewardState->IsActive();
+}
+
+int Game::GetClearRewardBallOfferCount() const
+{
+	return m_RewardState->BallOfferCount();
+}
+
+int Game::GetClearRewardBallOfferCatalogIndex(int offerIndex) const
+{
+	return m_RewardState->BallOfferCatalogIndex(offerIndex);
+}
+
+const PlayerBallData* Game::GetClearRewardBallOffer(int offerIndex) const
+{
+	return m_RunController->Deck().GetCatalogBall(
+		GetClearRewardBallOfferCatalogIndex(offerIndex));
+}
+
+bool Game::AddClearRewardBallOffer(int offerIndex)
+{
+	return m_RunController->Deck().AddCatalogBall(
+		GetClearRewardBallOfferCatalogIndex(offerIndex));
+}
+
+int Game::GetSelectedBallOfferIndex() const
+{
+	return m_BallSelectionState->SelectedOfferIndex();
+}
+
+int Game::GetHeldBallOfferIndex() const
+{
+	return m_BallSelectionState->HeldOfferIndex();
+}
+
+bool Game::IsMidBossRelicSelectionActive() const
+{
+	return m_RewardState->IsMidBossRelicSelectionActive();
+}
+
+bool Game::IsClearRewardChosen() const
+{
+	return m_RewardState->IsChosen();
+}
+
+const StageData* Game::GetCurrentStageOverride() const
+{
+	return m_StageOverrideState->Current();
 }
 
 int GameDebugController::BeginEnemyAttackForecast(Game& game)
@@ -849,21 +958,51 @@ void Game::RecordDebugPlayerDamage(
 		hpAfter);
 }
 
+void Game::RequestPauseToggle()
+{
+	m_PauseState->RequestPauseToggle();
+}
+
+void Game::RequestManualSave()
+{
+	m_PauseState->RequestManualSave();
+}
+
+void Game::RequestFullscreenToggle()
+{
+	m_PauseState->RequestFullscreenToggle();
+}
+
+bool Game::IsPaused() const
+{
+	return m_PauseState->IsPaused();
+}
+
+void Game::SetPaused(bool paused)
+{
+	m_PauseState->SetPaused(paused);
+}
+
+void Game::ResumeAndDismissPause()
+{
+	m_PauseState->ResumeAndDismissConfirmation();
+}
+
 // Pauseが可能か判定
 bool Game::CanPause() const
 {
-	return m_RunActive &&
-		(dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr ||
-		 dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr ||
-		 dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr ||
-		 dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr);
+	return IsRunSessionActive() &&
+		(dynamic_cast<BattleScene*>(GetCurrentScene()) != nullptr ||
+		 dynamic_cast<StageSelectScene*>(GetCurrentScene()) != nullptr ||
+		 dynamic_cast<RestSiteScene*>(GetCurrentScene()) != nullptr ||
+		 dynamic_cast<ShopScene*>(GetCurrentScene()) != nullptr);
 }
 
 // And Return To Titleを保存
 bool Game::SaveAndReturnToTitle()
 {
 	if (IsDebugMode()) { m_DebugController->RequestExit(); return true; }
-	if (m_IsClearRewardActive && !m_IsClearRewardChosen)
+	if (IsClearRewardActive() && !IsClearRewardChosen())
 	{
 		SetSaveLoadMessage(
 			"報酬を選択して次のルートへ進んでから保存してください。");
@@ -873,22 +1012,22 @@ bool Game::SaveAndReturnToTitle()
 	CaptureCurrentPlayerStatus();
 	SceneType resumeScene = SceneType::Max;
 	bool sceneAlreadyActive = true;
-	if (dynamic_cast<BattleScene*>(m_SceneManager.Get()) != nullptr)
+	if (dynamic_cast<BattleScene*>(GetCurrentScene()) != nullptr)
 	{
-		resumeScene = m_IsClearRewardActive
+		resumeScene = IsClearRewardActive()
 			? SceneType::Select
 			: SceneType::Battle;
 		sceneAlreadyActive = false;
 	}
-	else if (dynamic_cast<StageSelectScene*>(m_SceneManager.Get()) != nullptr)
+	else if (dynamic_cast<StageSelectScene*>(GetCurrentScene()) != nullptr)
 	{
 		resumeScene = SceneType::Select;
 	}
-	else if (dynamic_cast<RestSiteScene*>(m_SceneManager.Get()) != nullptr)
+	else if (dynamic_cast<RestSiteScene*>(GetCurrentScene()) != nullptr)
 	{
 		resumeScene = SceneType::RestSite;
 	}
-	else if (dynamic_cast<ShopScene*>(m_SceneManager.Get()) != nullptr)
+	else if (dynamic_cast<ShopScene*>(GetCurrentScene()) != nullptr)
 	{
 		resumeScene = SceneType::Shop;
 	}
@@ -899,9 +1038,8 @@ bool Game::SaveAndReturnToTitle()
 		return false;
 	}
 
-	m_IsPaused = false;
-	m_PauseConfirmTitle = false;
-	m_RunActive = false;
+	ResumeAndDismissPause();
+	DeactivateRunSession();
 	ChangeScene(SceneType::Title);
 	return true;
 }
@@ -915,8 +1053,7 @@ void Game::Init()
 	}
 	// 描画処理を初期化
 	Renderer::Init();
-	m_Instance->m_SettingsManager.Load();
-	m_Instance->m_SettingsManager.ApplyDisplaySettings();
+	m_Instance->m_SettingsRuntime->Initialize();
 
 	// 入力処理を初期化
 	Input::Create();
@@ -924,20 +1061,20 @@ void Game::Init()
 	// カメラを初期化
 	m_Instance->m_Camera.Init();
 
-	m_Instance->m_ProgressionProfile.Load();
+	m_Instance->m_PersistenceRuntime->Profile().Load();
 	m_Instance->LoadPlayerStatusFromJson();
-	m_Instance->m_BalanceAutoPlayer.LoadConfig();
+	m_Instance->m_BalanceRuntime->autoPlayer.LoadConfig();
 	m_Instance->LoadDifficultyProfileConfig();
-	m_Instance->m_DynamicBalanceController.LoadConfig();
-	m_Instance->m_BalanceValidationController.LoadConfig(
+	m_Instance->m_BalanceRuntime->scaling.LoadConfig();
+	m_Instance->m_BalanceRuntime->validation.LoadConfig(
 		"assets/data/balance_validation.json",
-		m_Instance->m_BaselineDifficultyProfile);
+		m_Instance->m_BalanceRuntime->baselineDifficultyProfile);
 	m_Instance->LoadEncounterBalanceConfig();
 	m_Instance->LoadPocketRulesConfig();
 	m_Instance->InitializeBattleController();
 
 	// 最初のシーンを読み込む
-	m_Instance->m_SceneManager.Initialize(SceneType::Title);
+	m_Instance->m_RuntimeState->InitializeScene(SceneType::Title);
 	m_Instance->m_GameMcpBridge =
 		std::make_unique<GameMcpBridge>();
 	m_Instance->m_GameMcpBridge->Initialize(*m_Instance);
@@ -960,53 +1097,36 @@ void Game::Update(double elapsedSeconds)
 	// 入力処理を更新
 	Input::Update();
 	if (m_Instance->UpdateDebugMode()) return;
-	if (m_Instance->m_PendingDisplayApply)
+	if (m_Instance->m_PauseState->ConsumeDisplayApplyRequest())
 	{
-		m_Instance->m_SettingsManager.ApplyDisplaySettings();
-		m_Instance->m_PendingDisplayApply = false;
+		m_Instance->m_SettingsRuntime->ApplyDisplaySettings();
 	}
-	if (std::exchange(m_Instance->m_MouseFullscreenToggle, false) || Input::GetKeyTrigger(VK_F11))
+	if (m_Instance->m_PauseState->ConsumeFullscreenToggleRequest() || Input::GetKeyTrigger(VK_F11))
 	{
-		GameSettings& settings = m_Instance->m_SettingsManager.Edit();
-		settings.fullscreen = !settings.fullscreen;
-		m_Instance->m_SettingsManager.MarkDirty();
-		m_Instance->m_SettingsManager.ApplyDisplaySettings();
-		m_Instance->m_SettingsManager.SaveIfDirty();
+		m_Instance->m_SettingsRuntime->ToggleFullscreen();
 	}
-	if ((std::exchange(m_Instance->m_MousePauseToggle, false) || Input::GetKeyTrigger(VK_ESCAPE)) &&
+	if ((m_Instance->m_PauseState->ConsumePauseToggleRequest() || Input::GetKeyTrigger(VK_ESCAPE)) &&
 		m_Instance->CanPause() &&
-		!m_Instance->m_BalanceAutoPlayer.IsEnabled())
+		!m_Instance->m_BalanceRuntime->autoPlayer.IsEnabled())
 	{
-		const bool wasPaused = m_Instance->m_IsPaused;
-		m_Instance->m_IsPaused = !m_Instance->m_IsPaused;
-		m_Instance->m_PauseConfirmTitle = false;
+		const bool wasPaused = m_Instance->m_PauseState->TogglePaused();
 		if (wasPaused)
 		{
-			m_Instance->m_SettingsManager.SaveIfDirty();
+			m_Instance->m_SettingsRuntime->SaveIfDirty();
 		}
 	}
-	if ((std::exchange(m_Instance->m_MouseSaveRequested, false) || Input::GetKeyTrigger(VK_F6)) &&
-		!m_Instance->m_BalanceAutoPlayer.IsEnabled())
+	if ((m_Instance->m_PauseState->ConsumeManualSaveRequest() || Input::GetKeyTrigger(VK_F6)) &&
+		!m_Instance->m_BalanceRuntime->autoPlayer.IsEnabled())
 	{
 		m_Instance->SaveCurrentRun();
 	}
-	if (m_Instance->m_IsPaused)
+	if (m_Instance->m_PauseState->IsPaused())
 	{
 		ResetFrameTiming();
 		return;
 	}
-	if (m_Instance->m_RunActive)
-	{
-		m_Instance->m_RunStatistics.AdvanceFrame();
-	}
-	if (m_Instance->m_SaveLoadMessageFrames > 0)
-	{
-		--m_Instance->m_SaveLoadMessageFrames;
-		if (m_Instance->m_SaveLoadMessageFrames == 0)
-		{
-			m_Instance->m_SaveLoadMessage.clear();
-		}
-	}
+	m_Instance->m_PersistenceRuntime->AdvanceFrame(
+		m_Instance->IsRunSessionActive());
 	if (m_Instance->m_GamePresentation != nullptr)
 	{
 		m_Instance->m_GamePresentation->Update(*m_Instance);
@@ -1017,7 +1137,7 @@ void Game::Update(double elapsedSeconds)
 		m_Instance->m_GameMcpBridge->Update(*m_Instance);
 	}
 
-	if (m_Instance->m_BalanceAutoPlayer.Update(*m_Instance))
+	if (m_Instance->m_BalanceRuntime->autoPlayer.Update(*m_Instance))
 	{
 		ResetFrameTiming();
 		return;
@@ -1026,22 +1146,22 @@ void Game::Update(double elapsedSeconds)
 	// ==========================
 	// ClearReward中はゲーム本編を更新しない
 	// ==========================
-	if (m_Instance->m_IsClearRewardActive)
+	if (m_Instance->IsClearRewardActive())
 	{
 		ResetFrameTiming();
 		m_Instance->UpdateClearReward();
 		return;
 	}
 
-	if (!m_Instance->m_BalanceAutoPlayer.IsEnabled() &&
-		dynamic_cast<BattleScene*>(m_Instance->m_SceneManager.Get()) != nullptr &&
-		m_Instance->m_RunController.Deck().GetOfferCount() > 0)
+	if (!m_Instance->m_BalanceRuntime->autoPlayer.IsEnabled() &&
+		dynamic_cast<BattleScene*>(m_Instance->GetCurrentScene()) != nullptr &&
+		m_Instance->m_RunController->Deck().GetOfferCount() > 0)
 	{
 		m_Instance->UpdateBallSelection();
 	}
 
 	// シーンを更新
-	if (Scene* scene = m_Instance->m_SceneManager.Get())
+	if (Scene* scene = m_Instance->GetCurrentScene())
 	{
 		scene->Update();
 	}
@@ -1050,17 +1170,17 @@ void Game::Update(double elapsedSeconds)
 	m_Instance->m_Camera.Update();
 
 	// オブジェクトを更新
-	m_Instance->m_World.Update();
+	m_Instance->m_RuntimeState->World().Update();
 
 	// Input/AI/MCP have run once. Only physical motion may catch up here.
 	m_Instance->UpdateFixedPhysics(elapsedSeconds);
 
-	m_Instance->m_World.LateUpdate();
+	m_Instance->m_RuntimeState->World().LateUpdate();
 	m_Instance->RemoveDestroyedGameObjects();
-	m_Instance->m_BattleController.Update();
+	m_Instance->m_BattleState->controller.Update();
 
 	const BattleResult battleResult =
-		m_Instance->m_BattleController.ConsumeResult();
+		m_Instance->m_BattleState->controller.ConsumeResult();
 
 	if (battleResult != BattleResult::None)
 	{
@@ -1088,63 +1208,61 @@ void Game::ResetFrameTiming()
 {
 	if (m_Instance != nullptr)
 	{
-		m_Instance->m_PhysicsClock.Reset();
-		m_Instance->m_ResetPhysicsElapsed = true;
-		m_Instance->m_PhysicsStepsLastFrame = 0;
+		m_Instance->m_RuntimeState->ResetPhysicsTiming();
 	}
 }
 
 // Fixed Physicsを更新
 void Game::UpdateFixedPhysics(double elapsedSeconds)
 {
-	m_PhysicsStepsLastFrame = 0;
-
-	if (m_ResetPhysicsElapsed)
-	{
-		elapsedSeconds = FixedStepClock::StepSeconds;
-		m_ResetPhysicsElapsed = false;
-	}
-
 	const int steps =
-		m_PhysicsClock.Advance(elapsedSeconds);
+		m_RuntimeState->BeginPhysicsFrame(elapsedSeconds);
 
 	for (int step = 0; step < steps; ++step)
 	{
 		const BattleState previousState =
-			m_BattleController.GetState();
+			m_BattleState->controller.GetState();
 
-		m_World.FixedUpdate();
+		m_RuntimeState->World().FixedUpdate();
 
+		const BattleState physicsState = GetBattleState();
+		const BallPhysicsWorldContext physicsContext{
+			m_RuntimeState->World(),
+			[this, physicsState]()
+			{
+				return GetBattleState() == physicsState;
+			},
+			[this](
+				BallComponent& ball,
+				const Vector3& from,
+				const Vector3& to)
+			{
+				NotifyTraceMovement(ball, from, to);
+			}
+		};
 		const auto physicsResult =
-			BallPhysicsWorld::Step(*this);
+			BallPhysicsWorld::Step(physicsContext);
 
-		m_PhysicsSubstepsLastTick =
-			physicsResult.substeps;
-
-		if (physicsResult.limitReached)
-		{
-			++m_PhysicsSubstepLimitCount;
-		}
-
-		++m_PhysicsTickCount;
-		++m_PhysicsStepsLastFrame;
+		m_RuntimeState->RecordPhysicsStep(
+			physicsResult.substeps,
+			physicsResult.limitReached);
 
 		const bool stopCatchUp =
-			m_BattleController.OnFixedStepCompleted();
+			m_BattleState->controller.OnFixedStepCompleted();
 
 		const BattleState currentState =
-			m_BattleController.GetState();
+			m_BattleState->controller.GetState();
 
 		if (currentState != previousState ||
 			stopCatchUp ||
-			m_BattleController.IsFinished())
+			m_BattleState->controller.IsFinished())
 		{
 			if (previousState == BattleState::BallsMoving)
 			{
-				BallShotPrediction::WriteVerificationActual(*this);
+				GameShotPrediction::WriteVerificationActual();
 			}
 
-			m_PhysicsClock.Reset();
+			m_RuntimeState->StopPhysicsCatchUp();
 			break;
 		}
 	}
@@ -1158,18 +1276,19 @@ void GameDebugController::DrawDiagnostics(Game& game)
 	GameUi::PrepareWindow("debugger", ImVec2(20, 70), ImVec2(570, 620));
 	ImGui::Begin("Ball Debugger", &GameUi::showDebugger);
 	const std::vector<PlayerBall*> players =
-		game.GetComponents<PlayerBall>();
+		GameRuntime::World().GetComponents<PlayerBall>();
 	const std::vector<EnemyBall*> enemies =
-		game.GetComponents<EnemyBall>();
-	ImGui::Text("Heavy Collision Count: %d", game.GetHeavyCollisionCount());
+		GameRuntime::World().GetComponents<EnemyBall>();
+	ImGui::Text("Heavy Stacks: %d", game.GetHeavyCollisionCount());
+	ImGui::Text("Pierce Stacks: %d", game.GetPierceTraceState().stackCount);
 	ImGui::Text("Pierce Trace: %d / %d",
 		static_cast<int>(game.GetPierceTraceState().traces.size()),
 		static_cast<int>(PierceTraceRules::MaxTraceCount));
 	for (const auto& trace : game.GetPierceTraceState().traces)
 	{
 		ImGui::BulletText(
-			"Trace #%llu  durability=%d  (%.1f, %.1f)->(%.1f, %.1f) dir=(%.2f, %.2f)",
-			static_cast<unsigned long long>(trace.id), trace.durability,
+			"Trace #%llu  (%.1f, %.1f)->(%.1f, %.1f) dir=(%.2f, %.2f)",
+			static_cast<unsigned long long>(trace.id),
 			trace.start.x, trace.start.z, trace.end.x, trace.end.z,
 			trace.direction.x, trace.direction.z);
 	}
@@ -1178,13 +1297,8 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		if (enemies[index] != nullptr)
 			ImGui::BulletText("Enemy[%d] Anchor Stack: %d",
 				static_cast<int>(index), enemies[index]->GetAnchorStacks());
-	ImGui::TextUnformatted("Cushion Stacks (regions 0-11):");
-	for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
-	{
-		if (region > 0) ImGui::SameLine();
-		ImGui::Text("%d:%d", region,
-			game.GetCushionCharges()[static_cast<std::size_t>(region)].stackCount);
-	}
+	ImGui::Text("Reflection Stacks: %d",
+		CushionChargeRules::TotalStacks(game.GetCushionCharges()));
 	ImGui::Separator();
 	if (this->m_DebugCombatForecastDirty)
 	{
@@ -1220,7 +1334,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		"フェーズ: %s",
 		GetIncomingDamagePhaseLabel(
 			game.GetBattleState(),
-			game.m_IsClearRewardActive));
+			game.IsClearRewardActive()));
 	if (forecast.hasPlayer)
 	{
 		ImGui::Text(
@@ -1419,7 +1533,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 
 	ImGui::Text(
 		"ClearReward = %s",
-		game.m_IsClearRewardActive
+		game.IsClearRewardActive()
 		? "true"
 		: "false");
 
@@ -1430,17 +1544,17 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		game.AreAllEnemiesDefeated() ? "true" : "false");
 
 	ImGui::Text("Player Run HP = %d / %d",
-		game.m_RunController.Status().currentHp,
-		game.m_RunController.Status().maxHp);
+		game.GetPlayerCurrentHp(),
+		game.GetPlayerMaxHp());
 	ImGui::Text("Draw Pile Count = %d", game.GetPlayerDeckCount());
 	ImGui::Text("Discard Pile Count = %d", game.GetPlayerDiscardCount());
-	ImGui::Text("Offer Count = %d", game.m_RunController.Deck().GetOfferCount());
-	ImGui::Text("Total Deck Count = %d", game.m_RunController.Deck().GetRewardTargetCount());
+	ImGui::Text("Offer Count = %d", game.GetBallOfferCount());
+	ImGui::Text("Total Deck Count = %d", game.GetDeckBallCount());
 	ImGui::Text("Current Ball Used = %s",
-		game.m_RunController.Deck().IsCurrentUsed() ? "true" : "false");
+		game.IsCurrentPlayerBallUsed() ? "true" : "false");
 
 	const PlayerBallData* currentDebugBall =
-		game.m_RunController.Deck().GetCurrent();
+		game.GetCurrentPlayerBallData();
 	if (currentDebugBall != nullptr)
 	{
 		ImGui::Text(
@@ -1458,46 +1572,51 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		ImGui::Text("Current Ball ID = none");
 	}
 
+	DebugAutomationSnapshot automation =
+		GameDebugHost::CaptureAutomation(game);
 	ImGui::BeginDisabled(game.IsDebugMode());
 	if (ImGui::Button(
-		game.m_BalanceAutoPlayer.IsEnabled()
+		automation.enabled
 			? "Stop Balance Auto Play"
 			: "Start Balance Auto Play"))
 	{
-		const bool startAutoPlay =
-			!game.m_BalanceAutoPlayer.IsEnabled();
-		game.m_BalanceAutoPlayer.SetEnabled(startAutoPlay);
-		game.m_BalanceAutoPlayer.SetStopAfterCurrentRunRequested(
+		const bool startAutoPlay = !automation.enabled;
+		GameDebugHost::SetAutoPlayEnabled(game, startAutoPlay);
+		GameDebugHost::SetStopAfterCurrentRunRequested(
+			game,
 			startAutoPlay &&
-			game.m_BalanceAutoPlayer.IsStopAfterCurrentRunDefault());
+			automation.stopAfterCurrentRunDefault);
+		automation = GameDebugHost::CaptureAutomation(game);
 	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
 	ImGui::Text(
 		"F8 / Runs: %d%s",
-		game.m_BalanceAutoPlayer.GetRunCount(),
-		game.m_BalanceAutoPlayer.GetMaximumRuns() > 0
+		automation.runCount,
+		automation.maximumRuns > 0
 			? " (limited)"
 			: " (unlimited)");
-	ImGui::BeginDisabled(!game.m_BalanceAutoPlayer.IsEnabled());
+	ImGui::BeginDisabled(!automation.enabled);
 	if (ImGui::Button(
-		game.m_BalanceAutoPlayer.IsStopAfterCurrentRunRequested()
+		automation.stopAfterCurrentRunRequested
 			? "Continue After This Run (F9)"
 			: "Stop At This Run End (F9)"))
 	{
-		game.m_BalanceAutoPlayer.SetStopAfterCurrentRunRequested(
-			!game.m_BalanceAutoPlayer.IsStopAfterCurrentRunRequested());
+		GameDebugHost::SetStopAfterCurrentRunRequested(
+			game,
+			!automation.stopAfterCurrentRunRequested);
+		automation = GameDebugHost::CaptureAutomation(game);
 	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
 	ImGui::TextUnformatted(
-		game.m_BalanceAutoPlayer.IsStopAfterCurrentRunRequested()
+		automation.stopAfterCurrentRunRequested
 			? "Stops on game over / game clear"
 			: "Continuous runs");
 
 	if (ImGui::Button("Save Debug Snapshot"))
 	{
-		game.SaveDebugSnapshot();
+		GameDebugHost::SaveSnapshot(game);
 	}
 	ImGui::SameLine();
 	ImGui::TextUnformatted("debug_state_snapshot.txt");
@@ -1515,7 +1634,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 
 	ImGui::Text(
 		"Player Money = %d",
-		game.m_RunController.Status().money
+		game.GetPlayerMoney()
 	);
 
 	ImGui::End();
@@ -1529,17 +1648,17 @@ void Game::Draw()
 {
 	Renderer::DrawStart();
 
-	m_Instance->m_World.Draw();
+	m_Instance->m_RuntimeState->World().Draw();
 
-	ImGui::BeginDisabled(m_Instance->m_IsPaused || m_Instance->m_DebugController->IsEditorOpen());
-	if (m_Instance->m_SceneManager.Get() != nullptr)
+	ImGui::BeginDisabled(m_Instance->IsPaused() || m_Instance->m_DebugController->IsEditorOpen());
+	if (m_Instance->GetCurrentScene() != nullptr)
 	{
-		m_Instance->m_SceneManager.Get()->DrawUI();
+		m_Instance->GetCurrentScene()->DrawUI();
 	}
 
 	m_Instance->m_DebugController->DrawDiagnostics(*m_Instance);
-	if (dynamic_cast<BattleScene*>(m_Instance->m_SceneManager.Get()) != nullptr &&
-		m_Instance->m_RunController.Deck().GetOfferCount() > 0)
+	if (dynamic_cast<BattleScene*>(m_Instance->GetCurrentScene()) != nullptr &&
+		m_Instance->m_RunController->Deck().GetOfferCount() > 0)
 	{
 		m_Instance->DrawBallSelectionUI();
 	}
@@ -1547,7 +1666,7 @@ void Game::Draw()
 	// ==========================
 	// 報酬UIを最後に重ねる
 	// ==========================
-	if (m_Instance->m_IsClearRewardActive)
+	if (m_Instance->IsClearRewardActive())
 	{
 		m_Instance->DrawClearRewardUI();
 	}
@@ -1560,12 +1679,12 @@ void Game::Draw()
 	}
 
 	m_Instance->DrawDebugMode();
-	if (m_Instance->m_IsPaused && !m_Instance->m_DebugController->IsEditorOpen())
+	if (m_Instance->IsPaused() && !m_Instance->m_DebugController->IsEditorOpen())
 	{
 		m_Instance->DrawPauseUI();
 	}
 
-	if (!m_Instance->m_SaveLoadMessage.empty())
+	if (!m_Instance->GetSaveLoadMessage().empty())
 	{
 		ImGui::SetNextWindowPos(GameUi::MainPosition(20.0f, ImGui::GetMainViewport()->WorkSize.y - 40.0f), ImGuiCond_Always);
 		ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
@@ -1576,7 +1695,7 @@ void Game::Draw()
 			ImGuiWindowFlags_NoInputs |
 			ImGuiWindowFlags_NoNav;
 		ImGui::Begin("##SaveLoadNotice", nullptr, saveNoticeFlags);
-		ImGui::TextUnformatted(m_Instance->m_SaveLoadMessage.c_str());
+		ImGui::TextUnformatted(m_Instance->GetSaveLoadMessage().c_str());
 		ImGui::End();
 	}
 
@@ -1730,7 +1849,7 @@ void Game::Uninit()
 {
 	if (m_Instance != nullptr)
 	{
-		m_Instance->m_SettingsManager.SaveIfDirty();
+		m_Instance->m_SettingsRuntime->SaveIfDirty();
 		m_Instance->m_GamePresentation.reset();
 		if (m_Instance->m_GameMcpBridge != nullptr)
 		{
@@ -1738,12 +1857,12 @@ void Game::Uninit()
 		}
 
 		const std::vector<PlayerBall*> players =
-			m_Instance->GetComponents<PlayerBall>();
+			GameRuntime::World().GetComponents<PlayerBall>();
 		const std::vector<EnemyBall*> enemies =
-			m_Instance->GetComponents<EnemyBall>();
+			GameRuntime::World().GetComponents<EnemyBall>();
 		const int playerHp =
 			players.empty() || players[0] == nullptr
-			? m_Instance->m_RunController.Status().currentHp
+			? m_Instance->m_RunController->Status().currentHp
 			: players[0]->GetHP();
 
 		BalanceLogger& logger =
@@ -1755,20 +1874,20 @@ void Game::Uninit()
 		logger.EndStage(
 			"application_exit",
 			playerHp,
-			m_Instance->m_RunController.Status().maxHp,
+			m_Instance->m_RunController->Status().maxHp,
 			CountDefeatedEnemies(enemies));
 		logger.EndRun(
 			"application_exit",
 			playerHp,
-			m_Instance->m_RunController.Status().maxHp,
-			m_Instance->m_RunController.Progress().GetClearedBattleCount());
+			m_Instance->m_RunController->Status().maxHp,
+			m_Instance->m_RunController->Progress().GetClearedBattleCount());
 	}
 
 	// カメラの終了処理
 	m_Instance->m_Camera.Uninit();
 
 	// オブジェクトの終了処理は所有者であるGameWorldへ委譲
-	m_Instance->m_World.Clear();
+	m_Instance->m_RuntimeState->World().Clear();
 
 
 	// 入力処理を終了
@@ -1787,10 +1906,55 @@ Game* Game::GetInstance()
 	return m_Instance;
 }
 
+Scene* Game::GetCurrentScene() const
+{
+	return m_RuntimeState->CurrentScene();
+}
+
+SceneType Game::GetCurrentSceneType() const
+{
+	return m_RuntimeState->CurrentSceneType();
+}
+
+bool Game::IsVibrationEnabled() const
+{
+	return m_SettingsRuntime->IsVibrationEnabled();
+}
+
+bool Game::IsScreenFlashEnabled() const
+{
+	return m_SettingsRuntime->IsScreenFlashEnabled();
+}
+
+bool Game::IsCameraShakeEnabled() const
+{
+	return m_SettingsRuntime->IsCameraShakeEnabled();
+}
+
+const std::string& Game::GetSaveLoadMessage() const
+{
+	return m_PersistenceRuntime->SaveLoadMessage();
+}
+
+const ProgressionProfile& Game::GetProgressionProfile() const
+{
+	return m_PersistenceRuntime->Profile();
+}
+
+const std::vector<std::string>& Game::GetLastProgressionUnlocks() const
+{
+	return m_PersistenceRuntime->LastProgressionUnlocks();
+}
+
+int Game::GetActiveAscension() const
+{
+	return m_PersistenceRuntime->ActiveAscension();
+}
+
 // GameObject生成要求を専用のGameWorldへ委譲
 GameObject* Game::CreateGameObject(const std::string& name)
 {
-	return m_World.Create(name);
+	return m_RuntimeState->World().Create(name);
 }
 
 // シーン遷移前後のゲーム固有処理を調停し、シーン寿命管理をSceneManagerへ委譲
@@ -1804,12 +1968,12 @@ void Game::ChangeScene(SceneType sceneType)
 
 	ResetFrameTiming();
 	int score = 0;
-	Scene* currentScene = m_Instance->m_SceneManager.Get();
+	Scene* currentScene = m_Instance->GetCurrentScene();
 
 	if (currentScene != nullptr)
 	{
 		m_Instance->CaptureCurrentPlayerStatus();
-		if (!m_Instance->m_IsRestoringRunSave &&
+		if (!m_Instance->m_PersistenceRuntime->IsRestoringRunSave() &&
 			(sceneType == SceneType::Select ||
 			 sceneType == SceneType::Battle ||
 			 sceneType == SceneType::RestSite ||
@@ -1830,25 +1994,25 @@ void Game::ChangeScene(SceneType sceneType)
 	// =====================================
 	if (sceneType == SceneType::Battle)
 	{
-		m_IsClearRewardActive = false;
+		m_RewardState->Deactivate();
 		m_LastBattleResult = BattleResult::None;
 
-		m_BattleController.StartBattle();
+		m_BattleState->controller.StartBattle();
 
-		m_RunController.Deck().Reset();
+		m_RunController->Deck().Reset();
 
 		if (!BeginBallSelection())
 		{
-			m_BattleController.NotifyPlayerDefeated();
+			m_BattleState->controller.NotifyPlayerDefeated();
 		}
 
-		m_RunController.BeginStageReward();
-		m_RewardMessage.clear();
+		m_RunController->BeginStageReward();
+		m_RewardState->ClearMessage();
 	}
 	else
 	{
-		m_IsClearRewardActive = false;
-		m_BattleController.Reset();
+		m_RewardState->Deactivate();
+		m_BattleState->controller.Reset();
 	}
 
 	if (sceneType == SceneType::Title && IsDebugMode())
@@ -1856,11 +2020,11 @@ void Game::ChangeScene(SceneType sceneType)
 		EndDebugMode();
 	}
 
-	if (!m_Instance->m_SceneManager.Change(sceneType))
+	if (!m_Instance->m_RuntimeState->ChangeScene(sceneType))
 	{
 		if (sceneType == SceneType::Battle)
 		{
-			m_BattleController.Reset();
+			m_BattleState->controller.Reset();
 		}
 		std::cerr << "[Game] シーンの生成に失敗しました" << std::endl;
 		return;
@@ -1869,7 +2033,7 @@ void Game::ChangeScene(SceneType sceneType)
 	if (sceneType == SceneType::Result)
 	{
 		if (ResultScene* resultScene = dynamic_cast<ResultScene*>(
-			m_Instance->m_SceneManager.Get()))
+			m_Instance->GetCurrentScene()))
 		{
 			resultScene->SetScore(score);
 		}
@@ -1881,45 +2045,39 @@ void Game::ChangeScene(SceneType sceneType)
 // GameObject削除要求を専用のGameWorldへ委譲
 void Game::DeleteGameObject(GameObject* gameObject)
 {
-	m_World.RequestDestroy(gameObject);
+	m_RuntimeState->World().RequestDestroy(gameObject);
 }
 
 // 削除要求済みGameObjectの破棄を専用のGameWorldへ委譲
 void Game::RemoveDestroyedGameObjects()
 {
-	m_World.RemoveDestroyed();
+	m_RuntimeState->World().RemoveDestroyed();
 }
 
 // ゲーム空間に存在するすべてのGameObjectを終了して破棄
 void Game::DeleteAllGameObjects()
 {
-	m_World.Clear();
-}
-
-// 指定したGameObjectが現在のGameWorldに存在するかを返す。
-bool Game::ContainsGameObject(const GameObject* gameObject) const
-{
-	return m_World.Contains(gameObject);
+	m_RuntimeState->World().Clear();
 }
 
 // All Enemies Defeatedかどうかを判定
 bool Game::AreAllEnemiesDefeated() const
 {
-	return m_BattleController.AreAllEnemiesDefeated();
+	return m_BattleState->controller.AreAllEnemiesDefeated();
 }
 
 // Current Pocket Finisher Ratioを取得
 float Game::GetCurrentPocketFinisherRatio() const
 {
-	switch (m_BattleController.GetStageType())
+	switch (m_BattleState->controller.GetStageType())
 	{
 	case StageType::MidBoss:
-		return m_BattleController.PocketRules().midBossFinisherRatio;
+		return m_BattleState->controller.PocketRules().midBossFinisherRatio;
 	case StageType::Boss:
-		return m_BattleController.PocketRules().bossFinisherRatio;
+		return m_BattleState->controller.PocketRules().bossFinisherRatio;
 	case StageType::Normal:
 	default:
-		return m_BattleController.PocketRules().normalFinisherRatio;
+		return m_BattleState->controller.PocketRules().normalFinisherRatio;
 	}
 }
 
@@ -1942,8 +2100,8 @@ bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 int Game::GetPlayerPocketDamageAmount() const
 {
 	return (std::max)(1, static_cast<int>(std::ceil(
-		static_cast<float>(m_RunController.Status().maxHp) *
-		m_BattleController.PocketRules().playerDamageRatio)));
+		static_cast<float>(m_RunController->Status().maxHp) *
+		m_BattleState->controller.PocketRules().playerDamageRatio)));
 }
 
 // Enemy Pocketを処理
@@ -1986,7 +2144,7 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 			"enemy_pocket_finisher",
 			{
 				{ "enemy_id", enemy->GetEnemyId() },
-				{ "stage_type", ToString(m_BattleController.GetStageType()) },
+				{ "stage_type", ToString(m_BattleState->controller.GetStageType()) },
 				{ "hp_before", hpBefore },
 				{ "max_hp", maxHp },
 				{ "hp_ratio", hpRatio },
@@ -2002,35 +2160,35 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		false,
 		false,
 		pocketDamage);
-	m_BattleController.QueuePocketedEnemy(enemy);
+	m_BattleState->controller.QueuePocketedEnemy(enemy);
 	RecordBalanceEvent(
 		"enemy_pocket_controlled",
 		{
 			{ "enemy_id", enemy->GetEnemyId() },
-			{ "stage_type", ToString(m_BattleController.GetStageType()) },
+			{ "stage_type", ToString(m_BattleState->controller.GetStageType()) },
 			{ "hp", enemy->GetHP() },
 			{ "max_hp", maxHp },
 			{ "hp_ratio", hpRatio },
 			{ "finisher_ratio", finisherRatio },
-			{ "queue_size", m_BattleController.GetPocketQueueSize() },
+			{ "queue_size", m_BattleState->controller.GetPocketQueueSize() },
 		});
 }
 
 // Pocket Queue Indexを取得
 int Game::GetPocketQueueIndex(const EnemyBall* enemy) const
 {
-	return m_BattleController.GetPocketQueueIndex(enemy);
+	return m_BattleState->controller.GetPocketQueueIndex(enemy);
 }
 
 // Player Pocket Return Positionを検索
 Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 {
 	std::uniform_real_distribution<float> xDistribution(
-		-m_BattleController.PocketRules().playerReturnHalfWidth,
-		m_BattleController.PocketRules().playerReturnHalfWidth);
+		-m_BattleState->controller.PocketRules().playerReturnHalfWidth,
+		m_BattleState->controller.PocketRules().playerReturnHalfWidth);
 	std::uniform_real_distribution<float> zDistribution(
-		-m_BattleController.PocketRules().playerReturnHalfDepth,
-		m_BattleController.PocketRules().playerReturnHalfDepth);
+		-m_BattleState->controller.PocketRules().playerReturnHalfDepth,
+		m_BattleState->controller.PocketRules().playerReturnHalfDepth);
 	const float playerRadius = player != nullptr && player->GetBall() != nullptr
 		? player->GetBall()->GetRadius()
 		: 2.4f;
@@ -2038,11 +2196,12 @@ Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 	for (int attempt = 0; attempt < 24; attempt++)
 	{
 		const Vector3 candidate(
-			xDistribution(m_BattleController.PocketRandomEngine()),
+			xDistribution(m_BattleState->controller.PocketRandomEngine()),
 			TableConfig::FIELD_HEIGHT,
-			zDistribution(m_BattleController.PocketRandomEngine()));
+			zDistribution(m_BattleState->controller.PocketRandomEngine()));
 		bool blocked = false;
-		for (BallComponent* ball : GetComponents<BallComponent>())
+		for (BallComponent* ball :
+			GameRuntime::World().GetComponents<BallComponent>())
 		{
 			if (ball == nullptr || ball->GetGameObject() == nullptr ||
 				!ball->GetGameObject()->IsActive() ||
@@ -2070,7 +2229,8 @@ Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 // Pocketed Playerを復元
 void Game::RestorePocketedPlayer()
 {
-	for (PlayerBall* player : GetComponents<PlayerBall>())
+	for (PlayerBall* player :
+		GameRuntime::World().GetComponents<PlayerBall>())
 	{
 		if (player == nullptr || player->IsDefeated() ||
 			!player->IsPocketed())
@@ -2102,7 +2262,7 @@ Vector3 Game::FindEnemyPocketReturnPosition(
 		: Vector3(0.0f, TableConfig::FIELD_HEIGHT,
 			TableConfig::GetFieldDepth() * 0.5f);
 	const float inwardDistance = (std::max)(
-		m_BattleController.PocketRules().enemyReturnTopEdgeOffset,
+		m_BattleState->controller.PocketRules().enemyReturnTopEdgeOffset,
 		TableConfig::POCKET_RADIUS + radius + 0.5f);
 	const Vector3 basePosition = PocketReturnRules::ReturnAnchor(
 		pocketEntryPosition,
@@ -2132,7 +2292,8 @@ Vector3 Game::FindEnemyPocketReturnPosition(
 				continue;
 			}
 			bool blocked = false;
-			for (BallComponent* ball : m_Instance->GetComponents<BallComponent>())
+			for (BallComponent* ball :
+				GameRuntime::World().GetComponents<BallComponent>())
 			{
 				if (ball == nullptr || ball->GetGameObject() == nullptr ||
 					!ball->GetGameObject()->IsActive() ||
@@ -2165,9 +2326,9 @@ Vector3 Game::FindEnemyPocketReturnPosition(
 // Next Pocketed Enemyを復元
 void Game::RestoreNextPocketedEnemy()
 {
-	while (m_BattleController.GetPocketQueueSize() > 0)
+	while (m_BattleState->controller.GetPocketQueueSize() > 0)
 	{
-		EnemyBall* enemy = m_BattleController.PopPocketedEnemy();
+		EnemyBall* enemy = m_BattleState->controller.PopPocketedEnemy();
 		if (enemy == nullptr || !ContainsComponent(enemy) ||
 			enemy->IsDefeated() || !enemy->IsPocketed())
 		{
@@ -2185,7 +2346,7 @@ void Game::RestoreNextPocketedEnemy()
 				{ "pocket_entry_z", enemy->GetPocketEntryPosition().z },
 				{ "position_x", returnPosition.x },
 				{ "position_z", returnPosition.z },
-				{ "remaining_queue_size", m_BattleController.GetPocketQueueSize() },
+				{ "remaining_queue_size", m_BattleState->controller.GetPocketQueueSize() },
 			});
 		break;
 	}
@@ -2202,29 +2363,34 @@ void Game::FinalizeRunResult(bool completed)
 			acquiredRelics.push_back(relic.type);
 		}
 	}
-	m_LastRunResult = m_RunStatistics.CreateSnapshot(
+	RunResultSnapshot result = m_PersistenceRuntime->Statistics().CreateSnapshot(
 		completed,
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp,
+		m_RunController->Status().currentHp,
+		m_RunController->Status().maxHp,
 		acquiredRelics);
-	m_LastRunResult.clearedBattles =
-		m_RunController.Progress().GetClearedBattleCount();
+	result.clearedBattles =
+		m_RunController->Progress().GetClearedBattleCount();
+	CompleteRunSession(std::move(result));
 	RecordPersistentProgress();
 }
 
 // Persistent Progressを記録
 void Game::RecordPersistentProgress()
 {
-	m_LastProgressionUnlocks.clear();
-	if (!m_PersistentProgressEligible) return;
+	auto& unlocks = m_PersistenceRuntime->LastProgressionUnlocks();
+	unlocks.clear();
+	if (!m_PersistenceRuntime->PersistentProgressEligible()) return;
 	try
 	{
-		m_LastProgressionUnlocks = m_ProgressionProfile.RecordRun(m_LastRunResult, m_ActiveAscension);
-		m_ProgressionProfile.Save();
+		unlocks = m_PersistenceRuntime->Profile().RecordRun(
+			GetLastRunResult(),
+			m_PersistenceRuntime->ActiveAscension());
+		m_PersistenceRuntime->Profile().Save();
 	}
 	catch (const std::exception& e)
 	{
-		m_LastProgressionUnlocks.push_back(std::string("恒久進行を保存できませんでした：") + e.what());
+		unlocks.push_back(
+			std::string("恒久進行を保存できませんでした：") + e.what());
 	}
 }
 
@@ -2232,8 +2398,12 @@ void Game::RecordPersistentProgress()
 void Game::SetSelectedAscension(int level)
 {
 	if (HasValidRunSave()) return;
-	m_ProgressionProfile.selectedAscension = std::clamp(level, 0, m_ProgressionProfile.highestUnlockedAscension);
-	try { m_ProgressionProfile.Save(); } catch (...) {}
+	auto& profile = m_PersistenceRuntime->Profile();
+	profile.selectedAscension = std::clamp(
+		level,
+		0,
+		profile.highestUnlockedAscension);
+	try { profile.Save(); } catch (...) {}
 }
 
 // Normal Route Areaを完了
@@ -2241,28 +2411,28 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 {
 	// 現在の通常エリアを完了し、ラン進行と関連ログを同期
 	const bool longValidationRun =
-		m_BalanceValidationController.UsesExtendedRoute(
+		m_BalanceRuntime->validation.UsesExtendedRoute(
 			kNormalRouteAreaGoal);
 	const AreaCompletionResult completion =
-		m_RunController.Progress().CompleteNormalArea(
+		m_RunController->Progress().CompleteNormalArea(
 			longValidationRun,
-			m_BalanceValidationController.GetMaximumClearedStages(),
-			m_RouteSelectionSeed + static_cast<std::uint32_t>(
-				m_RunController.Progress().GetAreaProgress() + 1));
+			m_BalanceRuntime->validation.GetMaximumClearedStages(),
+			m_BalanceRuntime->routeSelectionSeed + static_cast<std::uint32_t>(
+				m_RunController->Progress().GetAreaProgress() + 1));
 	if (completion == AreaCompletionResult::Rejected)
 	{
 		return;
 	}
 
-	const int areaProgress = m_RunController.Progress().GetAreaProgress();
-	m_RunController.Status().progress = (std::min)(
+	const int areaProgress = m_RunController->Progress().GetAreaProgress();
+	m_RunController->Status().progress = (std::min)(
 		kNormalRouteAreaGoal,
 		areaProgress + 1);
-	m_RunStatistics.CompleteArea(areaProgress);
+	m_PersistenceRuntime->Statistics().CompleteArea(areaProgress);
 	RecordBalanceEvent(
 		"route_area_completed",
 		{
-			{ "map_path", m_RunController.Progress().GetMap().Path() },
+			{ "map_path", m_RunController->Progress().GetMap().Path() },
 			{ "area_type", areaType != nullptr ? areaType : "unknown" },
 			{ "area_progress", areaProgress },
 			{ "area_goal", kNormalRouteAreaGoal },
@@ -2272,11 +2442,11 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 	{
 		RecordBalanceEvent(
 			"run_map_extended",
-			m_RunController.Progress().GetMap().Snapshot());
+			m_RunController->Progress().GetMap().Snapshot());
 	}
 	if (completion == AreaCompletionResult::BossPreparationEntered)
 	{
-		m_RunController.Status().progress = kNormalRouteAreaGoal;
+		m_RunController->Status().progress = kNormalRouteAreaGoal;
 		RecordBalanceEvent(
 			"boss_preparation_entered",
 			{
@@ -2289,7 +2459,7 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 void Game::EnterNextRouteAfterArea()
 {
 	// 現在のランフェーズに応じて次のルート選択先へ遷移
-	if (m_RunController.Progress().IsBossPreparation())
+	if (m_RunController->Progress().IsBossPreparation())
 	{
 		ChangeScene(SceneType::RestSite);
 	}
@@ -2310,17 +2480,17 @@ void Game::LeaveShop()
 void Game::LeaveRestSite()
 {
 	// 休憩所の利用完了を記録して次のルートへ進める。
-	if (m_RunController.Progress().IsBossPreparation())
+	if (m_RunController->Progress().IsBossPreparation())
 	{
-		if (!m_RunController.Progress().CompleteBossPreparation())
+		if (!m_RunController->Progress().CompleteBossPreparation())
 		{
 			return;
 		}
 		RecordBalanceEvent(
 			"boss_preparation_completed",
 			{
-				{ "area_progress", m_RunController.Progress().GetAreaProgress() },
-				{ "next_phase", ToString(m_RunController.Progress().GetPhase()) },
+				{ "area_progress", m_RunController->Progress().GetAreaProgress() },
+				{ "next_phase", ToString(m_RunController->Progress().GetPhase()) },
 			});
 		ChangeScene(SceneType::Select);
 		return;
@@ -2333,8 +2503,7 @@ void Game::LeaveRestSite()
 // Continue After Clear Reward の処理を実行
 void Game::ContinueAfterClearReward()
 {
-	m_IsClearRewardActive = false;
-	m_ClearRewardBallOfferCatalogIndices.clear();
+	m_RewardState->Exit();
 	EnterNextRouteAfterArea();
 }
 
@@ -2342,22 +2511,21 @@ void Game::ContinueAfterClearReward()
 void Game::CompleteFinalBossRun()
 {
 	// 最終ボス撃破時のラン完了処理と永続結果を確定
-	m_RunController.Progress().RecordBattleCleared();
-	m_RunStatistics.DefeatFinalBoss();
-	m_RunController.Progress().CompleteFinalBoss();
+	m_RunController->Progress().RecordBattleCleared();
+	m_PersistenceRuntime->Statistics().DefeatFinalBoss();
+	m_RunController->Progress().CompleteFinalBoss();
 	RecordBalanceEvent(
 		"final_boss_defeated",
 		{
-			{ "stage_id", m_RunController.Status().GetSelectedStageId() },
-			{ "area_progress", m_RunController.Progress().GetAreaProgress() },
-			{ "cleared_battle_count", m_RunController.Progress().GetClearedBattleCount() },
+			{ "stage_id", m_RunController->Status().GetSelectedStageId() },
+			{ "area_progress", m_RunController->Progress().GetAreaProgress() },
+			{ "cleared_battle_count", m_RunController->Progress().GetClearedBattleCount() },
 		});
 	BalanceLogger::GetInstance().EndRun(
 		"completed",
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp,
-		m_RunController.Progress().GetClearedBattleCount());
-	m_RunActive = false;
+		m_RunController->Status().currentHp,
+		m_RunController->Status().maxHp,
+		m_RunController->Progress().GetClearedBattleCount());
 	FinalizeRunResult(true);
 	GameSaveManager::Remove();
 	ChangeScene(SceneType::Result);
@@ -2366,29 +2534,27 @@ void Game::CompleteFinalBossRun()
 // Game Overを処理
 void Game::ProcessGameOver()
 {
-	m_IsClearRewardActive = false;
-	m_ClearRewardBallOfferCatalogIndices.clear();
+	m_RewardState->Exit();
 	if (IsDebugMode()) { FinishDebugBattle(false); return; }
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
-		GetComponents<EnemyBall>();
+		GameRuntime::World().GetComponents<EnemyBall>();
 	BalanceLogger& logger = BalanceLogger::GetInstance();
 	logger.EndShot(
-		m_RunController.Status().currentHp,
+		m_RunController->Status().currentHp,
 		CountAliveEnemies(enemies),
 		CountDefeatedEnemies(enemies));
 	logger.EndStage(
 		"game_over",
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp,
+		m_RunController->Status().currentHp,
+		m_RunController->Status().maxHp,
 		CountDefeatedEnemies(enemies));
 	logger.EndRun(
 		"game_over",
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp,
-		m_RunController.Progress().GetClearedBattleCount());
-	m_RunActive = false;
+		m_RunController->Status().currentHp,
+		m_RunController->Status().maxHp,
+		m_RunController->Progress().GetClearedBattleCount());
 	FinalizeRunResult(false);
 	GameSaveManager::Remove();
 
@@ -2398,9 +2564,9 @@ void Game::ProcessGameOver()
 // Clear Rewardの新規ボール候補を、重複を許して3枠抽選
 void Game::RollClearRewardBallOffers()
 {
-	m_ClearRewardBallOfferCatalogIndices =
-		m_RunController.Deck().RollCatalogOfferIndices(
-			kClearRewardBallOfferSize);
+	m_RewardState->SetBallOffers(
+		m_RunController->Deck().RollCatalogOfferIndices(
+			kClearRewardBallOfferSize));
 }
 
 // Clear Rewardを開始
@@ -2410,19 +2576,19 @@ void Game::StartClearReward()
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
-		GetComponents<EnemyBall>();
+		GameRuntime::World().GetComponents<EnemyBall>();
 	BalanceLogger& logger = BalanceLogger::GetInstance();
 	logger.EndShot(
-		m_RunController.Status().currentHp,
+		m_RunController->Status().currentHp,
 		CountAliveEnemies(enemies),
 		CountDefeatedEnemies(enemies));
 	logger.EndStage(
 		"clear",
-		m_RunController.Status().currentHp,
-		m_RunController.Status().maxHp,
+		m_RunController->Status().currentHp,
+		m_RunController->Status().maxHp,
 		CountDefeatedEnemies(enemies));
-	if (m_RunController.Progress().GetPhase() == RunPhase::FinalBoss &&
-		m_BattleController.GetStageType() == StageType::Boss)
+	if (m_RunController->Progress().GetPhase() == RunPhase::FinalBoss &&
+		m_BattleState->controller.GetStageType() == StageType::Boss)
 	{
 		// 最終ボス後は、以後使えないMoneyや取得物を選ばせない。
 		CompleteFinalBossRun();
@@ -2441,44 +2607,38 @@ void Game::StartClearReward()
 		}
 	}
 
-	m_SelectedRewardIndex = 0;
-	m_SelectedRewardBallIndex = 0;
-	m_IsClearRewardChosen = false;
-	m_ClearRewardMouseConfirmed = false;
-	m_RewardMessage = UiText::ChooseClearReward;
-	m_IsMidBossRelicSelectionActive = false;
-	m_RunController.MidBossRelicOffers().clear();
-	if (m_BattleController.GetStageType() == StageType::MidBoss)
+	m_RewardState->Prepare(UiText::ChooseClearReward);
+	m_RunController->MidBossRelicOffers().clear();
+	if (m_BattleState->controller.GetStageType() == StageType::MidBoss)
 	{
 		RollMidBossRelicOffers();
 	}
-	m_RunController.Progress().RecordBattleCleared();
-	if (m_BattleController.GetStageType() == StageType::MidBoss)
+	m_RunController->Progress().RecordBattleCleared();
+	if (m_BattleState->controller.GetStageType() == StageType::MidBoss)
 	{
-		m_RunStatistics.DefeatMidBoss();
+		m_PersistenceRuntime->Statistics().DefeatMidBoss();
 	}
 	CompleteNormalRouteArea(
-		m_BattleController.GetStageType() == StageType::MidBoss
+		m_BattleState->controller.GetStageType() == StageType::MidBoss
 		? "midboss_battle"
 		: "normal_battle");
-	if (m_BalanceValidationController.HasReachedMaximumClearedStages(
-		m_RunController.Progress().GetClearedBattleCount(),
+	if (m_BalanceRuntime->validation.HasReachedMaximumClearedStages(
+		m_RunController->Progress().GetClearedBattleCount(),
 		kNormalRouteAreaGoal))
 	{
 		RecordBalanceEvent(
 			"balance_validation_run_completed",
 			{
 				{ "reason", "maximum_cleared_stages_reached" },
-				{ "cleared_stage_count", m_RunController.Progress().GetClearedBattleCount() },
+				{ "cleared_stage_count", m_RunController->Progress().GetClearedBattleCount() },
 				{ "maximum_cleared_stages",
-					m_BalanceValidationController.GetMaximumClearedStages() },
+					m_BalanceRuntime->validation.GetMaximumClearedStages() },
 			});
 		logger.EndRun(
 			"validation_complete",
-			m_RunController.Status().currentHp,
-			m_RunController.Status().maxHp,
-			m_RunController.Progress().GetClearedBattleCount());
-		m_RunActive = false;
+			m_RunController->Status().currentHp,
+			m_RunController->Status().maxHp,
+			m_RunController->Progress().GetClearedBattleCount());
 		FinalizeRunResult(true);
 		GameSaveManager::Remove();
 		ChangeScene(SceneType::Result);
@@ -2506,10 +2666,10 @@ void Game::StartClearReward()
 	}
 	nlohmann::json upgradeCandidates = nlohmann::json::array();
 	for (int index = 0;
-		index < m_RunController.Deck().GetRewardTargetCount();
+		index < m_RunController->Deck().GetRewardTargetCount();
 		index++)
 	{
-		const PlayerBallData* ball = m_RunController.Deck().GetRewardTarget(index);
+		const PlayerBallData* ball = m_RunController->Deck().GetRewardTarget(index);
 		if (ball != nullptr && ball->CanUpgrade())
 		{
 			const int upgradeCost =
@@ -2523,7 +2683,7 @@ void Game::StartClearReward()
 					{ "upgrade_cost", upgradeCost },
 					{ "affordable",
 						upgradeCost >= 0 &&
-						m_RunController.Status().money >= upgradeCost },
+						m_RunController->Status().money >= upgradeCost },
 				});
 		}
 	}
@@ -2545,13 +2705,13 @@ void Game::StartClearReward()
 			},
 			{ "extra_money_amount", kClearRewardExtraMoney },
 		});
-	m_IsClearRewardActive = true;
+	m_RewardState->Activate();
 }
 
 // Current Stageを完了
 void Game::CompleteCurrentStage()
 {
-	if (!m_IsClearRewardActive)
+	if (!IsClearRewardActive())
 	{
 		StartClearReward();
 	}
@@ -2561,8 +2721,8 @@ void Game::CompleteCurrentStage()
 StageType Game::GetScheduledStageType() const
 {
 	// 現在のランフェーズから次に開始すべき戦闘種別を返す。
-	if (m_RunController.Progress().GetPhase() == RunPhase::FinalBossReady ||
-		m_RunController.Progress().GetPhase() == RunPhase::FinalBoss)
+	if (m_RunController->Progress().GetPhase() == RunPhase::FinalBossReady ||
+		m_RunController->Progress().GetPhase() == RunPhase::FinalBoss)
 	{
 		return StageType::Boss;
 	}
@@ -2579,92 +2739,88 @@ void Game::StartNextBattle()
 void Game::StartNextBattle(StageType stageType)
 {
 	// 選択された戦闘種別に対応するステージを確定して戦闘へ遷移
-	const bool enteringFinalBoss = m_RunController.Progress().BeginFinalBoss();
+	const bool enteringFinalBoss = m_RunController->Progress().BeginFinalBoss();
 	if (enteringFinalBoss)
 	{
 		stageType = StageType::Boss;
 	}
 	const std::string previousStageId =
-		m_RunController.Status().GetSelectedStageId().empty()
-		? m_RunController.Status().GetLastStageId()
-		: m_RunController.Status().GetSelectedStageId();
+		m_RunController->Status().GetSelectedStageId().empty()
+		? m_RunController->Status().GetLastStageId()
+		: m_RunController->Status().GetSelectedStageId();
 
-	if (m_McpNextStageOverride.has_value())
+	if (StageData* overrideStage =
+		m_StageOverrideState->PromoteQueuedToCurrent())
 	{
-		m_McpCurrentStageOverride =
-			std::move(m_McpNextStageOverride.value());
-		m_McpNextStageOverride.reset();
-		m_RunController.Status().SetLastStageId(previousStageId);
-		m_RunController.Status().SetSelectedStageId(
-			m_McpCurrentStageOverride->id);
+		m_RunController->Status().SetLastStageId(previousStageId);
+		m_RunController->Status().SetSelectedStageId(
+			overrideStage->id);
 		if (enteringFinalBoss)
 		{
-			m_McpCurrentStageOverride->stageType = StageType::Boss;
+			overrideStage->stageType = StageType::Boss;
 		}
 		ChangeScene(SceneType::Battle);
 		return;
 	}
 
-	m_McpCurrentStageOverride.reset();
+	m_StageOverrideState->ClearCurrent();
 	const std::vector<StageData> stages = StageDataLoader::LoadAll(
 		"assets/data/stage_01.json",
 		"assets/data/enemy_data.json");
 
-	const StageData* selectedStage = m_RunController.StageSelection().SelectStage(
+	const StageData* selectedStage = m_RunController->StageSelection().SelectStage(
 		stages,
 		stageType,
-		m_RunController.Status().progress,
+		m_RunController->Status().progress,
 		previousStageId);
 	if (selectedStage == nullptr)
 	{
-		m_RunController.Progress().CancelActiveNode();
+		m_RunController->Progress().CancelActiveNode();
 		if (enteringFinalBoss)
 		{
-			m_RunController.Progress().CancelFinalBossStart();
+			m_RunController->Progress().CancelFinalBossStart();
 		}
 		std::cerr << "[Game] 戦闘ステージを選択できなかったため、"
 			"シーン遷移を中止します" << std::endl;
 		return;
 	}
 
-	m_RunController.Status().SetLastStageId(previousStageId);
-	m_RunController.Status().SetSelectedStageId(selectedStage->id);
+	m_RunController->Status().SetLastStageId(previousStageId);
+	m_RunController->Status().SetSelectedStageId(selectedStage->id);
 	ChangeScene(SceneType::Battle);
 }
 
 // Clear Rewardを更新
 void Game::UpdateClearReward()
 {
-	const bool confirmed = std::exchange(m_ClearRewardMouseConfirmed, false) ||
+	const bool confirmed = m_RewardState->ConsumeConfirmationRequest() ||
 		Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE);
-	if (m_IsMidBossRelicSelectionActive)
+	if (m_RewardState->IsMidBossRelicSelectionActive())
 	{
 		const int offerCount = GetMidBossRelicOfferCount();
 		if (offerCount <= 0)
 		{
-			m_IsMidBossRelicSelectionActive = false;
+			m_RewardState->FinishMidBossRelicSelection();
 			return;
 		}
 		if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A) ||
 			Input::GetKeyTrigger(VK_UP) || Input::GetKeyTrigger(VK_W))
 		{
-			m_SelectedRelicOfferIndex =
-				(m_SelectedRelicOfferIndex + offerCount - 1) % offerCount;
+			m_RewardState->SelectPreviousRelic(offerCount);
 		}
 		if (Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D) ||
 			Input::GetKeyTrigger(VK_DOWN) || Input::GetKeyTrigger(VK_S))
 		{
-			m_SelectedRelicOfferIndex =
-				(m_SelectedRelicOfferIndex + 1) % offerCount;
+			m_RewardState->SelectNextRelic(offerCount);
 		}
 		if (confirmed)
 		{
-			AcquireMidBossRelicOffer(m_SelectedRelicOfferIndex);
+			AcquireMidBossRelicOffer(m_RewardState->SelectedRelicOfferIndex());
 		}
 		return;
 	}
 
-	if (m_IsClearRewardChosen)
+	if (m_RewardState->IsChosen())
 	{
 		if (confirmed)
 		{
@@ -2675,36 +2831,32 @@ void Game::UpdateClearReward()
 
 	if (Input::GetKeyTrigger(VK_UP) || Input::GetKeyTrigger(VK_W))
 	{
-		m_SelectedRewardIndex =
-			(m_SelectedRewardIndex + kClearRewardCount - 1) % kClearRewardCount;
-		m_SelectedRewardBallIndex = 0;
+		m_RewardState->SelectPreviousReward(kClearRewardCount);
 	}
 	if (Input::GetKeyTrigger(VK_DOWN) || Input::GetKeyTrigger(VK_S))
 	{
-		m_SelectedRewardIndex = (m_SelectedRewardIndex + 1) % kClearRewardCount;
-		m_SelectedRewardBallIndex = 0;
+		m_RewardState->SelectNextReward(kClearRewardCount);
 	}
 
 	int targetCount = 0;
-	if (m_SelectedRewardIndex == 0)
+	if (m_RewardState->SelectedRewardIndex() == 0)
 	{
 		targetCount = GetClearRewardBallOfferCount();
 	}
-	else if (m_SelectedRewardIndex == 1)
+	else if (m_RewardState->SelectedRewardIndex() == 1)
 	{
-		targetCount = m_RunController.Deck().GetRewardTargetCount();
+		targetCount = m_RunController->Deck().GetRewardTargetCount();
 	}
 
 	if (targetCount > 0)
 	{
 		if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A))
 		{
-			m_SelectedRewardBallIndex =
-				(m_SelectedRewardBallIndex + targetCount - 1) % targetCount;
+			m_RewardState->SelectPreviousBall(targetCount);
 		}
 		if (Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D))
 		{
-			m_SelectedRewardBallIndex = (m_SelectedRewardBallIndex + 1) % targetCount;
+			m_RewardState->SelectNextBall(targetCount);
 		}
 	}
 
@@ -2716,40 +2868,46 @@ void Game::UpdateClearReward()
 	bool rewardApplied = false;
 	nlohmann::json rewardDetails =
 	{
-		{ "money_before", m_RunController.Status().money },
+		{ "money_before", m_RunController->Status().money },
 	};
-	switch (m_SelectedRewardIndex)
+	switch (m_RewardState->SelectedRewardIndex())
 	{
 	case 0:
 	{
 		std::string acquiredBallId;
 		const int catalogIndex =
-			GetClearRewardBallOfferCatalogIndex(m_SelectedRewardBallIndex);
+			GetClearRewardBallOfferCatalogIndex(
+				m_RewardState->SelectedRewardBallIndex());
 		if (const PlayerBallData* selected =
-			GetClearRewardBallOffer(m_SelectedRewardBallIndex))
+			GetClearRewardBallOffer(
+				m_RewardState->SelectedRewardBallIndex()))
 		{
 			acquiredBallId = selected->definitionId;
 			rewardDetails["reward"] = "new_ball";
 			rewardDetails["ball_id"] = selected->definitionId;
-			rewardDetails["offer_index"] = m_SelectedRewardBallIndex;
+			rewardDetails["offer_index"] =
+				m_RewardState->SelectedRewardBallIndex();
 			rewardDetails["catalog_index"] = catalogIndex;
 		}
-		rewardApplied = AddClearRewardBallOffer(m_SelectedRewardBallIndex);
+		rewardApplied = AddClearRewardBallOffer(
+			m_RewardState->SelectedRewardBallIndex());
 		if (rewardApplied)
 		{
 			PublishGameEvent(BallAcquiredEvent{ acquiredBallId });
 		}
-		m_RewardMessage = rewardApplied
+		m_RewardState->SetMessage(rewardApplied
 			? UiText::NewBallAdded
-			: UiText::NoBallAvailable;
+			: UiText::NoBallAvailable);
 		break;
 	}
 	case 1:
 	{
 		const PlayerBallData* selected =
-			m_RunController.Deck().GetRewardTarget(m_SelectedRewardBallIndex);
+			m_RunController->Deck().GetRewardTarget(
+				m_RewardState->SelectedRewardBallIndex());
 		const int upgradeCost =
-			GetClearRewardUpgradeCost(m_SelectedRewardBallIndex);
+			GetClearRewardUpgradeCost(
+				m_RewardState->SelectedRewardBallIndex());
 		if (selected != nullptr)
 		{
 			rewardDetails["reward"] = "upgrade_ball";
@@ -2760,30 +2918,30 @@ void Game::UpdateClearReward()
 		}
 		if (upgradeCost < 0)
 		{
-			m_RewardMessage = UiText::BallAlreadyMax;
+			m_RewardState->SetMessage(UiText::BallAlreadyMax);
 		}
-		else if (m_RunController.Status().money < upgradeCost)
+		else if (m_RunController->Status().money < upgradeCost)
 		{
-			m_RewardMessage = UiText::UpgradeMoneyShortage;
+			m_RewardState->SetMessage(UiText::UpgradeMoneyShortage);
 		}
 		else
 		{
 			int chargedCost = 0;
 			rewardApplied = ApplyClearRewardUpgrade(
-				m_SelectedRewardBallIndex,
+				m_RewardState->SelectedRewardBallIndex(),
 				chargedCost);
 			rewardDetails["upgrade_cost"] = chargedCost;
-			m_RewardMessage = rewardApplied
+			m_RewardState->SetMessage(rewardApplied
 				? UiText::UpgradeApplied
-				: UiText::UpgradeUnavailable;
+				: UiText::UpgradeUnavailable);
 		}
 		break;
 	}
 	case 2:
 		rewardDetails["reward"] = "extra_money";
-		m_RunController.AddMoney(kClearRewardExtraMoney);
+		m_RunController->AddMoney(kClearRewardExtraMoney);
 		rewardApplied = true;
-		m_RewardMessage = UiText::ExtraMoneyReceived;
+		m_RewardState->SetMessage(UiText::ExtraMoneyReceived);
 		break;
 	default:
 		break;
@@ -2791,10 +2949,10 @@ void Game::UpdateClearReward()
 
 	if (rewardApplied)
 	{
-		rewardDetails["money_after"] = m_RunController.Status().money;
+		rewardDetails["money_after"] = m_RunController->Status().money;
 		rewardDetails["controller"] = "human";
 		RecordBalanceEvent("clear_reward_choice", rewardDetails);
-		m_IsClearRewardChosen = true;
+		m_RewardState->MarkChosen();
 	}
 }
 // Begin Ball Selection の処理を実行
@@ -2802,35 +2960,25 @@ bool Game::BeginBallSelection()
 {
 	ResetShotRelicState();
 
-	if (!m_RunController.Deck().PrepareOffer(GetBallOfferSize()))
+	if (!m_RunController->Deck().PrepareOffer(GetBallOfferSize()))
 	{
 		return false;
 	}
 
-	m_SelectedOfferIndex = 0;
-	m_SelectedHoldIndex = -1;
-
+	int heldOfferIndex = -1;
 	for (int index = 0;
-		index < m_RunController.Deck().GetOfferCount();
+		index < m_RunController->Deck().GetOfferCount();
 		index++)
 	{
-		if (m_RunController.Deck().WasHeldOffer(index))
+		if (m_RunController->Deck().WasHeldOffer(index))
 		{
-			m_SelectedHoldIndex = index;
+			heldOfferIndex = index;
 			break;
 		}
 	}
-
-	if (m_SelectedHoldIndex >= 0 &&
-		m_RunController.Deck().GetOfferCount() > 1)
-	{
-		m_SelectedOfferIndex = 1;
-	}
-	else if (m_SelectedHoldIndex ==
-		m_SelectedOfferIndex)
-	{
-		m_SelectedHoldIndex = -1;
-	}
+	m_BallSelectionState->Begin(
+		m_RunController->Deck().GetOfferCount(),
+		heldOfferIndex);
 
 	ApplySelectedBallPreview();
 	return true;
@@ -2839,49 +2987,36 @@ bool Game::BeginBallSelection()
 // Ball Selectionを更新
 void Game::UpdateBallSelection()
 {
-	const int offerCount = m_RunController.Deck().GetOfferCount();
+	const int offerCount = m_RunController->Deck().GetOfferCount();
 	if (offerCount <= 0)
 	{
 		return;
 	}
 
-	bool selectionChanged = false;
 	for (int index = 0; index < offerCount && index < 4; index++)
 	{
 		if (Input::GetKeyTrigger('1' + index))
 		{
-			m_SelectedOfferIndex = index;
-			selectionChanged = true;
-			if (m_SelectedHoldIndex == index)
-			{
-				m_SelectedHoldIndex = -1;
-			}
+			ApplyBalanceAutoBallSelection(index);
 		}
 	}
 
 	constexpr int HOLD_KEYS[] = { 'Q', 'W', 'E', 'R' };
 	for (int index = 0; index < offerCount && index < 4; index++)
 	{
-		if (!Input::GetKeyTrigger(HOLD_KEYS[index]) ||
-			index == m_SelectedOfferIndex)
+		if (!Input::GetKeyTrigger(HOLD_KEYS[index]))
 		{
 			continue;
 		}
-
-		m_SelectedHoldIndex =
-			m_SelectedHoldIndex == index ? -1 : index;
-	}
-
-	if (selectionChanged)
-	{
-		ApplySelectedBallPreview();
+		m_BallSelectionState->ToggleHold(index, offerCount);
 	}
 }
 
 // Selected Ball Previewを適用
 void Game::ApplySelectedBallPreview()
 {
-	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
+	std::vector<PlayerBall*> players =
+		GameRuntime::World().GetComponents<PlayerBall>();
 	if (players.empty() || players[0] == nullptr)
 	{
 		return;

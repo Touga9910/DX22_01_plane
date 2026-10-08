@@ -20,6 +20,7 @@ struct GameRunSaveSnapshot
 	std::array<bool, static_cast<std::size_t>(RelicType::Count)> relics{};
 	PlayerDeckSnapshot deck{};
 	StageSelectorSnapshot stageSelector{};
+	std::vector<int> shopBallOffers{};
 	std::vector<int> shopRelicOffers{};
 	RunResultSnapshot statistics{};
 	int activeAscension = 0;

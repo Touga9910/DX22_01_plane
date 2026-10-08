@@ -4,7 +4,7 @@
 #include "BallComponent.h"
 #include "BallPhysicsComponent.h"
 #include "EnemyBall.h"
-#include "Game.h"
+#include "GameWorld.h"
 #include "GameObject.h"
 #include "PlayerBall.h"
 #include "Pocket.h"
@@ -29,8 +29,7 @@ namespace
 
     struct WorldAdapter
     {
-        Game& game;
-        BattleState initialState;
+        const BallPhysicsWorldContext& context;
         std::vector<Body> bodies;
         std::vector<Collision::Segment> walls;
         std::vector<Pocket*> pockets;
@@ -44,7 +43,7 @@ namespace
         bool IsActive(std::size_t i) const { return bodies[i].collision->CanSimulate(); }
         float Radius(std::size_t i) const { return bodies[i].ball->GetRadius(); }
         Vector3 Velocity(std::size_t i) const { return bodies[i].ball->GetVelocity(); }
-        bool ShouldContinue() const { return game.GetBattleState() == initialState; }
+        bool ShouldContinue() const { return context.shouldContinue(); }
 
         void BeginSubstep()
         {
@@ -54,7 +53,7 @@ namespace
         {
 			const Vector3 from = bodies[i].ball->GetPosition();
             bodies[i].ball->Translate(Velocity(i) * interval);
-			game.NotifyTraceMovement(
+			context.traceMovement(
 				*bodies[i].ball, from, bodies[i].ball->GetPosition());
         }
         void ResolveEnvironment(std::size_t i)
@@ -78,12 +77,16 @@ namespace
     };
 }
 
-ContinuousBallStepper::Result BallPhysicsWorld::Step(Game& game)
+ContinuousBallStepper::Result BallPhysicsWorld::Step(
+    const BallPhysicsWorldContext& context)
 {
-    WorldAdapter world{ game, game.GetBattleState() };
-    const std::vector<BallComponent*> balls = game.GetComponents<BallComponent>();
-    const std::vector<Pocket*> pockets = game.GetComponents<Pocket>();
-    const std::vector<TableFrame*> frames = game.GetComponents<TableFrame>();
+    WorldAdapter world{ context };
+    const std::vector<BallComponent*> balls =
+        context.world.GetComponents<BallComponent>();
+    const std::vector<Pocket*> pockets =
+        context.world.GetComponents<Pocket>();
+    const std::vector<TableFrame*> frames =
+        context.world.GetComponents<TableFrame>();
     world.pockets = pockets;
     for (const auto* pocket : pockets)
         if (pocket && pocket->GetGameObject() && pocket->GetGameObject()->IsActive())

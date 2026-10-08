@@ -13,9 +13,10 @@ public:
     static void OpenDebugMode();
     static void SetSelectedAscension(int level);
 
+    static void RollShopBallOffers();
     static void RollShopRelicOffers();
     static bool BuyShopRelicOffer(int index);
-    static bool BuyShopBall(int index, int cost);
+    static bool BuyShopBallOffer(int index, int cost);
     static bool RemoveShopBall(int index, int cost);
     static void LeaveShop();
 

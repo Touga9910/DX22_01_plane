@@ -1,42 +1,26 @@
-﻿#pragma once
+#pragma once
 #include "StageBase.h"
 
-#include <string>
-#include <filesystem>
+#include <memory>
 
-struct StageData;
-class PlayerBall;
-class TableFrame;
+class BattleDebugHotReload;
+class BattleSceneObjectFactory;
+class BattleSceneServices;
+class BattleSceneSetup;
 
 class BattleScene : public StageBase
 {
 public:
-    BattleScene();
-    ~BattleScene() override = default;
+    explicit BattleScene(
+        std::unique_ptr<BattleSceneServices> services);
+    ~BattleScene() override;
 
     void Init();
     void Update() override;
 
 private:
-    std::string m_StageJsonPath = "assets/data/stage_01.json";
-    std::string m_EnemyJsonPath = "assets/data/enemy_data.json";
-    std::string m_SelectedStageId;
-
-    std::filesystem::file_time_type m_LastStageJsonWriteTime{};
-    std::filesystem::file_time_type m_LastEnemyJsonWriteTime{};
-
-    int m_HotReloadCheckFrame = 0;
-
-    bool m_HotReloadPending = false;
-    int m_HotReloadWaitFrame = 0;
-
-	void UpdateJsonHotReload();
-	void ReloadEnemyStatusFromJson();
-    void ArrangeDenseEnemySpawns(StageData& stage) const;
-    void ValidateEnemySpawns(
-        const StageData& stage,
-        const PlayerBall& player,
-        const TableFrame& tableFrame) const;
-
-    std::filesystem::file_time_type GetJsonWriteTime(const std::string& path) const;
+    std::unique_ptr<BattleSceneServices> m_Services;
+    std::unique_ptr<BattleSceneSetup> m_Setup;
+    std::unique_ptr<BattleSceneObjectFactory> m_ObjectFactory;
+    std::unique_ptr<BattleDebugHotReload> m_HotReload;
 };

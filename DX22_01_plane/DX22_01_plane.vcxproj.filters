@@ -16,6 +16,36 @@
     <ClInclude Include="GameRuntime.h">
       <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
+    <ClInclude Include="GameRuntimeState.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSettingsRuntime.h">
+      <Filter>ヘッダー ファイル\00_Application\Setting</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePersistenceRuntime.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRunDefaults.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRunSession.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameRewardState.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameEncounterBalance.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBallSelectionState.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePauseState.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GameStageOverrideState.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
     <ClInclude Include="GameSceneCommands.h">
       <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
@@ -71,6 +101,18 @@
       <Filter>ヘッダー ファイル\00_Application</Filter>
     </ClInclude>
     <ClInclude Include="BattleScene.h">
+      <Filter>ヘッダー ファイル\01_Scene\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleSceneServices.h">
+      <Filter>ヘッダー ファイル\01_Scene\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleSceneSetup.h">
+      <Filter>ヘッダー ファイル\01_Scene\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleSceneObjectFactory.h">
+      <Filter>ヘッダー ファイル\01_Scene\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleDebugHotReload.h">
       <Filter>ヘッダー ファイル\01_Scene\Battle</Filter>
     </ClInclude>
     <ClInclude Include="RestSiteScene.h">
@@ -322,10 +364,22 @@
     <ClInclude Include="DebugBattleSetup.h">
       <Filter>ヘッダー ファイル\08_Tools\Debug</Filter>
     </ClInclude>
+    <ClInclude Include="GameDebugHost.h">
+      <Filter>ヘッダー ファイル\08_Tools\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBalanceRuntime.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
     <ClInclude Include="StageLayoutEditor.h">
       <Filter>ヘッダー ファイル\08_Tools\Editor</Filter>
     </ClInclude>
     <ClInclude Include="GameMcpBridge.h">
+      <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
+    </ClInclude>
+    <ClInclude Include="GameMcpCommands.h">
+      <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
+    </ClInclude>
+    <ClInclude Include="GameMcpState.h">
       <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
     </ClInclude>
     <ClInclude Include="stb_image.h">
@@ -356,6 +410,30 @@
       <Filter>ヘッダー ファイル\90_External\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="BattleController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleTypes.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBattleState.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBattleCommands.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBattleEvents.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameBattleView.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GamePlayerState.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameShotPrediction.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="GameShotTraceView.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
     <ClInclude Include="CushionChargeRules.h">
@@ -728,6 +806,39 @@
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
+    <ClCompile Include="GameRuntimeState.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSettingsRuntime.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePersistenceRuntime.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRunDefaults.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRunSession.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRunAccess.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRewardState.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameEncounterBalance.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBallSelectionState.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePauseState.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="GameStageOverrideState.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
     <ClCompile Include="GameSceneAccess.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
@@ -762,6 +873,15 @@
       <Filter>ソース ファイル\00_Application\Settings</Filter>
     </ClCompile>
     <ClCompile Include="BattleScene.cpp">
+      <Filter>ソース ファイル\01_Scene\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="BattleSceneSetup.cpp">
+      <Filter>ソース ファイル\01_Scene\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="BattleSceneObjectFactory.cpp">
+      <Filter>ソース ファイル\01_Scene\Battle</Filter>
+    </ClCompile>
+    <ClCompile Include="BattleDebugHotReload.cpp">
       <Filter>ソース ファイル\01_Scene\Battle</Filter>
     </ClCompile>
     <ClCompile Include="RestSiteScene.cpp">

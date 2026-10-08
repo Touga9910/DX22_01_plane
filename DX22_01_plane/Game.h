@@ -1,58 +1,55 @@
 ﻿#pragma once
-#include "ShotRelicRules.h"
-#include "GameWorld.h"
-#include "BattleController.h"
-#include "BalanceAutoPlayer.h"
-#include "BalanceValidationController.h"
-#include "DynamicBalanceController.h"
-#include "RunController.h"
-#include "SceneManager.h"
-#include "RunProgressConstants.h"
-#include "ProgressionProfile.h"
+#include "BattleTypes.h"
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include <string>
 
-//オブジェクト情報のあるファイルをインクルード
-//#include "
-// .h"
-//#include "Ground.h"
-
-
-#include "BallStatus.h"
 #include "CushionChargeRules.h"
-#include "HeavyCollisionRules.h"
 #include "PierceTraceRules.h"
-#include "AnchorStackRules.h"
 #include "GameTypes.h"
 #include "GameEvent.h"
-#include "RunResultSnapshot.h"
-#include "RunStatisticsTracker.h"
-#include "SettingsManager.h"
-#include "PlayerDeck.h"
-#include "PlayerRunStatus.h"
-#include "FixedStepClock.h"
 #include "json/json_fwd.hpp"
 
 class EnemyBall;
 class BallComponent;
 class Camera;
+class Component;
 struct EnemyData;
 class BossShotPlanner;
 class GameDebugController;
+class GameDebugHost;
+struct GameBattleState;
+class GameBalanceRuntime;
 class GameMcpBridge;
+class GameMcpCommands;
+class GameMcpReadView;
 class GamePresentation;
 class GameObject;
 class GameRuntime;
+class GameRuntimeState;
+class GameSettingsRuntime;
+class GamePersistenceRuntime;
+class GameRunDefaults;
+class GameRunSession;
+class GameRewardState;
+class GameEncounterBalance;
+class GameBallSelectionState;
+class GamePauseState;
+class GameStageOverrideState;
+class ProgressionProfile;
+struct PlayerBallData;
+struct StageData;
+enum class StageType;
+struct RunResultSnapshot;
 struct GameRunRestoreRequest;
 struct GameRunSaveSnapshot;
 class PlayerBall;
 class Scene;
 class RunMap;
+class RunController;
+struct ShotRelicRules;
 
 class Game
 {
@@ -61,123 +58,67 @@ private:
 	// 唯一のGameインスタンスと、シーン・カメラ・ゲーム空間を管理
 	static Game* m_Instance;//ゲームインスタンス
 
-	SceneManager m_SceneManager;
+	std::unique_ptr<GameRuntimeState> m_RuntimeState;
 
 	// カメラ
 	Camera& m_Camera;
 
-	GameWorld m_World;
-
 	// ===== 戦闘状態とショット中の効果 =====
-	// 戦闘の進行、クッション蓄積、シールド、直近の戦闘結果を保持
-	BattleController m_BattleController;
-	CushionChargeRules::State m_CushionCharges{};
-	bool m_CushionBoostConsumedThisShot = false;
-	int m_CushionStrongUsesThisShot = 0;
-	int m_SynergyDamageBonusThisShot = 0;
-	HeavyCollisionRules::State m_HeavyCollisions{};
-	PierceTraceRules::State m_PierceTraces{};
-	PierceTraceRules::ShotUseState m_PierceTraceUse{};
-	AnchorStackRules::State m_AnchorStacks{};
-	DirectX::SimpleMath::Vector3 m_TraceSegmentStart = DirectX::SimpleMath::Vector3::Zero;
-	bool m_TraceSegmentValid = false;
-	bool m_TraceSegmentPierced = false;
-	bool m_TraceDriverExpansionArmed = false;
-	bool m_TraceDriverExpansionSegment = false;
-	bool m_TracePierceBenefitActive = false;
-	bool m_HeavyFinisherConsumedThisShot = false;
-	bool m_AnchorFinisherTriggeredThisShot = false;
-	EnemyBall* m_AnchorContactTarget = nullptr;
-	std::unordered_set<const EnemyBall*> m_PiercedEnemiesThisShot;
-	int m_PlayerShield = 0;
+	// 詳細型をGame.hの利用側へ波及させない戦闘ランタイム境界。
+	std::unique_ptr<GameBattleState> m_BattleState;
 
 	// 直近に確定した戦闘結果。
 	// MCPやResult側から参照できるようGameが履歴だけ保持
 	BattleResult m_LastBattleResult = BattleResult::None;
 
-	// ClearRewardは戦闘内部状態ではないためGame側で保持
+	// ClearRewardは戦闘内部状態ではないため専用の進行状態で保持
 	static constexpr int kClearRewardBallOfferSize = 3;
-	bool m_IsClearRewardActive = false;
+	std::unique_ptr<GameRewardState> m_RewardState;
 
 	// ===== 固定ステップ物理更新 =====
 	// 表示フレームレートに依存せず物理演算を進め、実行回数や上限到達を計測
-	FixedStepClock m_PhysicsClock;
-	bool m_ResetPhysicsElapsed = true;
-	std::uint64_t m_PhysicsTickCount = 0;
-	int m_PhysicsStepsLastFrame = 0;
-	int m_PhysicsSubstepsLastTick = 0;
-	std::uint64_t m_PhysicsSubstepLimitCount = 0;
 	void UpdateFixedPhysics(double elapsedSeconds);
 	void InitializeBattleController();
+	void InitializeBattleSceneFactory();
 
 	// ===== プレイヤー状態とラン進行 =====
 	// 初期ステータス、デッキ・所持金・マップ進行、MCPからのステージ差し替えを管理
-	BallStatus m_DefaultPlayerStatus{};
-	PlayerRunStatus m_DefaultPlayerRunStatus{};
-	RunController m_RunController;
-	std::optional<StageData> m_McpNextStageOverride;
-	std::optional<StageData> m_McpCurrentStageOverride;
+	std::unique_ptr<GameRunDefaults> m_RunDefaults;
+	std::unique_ptr<GameRunSession> m_RunSession;
+	std::unique_ptr<RunController> m_RunController;
+	std::unique_ptr<GameStageOverrideState> m_StageOverrideState;
 
 	// ===== ボスAIとボール選択UI =====
 	// ボスのショット計画と、手球候補の選択・ホールド位置を保持
 	std::unique_ptr<BossShotPlanner> m_BossShotPlanner;
-	int m_SelectedOfferIndex = 0;
-	int m_SelectedHoldIndex = -1;
+	std::unique_ptr<GameBallSelectionState> m_BallSelectionState;
 
 	// ===== 報酬・ショップUI =====
-	// 報酬種別、対象ボール、レリック候補の選択状態と結果メッセージを保持
-	int m_SelectedRewardIndex = 0;
-	int m_SelectedRewardBallIndex = 0;
-	std::vector<int> m_ClearRewardBallOfferCatalogIndices;
-
-	std::string m_RewardMessage;           // 購入結果などの表示
-	bool m_IsClearRewardChosen = false;
-	bool m_ClearRewardMouseConfirmed = false;
-	bool m_IsMidBossRelicSelectionActive = false;
-	int m_SelectedRelicOfferIndex = 0;
+	// 報酬種別、対象ボール、レリック候補の選択状態はGameRewardStateが保持
 	static constexpr int kClearRewardExtraMoney = 10;
-	static constexpr int kNormalRouteAreaGoal = ::kNormalRouteAreaGoal;
 
 	// ===== 自動検証・MCP連携・再現用テレメトリ =====
 	// 自動プレイ、外部AI連携、画面表示、ショット記録、再現可能な乱数シードを管理
-	BalanceAutoPlayer m_BalanceAutoPlayer;
+	std::unique_ptr<GameBalanceRuntime> m_BalanceRuntime;
+	std::unique_ptr<GameSettingsRuntime> m_SettingsRuntime;
+	std::unique_ptr<GamePersistenceRuntime> m_PersistenceRuntime;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
 	std::unique_ptr<GamePresentation> m_GamePresentation;
 	std::unique_ptr<nlohmann::json> m_PendingShotTelemetry;
-	std::uint32_t m_RunRandomSeed = 0;
-	std::uint32_t m_StageSelectionSeed = 0;
-	std::uint32_t m_RouteSelectionSeed = 0;
-	std::uint32_t m_RouteSelectionCounter = 0;
-	BalanceValidationController m_BalanceValidationController;
+	std::unique_ptr<GameEncounterBalance> m_EncounterBalance;
 
 	// ===== 難易度とエンカウントバランス =====
 	// ラン開始時の基準難易度と、敵編成・配置ごとの脅威度計算条件を保持
 	// 基準難易度はラン中に固定し、進行度に応じた敵補正を適用
-	std::string m_BaselineDifficultyProfile = "normal";
-	float m_BaselineEnemyHpMultiplier = 1.0f;
-	int m_BaselineEnemyAttackDelta = 0;
-
 	// エンカウントの脅威度コストは、単純な敵数とは分けてログへ記録
-	std::unordered_map<std::string, float> m_EnemyThreatCosts;
-	std::unordered_map<std::string, float> m_StageThreatTargets;
-	float m_StageDataLayoutThreatMultiplier = 1.0f;
-	float m_DenseLayoutThreatMultiplier = 1.25f;
-	float m_McpLayoutThreatMultiplier = 1.0f;
 
 	// ===== 固定難易度・セーブ・永続進行 =====
 	// 進行度補正、ラン復元、統計、解放状態、アセンション、ゲーム設定を管理
-	DynamicBalanceController m_DynamicBalanceController;
-	bool m_IsRestoringRunSave = false;
-	std::string m_SaveLoadMessage;
-	int m_SaveLoadMessageFrames = 0;
-	RunStatisticsTracker m_RunStatistics{};
-	ProgressionProfile m_ProgressionProfile{};
-	int m_ActiveAscension = 0;
-	bool m_PersistentProgressEligible = false;
-	float m_DefaultRestHealRatio = 0.25f;
-	std::vector<std::string> m_LastProgressionUnlocks;
-	SettingsManager m_SettingsManager{};
-	bool m_RunActive = false;
+	bool IsRunSessionActive() const;
+	void BeginRunSession();
+	void ActivateRunSession();
+	void DeactivateRunSession();
+	void CompleteRunSession(RunResultSnapshot result);
 
 	// ===== デバッグモード =====
 	// デバッグ戦闘の起動・表示・終了と、検証用設定の保存・復元を行う。
@@ -191,18 +132,15 @@ private:
 
 	// ===== ポーズ・入力要求・ラン結果 =====
 	// UIから受けた操作要求を次回更新で処理し、直近の確定済みラン結果を保持
-	bool m_IsPaused = false;
-	bool m_MousePauseToggle = false;
-	bool m_MouseSaveRequested = false;
-	bool m_MouseFullscreenToggle = false;
-	bool m_PauseConfirmTitle = false;
-	bool m_PendingDisplayApply = false;
-	RunResultSnapshot m_LastRunResult{};
+	std::unique_ptr<GamePauseState> m_PauseState;
+	void SetPaused(bool paused);
+	void ResumeAndDismissPause();
 
 	// ===== 密接に連携するサブシステム =====
 	// 専用境界への移行が未完了の開発・外部連携だけに内部アクセスを限定する。
-	friend class GameMcpBridge;
-	friend class GameDebugController;
+	friend class GameMcpCommands;
+	friend class GameMcpReadView;
+	friend class GameDebugHost;
 	friend class GameRuntime;
 
 	// ===== 戦闘終了とクリア報酬 =====
@@ -320,83 +258,49 @@ public:
 
 	void ChangeScene(SceneType sceneType);	//シーンを変更
 	// 現在のシーンを読み取り用に返す。
-	Scene* GetCurrentScene() const { return m_SceneManager.Get(); }
+	Scene* GetCurrentScene() const;
 	// 現在のシーン種別を返す。
-	SceneType GetCurrentSceneType() const { return m_SceneManager.GetType(); }
+	SceneType GetCurrentSceneType() const;
 	void DeleteGameObject(GameObject* gameObject);
 	void DeleteAllGameObjects();
 
-	// ===== カメラとポーズ中の入力要求 =====
-	// カメラを公開し、ポーズ・セーブ・全画面切り替えを次回更新へ予約
-	// ゲームで使用するカメラを返す。
-	static Camera* GetCamera() { return &m_Instance->m_Camera; }
-
+	// ===== ポーズ中の入力要求 =====
+	// ポーズ・セーブ・全画面切り替えを次回更新へ予約
 	// 現在ポーズメニューを開けるかを返す。
 	bool CanOpenPauseMenu() const { return CanPause(); }
 	// 次回更新時のポーズ切り替えを要求
-	void RequestPauseToggle() { m_MousePauseToggle = true; }
+	void RequestPauseToggle();
 	// 次回更新時の手動セーブを要求
-	void RequestManualSave() { m_MouseSaveRequested = true; }
+	void RequestManualSave();
 	// 次回更新時の全画面切り替えを要求
-	void RequestFullscreenToggle() { m_MouseFullscreenToggle = true; }
+	void RequestFullscreenToggle();
 	// ゲームがポーズ中かを返す。
-	bool IsPaused() const { return m_IsPaused; }
+	bool IsPaused() const;
 
 	// ===== 戦闘状態の参照 =====
 	// 現在の戦闘フェーズ・結果・稼働状態と、報酬UIやボール停止状態を返す。
 	// BattleStateを取得する
-	BattleState GetBattleState() const
-	{
-		return m_BattleController.GetState();
-	}
+	BattleState GetBattleState() const;
 
 	BattleResult GetLastBattleResult() const
 	{
 		return m_LastBattleResult;
 	}
 
-	bool IsClearRewardActive() const
-	{
-		return m_IsClearRewardActive;
-	}
-	int GetClearRewardBallOfferCount() const
-	{
-		return static_cast<int>(m_ClearRewardBallOfferCatalogIndices.size());
-	}
-	int GetClearRewardBallOfferCatalogIndex(int offerIndex) const
-	{
-		return offerIndex >= 0 && offerIndex < GetClearRewardBallOfferCount()
-			? m_ClearRewardBallOfferCatalogIndices[static_cast<std::size_t>(offerIndex)]
-			: -1;
-	}
-	const PlayerBallData* GetClearRewardBallOffer(int offerIndex) const
-	{
-		return m_RunController.Deck().GetCatalogBall(
-			GetClearRewardBallOfferCatalogIndex(offerIndex));
-	}
-	bool AddClearRewardBallOffer(int offerIndex)
-	{
-		return m_RunController.Deck().AddCatalogBall(
-			GetClearRewardBallOfferCatalogIndex(offerIndex));
-	}
+	bool IsClearRewardActive() const;
+	int GetClearRewardBallOfferCount() const;
+	int GetClearRewardBallOfferCatalogIndex(int offerIndex) const;
+	const PlayerBallData* GetClearRewardBallOffer(int offerIndex) const;
+	bool AddClearRewardBallOffer(int offerIndex);
+	int GetSelectedBallOfferIndex() const;
+	int GetHeldBallOfferIndex() const;
 
-	bool AreAllBallsStopped() const
-	{
-		return m_BattleController.AreAllBallsStopped();
-	}
+	bool AreAllBallsStopped() const;
 	// バランス検証用の自動プレイが有効かを返す。
-	bool IsBalanceAutoPlayEnabled() const
-	{
-		return m_BalanceAutoPlayer.IsEnabled();
-	}
+	bool IsBalanceAutoPlayEnabled() const;
 	bool IsDebugEditorOpen() const;
-	bool IsMidBossRelicSelectionActive() const
-	{
-		return m_IsMidBossRelicSelectionActive;
-	}
-	bool IsClearRewardChosen() const { return m_IsClearRewardChosen; }
-	// 表示層へ変更不能なデッキ状態だけを公開する。
-	const PlayerDeck& GetPlayerDeckView() const;
+	bool IsMidBossRelicSelectionActive() const;
+	bool IsClearRewardChosen() const;
 	int GetBallShotCount(const std::string& definitionId) const;
 	bool GrantBalanceAutoMoney(int amount);
 	void NotifyBallAcquired(const std::string& definitionId);
@@ -408,9 +312,8 @@ public:
 	int GetClearRewardUpgradeCost(int ballIndex) const;
 	bool ApplyClearRewardUpgrade(int ballIndex, int& chargedCost);
 
-	// ===== オブジェクト所属確認 =====
-	// 指定オブジェクトまたはコンポーネントが現在のWorldに存在するかを返す。
-	bool ContainsGameObject(const GameObject* gameObject) const;
+	// ===== コンポーネント所属確認 =====
+	// 指定コンポーネントが現在のWorldに存在するかを返す。
 	bool ContainsComponent(const Component* component) const;
 
 	// ===== ランの初期化・セーブ・統計 =====
@@ -429,19 +332,13 @@ public:
 	bool HasValidRunSave() const;
 	std::string GetRunSaveSummary() const;
 	// 直近のセーブ・ロード結果メッセージを返す。
-	const std::string& GetSaveLoadMessage() const
-	{
-		return m_SaveLoadMessage;
-	}
+	const std::string& GetSaveLoadMessage() const;
 	bool SaveCurrentRun();
 	bool LoadSavedRun();
 	// セーブ形式から切り離した型付きラン状態の取得と一括復元。
 	GameRunSaveSnapshot CaptureRunSaveSnapshot() const;
 	void RestoreRunSaveSnapshot(GameRunRestoreRequest request);
-	bool IsEnduranceMode() const
-	{
-		return m_BalanceValidationController.IsEnduranceMode();
-	}
+	bool IsEnduranceMode() const;
 	// ===== ボスショットAI =====
 	// 現在盤面の候補ショットを評価し、指定された計画を検証済み状態で実行
     nlohmann::json EvaluateBossShots();
@@ -458,34 +355,22 @@ public:
 	// ===== 永続進行とアセンション =====
 	// 直近のラン結果、解放済み要素、選択中のアセンションを参照・更新
 	// 直近に確定したラン結果を返す。
-	const RunResultSnapshot& GetLastRunResult() const
-	{
-		return m_LastRunResult;
-	}
+	const RunResultSnapshot& GetLastRunResult() const;
 	// 永続進行データを読み取り専用で返す。
-	const ProgressionProfile& GetProgressionProfile() const { return m_ProgressionProfile; }
+	const ProgressionProfile& GetProgressionProfile() const;
 	// 直近に解放された要素の一覧を返す。
-	const std::vector<std::string>& GetLastProgressionUnlocks() const { return m_LastProgressionUnlocks; }
+	const std::vector<std::string>& GetLastProgressionUnlocks() const;
 	// 現在適用中のアセンション値を返す。
-	int GetActiveAscension() const { return m_ActiveAscension; }
+	int GetActiveAscension() const;
 	void SetSelectedAscension(int level);
 	// ===== ゲーム設定と演出許可 =====
 	// 現在の設定と、振動・画面フラッシュ・カメラ揺れの有効状態を返す。
 	// 振動設定が有効かを返す。
-	bool IsVibrationEnabled() const
-	{
-		return m_SettingsManager.Get().vibrationEnabled;
-	}
+	bool IsVibrationEnabled() const;
 	// 画面フラッシュ設定が有効かを返す。
-	bool IsScreenFlashEnabled() const
-	{
-		return m_SettingsManager.Get().screenFlashEnabled;
-	}
+	bool IsScreenFlashEnabled() const;
 	// カメラ揺れ設定が有効かを返す。
-	bool IsCameraShakeEnabled() const
-	{
-		return m_SettingsManager.Get().cameraShakeEnabled;
-	}
+	bool IsCameraShakeEnabled() const;
 
 	// ===== プレイヤー状態とステージ遷移 =====
 	// ボールとランのステータスを同期し、戦闘・ショップ・休憩・報酬間の遷移を進める。
@@ -499,12 +384,7 @@ public:
 	void StartNextBattle(StageType stageType);
 	void OnBattleStageStarted(const StageData& stage);
 	// MCPで上書きされた現在のステージ情報を返す。
-	const StageData* GetCurrentStageOverride() const
-	{
-		return m_McpCurrentStageOverride.has_value()
-			? &m_McpCurrentStageOverride.value()
-			: nullptr;
-	}
+	const StageData* GetCurrentStageOverride() const;
 
 	// ===== ショットと戦闘イベント通知 =====
 	// 照準・威力決定・発射・衝突・撃破を戦闘ルール、レリック、統計、演出へ通知
@@ -523,10 +403,11 @@ public:
 		const DirectX::SimpleMath::Vector3& firstVelocityBefore,
 		const DirectX::SimpleMath::Vector3& secondVelocityBefore);
 	int NotifyPlayerEnemySynergyCollision(EnemyBall* enemy);
+	int ScaleEnemyCollisionDamage(int damage) const;
 	void NotifyPlayerPiercedEnemy(
 		EnemyBall* enemy,
 		const DirectX::SimpleMath::Vector3& playerPosition,
-		bool refracted);
+		const DirectX::SimpleMath::Vector3& direction);
 	void NotifyPlayerDirectionChange(
 		const DirectX::SimpleMath::Vector3& playerPosition);
 	void NotifyTraceMovement(
@@ -588,44 +469,26 @@ public:
 	// ===== ルート選択用乱数とデッキ枚数 =====
 	// 山札と捨て札の枚数を返す。
 	// 山札に残っているボール数を返す。
-	int GetPlayerDeckCount() const { return m_RunController.Deck().GetDrawPileCount(); }
+	int GetPlayerDeckCount() const;
 	// 捨て札にあるボール数を返す。
-	int GetPlayerDiscardCount() const { return m_RunController.Deck().GetDiscardPileCount(); }
+	int GetPlayerDiscardCount() const;
 
-	// ===== 戦闘対象とWorld内オブジェクト検索 =====
-	// 敵全滅を判定し、型・保持コンポーネント・タグを条件にWorldを検索
+	// ===== 戦闘対象 =====
+	// 敵全滅を判定する。
 	bool AreAllEnemiesDefeated() const;
-
-	// ゲーム空間から、指定した型のコンポーネントをすべて取得
-	template<typename T> std::vector<T*> GetComponents()
-	{
-		return m_World.GetComponents<T>();
-	}
-
-	// 指定したタグを持つゲームオブジェクトを取得
-	std::vector<GameObject*> GetGameObjectsWithTag(GameObjectTag tag)
-	{
-		return m_World.GetObjectsWithTag(tag);
-	}
 
 	// ===== プレイヤー資源とランマップ進行 =====
 	// 所持金・HP・休憩回復量を参照し、現在の進行と選択可能なマップノードを管理
 	// プレイヤーの所持金を返す。
-	int GetPlayerMoney() const
-	{
-		return m_RunController.Status().money;
-	}
+	int GetPlayerMoney() const;
 	// プレイヤーの現在HPを返す。
-	int GetPlayerCurrentHp() const { return m_RunController.Status().currentHp; }
+	int GetPlayerCurrentHp() const;
 	// プレイヤーの最大HPを返す。
-	int GetPlayerMaxHp() const { return m_RunController.Status().maxHp; }
+	int GetPlayerMaxHp() const;
 	int GetRestHealAmount() const;
 	int GetRestHealPercent() const;
 	// 休憩による回復を利用できるかを返す。
-	bool CanRestHeal() const
-	{
-		return m_RunController.CanRestHeal();
-	}
+	bool CanRestHeal() const;
 	// 通常ルートの現在進行数を返す。
 	int GetAreaProgress() const;
 	// 現在のランマップを読み取り専用で返す。
@@ -633,7 +496,7 @@ public:
 	// 選択可能なマップノードを選ぶ。
 	bool ChooseMapNode(int nodeId);
 	// 通常ルートの完了目標エリア数を返す。
-	int GetNormalRouteAreaGoal() const { return kNormalRouteAreaGoal; }
+	int GetNormalRouteAreaGoal() const;
 	// 現在のランフェーズを返す。
 	RunPhase GetRunPhase() const;
 	// 最終ボス前の準備フェーズかを返す。
@@ -641,50 +504,55 @@ public:
 	// 最終ボスを選択可能なフェーズかを返す。
 	bool IsFinalBossRoute() const;
 	// 現在選択されているステージIDを返す。
-	const std::string& GetSelectedStageId() const
-	{
-		return m_RunController.Status().GetSelectedStageId();
-	}
+	const std::string& GetSelectedStageId() const;
 
 	// ===== デッキ・クッション効果・シールド =====
 	// 報酬対象のボールとデッキ下限を参照し、クッション蓄積とシールドによるダメージ軽減を管理
 	// 報酬対象となるデッキ内ボール数を返す。
-	int GetDeckBallCount() const { return m_RunController.Deck().GetRewardTargetCount(); }
+	int GetDeckBallCount() const;
 	
 	// デッキの最小構成数
-	int GetMinimumDeckSize() const { return PlayerDeck::MinimumDeckSize; }
+	int GetMinimumDeckSize() const;
 	
 	// 指定位置のデッキ内ボールを返す
-	const PlayerBallData* GetDeckBall(int index) const { return m_RunController.Deck().GetRewardTarget(index); }
+	const PlayerBallData* GetDeckBall(int index) const;
+	// 山札・捨て札の指定位置を読み取り専用で返す。
+	const PlayerBallData* GetDrawPileBall(int index) const;
+	const PlayerBallData* GetDiscardPileBall(int index) const;
 	
 	// 現在のショットに割り当てられたボールを返す
-	const PlayerBallData* GetCurrentPlayerBallData() const { return m_RunController.Deck().GetCurrent(); }
+	const PlayerBallData* GetCurrentPlayerBallData() const;
+	bool IsCurrentPlayerBallUsed() const;
 	
-	const CushionChargeRules::State& GetCushionCharges() const { return m_CushionCharges; }
-	bool WasCushionBoostConsumedThisShot() const { return m_CushionBoostConsumedThisShot; }
-	const PierceTraceRules::State& GetPierceTraceState() const { return m_PierceTraces; }
+	const CushionChargeRules::State& GetCushionCharges() const;
+	bool WasCushionBoostConsumedThisShot() const;
+	const PierceTraceRules::State& GetPierceTraceState() const;
 
 	// 各スタックを返す
-	int GetHeavyCollisionCount() const { return m_HeavyCollisions.collisionCount; }
-	int GetPierceTraceCount() const	   { return static_cast<int>(m_PierceTraces.traces.size()); }
-	int GetTotalCushionStacks() const  { return CushionChargeRules::TotalStacks(m_CushionCharges); }
-	int GetPlayerAnchorStacks() const  { return m_AnchorStacks.playerStacks; }
+	int GetHeavyCollisionCount() const;
+	int GetPlayerAnchorStacks() const;
 	
-	int GetCushionStrongUsesThisShot() const { return m_CushionStrongUsesThisShot; }
-	int GetPlayerShield() const { return m_PlayerShield; }
+	int GetCushionStrongUsesThisShot() const;
+	int GetPlayerShield() const;
 	int AbsorbPlayerShieldDamage(int damage);
 
 	// ===== ショップと休憩所のボール操作 =====
 	// ボールの候補取得、購入・削除・強化と、休憩所で実行できる回復・強化を管理
+	static constexpr int kShopBallOfferSize = 3;
 	// ショップの商品候補となるボール数を返す。
-	int GetShopBallCount() const { return m_RunController.Deck().GetCatalogCount(); }
+	int GetShopBallCount() const;
 	// 指定位置のショップ用ボール情報を返す。
-	const PlayerBallData* GetShopBall(int index) const { return m_RunController.Deck().GetCatalogBall(index); }
+	const PlayerBallData* GetShopBall(int index) const;
+	void RollShopBallOffers();
+	int GetShopBallOfferCount() const;
+	int GetShopBallOfferCatalogIndex(int offerIndex) const;
+	const PlayerBallData* GetShopBallOffer(int offerIndex) const;
 	bool IsBallAdjustmentCandidate(std::uint64_t instanceId) const;
 	bool HasAvailableRestBenefit() const;
 	bool RestHeal();
 	bool RestUpgradeBall(int ballIndex);
 	bool BuyShopBall(int catalogIndex, int cost);
+	bool BuyShopBallOffer(int offerIndex, int cost);
 	bool RemoveShopBall(int ballIndex, int cost);
 
 	// ===== レリック所持とステータス補正 =====
@@ -702,10 +570,7 @@ public:
 			: nullptr;
 	}
 	// 指定したレリックを所持しているかを返す。
-	bool HasRelic(RelicType type) const
-	{
-		return m_RunController.HasRelic(type);
-	}
+	bool HasRelic(RelicType type) const;
 	int GetOwnedRelicCount() const;
 	ShotRelicRules MakePredictionShotRules(float launchPower) const;
 	int GetRelicAttackBonus() const;
@@ -713,32 +578,15 @@ public:
 	// ===== 現在ショットのレリック実績 =====
 	// 衝突ボーナス、衝突回数、バンクショット効果の残り状態と、有効な攻防値を返す。
 	// 現在ショットの衝突攻撃ボーナスを返す。
-	int GetCurrentShotCollisionAttackBonus() const
-	{
-		return m_BattleController.GetShotRelicRules().collisionBonus;
-	}
+	int GetCurrentShotCollisionAttackBonus() const;
 	// 現在ショットのプレイヤー対敵衝突数を返す。
-	int GetCurrentShotPlayerEnemyCollisionCount() const
-	{
-		return m_BattleController.GetShotRelicRules().playerEnemyContacts;
-	}
+	int GetCurrentShotPlayerEnemyCollisionCount() const;
 	// 現在ショットの敵同士の衝突数を返す。
-	int GetCurrentShotEnemyEnemyCollisionCount() const
-	{
-		return m_BattleController.GetShotRelicRules().enemyEnemyContacts;
-	}
+	int GetCurrentShotEnemyEnemyCollisionCount() const;
 	// 現在ショットの全ボール衝突数を返す。
-	int GetCurrentShotBallCollisionCount() const
-	{
-		const auto& rules = m_BattleController.GetShotRelicRules();
-		return rules.playerEnemyContacts + rules.enemyEnemyContacts;
-	}
+	int GetCurrentShotBallCollisionCount() const;
 	// バンクショット効果をまだ消費可能かを返す。
-	bool IsCurrentShotBankShotReady() const
-	{
-		const auto& rules = m_BattleController.GetShotRelicRules();
-		return rules.bankReady && !rules.bankConsumed;
-	}
+	bool IsCurrentShotBankShotReady() const;
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
 	// ボール報酬として提示する候補数を返す。
 	int GetBallOfferSize() const
@@ -750,22 +598,11 @@ public:
 	// ショップ用の候補を抽選し、表示位置から定義を取得して購入を適用
 	void RollShopRelicOffers();
 	// ショップに提示中のレリック数を返す。
-	int GetShopRelicOfferCount() const
-	{
-		return static_cast<int>(m_RunController.ShopRelicOffers().size());
-	}
+	int GetShopRelicOfferCount() const;
 	// ショップ提示位置に対応するレリック番号を返す。
-	int GetShopRelicOfferCatalogIndex(int offerIndex) const
-	{
-		return offerIndex >= 0 && offerIndex < GetShopRelicOfferCount()
-			? m_RunController.ShopRelicOffers()[static_cast<std::size_t>(offerIndex)]
-			: -1;
-	}
+	int GetShopRelicOfferCatalogIndex(int offerIndex) const;
 	// ショップ提示位置に対応するレリック定義を返す。
-	const RelicDefinition* GetShopRelicOffer(int offerIndex) const
-	{
-		return GetRelic(GetShopRelicOfferCatalogIndex(offerIndex));
-	}
+	const RelicDefinition* GetShopRelicOffer(int offerIndex) const;
 	bool IsShopRelicOffered(int relicIndex) const;
 	bool BuyShopRelicOffer(int offerIndex);
 	bool BuyShopRelic(int relicIndex);
@@ -774,22 +611,11 @@ public:
 	// 中ボス報酬用の候補を抽選し、表示位置から定義を取得して無料獲得を適用
 	void RollMidBossRelicOffers();
 	// 中ボス報酬として提示中のレリック数を返す。
-	int GetMidBossRelicOfferCount() const
-	{
-		return static_cast<int>(m_RunController.MidBossRelicOffers().size());
-	}
+	int GetMidBossRelicOfferCount() const;
 	// 中ボス提示位置に対応するレリック番号を返す。
-	int GetMidBossRelicOfferCatalogIndex(int offerIndex) const
-	{
-		return offerIndex >= 0 && offerIndex < GetMidBossRelicOfferCount()
-			? m_RunController.MidBossRelicOffers()[static_cast<std::size_t>(offerIndex)]
-			: -1;
-	}
+	int GetMidBossRelicOfferCatalogIndex(int offerIndex) const;
 	// 中ボス提示位置に対応するレリック定義を返す。
-	const RelicDefinition* GetMidBossRelicOffer(int offerIndex) const
-	{
-		return GetRelic(GetMidBossRelicOfferCatalogIndex(offerIndex));
-	}
+	const RelicDefinition* GetMidBossRelicOffer(int offerIndex) const;
 	bool AcquireMidBossRelicOffer(int offerIndex);
 	bool AcquireMidBossRelic(int relicIndex);
 	bool BuyRelic(int relicIndex);

@@ -26,7 +26,6 @@ public:
 
     // お邪魔ボール用の共通GameObjectを生成し、設定データと初期位置を渡したNuisanceBallを返す
     static NuisanceBall* CreateNuisanceBall(
-        Game& game,
         const NuisanceBallData& data,
         const DirectX::SimpleMath::Vector3& position);
 };

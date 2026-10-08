@@ -73,7 +73,11 @@ class BalanceConfigurationTests(unittest.TestCase):
 
         self.assertIn('state["rest_heal"]', bridge_source)
         self.assertIn(
-            '{ "heal_ratio", game.m_RunController.RestHealRatio() }',
+            "snapshot.restHealRatio = game.m_RunController->RestHealRatio()",
+            bridge_source,
+        )
+        self.assertIn(
+            '{ "heal_ratio", snapshot.restHealRatio }',
             bridge_source,
         )
         self.assertIn("最大HPの25%回復", server_source)

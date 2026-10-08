@@ -4,11 +4,14 @@
 #include "BallComponent.h"
 #include "BallMechanics.h"
 #include "BallPhysicsRules.h"
-#include "CushionChargeRules.h"
 #include "BallPhysicsComponent.h"
 #include "EnemyBall.h"
 #include "BreakBall.h"
-#include "Game.h"
+#include "GameBattleCommands.h"
+#include "GameBattleEvents.h"
+#include "GameBattleView.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "GameObject.h"
 #include "PlayerBall.h"
 #include "Pocket.h"
@@ -19,6 +22,27 @@
 #include <vector>
 
 using namespace DirectX::SimpleMath;
+
+namespace
+{
+    struct LiveShotRules final
+    {
+        int ConsumeBankShotDamageMultiplier()
+        {
+            return GameBattleCommands::ConsumeBankShotDamageMultiplier();
+        }
+
+        int ConsumePlayerEnemyRelicDamageBonus()
+        {
+            return GameBattleCommands::ConsumePlayerEnemyRelicDamageBonus();
+        }
+
+        int GetCurrentShotCollisionAttackBonus() const
+        {
+            return GameBattleView::CurrentShotCollisionAttackBonus();
+        }
+    };
+}
 
 void BallCollisionComponent::Awake()
 {
@@ -76,12 +100,10 @@ void BallCollisionComponent::ResolveEnvironment(
     }
     for (const auto& wall : walls)
     {
-        Vector3 contact = Vector3::Zero;
-        const bool bounced = BallPhysicsRules::Wall(body, wall, interiorReference, &contact);
+		const bool bounced = BallPhysicsRules::Wall(body, wall, interiorReference);
         if (bounced && body.player)
         {
-            Game::GetInstance()->NotifyPlayerWallCollision(
-				CushionChargeRules::RegionFromContact(wall, contact), body.position, body.velocity);
+			GameBattleEvents::PlayerWallCollision(0, body.position, body.velocity);
         }
     }
     // Walls only change motion; rebuilding unchanged contact histories for each
@@ -97,7 +119,8 @@ bool BallCollisionComponent::TryGetPierceExitDirection(Vector3& direction) const
     const auto player = CapturePhysicsBody();
     // Enumerate live components before dereferencing remembered contacts: a
     // remembered pointer may belong to an object removed since the last tick.
-    for (const auto* other : Game::GetInstance()->GetComponents<BallCollisionComponent>())
+    for (const auto* other :
+        GameRuntime::World().GetComponents<BallCollisionComponent>())
         if (other && other != this &&
             std::find(m_PiercedBalls.begin(), m_PiercedBalls.end(), other->m_BallComponent) != m_PiercedBalls.end() &&
             other->CanSimulate() && BallPhysicsRules::PierceExitDirection(player, other->CapturePhysicsBody(), direction))
@@ -119,7 +142,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     const bool impact = BallPhysicsRules::Pair(first, second);
     CommitPhysicsBody(first);
     otherContact.CommitPhysicsBody(second);
-	if (!impact || Game::GetInstance()->GetBattleState() != BattleState::BallsMoving) return;
+	if (!impact || GameBattleView::State() != BattleState::BallsMoving) return;
     auto* myEnemy = GetGameObject()->GetComponent<EnemyBall>();
     auto* otherEnemy = other->GetGameObject()->GetComponent<EnemyBall>();
     auto* myPlayer = GetGameObject()->GetComponent<PlayerBall>();
@@ -131,10 +154,10 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	};
 	if (myPlayer != nullptr && first.pierceUses == firstPierceUsesBefore &&
 		directionChanged(firstVelocityBefore, first.velocity))
-		Game::GetInstance()->NotifyPlayerDirectionChange(first.position);
+		GameBattleEvents::PlayerDirectionChange(first.position);
 	if (otherPlayer != nullptr && second.pierceUses == secondPierceUsesBefore &&
 		directionChanged(secondVelocityBefore, second.velocity))
-		Game::GetInstance()->NotifyPlayerDirectionChange(second.position);
+		GameBattleEvents::PlayerDirectionChange(second.position);
     // Neutral contacts do not deal direct contact damage or consume damage relics.
     // A player's chain-impact ability may still use the neutral as its blast center.
     if (first.breakBall || second.breakBall)
@@ -144,20 +167,20 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
         if (first.breakBall && otherEnemy) GetGameObject()->GetComponent<BreakBall>()->HitBoss(*otherEnemy);
         if (second.breakBall && myEnemy) other->GetGameObject()->GetComponent<BreakBall>()->HitBoss(*myEnemy);
         if (first.breakBall && otherPlayer)
-            Game::GetInstance()->NotifyPlayerChainImpact(
+            GameBattleEvents::PlayerChainImpact(
                 firstPosition, nullptr, other->GetAttack(), otherPlayer->GetStatus().chainImpactRadius);
         if (second.breakBall && myPlayer)
-            Game::GetInstance()->NotifyPlayerChainImpact(
+            GameBattleEvents::PlayerChainImpact(
                 secondPosition, nullptr, GetAttack(), myPlayer->GetStatus().chainImpactRadius);
         if (BallPhysicsRules::StopAnchor(first, m_PhysicsComponent->Acceleration()))
         {
             CommitPhysicsBody(first);
-            Game::GetInstance()->NotifyAnchorStopped();
+            GameBattleEvents::AnchorStopped();
         }
         if (BallPhysicsRules::StopAnchor(second, otherCollision->m_PhysicsComponent->Acceleration()))
         {
             otherContact.CommitPhysicsBody(second);
-            Game::GetInstance()->NotifyAnchorStopped();
+            GameBattleEvents::AnchorStopped();
         }
         return;
     }
@@ -165,7 +188,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     const bool isEnemyEnemyCollision = myEnemy && otherEnemy;
 	if (isEnemyEnemyCollision)
 	{
-		Game::GetInstance()->NotifyEnemyEnemySynergyCollision(
+		GameBattleEvents::EnemyEnemySynergyCollision(
 			myEnemy, otherEnemy, firstVelocityBefore, secondVelocityBefore);
 	}
 	if (isPlayerEnemyCollision)
@@ -177,18 +200,24 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 		if (playerPierced)
 		{
 			const BallPhysicsRules::Body& playerBody = myPlayer != nullptr ? first : second;
-			Game::GetInstance()->NotifyPlayerPiercedEnemy(
+			GameBattleEvents::PlayerPiercedEnemy(
 				target,
 				playerBody.position,
-				playerBody.status.abilities.refractAfterPierce);
+				playerBody.velocity);
 		}
 	}
+    LiveShotRules liveShotRules;
     auto damage = BallPhysicsRules::ContactDamage(first, second, GetAttack(), other->GetAttack(),
-        myEnemy && myEnemy->IsDefeated(), otherEnemy && otherEnemy->IsDefeated(), *Game::GetInstance());
+        myEnemy && myEnemy->IsDefeated(), otherEnemy && otherEnemy->IsDefeated(), liveShotRules);
 	int damageToThis = damage.first, damageToOther = damage.second;
+	if (isEnemyEnemyCollision)
+	{
+		damageToThis = GameBattleView::ScaleEnemyCollisionDamage(damageToThis);
+		damageToOther = GameBattleView::ScaleEnemyCollisionDamage(damageToOther);
+	}
 	if (isPlayerEnemyCollision)
 	{
-		const int synergyBonus = Game::GetInstance()->NotifyPlayerEnemySynergyCollision(
+		const int synergyBonus = GameBattleEvents::PlayerEnemySynergyCollision(
 			myEnemy != nullptr ? myEnemy : otherEnemy);
 		if (myEnemy != nullptr) damageToThis += synergyBonus;
 		else damageToOther += synergyBonus;
@@ -235,7 +264,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				if (!myEnemyWasDefeated &&
 					(appliedDamage > 0 || myEnemy->IsDefeated()))
 				{
-					Game::GetInstance()->NotifyCombatFeedback(
+					GameBattleEvents::CombatFeedback(
 						myEnemyFeedbackPosition,
 						appliedDamage,
 						myEnemy->IsDefeated(),
@@ -244,8 +273,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				if (myEnemyWasFullHp &&
 					!myEnemy->IsDefeated())
 				{
-					Game::GetInstance()->
-						NotifyBalanceAutoFullHpEnemySurvived();
+					GameBattleEvents::BalanceAutoFullHpEnemySurvived();
 				}
 				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
 				{
@@ -263,7 +291,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				if (!otherEnemyWasDefeated &&
 					(appliedDamage > 0 || otherEnemy->IsDefeated()))
 				{
-					Game::GetInstance()->NotifyCombatFeedback(
+					GameBattleEvents::CombatFeedback(
 						otherEnemyFeedbackPosition,
 						appliedDamage,
 						otherEnemy->IsDefeated(),
@@ -272,8 +300,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				if (otherEnemyWasFullHp &&
 					!otherEnemy->IsDefeated())
 				{
-					Game::GetInstance()->
-						NotifyBalanceAutoFullHpEnemySurvived();
+					GameBattleEvents::BalanceAutoFullHpEnemySurvived();
 				}
 				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
 				{
@@ -284,14 +311,14 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 
 			if (myEnemy != nullptr && otherPlayer != nullptr && !myEnemyWasDefeated)
 			{
-				Game::GetInstance()->NotifyPlayerChainImpact(
+				GameBattleEvents::PlayerChainImpact(
 					myEnemy,
 					damageToThis,
 					otherPlayer->GetStatus().chainImpactRadius);
 			}
 			else if (otherEnemy != nullptr && myPlayer != nullptr && !otherEnemyWasDefeated)
 			{
-				Game::GetInstance()->NotifyPlayerChainImpact(
+				GameBattleEvents::PlayerChainImpact(
 					otherEnemy,
 					damageToOther,
 					myPlayer->GetStatus().chainImpactRadius);
@@ -302,23 +329,21 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
         first = CapturePhysicsBody();
         second = otherContact.CapturePhysicsBody();
         if (BallPhysicsRules::StopAnchor(first, m_PhysicsComponent->Acceleration()))
-			Game::GetInstance()->NotifyAnchorStopped(otherEnemy);
+			GameBattleEvents::AnchorStopped(otherEnemy);
         if (BallPhysicsRules::StopAnchor(second, otherCollision->m_PhysicsComponent->Acceleration()))
-			Game::GetInstance()->NotifyAnchorStopped(myEnemy);
+			GameBattleEvents::AnchorStopped(myEnemy);
         CommitPhysicsBody(first);
         otherContact.CommitPhysicsBody(second);
     }
 
 			if (isPlayerEnemyCollision)
 			{
-				Game::GetInstance()->
-					NotifyDamageBallCollision(
+				GameBattleEvents::DamageBallCollision(
 						DamageBallCollisionType::PlayerEnemy);
 			}
 			else if (isEnemyEnemyCollision)
 			{
-				Game::GetInstance()->
-					NotifyDamageBallCollision(
+				GameBattleEvents::DamageBallCollision(
 						DamageBallCollisionType::EnemyEnemy);
 			}
 }
@@ -412,10 +437,12 @@ BallPhysicsRules::Body BallCollisionComponent::CapturePhysicsBody() const
     const auto* enemy = GetGameObject()->GetComponent<EnemyBall>();
     body.enemy = enemy != nullptr;
     body.boss = enemy && enemy->IsArmorBoss();
+	if (enemy != nullptr)
+		body.nextKnockbackMultiplier = enemy->GetNextKnockbackMultiplier();
     body.breakBall = GetGameObject()->GetComponent<BreakBall>() != nullptr;
     body.pierceUses = m_PierceUseCount;
-    body.pierceLimit = Game::GetInstance()->GetPierceMaximumUses();
-    body.pierceRetention = Game::GetInstance()->GetPierceSpeedRetention();
+    body.pierceLimit = GameBattleView::PierceMaximumUses();
+    body.pierceRetention = GameBattleView::PierceSpeedRetention();
     for (auto* contact : m_PiercedBalls) body.pierced.push_back(reinterpret_cast<std::uintptr_t>(contact));
     for (auto* contact : m_TouchingBalls) body.touching.push_back(reinterpret_cast<std::uintptr_t>(contact));
     return body;
@@ -426,6 +453,11 @@ void BallCollisionComponent::CommitPhysicsBody(const BallPhysicsRules::Body& bod
     SetPosition(body.position);
     m_PhysicsComponent->Velocity() = body.velocity;
     m_PierceUseCount = body.pierceUses;
+	if (body.consumedKnockbackMultiplier)
+	{
+		if (auto* enemy = GetGameObject()->GetComponent<EnemyBall>())
+			enemy->ConsumeLightweight();
+	}
     m_PiercedBalls.clear();
     m_TouchingBalls.clear();
     for (auto id : body.touching) m_TouchingBalls.push_back(reinterpret_cast<const BallComponent*>(id));

@@ -5,6 +5,7 @@
 
 #include "Game.h"
 #include "RunMap.h"
+#include "StageData.h"
 #include "json/json.hpp"
 
 #include <utility>
@@ -144,7 +145,7 @@ ShopViewSnapshot GameView::CaptureShop()
     ShopViewSnapshot view{};
     view.playerMoney = game.GetPlayerMoney();
     view.deckBallCount = game.GetDeckBallCount();
-    view.shopBallCount = game.GetShopBallCount();
+    view.shopBallOfferCount = game.GetShopBallOfferCount();
     view.shopRelicOfferCount = game.GetShopRelicOfferCount();
     view.ownedRelicCount = game.GetOwnedRelicCount();
     view.relicCount = game.GetRelicCount();
@@ -175,6 +176,11 @@ const PlayerBallData* GameView::DeckBall(int index)
 const PlayerBallData* GameView::ShopBall(int index)
 {
     return Game::GetInstance()->GetShopBall(index);
+}
+
+const PlayerBallData* GameView::ShopBallOffer(int index)
+{
+    return Game::GetInstance()->GetShopBallOffer(index);
 }
 
 int GameView::EffectivePlayerBallAttack(const PlayerBallData* ball)
@@ -248,14 +254,19 @@ void GameSceneCommands::RollShopRelicOffers()
     Game::GetInstance()->RollShopRelicOffers();
 }
 
+void GameSceneCommands::RollShopBallOffers()
+{
+    Game::GetInstance()->RollShopBallOffers();
+}
+
 bool GameSceneCommands::BuyShopRelicOffer(int index)
 {
     return Game::GetInstance()->BuyShopRelicOffer(index);
 }
 
-bool GameSceneCommands::BuyShopBall(int index, int cost)
+bool GameSceneCommands::BuyShopBallOffer(int index, int cost)
 {
-    return Game::GetInstance()->BuyShopBall(index, cost);
+    return Game::GetInstance()->BuyShopBallOffer(index, cost);
 }
 
 bool GameSceneCommands::RemoveShopBall(int index, int cost)

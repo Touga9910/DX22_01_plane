@@ -23,6 +23,8 @@ namespace BallPhysicsRules
         bool player = false, enemy = false, breakBall = false, boss = false;
         int pierceUses = 0, pierceLimit = 0;
         float pierceRetention = 0.75f;
+		float nextKnockbackMultiplier = 1.0f;
+		bool consumedKnockbackMultiplier = false;
         std::vector<std::uintptr_t> pierced;
         std::vector<std::uintptr_t> touching;
     };
@@ -203,6 +205,8 @@ namespace BallPhysicsRules
         }
         else
         {
+			const Vector3 aVelocityBeforeImpact = a.velocity;
+			const Vector3 bVelocityBeforeImpact = b.velocity;
             const float restitution = a.player ? a.status.restitution :
                 (b.player ? b.status.restitution : (std::min)(a.status.restitution, b.status.restitution));
             const auto response = BallMechanics::ResolveNormalImpact(av, bv, a.status.mass, b.status.mass,
@@ -210,6 +214,18 @@ namespace BallPhysicsRules
                 b.player && (a.enemy || a.breakBall) ? b.status.knockbackTransfer : 1.0f, aLocked, bLocked);
             a.velocity += normal * (response.first - av);
             b.velocity += normal * (response.second - bv);
+			if (a.nextKnockbackMultiplier > 1.0f)
+			{
+				a.velocity = aVelocityBeforeImpact +
+					(a.velocity - aVelocityBeforeImpact) * a.nextKnockbackMultiplier;
+				a.consumedKnockbackMultiplier = true;
+			}
+			if (b.nextKnockbackMultiplier > 1.0f)
+			{
+				b.velocity = bVelocityBeforeImpact +
+					(b.velocity - bVelocityBeforeImpact) * b.nextKnockbackMultiplier;
+				b.consumedKnockbackMultiplier = true;
+			}
             if (!newContact)
             {
                 // The legacy 2*restitution response may retain closing velocity

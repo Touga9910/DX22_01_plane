@@ -26,6 +26,7 @@ ShopScene::~ShopScene()
 
 void ShopScene::Init()
 {
+	GameSceneCommands::RollShopBallOffers();
 	GameSceneCommands::RollShopRelicOffers();
 	Texture2D* background = SceneObjectFactory::CreateTexture2D();
 	background->SetTexture("assets/texture/background2.png");
@@ -40,9 +41,9 @@ void ShopScene::Update()
 
 	const bool moveLeft = Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A);
 	const bool moveRight = Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D);
-	if (m_Menu.GetIndex() == 0 && view.shopBallCount > 0)
+	if (m_Menu.GetIndex() == 0 && view.shopBallOfferCount > 0)
 	{
-		const int count = view.shopBallCount;
+		const int count = view.shopBallOfferCount;
 		if (moveLeft) m_SelectedBuyBall = (m_SelectedBuyBall + count - 1) % count;
 		if (moveRight) m_SelectedBuyBall = (m_SelectedBuyBall + 1) % count;
 	}
@@ -92,7 +93,7 @@ void ShopScene::Update()
 
 	if (m_Menu.GetIndex() == 0)
 	{
-		if (GameSceneCommands::BuyShopBall(m_SelectedBuyBall, kBallPrice))
+		if (GameSceneCommands::BuyShopBallOffer(m_SelectedBuyBall, kBallPrice))
 		{
 			m_Message = UiText::BallPurchased;
 		}
@@ -134,11 +135,11 @@ void ShopScene::DrawUI()
 	{
 		const bool buying = m_Menu.GetIndex() == 0;
 		int& selected = buying ? m_SelectedBuyBall : m_SelectedRemoveBall;
-		const int count = buying ? view.shopBallCount : view.deckBallCount;
+		const int count = buying ? view.shopBallOfferCount : view.deckBallCount;
 		if (!buying) ImGui::Text(UiText::MinimumDeckFormat, view.minimumDeckSize);
 		for (int index = 0; index < count; ++index)
 		{
-			const auto* ball = buying ? GameView::ShopBall(index) : GameView::DeckBall(index);
+			const auto* ball = buying ? GameView::ShopBallOffer(index) : GameView::DeckBall(index);
 			if (ball == nullptr) continue;
 			ImGui::PushID(index);
 			if (PlayerBallUI::Select(*ball, index == selected)) selected = index;

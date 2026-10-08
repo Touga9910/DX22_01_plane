@@ -1,4 +1,15 @@
 ﻿#include "Game.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
+#include "GameBattleState.h"
+#include "GameRewardState.h"
+#include "GameBallSelectionState.h"
+#include "GameBalanceRuntime.h"
+#include "GamePersistenceRuntime.h"
+#include "PlayerDeck.h"
+#include "PlayerRunStatus.h"
+#include "RunController.h"
+#include "ShotRelicRules.h"
 #include "BallStatusJson.h"
 #include "GameObject.h"
 #include "PlayerBallText.h"
@@ -124,56 +135,56 @@ namespace
 
 int Game::GetAreaProgress() const
 {
-	return m_RunController.Progress().GetAreaProgress();
+	return m_RunController->Progress().GetAreaProgress();
 }
 
 const RunMap& Game::GetRunMap() const
 {
-	return m_RunController.Progress().GetMap();
+	return m_RunController->Progress().GetMap();
 }
 
 bool Game::ChooseMapNode(int nodeId)
 {
-	return m_RunController.Progress().ChooseNode(nodeId);
+	return m_RunController->Progress().ChooseNode(nodeId);
 }
 
 RunPhase Game::GetRunPhase() const
 {
-	return m_RunController.Progress().GetPhase();
+	return m_RunController->Progress().GetPhase();
 }
 
 bool Game::IsBossPreparation() const
 {
-	return m_RunController.Progress().IsBossPreparation();
+	return m_RunController->Progress().IsBossPreparation();
 }
 
 bool Game::IsFinalBossRoute() const
 {
-	return m_RunController.Progress().IsFinalBossReady();
+	return m_RunController->Progress().IsFinalBossReady();
 }
 
 // Rest Heal の処理を実行する。
 bool Game::RestHeal()
 {
 	RestSiteScene* restSite =
-		dynamic_cast<RestSiteScene*>(m_SceneManager.Get());
+		dynamic_cast<RestSiteScene*>(GetCurrentScene());
 	if (restSite != nullptr && restSite->HasUsedAction())
 	{
 		return false;
 	}
-	if (!m_RunController.CanRestHeal())
+	if (!m_RunController->CanRestHeal())
 	{
 		return false;
 	}
 
-	const int hpBefore = m_RunController.Status().currentHp;
-	const int configuredHealAmount = m_RunController.GetRestHealAmount();
-	if (!m_RunController.RestHeal())
+	const int hpBefore = m_RunController->Status().currentHp;
+	const int configuredHealAmount = m_RunController->GetRestHealAmount();
+	if (!m_RunController->RestHeal())
 	{
 		return false;
 	}
 	const int actualHealAmount =
-		m_RunController.Status().currentHp - hpBefore;
+		m_RunController->Status().currentHp - hpBefore;
 	if (restSite != nullptr)
 	{
 		restSite->MarkActionUsed();
@@ -182,14 +193,14 @@ bool Game::RestHeal()
 		"rest_heal",
 		{
 			{ "hp_before", hpBefore },
-			{ "hp_after", m_RunController.Status().currentHp },
+			{ "hp_after", m_RunController->Status().currentHp },
 			{ "heal_amount", actualHealAmount },
 			{ "configured_heal_amount", configuredHealAmount },
-			{ "heal_ratio", m_RunController.RestHealRatio() },
+			{ "heal_ratio", m_RunController->RestHealRatio() },
 			{ "boss_preparation", IsBossPreparation() },
 			{ "capped_at_max_hp",
 				actualHealAmount < configuredHealAmount },
-			{ "source_scene", GetSceneDebugName(m_SceneManager.Get()) },
+			{ "source_scene", GetSceneDebugName(GetCurrentScene()) },
 		});
 	return true;
 }
@@ -197,20 +208,20 @@ bool Game::RestHeal()
 // Rest Heal Amountを取得する。
 int Game::GetRestHealAmount() const
 {
-	return m_RunController.GetRestHealAmount();
+	return m_RunController->GetRestHealAmount();
 }
 
 // Rest Heal Percentを取得する。
 int Game::GetRestHealPercent() const
 {
-	return m_RunController.GetRestHealPercent();
+	return m_RunController->GetRestHealPercent();
 }
 
 // Clear Reward Upgrade Costを取得する。
 int Game::GetClearRewardUpgradeCost(int ballIndex) const
 {
 	const PlayerBallData* ball =
-		m_RunController.Deck().GetRewardTarget(ballIndex);
+		m_RunController->Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr || !ball->CanUpgrade())
 	{
 		return -1;
@@ -233,13 +244,13 @@ bool Game::ApplyClearRewardUpgrade(
 	int& chargedCost)
 {
 	chargedCost = 0;
-	if (!m_IsClearRewardActive)
+	if (!IsClearRewardActive())
 	{
 		return false;
 	}
 
 	const int cost = GetClearRewardUpgradeCost(ballIndex);
-	if (cost < 0 || m_RunController.Status().money < cost)
+	if (cost < 0 || m_RunController->Status().money < cost)
 	{
 		return false;
 	}
@@ -249,7 +260,7 @@ bool Game::ApplyClearRewardUpgrade(
 		return false;
 	}
 
-	if (!m_RunController.SpendMoney(cost))
+	if (!m_RunController->SpendMoney(cost))
 	{
 		return false;
 	}
@@ -261,12 +272,12 @@ bool Game::ApplyClearRewardUpgrade(
 bool Game::RestUpgradeBall(int ballIndex)
 {
 	RestSiteScene* restSite =
-		dynamic_cast<RestSiteScene*>(m_SceneManager.Get());
+		dynamic_cast<RestSiteScene*>(GetCurrentScene());
 	if (restSite != nullptr && restSite->HasUsedAction())
 	{
 		return false;
 	}
-	PlayerBallData* ball = m_RunController.Deck().GetRewardTarget(ballIndex);
+	PlayerBallData* ball = m_RunController->Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr ||
 		!ball->CanUpgrade())
 	{
@@ -276,7 +287,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 	const std::uint64_t instanceId = ball->instanceId;
 	const std::string ballId = ball->definitionId;
 	const int upgradeLevelBefore = ball->upgradeLevel;
-	if (!m_RunController.UpgradeBall(ballIndex))
+	if (!m_RunController->UpgradeBall(ballIndex))
 	{
 		return false;
 	}
@@ -294,7 +305,7 @@ bool Game::RestUpgradeBall(int ballIndex)
 			{ "upgrade_level_after", ball->upgradeLevel },
 			{ "attack_after", ball->status.attack },
 			{ "status_after", WritePlayerBallStatus(ball->status) },
-			{ "source_scene", GetSceneDebugName(m_SceneManager.Get()) },
+			{ "source_scene", GetSceneDebugName(GetCurrentScene()) },
 		});
 	return true;
 }
@@ -304,11 +315,11 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 {
 	cost = (std::max)(0, cost);
 	const PlayerBallData* catalogBall =
-		m_RunController.Deck().GetCatalogBall(catalogIndex);
+		m_RunController->Deck().GetCatalogBall(catalogIndex);
 	const std::string ballId =
 		catalogBall != nullptr ? catalogBall->definitionId : std::string();
-	const int moneyBefore = m_RunController.Status().money;
-	if (!m_RunController.BuyShopBall(catalogIndex, cost))
+	const int moneyBefore = m_RunController->Status().money;
+	if (!m_RunController->BuyShopBall(catalogIndex, cost))
 	{
 		return false;
 	}
@@ -321,33 +332,46 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 			{ "ball_id", ballId },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_RunController.Status().money },
+			{ "money_after", m_RunController->Status().money },
 		});
 	return true;
+}
+
+// Shop入店中に提示するBallを、重複なしで最大3枠抽選する。
+void Game::RollShopBallOffers()
+{
+	m_RunController->ShopBallOffers() =
+		m_RunController->Deck().RollDistinctCatalogOfferIndices(kShopBallOfferSize);
+}
+
+// Shopの提示位置から対応するCatalog Ballを購入する。
+bool Game::BuyShopBallOffer(int offerIndex, int cost)
+{
+	return BuyShopBall(GetShopBallOfferCatalogIndex(offerIndex), cost);
 }
 
 // Shop Ballを取り除く。
 bool Game::RemoveShopBall(int ballIndex, int cost)
 {
 	cost = (std::max)(0, cost);
-	if (m_RunController.Status().money < cost ||
-		m_RunController.Deck().GetRewardTargetCount() <=
+	if (m_RunController->Status().money < cost ||
+		m_RunController->Deck().GetRewardTargetCount() <=
 			PlayerDeck::MinimumDeckSize)
 	{
 		return false;
 	}
 
 	const PlayerBallData* ball =
-		m_RunController.Deck().GetRewardTarget(ballIndex);
+		m_RunController->Deck().GetRewardTarget(ballIndex);
 	if (ball == nullptr)
 	{
 		return false;
 	}
 	const std::uint64_t instanceId = ball->instanceId;
 	const std::string ballId = ball->definitionId;
-	const int moneyBefore = m_RunController.Status().money;
+	const int moneyBefore = m_RunController->Status().money;
 
-	if (!m_RunController.RemoveShopBall(ballIndex, cost))
+	if (!m_RunController->RemoveShopBall(ballIndex, cost))
 	{
 		return false;
 	}
@@ -360,8 +384,8 @@ bool Game::RemoveShopBall(int ballIndex, int cost)
 			{ "ball_id", ballId },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_RunController.Status().money },
-			{ "deck_count_after", m_RunController.Deck().GetRewardTargetCount() },
+			{ "money_after", m_RunController->Status().money },
+			{ "deck_count_after", m_RunController->Deck().GetRewardTargetCount() },
 		});
 	return true;
 }
@@ -376,12 +400,12 @@ bool Game::BuyRelic(int relicIndex)
 	}
 
 	const int cost = (std::max)(0, relic->price);
-	const int moneyBefore = m_RunController.Status().money;
-	if (!m_RunController.BuyRelic(relicIndex))
+	const int moneyBefore = m_RunController->Status().money;
+	if (!m_RunController->BuyRelic(relicIndex))
 	{
 		return false;
 	}
-	for (PlayerBall* player : GetComponents<PlayerBall>())
+	for (PlayerBall* player : GameRuntime::World().GetComponents<PlayerBall>())
 	{
 		ApplyRelicModifiersTo(player);
 	}
@@ -400,7 +424,7 @@ bool Game::BuyRelic(int relicIndex)
 			{ "relic_name", relic->name },
 			{ "cost", cost },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_RunController.Status().money },
+			{ "money_after", m_RunController->Status().money },
 		});
 
 	return true;
@@ -415,11 +439,11 @@ bool Game::GrantRelic(int relicIndex, const char* source)
 		return false;
 	}
 
-	if (!m_RunController.GrantRelic(relicIndex))
+	if (!m_RunController->GrantRelic(relicIndex))
 	{
 		return false;
 	}
-	for (PlayerBall* player : GetComponents<PlayerBall>())
+	for (PlayerBall* player : GameRuntime::World().GetComponents<PlayerBall>())
 	{
 		ApplyRelicModifiersTo(player);
 	}
@@ -437,25 +461,25 @@ bool Game::GrantRelic(int relicIndex, const char* source)
 // Relic Offersの候補を抽選する。
 std::vector<int> Game::RollRelicOffers(int count, bool midBoss)
 {
-	return m_RunController.RollRelicOffers(
+	return m_RunController->RollRelicOffers(
 		count,
 		midBoss,
-		m_ProgressionProfile);
+		m_PersistenceRuntime->Profile());
 }
 
 // Shop Relic Offersの候補を抽選する。
 void Game::RollShopRelicOffers()
 {
-	m_RunController.ShopRelicOffers() = RollRelicOffers(3, false);
+	m_RunController->ShopRelicOffers() = RollRelicOffers(3, false);
 }
 
 // Shop Relic Offeredかどうかを判定する。
 bool Game::IsShopRelicOffered(int relicIndex) const
 {
 	return std::find(
-		m_RunController.ShopRelicOffers().begin(),
-		m_RunController.ShopRelicOffers().end(),
-		relicIndex) != m_RunController.ShopRelicOffers().end();
+		m_RunController->ShopRelicOffers().begin(),
+		m_RunController->ShopRelicOffers().end(),
+		relicIndex) != m_RunController->ShopRelicOffers().end();
 }
 
 // Shop Relic Offerを購入する。
@@ -481,9 +505,9 @@ bool Game::BuyShopRelic(int relicIndex)
 // Mid Boss Relic Offersの候補を抽選する。
 void Game::RollMidBossRelicOffers()
 {
-	m_RunController.MidBossRelicOffers() = RollRelicOffers(3, true);
-	m_SelectedRelicOfferIndex = 0;
-	m_IsMidBossRelicSelectionActive = !m_RunController.MidBossRelicOffers().empty();
+	m_RunController->MidBossRelicOffers() = RollRelicOffers(3, true);
+	m_RewardState->StartMidBossRelicSelection(
+		!m_RunController->MidBossRelicOffers().empty());
 }
 
 // Mid Boss Relic Offerを獲得する。
@@ -495,22 +519,22 @@ bool Game::AcquireMidBossRelicOffer(int offerIndex)
 // Mid Boss Relicを獲得する。
 bool Game::AcquireMidBossRelic(int relicIndex)
 {
-	if (!m_IsMidBossRelicSelectionActive ||
-		std::find(m_RunController.MidBossRelicOffers().begin(),
-			m_RunController.MidBossRelicOffers().end(), relicIndex) ==
-			m_RunController.MidBossRelicOffers().end() ||
+	if (!m_RewardState->IsMidBossRelicSelectionActive() ||
+		std::find(m_RunController->MidBossRelicOffers().begin(),
+			m_RunController->MidBossRelicOffers().end(), relicIndex) ==
+			m_RunController->MidBossRelicOffers().end() ||
 		!GrantRelic(relicIndex, "midboss"))
 	{
 		return false;
 	}
-	m_IsMidBossRelicSelectionActive = false;
+	m_RewardState->FinishMidBossRelicSelection();
 	return true;
 }
 
 // Owned Relic Countを取得する。
 int Game::GetOwnedRelicCount() const
 {
-	return m_RunController.GetOwnedRelicCount();
+	return m_RunController->GetOwnedRelicCount();
 }
 
 // Relic Attack Bonusを取得する。
@@ -536,10 +560,11 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 		return;
 	}
 
-	const PlayerBallData* selectedBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* selectedBall = m_RunController->Deck().GetCurrent();
 	if (selectedBall == nullptr)
 	{
-		selectedBall = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
+		selectedBall = m_RunController->Deck().GetOffer(
+			GetSelectedBallOfferIndex());
 	}
 
 	if (selectedBall == nullptr)
@@ -578,9 +603,9 @@ void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 		return;
 	}
 
-	m_RunController.Status() = NormalizePlayerRunStatus(m_RunController.Status());
-	player->SetMaxHP(m_RunController.Status().maxHp);
-	player->SetHP(m_RunController.Status().currentHp);
+	m_RunController->Status() = NormalizePlayerRunStatus(m_RunController->Status());
+	player->SetMaxHP(m_RunController->Status().maxHp);
+	player->SetHP(m_RunController->Status().currentHp);
 	ApplyRelicModifiersTo(player);
 	InvalidateDebugCombatForecast("プレイヤー状態変更");
 }
@@ -595,7 +620,7 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 
 	const int collisionBonus =
 		HasRelic(RelicType::CollisionAttackUp)
-			? m_BattleController.GetShotRelicRules().collisionBonus
+			? m_BattleState->controller.GetShotRelicRules().collisionBonus
 			: 0;
 	player->GetBall()->SetCombatModifiers(
 		GetRelicAttackBonus() + collisionBonus,
@@ -605,7 +630,7 @@ void Game::ApplyRelicModifiersTo(PlayerBall* player)
 // Shot Relic Stateを初期状態へ戻す。
 void Game::ResetShotRelicState(PlayerBall* player)
 {
-	m_BattleController.ResetShotState(MakePredictionShotRules(0.0f));
+	m_BattleState->controller.ResetShotState(MakePredictionShotRules(0.0f));
 	if (player != nullptr)
 	{
 		ApplyRelicModifiersTo(player);
@@ -615,72 +640,64 @@ void Game::ResetShotRelicState(PlayerBall* player)
 // End Of Shot Relic Effectsを適用する。
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
-	if (player != nullptr && currentBall != nullptr &&
-		currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
-		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
+	const int oneShotAnchorBonus = currentBall != nullptr &&
+		currentBall->category == BallCategory::Anchor
+		? m_BattleState->anchorStacks.nextAnchorGrantBonus
+		: 0;
+	if (currentBall != nullptr && currentBall->category == BallCategory::Anchor)
+		m_BattleState->anchorStacks.nextAnchorGrantBonus = 0;
+	const int heavyGenerated = HeavyCollisionRules::EndShot(
+		m_BattleState->heavyCollisions);
+	if (heavyGenerated > 0)
 	{
-		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
-		if (PierceTraceRules::AddTrace(
-			m_PierceTraces,
-			m_TraceSegmentStart,
-			player->GetPosition(),
-			currentBall->status.traceDurability))
-		{
-			RecordBalanceEvent("pierce_trace_generated", {
-				{ "trace_id", m_PierceTraces.traces.back().id },
-				{ "durability", m_PierceTraces.traces.back().durability },
-				{ "route_expansion", m_TraceDriverExpansionSegment },
-				{ "overwrote_oldest", m_PierceTraces.overwrittenCount > overwrittenBefore },
-			});
-		}
+		RecordBalanceEvent("heavy_distance_stacks_generated", {
+			{ "amount", heavyGenerated },
+			{ "stack_after", m_BattleState->heavyCollisions.stackCount },
+		});
 	}
-	m_TraceSegmentValid = false;
-	m_TraceSegmentPierced = false;
-	m_TraceDriverExpansionSegment = false;
 
 	if (player != nullptr && currentBall != nullptr &&
-		currentBall->category == BallCategory::Anchor &&
-		m_AnchorContactTarget != nullptr &&
-		!m_AnchorContactTarget->IsDefeated())
+		currentBall->status.anchorEnemyStackGenerate > 0 &&
+		m_BattleState->anchorContactTarget != nullptr &&
+		!m_BattleState->anchorContactTarget->IsDefeated())
 	{
 		const BallStatus& status = currentBall->status;
-		const int playerGenerated = AnchorStackRules::AddPlayerStacks(
-			m_AnchorStacks, status.anchorPlayerStackGenerate, status.anchorStackMax);
-		int enemyGenerated = 0;
-		const DirectX::SimpleMath::Vector3 center = m_AnchorContactTarget->GetPosition();
-		const float radiusSquared = status.anchorStackRadius * status.anchorStackRadius;
-		for (EnemyBall* enemy : GetComponents<EnemyBall>())
-		{
-			if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
-			DirectX::SimpleMath::Vector3 delta = enemy->GetPosition() - center;
-			delta.y = 0.0f;
-			if (enemy != m_AnchorContactTarget && delta.LengthSquared() > radiusSquared) continue;
-			enemyGenerated += AnchorStackRules::AddEnemyStacks(
-				enemy->MutableAnchorStacks(), status.anchorEnemyStackGenerate, status.anchorStackMax);
-		}
-		if (playerGenerated > 0 || enemyGenerated > 0)
+		const int grant = AnchorStackRules::CalculateEnemyGrant(
+			status.anchorEnemyStackGenerate,
+			m_BattleState->anchorStacks.playerStacks,
+			status.anchorPlayerStacksPerBonus,
+			oneShotAnchorBonus);
+		const int enemyGenerated = AnchorStackRules::AddEnemyStacks(
+			m_BattleState->anchorContactTarget->MutableAnchorStacks(),
+			grant,
+			status.anchorStackMax);
+		if (enemyGenerated > 0)
 		{
 			RecordBalanceEvent("anchor_stacks_generated", {
-				{ "player_amount", playerGenerated },
 				{ "enemy_amount", enemyGenerated },
-				{ "radius", status.anchorStackRadius },
+				{ "player_anchor", m_BattleState->anchorStacks.playerStacks },
+				{ "one_shot_bonus", oneShotAnchorBonus },
 			});
 		}
 	}
-	m_AnchorContactTarget = nullptr;
-
-	CushionChargeRules::EndPlayerShot(m_CushionCharges);
-	m_CushionBoostConsumedThisShot = false;
-	if (player != nullptr)
+	m_BattleState->anchorContactTarget = nullptr;
+	if (currentBall != nullptr &&
+		currentBall->definitionId == "player_origin_anchor" &&
+		currentBall->status.nextAnchorGrantBonus > 0)
 	{
-		m_PlayerShield = (std::max)(0, player->GetStatus().stopShieldAmount);
-		if (m_PlayerShield > 0)
-		{
-			InvalidateDebugCombatForecast("停止時シールド付与");
-			RecordBalanceEvent("stop_shield_granted", { { "amount", m_PlayerShield } });
-		}
+		m_BattleState->anchorStacks.nextAnchorGrantBonus =
+			currentBall->status.nextAnchorGrantBonus;
 	}
+
+	if (currentBall != nullptr && currentBall->status.abilities.reflectionSetup)
+	{
+		CushionChargeRules::ArmSetupForNextShot(
+			m_BattleState->cushionCharges,
+			currentBall->status.reflectionSetupAmount);
+	}
+	CushionChargeRules::EndPlayerShot(m_BattleState->cushionCharges);
+	m_BattleState->cushionBoostConsumedThisShot = false;
 
 	if (player == nullptr ||
 		!HasRelic(RelicType::EmergencyRepairKit) ||
@@ -723,23 +740,24 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 	BallStatus updatedStatus =
 		NormalizeBallStatus(player->GetStatus());
 
-	PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall != nullptr)
 	{
 		currentBall->status = updatedStatus;
 	}
 
-	m_RunController.Status() = NormalizePlayerRunStatus(m_RunController.Status());
-	m_RunController.Status().currentHp = std::clamp(
+	m_RunController->Status() = NormalizePlayerRunStatus(m_RunController->Status());
+	m_RunController->Status().currentHp = std::clamp(
 		player->GetHP(),
 		0,
-		m_RunController.Status().maxHp
+		m_RunController->Status().maxHp
 	);
 }
 // Current Player Statusを取得して保持する。
 void Game::CaptureCurrentPlayerStatus()
 {
-	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
+	std::vector<PlayerBall*> players =
+		GameRuntime::World().GetComponents<PlayerBall>();
 	if (players.empty())
 	{
 		return;
@@ -751,8 +769,19 @@ void Game::CaptureCurrentPlayerStatus()
 bool Game::PrepareNextPlayerBall()
 {
 	DiscardCurrentPlayerBall();
+	DirectX::SimpleMath::Vector3 returnPosition;
+	if (AnchorStackRules::ConsumeReturnPosition(
+		m_BattleState->anchorStacks, returnPosition))
+	{
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		if (!players.empty() && players.front() != nullptr &&
+			players.front()->GetBall() != nullptr)
+		{
+			players.front()->GetBall()->ResetAtPosition(returnPosition);
+		}
+	}
 
-	if (m_RunController.Deck().HasCurrent())
+	if (m_RunController->Deck().HasCurrent())
 	{
 		return true;
 	}
@@ -767,7 +796,7 @@ int Game::CalculateStageRewardMoney() const
 	int totalRewardMoney = BASE_CLEAR_MONEY;
 
 	std::vector<EnemyBall*> enemies =
-		m_Instance->GetComponents<EnemyBall>();
+		GameRuntime::World().GetComponents<EnemyBall>();
 
 	for (EnemyBall* enemy : enemies)
 	{
@@ -793,32 +822,32 @@ int Game::CalculateStageRewardMoney() const
 void Game::CollectStageRewardMoney()
 {
 	// StartClearRewardが複数回呼ばれても二重取得しない
-	if (m_RunController.IsStageRewardCollected())
+	if (m_RunController->IsStageRewardCollected())
 	{
 		return;
 	}
 
-	const int moneyBefore = m_RunController.Status().money;
-	if (!m_RunController.CollectStageReward(
+	const int moneyBefore = m_RunController->Status().money;
+	if (!m_RunController->CollectStageReward(
 		CalculateStageRewardMoney()))
 	{
 		return;
 	}
 	const int rewardMoney =
-		m_RunController.GetCurrentStageRewardMoney();
+		m_RunController->GetCurrentStageRewardMoney();
 
 	char rewardMessage[128]{};
 	sprintf_s(
 		rewardMessage,
 		UiText::RewardMoneyFormat,
 		rewardMoney);
-	m_RewardMessage = rewardMessage;
+	m_RewardState->SetMessage(rewardMessage);
 	RecordBalanceEvent(
 		"stage_money_reward",
 		{
 			{ "amount", rewardMoney },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_RunController.Status().money },
+			{ "money_after", m_RunController->Status().money },
 		});
 }
 
@@ -828,38 +857,34 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	ResetFrameTiming();
 	ResetShotRelicState(player);
     // A new shot starts a new damage episode even for touching enemy pairs.
-    for (auto* ball : GetComponents<BallComponent>()) ball->ResetShotAbilityState();
-    for (auto* enemy : GetComponents<EnemyBall>()) enemy->BeginBossShot();
+    for (auto* ball : GameRuntime::World().GetComponents<BallComponent>()) ball->ResetShotAbilityState();
+	for (auto* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		enemy->BeginBossShot();
+		enemy->BeginLightweightWindow();
+	}
 
 	// 選択内容はショットした瞬間に確定する。
-	if (!m_RunController.Deck().HasCurrent())
+	if (!m_RunController->Deck().HasCurrent())
 	{
-		if (!m_RunController.Deck().SelectOffer(
-			m_SelectedOfferIndex,
-			m_SelectedHoldIndex))
+		if (!m_RunController->Deck().SelectOffer(
+			GetSelectedBallOfferIndex(),
+			GetHeldBallOfferIndex()))
 		{
 			return;
 		}
 	}
 
-	CushionChargeRules::BeginPlayerShot(m_CushionCharges);
-	m_CushionBoostConsumedThisShot = false;
-	m_CushionStrongUsesThisShot = 0;
-	m_SynergyDamageBonusThisShot = 0;
-	m_PierceTraceUse = {};
-	m_PiercedEnemiesThisShot.clear();
-	m_TraceSegmentStart = player != nullptr
-		? player->GetPosition()
-		: DirectX::SimpleMath::Vector3::Zero;
-	m_TraceSegmentValid = player != nullptr;
-	m_TraceSegmentPierced = false;
-	m_TraceDriverExpansionArmed = false;
-	m_TraceDriverExpansionSegment = false;
-	m_TracePierceBenefitActive = false;
-	m_HeavyFinisherConsumedThisShot = false;
-	m_AnchorFinisherTriggeredThisShot = false;
-	m_AnchorContactTarget = nullptr;
-	m_PlayerShield = 0;
+	CushionChargeRules::BeginPlayerShot(m_BattleState->cushionCharges);
+	HeavyCollisionRules::BeginShot(m_BattleState->heavyCollisions);
+	PierceTraceRules::BeginShot(m_BattleState->pierceTraces);
+	m_BattleState->cushionBoostConsumedThisShot = false;
+	m_BattleState->cushionStrongUsesThisShot = 0;
+	m_BattleState->synergyDamageBonusThisShot = 0;
+	m_BattleState->piercedEnemiesThisShot.clear();
+	m_BattleState->heavyFinisherConsumedThisShot = false;
+	m_BattleState->anchorContactTarget = nullptr;
+	m_BattleState->playerShield = 0;
 
 	if (player != nullptr)
 	{
@@ -867,12 +892,36 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	}
 
 	const PlayerBallData* currentBall =
-		m_RunController.Deck().GetCurrent();
+		m_RunController->Deck().GetCurrent();
+	if (currentBall != nullptr &&
+		currentBall->definitionId == "player_collision_boost" &&
+		currentBall->status.heavySetupStackConsume > 0 &&
+		m_BattleState->heavyCollisions.stackCount >=
+			currentBall->status.heavySetupStackConsume)
+	{
+		const int consumed = HeavyCollisionRules::Consume(
+			m_BattleState->heavyCollisions,
+			currentBall->status.heavySetupStackConsume);
+		HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
+			m_BattleState->heavyCollisions,
+			currentBall->status.heavyEnemyCollisionMultiplier);
+		RecordBalanceEvent("heavy_collision_boost_armed", {
+			{ "consumed", consumed },
+			{ "remaining", m_BattleState->heavyCollisions.stackCount },
+			{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
+		});
+	}
 	if (player != nullptr && currentBall != nullptr)
 	{
-		auto shotRules = m_BattleController.GetShotRelicRules();
+		if (currentBall->status.abilities.returnToShotStart)
+		{
+			AnchorStackRules::SaveReturnPosition(
+				m_BattleState->anchorStacks,
+				player->GetPosition());
+		}
+		auto shotRules = m_BattleState->controller.GetShotRelicRules();
 		shotRules.launchPower = player->GetVelocity().Length();
-		m_BattleController.SetShotRelicRules(shotRules);
+		m_BattleState->controller.SetShotRelicRules(shotRules);
 		PublishGameEvent(ShotFiredEvent{ currentBall->definitionId });
 
 		const DirectX::SimpleMath::Vector3 position =
@@ -880,14 +929,14 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		const DirectX::SimpleMath::Vector3 velocity =
 			player->GetVelocity();
 		const std::vector<EnemyBall*> enemies =
-			GetComponents<EnemyBall>();
+			GameRuntime::World().GetComponents<EnemyBall>();
 		nlohmann::json offers = nlohmann::json::array();
 		for (int index = 0;
-			index < m_RunController.Deck().GetOfferCount();
+			index < m_RunController->Deck().GetOfferCount();
 			index++)
 		{
 			const PlayerBallData* offer =
-				m_RunController.Deck().GetOffer(index);
+				m_RunController->Deck().GetOffer(index);
 			if (offer == nullptr)
 			{
 				continue;
@@ -898,13 +947,13 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 					{ "instance_id", offer->instanceId },
 					{ "id", offer->definitionId },
 					{ "upgrade_level", offer->upgradeLevel },
-					{ "held", m_RunController.Deck().WasHeldOffer(index) },
+					{ "held", m_RunController->Deck().WasHeldOffer(index) },
 				});
 		}
 		nlohmann::json shotContext =
 		{
-			{ "selected_offer_index", m_SelectedOfferIndex },
-			{ "held_offer_index", m_SelectedHoldIndex },
+			{ "selected_offer_index", GetSelectedBallOfferIndex() },
+			{ "held_offer_index", GetHeldBallOfferIndex() },
 			{ "selected_instance_id", currentBall->instanceId },
 			{ "effective_attack", player->GetAttack() },
 			{ "offers", std::move(offers) },
@@ -928,8 +977,8 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		*m_PendingShotTelemetry = nlohmann::json::object();
 	}
 
-	m_RunController.Deck().MarkCurrentUsed();
-	m_BattleController.NotifyShotFired();
+	m_RunController->Deck().MarkCurrentUsed();
+	m_BattleState->controller.NotifyShotFired();
 }
 
 // Player Wall Collisionを通知する。
@@ -941,61 +990,33 @@ void Game::NotifyPlayerWallCollision(
     auto rules = CaptureShotRelicRules();
     rules.Wall();
     CommitShotRelicRules(rules);
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall == nullptr) return;
 	const BallStatus& status = currentBall->status;
-	if (currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
-		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
-	{
-		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
-		if (PierceTraceRules::AddTrace(
-			m_PierceTraces, m_TraceSegmentStart, playerPosition, status.traceDurability))
-		{
-			RecordBalanceEvent("pierce_trace_generated", {
-				{ "trace_id", m_PierceTraces.traces.back().id },
-				{ "durability", m_PierceTraces.traces.back().durability },
-				{ "route_expansion", m_TraceDriverExpansionSegment },
-				{ "overwrote_oldest", m_PierceTraces.overwrittenCount > overwrittenBefore },
-			});
-		}
-	}
-	m_TraceSegmentStart = playerPosition;
-	m_TraceSegmentValid = true;
-	m_TraceSegmentPierced = false;
-	m_TraceDriverExpansionSegment =
-		currentBall->definitionId == "player_trace_driver" &&
-		m_TraceDriverExpansionArmed;
-	m_TraceDriverExpansionArmed = false;
+	(void)playerPosition;
 
-	const bool bounceCategory = currentBall->category == BallCategory::Bounce;
-	const bool finisher = currentBall->definitionId == "player_ricochet_finisher";
-	const auto result = CushionChargeRules::ApplyStackContact(
-		m_CushionCharges,
-		cushionRegion,
-		bounceCategory ? status.cushionStackGenerateAmount : 0,
-		status.cushionMaxStack,
-		status.cushionStackConsumeAmount,
-		bounceCategory,
-		finisher,
-		status.cushionChargeSpeedMultiplier,
-		status.cushionNonBounceSpeedMultiplier,
-		status.cushionBounceAttackBonus,
-		finisher ? status.ricochetFinisherBonusPerUse : 0,
-		m_CushionBoostConsumedThisShot,
-		m_CushionStrongUsesThisShot,
-		reflectedVelocity);
+	(void)cushionRegion;
+	CushionChargeRules::ReflectionConfig config;
+	config.generatesStacks = currentBall->definitionId == "player_cushion_charge";
+	config.generationLimit = status.cushionReflectionLimit;
+	config.stacksPerReflection = status.cushionStackGenerateAmount;
+	config.consumesStacks = currentBall->definitionId == "player_bounce";
+	config.consumptionLimit = status.cushionConsumptionLimit;
+	config.reflectedSpeedMultiplier = status.cushionReflectionSpeedMultiplier;
+	const auto result = CushionChargeRules::ApplyValidReflection(
+		m_BattleState->cushionCharges, config, reflectedVelocity);
 	if (result.generated > 0)
 		RecordBalanceEvent("cushion_stacks_generated", {
-			{ "region", cushionRegion }, { "amount", result.generated } });
+			{ "amount", result.generated },
+			{ "setup", result.setupTriggered } });
 	if (result.consumed > 0)
 	{
-		m_SynergyDamageBonusThisShot += result.damageBonus;
+		m_BattleState->cushionBoostConsumedThisShot = true;
+		m_BattleState->cushionStrongUsesThisShot =
+			m_BattleState->cushionCharges.consumedThisShot;
 		RecordBalanceEvent("cushion_stacks_consumed", {
-			{ "region", cushionRegion },
 			{ "amount", result.consumed },
-			{ "category", BallCategoryId(currentBall->category) },
-			{ "strong", result.kind == CushionChargeRules::UseKind::Strong },
-			{ "strong_uses_this_shot", m_CushionStrongUsesThisShot },
+			{ "strong_uses_this_shot", m_BattleState->cushionStrongUsesThisShot },
 		});
 	}
 }
@@ -1007,119 +1028,44 @@ void Game::NotifyEnemyEnemySynergyCollision(
 	const DirectX::SimpleMath::Vector3& secondVelocityBefore)
 {
 	if (first == nullptr || second == nullptr) return;
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
-	if (HeavyCollisionRules::RecordEnemyEnemyCollision(
-		m_HeavyCollisions,
-		currentBall != nullptr && currentBall->category == BallCategory::Heavy))
-	{
-		RecordBalanceEvent("heavy_collision_recorded", {
-			{ "count", m_HeavyCollisions.collisionCount },
-			{ "ball_id", currentBall->definitionId },
-			{ "category", BallCategoryId(currentBall->category) },
-		});
-	}
-
-	int* source = nullptr;
-	int* target = nullptr;
-	if (first->GetAnchorStacks() > 0 && second->GetAnchorStacks() == 0)
-	{
-		source = &first->MutableAnchorStacks();
-		target = &second->MutableAnchorStacks();
-	}
-	else if (second->GetAnchorStacks() > 0 && first->GetAnchorStacks() == 0)
-	{
-		source = &second->MutableAnchorStacks();
-		target = &first->MutableAnchorStacks();
-	}
-	else if (first->GetAnchorStacks() > 0 && second->GetAnchorStacks() > 0)
-	{
-		const bool firstIsSource = firstVelocityBefore.LengthSquared() >=
-			secondVelocityBefore.LengthSquared();
-		source = firstIsSource
-			? &first->MutableAnchorStacks()
-			: &second->MutableAnchorStacks();
-		target = firstIsSource
-			? &second->MutableAnchorStacks()
-			: &first->MutableAnchorStacks();
-	}
-	if (source != nullptr && target != nullptr)
-	{
-		const int sourceBefore = *source;
-		const int moved = AnchorStackRules::TransferEnemyToEnemy(
-			*source, *target, 9999);
-		RecordBalanceEvent("anchor_enemy_transfer", {
-			{ "direction", "enemy_to_enemy" },
-			{ "amount", moved },
-			{ "source_before", sourceBefore },
-			{ "source_after", *source },
-		});
-	}
+	(void)firstVelocityBefore;
+	(void)secondVelocityBefore;
 }
 
 void Game::NotifyPlayerPiercedEnemy(
 	EnemyBall* enemy,
 	const DirectX::SimpleMath::Vector3& playerPosition,
-	bool refracted)
+	const DirectX::SimpleMath::Vector3& direction)
 {
 	if (enemy == nullptr) return;
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall == nullptr || currentBall->category != BallCategory::Pierce) return;
-	m_PiercedEnemiesThisShot.insert(enemy);
-	m_TraceSegmentPierced = true;
-	if (!m_TraceSegmentValid)
+	m_BattleState->piercedEnemiesThisShot.insert(enemy);
+	const bool stackGenerated = PierceTraceRules::RecordPierce(
+		m_BattleState->pierceTraces,
+		reinterpret_cast<std::uintptr_t>(enemy));
+	DirectX::SimpleMath::Vector3 traceDirection = direction;
+	traceDirection.y = 0.0f;
+	if (traceDirection.LengthSquared() > 0.0001f)
 	{
-		m_TraceSegmentStart = playerPosition;
-		m_TraceSegmentValid = true;
+		traceDirection.Normalize();
+		const int overwrittenBefore = m_BattleState->pierceTraces.overwrittenCount;
+		PierceTraceRules::AddTrace(
+			m_BattleState->pierceTraces,
+			playerPosition,
+			playerPosition + traceDirection * currentBall->status.traceUseDistance);
+		RecordBalanceEvent("pierce_trace_generated", {
+			{ "overwrote_oldest", m_BattleState->pierceTraces.overwrittenCount > overwrittenBefore },
+			{ "stack_generated", stackGenerated },
+			{ "stacks", m_BattleState->pierceTraces.stackCount },
+		});
 	}
-	if (!refracted) return;
-
-	if (currentBall != nullptr)
-	{
-		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
-		if (PierceTraceRules::AddTrace(
-			m_PierceTraces, m_TraceSegmentStart, playerPosition,
-			currentBall->status.traceDurability))
-		{
-			RecordBalanceEvent("pierce_trace_generated", {
-				{ "trace_id", m_PierceTraces.traces.back().id },
-				{ "durability", m_PierceTraces.traces.back().durability },
-				{ "route_expansion", false },
-				{ "overwrote_oldest", m_PierceTraces.overwrittenCount > overwrittenBefore },
-			});
-		}
-	}
-	m_TraceSegmentStart = playerPosition;
-	m_TraceSegmentPierced = false;
 }
 
 void Game::NotifyPlayerDirectionChange(
 	const DirectX::SimpleMath::Vector3& playerPosition)
 {
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
-	if (currentBall == nullptr) return;
-	if (currentBall->category == BallCategory::Pierce && m_TraceSegmentValid &&
-		(m_TraceSegmentPierced || m_TraceDriverExpansionSegment))
-	{
-		const int overwrittenBefore = m_PierceTraces.overwrittenCount;
-		if (PierceTraceRules::AddTrace(
-			m_PierceTraces, m_TraceSegmentStart, playerPosition,
-			currentBall->status.traceDurability))
-		{
-			RecordBalanceEvent("pierce_trace_generated", {
-				{ "trace_id", m_PierceTraces.traces.back().id },
-				{ "durability", m_PierceTraces.traces.back().durability },
-				{ "route_expansion", m_TraceDriverExpansionSegment },
-				{ "overwrote_oldest", m_PierceTraces.overwrittenCount > overwrittenBefore },
-			});
-		}
-	}
-	m_TraceSegmentStart = playerPosition;
-	m_TraceSegmentValid = true;
-	m_TraceSegmentPierced = false;
-	m_TraceDriverExpansionSegment =
-		currentBall->definitionId == "player_trace_driver" &&
-		m_TraceDriverExpansionArmed;
-	m_TraceDriverExpansionArmed = false;
+	(void)playerPosition;
 }
 
 void Game::NotifyTraceMovement(
@@ -1127,77 +1073,56 @@ void Game::NotifyTraceMovement(
 	const DirectX::SimpleMath::Vector3& from,
 	const DirectX::SimpleMath::Vector3& to)
 {
-	if (m_BattleController.GetState() != BattleState::BallsMoving ||
-		m_PierceTraces.traces.empty()) return;
+	if (m_BattleState->controller.GetState() != BattleState::BallsMoving) return;
 	GameObject* owner = ball.GetGameObject();
 	if (owner == nullptr) return;
-	const bool playerMovement = owner->GetComponent<PlayerBall>() != nullptr;
-	const bool breakMovement = owner->GetComponent<BreakBall>() != nullptr;
-	if (!playerMovement && !breakMovement) return;
-
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall == nullptr) return;
-	const BallStatus& status = currentBall->status;
-	const bool strongUse = playerMovement && currentBall->category == BallCategory::Pierce;
-	PierceTraceRules::UseConfig config;
-	config.angleToleranceDegrees = status.traceUseAngleTolerance;
-	config.requiredDistance = status.traceUseDistance;
-	config.width = status.traceWidth;
-	config.pierceSpeedMultiplier = status.tracePierceSpeedMultiplier;
-	config.nonPierceSpeedMultiplier = status.traceNonPierceSpeedMultiplier;
-	const auto result = PierceTraceRules::AccumulateMovement(
-		m_PierceTraces,
-		m_PierceTraceUse,
-		from,
-		to,
-		config,
-		strongUse,
-		ball.GetMutableVelocity());
-	if (!result.activated) return;
-	if (strongUse)
-	{
-		m_TracePierceBenefitActive = true;
-		m_SynergyDamageBonusThisShot += status.tracePierceAttackBonus;
-		if (currentBall->definitionId == "player_trace_driver")
-			m_TraceDriverExpansionArmed = true;
-	}
-	RecordBalanceEvent("pierce_trace_used", {
-		{ "trace_id", result.traceId },
-		{ "remaining_durability", result.remainingDurability },
-		{ "strong", strongUse },
-		{ "attack_bonus", strongUse ? status.tracePierceAttackBonus : 0 },
-		{ "break_ball", breakMovement },
-	});
+	EnemyBall* enemy = owner->GetComponent<EnemyBall>();
+	if (enemy == nullptr) return;
+	DirectX::SimpleMath::Vector3 movement = to - from;
+	movement.y = 0.0f;
+	HeavyCollisionRules::RecordEnemyMovement(
+		m_BattleState->heavyCollisions,
+		reinterpret_cast<std::uintptr_t>(enemy),
+		movement.Length(),
+		currentBall->status.abilities.heavyDistanceStacks);
 }
 
 int Game::NotifyPlayerEnemySynergyCollision(EnemyBall* enemy)
 {
-	if (enemy == nullptr) return m_SynergyDamageBonusThisShot;
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
-	if (currentBall == nullptr) return m_SynergyDamageBonusThisShot;
+	if (enemy == nullptr) return m_BattleState->synergyDamageBonusThisShot;
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
+	if (currentBall == nullptr) return m_BattleState->synergyDamageBonusThisShot;
 	const BallStatus& status = currentBall->status;
-	if (currentBall->category == BallCategory::Anchor)
-		m_AnchorContactTarget = enemy;
+	if (status.anchorEnemyStackGenerate > 0)
+		m_BattleState->anchorContactTarget = enemy;
 
-	if (enemy->GetAnchorStacks() > 0)
+	if (status.abilities.lightweight)
 	{
-		const int enemyBefore = enemy->GetAnchorStacks();
-		const int moved = AnchorStackRules::TransferEnemyToPlayer(
-			enemy->MutableAnchorStacks(), m_AnchorStacks, status.anchorStackMax);
-		RecordBalanceEvent("anchor_enemy_transfer", {
-			{ "direction", "enemy_to_player" },
-			{ "amount", moved },
-			{ "enemy_before", enemyBefore },
-			{ "enemy_after", enemy->GetAnchorStacks() },
-			{ "player_after", m_AnchorStacks.playerStacks },
-		});
+		enemy->ApplyLightweight(status.lightweightKnockbackMultiplier);
+		if (HeavyCollisionRules::GenerateOncePerEnemy(
+			m_BattleState->heavyCollisions,
+			reinterpret_cast<std::uintptr_t>(enemy)))
+		{
+			RecordBalanceEvent("heavy_micro_stack_generated", {
+				{ "stack_after", m_BattleState->heavyCollisions.stackCount },
+			});
+		}
 	}
 
-	int bonus = m_SynergyDamageBonusThisShot;
-	if (currentBall->definitionId == "player_pierce_finisher" &&
-		m_PierceTraceUse.usedAnyTrace)
+	int bonus = m_BattleState->synergyDamageBonusThisShot;
+	if (currentBall->definitionId == "player_bounce" &&
+		CushionChargeRules::ConsumeEmpoweredHit(
+			m_BattleState->cushionCharges,
+			reinterpret_cast<std::uintptr_t>(enemy)))
 	{
-		const int uniqueEnemies = static_cast<int>(m_PiercedEnemiesThisShot.size());
+		bonus += status.cushionBounceAttackBonus;
+	}
+	if (currentBall->definitionId == "player_pierce_finisher" &&
+		!m_BattleState->piercedEnemiesThisShot.empty())
+	{
+		const int uniqueEnemies = static_cast<int>(m_BattleState->piercedEnemiesThisShot.size());
 		bonus += status.pierceFinisherBaseBonus +
 			(std::max)(0, uniqueEnemies - 1) * status.pierceFinisherMultiTargetBonus;
 		RecordBalanceEvent("pierce_finisher_hit", {
@@ -1205,57 +1130,29 @@ int Game::NotifyPlayerEnemySynergyCollision(EnemyBall* enemy)
 		});
 	}
 
-	if (currentBall->definitionId == "player_anchor_finisher" &&
-		!m_AnchorFinisherTriggeredThisShot)
-	{
-		m_AnchorFinisherTriggeredThisShot = true;
-		const int consumed = AnchorStackRules::ConsumePlayerStacks(
-			m_AnchorStacks, status.anchorFinisherStackConsume);
-		const int finisherBonus = consumed * status.anchorFinisherDamagePerStack;
-		bonus += finisherBonus;
-		int aoeHits = 0;
-		if (consumed >= status.anchorFinisherAoeThreshold &&
-			status.anchorFinisherAoeRadius > 0.0f)
-		{
-			const float radiusSquared = status.anchorFinisherAoeRadius * status.anchorFinisherAoeRadius;
-			const int aoeDamage = finisherBonus / 2;
-			for (EnemyBall* nearby : GetComponents<EnemyBall>())
-			{
-				if (nearby == nullptr || nearby == enemy || nearby->IsDefeated() || nearby->IsPocketed()) continue;
-				DirectX::SimpleMath::Vector3 delta = nearby->GetPosition() - enemy->GetPosition();
-				delta.y = 0.0f;
-				if (delta.LengthSquared() > radiusSquared) continue;
-				const int hpBefore = nearby->GetHP();
-				nearby->TakeDamage(aoeDamage);
-				const int applied = (std::max)(0, hpBefore - nearby->GetHP());
-				if (applied > 0)
-				{
-					++aoeHits;
-					NotifyCombatFeedback(nearby->GetPosition(), applied, nearby->IsDefeated(), true);
-				}
-			}
-		}
-		RecordBalanceEvent("anchor_finisher_triggered", {
-			{ "consumed", consumed }, { "damage_bonus", finisherBonus },
-			{ "aoe_hits", aoeHits }, { "player_stacks_after", m_AnchorStacks.playerStacks },
-		});
-	}
 	return bonus;
 }
 
 int Game::AbsorbPlayerShieldDamage(int damage)
 {
 	const int incoming = (std::max)(0, damage);
-	const int absorbed = (std::min)(m_PlayerShield, incoming);
-	m_PlayerShield -= absorbed;
+	const int absorbed = (std::min)(m_BattleState->playerShield, incoming);
+	m_BattleState->playerShield -= absorbed;
 	if (absorbed > 0)
 	{
 		InvalidateDebugCombatForecast("停止時シールド消費");
 		RecordBalanceEvent(
 			"stop_shield_absorbed",
-			{ { "absorbed", absorbed }, { "remaining", m_PlayerShield } });
+			{ { "absorbed", absorbed }, { "remaining", m_BattleState->playerShield } });
 	}
 	return incoming - absorbed;
+}
+
+int Game::ScaleEnemyCollisionDamage(int damage) const
+{
+	return HeavyCollisionRules::ScaleEnemyCollisionDamage(
+		m_BattleState->heavyCollisions,
+		damage);
 }
 
 void Game::NotifyPlayerChainImpact(
@@ -1277,14 +1174,14 @@ void Game::NotifyPlayerChainImpact(
 	int attackDamage,
 	float radius)
 {
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall != nullptr &&
 		currentBall->definitionId == "player_chain_impact" &&
-		!m_HeavyFinisherConsumedThisShot)
+		!m_BattleState->heavyFinisherConsumedThisShot)
 	{
-		m_HeavyFinisherConsumedThisShot = true;
+		m_BattleState->heavyFinisherConsumedThisShot = true;
 		const auto finisher = HeavyCollisionRules::ConsumeForFinisher(
-			m_HeavyCollisions,
+			m_BattleState->heavyCollisions,
 			currentBall->status.heavyFinisherDamagePerCollision,
 			currentBall->status.heavyCollisionConsumeAmount);
 		attackDamage += finisher.bonusDamage;
@@ -1292,14 +1189,14 @@ void Game::NotifyPlayerChainImpact(
 			{ "referenced_collision_count", finisher.referenced },
 			{ "consumed_collision_count", finisher.consumed },
 			{ "damage_bonus", finisher.bonusDamage },
-			{ "remaining_collision_count", m_HeavyCollisions.collisionCount },
+			{ "remaining_collision_count", m_BattleState->heavyCollisions.stackCount },
 		});
 	}
 	if (attackDamage <= 0 || radius <= 0.0f) return;
 	const float radiusSquared = radius * radius;
 	int hitCount = 0;
 	int totalDamage = 0;
-	for (EnemyBall* enemy : GetComponents<EnemyBall>())
+	for (EnemyBall* enemy : GameRuntime::World().GetComponents<EnemyBall>())
 	{
 		if (enemy == nullptr || enemy == excludedTarget || enemy->IsDefeated() ||
 			enemy->IsPocketed())
@@ -1349,49 +1246,50 @@ void Game::NotifyAnchorStopped(EnemyBall* directTarget)
     auto rules = CaptureShotRelicRules();
     rules.Anchor();
     CommitShotRelicRules(rules);
-	if (directTarget != nullptr) m_AnchorContactTarget = directTarget;
+	if (directTarget != nullptr) m_BattleState->anchorContactTarget = directTarget;
 }
 
 // Pierce Maximum Usesを取得する。
 int Game::GetPierceMaximumUses() const
 {
-	const PlayerBallData* ball = m_RunController.Deck().GetCurrent();
-	if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
+	const PlayerBallData* ball = m_RunController->Deck().GetCurrent();
+	if (ball == nullptr)
+		ball = m_RunController->Deck().GetOffer(GetSelectedBallOfferIndex());
 	if (ball == nullptr) return 0;
 	const int base = BallMechanics::PierceUses(ball->status,
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce");
-	return base + (m_TracePierceBenefitActive ? ball->status.tracePierceMaxUsesBonus : 0);
+	return base;
 }
 
 // Pierce Speed Retentionを取得する。
 float Game::GetPierceSpeedRetention() const
 {
-	const PlayerBallData* ball = m_RunController.Deck().GetCurrent();
-	if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
+	const PlayerBallData* ball = m_RunController->Deck().GetCurrent();
+	if (ball == nullptr)
+		ball = m_RunController->Deck().GetOffer(GetSelectedBallOfferIndex());
 	if (ball == nullptr) return 0.75f;
 	const float base = BallMechanics::PierceRetention(ball->status,
 		HasRelic(RelicType::PierceBallCharger) && ball->definitionId == "player_pierce");
-	return std::clamp(base + (m_TracePierceBenefitActive
-		? ball->status.tracePierceSpeedRetentionBonus : 0.0f), 0.0f, 1.0f);
+	return std::clamp(base, 0.0f, 1.0f);
 }
 
 // Enemy Defeatedを通知する。
 void Game::NotifyEnemyDefeated(const std::string& enemyId)
 {
 	if (!HasRelic(RelicType::BountyList) ||
-		!m_BattleController.ClaimBountyReward())
+		!m_BattleState->controller.ClaimBountyReward())
 	{
 		return;
 	}
-	const int moneyBefore = m_RunController.Status().money;
-	m_RunController.AddMoney(kBountyRewardMoney);
+	const int moneyBefore = m_RunController->Status().money;
+	m_RunController->AddMoney(kBountyRewardMoney);
 	RecordBalanceEvent(
 		"bounty_reward",
 		{
 			{ "enemy_id", enemyId },
 			{ "amount", kBountyRewardMoney },
 			{ "money_before", moneyBefore },
-			{ "money_after", m_RunController.Status().money },
+			{ "money_after", m_RunController->Status().money },
 		});
 }
 
@@ -1413,7 +1311,7 @@ void Game::NotifyDamageBallCollision(
     rules.Contact(collisionType == DamageBallCollisionType::PlayerEnemy);
     CommitShotRelicRules(rules);
     if (HasRelic(RelicType::CollisionAttackUp))
-        for (PlayerBall* player : GetComponents<PlayerBall>()) ApplyRelicModifiersTo(player);
+        for (PlayerBall* player : GameRuntime::World().GetComponents<PlayerBall>()) ApplyRelicModifiersTo(player);
 }
 
 // Combat Feedbackを通知する。
@@ -1479,7 +1377,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 			using EventType = std::decay_t<decltype(value)>;
 			if constexpr (std::is_same_v<EventType, ShotFiredEvent>)
 			{
-				m_RunStatistics.BeginShot(value.ballId);
+				m_PersistenceRuntime->Statistics().BeginShot(value.ballId);
 				if (m_GamePresentation != nullptr)
 				{
 					m_GamePresentation->OnShotFired();
@@ -1487,9 +1385,9 @@ void Game::PublishGameEvent(const GameEvent& event)
 			}
 			else if constexpr (std::is_same_v<EventType, EnemyDamageEvent>)
 			{
-				m_RunStatistics.RecordEnemyDamage(value.damage);
+				m_PersistenceRuntime->Statistics().RecordEnemyDamage(value.damage);
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayer.IsEnabled())
+					!m_BalanceRuntime->autoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnCombatFeedback(
 						value.worldPosition,
@@ -1501,7 +1399,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 			else if constexpr (std::is_same_v<EventType, ChainImpactEvent>)
 			{
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayer.IsEnabled())
+					!m_BalanceRuntime->autoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnChainImpact(
 						value.worldPosition,
@@ -1513,10 +1411,10 @@ void Game::PublishGameEvent(const GameEvent& event)
 			{
 				if (!value.playerPocket && value.finisher)
 				{
-					m_RunStatistics.RecordEnemyDamage(value.damage);
+					m_PersistenceRuntime->Statistics().RecordEnemyDamage(value.damage);
 				}
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayer.IsEnabled())
+					!m_BalanceRuntime->autoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnPocketFeedback(
 						value.worldPosition,
@@ -1527,13 +1425,13 @@ void Game::PublishGameEvent(const GameEvent& event)
 			}
 			else if constexpr (std::is_same_v<EventType, PlayerDamageEvent>)
 			{
-				m_RunStatistics.RecordPlayerDamage(value.damage);
+				m_PersistenceRuntime->Statistics().RecordPlayerDamage(value.damage);
 				BalanceLogger::GetInstance().RecordPlayerDamage(
 					value.source,
 					value.damage,
 					value.sourceId);
 				if (m_GamePresentation != nullptr &&
-					!m_BalanceAutoPlayer.IsEnabled())
+					!m_BalanceRuntime->autoPlayer.IsEnabled())
 				{
 					m_GamePresentation->OnPlayerDamage(
 						value.damage,
@@ -1542,7 +1440,7 @@ void Game::PublishGameEvent(const GameEvent& event)
 			}
 			else if constexpr (std::is_same_v<EventType, BallAcquiredEvent>)
 			{
-				m_RunStatistics.RecordBallAcquired(value.ballId);
+				m_PersistenceRuntime->Statistics().RecordBallAcquired(value.ballId);
 			}
 		},
 		event);
@@ -1560,43 +1458,44 @@ void Game::RecordBalanceEvent(
 void Game::ApplyEnemyDifficultyScaling(
 	EnemyData& enemyData) const
 {
-	m_DynamicBalanceController.ApplyToEnemyData(
+	m_BalanceRuntime->scaling.ApplyToEnemyData(
 		enemyData,
-		m_BaselineEnemyHpMultiplier,
-		m_BaselineEnemyAttackDelta,
-		m_RunController.Status().progress,
-		m_ActiveAscension,
+		m_BalanceRuntime->baselineEnemyHpMultiplier,
+		m_BalanceRuntime->baselineEnemyAttackDelta,
+		m_RunController->Status().progress,
+		m_PersistenceRuntime->ActiveAscension(),
 		IsDebugMode());
 }
 // Balance Auto Full Hp Enemy Survivedを通知する。
 void Game::NotifyBalanceAutoFullHpEnemySurvived()
 {
 	const PlayerBallData* currentBall =
-		m_RunController.Deck().GetCurrent();
-	m_BalanceAutoPlayer.NotifyFullHpEnemySurvived(currentBall);
+		m_RunController->Deck().GetCurrent();
+	m_BalanceRuntime->autoPlayer.NotifyFullHpEnemySurvived(currentBall);
 }
 
 // Current Player Ballを破棄する。
 void Game::DiscardCurrentPlayerBall()
 {
-	if (!m_RunController.Deck().HasCurrent())
+	if (!m_RunController->Deck().HasCurrent())
 	{
-		m_RunController.Deck().ClearCurrentUsed();
+		m_RunController->Deck().ClearCurrentUsed();
 		return;
 	}
 
-	if (!m_RunController.Deck().IsCurrentUsed())
+	if (!m_RunController->Deck().IsCurrentUsed())
 	{
 		return;
 	}
 
-	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
+	std::vector<PlayerBall*> players =
+		GameRuntime::World().GetComponents<PlayerBall>();
 	if (!players.empty() && players[0] != nullptr)
 	{
 		CapturePlayerStatusFrom(players[0]);
 	}
 
-	m_RunController.Deck().DiscardCurrentIfUsed();
+	m_RunController->Deck().DiscardCurrentIfUsed();
 }
 
 // Debug Snapshotを保存する。
@@ -1612,16 +1511,16 @@ void Game::SaveDebugSnapshot()
 	file << std::fixed << std::setprecision(3);
 
 	file << "[Scene]\n";
-	file << "Scene = " << GetSceneDebugName(m_SceneManager.Get()) << "\n";
+	file << "Scene = " << GetSceneDebugName(GetCurrentScene()) << "\n";
 	file << "[Scene]\n";
-	file << "Scene = " << GetSceneDebugName(m_SceneManager.Get()) << "\n";
+	file << "Scene = " << GetSceneDebugName(GetCurrentScene()) << "\n";
 
 	file << "BattleState = "
 		<< ToString(GetBattleState())
 		<< " (" << static_cast<int>(GetBattleState()) << ")\n";
 
 	file << "ClearReward = "
-		<< (m_IsClearRewardActive ? "true" : "false")
+		<< (IsClearRewardActive() ? "true" : "false")
 		<< "\n";
 
 	file << "LastBattleResult = "
@@ -1637,30 +1536,32 @@ void Game::SaveDebugSnapshot()
 	file << "AreAllEnemiesDefeated = " << (AreAllEnemiesDefeated() ? "true" : "false") << "\n";
 	file << "\n";
 
-	std::vector<PlayerBall*> players = GetComponents<PlayerBall>();
-	std::vector<EnemyBall*> enemies = GetComponents<EnemyBall>();
+	std::vector<PlayerBall*> players =
+		GameRuntime::World().GetComponents<PlayerBall>();
+	std::vector<EnemyBall*> enemies =
+		GameRuntime::World().GetComponents<EnemyBall>();
 
 	file << "[BallCounts]\n";
 	file << "PlayerRunCurrentHp = "
-		<< m_RunController.Status().currentHp << "\n";
+		<< m_RunController->Status().currentHp << "\n";
 
 	file << "PlayerRunMaxHp = "
-		<< m_RunController.Status().maxHp << "\n";
+		<< m_RunController->Status().maxHp << "\n";
 
 	file << "[Deck]\n";
 	file << "DrawPile = "
-		<< m_RunController.Deck().GetDrawPileCount() << "\n";
+		<< m_RunController->Deck().GetDrawPileCount() << "\n";
 
 	file << "DiscardPile = "
-		<< m_RunController.Deck().GetDiscardPileCount() << "\n";
+		<< m_RunController->Deck().GetDiscardPileCount() << "\n";
 
 	file << "OfferCount = "
-		<< m_RunController.Deck().GetOfferCount() << "\n";
+		<< m_RunController->Deck().GetOfferCount() << "\n";
 
 	file << "TotalDeckCount = "
-		<< m_RunController.Deck().GetRewardTargetCount() << "\n";
+		<< m_RunController->Deck().GetRewardTargetCount() << "\n";
 
-	const PlayerBallData* currentBall = m_RunController.Deck().GetCurrent();
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall != nullptr)
 	{
 		file << "CurrentBallId = "
@@ -1672,7 +1573,7 @@ void Game::SaveDebugSnapshot()
 			<< "\n";
 
 		file << "CurrentBallUsed = "
-			<< (m_RunController.Deck().IsCurrentUsed() ? "true" : "false")
+			<< (m_RunController->Deck().IsCurrentUsed() ? "true" : "false")
 			<< "\n";
 	}
 	else
@@ -1686,7 +1587,7 @@ void Game::SaveDebugSnapshot()
 	file << "\n";
 
 	file << "PlayerMoney = "
-		<< m_RunController.Status().money
+		<< m_RunController->Status().money
 		<< "\n";
 
 	for (int i = 0; i < static_cast<int>(players.size()); i++)
@@ -1704,9 +1605,10 @@ void Game::SaveDebugSnapshot()
 ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
 {
     ShotRelicRules rules;
-    rules.relics = m_RunController.Relics();
-    const auto* ball = m_RunController.Deck().GetCurrent();
-    if (ball == nullptr) ball = m_RunController.Deck().GetOffer(m_SelectedOfferIndex);
+    rules.relics = m_RunController->Relics();
+    const auto* ball = m_RunController->Deck().GetCurrent();
+    if (ball == nullptr)
+        ball = m_RunController->Deck().GetOffer(GetSelectedBallOfferIndex());
     if (ball != nullptr) rules.ballId = ball->definitionId;
     rules.launchPower = launchPower;
     return rules;
@@ -1715,14 +1617,14 @@ ShotRelicRules Game::MakePredictionShotRules(float launchPower) const
 // Shot Relic Rulesを取得して保持する。
 ShotRelicRules Game::CaptureShotRelicRules() const
 {
-    auto rules = m_BattleController.GetShotRelicRules();
+    auto rules = m_BattleState->controller.GetShotRelicRules();
     // Live build effects require a committed deck ball, preserving shot lifecycle semantics.
-    if (!m_RunController.Deck().GetCurrent()) rules.ballId.clear();
+    if (!m_RunController->Deck().GetCurrent()) rules.ballId.clear();
     return rules;
 }
 
 // Shot Relic Rulesを確定する。
 void Game::CommitShotRelicRules(const ShotRelicRules& rules)
 {
-    m_BattleController.SetShotRelicRules(rules);
+    m_BattleState->controller.SetShotRelicRules(rules);
 }

@@ -52,15 +52,17 @@ inline BallCategory BallCategoryFromId(
 	if (categoryId == "anchor") return BallCategory::Anchor;
 	// categoryのない旧データは既存IDから安全に移行
 	if (definitionId == "player_heavy") return BallCategory::Heavy;
-	if (definitionId == "player_chain_impact") return BallCategory::Heavy;
+	if (definitionId == "player_chain_impact" || definitionId == "player_collision_boost" ||
+		definitionId == "player_lightweight") return BallCategory::Heavy;
 	if (definitionId == "player_pierce" || definitionId == "player_refractive_pierce" ||
-		definitionId == "player_trace_driver" || definitionId == "player_pierce_finisher")
+		definitionId == "player_trace_driver" || definitionId == "player_pierce_finisher" ||
+		definitionId == "player_minion_finisher")
 		return BallCategory::Pierce;
 	if (definitionId == "player_bounce" || definitionId == "player_cushion_charge" ||
-		definitionId == "player_ricochet_finisher")
+		definitionId == "player_ricochet_finisher" || definitionId == "player_reflection_setup")
 		return BallCategory::Bounce;
 	if (definitionId == "player_anchor" || definitionId == "player_stop_shield" ||
-		definitionId == "player_anchor_finisher")
+		definitionId == "player_anchor_finisher" || definitionId == "player_origin_anchor")
 		return BallCategory::Anchor;
 	return BallCategory::Standard;
 }

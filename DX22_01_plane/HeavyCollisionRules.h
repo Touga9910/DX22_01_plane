@@ -1,55 +1,115 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <unordered_map>
+#include <unordered_set>
 
-// 重量カテゴリのショット中に発生した敵同士衝突を蓄積し、
-// フィニッシャーで追加ダメージへ変換するためのルールをまとめる
+// 重量軸の永続スタック、ショット中の敵別移動距離、一時効果を管理する。
 namespace HeavyCollisionRules
 {
-	// 1ショット中に蓄積する重量カテゴリ用の状態
+	static constexpr float DistancePerStack = 5.0f;
+
 	struct State
 	{
-		int collisionCount = 0;	// 蓄積している敵同士衝突回数
+		int stackCount = 0;
+		std::unordered_map<std::uintptr_t, float> distanceByEnemyThisShot;
+		std::unordered_set<std::uintptr_t> microGeneratedEnemiesThisShot;
+		float pendingEnemyCollisionMultiplier = 1.0f;
+		float activeEnemyCollisionMultiplier = 1.0f;
 	};
 
-	// 蓄積中の衝突回数を初期状態へ戻す
 	inline void Reset(State& state)
 	{
 		state = {};
 	}
 
-	// 重量カテゴリのショット中であれば敵同士衝突を1回記録
-	// 記録した場合はtrue、対象外のショットの場合はfalseを返す
-	inline bool RecordEnemyEnemyCollision(State& state, bool heavyCategoryShot)
+	inline void BeginShot(State& state)
 	{
-		if (!heavyCategoryShot) return false;
-		state.collisionCount = (std::min)(9999, state.collisionCount + 1);
+		state.distanceByEnemyThisShot.clear();
+		state.microGeneratedEnemiesThisShot.clear();
+		state.activeEnemyCollisionMultiplier =
+			(std::max)(1.0f, state.pendingEnemyCollisionMultiplier);
+		state.pendingEnemyCollisionMultiplier = 1.0f;
+	}
+
+	inline void RecordEnemyMovement(
+		State& state,
+		std::uintptr_t enemyId,
+		float distance,
+		bool generatesDistanceStacks)
+	{
+		if (!generatesDistanceStacks || enemyId == 0 || distance <= 0.0f) return;
+		state.distanceByEnemyThisShot[enemyId] += distance;
+	}
+
+	inline int EndShot(State& state)
+	{
+		int generated = 0;
+		for (const auto& [enemyId, distance] : state.distanceByEnemyThisShot)
+		{
+			(void)enemyId;
+			generated += (std::max)(0, static_cast<int>(
+				std::floor(distance / DistancePerStack)));
+		}
+		state.stackCount += generated;
+		state.distanceByEnemyThisShot.clear();
+		state.microGeneratedEnemiesThisShot.clear();
+		state.activeEnemyCollisionMultiplier = 1.0f;
+		return generated;
+	}
+
+	inline bool GenerateOncePerEnemy(
+		State& state,
+		std::uintptr_t enemyId,
+		int amount = 1)
+	{
+		if (enemyId == 0 || amount <= 0 ||
+			!state.microGeneratedEnemiesThisShot.insert(enemyId).second)
+		{
+			return false;
+		}
+		state.stackCount += amount;
 		return true;
 	}
 
-	// フィニッシャー発動時に参照・消費した衝突数と追加ダメージを返す
+	inline int Consume(State& state, int amount)
+	{
+		const int requested = (std::max)(0, amount);
+		const int consumed = (std::min)(state.stackCount, requested);
+		state.stackCount -= consumed;
+		return consumed;
+	}
+
+	inline void ArmNextEnemyCollisionMultiplier(State& state, float multiplier)
+	{
+		state.pendingEnemyCollisionMultiplier = (std::max)(1.0f, multiplier);
+	}
+
+	inline int ScaleEnemyCollisionDamage(const State& state, int damage)
+	{
+		return (std::max)(0, static_cast<int>(std::lround(
+			static_cast<float>(damage) * state.activeEnemyCollisionMultiplier)));
+	}
+
 	struct FinisherResult
 	{
-		int referenced = 0;		// 発動時点で蓄積されていた衝突数
-		int consumed = 0;		// 今回の発動で実際に消費した衝突数
-		int bonusDamage = 0;	// 消費数から計算した追加ダメージ
+		int referenced = 0;
+		int consumed = 0;
+		int bonusDamage = 0;
 	};
 
-	// 蓄積した衝突回数を消費してフィニッシャー追加ダメージへ変換
-	// consumeAmountが0以下の場合は、蓄積している衝突回数をすべて消費
 	inline FinisherResult ConsumeForFinisher(
 		State& state,
-		float damagePerCollision,
+		float damagePerStack,
 		int consumeAmount)
 	{
 		FinisherResult result;
-		result.referenced = (std::max)(0, state.collisionCount);
-		result.consumed = consumeAmount <= 0
-			? result.referenced
-			: (std::min)(result.referenced, consumeAmount);
+		result.referenced = (std::max)(0, state.stackCount);
+		result.consumed = Consume(state, consumeAmount);
 		result.bonusDamage = (std::max)(0, static_cast<int>(
-			damagePerCollision * static_cast<float>(result.consumed) + 0.5f));
-		state.collisionCount -= result.consumed;
+			damagePerStack * static_cast<float>(result.consumed) + 0.5f));
 		return result;
 	}
 }

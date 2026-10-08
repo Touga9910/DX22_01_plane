@@ -39,6 +39,18 @@ public:
     void TakeDamage(int damage);
 	int GetAnchorStacks() const { return m_AnchorStacks; }
 	int& MutableAnchorStacks() { return m_AnchorStacks; }
+	void ApplyLightweight(float multiplier)
+	{
+		if (m_PendingKnockbackMultiplier <= 1.0f)
+			m_PendingKnockbackMultiplier = (std::max)(1.0f, multiplier);
+	}
+	void BeginLightweightWindow()
+	{
+		m_NextKnockbackMultiplier = m_PendingKnockbackMultiplier;
+		m_PendingKnockbackMultiplier = 1.0f;
+	}
+	float GetNextKnockbackMultiplier() const { return m_NextKnockbackMultiplier; }
+	void ConsumeLightweight() { m_NextKnockbackMultiplier = 1.0f; }
     bool IsArmorBoss() const { return m_EnemyData.id == "enemy_boss_core"; }
     const BossCombatRules::State& GetBossState() const { return m_BossState; }
     void SetDebugBossState(int armor, int breakShots)
@@ -143,6 +155,8 @@ private:
     int m_CollisionStage = 0;
     std::unordered_map<std::uintptr_t, int> m_CollisionGraceByBall;
 	int m_AnchorStacks = 0;
+	float m_NextKnockbackMultiplier = 1.0f;
+	float m_PendingKnockbackMultiplier = 1.0f;
     GameObject* m_NuisanceBallObject = nullptr;
     DirectX::SimpleMath::Vector3 m_NuisanceSpawnPosition = DirectX::SimpleMath::Vector3::Zero;
     int m_NuisanceTurnsUntilSpawn = 0;

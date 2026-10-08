@@ -6,7 +6,9 @@
 #include "Camera.h"
 #include "BallRenderComponent.h"
 #include "BalanceLogger.h"
-#include "Game.h"
+#include "GameBattleEvents.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "Ground.h"
 #include "PlayerBall.h"
 #include "BallFactory.h"
@@ -51,7 +53,7 @@ void EnemyBall::Awake()
 
 void EnemyBall::Draw()
 {
-    Draw(Game::GetCamera());
+    Draw(&GameRuntime::MainCamera());
 }
 
 void EnemyBall::OnDestroy()
@@ -75,6 +77,8 @@ void EnemyBall::Init()
 void EnemyBall::Init(const EnemyData& data)
 {
 	m_AnchorStacks = 0;
+	m_NextKnockbackMultiplier = 1.0f;
+	m_PendingKnockbackMultiplier = 1.0f;
     m_BossState = {};
     m_IsPocketed = false;
     m_PocketEntryPosition = Vector3::Zero;
@@ -122,7 +126,8 @@ void EnemyBall::Init(const EnemyData& data)
     m_Ball->SetScale(m_EnemyData.scale);           // スケールを反映
     m_Ball->UpdateRadius();                                  // スケールに合わせて半径を更新
 
-    std::vector<Ground*> grounds = Game::GetInstance()->GetComponents<Ground>();
+    std::vector<Ground*> grounds =
+        GameRuntime::World().GetComponents<Ground>();
     if (!grounds.empty())
     {
         // Groundがある場合は、台の高さに合わせてY座標を補正する
@@ -320,7 +325,7 @@ void EnemyBall::OnPocketHit()
     {
         return;
     }
-    if (!IsArmorBoss()) Game::GetInstance()->HandleEnemyPocket(this);
+    if (!IsArmorBoss()) GameBattleEvents::EnemyPocketed(this);
 }
 
 void EnemyBall::EnterPocketQueue(const Vector3& pocketEntryPosition)
@@ -396,7 +401,7 @@ void EnemyBall::TakeDamage(int damage)
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
 		m_NuisanceWarningVisible = false;
 		DestroyNuisanceBall();
-		Game::GetInstance()->NotifyEnemyDefeated(m_EnemyData.id);
+		GameBattleEvents::EnemyDefeated(m_EnemyData.id);
 	}
 
 	BalanceLogger::GetInstance().RecordEnemyDamage(
@@ -456,7 +461,7 @@ void EnemyBall::UpdateCollisionStageTint()
 bool EnemyBall::HasLiveNuisanceBall() const
 {
     return m_NuisanceBallObject != nullptr &&
-        Game::GetInstance()->ContainsGameObject(m_NuisanceBallObject);
+        GameRuntime::World().Contains(m_NuisanceBallObject);
 }
 
 void EnemyBall::DestroyNuisanceBall()
@@ -469,7 +474,8 @@ void EnemyBall::DestroyNuisanceBall()
     m_NuisanceBallObject = nullptr;
     if (destroyed)
     {
-        for (PlayerBall* player : Game::GetInstance()->GetComponents<PlayerBall>())
+        for (PlayerBall* player :
+            GameRuntime::World().GetComponents<PlayerBall>())
             if (player != nullptr) player->RefreshNuisanceDebuffs();
     }
 }
@@ -482,13 +488,13 @@ void EnemyBall::SpawnNuisanceBall()
         return;
     }
     NuisanceBall* nuisance = BallFactory::CreateNuisanceBall(
-        *Game::GetInstance(),
         m_EnemyData.nuisanceBall,
         m_NuisanceSpawnPosition);
     m_NuisanceBallObject = nuisance != nullptr
         ? nuisance->GetGameObject()
         : nullptr;
-    for (PlayerBall* player : Game::GetInstance()->GetComponents<PlayerBall>())
+    for (PlayerBall* player :
+        GameRuntime::World().GetComponents<PlayerBall>())
         if (player != nullptr) player->RefreshNuisanceDebuffs();
     m_NuisanceTurnsUntilSpawn = 0;
     m_NuisanceWarningVisible = false;
@@ -569,7 +575,7 @@ int EnemyBall::ApplyPocketDamage()
     if (GetHP() == 0)
     {
         Defeat();
-        Game::GetInstance()->NotifyEnemyDefeated(GetEnemyId());
+        GameBattleEvents::EnemyDefeated(GetEnemyId());
     }
     const int applied = hpBefore - GetHP();
     BalanceLogger::GetInstance().RecordEnemyDamage(GetEnemyId(), applied);
@@ -592,7 +598,7 @@ void EnemyBall::HitBreakBall(int ballId)
     {
         Defeat();
         m_Ball->GetMutableVelocity() = velocity;
-        Game::GetInstance()->NotifyEnemyDefeated(GetEnemyId());
+        GameBattleEvents::EnemyDefeated(GetEnemyId());
     }
     const int damage = hpBefore - GetHP();
     auto& logger = BalanceLogger::GetInstance();
@@ -602,7 +608,8 @@ void EnemyBall::HitBreakBall(int ballId)
         {"boss_damage", damage}, {"hp_before", hpBefore}, {"hp_after", GetHP()}});
     if (started) logger.RecordEvent("boss_break_started", {{"boss_id", GetEnemyId()},
         {"break_shots_remaining", m_BossState.shotsRemaining}, {"trigger_shot_excluded", true}});
-    Game::GetInstance()->NotifyCombatFeedback(GetPosition(), damage, IsDefeated(), false);
+    GameBattleEvents::CombatFeedback(
+        GetPosition(), damage, IsDefeated(), false);
 }
 
 void EnemyBall::EndBossShot()

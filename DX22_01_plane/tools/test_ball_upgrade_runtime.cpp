@@ -17,7 +17,7 @@ int main()
 {
     const auto loaded = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
     assert(loaded.defaultRunStatus.maxHp == 50 && loaded.defaultRunStatus.currentHp == 50);
-	assert(loaded.ballDefinitions.size() == 13);
+	assert(loaded.ballDefinitions.size() == 18);
     PlayerRunStatus fallback;
     fallback.maxHp = 73;
     fallback.currentHp = 41;
@@ -87,6 +87,11 @@ int main()
 	const auto& pierceFinisher = loaded.ballDefinitions[10];
 	const auto& ricochetFinisher = loaded.ballDefinitions[11];
 	const auto& anchorFinisher = loaded.ballDefinitions[12];
+	const auto& collisionBoost = loaded.ballDefinitions[13];
+	const auto& lightweight = loaded.ballDefinitions[14];
+	const auto& minionFinisher = loaded.ballDefinitions[15];
+	const auto& reflectionSetup = loaded.ballDefinitions[16];
+	const auto& originAnchor = loaded.ballDefinitions[17];
 	assert(standard.category == BallCategory::Standard);
 	assert(heavy.category == BallCategory::Heavy);
 	assert(pierce.category == BallCategory::Pierce);
@@ -102,17 +107,25 @@ int main()
 	assert(anchorFinisher.category == BallCategory::Anchor);
 	assert(chainImpact.status.chainImpactRadius == 12.0f);
 	assert(chainImpact.upgradeTable[1].chainImpactRadius == 18.0f);
-	assert(chainImpact.upgradeTable[1].heavyFinisherDamagePerCollision == 2.0f);
+	assert(chainImpact.status.heavyCollisionConsumeAmount == 5);
 	assert(refractivePierce.status.abilities.pierce &&
 		refractivePierce.status.abilities.refractAfterPierce);
 	assert(refractivePierce.upgradeTable[1].pierceMaxUses == 3);
 	assert(stopShield.status.stopShieldAmount == 3);
 	assert(stopShield.upgradeTable[0].stopShieldAmount == 5);
 	assert(stopShield.upgradeTable[1].stopShieldAmount == 7);
-	assert(!traceDriver.status.abilities.pierce && traceDriver.status.traceDurability == 2);
+	assert(!traceDriver.status.abilities.pierce && traceDriver.status.pierceStackConsumeLimit == 3);
 	assert(pierceFinisher.status.pierceFinisherBaseBonus == 1);
 	assert(ricochetFinisher.upgradeTable[1].ricochetFinisherBonusPerUse == 3);
 	assert(anchorFinisher.status.anchorFinisherAoeThreshold == 5);
+	assert(collisionBoost.status.attack == 0 &&
+		collisionBoost.status.heavySetupStackConsume == 3);
+	assert(lightweight.status.abilities.lightweight &&
+		lightweight.upgradeTable[1].lightweightKnockbackMultiplier == 2.0f);
+	assert(minionFinisher.status.pierceMaxUses == 3);
+	assert(reflectionSetup.upgradeTable[1].reflectionSetupAmount == 3);
+	assert(originAnchor.status.knockbackTransfer == 0.0f &&
+		originAnchor.status.abilities.returnToShotStart);
     assert(standard.upgradeTable[1].attack > standard.status.attack);
     float lastEnemySpeed = 0;
     for (const BallStatus& status : { heavy.status, heavy.upgradeTable[0], heavy.upgradeTable[1] })
@@ -127,17 +140,17 @@ int main()
     for (int level = 0; level < 3; ++level)
     {
         const auto& status = level == 0 ? pierce.status : pierce.upgradeTable[level - 1];
-        assert(BallMechanics::PierceUses(status, false) == level + 1);
-        assert(BallMechanics::PierceUses(status, true) == level + 2);
+        assert(BallMechanics::PierceUses(status, false) == 3);
+        assert(BallMechanics::PierceUses(status, true) == 4);
         assert(BallMechanics::PierceRetention(status, true) == 1.0f);
         if (level > 0) assert(status.pierceSpeedRetention > pierce.status.pierceSpeedRetention);
         assert(status.mass == pierce.status.mass && status.abilities.pierce);
     }
-    assert(bounce.upgradeTable[1].restitution > bounce.status.restitution);
-    assert(bounce.upgradeTable[1].friction < bounce.status.friction);
-    assert(anchor.upgradeTable[1].anchorBrakeMultiplier > anchor.status.anchorBrakeMultiplier);
-    assert(anchor.upgradeTable[1].anchorStopSpeedSquared > anchor.status.anchorStopSpeedSquared);
-    assert(anchor.upgradeTable[0].anchorKnockbackImmune);
+    assert(bounce.upgradeTable[1].restitution == bounce.status.restitution);
+    assert(bounce.upgradeTable[1].friction == bounce.status.friction);
+    assert(anchor.upgradeTable[1].anchorBrakeMultiplier == anchor.status.anchorBrakeMultiplier);
+    assert(anchor.upgradeTable[1].anchorStopSpeedSquared == anchor.status.anchorStopSpeedSquared);
+    assert(!anchor.upgradeTable[0].anchorKnockbackImmune);
     const auto lockFirst = BallMechanics::ResolveNormalImpact(0, 5, 6, 1, 0.35f, 1, 1, true, false);
     const auto lockSecond = BallMechanics::ResolveNormalImpact(-5, 0, 1, 6, 0.35f, 1, 1, false, true);
     assert(lockFirst.first == 0 && lockFirst.second < 0);
@@ -149,48 +162,29 @@ int main()
 	assert(!shieldRuntime.ApplyFinalDamage(3));
 	assert(shieldRuntime.GetCurrentHp() == 17);
 
-	const float halfWidth = TableConfig::GetFieldWidth() * 0.5f;
-	const float halfDepth = TableConfig::GetFieldDepth() * 0.5f;
-	const Collision::Segment topWall{
-		{-halfWidth, 0, halfDepth}, {halfWidth, 0, halfDepth} };
-	const Collision::Segment leftWall{
-		{-halfWidth, 0, -halfDepth}, {-halfWidth, 0, halfDepth} };
-	for (int part = 0; part < 4; ++part)
-	{
-		const float x = -halfWidth + (static_cast<float>(part) + 0.5f) *
-			(halfWidth * 2.0f / 4.0f);
-		assert(CushionChargeRules::RegionFromContact(
-			topWall, { x, 0, halfDepth }) == part);
-	}
-	assert(CushionChargeRules::RegionFromContact(
-		leftWall, { -halfWidth, 0, -halfDepth * 0.5f }) == 8);
-	assert(CushionChargeRules::RegionFromContact(
-		leftWall, { -halfWidth, 0, halfDepth * 0.5f }) == 9);
 	CushionChargeRules::State cushionState{};
-	bool cushionBoostConsumed = false;
-	int strongUses = 0;
 	Vector3 reflectedVelocity(4.0f, 0.0f, -3.0f);
-	auto generated = CushionChargeRules::ApplyStackContact(
-		cushionState, 2, 2, 3, 1, true, false, 1.2f, 1.03f, 1, 0,
-		cushionBoostConsumed, strongUses, reflectedVelocity);
-	assert(generated.generated == 2 && cushionState[2].stackCount == 2);
-	generated = CushionChargeRules::ApplyStackContact(
-		cushionState, 2, 2, 3, 1, true, false, 1.2f, 1.03f, 1, 0,
-		cushionBoostConsumed, strongUses, reflectedVelocity);
-	assert(generated.generated == 1 && cushionState[2].stackCount == 3);
 	CushionChargeRules::BeginPlayerShot(cushionState);
-	auto used = CushionChargeRules::ApplyStackContact(
-		cushionState, 2, 0, 3, 1, true, false, 1.0f, 1.03f, 2, 0,
-		cushionBoostConsumed, strongUses, reflectedVelocity);
-	assert(used.kind == CushionChargeRules::UseKind::Strong && used.consumed == 1);
-	assert(cushionState[2].stackCount == 2 && strongUses == 1);
+	CushionChargeRules::ReflectionConfig generation;
+	generation.generatesStacks = true;
+	generation.generationLimit = 3;
+	generation.stacksPerReflection = 1;
+	CushionChargeRules::ApplyValidReflection(cushionState, generation, reflectedVelocity);
+	CushionChargeRules::ApplyValidReflection(cushionState, generation, reflectedVelocity);
+	assert(cushionState.stackCount == 2);
+	CushionChargeRules::ReflectionConfig use;
+	use.consumesStacks = true;
+	use.consumptionLimit = 1;
+	use.reflectedSpeedMultiplier = 1.2f;
+	auto used = CushionChargeRules::ApplyValidReflection(
+		cushionState, use, reflectedVelocity);
+	assert(used.consumed == 1 && cushionState.stackCount == 1);
 	assert(std::abs(reflectedVelocity.Length() - 6.0f) < 0.0001f);
 	CushionChargeRules::EndPlayerShot(cushionState);
-	assert(cushionState[2].active && !cushionState[2].usableThisShot);
-	assert(CushionChargeRules::TotalStacks(cushionState) == 2);
-	assert(cushion.status.cushionChargeSpeedMultiplier == 1.1f);
-	assert(cushion.upgradeTable[0].cushionChargeSpeedMultiplier == 1.15f);
-	assert(cushion.upgradeTable[1].cushionChargeSpeedMultiplier == 1.2f);
+	assert(CushionChargeRules::TotalStacks(cushionState) == 1);
+	assert(cushion.status.cushionReflectionLimit == 3);
+	assert(cushion.upgradeTable[0].cushionReflectionLimit == 6);
+	assert(cushion.upgradeTable[1].cushionStackGenerateAmount == 2);
 
     assert(BallMechanics::DirectionalDamage(6, 1.0f, 0.5f) == 3);
     assert(BallMechanics::DirectionalDamage(6, 0.0f, 0.5f) == 6);
@@ -245,5 +239,5 @@ int main()
         }
     }
     assert(guarded == 1 && pocket == 1);
-	std::cout << "PASS: HP independence, 39 save round trips, 13 ball definitions, five categories, synergy resources, legacy migrations, invalid saves, collision order, anchor lock, pierce/refraction, directional guard, pocket damage and stage loading.\n";
+	std::cout << "PASS: HP independence, 18 ball definitions, four synergy resources, save round trips, collision order, pierce/refraction, directional guard, pocket damage and stage loading.\n";
 }

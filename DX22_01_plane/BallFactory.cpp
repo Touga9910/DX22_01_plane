@@ -17,13 +17,10 @@
 
 namespace
 {
-    GameObject* CreateBallObject(
-        Game& game,
-        const char* name,
+    GameObject* ConfigureBallObject(
+        GameObject* object,
         GameObjectTag tag)
     {
-        GameObject* object = GameRuntime::CreateObject(game, name);
-
         object->AddComponent<TagComponent>(tag);
         object->AddComponent<BallStatusComponent>();
         BallPhysicsComponent* physics =
@@ -36,6 +33,23 @@ namespace
         object->AddComponent<BallComponent>();
 
         return object;
+    }
+
+    GameObject* CreateBallObject(
+        Game& game,
+        const char* name,
+        GameObjectTag tag)
+    {
+        return ConfigureBallObject(
+            GameRuntime::CreateObject(game, name), tag);
+    }
+
+    GameObject* CreateBallObject(
+        const char* name,
+        GameObjectTag tag)
+    {
+        return ConfigureBallObject(
+            GameRuntime::CreateObject(name), tag);
     }
 }
 
@@ -68,12 +82,10 @@ EnemyBall* BallFactory::CreateEnemy(Game& game, const EnemyData& data)
 }
 
 NuisanceBall* BallFactory::CreateNuisanceBall(
-    Game& game,
     const NuisanceBallData& data,
     const DirectX::SimpleMath::Vector3& position)
 {
     GameObject* object = CreateBallObject(
-        game,
         "NuisanceBall",
         GameObjectTag::None);
     return object->AddComponent<NuisanceBall>(data, position);

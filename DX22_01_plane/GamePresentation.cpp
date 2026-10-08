@@ -7,6 +7,15 @@
 #include "BattleScene.h"
 #include "Camera.h"
 #include "Game.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
+#include "GameSettingsRuntime.h"
+#include "GameRewardState.h"
+#include "GameBallSelectionState.h"
+#include "GamePauseState.h"
+#include "PlayerBallData.h"
+#include "PlayerRunStatus.h"
+#include "RunController.h"
 #include "GameDebugController.h"
 #include "GameUi.h"
 #include "EnemyBall.h"
@@ -412,7 +421,8 @@ void GamePresentation::Draw(Game& game)
 	{
 		if (IsBattleScene(game))
 		{
-			const auto players = game.GetComponents<PlayerBall>();
+			const auto players =
+				GameRuntime::World().GetComponents<PlayerBall>();
 			const int currentHp = players.empty() ? game.GetPlayerCurrentHp() : players[0]->GetHP();
 			ImGui::Text("HP %d / %d   シールド %d   所持金 %d",
 				currentHp, game.GetPlayerMaxHp(), game.GetPlayerShield(), game.GetPlayerMoney());
@@ -421,7 +431,8 @@ void GamePresentation::Draw(Game& game)
 		ImGui::TextUnformatted("ホイール：拡大縮小 / タイトルバーをドラッグ：UI移動");
 		if (IsBattleScene(game))
 		{
-			for (const EnemyBall* enemy : game.GetComponents<EnemyBall>())
+			for (const EnemyBall* enemy :
+				GameRuntime::World().GetComponents<EnemyBall>())
 			{
 				if (enemy == nullptr || enemy->IsDefeated()) continue;
                 if (enemy->IsArmorBoss())
@@ -439,7 +450,8 @@ void GamePresentation::Draw(Game& game)
                     else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");
                     ImGui::TextUnformatted("黄色の球をボスへ押し込もう：Armor -1 / HP -4");
                     ImGui::TextUnformatted("黄色の球は命中・落下後、ショット終了時に再配置");
-                    for (auto* neutral : game.GetComponents<BreakBall>())
+                    for (auto* neutral :
+                        GameRuntime::World().GetComponents<BreakBall>())
                         ImGui::Text("ブレイク球%d：%s", neutral->GetIndex() + 1,
                             neutral->GetGameObject()->IsActive() ? "使用可能" : "再配置待ち");
                 }
@@ -482,7 +494,8 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoInputs;
 	int enemyIndex = 0;
-	for (const EnemyBall* enemy : game.GetComponents<EnemyBall>())
+	for (const EnemyBall* enemy :
+		GameRuntime::World().GetComponents<EnemyBall>())
 	{
 		const int currentIndex = enemyIndex++;
 		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
@@ -568,7 +581,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					ImGui::BeginTooltip();
 					ImGui::TextColored(ImVec4(0.29f, 0.88f, 0.72f, 1.0f), "%s",
 						PresentationUtf8(u8"敵の錨スタック"));
-					ImGui::TextUnformatted(PresentationUtf8(u8"衝突した相手へ全量転移します。"));
+					ImGui::TextUnformatted(PresentationUtf8(u8"この敵が個別に保持する資源です。"));
 					ImGui::EndTooltip();
 				}
 			}
@@ -577,20 +590,24 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGui::PopStyleVar(2);
 	}
 
-	const auto players = game.GetComponents<PlayerBall>();
+	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
 	const PlayerBall* player = players.empty() ? nullptr : players.front();
 	if (player == nullptr || player->IsDefeated()) return;
 	std::vector<ResourceBadge> resources;
-	resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"敵同士の衝突回数"),
+	resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"重量スタック"),
 		game.GetHeavyCollisionCount(), IM_COL32(255, 146, 61, 255) });
+	const int pierceStacks = game.GetPierceTraceState().stackCount;
+	if (pierceStacks > 0)
+		resources.push_back({ PresentationUtf8(u8"貫"), PresentationUtf8(u8"貫通スタック"),
+			pierceStacks, IM_COL32(170, 76, 255, 255) });
 	const int traceCount = static_cast<int>(game.GetPierceTraceState().traces.size());
 	if (traceCount > 0)
 		resources.push_back({ PresentationUtf8(u8"痕"), PresentationUtf8(u8"貫通痕"),
 			traceCount, IM_COL32(198, 92, 255, 255) });
 	const int cushionStacks = CushionChargeRules::TotalStacks(game.GetCushionCharges());
 	if (cushionStacks > 0)
-		resources.push_back({ PresentationUtf8(u8"跳"), PresentationUtf8(u8"クッションスタック合計"),
-			cushionStacks, IM_COL32(255, 221, 58, 255), true });
+		resources.push_back({ PresentationUtf8(u8"跳"), PresentationUtf8(u8"反射スタック"),
+			cushionStacks, IM_COL32(255, 221, 58, 255), false });
 	if (game.GetPlayerAnchorStacks() > 0)
 		resources.push_back({ PresentationUtf8(u8"錨"), PresentationUtf8(u8"プレイヤー錨スタック"),
 			game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255) });
@@ -633,16 +650,6 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 				ImGui::BeginTooltip();
 				ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(resources[index].color),
 					"%s: %d", resources[index].title, resources[index].value);
-				if (resources[index].showCushionRegions)
-				{
-					for (int region = 0; region < CushionChargeRules::RegionCount; ++region)
-					{
-						const auto& charge = game.GetCushionCharges()[static_cast<std::size_t>(region)];
-						if (charge.stackCount > 0)
-							ImGui::Text(PresentationUtf8(u8"区画 %d: %d / %d"),
-								region, charge.stackCount, charge.maxStack);
-					}
-				}
 				ImGui::EndTooltip();
 			}
 		}
@@ -685,8 +692,8 @@ void GamePresentation::DrawPierceTraces(Game& game)
 				purple);
 		}
 		char label[64]{};
-		sprintf_s(label, PresentationUtf8(u8"貫通痕 #%llu  耐久%d"),
-			static_cast<unsigned long long>(trace.id), trace.durability);
+		sprintf_s(label, PresentationUtf8(u8"貫通痕 #%llu"),
+			static_cast<unsigned long long>(trace.id));
 		const ImVec2 midpoint((start.x + end.x) * 0.5f, (start.y + end.y) * 0.5f);
 		const ImVec2 textSize = ImGui::CalcTextSize(label);
 		const ImVec2 textAt(midpoint.x - textSize.x * 0.5f, midpoint.y - textSize.y - 9.0f);
@@ -709,7 +716,7 @@ void GamePresentation::DrawBattleHud(Game& game)
 		ImGuiWindowFlags_NoScrollbar |
 		ImGuiWindowFlags_NoScrollWithMouse;
 
-	const auto players = game.GetComponents<PlayerBall>();
+	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
 	const int currentHp = players.empty() || players[0] == nullptr
 		? game.GetPlayerCurrentHp()
 		: players[0]->GetHP();
@@ -859,29 +866,24 @@ void GamePresentation::DrawDeckList(Game& game)
 		if (ImGui::Selectable("捨て札", m_DeckListView == DeckListView::DiscardPile, 0, ImVec2(88.0f, 24.0f)))
 			m_DeckListView = DeckListView::DiscardPile;
 
-		const PlayerDeck& deck = game.GetPlayerDeckView();
 		int count = 0;
 		auto ballAt = [&](int index) -> const PlayerBallData*
 		{
 			switch (m_DeckListView)
 			{
 			case DeckListView::DrawPile:
-				return index >= 0 && index < deck.GetDrawPileCount()
-					? &deck.GetDrawPile()[static_cast<std::size_t>(index)]
-					: nullptr;
+				return game.GetDrawPileBall(index);
 			case DeckListView::DiscardPile:
-				return index >= 0 && index < deck.GetDiscardPileCount()
-					? &deck.GetDiscardPile()[static_cast<std::size_t>(index)]
-					: nullptr;
+				return game.GetDiscardPileBall(index);
 			default:
-				return deck.GetRewardTarget(index);
+				return game.GetDeckBall(index);
 			}
 		};
 		switch (m_DeckListView)
 		{
-		case DeckListView::DrawPile: count = deck.GetDrawPileCount(); break;
-		case DeckListView::DiscardPile: count = deck.GetDiscardPileCount(); break;
-		default: count = deck.GetRewardTargetCount(); break;
+		case DeckListView::DrawPile: count = game.GetPlayerDeckCount(); break;
+		case DeckListView::DiscardPile: count = game.GetPlayerDiscardCount(); break;
+		default: count = game.GetDeckBallCount(); break;
 		}
 		ImGui::TextDisabled("%d枚", count);
 		ImGui::BeginChild("deck_list_rows", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders);
@@ -1706,34 +1708,30 @@ void Game::DrawPauseUI()
 	}
 
 	PausePresentationModel model{};
-	model.settings = m_SettingsManager.Get();
+	model.settings = m_SettingsRuntime->Current();
 	model.debugMode = IsDebugMode();
-	model.confirmReturnToTitle = m_PauseConfirmTitle;
+	model.confirmReturnToTitle =
+		m_PauseState->IsReturnToTitleConfirmationActive();
 	model.battleScene = GetCurrentSceneType() == SceneType::Battle;
-	model.clearRewardActive = m_IsClearRewardActive;
+	model.clearRewardActive = IsClearRewardActive();
 	const PausePresentationIntent intent = m_GamePresentation->DrawPause(model);
 
 	if (intent.settingsChanged)
 	{
-		const bool vibrationWasEnabled =
-			m_SettingsManager.Get().vibrationEnabled;
-		m_SettingsManager.Edit() = intent.settings;
-		m_SettingsManager.MarkDirty();
-		if (vibrationWasEnabled && !intent.settings.vibrationEnabled)
+		if (m_SettingsRuntime->Replace(intent.settings))
 		{
 			Input::SetVibration(0, 0.0f);
 		}
 	}
 	if (intent.applyDisplay)
 	{
-		m_PendingDisplayApply = true;
-		m_SettingsManager.SaveIfDirty();
+		m_PauseState->RequestDisplayApply();
+		m_SettingsRuntime->SaveIfDirty();
 	}
 	if (intent.resume)
 	{
-		m_SettingsManager.SaveIfDirty();
-		m_IsPaused = false;
-		m_PauseConfirmTitle = false;
+		m_SettingsRuntime->SaveIfDirty();
+		m_PauseState->ResumeAndDismissConfirmation();
 	}
 	if (intent.requestDebugExit)
 	{
@@ -1741,7 +1739,7 @@ void Game::DrawPauseUI()
 	}
 	if (intent.requestReturnConfirmation)
 	{
-		m_PauseConfirmTitle = true;
+		m_PauseState->RequestReturnToTitleConfirmation();
 	}
 	if (intent.saveAndReturnToTitle)
 	{
@@ -1749,7 +1747,7 @@ void Game::DrawPauseUI()
 	}
 	if (intent.cancelReturnToTitle)
 	{
-		m_PauseConfirmTitle = false;
+		m_PauseState->CancelReturnToTitleConfirmation();
 	}
 }
 
@@ -1761,22 +1759,24 @@ void Game::DrawBallSelectionUI()
 	}
 
 	BallSelectionPresentationModel model{};
-	model.selectedOfferIndex = m_SelectedOfferIndex;
-	model.selectedHoldIndex = m_SelectedHoldIndex;
-	const int offerCount = m_RunController.Deck().GetOfferCount();
+	model.selectedOfferIndex = GetSelectedBallOfferIndex();
+	model.selectedHoldIndex = GetHeldBallOfferIndex();
+	const int offerCount = GetBallOfferCount();
 	model.offers.reserve(static_cast<std::size_t>(offerCount));
 	model.effectiveAttacks.reserve(static_cast<std::size_t>(offerCount));
 	for (int index = 0; index < offerCount; ++index)
 	{
-		const PlayerBallData* ball = m_RunController.Deck().GetOffer(index);
+		const PlayerBallData* ball = GetBallOffer(index);
 		model.offers.push_back(ball);
 		model.effectiveAttacks.push_back(GetEffectivePlayerBallAttack(ball));
 	}
 
 	const BallSelectionPresentationIntent intent =
 		m_GamePresentation->DrawBallSelection(model);
-	m_SelectedOfferIndex = intent.selectedOfferIndex;
-	m_SelectedHoldIndex = intent.selectedHoldIndex;
+	m_BallSelectionState->ApplyPresentationSelection(
+		intent.selectedOfferIndex,
+		intent.selectedHoldIndex,
+		offerCount);
 	if (intent.selectionChanged)
 	{
 		ApplySelectedBallPreview();
@@ -1791,17 +1791,18 @@ void Game::DrawClearRewardUI()
 	}
 
 	ClearRewardPresentationModel model{};
-	model.stageRewardMoney = m_RunController.GetCurrentStageRewardMoney();
-	model.playerMoney = m_RunController.Status().money;
-	model.playerCurrentHp = m_RunController.Status().currentHp;
-	model.playerMaxHp = m_RunController.Status().maxHp;
-	model.midBossRelicSelectionActive = m_IsMidBossRelicSelectionActive;
-	model.clearRewardChosen = m_IsClearRewardChosen;
-	model.selectedRelicOfferIndex = m_SelectedRelicOfferIndex;
-	model.selectedRewardIndex = m_SelectedRewardIndex;
-	model.selectedRewardBallIndex = m_SelectedRewardBallIndex;
+	model.stageRewardMoney = m_RunController->GetCurrentStageRewardMoney();
+	model.playerMoney = m_RunController->Status().money;
+	model.playerCurrentHp = m_RunController->Status().currentHp;
+	model.playerMaxHp = m_RunController->Status().maxHp;
+	model.midBossRelicSelectionActive =
+		m_RewardState->IsMidBossRelicSelectionActive();
+	model.clearRewardChosen = m_RewardState->IsChosen();
+	model.selectedRelicOfferIndex = m_RewardState->SelectedRelicOfferIndex();
+	model.selectedRewardIndex = m_RewardState->SelectedRewardIndex();
+	model.selectedRewardBallIndex = m_RewardState->SelectedRewardBallIndex();
 	model.extraMoneyAmount = kClearRewardExtraMoney;
-	model.rewardMessage = m_RewardMessage;
+	model.rewardMessage = m_RewardState->Message();
 	for (int index = 0; index < GetMidBossRelicOfferCount(); ++index)
 	{
 		model.relicOffers.push_back(GetMidBossRelicOffer(index));
@@ -1810,23 +1811,24 @@ void Game::DrawClearRewardUI()
 	{
 		model.newBallOffers.push_back(GetClearRewardBallOffer(index));
 	}
-	const int targetCount = m_RunController.Deck().GetRewardTargetCount();
+	const int targetCount = GetDeckBallCount();
 	model.upgradeTargets.reserve(static_cast<std::size_t>(targetCount));
 	for (int index = 0; index < targetCount; ++index)
 	{
 		model.upgradeTargets.push_back({
-			m_RunController.Deck().GetRewardTarget(index),
+			GetDeckBall(index),
 			GetClearRewardUpgradeCost(index),
 		});
 	}
 
 	const ClearRewardPresentationIntent intent =
 		m_GamePresentation->DrawClearReward(model);
-	m_SelectedRelicOfferIndex = intent.selectedRelicOfferIndex;
-	m_SelectedRewardIndex = intent.selectedRewardIndex;
-	m_SelectedRewardBallIndex = intent.selectedRewardBallIndex;
+	m_RewardState->ApplyPresentationSelection(
+		intent.selectedRelicOfferIndex,
+		intent.selectedRewardIndex,
+		intent.selectedRewardBallIndex);
 	if (intent.confirm)
 	{
-		m_ClearRewardMouseConfirmed = true;
+		m_RewardState->RequestConfirmation();
 	}
 }

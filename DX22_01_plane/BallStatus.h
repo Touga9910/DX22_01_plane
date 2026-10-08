@@ -9,6 +9,10 @@ struct BallAbilities
 	bool pierce = false;                // 敵を貫通する能力を持つか
 	bool anchor = false;                // アンカー特性を持つか
 	bool refractAfterPierce = false;    // 貫通後に進行方向を変化させる能力を持つか
+	bool heavyDistanceStacks = false;   // 敵の移動距離から重量スタックを生成するか
+	bool lightweight = false;           // 次のノックバック1回を強化するか
+	bool reflectionSetup = false;       // 次球の最初の有効反射へスタックを付与するか
+	bool returnToShotStart = false;      // 次ターン開始時にショット始点へ戻すか
 };
 
 // ボール1個分の戦闘・物理性能と、カテゴリ固有シナジーの調整値を保持
@@ -48,6 +52,10 @@ struct BallStatus
 	// 0を設定した項目は旧ボール・旧セーブに対して追加効果を発生させない
 	float heavyFinisherDamagePerCollision = 0.0f; // 消費した重量カウント1個あたりの追加ダメージ
 	int heavyCollisionConsumeAmount = 0;       // フィニッシャーで消費する重量カウント数(0は全消費)
+	int heavySetupStackConsume = 0;
+	float heavyEnemyCollisionMultiplier = 1.0f;
+	float lightweightKnockbackMultiplier = 1.0f;
+	float lightweightSelfSpeedRetention = 0.0f;
 
 	// 貫通カテゴリ
 	int traceDurability = 0;						// 生成する貫通痕の耐久値(0では痕を生成しない)
@@ -61,6 +69,7 @@ struct BallStatus
 	float traceNonPierceSpeedMultiplier = 1.0f;		// 非貫通カテゴリが痕を利用した際の速度倍率
 	int pierceFinisherBaseBonus = 0;				// 貫通フィニッシャーが痕利用後に得る基本追加ダメージ
 	int pierceFinisherMultiTargetBonus = 0;			// 複数の敵を貫通した際、2体目以降1体ごとの追加ダメージ
+	int pierceStackConsumeLimit = 0;
 
 	// 反発カテゴリ
 	int cushionStackGenerateAmount = 0;				// 対象壁区画へ新しく生成するクッションスタック数
@@ -69,6 +78,13 @@ struct BallStatus
 	int cushionBounceAttackBonus = 0;				// 反発カテゴリがスタックを強利用した際の追加ダメージ
 	float cushionNonBounceSpeedMultiplier = 1.0f;	// 非反発カテゴリがスタックを利用した際の速度倍率
 	int ricochetFinisherBonusPerUse = 0;			// 反発フィニッシャーが強利用1回ごとに得る追加ダメージ
+	int cushionReflectionLimit = 0;
+	int cushionConsumptionLimit = 0;
+	float cushionReflectionSpeedMultiplier = 1.0f;
+	int reflectionSetupAmount = 0;
+	int ricochetStackConsume = 0;
+	int pinballCollisionsPerStage = 0;
+	float pinballSpeedRetention = 1.0f;
 
 	// アンカーカテゴリ
 	int anchorPlayerStackGenerate = 0;				// プレイヤー側へ生成する錨スタック数
@@ -79,6 +95,9 @@ struct BallStatus
 	int anchorFinisherDamagePerStack = 0;			// 消費した錨スタック1個あたりの追加ダメージ
 	int anchorFinisherAoeThreshold = 0;				// 範囲攻撃を発生させるために必要な消費スタック数
 	float anchorFinisherAoeRadius = 0.0f;			// アンカーフィニッシャー範囲攻撃の半径
+	int anchorPlayerStacksPerBonus = 0;
+	int anchorEnemyConsumeLimit = 0;
+	int nextAnchorGrantBonus = 0;
 
 	BallAbilities abilities;						// このボールが持つ基本特殊能力
 };
@@ -103,6 +122,10 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.heavyFinisherDamagePerCollision = std::clamp(
 		status.heavyFinisherDamagePerCollision, 0.0f, 100.0f);
 	status.heavyCollisionConsumeAmount = std::clamp(status.heavyCollisionConsumeAmount, 0, 9999);
+	status.heavySetupStackConsume = std::clamp(status.heavySetupStackConsume, 0, 9999);
+	status.heavyEnemyCollisionMultiplier = std::clamp(status.heavyEnemyCollisionMultiplier, 1.0f, 10.0f);
+	status.lightweightKnockbackMultiplier = std::clamp(status.lightweightKnockbackMultiplier, 1.0f, 10.0f);
+	status.lightweightSelfSpeedRetention = std::clamp(status.lightweightSelfSpeedRetention, 0.0f, 1.0f);
 	status.traceDurability = std::clamp(status.traceDurability, 0, 99);
 	status.traceUseAngleTolerance = std::clamp(status.traceUseAngleTolerance, 1.0f, 89.0f);
 	status.traceUseDistance = std::clamp(status.traceUseDistance, 0.1f, 200.0f);
@@ -118,6 +141,7 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.pierceFinisherBaseBonus = std::clamp(status.pierceFinisherBaseBonus, 0, 1000);
 	status.pierceFinisherMultiTargetBonus = std::clamp(
 		status.pierceFinisherMultiTargetBonus, 0, 1000);
+	status.pierceStackConsumeLimit = std::clamp(status.pierceStackConsumeLimit, 0, 15);
 	status.cushionStackGenerateAmount = std::clamp(status.cushionStackGenerateAmount, 0, 99);
 	status.cushionMaxStack = std::clamp(status.cushionMaxStack, 1, 99);
 	status.cushionStackConsumeAmount = std::clamp(status.cushionStackConsumeAmount, 1, 99);
@@ -126,6 +150,13 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 		status.cushionNonBounceSpeedMultiplier, 1.0f, 1.25f);
 	status.ricochetFinisherBonusPerUse = std::clamp(
 		status.ricochetFinisherBonusPerUse, 0, 1000);
+	status.cushionReflectionLimit = std::clamp(status.cushionReflectionLimit, 0, 99);
+	status.cushionConsumptionLimit = std::clamp(status.cushionConsumptionLimit, 0, 99);
+	status.cushionReflectionSpeedMultiplier = std::clamp(status.cushionReflectionSpeedMultiplier, 1.0f, 3.0f);
+	status.reflectionSetupAmount = std::clamp(status.reflectionSetupAmount, 0, 99);
+	status.ricochetStackConsume = std::clamp(status.ricochetStackConsume, 0, 99);
+	status.pinballCollisionsPerStage = std::clamp(status.pinballCollisionsPerStage, 0, 99);
+	status.pinballSpeedRetention = std::clamp(status.pinballSpeedRetention, 0.0f, 1.0f);
 	status.anchorPlayerStackGenerate = std::clamp(status.anchorPlayerStackGenerate, 0, 99);
 	status.anchorEnemyStackGenerate = std::clamp(status.anchorEnemyStackGenerate, 0, 99);
 	status.anchorStackRadius = std::clamp(status.anchorStackRadius, 0.0f, 100.0f);
@@ -134,5 +165,8 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.anchorFinisherDamagePerStack = std::clamp(status.anchorFinisherDamagePerStack, 0, 1000);
 	status.anchorFinisherAoeThreshold = std::clamp(status.anchorFinisherAoeThreshold, 0, 9999);
 	status.anchorFinisherAoeRadius = std::clamp(status.anchorFinisherAoeRadius, 0.0f, 100.0f);
+	status.anchorPlayerStacksPerBonus = std::clamp(status.anchorPlayerStacksPerBonus, 0, 99);
+	status.anchorEnemyConsumeLimit = std::clamp(status.anchorEnemyConsumeLimit, 0, 9999);
+	status.nextAnchorGrantBonus = std::clamp(status.nextAnchorGrantBonus, 0, 99);
 	return status;
 }

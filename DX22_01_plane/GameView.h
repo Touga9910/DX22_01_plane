@@ -27,7 +27,7 @@ struct ShopViewSnapshot
 {
     int playerMoney = 0;
     int deckBallCount = 0;
-    int shopBallCount = 0;
+    int shopBallOfferCount = 0;
     int shopRelicOfferCount = 0;
     int ownedRelicCount = 0;
     int relicCount = 0;
@@ -54,6 +54,7 @@ public:
 
     static const PlayerBallData* DeckBall(int index);
     static const PlayerBallData* ShopBall(int index);
+    static const PlayerBallData* ShopBallOffer(int index);
     static int EffectivePlayerBallAttack(const PlayerBallData* ball);
     static const RelicDefinition* ShopRelicOffer(int index);
     static bool IsShopRelicOfferOwned(int index);

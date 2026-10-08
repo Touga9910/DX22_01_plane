@@ -1,5 +1,8 @@
 ﻿#include "StageBase.h"
-#include "Game.h"
+#include "GameBattleCommands.h"
+#include "GameBattleView.h"
+#include "GameRuntime.h"
+#include "GameWorld.h"
 #include "GameObject.h"
 #include "Input.h"
 #include "PlayerBall.h"
@@ -10,7 +13,8 @@ StageBase::StageBase() {}
 StageBase::~StageBase() { Uninit(); }
 
 PlayerBall* StageBase::GetPlayerBall() const {
-    const auto players = Game::GetInstance()->GetGameObjectsWithTag(GameObjectTag::Player);
+    const auto players =
+        GameRuntime::World().GetObjectsWithTag(GameObjectTag::Player);
     for (GameObject* playerObject : players)
     {
         if (PlayerBall* player = playerObject->GetComponent<PlayerBall>())
@@ -29,7 +33,7 @@ void StageBase::Update()
     PlayerBall* ball = GetPlayerBall();
     if (!ball) return;
    
-    switch (Game::GetInstance()->GetBattleState())
+    switch (GameBattleView::State())
     {
     case BattleState::TurnEnd:
         // TC-20: ショット完了（全ボール停止）のタイミングで打数カウント
@@ -42,7 +46,7 @@ void StageBase::Update()
         // TC-21: ゴール判定
         if (ball->GetState() == PlayerBall::State::Goal)
         {
-            Game::GetInstance()->CompleteCurrentStage();
+            GameBattleCommands::CompleteCurrentStage();
         }
         break;
 
@@ -84,16 +88,15 @@ void StageBase::UpdateStrokeUI()
 void StageBase::Uninit() {
     for (GameObject* gameObject : m_SceneGameObjects)
     {
-        Game::GetInstance()->DeleteGameObject(gameObject);
+        GameRuntime::DestroyObject(gameObject);
     }
     m_SceneGameObjects.clear();
 }
 
 void StageBase::RemoveInvalidSceneObjectRefs()
 {
-    Game* game = Game::GetInstance();
-
-    std::erase_if(m_SceneGameObjects, [game](GameObject* gameObject) {
-        return !game->ContainsGameObject(gameObject);
+    GameWorld& world = GameRuntime::World();
+    std::erase_if(m_SceneGameObjects, [&world](GameObject* gameObject) {
+        return !world.Contains(gameObject);
         });
 }
