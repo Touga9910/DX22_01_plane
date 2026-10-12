@@ -439,6 +439,11 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 		"player_anchor",
 		"player_stop_shield",
 		"player_anchor_finisher",
+		"player_collision_boost",
+		"player_lightweight",
+		"player_minion_finisher",
+		"player_reflection_setup",
+		"player_origin_anchor",
 	};
 	for (const char* ballId : unlockableBallIds)
 	{
@@ -839,6 +844,11 @@ nlohmann::json GameMcpBridge::BuildState(
 		{{ "definition_id", "player_standard" }, { "unlocked", true }},
 		{{ "definition_id", "player_heavy" }, { "unlocked", true }},
 		{{ "definition_id", "player_chain_impact" }, { "unlocked", true }},
+		{{ "definition_id", "player_collision_boost" }, { "unlocked", true }},
+		{{ "definition_id", "player_lightweight" }, { "unlocked", true }},
+		{{ "definition_id", "player_minion_finisher" }, { "unlocked", true }},
+		{{ "definition_id", "player_reflection_setup" }, { "unlocked", true }},
+		{{ "definition_id", "player_origin_anchor" }, { "unlocked", true }},
 		{{ "definition_id", "player_pierce" }, { "unlocked", isBallUnlocked("player_pierce") }},
 		{{ "definition_id", "player_refractive_pierce" }, { "unlocked", isBallUnlocked("player_refractive_pierce") }},
 		{{ "definition_id", "player_trace_driver" }, { "unlocked", isBallUnlocked("player_trace_driver") }},

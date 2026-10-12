@@ -594,8 +594,10 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 	const PlayerBall* player = players.empty() ? nullptr : players.front();
 	if (player == nullptr || player->IsDefeated()) return;
 	std::vector<ResourceBadge> resources;
-	resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"重量スタック"),
-		game.GetHeavyCollisionCount(), IM_COL32(255, 146, 61, 255) });
+	const int heavyStacks = game.GetHeavyCollisionCount();
+	if (heavyStacks > 0)
+		resources.push_back({ PresentationUtf8(u8"重"), PresentationUtf8(u8"重量スタック"),
+			heavyStacks, IM_COL32(255, 146, 61, 255) });
 	const int pierceStacks = game.GetPierceTraceState().stackCount;
 	if (pierceStacks > 0)
 		resources.push_back({ PresentationUtf8(u8"貫"), PresentationUtf8(u8"貫通スタック"),
@@ -660,6 +662,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 void GamePresentation::DrawPierceTraces(Game& game)
 {
+	if (game.IsPaused() || game.GetLastBattleResult() != BattleResult::None) return;
 	const auto& traces = game.GetPierceTraceState().traces;
 	if (traces.empty()) return;
 	ImGuiViewport* viewport = ImGui::GetMainViewport();

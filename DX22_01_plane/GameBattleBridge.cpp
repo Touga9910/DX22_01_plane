@@ -116,19 +116,34 @@ void GameBattleEvents::PlayerWallCollision(
         cushionRegion, playerPosition, reflectedVelocity);
 }
 
-void GameBattleEvents::EnemyEnemySynergyCollision(
+int GameBattleEvents::EnemyEnemySynergyCollision(
     EnemyBall* first,
     EnemyBall* second,
     const DirectX::SimpleMath::Vector3& firstVelocityBefore,
     const DirectX::SimpleMath::Vector3& secondVelocityBefore)
 {
-    Game::GetInstance()->NotifyEnemyEnemySynergyCollision(
+	return Game::GetInstance()->NotifyEnemyEnemySynergyCollision(
         first, second, firstVelocityBefore, secondVelocityBefore);
 }
 
-int GameBattleEvents::PlayerEnemySynergyCollision(EnemyBall* enemy)
+PlayerEnemySynergyResult GameBattleEvents::PlayerEnemySynergyCollision(
+	EnemyBall* enemy,
+	const DirectX::SimpleMath::Vector3& enemyVelocityBefore)
 {
-    return Game::GetInstance()->NotifyPlayerEnemySynergyCollision(enemy);
+	return Game::GetInstance()->NotifyPlayerEnemySynergyCollision(
+		enemy,
+		enemyVelocityBefore);
+}
+
+void GameBattleEvents::EnemyWallCollision(
+	EnemyBall* enemy,
+	const DirectX::SimpleMath::Vector3& velocityBefore,
+	DirectX::SimpleMath::Vector3& velocityAfter)
+{
+	Game::GetInstance()->NotifyEnemyWallCollision(
+		enemy,
+		velocityBefore,
+		velocityAfter);
 }
 
 void GameBattleEvents::PlayerPiercedEnemy(
@@ -196,9 +211,9 @@ void GameBattleEvents::EnemyPocketed(EnemyBall* enemy)
     Game::GetInstance()->HandleEnemyPocket(enemy);
 }
 
-void GameBattleEvents::EnemyDefeated(const std::string& enemyId)
+void GameBattleEvents::EnemyDefeated(EnemyBall* enemy)
 {
-    Game::GetInstance()->NotifyEnemyDefeated(enemyId);
+    Game::GetInstance()->NotifyEnemyDefeated(enemy);
 }
 
 void GameBattleEvents::PlayerDefeated()
@@ -274,8 +289,9 @@ BallShotPrediction::Input MakeShotPredictionInput(float launchPower)
     input.hasPierceBallCharger =
         game.HasRelic(RelicType::PierceBallCharger);
     input.relicAttackBonus = game.GetRelicAttackBonus();
-    input.heavyCollisionCount = game.GetHeavyCollisionCount();
+	input.heavyCollisions = game.GetHeavyCollisionState();
     input.playerAnchorStacks = game.GetPlayerAnchorStacks();
+	input.anchorConversionProgress = game.GetAnchorConversionProgress();
     input.cushionBoostConsumed = game.WasCushionBoostConsumedThisShot();
     input.playerEnemyContacts =
         game.GetCurrentShotPlayerEnemyCollisionCount();
@@ -347,9 +363,19 @@ int Game::GetHeavyCollisionCount() const
 	return m_BattleState->heavyCollisions.stackCount;
 }
 
+const HeavyCollisionRules::State& Game::GetHeavyCollisionState() const
+{
+	return m_BattleState->heavyCollisions;
+}
+
 int Game::GetPlayerAnchorStacks() const
 {
     return m_BattleState->anchorStacks.playerStacks;
+}
+
+int Game::GetAnchorConversionProgress() const
+{
+	return m_BattleState->anchorStacks.conversionProgress;
 }
 
 int Game::GetCushionStrongUsesThisShot() const

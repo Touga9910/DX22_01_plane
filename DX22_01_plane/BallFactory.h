@@ -7,25 +7,34 @@ class BreakBall;
 class Game;
 class PlayerBall;
 class NuisanceBall;
+class PierceMinion;
+struct BallStatus;
 struct EnemyData;
 struct NuisanceBallData;
 
-// プレイヤー・敵・ブレイク・お邪魔ボール用GameObjectを共通構成で生成するFactory
-// 生成されるボールには状態・物理・コライダー・描画・衝突・BallComponentが共通で追加される
+// Creates each ball GameObject with the shared status, physics, collider,
+// rendering, collision, and BallComponent composition.
 class BallFactory final
 {
 public:
-    // Playerタグを持つボールGameObjectを生成し、追加したPlayerBallを返す
+    // Create the player ball.
     static PlayerBall* CreatePlayer(Game& game);
 
-    // BreakBall用の共通ボールGameObjectを生成し、指定indexを持つBreakBallを返す
+    // Create a break ball for the specified index.
     static BreakBall* CreateBreakBall(Game& game, int index);
 
-    // Enemyタグを持つボールGameObjectを生成し、EnemyDataを渡したEnemyBallと攻撃Componentを追加して返す
+    // Create an enemy ball and its attack component.
     static EnemyBall* CreateEnemy(Game& game, const EnemyData& data);
 
-    // お邪魔ボール用の共通GameObjectを生成し、設定データと初期位置を渡したNuisanceBallを返す
+    // Create a nuisance ball at the supplied position.
     static NuisanceBall* CreateNuisanceBall(
         const NuisanceBallData& data,
         const DirectX::SimpleMath::Vector3& position);
+
+	static PierceMinion* CreatePierceMinion(
+		Game& game,
+		const BallStatus& status,
+		const DirectX::SimpleMath::Vector3& position,
+		const DirectX::SimpleMath::Vector3& direction,
+		float launchSpeed);
 };

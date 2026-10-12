@@ -4,6 +4,12 @@
 #include <cstddef>
 #include <string>
 
+struct PlayerEnemySynergyResult
+{
+	int damageBonus = 0;
+	bool stopPlayer = false;
+};
+
 // ゲーム内で使用するシーン種別を表す。
 // SceneManagerなどで遷移先や現在のシーンを識別するために使用
 

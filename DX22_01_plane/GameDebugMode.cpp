@@ -420,15 +420,43 @@ void GameDebugController::Draw(Game& game)
         }
         if (ImGui::BeginTabItem("デッキ"))
         {
-            ImGui::Text("%d / 64個（1個だけでも実験できます）", static_cast<int>(m_DebugSetup.deck.size()));
-            for (const auto& definition : m_DebugBallCatalog)
+            ImGui::Text("%d / 64個（登録%d種類・1個だけでも実験できます）",
+                static_cast<int>(m_DebugSetup.deck.size()),
+                static_cast<int>(m_DebugBallCatalog.size()));
+            struct BallCategoryTab
             {
-                ImGui::PushID(definition.definitionId.c_str());
-                ImGui::BeginDisabled(m_DebugSetup.deck.size() >= 64);
-                if (ImGui::Button(BallLabel(definition.definitionId))) m_DebugSetup.deck.push_back(definition);
-                ImGui::EndDisabled(); ImGui::SameLine(); ImGui::PopID();
+                const char* label;
+                BallCategory category;
+            };
+            const BallCategoryTab categoryTabs[] = {
+                { "標準", BallCategory::Standard },
+                { "重量", BallCategory::Heavy },
+                { "貫通", BallCategory::Pierce },
+                { "反射", BallCategory::Bounce },
+                { "アンカー", BallCategory::Anchor },
+            };
+            if (ImGui::BeginTabBar("debug_ball_category_tabs"))
+            {
+                for (const BallCategoryTab& tab : categoryTabs)
+                {
+                    if (!ImGui::BeginTabItem(tab.label)) continue;
+                    bool firstButton = true;
+                    for (const auto& definition : m_DebugBallCatalog)
+                    {
+                        if (definition.category != tab.category) continue;
+                        if (!firstButton) ImGui::SameLine();
+                        firstButton = false;
+                        ImGui::PushID(definition.definitionId.c_str());
+                        ImGui::BeginDisabled(m_DebugSetup.deck.size() >= 64);
+                        if (ImGui::Button(BallLabel(definition.definitionId)))
+                            m_DebugSetup.deck.push_back(definition);
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                    }
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
             }
-            ImGui::NewLine();
             ImGui::TextDisabled("上の球名で追加。各行を開いて強化・性能を編集できます。");
             for (size_t i = 0; i < m_DebugSetup.deck.size();)
             {

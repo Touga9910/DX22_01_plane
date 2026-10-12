@@ -20,7 +20,7 @@ namespace BallPhysicsRules
         std::uintptr_t id = 0;
         Vector3 position = Vector3::Zero, velocity = Vector3::Zero;
         BallStatus status;
-        bool player = false, enemy = false, breakBall = false, boss = false;
+        bool player = false, enemy = false, minion = false, breakBall = false, boss = false;
         int pierceUses = 0, pierceLimit = 0;
         float pierceRetention = 0.75f;
 		float nextKnockbackMultiplier = 1.0f;
@@ -75,8 +75,8 @@ namespace BallPhysicsRules
         }
         const float threshold = status.abilities.anchor ? status.anchorStopSpeedSquared : 0.03f;
         if (velocity.LengthSquared() < threshold) ++stopCount;
-        else
-        {
+		else
+		{
             stopCount = 0;
             Vector3 deceleration = -velocity;
             deceleration.Normalize();
@@ -210,8 +210,8 @@ namespace BallPhysicsRules
             const float restitution = a.player ? a.status.restitution :
                 (b.player ? b.status.restitution : (std::min)(a.status.restitution, b.status.restitution));
             const auto response = BallMechanics::ResolveNormalImpact(av, bv, a.status.mass, b.status.mass,
-                restitution, a.player && (b.enemy || b.breakBall) ? a.status.knockbackTransfer : 1.0f,
-                b.player && (a.enemy || a.breakBall) ? b.status.knockbackTransfer : 1.0f, aLocked, bLocked);
+                restitution, (a.player || a.minion) && (b.enemy || b.breakBall) ? a.status.knockbackTransfer : 1.0f,
+                (b.player || b.minion) && (a.enemy || a.breakBall) ? b.status.knockbackTransfer : 1.0f, aLocked, bLocked);
             a.velocity += normal * (response.first - av);
             b.velocity += normal * (response.second - bv);
 			if (a.nextKnockbackMultiplier > 1.0f)
@@ -226,6 +226,27 @@ namespace BallPhysicsRules
 					(b.velocity - bVelocityBeforeImpact) * b.nextKnockbackMultiplier;
 				b.consumedKnockbackMultiplier = true;
 			}
+			const auto reduceLightweightSpeedLoss = [](
+				Body& body,
+				const Vector3& velocityBefore,
+				bool collidedWithEnemy)
+			{
+				if (!body.player || !collidedWithEnemy ||
+					!body.status.abilities.lightweight ||
+					body.status.lightweightSpeedLossReduction <= 0.0f)
+				{
+					return;
+				}
+				const float beforeSpeed = velocityBefore.Length();
+				const float normalSpeed = body.velocity.Length();
+				if (beforeSpeed <= normalSpeed || normalSpeed <= 0.000001f) return;
+				const float lostSpeed = beforeSpeed - normalSpeed;
+				const float correctedSpeed = beforeSpeed - lostSpeed *
+					(1.0f - body.status.lightweightSpeedLossReduction);
+				body.velocity *= correctedSpeed / normalSpeed;
+			};
+			reduceLightweightSpeedLoss(a, aVelocityBeforeImpact, b.enemy);
+			reduceLightweightSpeedLoss(b, bVelocityBeforeImpact, a.enemy);
             if (!newContact)
             {
                 // The legacy 2*restitution response may retain closing velocity

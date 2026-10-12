@@ -24,6 +24,7 @@ struct GameBattleState final
     PierceTraceRules::State pierceTraces{};
     AnchorStackRules::State anchorStacks{};
     bool heavyFinisherConsumedThisShot = false;
+	bool anchorFinisherTriggeredThisShot = false;
     EnemyBall* anchorContactTarget = nullptr;
     std::unordered_set<const EnemyBall*> piercedEnemiesThisShot;
     int playerShield = 0;

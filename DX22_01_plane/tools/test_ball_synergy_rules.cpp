@@ -44,6 +44,15 @@ int main()
 	assert(enemyB == 0 && anchor.playerStacks == 1 && anchor.conversionProgress == 2);
 	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 4, 0) == 3);
 	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 3, 1) == 5);
+	assert(AnchorStackRules::CalculateShield(1, 7) == 1);
+	assert(AnchorStackRules::CalculateShield(2, 7) == 3);
+	assert(AnchorStackRules::CalculateShield(3, 7) == 4);
+	assert(AnchorStackRules::CalculateShield(4, 7) == 6);
+	assert(AnchorStackRules::CalculateShield(5, 7) == 7);
+	assert(AnchorStackRules::FinisherDamagePerEnemyStack(4) == 2);
+	assert(AnchorStackRules::FinisherDamagePerEnemyStack(5) == 3);
+	assert(AnchorStackRules::FinisherDamagePerEnemyStack(10) == 4);
+	assert(AnchorStackRules::DefeatAutoConsumeAmount(11) == 5);
 	Vector3 returnPosition;
 	AnchorStackRules::SaveReturnPosition(anchor, { 4.0f, 1.0f, 2.0f });
 	assert(AnchorStackRules::ConsumeReturnPosition(anchor, returnPosition));
@@ -66,6 +75,22 @@ int main()
 	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 15 }, { 20, 0, 15 }));
 	assert(traces.traces.size() == 3 && traces.overwrittenCount == 1);
 	assert(traces.traces.front().id != oldest);
+	const auto fiveStackMinions = PierceTraceRules::BuildMinionLaunches(
+		traces, 5, false);
+	assert(fiveStackMinions.size() == 2);
+	assert(fiveStackMinions[0].attack == 2 &&
+		std::abs(fiveStackMinions[0].knockbackMultiplier - 1.5f) < 0.001f);
+	assert(fiveStackMinions[1].attack == 2 &&
+		std::abs(fiveStackMinions[1].knockbackMultiplier - 1.0f) < 0.001f);
+	const auto finisherMinions = PierceTraceRules::BuildMinionLaunches(
+		traces, 15, true);
+	assert(finisherMinions.size() == 3);
+	for (const auto& minion : finisherMinions)
+	{
+		assert(minion.attack == 3);
+		assert(std::abs(minion.knockbackMultiplier - 1.875f) < 0.001f);
+	}
+	assert(PierceTraceRules::MinionLaunchSpeed == 5.0f);
 
 	CushionChargeRules::State cushions{};
 	CushionChargeRules::BeginPlayerShot(cushions);
@@ -98,6 +123,27 @@ int main()
 	assert(CushionChargeRules::ConsumeEmpoweredHit(cushions, 2));
 	assert(!CushionChargeRules::ConsumeEmpoweredHit(cushions, 3));
 	assert(std::abs(velocity.Length() - 7.2f) < 0.001f);
+
+	CushionChargeRules::State pinball{};
+	pinball.stackCount = 5;
+	assert(!CushionChargeRules::ActivatePinball(
+		pinball, 42, 6, 3, 0.9f));
+	assert(pinball.stackCount == 5 && pinball.pinballTargetId == 0);
+	pinball.stackCount = 6;
+	assert(CushionChargeRules::ActivatePinball(
+		pinball, 42, 6, 3, 0.9f));
+	assert(pinball.stackCount == 0);
+	assert(CushionChargeRules::RegisterPinballCollision(pinball, 42) == 0);
+	assert(CushionChargeRules::RegisterPinballCollision(pinball, 42) == 0);
+	assert(CushionChargeRules::RegisterPinballCollision(pinball, 42) == 1);
+	Vector3 slowAfter(2.0f, 0.0f, 0.0f);
+	CushionChargeRules::PreservePinballSpeed(
+		pinball, 42, Vector3(10.0f, 0.0f, 0.0f), slowAfter);
+	assert(std::abs(slowAfter.Length() - 9.0f) < 0.001f);
+	Vector3 fastAfter(12.0f, 0.0f, 0.0f);
+	CushionChargeRules::PreservePinballSpeed(
+		pinball, 42, Vector3(10.0f, 0.0f, 0.0f), fastAfter);
+	assert(std::abs(fastAfter.Length() - 10.0f) < 0.001f);
 
 	std::cout << "ball synergy rules: OK\n";
 	return 0;

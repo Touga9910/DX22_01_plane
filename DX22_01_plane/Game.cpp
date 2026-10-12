@@ -511,9 +511,10 @@ namespace
 					status.cushionConsumptionLimit,
 					status.cushionReflectionSpeedMultiplier * 100.0f,
 					status.cushionBounceAttackBonus);
-			if (status.ricochetFinisherBonusPerUse > 0)
-				ImGui::BulletText("スタック消費1個ごとの決着攻撃 +%d",
-					status.ricochetFinisherBonusPerUse);
+			if (status.ricochetStackConsume > 0)
+				ImGui::BulletText("反射スタック消費 %d / %d衝突ごとに追加ダメージ +1",
+					status.ricochetStackConsume,
+					status.pinballCollisionsPerStage);
 		}
 		else if (ball.category == BallCategory::Anchor)
 		{
@@ -2137,7 +2138,7 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		enemy->Defeat();
 		if (!wasAlreadyDefeated && pocketDamage < hpBefore)
 		{
-			NotifyEnemyDefeated(enemy->GetEnemyId());
+			NotifyEnemyDefeated(enemy);
 		}
 		enemy->RemoveFromFieldAfterPocket();
 		RecordBalanceEvent(

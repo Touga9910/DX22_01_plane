@@ -138,8 +138,9 @@ namespace PlayerBallText
 		if (definitionId == "player_pierce_finisher") return Utf8(u8"同一ショットの複数貫通を決着ダメージへ変換。");
 		if (definitionId == "player_cushion_charge") return Utf8(u8"有効な壁反射で共有の反射スタックを生成。");
 		if (definitionId == "player_bounce") return Utf8(u8"クッションスタックを強利用して加速。");
-		if (definitionId == "player_ricochet_finisher") return Utf8(u8"1ショットで複数スタックを消費して決着。");
-		if (definitionId == "player_anchor" || definitionId == "player_stop_shield") return Utf8(u8"停止時に錨スタックを生成。");
+		if (definitionId == "player_ricochet_finisher") return Utf8(u8"反射スタック6以上で、最初の敵をピンボール化。");
+		if (definitionId == "player_anchor") return Utf8(u8"接触した敵へEnemy Anchorを付与。");
+		if (definitionId == "player_stop_shield") return Utf8(u8"接触した敵のEnemy AnchorをShieldへ変換。");
 		if (definitionId == "player_anchor_finisher") return Utf8(u8"回収した錨スタックを決着ダメージへ変換。");
 		if (definitionId == "player_collision_boost") return Utf8(u8"次球の敵同士衝突ダメージを強化。");
 		if (definitionId == "player_lightweight") return Utf8(u8"次のノックバックを強化し、敵ごとに重量+1。");

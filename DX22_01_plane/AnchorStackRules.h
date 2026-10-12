@@ -3,15 +3,16 @@
 #include "SimpleMath.h"
 
 #include <algorithm>
+#include <cmath>
 
-// アンカーカテゴリで使用するスタックの加算・移動・消費ルールをまとめる
+// Value-only rules for adding, converting, and consuming anchor stacks.
 namespace AnchorStackRules
 {
-	// プレイヤー側が保持するアンカースタック状態
+	// Player-owned anchor state shared across enemies.
 	struct State
 	{
-		int playerStacks = 0;	// 現在プレイヤー側に蓄積しているスタック数
-		int conversionProgress = 0; // Enemy Anchor消費の5:1変換で残った共有端数
+		int playerStacks = 0;
+		int conversionProgress = 0; // Shared remainder of the 5:1 conversion.
 		bool returnPositionPending = false;
 		DirectX::SimpleMath::Vector3 returnPosition = DirectX::SimpleMath::Vector3::Zero;
 		int nextAnchorGrantBonus = 0;
@@ -19,13 +20,13 @@ namespace AnchorStackRules
 
 	static constexpr int EnemyStacksPerPlayerStack = 5;
 
-	// valueへ負数を無視したamountを加え、0～maximumへ制限した値を返す
+	// Add a non-negative amount and clamp it to the configured maximum.
 	inline int AddClamped(int value, int amount, int maximum)
 	{
 		return std::clamp(value + (std::max)(0, amount), 0, (std::max)(0, maximum));
 	}
 
-	// プレイヤー側へスタックを加算し、実際に増加した数を返す
+	// Add player stacks and return the amount actually added.
 	inline int AddPlayerStacks(State& state, int amount, int maximum)
 	{
 		const int before = state.playerStacks;
@@ -33,7 +34,7 @@ namespace AnchorStackRules
 		return state.playerStacks - before;
 	}
 
-	// 敵側へスタックを加算し、実際に増加した数を返す
+	// Add enemy stacks and return the amount actually added.
 	inline int AddEnemyStacks(int& enemyStacks, int amount, int maximum)
 	{
 		const int before = enemyStacks;
@@ -41,8 +42,7 @@ namespace AnchorStackRules
 		return enemyStacks - before;
 	}
 
-	// プレイヤー側のスタックを指定数消費し、実際に消費した数を返す
-	// amountが0以下の場合は現在保持しているスタックをすべて消費
+	// Consume player stacks. A non-positive amount consumes all stacks.
 	inline int ConsumePlayerStacks(State& state, int amount)
 	{
 		const int available = (std::max)(0, state.playerStacks);
@@ -51,8 +51,7 @@ namespace AnchorStackRules
 		return consumed;
 	}
 
-	// 指定した敵のEnemy Anchorだけを消費し、5個ごとにPlayer Anchorへ変換する。
-	// 5未満の端数は敵ごとではなくState内の共有ゲージへ保持する。
+	// Consume one enemy's stacks and feed the shared 5:1 conversion gauge.
 	struct EnemyConsumeResult
 	{
 		int consumed = 0;
@@ -90,6 +89,29 @@ namespace AnchorStackRules
 			: 0;
 		return (std::max)(0, baseAmount) + growth +
 			(std::max)(0, oneShotBonus);
+	}
+
+	inline int CalculateShield(int consumedEnemyStacks, int maximumShield)
+	{
+		const int consumed = std::clamp(
+			consumedEnemyStacks, 0, EnemyStacksPerPlayerStack);
+		const int maximum = (std::max)(0, maximumShield);
+		if (consumed == 0 || maximum == 0) return 0;
+		return (std::max)(1, static_cast<int>(std::lround(
+			static_cast<float>(consumed * maximum) /
+			static_cast<float>(EnemyStacksPerPlayerStack))));
+	}
+
+	inline int FinisherDamagePerEnemyStack(int playerStacksBeforeConsume)
+	{
+		return 2 + (std::min)(
+			2,
+			(std::max)(0, playerStacksBeforeConsume) / 5);
+	}
+
+	inline int DefeatAutoConsumeAmount(int enemyStacks)
+	{
+		return (std::max)(0, enemyStacks) / 2;
 	}
 
 	inline void SaveReturnPosition(

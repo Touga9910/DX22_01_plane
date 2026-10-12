@@ -87,7 +87,12 @@ bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 		id == "player_anchor_finisher")
 		return IsAchievementUnlocked(AchievementId::MidBoss);
 	return id == "player_standard" || id == "player_heavy" ||
-		id == "player_chain_impact";
+		id == "player_chain_impact" ||
+		id == "player_collision_boost" ||
+		id == "player_lightweight" ||
+		id == "player_minion_finisher" ||
+		id == "player_reflection_setup" ||
+		id == "player_origin_anchor";
 }
 bool ProgressionProfile::IsRelicUnlocked(RelicType type) const
 {

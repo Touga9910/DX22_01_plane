@@ -50,6 +50,7 @@ class Scene;
 class RunMap;
 class RunController;
 struct ShotRelicRules;
+namespace HeavyCollisionRules { struct State; }
 
 class Game
 {
@@ -397,12 +398,18 @@ public:
 		int cushionRegion,
 		const DirectX::SimpleMath::Vector3& playerPosition,
 		DirectX::SimpleMath::Vector3& reflectedVelocity);
-	void NotifyEnemyEnemySynergyCollision(
+	int NotifyEnemyEnemySynergyCollision(
 		EnemyBall* first,
 		EnemyBall* second,
 		const DirectX::SimpleMath::Vector3& firstVelocityBefore,
 		const DirectX::SimpleMath::Vector3& secondVelocityBefore);
-	int NotifyPlayerEnemySynergyCollision(EnemyBall* enemy);
+	PlayerEnemySynergyResult NotifyPlayerEnemySynergyCollision(
+		EnemyBall* enemy,
+		const DirectX::SimpleMath::Vector3& enemyVelocityBefore);
+	void NotifyEnemyWallCollision(
+		EnemyBall* enemy,
+		const DirectX::SimpleMath::Vector3& velocityBefore,
+		DirectX::SimpleMath::Vector3& velocityAfter);
 	int ScaleEnemyCollisionDamage(int damage) const;
 	void NotifyPlayerPiercedEnemy(
 		EnemyBall* enemy,
@@ -424,7 +431,7 @@ public:
 		int attackDamage,
 		float radius);
 	void NotifyAnchorStopped(EnemyBall* directTarget = nullptr);
-	void NotifyEnemyDefeated(const std::string& enemyId);
+	void NotifyEnemyDefeated(EnemyBall* enemy);
 	int ConsumeBankShotDamageMultiplier();
 	int ConsumePlayerEnemyRelicDamageBonus();
 	int GetPierceMaximumUses() const;
@@ -530,7 +537,9 @@ public:
 
 	// 各スタックを返す
 	int GetHeavyCollisionCount() const;
+	const HeavyCollisionRules::State& GetHeavyCollisionState() const;
 	int GetPlayerAnchorStacks() const;
+	int GetAnchorConversionProgress() const;
 	
 	int GetCushionStrongUsesThisShot() const;
 	int GetPlayerShield() const;

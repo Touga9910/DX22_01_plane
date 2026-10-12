@@ -7,6 +7,7 @@
 #include "BallPhysicsComponent.h"
 #include "EnemyBall.h"
 #include "BreakBall.h"
+#include "PierceMinion.h"
 #include "GameBattleCommands.h"
 #include "GameBattleEvents.h"
 #include "GameBattleView.h"
@@ -94,17 +95,25 @@ void BallCollisionComponent::ResolveEnvironment(
 {
 	if (!CanSimulate() || CheckPocketHitAlongMovement(movementStart, pockets)) return;
     auto body = CapturePhysicsBody();
+	auto* enemy = GetGameObject()->GetComponent<EnemyBall>();
+	const auto resolveWall = [&](const Collision::Segment& wall, const Vector3& interior)
+	{
+		const Vector3 velocityBefore = body.velocity;
+		const bool bounced = BallPhysicsRules::Wall(body, wall, interior);
+		if (bounced && body.player)
+			GameBattleEvents::PlayerWallCollision(0, body.position, body.velocity);
+		if (bounced && enemy != nullptr)
+			GameBattleEvents::EnemyWallCollision(
+				enemy, velocityBefore, body.velocity);
+	};
     if (body.boss)
     {
-        for (const auto& wall : BallPhysicsRules::BossWalls()) BallPhysicsRules::Wall(body, wall, Vector3::Zero);
+		for (const auto& wall : BallPhysicsRules::BossWalls())
+			resolveWall(wall, Vector3::Zero);
     }
     for (const auto& wall : walls)
     {
-		const bool bounced = BallPhysicsRules::Wall(body, wall, interiorReference);
-        if (bounced && body.player)
-        {
-			GameBattleEvents::PlayerWallCollision(0, body.position, body.velocity);
-        }
+		resolveWall(wall, interiorReference);
     }
     // Walls only change motion; rebuilding unchanged contact histories for each
     // wall copied the same vectors repeatedly during every TOI iteration.
@@ -186,9 +195,10 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     }
     const bool isPlayerEnemyCollision = (myPlayer && otherEnemy) || (myEnemy && otherPlayer);
     const bool isEnemyEnemyCollision = myEnemy && otherEnemy;
+	int pinballCollisionBonus = 0;
 	if (isEnemyEnemyCollision)
 	{
-		GameBattleEvents::EnemyEnemySynergyCollision(
+		pinballCollisionBonus = GameBattleEvents::EnemyEnemySynergyCollision(
 			myEnemy, otherEnemy, firstVelocityBefore, secondVelocityBefore);
 	}
 	if (isPlayerEnemyCollision)
@@ -214,13 +224,30 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	{
 		damageToThis = GameBattleView::ScaleEnemyCollisionDamage(damageToThis);
 		damageToOther = GameBattleView::ScaleEnemyCollisionDamage(damageToOther);
+		damageToThis += pinballCollisionBonus;
+		damageToOther += pinballCollisionBonus;
 	}
 	if (isPlayerEnemyCollision)
 	{
-		const int synergyBonus = GameBattleEvents::PlayerEnemySynergyCollision(
-			myEnemy != nullptr ? myEnemy : otherEnemy);
-		if (myEnemy != nullptr) damageToThis += synergyBonus;
-		else damageToOther += synergyBonus;
+		EnemyBall* target = myEnemy != nullptr ? myEnemy : otherEnemy;
+		const Vector3& enemyVelocityBefore = myEnemy != nullptr
+			? firstVelocityBefore
+			: secondVelocityBefore;
+		const PlayerEnemySynergyResult synergy =
+			GameBattleEvents::PlayerEnemySynergyCollision(
+				target,
+				enemyVelocityBefore);
+		if (myEnemy != nullptr) damageToThis += synergy.damageBonus;
+		else damageToOther += synergy.damageBonus;
+		if (synergy.stopPlayer)
+		{
+			PlayerBall* player = myPlayer != nullptr ? myPlayer : otherPlayer;
+			if (player != nullptr && player->GetBall() != nullptr)
+			{
+				player->GetBall()->GetMutableVelocity() = Vector3::Zero;
+				player->GetBall()->GetMutableAcceleration() = Vector3::Zero;
+			}
+		}
 	}
 			const bool myEnemyWasFullHp =
 				myEnemy != nullptr &&
@@ -434,6 +461,7 @@ BallPhysicsRules::Body BallCollisionComponent::CapturePhysicsBody() const
     body.status.restitution = m_PhysicsComponent->Restitution();
     body.status.friction = m_PhysicsComponent->Friction();
     body.player = GetGameObject()->GetComponent<PlayerBall>() != nullptr;
+	body.minion = GetGameObject()->GetComponent<PierceMinion>() != nullptr;
     const auto* enemy = GetGameObject()->GetComponent<EnemyBall>();
     body.enemy = enemy != nullptr;
     body.boss = enemy && enemy->IsArmorBoss();

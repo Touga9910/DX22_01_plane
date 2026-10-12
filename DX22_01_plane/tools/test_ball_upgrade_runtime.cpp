@@ -1,5 +1,6 @@
 #include "../PlayerBallSaveData.h"
 #include "../BallMechanics.h"
+#include "../BallPhysicsRules.h"
 #include "../BallStatusComponent.h"
 #include "../CushionChargeRules.h"
 #include "../StageDataLoader.h"
@@ -38,6 +39,8 @@ int main()
             runtime.ApplyStatusValuesOnly(ball.status);
             assert(runtime.GetMaxHp() == 50 && runtime.GetCurrentHp() == 23);
             const json saved = BallToJson(ball);
+			assert(saved.at("upgrade_model_version") ==
+				PlayerBallSaveData::UpgradeModelVersion);
             assert(!saved.at("status").contains("max_hp") && !saved.at("status").contains("maxHp"));
 			assert(!saved.at("status").contains("defense"));
             const PlayerBallData restored = BallFromJson(json::parse(saved.dump()));
@@ -116,17 +119,28 @@ int main()
 	assert(stopShield.upgradeTable[1].stopShieldAmount == 7);
 	assert(!traceDriver.status.abilities.pierce && traceDriver.status.pierceStackConsumeLimit == 3);
 	assert(pierceFinisher.status.pierceFinisherBaseBonus == 1);
-	assert(ricochetFinisher.upgradeTable[1].ricochetFinisherBonusPerUse == 3);
+	assert(ricochetFinisher.status.pinballCollisionsPerStage == 3);
+	assert(ricochetFinisher.upgradeTable[0].pinballCollisionsPerStage == 3);
+	assert(ricochetFinisher.upgradeTable[1].pinballCollisionsPerStage == 2);
 	assert(anchorFinisher.status.anchorFinisherAoeThreshold == 5);
 	assert(collisionBoost.status.attack == 0 &&
 		collisionBoost.status.heavySetupStackConsume == 3);
 	assert(lightweight.status.abilities.lightweight &&
+		lightweight.upgradeTable[0].lightweightSpeedLossReduction == 0.5f &&
+		lightweight.upgradeTable[1].lightweightSpeedLossReduction == 0.5f &&
 		lightweight.upgradeTable[1].lightweightKnockbackMultiplier == 2.0f);
 	assert(minionFinisher.status.pierceMaxUses == 3);
 	assert(reflectionSetup.upgradeTable[1].reflectionSetupAmount == 3);
 	assert(originAnchor.status.knockbackTransfer == 0.0f &&
 		originAnchor.status.abilities.returnToShotStart);
     assert(standard.upgradeTable[1].attack > standard.status.attack);
+	assert(heavy.status.attack == 2 && heavy.upgradeTable[0].attack == 3 &&
+		heavy.upgradeTable[1].attack == 4);
+	assert(pierce.status.attack == 1 && pierce.upgradeTable[0].attack == 2 &&
+		pierce.upgradeTable[1].attack == 3);
+	assert(refractivePierce.status.attack == 1 &&
+		refractivePierce.upgradeTable[0].attack == 2 &&
+		refractivePierce.upgradeTable[1].attack == 3);
     float lastEnemySpeed = 0;
     for (const BallStatus& status : { heavy.status, heavy.upgradeTable[0], heavy.upgradeTable[1] })
     {
@@ -135,7 +149,7 @@ int main()
         const auto reversed = BallMechanics::ResolveNormalImpact(0, 5, 1, status.mass, status.restitution, 1, status.knockbackTransfer, false, false);
         assert(std::abs(hit.second + reversed.first) < 0.0001f);
         lastEnemySpeed = -hit.second;
-		assert(status.attack == heavy.status.attack && status.defense == 0);
+		assert(status.defense == 0);
     }
     for (int level = 0; level < 3; ++level)
     {
@@ -151,6 +165,29 @@ int main()
     assert(anchor.upgradeTable[1].anchorBrakeMultiplier == anchor.status.anchorBrakeMultiplier);
     assert(anchor.upgradeTable[1].anchorStopSpeedSquared == anchor.status.anchorStopSpeedSquared);
     assert(!anchor.upgradeTable[0].anchorKnockbackImmune);
+	BallPhysicsRules::Body normalLightweight;
+	normalLightweight.id = 1;
+	normalLightweight.player = true;
+	normalLightweight.position = Vector3(0.0f, 0.0f, 0.0f);
+	normalLightweight.velocity = Vector3(10.0f, 0.0f, 0.0f);
+	normalLightweight.status = lightweight.status;
+	BallPhysicsRules::Body reducedLightweight = normalLightweight;
+	reducedLightweight.id = 2;
+	reducedLightweight.status = lightweight.upgradeTable[0];
+	BallPhysicsRules::Body normalEnemy;
+	normalEnemy.id = 3;
+	normalEnemy.enemy = true;
+	normalEnemy.position = Vector3(4.0f, 0.0f, 0.0f);
+	normalEnemy.status = BallStatus{};
+	normalEnemy.status.radius = 2.4f;
+	BallPhysicsRules::Body reducedEnemy = normalEnemy;
+	reducedEnemy.id = 4;
+	assert(BallPhysicsRules::Pair(normalLightweight, normalEnemy));
+	assert(BallPhysicsRules::Pair(reducedLightweight, reducedEnemy));
+	const float normalSpeed = normalLightweight.velocity.Length();
+	const float reducedSpeed = reducedLightweight.velocity.Length();
+	assert(std::abs(reducedSpeed -
+		(10.0f - (10.0f - normalSpeed) * 0.5f)) < 0.001f);
     const auto lockFirst = BallMechanics::ResolveNormalImpact(0, 5, 6, 1, 0.35f, 1, 1, true, false);
     const auto lockSecond = BallMechanics::ResolveNormalImpact(-5, 0, 1, 6, 0.35f, 1, 1, false, true);
     assert(lockFirst.first == 0 && lockFirst.second < 0);

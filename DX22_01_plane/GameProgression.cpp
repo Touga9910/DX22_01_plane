@@ -4,6 +4,7 @@
 #include "GameBattleState.h"
 #include "GameRewardState.h"
 #include "GameBallSelectionState.h"
+#include "GameRunDefaults.h"
 #include "GameBalanceRuntime.h"
 #include "GamePersistenceRuntime.h"
 #include "PlayerDeck.h"
@@ -29,6 +30,7 @@
 #include "StageSelectScene.h"
 #include "TitleScene.h"
 #include "BallPhysicsComponent.h"
+#include "BallFactory.h"
 #include "input.h"
 
 #include "PlayerBall.h"  // DrawImGui呼び出しに必要
@@ -36,6 +38,7 @@
 #include "EnemyAttackComponent.h"
 #include "BallComponent.h"
 #include "BreakBall.h"
+#include "PierceMinion.h"
 #include "PlayerBallDataLoader.h"
 #include "StageDataLoader.h"
 #include "EnemyData.h"
@@ -640,6 +643,11 @@ void Game::ResetShotRelicState(PlayerBall* player)
 // End Of Shot Relic Effectsを適用する。
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
+	for (PierceMinion* minion :
+		GameRuntime::World().GetComponents<PierceMinion>())
+	{
+		if (minion != nullptr) minion->Destroy();
+	}
 	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	const int oneShotAnchorBonus = currentBall != nullptr &&
 		currentBall->category == BallCategory::Anchor
@@ -883,6 +891,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	m_BattleState->synergyDamageBonusThisShot = 0;
 	m_BattleState->piercedEnemiesThisShot.clear();
 	m_BattleState->heavyFinisherConsumedThisShot = false;
+	m_BattleState->anchorFinisherTriggeredThisShot = false;
 	m_BattleState->anchorContactTarget = nullptr;
 	m_BattleState->playerShield = 0;
 
@@ -909,6 +918,42 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			{ "consumed", consumed },
 			{ "remaining", m_BattleState->heavyCollisions.stackCount },
 			{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
+		});
+	}
+	if (currentBall != nullptr &&
+		(currentBall->definitionId == "player_trace_driver" ||
+		 currentBall->definitionId == "player_minion_finisher"))
+	{
+		const bool finisher =
+			currentBall->definitionId == "player_minion_finisher";
+		const int consumeLimit = finisher
+			? PierceTraceRules::MaxStackCount
+			: currentBall->status.pierceStackConsumeLimit;
+		const int consumed = PierceTraceRules::ConsumeStacks(
+			m_BattleState->pierceTraces,
+			consumeLimit);
+		const auto launches = PierceTraceRules::BuildMinionLaunches(
+			m_BattleState->pierceTraces,
+			consumed,
+			finisher);
+		for (const auto& launch : launches)
+		{
+			BallStatus minionStatus = currentBall->status;
+			minionStatus.abilities = {};
+			minionStatus.attack = launch.attack;
+			minionStatus.knockbackTransfer = launch.knockbackMultiplier;
+			BallFactory::CreatePierceMinion(
+				*this,
+				minionStatus,
+				launch.start,
+				launch.direction,
+				PierceTraceRules::MinionLaunchSpeed);
+		}
+		RecordBalanceEvent("pierce_minions_launched", {
+			{ "consumed", consumed },
+			{ "remaining", m_BattleState->pierceTraces.stackCount },
+			{ "minion_count", static_cast<int>(launches.size()) },
+			{ "finisher", finisher },
 		});
 	}
 	if (player != nullptr && currentBall != nullptr)
@@ -1021,15 +1066,64 @@ void Game::NotifyPlayerWallCollision(
 	}
 }
 
-void Game::NotifyEnemyEnemySynergyCollision(
+int Game::NotifyEnemyEnemySynergyCollision(
 	EnemyBall* first,
 	EnemyBall* second,
 	const DirectX::SimpleMath::Vector3& firstVelocityBefore,
 	const DirectX::SimpleMath::Vector3& secondVelocityBefore)
 {
-	if (first == nullptr || second == nullptr) return;
-	(void)firstVelocityBefore;
-	(void)secondVelocityBefore;
+	if (first == nullptr || second == nullptr) return 0;
+	const std::uintptr_t firstId = reinterpret_cast<std::uintptr_t>(first);
+	const std::uintptr_t secondId = reinterpret_cast<std::uintptr_t>(second);
+	EnemyBall* target = nullptr;
+	const DirectX::SimpleMath::Vector3* velocityBefore = nullptr;
+	if (CushionChargeRules::IsPinballTarget(
+		m_BattleState->cushionCharges, firstId))
+	{
+		target = first;
+		velocityBefore = &firstVelocityBefore;
+	}
+	else if (CushionChargeRules::IsPinballTarget(
+		m_BattleState->cushionCharges, secondId))
+	{
+		target = second;
+		velocityBefore = &secondVelocityBefore;
+	}
+	if (target == nullptr || velocityBefore == nullptr ||
+		target->GetBall() == nullptr)
+	{
+		return 0;
+	}
+	const int damageStage = CushionChargeRules::RegisterPinballCollision(
+		m_BattleState->cushionCharges,
+		reinterpret_cast<std::uintptr_t>(target));
+	CushionChargeRules::PreservePinballSpeed(
+		m_BattleState->cushionCharges,
+		reinterpret_cast<std::uintptr_t>(target),
+		*velocityBefore,
+		target->GetBall()->GetMutableVelocity());
+	return damageStage;
+}
+
+void Game::NotifyEnemyWallCollision(
+	EnemyBall* enemy,
+	const DirectX::SimpleMath::Vector3& velocityBefore,
+	DirectX::SimpleMath::Vector3& velocityAfter)
+{
+	if (enemy == nullptr) return;
+	const std::uintptr_t enemyId = reinterpret_cast<std::uintptr_t>(enemy);
+	if (!CushionChargeRules::IsPinballTarget(
+		m_BattleState->cushionCharges, enemyId))
+	{
+		return;
+	}
+	CushionChargeRules::RegisterPinballCollision(
+		m_BattleState->cushionCharges, enemyId);
+	CushionChargeRules::PreservePinballSpeed(
+		m_BattleState->cushionCharges,
+		enemyId,
+		velocityBefore,
+		velocityAfter);
 }
 
 void Game::NotifyPlayerPiercedEnemy(
@@ -1089,14 +1183,24 @@ void Game::NotifyTraceMovement(
 		currentBall->status.abilities.heavyDistanceStacks);
 }
 
-int Game::NotifyPlayerEnemySynergyCollision(EnemyBall* enemy)
+PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
+	EnemyBall* enemy,
+	const DirectX::SimpleMath::Vector3& enemyVelocityBefore)
 {
-	if (enemy == nullptr) return m_BattleState->synergyDamageBonusThisShot;
+	PlayerEnemySynergyResult result;
+	result.damageBonus = m_BattleState->synergyDamageBonusThisShot;
+	if (enemy == nullptr) return result;
 	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
-	if (currentBall == nullptr) return m_BattleState->synergyDamageBonusThisShot;
+	if (currentBall == nullptr) return result;
 	const BallStatus& status = currentBall->status;
 	if (status.anchorEnemyStackGenerate > 0)
-		m_BattleState->anchorContactTarget = enemy;
+	{
+		if (currentBall->definitionId != "player_origin_anchor" ||
+			m_BattleState->anchorContactTarget == nullptr)
+		{
+			m_BattleState->anchorContactTarget = enemy;
+		}
+	}
 
 	if (status.abilities.lightweight)
 	{
@@ -1111,26 +1215,135 @@ int Game::NotifyPlayerEnemySynergyCollision(EnemyBall* enemy)
 		}
 	}
 
-	int bonus = m_BattleState->synergyDamageBonusThisShot;
 	if (currentBall->definitionId == "player_bounce" &&
 		CushionChargeRules::ConsumeEmpoweredHit(
 			m_BattleState->cushionCharges,
 			reinterpret_cast<std::uintptr_t>(enemy)))
 	{
-		bonus += status.cushionBounceAttackBonus;
+		result.damageBonus += status.cushionBounceAttackBonus;
 	}
 	if (currentBall->definitionId == "player_pierce_finisher" &&
 		!m_BattleState->piercedEnemiesThisShot.empty())
 	{
 		const int uniqueEnemies = static_cast<int>(m_BattleState->piercedEnemiesThisShot.size());
-		bonus += status.pierceFinisherBaseBonus +
+		result.damageBonus += status.pierceFinisherBaseBonus +
 			(std::max)(0, uniqueEnemies - 1) * status.pierceFinisherMultiTargetBonus;
 		RecordBalanceEvent("pierce_finisher_hit", {
-			{ "unique_enemies", uniqueEnemies }, { "damage_bonus", bonus },
+			{ "unique_enemies", uniqueEnemies },
+			{ "damage_bonus", result.damageBonus },
 		});
 	}
 
-	return bonus;
+	if (currentBall->definitionId == "player_ricochet_finisher")
+	{
+		const std::uintptr_t enemyId = reinterpret_cast<std::uintptr_t>(enemy);
+		const bool activated = CushionChargeRules::ActivatePinball(
+			m_BattleState->cushionCharges,
+			enemyId,
+			status.ricochetStackConsume,
+			status.pinballCollisionsPerStage,
+			status.pinballSpeedRetention);
+		if (CushionChargeRules::IsPinballTarget(
+			m_BattleState->cushionCharges, enemyId))
+		{
+			CushionChargeRules::RegisterPinballCollision(
+				m_BattleState->cushionCharges, enemyId);
+			if (enemy->GetBall() != nullptr)
+			{
+				CushionChargeRules::PreservePinballSpeed(
+					m_BattleState->cushionCharges,
+					enemyId,
+					enemyVelocityBefore,
+					enemy->GetBall()->GetMutableVelocity());
+			}
+		}
+		result.stopPlayer = activated;
+		if (activated)
+		{
+			RecordBalanceEvent("pinball_activated", {
+				{ "consumed", status.ricochetStackConsume },
+				{ "remaining", m_BattleState->cushionCharges.stackCount },
+			});
+		}
+	}
+
+	if (currentBall->definitionId == "player_stop_shield" &&
+		enemy->GetAnchorStacks() > 0)
+	{
+		const auto consumed = AnchorStackRules::ConsumeEnemyStacks(
+			enemy->MutableAnchorStacks(),
+			m_BattleState->anchorStacks,
+			status.anchorEnemyConsumeLimit,
+			status.anchorStackMax);
+		const int shieldGain = AnchorStackRules::CalculateShield(
+			consumed.consumed,
+			status.stopShieldAmount);
+		m_BattleState->playerShield = (std::min)(
+			status.stopShieldAmount,
+			m_BattleState->playerShield + shieldGain);
+		RecordBalanceEvent("stop_shield_granted", {
+			{ "consumed", consumed.consumed },
+			{ "shield_gain", shieldGain },
+			{ "shield", m_BattleState->playerShield },
+			{ "player_anchor_generated", consumed.playerStacksGenerated },
+		});
+	}
+
+	if (currentBall->definitionId == "player_anchor_finisher" &&
+		!m_BattleState->anchorFinisherTriggeredThisShot &&
+		enemy->GetAnchorStacks() > 0)
+	{
+		m_BattleState->anchorFinisherTriggeredThisShot = true;
+		const int playerStacksBefore =
+			m_BattleState->anchorStacks.playerStacks;
+		const int damagePerStack =
+			AnchorStackRules::FinisherDamagePerEnemyStack(playerStacksBefore);
+		const int available = enemy->GetAnchorStacks();
+		const int requested = status.anchorFinisherStackConsume <= 0
+			? available
+			: (std::min)(available, status.anchorFinisherStackConsume);
+		const int directBonus = requested * damagePerStack;
+		result.damageBonus += directBonus;
+		const auto consumed = AnchorStackRules::ConsumeEnemyStacks(
+			enemy->MutableAnchorStacks(),
+			m_BattleState->anchorStacks,
+			requested,
+			status.anchorStackMax);
+
+		int aoeHitCount = 0;
+		const int aoeDamage = directBonus / 2;
+		if (consumed.consumed >= status.anchorFinisherAoeThreshold &&
+			aoeDamage > 0 && status.anchorFinisherAoeRadius > 0.0f)
+		{
+			const float radiusSquared = status.anchorFinisherAoeRadius *
+				status.anchorFinisherAoeRadius;
+			for (EnemyBall* other :
+				GameRuntime::World().GetComponents<EnemyBall>())
+			{
+				if (other == nullptr || other == enemy || other->IsDefeated() ||
+					other->IsPocketed())
+				{
+					continue;
+				}
+				DirectX::SimpleMath::Vector3 offset =
+					other->GetPosition() - enemy->GetPosition();
+				offset.y = 0.0f;
+				if (offset.LengthSquared() > radiusSquared) continue;
+				other->TakeDamage(aoeDamage);
+				++aoeHitCount;
+			}
+		}
+		RecordBalanceEvent("anchor_finisher_triggered", {
+			{ "consumed", consumed.consumed },
+			{ "player_anchor_before", playerStacksBefore },
+			{ "damage_per_stack", damagePerStack },
+			{ "direct_damage_bonus", directBonus },
+			{ "aoe_hit_count", aoeHitCount },
+			{ "player_anchor_generated", consumed.playerStacksGenerated },
+		});
+	}
+
+	return result;
 }
 
 int Game::AbsorbPlayerShieldDamage(int damage)
@@ -1194,10 +1407,17 @@ void Game::NotifyPlayerChainImpact(
 	}
 	if (attackDamage <= 0 || radius <= 0.0f) return;
 	const float radiusSquared = radius * radius;
-	int hitCount = 0;
-	int totalDamage = 0;
-	for (EnemyBall* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+	struct ChainTarget
 	{
+		EnemyBall* enemy = nullptr;
+		float distanceSquared = 0.0f;
+		std::size_t stableOrder = 0;
+	};
+	std::vector<ChainTarget> targets;
+	const auto enemies = GameRuntime::World().GetComponents<EnemyBall>();
+	for (std::size_t index = 0; index < enemies.size(); ++index)
+	{
+		EnemyBall* enemy = enemies[index];
 		if (enemy == nullptr || enemy == excludedTarget || enemy->IsDefeated() ||
 			enemy->IsPocketed())
 		{
@@ -1205,10 +1425,27 @@ void Game::NotifyPlayerChainImpact(
 		}
 		DirectX::SimpleMath::Vector3 offset = enemy->GetPosition() - center;
 		offset.y = 0.0f;
-		if (offset.LengthSquared() > radiusSquared)
+		const float distanceSquared = offset.LengthSquared();
+		if (distanceSquared <= radiusSquared)
 		{
-			continue;
+			targets.push_back({ enemy, distanceSquared, index });
 		}
+	}
+	std::sort(
+		targets.begin(),
+		targets.end(),
+		[](const ChainTarget& left, const ChainTarget& right)
+		{
+			if (left.distanceSquared != right.distanceSquared)
+				return left.distanceSquared < right.distanceSquared;
+			return left.stableOrder < right.stableOrder;
+		});
+	if (targets.size() > 2) targets.resize(2);
+	int hitCount = 0;
+	int totalDamage = 0;
+	for (const ChainTarget& target : targets)
+	{
+		EnemyBall* enemy = target.enemy;
 		const int hpBefore = enemy->GetHP();
 		const DirectX::SimpleMath::Vector3 feedbackPosition = enemy->GetPosition();
 		enemy->TakeDamage(attackDamage);
@@ -1274,8 +1511,26 @@ float Game::GetPierceSpeedRetention() const
 }
 
 // Enemy Defeatedを通知する。
-void Game::NotifyEnemyDefeated(const std::string& enemyId)
+void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
+	if (enemy == nullptr) return;
+	const std::string enemyId = enemy->GetEnemyId();
+	const int automaticConsume = AnchorStackRules::DefeatAutoConsumeAmount(
+		enemy->GetAnchorStacks());
+	if (automaticConsume > 0)
+	{
+		const auto consumed = AnchorStackRules::ConsumeEnemyStacks(
+			enemy->MutableAnchorStacks(),
+			m_BattleState->anchorStacks,
+			automaticConsume,
+			m_RunDefaults->PlayerBallStatus().anchorStackMax);
+		RecordBalanceEvent("defeated_enemy_anchor_converted", {
+			{ "enemy_id", enemyId },
+			{ "consumed", consumed.consumed },
+			{ "player_anchor_generated", consumed.playerStacksGenerated },
+		});
+	}
+	enemy->MutableAnchorStacks() = 0;
 	if (!HasRelic(RelicType::BountyList) ||
 		!m_BattleState->controller.ClaimBountyReward())
 	{

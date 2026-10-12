@@ -145,6 +145,9 @@
     <ClInclude Include="BallFactory.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
     </ClInclude>
+	<ClInclude Include="PierceMinion.h">
+	  <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
+	</ClInclude>
     <ClInclude Include="BallStatusComponent.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
     </ClInclude>
@@ -917,6 +920,9 @@
     <ClCompile Include="BallFactory.cpp">
       <Filter>ソース ファイル\02_Gameplay\Ball</Filter>
     </ClCompile>
+	<ClCompile Include="PierceMinion.cpp">
+	  <Filter>ソース ファイル\02_Gameplay\Ball</Filter>
+	</ClCompile>
     <ClCompile Include="GameBossAI.cpp">
       <Filter>ソース ファイル\02_Gameplay\Boss</Filter>
     </ClCompile>

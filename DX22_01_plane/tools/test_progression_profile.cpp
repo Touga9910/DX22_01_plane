@@ -38,6 +38,11 @@ int main()
     ProgressionProfile p;
     assert(p.highestUnlockedAscension == 0 && p.IsBallUnlocked("player_standard"));
 	assert(p.IsBallUnlocked("player_chain_impact"));
+	assert(p.IsBallUnlocked("player_collision_boost"));
+	assert(p.IsBallUnlocked("player_lightweight"));
+	assert(p.IsBallUnlocked("player_minion_finisher"));
+	assert(p.IsBallUnlocked("player_reflection_setup"));
+	assert(p.IsBallUnlocked("player_origin_anchor"));
 	assert(!p.IsBallUnlocked("player_pierce") && !p.IsBallUnlocked("player_bounce") &&
 		!p.IsBallUnlocked("player_cushion_charge") && !p.IsBallUnlocked("player_anchor") &&
 		!p.IsBallUnlocked("player_refractive_pierce") && !p.IsBallUnlocked("player_stop_shield") &&

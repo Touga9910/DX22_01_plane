@@ -30,7 +30,8 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.heavySetupStackConsume = value.value("heavySetupStackConsume", status.heavySetupStackConsume);
 	status.heavyEnemyCollisionMultiplier = value.value("heavyEnemyCollisionMultiplier", status.heavyEnemyCollisionMultiplier);
 	status.lightweightKnockbackMultiplier = value.value("lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier);
-	status.lightweightSelfSpeedRetention = value.value("lightweightSelfSpeedRetention", status.lightweightSelfSpeedRetention);
+	status.lightweightSpeedLossReduction = value.value(
+		"lightweightSpeedLossReduction", status.lightweightSpeedLossReduction);
 	status.traceDurability = value.value("traceDurability", status.traceDurability);
 	status.traceUseAngleTolerance = value.value("traceUseAngleTolerance", status.traceUseAngleTolerance);
 	status.traceUseDistance = value.value("traceUseDistance", status.traceUseDistance);
@@ -48,7 +49,6 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.cushionStackConsumeAmount = value.value("cushionStackConsumeAmount", status.cushionStackConsumeAmount);
 	status.cushionBounceAttackBonus = value.value("cushionBounceAttackBonus", status.cushionBounceAttackBonus);
 	status.cushionNonBounceSpeedMultiplier = value.value("cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier);
-	status.ricochetFinisherBonusPerUse = value.value("ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse);
 	status.cushionReflectionLimit = value.value("cushionReflectionLimit", status.cushionReflectionLimit);
 	status.cushionConsumptionLimit = value.value("cushionConsumptionLimit", status.cushionConsumptionLimit);
 	status.cushionReflectionSpeedMultiplier = value.value("cushionReflectionSpeedMultiplier", status.cushionReflectionSpeedMultiplier);
@@ -108,7 +108,7 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "heavySetupStackConsume", status.heavySetupStackConsume },
 		{ "heavyEnemyCollisionMultiplier", status.heavyEnemyCollisionMultiplier },
 		{ "lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier },
-		{ "lightweightSelfSpeedRetention", status.lightweightSelfSpeedRetention },
+		{ "lightweightSpeedLossReduction", status.lightweightSpeedLossReduction },
 		{ "traceDurability", status.traceDurability },
 		{ "traceUseAngleTolerance", status.traceUseAngleTolerance },
 		{ "traceUseDistance", status.traceUseDistance },
@@ -126,7 +126,6 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "cushionStackConsumeAmount", status.cushionStackConsumeAmount },
 		{ "cushionBounceAttackBonus", status.cushionBounceAttackBonus },
 		{ "cushionNonBounceSpeedMultiplier", status.cushionNonBounceSpeedMultiplier },
-		{ "ricochetFinisherBonusPerUse", status.ricochetFinisherBonusPerUse },
 		{ "cushionReflectionLimit", status.cushionReflectionLimit },
 		{ "cushionConsumptionLimit", status.cushionConsumptionLimit },
 		{ "cushionReflectionSpeedMultiplier", status.cushionReflectionSpeedMultiplier },
@@ -178,7 +177,7 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.heavySetupStackConsume >= 0 && s.heavySetupStackConsume <= 9999 &&
 		std::isfinite(s.heavyEnemyCollisionMultiplier) && s.heavyEnemyCollisionMultiplier >= 1.0f && s.heavyEnemyCollisionMultiplier <= 10.0f &&
 		std::isfinite(s.lightweightKnockbackMultiplier) && s.lightweightKnockbackMultiplier >= 1.0f && s.lightweightKnockbackMultiplier <= 10.0f &&
-		std::isfinite(s.lightweightSelfSpeedRetention) && s.lightweightSelfSpeedRetention >= 0.0f && s.lightweightSelfSpeedRetention <= 1.0f &&
+		std::isfinite(s.lightweightSpeedLossReduction) && s.lightweightSpeedLossReduction >= 0.0f && s.lightweightSpeedLossReduction <= 1.0f &&
 		s.traceDurability >= 0 && s.traceDurability <= 99 &&
 		std::isfinite(s.traceUseAngleTolerance) && s.traceUseAngleTolerance >= 1.0f && s.traceUseAngleTolerance <= 89.0f &&
 		std::isfinite(s.traceUseDistance) && s.traceUseDistance >= 0.1f && s.traceUseDistance <= 200.0f &&
@@ -196,7 +195,6 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		s.cushionStackConsumeAmount >= 1 && s.cushionStackConsumeAmount <= 99 &&
 		s.cushionBounceAttackBonus >= 0 && s.cushionBounceAttackBonus <= 1000 &&
 		std::isfinite(s.cushionNonBounceSpeedMultiplier) && s.cushionNonBounceSpeedMultiplier >= 1.0f && s.cushionNonBounceSpeedMultiplier <= 1.25f &&
-		s.ricochetFinisherBonusPerUse >= 0 && s.ricochetFinisherBonusPerUse <= 1000 &&
 		s.cushionReflectionLimit >= 0 && s.cushionReflectionLimit <= 99 &&
 		s.cushionConsumptionLimit >= 0 && s.cushionConsumptionLimit <= 99 &&
 		std::isfinite(s.cushionReflectionSpeedMultiplier) && s.cushionReflectionSpeedMultiplier >= 1.0f && s.cushionReflectionSpeedMultiplier <= 3.0f &&

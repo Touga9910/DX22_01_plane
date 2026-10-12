@@ -401,7 +401,7 @@ void EnemyBall::TakeDamage(int damage)
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
 		m_NuisanceWarningVisible = false;
 		DestroyNuisanceBall();
-		GameBattleEvents::EnemyDefeated(m_EnemyData.id);
+		GameBattleEvents::EnemyDefeated(this);
 	}
 
 	BalanceLogger::GetInstance().RecordEnemyDamage(
@@ -575,7 +575,7 @@ int EnemyBall::ApplyPocketDamage()
     if (GetHP() == 0)
     {
         Defeat();
-        GameBattleEvents::EnemyDefeated(GetEnemyId());
+        GameBattleEvents::EnemyDefeated(this);
     }
     const int applied = hpBefore - GetHP();
     BalanceLogger::GetInstance().RecordEnemyDamage(GetEnemyId(), applied);
@@ -598,7 +598,7 @@ void EnemyBall::HitBreakBall(int ballId)
     {
         Defeat();
         m_Ball->GetMutableVelocity() = velocity;
-        GameBattleEvents::EnemyDefeated(GetEnemyId());
+        GameBattleEvents::EnemyDefeated(this);
     }
     const int damage = hpBefore - GetHP();
     auto& logger = BalanceLogger::GetInstance();

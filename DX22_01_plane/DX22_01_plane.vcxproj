@@ -176,9 +176,11 @@
     <ClInclude Include="PocketReturnRules.h" />
     <ClInclude Include="BreakBall.h" />
     <ClInclude Include="NuisanceBall.h" />
+	<ClInclude Include="PierceMinion.h" />
     <ClCompile Include="BattleController.cpp" />
     <ClCompile Include="BreakBall.cpp" />
     <ClCompile Include="NuisanceBall.cpp" />
+	<ClCompile Include="PierceMinion.cpp" />
     <ClCompile Include="BallShotPrediction.cpp">
       <Optimization>MaxSpeed</Optimization>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>

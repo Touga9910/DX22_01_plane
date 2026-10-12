@@ -55,7 +55,7 @@ struct BallStatus
 	int heavySetupStackConsume = 0;
 	float heavyEnemyCollisionMultiplier = 1.0f;
 	float lightweightKnockbackMultiplier = 1.0f;
-	float lightweightSelfSpeedRetention = 0.0f;
+	float lightweightSpeedLossReduction = 0.0f;
 
 	// 貫通カテゴリ
 	int traceDurability = 0;						// 生成する貫通痕の耐久値(0では痕を生成しない)
@@ -77,7 +77,6 @@ struct BallStatus
 	int cushionStackConsumeAmount = 1;				// 強利用1回で消費するクッションスタック数
 	int cushionBounceAttackBonus = 0;				// 反発カテゴリがスタックを強利用した際の追加ダメージ
 	float cushionNonBounceSpeedMultiplier = 1.0f;	// 非反発カテゴリがスタックを利用した際の速度倍率
-	int ricochetFinisherBonusPerUse = 0;			// 反発フィニッシャーが強利用1回ごとに得る追加ダメージ
 	int cushionReflectionLimit = 0;
 	int cushionConsumptionLimit = 0;
 	float cushionReflectionSpeedMultiplier = 1.0f;
@@ -125,7 +124,7 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.heavySetupStackConsume = std::clamp(status.heavySetupStackConsume, 0, 9999);
 	status.heavyEnemyCollisionMultiplier = std::clamp(status.heavyEnemyCollisionMultiplier, 1.0f, 10.0f);
 	status.lightweightKnockbackMultiplier = std::clamp(status.lightweightKnockbackMultiplier, 1.0f, 10.0f);
-	status.lightweightSelfSpeedRetention = std::clamp(status.lightweightSelfSpeedRetention, 0.0f, 1.0f);
+	status.lightweightSpeedLossReduction = std::clamp(status.lightweightSpeedLossReduction, 0.0f, 1.0f);
 	status.traceDurability = std::clamp(status.traceDurability, 0, 99);
 	status.traceUseAngleTolerance = std::clamp(status.traceUseAngleTolerance, 1.0f, 89.0f);
 	status.traceUseDistance = std::clamp(status.traceUseDistance, 0.1f, 200.0f);
@@ -148,8 +147,6 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.cushionBounceAttackBonus = std::clamp(status.cushionBounceAttackBonus, 0, 1000);
 	status.cushionNonBounceSpeedMultiplier = std::clamp(
 		status.cushionNonBounceSpeedMultiplier, 1.0f, 1.25f);
-	status.ricochetFinisherBonusPerUse = std::clamp(
-		status.ricochetFinisherBonusPerUse, 0, 1000);
 	status.cushionReflectionLimit = std::clamp(status.cushionReflectionLimit, 0, 99);
 	status.cushionConsumptionLimit = std::clamp(status.cushionConsumptionLimit, 0, 99);
 	status.cushionReflectionSpeedMultiplier = std::clamp(status.cushionReflectionSpeedMultiplier, 1.0f, 3.0f);

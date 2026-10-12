@@ -21,12 +21,18 @@ public:
         int cushionRegion,
         const DirectX::SimpleMath::Vector3& playerPosition,
         DirectX::SimpleMath::Vector3& reflectedVelocity);
-    static void EnemyEnemySynergyCollision(
+    static int EnemyEnemySynergyCollision(
         EnemyBall* first,
         EnemyBall* second,
         const DirectX::SimpleMath::Vector3& firstVelocityBefore,
         const DirectX::SimpleMath::Vector3& secondVelocityBefore);
-    static int PlayerEnemySynergyCollision(EnemyBall* enemy);
+    static PlayerEnemySynergyResult PlayerEnemySynergyCollision(
+		EnemyBall* enemy,
+		const DirectX::SimpleMath::Vector3& enemyVelocityBefore);
+	static void EnemyWallCollision(
+		EnemyBall* enemy,
+		const DirectX::SimpleMath::Vector3& velocityBefore,
+		DirectX::SimpleMath::Vector3& velocityAfter);
     static void PlayerPiercedEnemy(
         EnemyBall* enemy,
         const DirectX::SimpleMath::Vector3& playerPosition,
@@ -51,7 +57,7 @@ public:
         bool enemyEnemyCollision);
     static void BalanceAutoFullHpEnemySurvived();
     static void EnemyPocketed(EnemyBall* enemy);
-    static void EnemyDefeated(const std::string& enemyId);
+    static void EnemyDefeated(EnemyBall* enemy);
     static void PlayerDefeated();
     static void PlayerShotFired(PlayerBall* player);
     static void PlayerDamage(

@@ -21,6 +21,10 @@ namespace CushionChargeRules
 		int consumedThisShot = 0;
 		int empoweredHitsRemaining = 0;
 		std::unordered_set<std::uintptr_t> empoweredEnemyIds;
+		std::uintptr_t pinballTargetId = 0;
+		int pinballCollisionCount = 0;
+		int pinballCollisionsPerStage = 0;
+		float pinballSpeedRetention = 0.9f;
 	};
 
 	struct ReflectionConfig
@@ -50,6 +54,10 @@ namespace CushionChargeRules
 		state.consumedThisShot = 0;
 		state.empoweredHitsRemaining = 0;
 		state.empoweredEnemyIds.clear();
+		state.pinballTargetId = 0;
+		state.pinballCollisionCount = 0;
+		state.pinballCollisionsPerStage = 0;
+		state.pinballSpeedRetention = 0.9f;
 	}
 
 	inline void EndPlayerShot(State& state)
@@ -58,6 +66,10 @@ namespace CushionChargeRules
 		state.setupTriggeredThisShot = false;
 		state.empoweredHitsRemaining = 0;
 		state.empoweredEnemyIds.clear();
+		state.pinballTargetId = 0;
+		state.pinballCollisionCount = 0;
+		state.pinballCollisionsPerStage = 0;
+		state.pinballSpeedRetention = 0.9f;
 	}
 
 	inline ReflectionResult ApplyValidReflection(
@@ -106,6 +118,56 @@ namespace CushionChargeRules
 	inline void ArmSetupForNextShot(State& state, int amount)
 	{
 		state.pendingSetupBonus = (std::max)(0, amount);
+	}
+
+	inline bool ActivatePinball(
+		State& state,
+		std::uintptr_t targetId,
+		int stackCost,
+		int collisionsPerStage,
+		float speedRetention)
+	{
+		if (targetId == 0 || state.pinballTargetId != 0 ||
+			stackCost <= 0 || state.stackCount < stackCost)
+		{
+			return false;
+		}
+		state.stackCount -= stackCost;
+		state.pinballTargetId = targetId;
+		state.pinballCollisionCount = 0;
+		state.pinballCollisionsPerStage = (std::max)(1, collisionsPerStage);
+		state.pinballSpeedRetention = std::clamp(speedRetention, 0.0f, 1.0f);
+		return true;
+	}
+
+	inline bool IsPinballTarget(const State& state, std::uintptr_t targetId)
+	{
+		return targetId != 0 && state.pinballTargetId == targetId;
+	}
+
+	inline int RegisterPinballCollision(State& state, std::uintptr_t targetId)
+	{
+		if (!IsPinballTarget(state, targetId)) return 0;
+		++state.pinballCollisionCount;
+		return state.pinballCollisionCount /
+			(std::max)(1, state.pinballCollisionsPerStage);
+	}
+
+	inline void PreservePinballSpeed(
+		const State& state,
+		std::uintptr_t targetId,
+		const Vector3& velocityBefore,
+		Vector3& velocityAfter)
+	{
+		if (!IsPinballTarget(state, targetId)) return;
+		const float beforeSpeed = velocityBefore.Length();
+		const float afterSpeed = velocityAfter.Length();
+		if (beforeSpeed <= 0.000001f || afterSpeed <= 0.000001f) return;
+		const float correctedSpeed = std::clamp(
+			afterSpeed,
+			beforeSpeed * state.pinballSpeedRetention,
+			beforeSpeed);
+		velocityAfter *= correctedSpeed / afterSpeed;
 	}
 
 	inline int ActiveCount(const State& state)

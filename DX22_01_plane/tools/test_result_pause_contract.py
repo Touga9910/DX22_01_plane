@@ -16,6 +16,9 @@ class ResultPauseContractTests(unittest.TestCase):
         result = source("ResultScene.cpp")
 
         for label in (
+            "到達エリア",
+            "今回の実績",
+            "ACHIEVEMENT",
             "通常ルート通過",
             "総戦闘数",
             "ボス戦績",
@@ -25,7 +28,7 @@ class ResultPauseContractTests(unittest.TestCase):
             "プレイ時間",
             "獲得ボール",
             "獲得レリック",
-            "ラン分析を見る",
+            "詳細を見る",
             "もう一度",
             "タイトルへ",
         ):

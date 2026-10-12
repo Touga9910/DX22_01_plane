@@ -9,9 +9,10 @@
 namespace PlayerBallSaveData
 {
 	using nlohmann::json;
+	inline constexpr int UpgradeModelVersion = 4;
 
 	// ボール1個分の実行時データをセーブ用JSONへ変換
-	// プレイヤーボールではdefenseを保存せず、強化モデルのバージョン3として出力
+	// プレイヤーボールではdefenseを保存せず、現行の強化モデル番号を出力
 	inline nlohmann::json BallToJson(const PlayerBallData& ball)
 	{
 		json upgrades = json::array();
@@ -25,7 +26,7 @@ namespace PlayerBallSaveData
 			{ "instance_id", ball.instanceId },
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "upgrade_table", std::move(upgrades) },
-			{ "upgrade_model_version", 3 },
+			{ "upgrade_model_version", UpgradeModelVersion },
 			{ "status", WritePlayerBallStatus(ball.status) },
 		};
 	}
@@ -62,7 +63,9 @@ namespace PlayerBallSaveData
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}
 		const int upgradeModelVersion = value.value("upgrade_model_version", 1);
-		if (upgradeModelVersion < 1 || upgradeModelVersion > 3 || !value.at("status").is_object())
+		if (upgradeModelVersion < 1 ||
+			upgradeModelVersion > UpgradeModelVersion ||
+			!value.at("status").is_object())
 			throw std::runtime_error(UiText::InvalidSaveData);
 		for (const char* field : { "attack", "mass", "radius", "restitution", "friction", "abilities" })
 			if (!value.at("status").contains(field)) throw std::runtime_error(UiText::InvalidSaveData);
@@ -81,7 +84,7 @@ namespace PlayerBallSaveData
 			previous = ball.upgradeTable[index];
 		}
 		// 旧セーブの個体IDと強化段階を保ち、性能を新しい強化軸へ移行
-		if (upgradeModelVersion < 2)
+		if (upgradeModelVersion < UpgradeModelVersion)
 		{
 			const auto definitions = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
 			for (const auto& definition : definitions.ballDefinitions)

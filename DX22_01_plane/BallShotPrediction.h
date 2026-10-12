@@ -69,10 +69,12 @@ namespace BallShotPrediction
 		HeavyCollisionRules::State heavyCollisions{};
 		int heavyCollisionCount = 0;
 		int playerAnchorStacks = 0;
+		int anchorConversionProgress = 0;
 		int cushionStrongUses = 0;
 		int synergyDamageBonus = 0;
 		bool cushionStrongConsumed = false;
 		bool heavyFinisherConsumed = false;
+		bool anchorFinisherTriggered = false;
 		std::unordered_set<std::uintptr_t> uniquePiercedEnemies;
         double milliseconds = 0.0;
 
@@ -105,8 +107,9 @@ namespace BallShotPrediction
         int playerPocketDamage = 0;
         int pierceMaximumUses = 0;
         int relicAttackBonus = 0;
-        int heavyCollisionCount = 0;
+		HeavyCollisionRules::State heavyCollisions{};
         int playerAnchorStacks = 0;
+		int anchorConversionProgress = 0;
         int playerEnemyContacts = 0;
         int enemyEnemyContacts = 0;
         bool hasCurrentBall = false;

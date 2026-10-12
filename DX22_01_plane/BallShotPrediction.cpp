@@ -1,4 +1,5 @@
 #include "BallShotPrediction.h"
+#include "AnchorStackRules.h"
 #include "BallCollisionComponent.h"
 #include "BallComponent.h"
 #include "BallPhysicsComponent.h"
@@ -7,6 +8,7 @@
 #include "EnemyGimmickRules.h"
 #include "BreakBall.h"
 #include "NuisanceBall.h"
+#include "PierceMinion.h"
 #include "json/json.hpp"
 #include "GameObject.h"
 #include "PlayerBall.h"
@@ -20,6 +22,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <numeric>
 
 using namespace DirectX::SimpleMath;
@@ -88,6 +91,7 @@ namespace
                 ball.pocketed = neutral->IsPocketed();
                 ball.breakBallUsed = neutral->IsUsed();
             }
+			ball.physics.minion = owner->GetComponent<PierceMinion>() != nullptr;
             ball.nuisanceBall = owner->GetComponent<NuisanceBall>() != nullptr;
             ball.active = collision->CanSimulate();
             result.push_back(std::move(ball));
@@ -190,6 +194,7 @@ namespace
                 if (!BallPhysicsRules::PocketHit(start, ball.physics.position, ball.physics.status.radius, pocket)) continue;
                 AddPoint(ball, true);
                 const int hpBefore = ball.hp;
+				const bool wasDefeated = ball.defeated;
                 if (ball.physics.player)
                 {
                     ball.hp = (std::max)(0, ball.hp - playerPocketDamage);
@@ -216,6 +221,8 @@ namespace
                         ball.physics.position = Vector3(0, -1000, 0);
                     }
                     result.damage += hpBefore - ball.hp;
+					if (!wasDefeated && ball.defeated)
+						HandleDefeatAnchors(ball);
                 }
                 if (ball.physics.breakBall)
                 {
@@ -233,39 +240,92 @@ namespace
         void Environment(Ball& ball, const Vector3& start)
         {
             if (!ball.active || CheckPocket(ball, start)) return;
+			const auto resolveWall = [&](const Collision::Segment& wall,
+				const Vector3& interiorReference)
+			{
+				const Vector3 velocityBefore = ball.physics.velocity;
+				if (!BallPhysicsRules::Wall(
+					ball.physics, wall, interiorReference))
+				{
+					return;
+				}
+				if (ball.physics.player)
+				{
+					result.shot.Wall();
+					CushionChargeRules::ReflectionConfig config;
+					config.generatesStacks =
+						result.shot.ballId == "player_cushion_charge";
+					config.generationLimit =
+						result.shotStatus.cushionReflectionLimit;
+					config.stacksPerReflection =
+						result.shotStatus.cushionStackGenerateAmount;
+					config.consumesStacks =
+						result.shot.ballId == "player_bounce";
+					config.consumptionLimit =
+						result.shotStatus.cushionConsumptionLimit;
+					config.reflectedSpeedMultiplier =
+						result.shotStatus.cushionReflectionSpeedMultiplier;
+					const auto cushion = CushionChargeRules::ApplyValidReflection(
+						result.cushionCharges, config, ball.physics.velocity);
+					result.cushionBoostConsumed = cushion.consumed > 0;
+					result.cushionStrongUses =
+						result.cushionCharges.consumedThisShot;
+				}
+				if (ball.physics.enemy &&
+					CushionChargeRules::IsPinballTarget(
+						result.cushionCharges, ball.physics.id))
+				{
+					CushionChargeRules::RegisterPinballCollision(
+						result.cushionCharges, ball.physics.id);
+					CushionChargeRules::PreservePinballSpeed(
+						result.cushionCharges,
+						ball.physics.id,
+						velocityBefore,
+						ball.physics.velocity);
+				}
+				RecordPreviewReflection(ball);
+			};
             if (ball.physics.boss)
                 for (const auto& wall : BallPhysicsRules::BossWalls())
-                    BallPhysicsRules::Wall(ball.physics, wall, Vector3::Zero);
+					resolveWall(wall, Vector3::Zero);
             for (const auto& wall : walls)
             {
-				if (BallPhysicsRules::Wall(ball.physics, wall, interior))
-				{
-					if (ball.physics.player)
-					{
-						result.shot.Wall();
-						CushionChargeRules::ReflectionConfig config;
-						config.generatesStacks = result.shot.ballId == "player_cushion_charge";
-						config.generationLimit = result.shotStatus.cushionReflectionLimit;
-						config.stacksPerReflection = result.shotStatus.cushionStackGenerateAmount;
-						config.consumesStacks = result.shot.ballId == "player_bounce";
-						config.consumptionLimit = result.shotStatus.cushionConsumptionLimit;
-						config.reflectedSpeedMultiplier =
-							result.shotStatus.cushionReflectionSpeedMultiplier;
-						const auto cushion = CushionChargeRules::ApplyValidReflection(
-							result.cushionCharges, config, ball.physics.velocity);
-						result.cushionBoostConsumed = cushion.consumed > 0;
-						result.cushionStrongUses = result.cushionCharges.consumedThisShot;
-					}
-                    RecordPreviewReflection(ball);
-                }
+				resolveWall(wall, interior);
             }
             CheckPocket(ball, start);
         }
         void ResolveEnvironment(std::size_t i) { Environment(At(i), starts[i]); }
 
+		AnchorStackRules::EnemyConsumeResult ConsumeEnemyAnchors(
+			Ball& target,
+			int amount)
+		{
+			AnchorStackRules::State state;
+			state.playerStacks = result.playerAnchorStacks;
+			state.conversionProgress = result.anchorConversionProgress;
+			const auto consumed = AnchorStackRules::ConsumeEnemyStacks(
+				target.anchorStacks,
+				state,
+				amount,
+				result.shotStatus.anchorStackMax);
+			result.playerAnchorStacks = state.playerStacks;
+			result.anchorConversionProgress = state.conversionProgress;
+			return consumed;
+		}
+
+		void HandleDefeatAnchors(Ball& target)
+		{
+			const int automaticConsume =
+				AnchorStackRules::DefeatAutoConsumeAmount(target.anchorStacks);
+			if (automaticConsume > 0)
+				ConsumeEnemyAnchors(target, automaticConsume);
+			target.anchorStacks = 0;
+		}
+
 		void Damage(Ball& target, int amount, const Vector3& source, bool directional = true)
 		{
 			if (!target.physics.enemy || target.defeated) return;
+			const bool wasDefeated = target.defeated;
 			if (directional)
 			{
 				amount = BallPhysicsRules::DirectionalDamage(amount, target.physics.position, source, target.frontalMultiplier);
@@ -281,6 +341,7 @@ namespace
             target.hp = (std::max)(0, target.hp - applied);
             target.defeated = target.hp == 0;
             result.damage += before - target.hp;
+			if (!wasDefeated && target.defeated) HandleDefeatAnchors(target);
             // EnemyBall::TakeDamage intentionally preserves velocity after lethal contact.
         }
 
@@ -310,14 +371,35 @@ namespace
 			}
 			const float radius = playerBall.physics.status.chainImpactRadius;
 			if (suppressed || radius <= 0.0f || attackDamage <= 0) return;
-			for (Ball& target : result.balls)
+			struct Target
 			{
+				Ball* ball = nullptr;
+				float distanceSquared = 0.0f;
+				std::size_t stableOrder = 0;
+			};
+			std::vector<Target> targets;
+			for (std::size_t index = 0; index < result.balls.size(); ++index)
+			{
+				Ball& target = result.balls[index];
 				if (!target.physics.enemy || target.physics.id == excludedTargetId ||
 					target.defeated || target.pocketed || !target.active) continue;
 				Vector3 offset = target.physics.position - center;
 				offset.y = 0.0f;
-				if (offset.LengthSquared() > radius * radius) continue;
-				Damage(target, attackDamage, center, false);
+				const float distanceSquared = offset.LengthSquared();
+				if (distanceSquared <= radius * radius)
+					targets.push_back({ &target, distanceSquared, index });
+			}
+			std::sort(targets.begin(), targets.end(),
+				[](const Target& left, const Target& right)
+				{
+					if (left.distanceSquared != right.distanceSquared)
+						return left.distanceSquared < right.distanceSquared;
+					return left.stableOrder < right.stableOrder;
+				});
+			if (targets.size() > 2) targets.resize(2);
+			for (const Target& target : targets)
+			{
+				Damage(*target.ball, attackDamage, center, false);
 				++result.chainImpactHits;
 			}
 		}
@@ -349,6 +431,7 @@ namespace
                         const int before = boss.hp;
                         boss.hp = (std::max)(0, before - BossCombatRules::BreakBallDamage);
                         boss.defeated = boss.hp == 0;
+						if (boss.defeated) HandleDefeatAnchors(boss);
                         result.damage += before - boss.hp;
                         result.bossFixedDamage += before - boss.hp;
                         ++result.breakBallHits;
@@ -371,6 +454,7 @@ namespace
 				const bool playerEnemy = (a.physics.player && b.physics.enemy) || (b.physics.player && a.physics.enemy);
 				const bool enemyEnemy = a.physics.enemy && b.physics.enemy;
 				Ball* targetEnemy = a.physics.enemy ? &a : (b.physics.enemy ? &b : nullptr);
+				Ball* playerBall = a.physics.player ? &a : (b.physics.player ? &b : nullptr);
 				auto recordPierce = [&](const Ball& playerBall, const Ball& enemyBall)
 				{
 					result.uniquePiercedEnemies.insert(enemyBall.physics.id);
@@ -398,12 +482,41 @@ namespace
 				}
 				auto damage = BallPhysicsRules::ContactDamage(a.physics, b.physics, Attack(a), Attack(b),
                     a.defeated, b.defeated, result.shot);
+				int pinballDamageStage = 0;
 				if (enemyEnemy)
 				{
+					Ball* pinballTarget = nullptr;
+					const Vector3* velocityBefore = nullptr;
+					if (CushionChargeRules::IsPinballTarget(
+						result.cushionCharges, a.physics.id))
+					{
+						pinballTarget = &a;
+						velocityBefore = &av;
+					}
+					else if (CushionChargeRules::IsPinballTarget(
+						result.cushionCharges, b.physics.id))
+					{
+						pinballTarget = &b;
+						velocityBefore = &bv;
+					}
+					if (pinballTarget != nullptr && velocityBefore != nullptr)
+					{
+						pinballDamageStage =
+							CushionChargeRules::RegisterPinballCollision(
+								result.cushionCharges,
+								pinballTarget->physics.id);
+						CushionChargeRules::PreservePinballSpeed(
+							result.cushionCharges,
+							pinballTarget->physics.id,
+							*velocityBefore,
+							pinballTarget->physics.velocity);
+					}
 					damage.first = HeavyCollisionRules::ScaleEnemyCollisionDamage(
 						result.heavyCollisions, damage.first);
 					damage.second = HeavyCollisionRules::ScaleEnemyCollisionDamage(
 						result.heavyCollisions, damage.second);
+					damage.first += pinballDamageStage;
+					damage.second += pinballDamageStage;
 				}
 				if (playerEnemy)
 				{
@@ -419,6 +532,90 @@ namespace
 						bonus += result.shotStatus.pierceFinisherBaseBonus +
 							(std::max)(0, static_cast<int>(result.uniquePiercedEnemies.size()) - 1) *
 							result.shotStatus.pierceFinisherMultiTargetBonus;
+					if (result.shot.ballId == "player_ricochet_finisher" &&
+						targetEnemy != nullptr)
+					{
+						const bool activated = CushionChargeRules::ActivatePinball(
+							result.cushionCharges,
+							targetEnemy->physics.id,
+							result.shotStatus.ricochetStackConsume,
+							result.shotStatus.pinballCollisionsPerStage,
+							result.shotStatus.pinballSpeedRetention);
+						if (CushionChargeRules::IsPinballTarget(
+							result.cushionCharges, targetEnemy->physics.id))
+						{
+							CushionChargeRules::RegisterPinballCollision(
+								result.cushionCharges,
+								targetEnemy->physics.id);
+							CushionChargeRules::PreservePinballSpeed(
+								result.cushionCharges,
+								targetEnemy->physics.id,
+								a.physics.enemy ? av : bv,
+								targetEnemy->physics.velocity);
+						}
+						if (activated && playerBall != nullptr)
+						{
+							playerBall->physics.velocity = Vector3::Zero;
+							playerBall->acceleration = Vector3::Zero;
+						}
+					}
+					if (result.shot.ballId == "player_stop_shield" &&
+						targetEnemy != nullptr && targetEnemy->anchorStacks > 0)
+					{
+						const auto consumed = ConsumeEnemyAnchors(
+							*targetEnemy,
+							result.shotStatus.anchorEnemyConsumeLimit);
+						const int shieldGain = AnchorStackRules::CalculateShield(
+							consumed.consumed,
+							result.shotStatus.stopShieldAmount);
+						result.stopShieldGranted = (std::min)(
+							result.shotStatus.stopShieldAmount,
+							result.stopShieldGranted + shieldGain);
+					}
+					if (result.shot.ballId == "player_anchor_finisher" &&
+						targetEnemy != nullptr && targetEnemy->anchorStacks > 0 &&
+						!result.anchorFinisherTriggered)
+					{
+						result.anchorFinisherTriggered = true;
+						const int damagePerStack =
+							AnchorStackRules::FinisherDamagePerEnemyStack(
+								result.playerAnchorStacks);
+						const int available = targetEnemy->anchorStacks;
+						const int requested =
+							result.shotStatus.anchorFinisherStackConsume <= 0
+							? available
+							: (std::min)(available,
+								result.shotStatus.anchorFinisherStackConsume);
+						const int directBonus = requested * damagePerStack;
+						bonus += directBonus;
+						const auto consumed = ConsumeEnemyAnchors(
+							*targetEnemy, requested);
+						const int aoeDamage = directBonus / 2;
+						if (consumed.consumed >=
+								result.shotStatus.anchorFinisherAoeThreshold &&
+							aoeDamage > 0 &&
+							result.shotStatus.anchorFinisherAoeRadius > 0.0f)
+						{
+							const float radiusSquared =
+								result.shotStatus.anchorFinisherAoeRadius *
+								result.shotStatus.anchorFinisherAoeRadius;
+							for (Ball& other : result.balls)
+							{
+								if (!other.physics.enemy ||
+									other.physics.id == targetEnemy->physics.id ||
+									other.defeated || other.pocketed || !other.active)
+								{
+									continue;
+								}
+								Vector3 offset = other.physics.position -
+									targetEnemy->physics.position;
+								offset.y = 0.0f;
+								if (offset.LengthSquared() <= radiusSquared)
+									Damage(other, aoeDamage,
+										targetEnemy->physics.position, false);
+							}
+						}
+					}
 					if (a.physics.enemy) damage.first += bonus;
 					else damage.second += bonus;
 				}
@@ -499,6 +696,9 @@ namespace
 			{ "generated_this_shot", charges.generatedThisShot },
 			{ "consumed_this_shot", charges.consumedThisShot },
 			{ "empowered_hits_remaining", charges.empoweredHitsRemaining },
+			{ "pinball_target_id", charges.pinballTargetId },
+			{ "pinball_collision_count", charges.pinballCollisionCount },
+			{ "pinball_collisions_per_stage", charges.pinballCollisionsPerStage },
 		};
 	}
 
@@ -525,9 +725,10 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
     result.balls = Capture(input);
 	result.cushionCharges = input.cushionCharges;
 	result.pierceTraces = input.pierceTraces;
-	result.heavyCollisions.stackCount = input.heavyCollisionCount;
-	result.heavyCollisionCount = input.heavyCollisionCount;
+	result.heavyCollisions = input.heavyCollisions;
+	result.heavyCollisionCount = input.heavyCollisions.stackCount;
 	result.playerAnchorStacks = input.playerAnchorStacks;
+	result.anchorConversionProgress = input.anchorConversionProgress;
 	CushionChargeRules::BeginPlayerShot(result.cushionCharges);
 	HeavyCollisionRules::BeginShot(result.heavyCollisions);
 	PierceTraceRules::BeginShot(result.pierceTraces);
@@ -564,6 +765,51 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
         found = true;
     }
     if (!found) return result;
+	if (result.shot.ballId == "player_collision_boost" &&
+		result.shotStatus.heavySetupStackConsume > 0 &&
+		result.heavyCollisions.stackCount >=
+			result.shotStatus.heavySetupStackConsume)
+	{
+		HeavyCollisionRules::Consume(
+			result.heavyCollisions,
+			result.shotStatus.heavySetupStackConsume);
+		HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
+			result.heavyCollisions,
+			result.shotStatus.heavyEnemyCollisionMultiplier);
+	}
+	if (result.shot.ballId == "player_trace_driver" ||
+		result.shot.ballId == "player_minion_finisher")
+	{
+		const bool finisher = result.shot.ballId == "player_minion_finisher";
+		const int consumeLimit = finisher
+			? PierceTraceRules::MaxStackCount
+			: result.shotStatus.pierceStackConsumeLimit;
+		const int consumed = PierceTraceRules::ConsumeStacks(
+			result.pierceTraces,
+			consumeLimit);
+		const auto launches = PierceTraceRules::BuildMinionLaunches(
+			result.pierceTraces,
+			consumed,
+			finisher);
+		for (std::size_t index = 0; index < launches.size(); ++index)
+		{
+			const auto& launch = launches[index];
+			Ball minion;
+			minion.physics.id = (std::numeric_limits<std::uintptr_t>::max)() - index;
+			minion.physics.position = launch.start;
+			minion.physics.velocity = launch.direction *
+				PierceTraceRules::MinionLaunchSpeed;
+			minion.physics.status = result.shotStatus;
+			minion.physics.status.abilities = {};
+			minion.physics.status.attack = launch.attack;
+			minion.physics.status.knockbackTransfer = launch.knockbackMultiplier;
+			minion.physics.minion = true;
+			minion.hp = minion.maxHp = 1;
+			minion.attack = launch.attack;
+			minion.playerSimulation = false;
+			result.balls.push_back(std::move(minion));
+		}
+	}
     for (auto* frame : input.tableFrames)
     {
         if (!frame->IsEnabled() || !frame->GetGameObject()->IsActive()) continue;
@@ -593,7 +839,8 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
                     ball.physics.status, ball.physics.status.friction, ball.stopCount,
                     exitingPierce ? &exitDirection : nullptr);
             }
-            if (ball.physics.enemy || ball.physics.breakBall || ball.nuisanceBall)
+            if (ball.physics.enemy || ball.physics.minion ||
+				ball.physics.breakBall || ball.nuisanceBall)
                 BallPhysicsRules::EnemyFriction(ball.physics.velocity, ball.physics.status.friction);
         }
         world.BeginTick();
@@ -631,16 +878,29 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
         vector(ball.physics.position); vector(ball.physics.velocity);
         const auto& s = ball.physics.status;
         scalar(s.radius); scalar(s.mass); scalar(s.restitution); scalar(s.friction); scalar(s.knockbackTransfer);
+		scalar(s.lightweightKnockbackMultiplier);
+		scalar(s.lightweightSpeedLossReduction);
+		add(s.heavySetupStackConsume);
+		scalar(s.heavyEnemyCollisionMultiplier);
+		add(s.heavyCollisionConsumeAmount);
+		scalar(s.heavyFinisherDamagePerCollision);
         add(s.abilities.pierce); add(s.abilities.anchor); add(s.pierceMaxUses); scalar(s.pierceSpeedRetention);
         scalar(s.anchorBrakeMultiplier); scalar(s.anchorStopSpeedSquared); add(s.anchorKnockbackImmune);
         scalar(s.cushionChargeSpeedMultiplier);
 		add(s.stopShieldAmount); scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
 		add(s.traceDurability); scalar(s.traceUseAngleTolerance); scalar(s.traceUseDistance); scalar(s.traceWidth);
 		add(s.tracePierceMaxUsesBonus); scalar(s.tracePierceSpeedRetentionBonus); scalar(s.traceNonPierceSpeedMultiplier);
+		add(s.pierceStackConsumeLimit);
 		add(s.cushionStackGenerateAmount); add(s.cushionMaxStack); add(s.cushionStackConsumeAmount);
-		add(s.cushionBounceAttackBonus); scalar(s.cushionNonBounceSpeedMultiplier); add(s.ricochetFinisherBonusPerUse);
+		add(s.cushionBounceAttackBonus); scalar(s.cushionNonBounceSpeedMultiplier);
+		add(s.cushionReflectionLimit); add(s.cushionConsumptionLimit);
+		scalar(s.cushionReflectionSpeedMultiplier); add(s.reflectionSetupAmount);
+		add(s.ricochetStackConsume); add(s.pinballCollisionsPerStage);
+		scalar(s.pinballSpeedRetention);
 		add(s.anchorPlayerStackGenerate); add(s.anchorEnemyStackGenerate); scalar(s.anchorStackRadius);
+		add(s.anchorStackMax); add(s.anchorFinisherStackConsume);
 		add(s.anchorFinisherDamagePerStack); add(s.anchorFinisherAoeThreshold); scalar(s.anchorFinisherAoeRadius);
+		add(s.anchorEnemyConsumeLimit);
         scalar(ball.frontalMultiplier); scalar(ball.pocketDamageRatio);
         add(ball.collisionStage); add(ball.collisionGraceTicks); add(ball.nuisanceBall);
         for (float multiplier : ball.collisionDamageMultipliers) scalar(multiplier);
@@ -653,8 +913,12 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
 	add(input.cushionCharges.stackCount);
 	add(input.cushionCharges.pendingSetupBonus);
 	add(input.cushionCharges.activeSetupBonus);
-	add(input.heavyCollisionCount);
+	add(input.heavyCollisions.stackCount);
+	scalar(input.heavyCollisions.pendingEnemyCollisionMultiplier);
+	scalar(input.heavyCollisions.activeEnemyCollisionMultiplier);
 	add(input.playerAnchorStacks);
+	add(input.anchorConversionProgress);
+	add(input.pierceTraces.stackCount);
 	for (const auto& trace : input.pierceTraces.traces)
 	{
 		add(trace.id); vector(trace.start); vector(trace.end); vector(trace.direction);

@@ -12,6 +12,7 @@
 #include "GameObject.h"
 #include "PlayerBall.h"
 #include "NuisanceBall.h"
+#include "PierceMinion.h"
 #include "SphereColliderComponent.h"
 #include "TagComponent.h"
 
@@ -89,4 +90,22 @@ NuisanceBall* BallFactory::CreateNuisanceBall(
         "NuisanceBall",
         GameObjectTag::None);
     return object->AddComponent<NuisanceBall>(data, position);
+}
+
+PierceMinion* BallFactory::CreatePierceMinion(
+	Game& game,
+	const BallStatus& status,
+	const DirectX::SimpleMath::Vector3& position,
+	const DirectX::SimpleMath::Vector3& direction,
+	float launchSpeed)
+{
+	GameObject* object = CreateBallObject(
+		game,
+		"PierceMinion",
+		GameObjectTag::None);
+	return object->AddComponent<PierceMinion>(
+		status,
+		position,
+		direction,
+		launchSpeed);
 }
