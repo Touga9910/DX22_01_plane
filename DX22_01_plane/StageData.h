@@ -2,7 +2,9 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 #include "EnemyData.h"
+#include "EnemyValidationSettings.h"
 #include "TableConfig.h"
 
 enum class StageType
@@ -48,6 +50,7 @@ struct StageData
 
     std::vector<EnemySpawnData> enemies;
     std::vector<DirectX::SimpleMath::Vector3> breakBallPositions;
+    std::optional<EnemyValidationSettings> enemyValidation;
 };
 
 inline std::vector<DirectX::SimpleMath::Vector3> DefaultBossBreakBallPositions()

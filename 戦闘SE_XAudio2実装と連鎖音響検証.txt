@@ -1,0 +1,277 @@
+Caromino 戦闘SEシステム実装・XAudio2統合・連鎖音響検証
+作成日：2026年11月3日
+
+結論
+
+戦闘ルールと独立したAudioFeedbackを追加し、DirectImpact、EnemyImpact、EnemyDefeat、
+ChainMilestone、WallImpactの5カテゴリを既存の事実イベントへ接続した。
+XAudio2 SourceVoiceは再生ごとに破棄せず、合計16本を初期化時に作成して再利用する。
+カテゴリ予約枠により通常衝突が撃破・CHAIN節目のVoiceを占有しない。
+
+正式な戦闘SE素材はリポジトリ内に存在しなかった。そのため通常起動では欠損を安全に省略し、
+--audio-test-tones指定時だけコード生成したオリジナルの短いPCM検証音を使用する。
+検証音は正式素材として採用していない。
+
+固定ショットのSE OFF / ON各3回で、敵同士の有効衝突11、撃破3、物理149ステップ、
+敵総移動距離585.5615844726562、重量スタック10が全6回完全一致した。
+SE ONでは38要求のうち27、27、28回を再生し、最大同時Voiceは全試行10/16だった。
+CHAIN 3 / 6 / 10は毎回各1要求・合計3/3再生された。
+
+
+A. 現行音響環境
+
+1. 既存Soundクラス
+
+・sound.h / sound.cppはXAudio2のサンプル実装だった。
+・IXAudio2、MasteringVoice、ラベルごとのSourceVoiceとWAVバッファをSoundが所有する。
+・登録ラベルはSOUND_LABEL_BGM000のみで、参照先asset/BGM/sample000.wavも現行assetsにはない。
+・Playのたびに同一ラベルのSourceVoiceをDestroyVoiceして再生成する。
+・同一音声の重複再生、Voice上限、優先度、クールダウン、音量・ピッチ、診断を持たない。
+・現行ゲームコードからSoundの使用箇所はなく、今回この旧クラスは全面改修していない。
+
+2. XAudio2依存
+
+・Windows SDKのxaudio2.h / xaudio2.libを使用でき、Debug/Release x64でリンク成功した。
+・AudioFeedbackがIXAudio2とMasteringVoiceを所有し、Gameの寿命に従って初期化・解放する。
+・ゲームスレッドだけから要求・Update・終了処理を行う。独自スレッドやSingletonは追加していない。
+・デバイス初期化失敗、CreateSourceVoice失敗、Submit/Start失敗は診断へ記録し、ゲームを続行する。
+
+3. 素材
+
+・assets以下にWAV / MP3 / OGGの戦闘SEは0件だった。
+・正式素材のライセンス確認対象も0件である。
+・対応形式はRIFF/WAVE PCM、16bit、mono/stereo、44.1kHz/48kHz。
+・破損、非PCM、非対応bit数・sample rate、16MiB超を安全に読み込み失敗とする。
+
+
+B. 実装内容
+
+1. 新規ファイル
+
+・DX22_01_plane/AudioFeedback.h
+・DX22_01_plane/AudioFeedback.cpp
+・DX22_01_plane/CombatAudioRules.h
+・DX22_01_plane/assets/audio/combat/README.txt
+・DX22_01_plane/tools/test_combat_audio_feedback.cpp
+・DX22_01_plane/tools/test_combat_audio_feedback.vcxproj
+・DX22_01_plane/tools/capture_combat_audio.ps1
+・captures/combat_audio_fixed_shot_20261103.json
+・captures/combat_audio_performance_20261103.json
+
+2. 変更ファイル
+
+・Game.h / Game.cpp：所有、初期化、更新、終了、SE音量、診断参照。
+・GameEvent.h：反射成立済みのWallImpactEventを追加。
+・GameBattleEvents.h / GameBattleBridge.cpp：WallImpact事実イベントの中継。
+・BallCollisionComponent.cpp：BallPhysicsRules::Wallがtrueを返した箇所だけでWallImpactを通知。
+・GameProgression.cpp：既存GameEventをAudioFeedbackへ配信。
+・GameRuntimeState.h / .cpp：AudioFeedback Update時間の独立集計。
+・GameMcpBridge.cpp：audio_feedback診断とupdate_breakdown.audio_feedbackを公開。
+・DX22_01_plane.vcxproj / .filters：新規ソースをプロジェクトへ登録。
+
+3. SourceVoiceとバッファ
+
+・WAV/検証PCMはカテゴリごとに1回だけ読み、std::vector<uint8_t>で寿命中保持する。
+・初期化時にカテゴリ別のSourceVoiceを作り、その後はSubmitSourceBufferで再利用する。
+・再生終了はGetState(BuffersQueued)でポーリングし、空いたVoiceを再使用する。
+・終了時はStop、FlushSourceBuffers、DestroyVoice、MasteringVoice破棄、IXAudio2 Releaseの順で解放する。
+・Voice、Clip、カテゴリ配列は固定数。撃破キー集合もショット開始時にclearされ、増え続けない。
+
+4. 優先度と飽和制御
+
+・合計Voice上限：16。
+・DirectImpact 4、EnemyImpact 3、EnemyDefeat 3、ChainMilestone 4、WallImpact 2。
+・ChainMilestoneとEnemyDefeatを専用枠で保護し、通常衝突が重要音の枠を奪わない。
+・各カテゴリ内では強い衝突ほど高優先度。弱い同音がクールダウン中でも、より強い要求は通せる。
+・CHAIN節目は重複防止後にクールダウンをバイパスし、3/6/10/15を失わない。
+・全体上限、カテゴリ上限、クールダウン、ミュート、素材欠損、デバイス、バックエンドを別理由で記録する。
+
+
+C. イベント接続
+
+DirectImpact
+・CollisionImpactEventのPlayerEnemyを利用する。
+・相対接近速度と既存CollisionPresentationRules::Classifyをそのまま使用する。
+
+EnemyImpact
+・CollisionImpactEventのEnemyEnemy、すなわち物理側で採用済みの接触エピソードを利用する。
+・固定ショットの要求11件は既存有効衝突11件と一致した。
+
+EnemyDefeat
+・EnemyDamageEvent.defeatedがtrueになった新規撃破事実を利用する。
+・targetKeyをショット単位で記録し、同じ敵の重複通知を抑止する。
+・固定ショットの要求3件は新規撃破3件と一致した。
+
+ChainMilestone
+・重量カテゴリのEnemyEnemy採用イベントだけを数える。
+・既存CollisionPresentationRules::IsChainMilestoneを利用し、3 / 6 / 10 / 15を各ショット1回に限定する。
+・固定ショットでは3 / 6 / 10が各1回要求・各1回再生された。
+・CHAIN 15は単体テストで4段階のルール範囲と4 Voice予約を確認した。物理条件は変更していない。
+
+WallImpact
+・BallPhysicsRules::Wallがtrueを返した反射成立後だけWallImpactEventを発行する。
+・接触継続を音声側で再判定しない。
+・固定ショットはプレイヤー・敵を合わせて14要求。既存physics_chainのwall_reflectionsは
+  従来どおりプレイヤー/Pinball対象だけの限定テレメトリであり、今回の全反射SE件数とは責務が異なる。
+
+重複防止
+・衝突音はCollisionImpactEventだけ、撃破音はEnemyDamageEventだけから生成する。
+・CollisionImpactEvent.defeatedから撃破音を生成しないため二重経路にならない。
+・撃破targetKey、CHAIN節目ビットをShotFiredEventでリセットする。
+
+
+D. 初期設定値
+
+カテゴリ                 cooldown   Voice   基準音量  音量範囲     pitch 弱/中/強
+DirectImpact             0.025秒      4       0.72    0.24-0.90   1.04/1.00/0.96
+EnemyImpact              0.040秒      3       0.54    0.18-0.72   1.05/1.01/0.97
+EnemyDefeat              0.060秒      3       0.92    0.72-1.00   1.02/1.00/0.98
+ChainMilestone           0.080秒      4       0.96    0.78-1.00   1.04/1.00/0.96
+WallImpact               0.045秒      2       0.45    0.16-0.62   1.05/1.01/0.98
+
+・全カテゴリのpitch最終クランプは0.92～1.08。
+・速度は0～16へクランプ。NaN/Inf/負値は0として扱う。
+・SettingsManagerの既存se_volume 0.0～1.0をMasteringVoiceへ毎フレーム反映する。
+・0はミュート。設定変更後の次Updateで既存再生中Voiceを含めて即時反映する。
+
+ファイル対応表
+
+DirectImpact    assets/audio/combat/direct_impact.wav
+EnemyImpact     assets/audio/combat/enemy_impact.wav
+EnemyDefeat     assets/audio/combat/enemy_defeat.wav
+ChainMilestone  assets/audio/combat/chain_milestone.wav
+WallImpact      assets/audio/combat/wall_impact.wav
+
+
+E. 固定ショット検証
+
+条件
+・seed 20260904、Dense、敵8、HP倍率1.5、重量+0、Power 8。
+・方向XZ (-0.9916810938126976, -0.1287191057087161)。
+・レリックなし、昇天0、1600x900、VSync ON、全VFX ON。
+・GameMCP state_publish_interval_frames=60。
+
+物理回帰（SE OFF / ON全6試行共通）
+・敵同士の有効衝突 11。
+・撃破 3。
+・物理ステップ 149。
+・敵総移動距離 585.5615844726562。
+・重量スタック獲得 10。
+
+SE要求（各試行共通）
+・DirectImpact 7。
+・EnemyImpact 11。
+・EnemyDefeat 3。
+・ChainMilestone 3（3 / 6 / 10）。
+・WallImpact 14。
+・合計38。
+
+SE ON実再生
+・3試行で27 / 27 / 28。
+・クールダウン省略11 / 11 / 10。
+・最大同時Voice 10 / 10 / 10。
+・Voice上限、カテゴリ上限、デバイス、バックエンド省略は全て0。
+・撃破は3要求中2再生。短時間の複数撃破を1つの成功音へ集約した。
+
+素材欠損モード
+・正式素材なし、se_volume=0.8、検証音無効で同じ固定ショットを完走した。
+・38要求、0再生、missing_asset省略38、クラッシュ0、backend_error 0。
+
+
+F. Release x64性能
+
+3試行平均                    SE OFF             SE ON              ON-OFF
+平均FPS                       59.996255          59.995286          -0.000969
+p95 frame ms                  16.666733          16.666733           0.000000
+p99 frame ms                  16.693600          16.725267          +0.031667
+CPU Update ms                  0.741974           0.759724          +0.017749
+CPU Draw ms                    0.294426           0.297881          +0.003454
+Present ms                     0.309396           0.265775          -0.043621
+AudioFeedback Update ms        0.001914           0.002213          +0.000299
+SE要求処理 ms/要求                 -              0.003466               -
+
+・VSync下で平均約60FPSを維持した。
+・p99差+0.032ms、Update差+0.018msで、固定ショットの物理値は不変だった。
+・AudioFeedbackの定常Updateは約0.0022ms。要求時処理は平均約0.0035ms/件だった。
+・検証PCM総量は約57,120 bytes（約55.8KiB）。正式素材のメモリ量は素材確定後に再計測する。
+・GPU時間は未測定。
+
+
+G. テスト結果
+
+・Debug x64本体：成功、0警告、0エラー。
+・Release x64本体：成功、0警告、0エラー。
+・test_combat_audio_feedback：PASS。
+  - NaN/Inf/負速度、音量・pitchクランプ、Voice総数16、優先度を確認。
+  - 11 EnemyImpactからCHAIN 3/6/10を各1要求、重複撃破抑止を確認。
+  - 一時PCM WAV 5ファイルの読み込み、XAudio2初期化、SourceVoice再生を確認。
+・test_ball_synergy_rules：PASS。
+・test_shot_physics_telemetry：PASS。
+・test_enemy_validation_runtime：PASS（既存LNK4075警告1、テスト成功）。
+・test_debug_battle_setup：PASS（PDB不整合回避でビルド、実行成功）。
+・正式素材欠損実ゲーム：PASS、38要求を安全省略。
+・git diff --check：PASS。
+・Python契約テスト：Python実行環境が利用できず未実行。
+
+MSVC環境には既知のPDB manager不整合C1902/LNK1101があるため、Debug/Release本体の検証時だけ
+DebugInformationFormat=OldStyle、MP=false、linker debug=falseを一時適用した。
+ビルド後はプロジェクト設定を元へ戻した。
+
+
+H. 音声素材の状況
+
+正式採用素材
+・なし。
+
+テスト専用素材
+・--audio-test-tones時にメモリ上で生成する5種類の短いPCM音。
+・単体テストが一時ディレクトリへ生成する無音PCM WAV 5ファイル。
+・いずれもオリジナル生成で、正式配布SEではない。
+
+不足素材
+・直接衝突：弱・中・強。
+・敵同士衝突。
+・壁反射。
+・撃破。
+・CHAIN節目（同一素材をpitch変更で使うか、4段階を別素材にするか要決定）。
+・将来の重量、貫通、反射、アンカー各能力音。
+
+ライセンス
+・第三者素材を組み込んでいないため、現時点の第三者ライセンス対象はない。
+・正式素材導入時に作者、配布元、商用可否、改変可否、クレジット条件を記録すること。
+
+
+I. 実際の音響確認
+
+機械確認済み
+・XAudio2デバイス初期化成功。
+・直接衝突、敵同士衝突、撃破、CHAIN節目、壁反射の全カテゴリでSubmit/Start成功。
+・11連鎖時に最大10 Voiceが重なり、上限16を超えなかった。
+・CHAIN節目3音は通常衝突に省略されなかった。
+・se_volume=0では38件すべてmutedとして無音化された。
+・se_volume=0.8では再生され、設定値がMCPへ反映された。
+
+未確認
+・人間による聴覚上の音色、音量バランス、疲労感、撃破音とCHAIN音の主観的な抜け。
+・正式素材での弱/中/強の自然さ。
+・実機のデバイス抜き差し後の復旧。
+
+検証音は機構確認用であり、音響演出の完成を意味しない。正式素材導入後に人間が実際に聴き、
+特に11～15連鎖、複数同時撃破、壁反射が続く反射軸で再調整する必要がある。
+
+
+成果物
+
+・戦闘SE_XAudio2実装と連鎖音響検証.txt（本書）
+・captures/combat_audio_fixed_shot_20261103.json（固定ショットSE診断）
+・captures/combat_audio_performance_20261103.json（SE OFF/ON 3試行性能比較）
+・各生データ：DX22_01_plane/tools/runtime_tests/combat_audio/*/summary.json
+
+
+今後の演出拡張案
+
+1. 正式素材を導入し、まず同一素材の控えめなvolume/pitch差で弱中強を調整する。
+2. 撃破音は同一フレームの複数撃破数に応じて1音の音量・倍音を上げる。
+3. CHAIN 3/6/10/15は同じモチーフを段階的に上げ、15だけ短い終止音を足す。
+4. 貫通は乾いた通過音、反射は壁方向を感じる反発音、アンカーは低い停止音を既存イベントへ追加する。
+5. 正式素材導入後も16 Voice、カテゴリ予約、GameEvent経路を維持し、物理側へ音色判断を戻さない。

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "BattleTypes.h"
+#include "EnemyActionPlanner.h"
 #include "GameTypes.h"
 #include "ShotRelicRules.h"
 #include "StageData.h"
@@ -49,6 +50,14 @@ struct BattleControllerHooks
     std::function<void(PlayerBall*)> capturePlayerStatus;
     std::function<void()> restoreNextPocketedEnemy;
 
+    // 敵行動計画とCharge妨害の観測結果。ログ・表示はHook先の責務。
+    std::function<void(const EnemyActionTurnPlan&)>
+        enemyActionPlanConfirmed;
+    std::function<void(
+        const EnemyBall& enemy,
+        const ChargeInterruptionResult& result)>
+        chargeInterrupted;
+
     // ターン終了時
     std::function<bool()> prepareNextTurn;
 
@@ -81,7 +90,7 @@ public:
     // PlayerBall等から受け取る「起きた事実」の通知。
     void BeginAimingDirection();
     void BeginAimingPower();
-    void NotifyShotFired();
+    void NotifyShotFired(bool heavyShot);
     void NotifyPlayerDefeated();
 
     BattleState GetState() const
@@ -136,6 +145,10 @@ public:
     int GetPocketQueueIndex(const EnemyBall* enemy) const;
     std::size_t GetPocketQueueSize() const { return m_PocketedEnemyQueue.size(); }
     void ClearPocketQueue() { m_PocketedEnemyQueue.clear(); }
+    const EnemyActionConfig& GetEnemyActionConfig() const
+    {
+        return m_EnemyActionPlanner.Config();
+    }
 
 private:
     static constexpr int kRequiredStoppedTicks = 11;
@@ -154,11 +167,14 @@ private:
     BattlePocketRules m_PocketRules{};
     std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
     std::deque<EnemyBall*> m_PocketedEnemyQueue;
+    EnemyActionPlanner m_EnemyActionPlanner;
 
 private:
     void CompleteShot();
     void ProcessEnemyAttack();
     void ProcessTurnEnd();
+    void PlanNextTurn();
+    void ResolveChargeInterruptions();
 
     bool TryRecoverClearedBattle(const char* source);
 

@@ -9,6 +9,7 @@
 #include "GameRuntime.h"
 #include "GameShotPrediction.h"
 #include "GameShotTraceView.h"
+#include "Game.h"
 #include "GameWorld.h"
 #include "input.h"
 #include "Ground.h"
@@ -18,8 +19,10 @@
 #include "imgui/imgui.h"
 #include "GameObject.h"
 #include "NuisanceBall.h"
+#include "PlayerBallData.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 using namespace std;
@@ -168,11 +171,11 @@ void PlayerBall::Draw(Camera* cam)
 	{
 		const auto& pos = trailPoint.position;    //座標情報を取り出す
 
-		float fade = trailPoint.lifeRatio;
+		const float fade = trailPoint.lifeRatio * trailPoint.lifeRatio;
 
 		// フェードアウトに合わせてスケールを変化させる
 		// 軌跡のスケールをfadeに比例させて、消える直前に小さくする
-		float baseScale = 0.8f;
+		const float baseScale = 0.48f + trailPoint.intensity * 0.32f;
 		float currentScale = baseScale * fade;
 
 		// 最小スケールを設ける
@@ -375,7 +378,11 @@ void PlayerBall::CheckFallRespawn()
 
 void PlayerBall::AddTrailPoint()
 {
-	const float stepSize = 1.5f;                         // 軌跡を追加する間隔
+	Vector3 planarVelocity = m_Ball->GetVelocity();
+	planarVelocity.y = 0.0f;
+	const float speed = planarVelocity.Length();
+	const float intensity = std::clamp(speed / 8.0f, 0.28f, 1.0f);
+	const float stepSize = 2.1f - intensity * 0.8f;
 
 	Vector3 toCurrent = m_Ball->GetPosition() - m_LastTrailPos;
 	float dist = toCurrent.Length();              // 最後の軌跡点から現在位置までの距離
@@ -387,8 +394,20 @@ void PlayerBall::AddTrailPoint()
 	while (dist >= stepSize)
 	{
 		m_LastTrailPos += toCurrent * stepSize;
-		m_TrajectoryPositions.push_back({ m_LastTrailPos, m_CurrentFrame, 1.0f });
+		m_TrajectoryPositions.push_back({
+			m_LastTrailPos,
+			m_CurrentFrame,
+			1.0f,
+			intensity });
 		dist -= stepSize;
+	}
+	constexpr std::size_t maximumTrailPoints = 144;
+	if (m_TrajectoryPositions.size() > maximumTrailPoints)
+	{
+		m_TrajectoryPositions.erase(
+			m_TrajectoryPositions.begin(),
+			m_TrajectoryPositions.begin() +
+				(m_TrajectoryPositions.size() - maximumTrailPoints));
 	}
 }
 
@@ -746,10 +765,30 @@ Vector3 PlayerBall::GetShotVector() const
 
 void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
 {
+	const bool measurePrediction =
+		GameRuntime::IsFrameTimingMeasurementActive();
+	const auto predictionStarted = measurePrediction
+		? std::chrono::steady_clock::now()
+		: std::chrono::steady_clock::time_point{};
 	const auto prediction =
 		GameShotPrediction::Predict(*this, initialVelocity, true);
+	if (measurePrediction)
+	{
+		GameRuntime::RecordShotPredictionTiming(
+			std::chrono::duration<double, std::milli>(
+				std::chrono::steady_clock::now() - predictionStarted).count());
+	}
     m_PrePositions.clear();
-    constexpr std::size_t previewReflections = 0;
+	const Game* game = Game::GetInstance();
+	const PlayerBallData* previewBall = game != nullptr
+		? game->GetCurrentPlayerBallData()
+		: nullptr;
+	if (previewBall == nullptr && game != nullptr)
+		previewBall = game->GetBallOffer(game->GetSelectedBallOfferIndex());
+	const std::size_t previewReflections =
+		previewBall != nullptr && previewBall->category == BallCategory::Bounce
+			? 1u
+			: 0u;
     const auto previewPoints = prediction.PreviewPointCount(previewReflections);
     for (std::size_t i = 0; i < previewPoints; ++i)
         m_PrePositions.push_back({ prediction.path[i], 0, 1.0f });

@@ -32,6 +32,7 @@ struct EnemyData
 
     int maxHp = 3;                                  // 最大HP
     BallStatus status;                              // 質量・半径・防御などボールとしての基本性能
+    bool canCharge = false;                         // Charge行動の候補になれるか
     StatusEffectCollection initialStatusEffects;    // 敵マスタではなく、ステージ上の各配置が個別に設定する初期状態効果
     float frontalDamageMultiplier = 1.0f;           // 正面から受けるダメージへ掛ける倍率
     float pocketDamageRatio = 0.0f;                 // ポケット時に使用するダメージ比率

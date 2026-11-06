@@ -1,0 +1,160 @@
+Caromino 重量軸 衝突VFX実装と負荷検証
+作成日: 2026年11月2日
+
+前提
+- 対象はPresentation層の視覚表現のみ。攻撃力、質量、速度、反発、摩擦、HP、スタック経済、敵AIには変更を加えていない。
+- 固定ショット条件は seed 20260904、Dense 8体、HP倍率1.5、重量球+0、Power 8、方向XZ=(-0.9916810938126976, -0.1287191057087161)、レリックなし、昇天0。
+
+A. 実装概要
+
+1. 火花エフェクト
+- CollisionImpactEventのワールド衝突位置を保持し、毎描画時に既存TryProjectToScreenで画面座標へ変換する。
+- 直接衝突は放射状の線+丸い光点、敵同士衝突は衝突軸の両方向へ扇状に飛ぶ線+三角形として描き分けた。
+- 速度減衰、寿命による縮小・アルファ減衰を行い、固定配列を再利用するため毎フレームの粒子用ヒープ確保はない。
+
+2. 衝撃波エフェクト
+- 衝突位置を中心に盤面XZ平面上のリングを拡大し、寿命に応じてフェードする。
+- 強衝突またはCHAIN節目のみ二重リングにする。
+- 以前の装飾リング生成処理を置換し、別系統のリングを重ねて二重生成しない構成とした。
+
+3. 強度・CHAIN連動
+- 強度判定はCollisionPresentationRulesの既存しきい値2.0 / 6.0を唯一の判定元として再利用した。
+- 弱/中/強で火花数、サイズ、速度、寿命、衝撃波半径・線幅を変更する。
+- 重量球の敵同士衝突のみ、GamePresentationが持つ既存CHAIN状態を3 / 6 / 10 / 15で段階化する。VFX側に独自CHAINカウンタはない。
+- 高段階では色・サイズ・半径を強調し、CHAIN 10以上の強衝突/節目では十字の光点を追加する。
+
+4. 既存演出との役割分担
+- 火花・衝撃波: 局所的な衝突位置と衝突方向を示す。
+- 既存ダメージ数字: ダメージ結果を示す。VFXはその表示順・ゲーム値を変更しない。
+- 既存フラッシュ/カメラシェイク: 強衝突と節目だけで使用し、既存クールダウンを維持する。
+- 既存CHAIN表示: カウントと節目を示す。今回のVFXはその状態を参照するだけである。
+
+B. コード変更
+
+追加ファイル
+- DX22_01_plane/CollisionVfxSystem.h
+- DX22_01_plane/CollisionVfxSystem.cpp
+- DX22_01_plane/CollisionPresentationRules.h（衝撃強度、CHAIN段階、表示予算の純粋ルール）
+
+主な変更ファイル
+- BallCollisionComponent.cpp: 実衝突位置・接近速度・衝突対象位置をBattleEventへ通知。
+- GameBattleEvents.h / GameEvent.h: CollisionImpactEventの経路を定義。
+- Game.h / Game.cpp / GameProgression.cpp: 既存イベント経路でGamePresentationへ転送し、診断値を読み取り専用で公開。
+- GamePresentation.h / GamePresentation.cpp: CollisionVfxSystemを所有し、更新・生成・描画・戦闘/ショット開始時クリアを統合。
+- GameSettingsRuntime.h/.cpp / SettingsManager.h/.cpp: 既存の衝突演出ON/OFFと装飾量0～3を利用。
+- GameMcpBridge.cpp: VFX生成、省略、同時数、描画プリミティブの診断値を出力。
+- DX22_01_plane.vcxproj / .filters: 新規クラスをビルド対象へ追加。
+- tools/test_shot_physics_telemetry.cpp: 強度/CHAIN/表示予算の境界値テストを追加。
+
+新規クラスの責務
+- CollisionVfxSystemはGamePresentationが所有する小規模なPresentation専用クラスである。
+- 固定容量は火花96、衝撃波12。寿命更新、優先度付き再利用、同一フレーム近接イベント統合、ImGuiプリミティブ描画、診断値だけを担当する。
+- 物理・ダメージ・スタック・AIへの参照や書き戻しは行わない。Singletonも追加していない。
+- 依存方向は BallCollisionComponent -> BattleEvent -> GameEvent -> GamePresentation -> CollisionVfxSystem -> ImGui描画。Renderer.cppの大規模変更はない。
+
+C. 調整項目
+
+初期値（CollisionVfxSystem::Tuning、CollisionVfxSystem.cpp）
+- 火花数: 弱4 / 中7 / 強11。CHAIN・節目補正後も1衝突最大14。
+- 火花サイズ: 弱1.8 / 中2.5 / 強3.4、全体倍率1.0。
+- 火花速度: 弱18 / 中28 / 強40、全体倍率1.0。速度は毎秒3.8相当で減衰。
+- 火花寿命: 弱0.18秒 / 中0.26秒 / 強0.34秒、CHAIN補正込み最大0.48秒、全体倍率1.0。
+- 衝撃波: 弱0.45->4.2・0.22秒・線幅1.5、中0.65->6.5・0.30秒・線幅2.3、強0.9->9.5・0.38秒・線幅3.2。
+- 衝撃波半径、拡大速度、寿命の全体倍率: 各1.0。
+- 色(ABGR): 直接衝突0xff4896ff、敵同士0xffffdf91、CHAIN強調0xff3a9aff、ピーク0xffeaffff。
+- 同時火花上限: 装飾量0/1/2/3 = 0/32/64/96。
+- 1フレーム火花生成上限: 装飾量0/1/2/3 = 0/16/32/48。
+- 同時衝撃波上限: 装飾量0/1/2/3 = 0/4/8/12。
+
+負荷制御
+- 弱いイベントより、強衝突、撃破、CHAIN節目を優先して既存スロットを置換する。
+- 同一フレーム・同種・3ワールド単位以内の低/中優先イベントは衝撃波へ統合し、追加火花を省略する。
+- OFF時は生成を早期終了し、更新時にアクティブVFXをクリア、描画を抑制する。
+
+調整方法
+- Debugger表示中の「Collision VFX Tuning」で火花数、サイズ、速度、寿命、4色、衝撃波半径、拡大速度、寿命を変更できる。
+- 同時表示上限はCollisionPresentationRules.h、各強度の基礎値はCollisionVfxSystem.h/.cppに集約した。
+- ON/OFFは既存collision_impact_effects_enabled、密度は既存decorative_ring_amount(0～3)を使用する。新しい設定管理系は作成していない。
+
+D. 固定ショット検証
+
+VFX OFF 3回 / ON 3回の全6回で一致したゲームプレイ結果
+- 敵同士の有効衝突: 11回
+- 撃破: 3体
+- 物理ステップ: 149
+- 敵総移動距離XZ: 585.5615844726562
+- 重量物理CHAIN表示カウント: 11
+- 物理処理時間を除くphysics_chain JSON: 全6回で完全一致
+
+VFX OFF
+- impact_events 0、火花0、衝撃波0、最大同時数0。
+- CHAINはVFX生成より前に既存衝突事実から更新され、11を維持した。
+
+VFX ON（3回とも同じ診断値）
+- VFX対象衝突通知: 18（直接衝突を含む。敵同士の有効衝突数11とは定義が異なる）
+- 火花生成71、省略75、最大同時64、終了時0。
+- 衝撃波生成13、近接統合1、省略4、最大同時8、終了時0。
+- CHAIN 3 / 6 / 10を通過し、段階・節目分岐が実行された。CHAIN 15は標準条件が11回のため未確認。到達させるための物理変更はしていない。
+- 弱/中/強の差は2.0 / 6.0境界のC++テストと、固定ショット内の異なる接近速度で確認した。
+
+E. パフォーマンス
+
+3回平均
+- ショット全体時間: OFF 2468.33ms、ON 2465.00ms、差 -0.14%。実時間の揺らぎ範囲で、VFXによる悪化は計測されなかった。
+- 物理処理時間: OFF 246765.67us、ON 248748.33us、差 +1982.67us / +0.80%。物理結果は完全一致しており、OS/実行時の測定揺らぎを含むCPU計測値である。
+- VFX最大同時数: 火花64、衝撃波8。設定上限を超えていない。
+- VFX生成/省略: 火花71/75、衝撃波13/4、近接統合1。
+- ImGui描画プリミティブ投入ピーク: 146。これはAddLine/AddCircle/AddConvexPoly等の投入回数であり、GPU draw call数ではない。
+
+未計測
+- 平均/最大フレーム時間、FPS、GPU時間、実GPU draw callは既存の固定ショットハーネスとMCP状態に取得項目がないため未計測。今回だけの大規模プロファイラは追加していない。
+- CPU物理時間とGPU描画負荷は別物であり、上記物理時間をGPU負荷として扱っていない。
+
+計測保存場所
+- DX22_01_plane/tools/runtime_tests/weight_inflation/captures/20261102_collision_vfx_repeats_v4/measurements.json
+
+F. テスト
+
+- Debug x64全体ビルド: 成功、0エラー。既知のPDB同時書込み問題を避けるため一時的に/Z7 /MP1・リンクPDB無効で検証し、プロジェクト設定は検証後に元へ戻した。D9025警告1件のみ。
+- test_shot_physics_telemetry: 再ビルド成功、実行PASS。強度、CHAIN 3/6/10/15、装飾上限0/4/8/12、火花上限0/32/64/96、フレーム生成上限0/16/32/48を検証。
+- test_ball_synergy_rules: PASS。
+- test_fixed_timestep_runtime: PASS。
+- test_shared_prediction_runtime: PASS（反射、貫通/屈折、アンカー、ポケット、レリックを含む）。
+- test_ccd_toi_runtime: PASS（高速衝突、壁、連鎖、貫通再進入、アンカー、上限を含む）。
+- Python test_save_system_contract.py: 5件PASS。pytestモジュールが環境にないためunittestとして直接実行した。
+- Python test_game_responsibility_split_contract.py: 37件中35件PASS、1 failure、1 error。failureは既存契約がGameBattleBridge内のgame.GetHeavyCollisionCountを期待する一方、現在はGetHeavyCollisionStateを使用している差、errorは既存CP932のGamePresentation.hをテストがUTF-8固定で読むためのUnicodeDecodeError。本VFXの実行・ビルド結果とは独立した既存契約前提の未整合として残した。
+- 既存重量軸回帰: OFF/ON各3回、上記物理結果一致。
+- 他軸への副作用: 共通物理・予測・CCDテストPASS。VFXはPresentation専用でルール値を書き換えない。
+- git diff --check: PASS。
+- vcxproj / filters XML読込み: PASS。ビルド用の一時設定が残っていないことも確認した。
+
+G. 実際の画面確認
+
+確認できた内容
+- CodexのWindows画面操作でゲーム本体ウィンドウ全体を選択し、ImGui単独ウィンドウと混同せず戦闘盤面を確認した。
+- 固定条件を再戦し、重量球を敵密集へ射撃。衝突位置に黄色～橙色の線状火花、光点、短いリングが出るフレームを実画面で確認した。
+- 火花は敵群の衝突位置に追従し、ダメージ数字と球の状態表示は読める状態だった。
+- ショット後にVFXが残らないことは画面と診断値active_sparks=0 / active_waves=0の両方で確認した。
+
+確認できなかった内容
+- 標準条件はCHAIN 11で終了するため、CHAIN 15のピーク演出は未確認。
+- 通常衝突とCHAIN 10以上を同一タイミングで並べた保存画像による比較は未実施。
+
+保存したスクリーンショット
+- captures/CHAIN10_collision_vfx_20261102.png
+- captures/CHAIN10_collision_vfx_20261102.json（撮影時CHAIN=10、active_sparks=64、active_waves=8、固定ショット条件を記録）
+
+見た目の評価と残課題
+- 実画面上で、衝突位置・衝突方向に対応した局所火花と衝撃波が描画されることは確認できた。
+- ただし保存画像による従来版との横並び比較はないため、「見た目が改善した」という主観的な最終断定は行わない。今後は実機で通常、CHAIN 3/6/10/15を同条件撮影し、明瞭さと過密感を比較する余地がある。
+
+H. 次の改善候補（今回は未実装）
+
+- 衝突強度・CHAIN段階に対応する衝突SE。
+- 重量球と高CHAIN時の球軌跡強化。
+- 撃破専用の破片/消散エフェクト。
+- 重量スタック獲得・消費時のHUD/盤面演出。
+- Bloomや発光ポストプロセス（GPU負荷を計測した上で判断）。
+- 反射、貫通、アンカー各軸へ、形・方向・色を変えたVFX設計を展開。
+
+以上

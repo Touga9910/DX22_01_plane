@@ -2,6 +2,30 @@
 
 #include <string>
 
+enum class EnemyHpDisplayMode : int
+{
+	OverheadBar = 0,
+	CircularGauge = 1,
+	Hidden = 2,
+};
+
+enum class EnemyHpRingDrawLayer : int
+{
+	Background = 0,
+	Foreground = 1,
+};
+
+struct EnemyHpDisplaySettings
+{
+	EnemyHpDisplayMode mode = EnemyHpDisplayMode::CircularGauge;
+	float ringOffsetX = 0.0f;
+	float ringOffsetY = 0.0f;
+	float ringDiameterScale = 0.82f;
+	float ringThickness = 4.0f;
+	float ringOpacity = 0.92f;
+	EnemyHpRingDrawLayer ringDrawLayer = EnemyHpRingDrawLayer::Foreground;
+};
+
 struct GameSettings
 {
 	float bgmVolume = 0.8f;
@@ -9,6 +33,14 @@ struct GameSettings
 	bool vibrationEnabled = true;
 	bool screenFlashEnabled = true;
 	bool cameraShakeEnabled = true;
+	bool collisionImpactEffectsEnabled = true;
+	bool heavyChainEffectsEnabled = true;
+	bool enemyHitFlashEnabled = true;
+	bool defeatVfxEnabled = true;
+	bool multiDefeatEffectsEnabled = true;
+	bool frameTimeMeasurementEnabled = true;
+	int decorativeRingAmount = 2;
+	EnemyHpDisplaySettings enemyHpDisplay{};
 	bool fullscreen = false;
 	int resolutionIndex = 0;
 };

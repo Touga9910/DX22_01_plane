@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "BallComponent.h"
+#include "BattleTypes.h"
 #include "EnemyData.h"
 #include "BossCombatRules.h"
 
@@ -36,7 +37,35 @@ public:
     // -------------------------
     void Defeat();
     void RemoveFromFieldAfterPocket();
-    void TakeDamage(int damage);
+    void TakeDamage(
+        int damage,
+        EnemyDamageKind damageKind = EnemyDamageKind::Other);
+	int CalculateDamageTaken(int damage) const;
+
+    // The planner assigns one immutable action before the shot.  EnemyBall
+    // keeps only its own assignment and Charge/interruption state.
+    void SetPlannedAction(
+        EnemyActionType action,
+        int budgetCost,
+        float chargeDamageMultiplier);
+    EnemyActionType GetPlannedAction() const { return m_PlannedAction; }
+    int GetPlannedActionCost() const { return m_PlannedActionCost; }
+    float GetPlannedDamageMultiplier() const
+    {
+        return m_PlannedAction == EnemyActionType::ChargeAttack
+            ? m_PlannedChargeDamageMultiplier
+            : 1.0f;
+    }
+    bool CanUseCharge() const { return m_EnemyData.canCharge; }
+    EnemyChargeState GetChargeState() const { return m_ChargeState; }
+    bool IsCharging() const { return m_ChargeState == EnemyChargeState::Charging; }
+    void BeginCharge();
+    void CompleteChargeAttack();
+    void BeginChargeShotTracking(bool heavyShot);
+    std::optional<ChargeInterruptionResult> EndChargeShotTracking(
+        float heavyInterruptDiameterMultiplier,
+        float pierceInterruptMaxHpRatio);
+    void CancelCharge(ChargeInterruptReason reason);
 	int GetAnchorStacks() const { return m_AnchorStacks; }
 	int& MutableAnchorStacks() { return m_AnchorStacks; }
 	void ApplyLightweight(float multiplier)
@@ -111,6 +140,9 @@ public:
     DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
     DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
     BallComponent* GetBall() const { return m_Ball; }
+	// Presentation-only material contribution. It never changes transform,
+	// radius, collision state, HP, or velocity.
+	void SetPresentationHitFlash(float intensity);
 
     // -------------------------
     // 敵データ・ステータス
@@ -134,6 +166,7 @@ private:
     void Uninit();
     void ApplyStatusValuesOnly(const BallStatus& status);
     void UpdateCollisionStageTint();
+	void ApplyPresentationTint();
     void DrawNuisanceWarning();
     void DestroyNuisanceBall();
     bool HasLiveNuisanceBall() const;
@@ -152,6 +185,7 @@ private:
     BossCombatRules::State m_BossState;
     DirectX::SimpleMath::Color m_BaseTint =
         DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f);
+	float m_PresentationHitFlash = 0.0f;
     int m_CollisionStage = 0;
     std::unordered_map<std::uintptr_t, int> m_CollisionGraceByBall;
 	int m_AnchorStacks = 0;
@@ -163,4 +197,15 @@ private:
     bool m_NuisanceWarningVisible = false;
     int m_StunTurnsRemaining = 0;
     bool m_SkipNextGimmickAdvance = false;
+    EnemyActionType m_PlannedAction = EnemyActionType::Wait;
+    int m_PlannedActionCost = 0;
+    float m_PlannedChargeDamageMultiplier = 2.0f;
+    EnemyChargeState m_ChargeState = EnemyChargeState::Normal;
+    bool m_ChargeShotActive = false;
+    bool m_ChargeShotHeavy = false;
+    DirectX::SimpleMath::Vector3 m_ChargeShotStart =
+        DirectX::SimpleMath::Vector3::Zero;
+    int m_ChargeShotPierceDamage = 0;
+    std::optional<ChargeInterruptionResult> m_PendingChargeInterruption;
+    void ResetChargeShotTracking();
 };

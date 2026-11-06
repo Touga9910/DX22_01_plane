@@ -1,5 +1,6 @@
 ﻿#include "EnemyBall.h"
 #include "BallPhysicsRules.h"
+#include "EnemyChargeRules.h"
 #include "BallMechanics.h"
 #include "EnemyGimmickRules.h"
 
@@ -87,6 +88,13 @@ void EnemyBall::Init(const EnemyData& data)
     m_NuisanceBallObject = nullptr;
     m_StunTurnsRemaining = 0;
     m_SkipNextGimmickAdvance = false;
+    m_PlannedAction = EnemyActionType::Wait;
+    m_PlannedActionCost = 0;
+    m_PlannedChargeDamageMultiplier = 2.0f;
+    m_ChargeState = EnemyChargeState::Normal;
+    ResetChargeShotTracking();
+    m_PendingChargeInterruption.reset();
+	m_PresentationHitFlash = 0.0f;
     m_EnemyData = data;                        // 読み込んだ敵データを保持
 
     m_Ball->SetMaxHP(m_EnemyData.maxHp);
@@ -220,6 +228,7 @@ void EnemyBall::Defeat()
         return;
     }
 
+    CancelCharge(ChargeInterruptReason::Defeated);
     m_Ball->Defeat();
     m_NuisanceWarningVisible = false;
     DestroyNuisanceBall();
@@ -251,6 +260,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     // 敵データを更新
     m_EnemyData.status = data.status;
     m_EnemyData.maxHp = data.maxHp;
+    m_EnemyData.canCharge = data.canCharge;
     m_EnemyData.frontalDamageMultiplier = data.frontalDamageMultiplier;
     m_EnemyData.pocketDamageRatio = data.pocketDamageRatio;
     m_EnemyData.collisionDamageMultipliers = data.collisionDamageMultipliers;
@@ -334,6 +344,7 @@ void EnemyBall::EnterPocketQueue(const Vector3& pocketEntryPosition)
     {
         return;
     }
+    CancelCharge(ChargeInterruptReason::Pocketed);
     m_IsPocketed = true;
     m_PocketEntryPosition = pocketEntryPosition;
     m_SkipNextGimmickAdvance = true;
@@ -378,7 +389,9 @@ void EnemyBall::ReturnFromPocket(const Vector3& position)
     }
 }
 
-void EnemyBall::TakeDamage(int damage)
+void EnemyBall::TakeDamage(
+    int damage,
+    EnemyDamageKind damageKind)
 {
 	if (m_Ball == nullptr)
 	{
@@ -392,11 +405,21 @@ void EnemyBall::TakeDamage(int damage)
 		m_Ball->GetMutableAcceleration();
     if (IsArmorBoss()) damage = BossCombatRules::DirectDamage(damage, GetDefense(), m_BossState) + GetDefense();
 	m_Ball->TakeDamage(damage);
+	const int appliedDamage = (std::max)(0, hpBefore - m_Ball->GetHP());
+	if (m_ChargeShotActive)
+	{
+		m_ChargeShotPierceDamage =
+			EnemyChargeRules::AccumulateAppliedDamage(
+				m_ChargeShotPierceDamage,
+				damageKind,
+				appliedDamage);
+	}
 
 	// 通常ダメージで倒れた敵は、全ボールが止まるまで表示と物理判定を残す。
 	// ポケットによる除外は別処理とし、即座に反映する。
 	if (!wasDefeated && m_Ball->IsDefeated())
 	{
+		CancelCharge(ChargeInterruptReason::Defeated);
 		m_Ball->GetMutableVelocity() = collisionVelocity;
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
 		m_NuisanceWarningVisible = false;
@@ -406,7 +429,133 @@ void EnemyBall::TakeDamage(int damage)
 
 	BalanceLogger::GetInstance().RecordEnemyDamage(
 		m_EnemyData.id,
-		(std::max)(0, hpBefore - m_Ball->GetHP()));
+		appliedDamage);
+}
+
+int EnemyBall::CalculateDamageTaken(int damage) const
+{
+	if (m_Ball == nullptr || m_Ball->IsDefeated()) return 0;
+	if (IsArmorBoss())
+	{
+		damage = BossCombatRules::DirectDamage(
+			damage,
+			GetDefense(),
+			m_BossState) + GetDefense();
+	}
+	return m_Ball->CalculateDamageTaken(damage);
+}
+
+void EnemyBall::SetPlannedAction(
+    EnemyActionType action,
+    int budgetCost,
+    float chargeDamageMultiplier)
+{
+    m_PlannedAction = action;
+    m_PlannedActionCost = (std::max)(0, budgetCost);
+    m_PlannedChargeDamageMultiplier =
+        (std::max)(0.0f, chargeDamageMultiplier);
+}
+
+void EnemyBall::BeginCharge()
+{
+    if (m_PlannedAction != EnemyActionType::ChargeStart ||
+        !CanUseCharge() || IsDefeated() || IsPocketed())
+    {
+        return;
+    }
+    m_ChargeState = EnemyChargeState::Charging;
+}
+
+void EnemyBall::CompleteChargeAttack()
+{
+    if (m_ChargeState == EnemyChargeState::Charging)
+    {
+        m_ChargeState = EnemyChargeState::Normal;
+    }
+    ResetChargeShotTracking();
+}
+
+void EnemyBall::BeginChargeShotTracking(bool heavyShot)
+{
+    ResetChargeShotTracking();
+    m_PendingChargeInterruption.reset();
+    if (m_ChargeState != EnemyChargeState::Charging ||
+        m_PlannedAction != EnemyActionType::ChargeAttack ||
+        IsDefeated() || IsPocketed())
+    {
+        return;
+    }
+    m_ChargeShotActive = true;
+    m_ChargeShotHeavy = heavyShot;
+    m_ChargeShotStart = GetPosition();
+}
+
+std::optional<ChargeInterruptionResult>
+EnemyBall::EndChargeShotTracking(
+    float heavyInterruptDiameterMultiplier,
+    float pierceInterruptMaxHpRatio)
+{
+    if (!m_PendingChargeInterruption.has_value() &&
+        m_ChargeState == EnemyChargeState::Charging &&
+        !IsPocketed())
+    {
+        const ChargeInterruptionResult result = EnemyChargeRules::EvaluateShot(
+            m_ChargeShotActive,
+            m_ChargeShotHeavy,
+            m_ChargeShotStart,
+            GetPosition(),
+            GetRadius(),
+            GetMaxHP(),
+            heavyInterruptDiameterMultiplier,
+            pierceInterruptMaxHpRatio,
+            m_ChargeShotPierceDamage);
+        if (result.WasInterrupted())
+        {
+            m_PendingChargeInterruption = result;
+            m_ChargeState = EnemyChargeState::Normal;
+            m_PlannedAction = EnemyActionType::Wait;
+            m_PlannedActionCost = 0;
+        }
+    }
+    ResetChargeShotTracking();
+
+    std::optional<ChargeInterruptionResult> result =
+        m_PendingChargeInterruption;
+    m_PendingChargeInterruption.reset();
+    return result;
+}
+
+void EnemyBall::CancelCharge(ChargeInterruptReason reason)
+{
+    const bool wasCharging =
+        m_ChargeState == EnemyChargeState::Charging;
+    const bool hadChargePlan =
+        m_PlannedAction == EnemyActionType::ChargeStart ||
+        m_PlannedAction == EnemyActionType::ChargeAttack;
+    if (!wasCharging && !hadChargePlan)
+    {
+        return;
+    }
+
+    if (wasCharging)
+    {
+        ChargeInterruptionResult result;
+        result.reason = reason;
+        result.pierceDamage = m_ChargeShotPierceDamage;
+        m_PendingChargeInterruption = result;
+    }
+    m_ChargeState = EnemyChargeState::Normal;
+    m_PlannedAction = EnemyActionType::Wait;
+    m_PlannedActionCost = 0;
+    ResetChargeShotTracking();
+}
+
+void EnemyBall::ResetChargeShotTracking()
+{
+    m_ChargeShotActive = false;
+    m_ChargeShotHeavy = false;
+    m_ChargeShotStart = Vector3::Zero;
+    m_ChargeShotPierceDamage = 0;
 }
 
 int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
@@ -447,15 +596,41 @@ void EnemyBall::RegisterCollisionForStage(std::uintptr_t otherBallId)
 
 void EnemyBall::UpdateCollisionStageTint()
 {
-    if (m_RenderComponent == nullptr) return;
+	ApplyPresentationTint();
+}
+
+void EnemyBall::SetPresentationHitFlash(float intensity)
+{
+	m_PresentationHitFlash = std::clamp(intensity, 0.0f, 1.0f);
+	ApplyPresentationTint();
+}
+
+void EnemyBall::ApplyPresentationTint()
+{
+	if (m_RenderComponent == nullptr) return;
     const float brightness = EnemyGimmickRules::CollisionStageBrightness(
         m_EnemyData.collisionDamageMultipliers,
         m_CollisionStage);
-    m_RenderComponent->SetTint(Color(
+	const Color stageTint(
         m_BaseTint.x * brightness,
         m_BaseTint.y * brightness,
         m_BaseTint.z * brightness,
-        m_BaseTint.w));
+		m_BaseTint.w);
+	const float warm = std::clamp(
+		(m_PresentationHitFlash - 0.70f) / 0.30f,
+		0.0f,
+		1.0f);
+	const Color flashTint(
+		1.0f,
+		1.0f - 0.06f * warm,
+		1.0f - 0.30f * warm,
+		stageTint.w);
+	const float blend = m_PresentationHitFlash;
+	m_RenderComponent->SetTint(Color(
+		stageTint.x + (flashTint.x - stageTint.x) * blend,
+		stageTint.y + (flashTint.y - stageTint.y) * blend,
+		stageTint.z + (flashTint.z - stageTint.z) * blend,
+		stageTint.w));
 }
 
 bool EnemyBall::HasLiveNuisanceBall() const
@@ -609,7 +784,7 @@ void EnemyBall::HitBreakBall(int ballId)
     if (started) logger.RecordEvent("boss_break_started", {{"boss_id", GetEnemyId()},
         {"break_shots_remaining", m_BossState.shotsRemaining}, {"trigger_shot_excluded", true}});
     GameBattleEvents::CombatFeedback(
-        GetPosition(), damage, IsDefeated(), false);
+		GetPosition(), damage, IsDefeated(), false, this);
 }
 
 void EnemyBall::EndBossShot()

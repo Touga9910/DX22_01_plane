@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+#include "CollisionVfxSystem.h"
+#include "CombatPresentationRules.h"
+
 #include "SettingsManager.h"
 
 #include <SimpleMath.h>
@@ -9,8 +12,27 @@
 #include <vector>
 
 class Game;
+struct CollisionImpactEvent;
+struct AxisResourceChangedEvent;
+struct AxisAbilityResolvedEvent;
+struct ShotResolvedEvent;
+enum class ChargeInterruptReason;
 struct PlayerBallData;
 struct RelicDefinition;
+
+struct CombatReactionDiagnostics
+{
+	int hitFlashRequests = 0;
+	int hitFlashesTriggered = 0;
+	int zeroDamageFlashesSuppressed = 0;
+	int hitFlashesSkipped = 0;
+	int activeHitFlashes = 0;
+	int maximumActiveHitFlashes = 0;
+	int defeatRequests = 0;
+	int uniqueDefeats = 0;
+	int duplicateDefeatsSuppressed = 0;
+	int multiDefeatDisplays = 0;
+};
 
 struct PausePresentationModel
 {
@@ -86,7 +108,7 @@ class GamePresentation final
 {
 public:
 	void Initialize(Game& game);
-	void Update(Game& game);
+	void Update(Game& game, float deltaSeconds);
 	void Draw(Game& game);
 	PausePresentationIntent DrawPause(const PausePresentationModel& model);
 	BallSelectionPresentationIntent DrawBallSelection(
@@ -95,12 +117,27 @@ public:
 		const ClearRewardPresentationModel& model);
 
 	void OnBattleStarted(Game& game);
-	void OnShotFired();
+	void OnShotFired(int ballCategory);
+	void OnCollisionImpact(const CollisionImpactEvent& event);
+	const CollisionVfxDiagnostics& GetCollisionVfxDiagnostics() const noexcept
+	{
+		return m_CollisionVfx.GetDiagnostics();
+	}
+	const CombatReactionDiagnostics& GetCombatReactionDiagnostics() const noexcept
+	{
+		return m_CombatReactionDiagnostics;
+	}
+	int GetHeavyPhysicsChainCount() const noexcept
+	{
+		return m_HeavyPhysicsChainCount;
+	}
 	void OnCombatFeedback(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		int damage,
 		bool defeated,
-		bool enemyEnemyCollision);
+		bool enemyEnemyCollision,
+		std::uintptr_t targetKey,
+		const std::string& targetEnemyId);
 	void OnChainImpact(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		float radius,
@@ -109,8 +146,16 @@ public:
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		bool playerPocket,
 		bool finisher,
-		int damage);
+		int damage,
+		std::uintptr_t targetKey,
+		const std::string& targetEnemyId);
 	void OnPlayerDamage(int damage, const std::string& source);
+	void OnChargeInterrupted(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		ChargeInterruptReason reason);
+	void OnAxisResourceChanged(const AxisResourceChangedEvent& event);
+	void OnAxisAbilityResolved(const AxisAbilityResolvedEvent& event);
+	void OnShotResolved(const ShotResolvedEvent& event);
 
 private:
 	enum class TutorialStep
@@ -132,6 +177,17 @@ private:
 		unsigned int color = 0xffffffffu;
 		bool drawRing = false;
 		bool playerHudMessage = false;
+		bool enemyEnemyCollision = false;
+		float fontScale = 1.0f;
+		unsigned long long createdFrame = 0;
+		float createdTimeSeconds = 0.0f;
+		std::uintptr_t targetKey = 0;
+		int resourceAxis = -1;
+		int resourceOwner = 0;
+		int resourceBefore = 0;
+		int resourceAfter = 0;
+		int resourceReason = 0;
+		bool finisher = false;
 	};
 
 	struct ChainRangeFeedback
@@ -141,6 +197,24 @@ private:
 		float lifetime = 1.0f;
 		float totalLifetime = 1.0f;
 		int hitCount = 0;
+	};
+
+	struct HitReaction
+	{
+		std::uintptr_t targetKey = 0;
+		float lifetime = 0.0f;
+		float totalLifetime = 0.0f;
+		float intensity = 0.0f;
+		bool active = false;
+	};
+
+	struct EnemyHpVisual
+	{
+		std::uintptr_t targetKey = 0;
+		int currentHp = 0;
+		int maximumHp = 1;
+		float trailingHp = 0.0f;
+		float damageHold = 0.0f;
 	};
 
 	struct DashboardMetric
@@ -197,6 +271,14 @@ private:
 	void DrawRelicList(Game& game);
 	void LoadDashboard();
 	bool IsBattleScene(const Game& game) const;
+	void BeginHitReaction(std::uintptr_t targetKey, int damage, bool defeated);
+	bool BeginDefeatReaction(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		std::uintptr_t targetKey);
+	bool HasTrackedDefeat(std::uintptr_t targetKey) const;
+	void UpdateHitReactions(Game& game, float deltaSeconds);
+	void UpdateEnemyHpVisuals(float deltaSeconds);
+	void ClearHitReactions();
 
 	enum class DeckListView
 	{
@@ -219,12 +301,36 @@ private:
 	float m_CameraShakePhase = 0.0f;
 	int m_CurrentShotHitCount = 0;
 	int m_CurrentShotDamage = 0;
+	int m_CurrentShotChargeInterruptions = 0;
+	std::array<int, 4> m_CurrentShotResourceGained{};
+	std::array<int, 4> m_CurrentShotResourceConsumed{};
+	unsigned int m_CurrentShotFinisherMask = 0;
 	std::array<float, 4> m_BallCardExpansion{};
 	int m_BallDetailOfferIndex = -1;
 	bool m_DeckListOpen = false;
 	bool m_RelicListOpen = false;
 	DeckListView m_DeckListView = DeckListView::All;
 	std::vector<FloatingFeedback> m_Feedback;
+	std::vector<EnemyHpVisual> m_EnemyHpVisuals;
+	CollisionVfxSystem m_CollisionVfx;
+	unsigned long long m_PresentationFrame = 0;
+	float m_PresentationTimeSeconds = 0.0f;
+	int m_CurrentShotBallCategory = 0;
+	int m_HeavyPhysicsChainCount = 0;
+	float m_HeavyChainDisplayLifetime = 0.0f;
+	float m_HeavyChainDisplayTotalLifetime = 1.0f;
+	bool m_HeavyChainMilestone = false;
+	float m_ImpactFlashCooldown = 0.0f;
+	float m_CameraShakeCooldown = 0.0f;
 	std::vector<ChainRangeFeedback> m_ChainRanges;
+	std::array<HitReaction, CombatPresentationRules::MaximumHitReactions>
+		m_HitReactions{};
+	std::array<std::uintptr_t, CombatPresentationRules::MaximumTrackedDefeats>
+		m_DefeatKeys{};
+	int m_TrackedDefeatCount = 0;
+	int m_CurrentShotDefeatCount = 0;
+	float m_MultiDefeatDisplayLifetime = 0.0f;
+	float m_MultiDefeatDisplayTotalLifetime = 1.0f;
+	CombatReactionDiagnostics m_CombatReactionDiagnostics{};
 	DashboardData m_Dashboard;
 };

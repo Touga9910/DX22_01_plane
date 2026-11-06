@@ -1,0 +1,35 @@
+{
+  "captured_at": "2026-11-03T19:08:00+09:00",
+  "configuration": "Release|x64",
+  "fixture": "seed 20260904 / Dense 8 / HP x1.5 / heavy +0 / power 8 / fixed direction",
+  "resolution": "1600x900",
+  "vsync": true,
+  "state_publish_interval_frames": 60,
+  "test_audio": "generated original PCM test tones; not production assets",
+  "trials": {
+    "se_off": [
+      { "average_fps": 59.99971570604491, "p95_ms": 16.6667, "p99_ms": 16.6712, "update_ms": 0.7520161073825503, "draw_ms": 0.303436241610738, "present_ms": 0.3233046979865771, "audio_update_ms": 0.002050335570469798 },
+      { "average_fps": 59.99187895168811, "p95_ms": 16.6668, "p99_ms": 16.7224, "update_ms": 0.7292120805369129, "draw_ms": 0.286197986577181, "present_ms": 0.25809194630872484, "audio_update_ms": 0.0018228187919463092 },
+      { "average_fps": 59.99716926107437, "p95_ms": 16.6667, "p99_ms": 16.6872, "update_ms": 0.7446953020134225, "draw_ms": 0.293644966442953, "present_ms": 0.34678993288590604, "audio_update_ms": 0.0018697986577181208 }
+    ],
+    "se_on": [
+      { "average_fps": 59.996048313972025, "p95_ms": 16.6668, "p99_ms": 16.7083, "update_ms": 0.7520268456375837, "draw_ms": 0.2949476510067114, "present_ms": 0.24750939597315452, "audio_update_ms": 0.0021825503355704717, "average_request_ms": 0.0035736842105263166, "played": 27, "maximum_active_voices": 10 },
+      { "average_fps": 59.9920649421752, "p95_ms": 16.6667, "p99_ms": 16.7801, "update_ms": 0.7673704697986576, "draw_ms": 0.29634362416107385, "present_ms": 0.27727718120805367, "audio_update_ms": 0.0022463087248322153, "average_request_ms": 0.003160526315789474, "played": 27, "maximum_active_voices": 10 },
+      { "average_fps": 59.997744245884, "p95_ms": 16.6667, "p99_ms": 16.6874, "update_ms": 0.7597744966442952, "draw_ms": 0.3023510067114092, "present_ms": 0.2725382550335571, "audio_update_ms": 0.0022107382550335592, "average_request_ms": 0.0036631578947368426, "played": 28, "maximum_active_voices": 10 }
+    ]
+  },
+  "averages": {
+    "se_off": { "average_fps": 59.99625463960246, "p95_ms": 16.666733333333333, "p99_ms": 16.6936, "update_ms": 0.7419744966442953, "draw_ms": 0.29442639821029065, "present_ms": 0.30939552572706935, "audio_update_ms": 0.001914317673378076 },
+    "se_on": { "average_fps": 59.99528583401041, "p95_ms": 16.666733333333333, "p99_ms": 16.725266666666666, "update_ms": 0.7597239373601788, "draw_ms": 0.2978807606263982, "present_ms": 0.2657749440715884, "audio_update_ms": 0.0022131991051454153, "average_request_ms": 0.0034657894736842107, "maximum_active_voices": 10 }
+  },
+  "delta_on_minus_off": {
+    "average_fps": -0.0009688055920495926,
+    "p95_ms": 0.0,
+    "p99_ms": 0.03166666666666629,
+    "update_ms": 0.01774944071588346,
+    "draw_ms": 0.003454362416107548,
+    "present_ms": -0.04362058165548097,
+    "audio_update_ms": 0.0002988814317673393
+  },
+  "physics_identical_all_six_runs": true
+}

@@ -150,6 +150,11 @@
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
     <ClInclude Include="BattleTypes.h" />
+    <ClInclude Include="EnemyActionPlanner.h" />
+    <ClInclude Include="EnemyChargeRules.h" />
+    <ClInclude Include="EnemyHpScaling.h" />
+    <ClInclude Include="EnemyValidationLayout.h" />
+    <ClInclude Include="EnemyValidationSettings.h" />
     <ClInclude Include="GameBattleState.h" />
     <ClInclude Include="GameBattleCommands.h" />
     <ClInclude Include="GameBattleEvents.h" />
@@ -165,8 +170,15 @@
     <ClInclude Include="RunController.h" />
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
+    <ClInclude Include="CollisionPresentationRules.h" />
+	<ClInclude Include="CombatPresentationRules.h" />
+	<ClInclude Include="CombatAudioRules.h" />
+	<ClInclude Include="AudioFeedback.h" />
+    <ClInclude Include="CollisionVfxSystem.h" />
     <ClInclude Include="CushionChargeRules.h" />
     <ClInclude Include="HeavyCollisionRules.h" />
+    <ClInclude Include="ShotPhysicsTelemetry.h" />
+    <ClInclude Include="PierceAttackTelemetry.h" />
     <ClInclude Include="PierceTraceRules.h" />
     <ClInclude Include="AnchorStackRules.h" />
     <ClInclude Include="ShotRelicRules.h" />
@@ -178,6 +190,8 @@
     <ClInclude Include="NuisanceBall.h" />
 	<ClInclude Include="PierceMinion.h" />
     <ClCompile Include="BattleController.cpp" />
+    <ClCompile Include="EnemyActionPlanner.cpp" />
+    <ClCompile Include="EnemyValidationLayout.cpp" />
     <ClCompile Include="BreakBall.cpp" />
     <ClCompile Include="NuisanceBall.cpp" />
 	<ClCompile Include="PierceMinion.cpp" />
@@ -237,6 +251,8 @@
     <ClCompile Include="GameProgression.cpp" />
     <ClCompile Include="ProgressionProfile.cpp" />
     <ClCompile Include="GamePresentation.cpp" />
+	<ClCompile Include="AudioFeedback.cpp" />
+    <ClCompile Include="CollisionVfxSystem.cpp" />
     <ClCompile Include="GameSaveManager.cpp" />
     <ClCompile Include="GameSaveSystem.cpp" />
     <ClCompile Include="PlayerBall.cpp" />

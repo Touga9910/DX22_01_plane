@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "BallStatus.h"
+#include "HeavyCollisionRules.h"
 #include "PlayerBallData.h"
 #include "PlayerRunStatus.h"
 
@@ -12,6 +13,10 @@ struct PlayerBallDataLoadResult
 	BallStatus defaultBallStatus{};
 	PlayerRunStatus defaultRunStatus{};
 	float restHealRatio = 0.25f;
+	float heavyStackDistancePerStack =
+		HeavyCollisionRules::DefaultDistancePerStack;
+	int heavyStackGainLimitPerTurn =
+		HeavyCollisionRules::DefaultGainLimitPerTurn;
 	std::vector<PlayerBallData> ballDefinitions;
 };
 

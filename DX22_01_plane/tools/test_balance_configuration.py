@@ -56,6 +56,77 @@ class BalanceConfigurationTests(unittest.TestCase):
         )
         self.assertIn('"mcp_build_decision"', bridge_source)
 
+    def test_enemy_validation_conditions_and_shot_stacks_are_logged(self) -> None:
+        logger_source = (ROOT / "BalanceLogger.cpp").read_text(
+            encoding="utf-8"
+        )
+        game_source = load_game_sources()
+
+        for field in (
+            '"enemy_validation"',
+            '"hp_multiplier"',
+            '"enemy_count"',
+            '"layout_pattern"',
+            '"seed"',
+            '"ball_category"',
+        ):
+            self.assertIn(field, game_source)
+        for field in (
+            '"heavy_stacks_uncapped_gain"',
+            '"heavy_stacks_generated"',
+            '"heavy_stack_distance_per_stack"',
+            '"heavy_stack_gain_limit_per_turn"',
+            '"heavy_stacks_discarded_by_turn_limit"',
+            '"heavy_stacks_discarded_by_storage_limit"',
+            '"heavy_stacks_consumed"',
+            '"heavy_stacks_before"',
+            '"heavy_stacks_after"',
+            '"pierce_stacks_generated"',
+            '"pierce_stacks_uncapped_gain"',
+            '"pierce_stacks_consumed"',
+            '"pierce_stacks_before"',
+            '"pierce_stacks_after"',
+            '"pierce_stack_max"',
+            '"pierce_stack_max_reached"',
+            '"pierce_minion_fizzle_count"',
+            '"pierce_attack"',
+            '"bounce_axis"',
+            '"physical_reflection_count"',
+            '"effective_reflection_count"',
+            '"timeline_event_index"',
+            '"attack_timing"',
+            '"attack_timeline"',
+            '"post_reflection_effective_attack_succeeded"',
+            '"reflection_stacks_uncapped_gain"',
+            '"reflection_stacks_generated"',
+            '"reflection_stacks_consumed"',
+            '"reflection_stacks_before"',
+            '"reflection_stacks_after"',
+            '"pinball_activation_count"',
+            '"pinball_fizzle_count"',
+            '"pinball_applied_bonus_damage"',
+            '"empowered_hit_activation_count"',
+            '"physics_chain"',
+            '"effective_enemy_enemy_collision_count"',
+            '"involved_enemy_count"',
+            '"enemy_distances"',
+            '"physics_processing_microseconds"',
+            '"turn_count"',
+        ):
+            self.assertIn(field, logger_source)
+        self.assertIn(
+            '"latest_shot_physics_chain"',
+            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            '"latest_shot_pierce_attack"',
+            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            '"latest_shot_bounce_axis"',
+            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+        )
+
     def test_mcp_enemy_state_supports_aim_error(self) -> None:
         bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
             encoding="utf-8"
@@ -162,6 +233,8 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertNotIn("maxHp", player["status"])
         self.assertEqual(player["currentHp"], 50)
         self.assertEqual(player["restHealRatio"], 0.25)
+        self.assertEqual(player["heavyStackDistancePerStack"], 40.0)
+        self.assertEqual(player["heavyStackGainLimitPerTurn"], 10)
         self.assertNotIn("restHealCooldownBattles", player)
         self.assertNotIn("resthealcooldown", cooldown_sources.lower())
         self.assertEqual(

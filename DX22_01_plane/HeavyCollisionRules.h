@@ -3,17 +3,36 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
-// 重量軸の永続スタック、ショット中の敵別移動距離、一時効果を管理する。
+// Manages persistent Heavy stacks, per-shot enemy movement, and temporary effects.
 namespace HeavyCollisionRules
 {
-	static constexpr float DistancePerStack = 5.0f;
+	static constexpr float DefaultDistancePerStack = 40.0f;
+	static constexpr int DefaultGainLimitPerTurn = 10;
+
+	struct GainResult
+	{
+		int requested = 0;
+		int granted = 0;
+		int discardedByTurnLimit = 0;
+		int discardedByStorageLimit = 0;
+		int turnLimit = DefaultGainLimitPerTurn;
+
+		explicit operator bool() const
+		{
+			return granted > 0;
+		}
+	};
 
 	struct State
 	{
 		int stackCount = 0;
+		float distancePerStack = DefaultDistancePerStack;
+		int gainLimitPerTurn = DefaultGainLimitPerTurn;
+		int gainedThisTurn = 0;
 		std::unordered_map<std::uintptr_t, float> distanceByEnemyThisShot;
 		std::unordered_set<std::uintptr_t> microGeneratedEnemiesThisShot;
 		float pendingEnemyCollisionMultiplier = 1.0f;
@@ -22,11 +41,35 @@ namespace HeavyCollisionRules
 
 	inline void Reset(State& state)
 	{
+		const float distancePerStack =
+			std::isfinite(state.distancePerStack) && state.distancePerStack > 0.0f
+			? state.distancePerStack
+			: DefaultDistancePerStack;
+		const int gainLimit = (std::max)(0, state.gainLimitPerTurn);
 		state = {};
+		state.distancePerStack = distancePerStack;
+		state.gainLimitPerTurn = gainLimit;
+	}
+
+	inline void SetDistancePerStack(State& state, float distance)
+	{
+		state.distancePerStack =
+			std::isfinite(distance) && distance > 0.0f
+			? distance
+			: DefaultDistancePerStack;
+	}
+
+	inline void SetGainLimitPerTurn(State& state, int gainLimit)
+	{
+		state.gainLimitPerTurn = (std::max)(0, gainLimit);
+		state.gainedThisTurn = (std::min)(
+			state.gainedThisTurn,
+			state.gainLimitPerTurn);
 	}
 
 	inline void BeginShot(State& state)
 	{
+		state.gainedThisTurn = 0;
 		state.distanceByEnemyThisShot.clear();
 		state.microGeneratedEnemiesThisShot.clear();
 		state.activeEnemyCollisionMultiplier =
@@ -44,34 +87,62 @@ namespace HeavyCollisionRules
 		state.distanceByEnemyThisShot[enemyId] += distance;
 	}
 
-	inline int EndShot(State& state)
+	inline GainResult ApplyGain(State& state, int amount)
 	{
-		int generated = 0;
+		GainResult result;
+		result.requested = (std::max)(0, amount);
+		result.turnLimit = (std::max)(0, state.gainLimitPerTurn);
+		const int remainingThisTurn = (std::max)(
+			0,
+			result.turnLimit - state.gainedThisTurn);
+		const int permitted = (std::min)(
+			result.requested,
+			remainingThisTurn);
+		result.discardedByTurnLimit = result.requested - permitted;
+		const int storageRemaining =
+			(std::numeric_limits<int>::max)() -
+			(std::max)(0, state.stackCount);
+		result.granted = (std::min)(permitted, storageRemaining);
+		result.discardedByStorageLimit = permitted - result.granted;
+		state.stackCount += result.granted;
+		state.gainedThisTurn += result.granted;
+		return result;
+	}
+
+	inline GainResult EndShot(State& state)
+	{
+		long long requested = 0;
 		for (const auto& [enemyId, distance] : state.distanceByEnemyThisShot)
 		{
 			(void)enemyId;
-			generated += (std::max)(0, static_cast<int>(
-				std::floor(distance / DistancePerStack)));
+			requested += (std::max)(0, static_cast<int>(
+				std::floor(distance / state.distancePerStack)));
+			requested = (std::min)(
+				requested,
+				static_cast<long long>((std::numeric_limits<int>::max)()));
 		}
-		state.stackCount += generated;
+		const GainResult result = ApplyGain(
+			state,
+			static_cast<int>(requested));
 		state.distanceByEnemyThisShot.clear();
 		state.microGeneratedEnemiesThisShot.clear();
 		state.activeEnemyCollisionMultiplier = 1.0f;
-		return generated;
+		return result;
 	}
 
-	inline bool GenerateOncePerEnemy(
+	inline GainResult GenerateOncePerEnemy(
 		State& state,
 		std::uintptr_t enemyId,
 		int amount = 1)
 	{
+		GainResult result;
+		result.turnLimit = (std::max)(0, state.gainLimitPerTurn);
 		if (enemyId == 0 || amount <= 0 ||
 			!state.microGeneratedEnemiesThisShot.insert(enemyId).second)
 		{
-			return false;
+			return result;
 		}
-		state.stackCount += amount;
-		return true;
+		return ApplyGain(state, amount);
 	}
 
 	inline int Consume(State& state, int amount)

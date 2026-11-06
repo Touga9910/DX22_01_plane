@@ -66,6 +66,52 @@ This is intentional; an unknown seed must not be reported as deterministic.
   player-enemy or enemy-enemy collision.
 - `player_enemy_damage`, `enemy_enemy_damage`, `total_enemy_damage`:
   Per-shot damage totals.
+- `heavy_stack_distance_per_stack`: Effective JSON-configured distance needed
+  for one distance-derived Heavy stack.
+- `heavy_stacks_before`, `heavy_stacks_uncapped_gain`,
+  `heavy_stacks_generated`, `heavy_stacks_consumed`, and
+  `heavy_stacks_after`: Per-shot Heavy resource flow.
+- `heavy_stack_gain_limit_per_turn` and
+  `heavy_stacks_discarded_by_turn_limit`: Effective turn cap and overflow.
+- `physics_chain`: XZ enemy movement and effective enemy-enemy collision
+  telemetry; the MCP state exposes the same latest snapshot as
+  `latest_shot_physics_chain`.
+- `pierce_attack`: Exclusive attack-source totals for `player_direct`,
+  `player_pierce`, `minion`, `trace`, and `other`. Each source records attack
+  checks, live-target hits, positive-HP-damage attacks, calculated damage,
+  applied HP damage, and overkill. It also records unique effective targets,
+  generated/maximum-simultaneous minions, and each minion's movement,
+  lifetime, destruction reason, attacks, damage, and unique targets. The MCP
+  state exposes the same latest snapshot as `latest_shot_pierce_attack`.
+- `pierce_stacks_before`, `pierce_stacks_uncapped_gain`,
+  `pierce_stacks_generated`, `pierce_stacks_consumed`, and
+  `pierce_stacks_after`: Per-shot Pierce resource flow. `pierce_stack_max`,
+  `pierce_stack_max_reached`, and `pierce_minion_fizzle_count` expose the
+  storage cap and a consumer activation that launched no minion.
+- `bounce_axis`: Reflection-axis shot telemetry. It separates accepted
+  physical wall reflections for the player and pinball target from effective
+  player reflections resolved by `CushionChargeRules`, and records effective
+  enemy attacks, unique targets, stack generation/consumption, pinball
+  activation/fizzle, empowered-hit activations, staged bonus damage,
+  duration, and physics processing.
+  Individual wall events include wall index/group and velocities before
+  reflection, after physical restitution, and after reflection-axis effects.
+  `timeline_event_index` orders those reflections against `attack_timeline`.
+  Each attack is classified exclusively as `before_first_reflection` or
+  `after_first_reflection`; `reflection_derived` is an independent attribute,
+  so an empowered or pinball-stage attack is not counted a second time.
+  `source` distinguishes player-enemy from enemy-enemy contact, while
+  `telemetry_source` retains the Pierce collector's source category.
+  `attack_timing` aggregates checks, live-target hits, effective attacks,
+  actual HP damage, overkill, and unique effective targets for both phases.
+  The MCP state exposes the same latest snapshot as
+  `latest_shot_bounce_axis`.
+- `reflection_stacks_before`, `reflection_stacks_uncapped_gain`,
+  `reflection_stacks_generated`, `reflection_stacks_consumed`, and
+  `reflection_stacks_after`: Per-shot reflection resource flow.
+  `reflection_stack_max` is `null` because the current rules have no
+  gameplay storage cap; `reflection_stacks_discarded_by_max` is therefore
+  zero.
 
 Older version 1/2 logs remain valid input for `tools/analyze_balance_logs.py`
 and `tools/adjust_balance_from_logs.py`; the added fields are optional to

@@ -11,6 +11,7 @@
 #include "GameShotPrediction.h"
 #include "GameShotTraceView.h"
 #include "ShotRelicRules.h"
+#include "CushionChargeRules.h"
 #include "BallShotPrediction.h"
 #include "BallComponent.h"
 #include "BalanceLogger.h"
@@ -70,6 +71,34 @@ float GameBattleView::PierceSpeedRetention()
 int GameBattleView::ScaleEnemyCollisionDamage(int damage)
 {
 	return Game::GetInstance()->ScaleEnemyCollisionDamage(damage);
+}
+
+bool GameBattleView::IsCurrentShotPierceCategory()
+{
+    const PlayerBallData* ball =
+        Game::GetInstance()->GetCurrentPlayerBallData();
+    return ball != nullptr && ball->category == BallCategory::Pierce;
+}
+
+bool GameBattleView::IsCurrentShotBounceCategory()
+{
+	const PlayerBallData* ball =
+		Game::GetInstance()->GetCurrentPlayerBallData();
+	return ball != nullptr && ball->category == BallCategory::Bounce;
+}
+
+bool GameBattleView::IsPinballTarget(std::uintptr_t targetId)
+{
+	return CushionChargeRules::IsPinballTarget(
+		Game::GetInstance()->GetCushionCharges(),
+		targetId);
+}
+
+EnemyActionConfig Game::GetEnemyActionConfig() const
+{
+    return m_BattleState != nullptr
+        ? m_BattleState->controller.GetEnemyActionConfig()
+        : EnemyActionConfig{};
 }
 
 const PierceTraceRules::State& GameShotTraceView::Current()
@@ -146,6 +175,17 @@ void GameBattleEvents::EnemyWallCollision(
 		velocityAfter);
 }
 
+void GameBattleEvents::WallImpact(
+	const DirectX::SimpleMath::Vector3& worldPosition,
+	float relativeApproachSpeed,
+	const void* target)
+{
+	Game::GetInstance()->NotifyWallImpact(
+		worldPosition,
+		relativeApproachSpeed,
+		target);
+}
+
 void GameBattleEvents::PlayerPiercedEnemy(
     EnemyBall* enemy,
     const DirectX::SimpleMath::Vector3& playerPosition,
@@ -195,10 +235,34 @@ void GameBattleEvents::CombatFeedback(
     const DirectX::SimpleMath::Vector3& worldPosition,
     int damage,
     bool defeated,
-    bool enemyEnemyCollision)
+	bool enemyEnemyCollision,
+	const EnemyBall* target)
 {
     Game::GetInstance()->NotifyCombatFeedback(
-        worldPosition, damage, defeated, enemyEnemyCollision);
+		worldPosition, damage, defeated, enemyEnemyCollision, target);
+}
+
+void GameBattleEvents::CollisionImpact(
+    const DirectX::SimpleMath::Vector3& worldPosition,
+    const DirectX::SimpleMath::Vector3& firstTargetPosition,
+    const DirectX::SimpleMath::Vector3& secondTargetPosition,
+    float relativeApproachSpeed,
+    CombatCollisionKind collisionKind,
+    int damage,
+    bool defeated,
+    const EnemyBall* firstTarget,
+    const EnemyBall* secondTarget)
+{
+    Game::GetInstance()->NotifyCollisionImpact(
+        worldPosition,
+        firstTargetPosition,
+        secondTargetPosition,
+        relativeApproachSpeed,
+        collisionKind,
+        damage,
+        defeated,
+        firstTarget,
+        secondTarget);
 }
 
 void GameBattleEvents::BalanceAutoFullHpEnemySurvived()
@@ -567,6 +631,51 @@ void Game::InitializeBattleController()
 		[this]()
 		{
 			RestoreNextPocketedEnemy();
+		};
+
+	hooks.enemyActionPlanConfirmed =
+		[this](const EnemyActionTurnPlan& plan)
+		{
+			nlohmann::json actions = nlohmann::json::array();
+			int normalCount = 0;
+			int chargeStartCount = 0;
+			int chargeAttackCount = 0;
+			for (const PlannedEnemyAction& assignment : plan.actions)
+			{
+				const EnemyBall* enemy =
+					reinterpret_cast<const EnemyBall*>(assignment.id);
+				actions.push_back({
+					{ "enemy_id", enemy != nullptr
+						? enemy->GetEnemyId()
+						: "unknown" },
+					{ "action", ToString(assignment.action) },
+					{ "cost", assignment.cost },
+				});
+				if (assignment.action == EnemyActionType::NormalAttack)
+					++normalCount;
+				else if (assignment.action == EnemyActionType::ChargeStart)
+					++chargeStartCount;
+				else if (assignment.action == EnemyActionType::ChargeAttack)
+					++chargeAttackCount;
+			}
+			RecordBalanceEvent("enemy_action_plan", {
+				{ "budget_limit", plan.budgetLimit },
+				{ "budget_spent", plan.budgetSpent },
+				{ "reserved_next_turn", plan.reservedChargeAttackBudget },
+				{ "normal_attack_count", normalCount },
+				{ "charge_start_count", chargeStartCount },
+				{ "charge_attack_count", chargeAttackCount },
+				{ "actions", std::move(actions) },
+			});
+			InvalidateDebugCombatForecast("敵行動計画確定");
+		};
+
+	hooks.chargeInterrupted =
+		[this](
+			const EnemyBall& enemy,
+			const ChargeInterruptionResult& result)
+		{
+			NotifyChargeInterrupted(enemy, result);
 		};
 
 	hooks.prepareNextTurn =

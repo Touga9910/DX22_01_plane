@@ -1,5 +1,6 @@
 ﻿#include "Game.h"
 #include "GameRuntime.h"
+#include "GameRuntimeState.h"
 #include "GameWorld.h"
 #include "GameBattleState.h"
 #include "GameRewardState.h"
@@ -23,6 +24,8 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
+#include "AudioFeedback.h"
+#include "GameShotPrediction.h"
 #include "BattleScene.h"
 #include "ResultScene.h"
 #include "RestSiteScene.h"
@@ -655,15 +658,34 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 		: 0;
 	if (currentBall != nullptr && currentBall->category == BallCategory::Anchor)
 		m_BattleState->anchorStacks.nextAnchorGrantBonus = 0;
-	const int heavyGenerated = HeavyCollisionRules::EndShot(
+	const int heavyStacksBeforeEnd =
+		m_BattleState->heavyCollisions.stackCount;
+	const auto heavyGain = HeavyCollisionRules::EndShot(
 		m_BattleState->heavyCollisions);
-	if (heavyGenerated > 0)
+	if (heavyGain.requested > 0)
 	{
 		RecordBalanceEvent("heavy_distance_stacks_generated", {
-			{ "amount", heavyGenerated },
+			{ "amount", heavyGain.granted },
+			{ "uncapped_amount", heavyGain.requested },
+			{ "granted_amount", heavyGain.granted },
+			{ "limited_amount", heavyGain.discardedByTurnLimit },
+			{ "storage_limited_amount", heavyGain.discardedByStorageLimit },
+			{ "gain_limit", heavyGain.turnLimit },
+			{ "turn_gained_after", m_BattleState->heavyCollisions.gainedThisTurn },
 			{ "stack_after", m_BattleState->heavyCollisions.stackCount },
 		});
 	}
+	NotifyAxisResourceChanged(
+		AxisResourceKind::Heavy,
+		AxisResourceOwner::Player,
+		heavyStacksBeforeEnd,
+		m_BattleState->heavyCollisions.stackCount,
+		AxisResourceChangeReason::TravelDistance,
+		currentBall != nullptr ? currentBall->definitionId : std::string(),
+		false,
+		player != nullptr
+			? player->GetPosition()
+			: DirectX::SimpleMath::Vector3::Zero);
 
 	if (player != nullptr && currentBall != nullptr &&
 		currentBall->status.anchorEnemyStackGenerate > 0 &&
@@ -676,6 +698,8 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 			m_BattleState->anchorStacks.playerStacks,
 			status.anchorPlayerStacksPerBonus,
 			oneShotAnchorBonus);
+		const int enemyStacksBefore =
+			m_BattleState->anchorContactTarget->GetAnchorStacks();
 		const int enemyGenerated = AnchorStackRules::AddEnemyStacks(
 			m_BattleState->anchorContactTarget->MutableAnchorStacks(),
 			grant,
@@ -686,6 +710,36 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 				{ "enemy_amount", enemyGenerated },
 				{ "player_anchor", m_BattleState->anchorStacks.playerStacks },
 				{ "one_shot_bonus", oneShotAnchorBonus },
+			});
+		}
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			enemyStacksBefore,
+			m_BattleState->anchorContactTarget->GetAnchorStacks(),
+			AxisResourceChangeReason::EndOfShot,
+			currentBall->definitionId,
+			false,
+			m_BattleState->anchorContactTarget->GetPosition(),
+			m_BattleState->anchorContactTarget);
+		if (enemyGenerated > 0)
+		{
+			const DirectX::SimpleMath::Vector3 sourcePosition = player != nullptr
+				? player->GetPosition()
+				: m_BattleState->anchorContactTarget->GetPosition();
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Anchor,
+				AxisAbilityAction::AnchorApplied,
+				sourcePosition,
+				m_BattleState->anchorContactTarget->GetPosition(),
+				enemyGenerated,
+				m_BattleState->anchorContactTarget->GetAnchorStacks(),
+				0.0f,
+				m_BattleState->anchorContactTarget->GetAnchorStacks() >= 5,
+				false,
+				reinterpret_cast<std::uintptr_t>(player),
+				reinterpret_cast<std::uintptr_t>(m_BattleState->anchorContactTarget),
+				currentBall->definitionId,
 			});
 		}
 	}
@@ -706,6 +760,19 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 	}
 	CushionChargeRules::EndPlayerShot(m_BattleState->cushionCharges);
 	m_BattleState->cushionBoostConsumedThisShot = false;
+	PublishGameEvent(ShotResolvedEvent{
+		m_BattleState->presentationHitCount,
+		m_BattleState->presentationDamage,
+		m_BattleState->presentationDefeatCount,
+		m_BattleState->presentationChargeInterruptions,
+		m_BattleState->presentationResourceGained,
+		m_BattleState->presentationResourceConsumed,
+		m_BattleState->presentationFinisherMask,
+	});
+	// The first verification snapshot is taken at physics stop. Overwrite it
+	// after end-of-shot resource generation so the debug comparison covers the
+	// same final Heavy state as the predictor.
+	GameShotPrediction::WriteVerificationActual();
 
 	if (player == nullptr ||
 		!HasRelic(RelicType::EmergencyRepairKit) ||
@@ -882,6 +949,10 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			return;
 		}
 	}
+	if (IsFrameTimeMeasurementEnabled())
+	{
+		m_RuntimeState->BeginFrameTimingMeasurement();
+	}
 
 	CushionChargeRules::BeginPlayerShot(m_BattleState->cushionCharges);
 	HeavyCollisionRules::BeginShot(m_BattleState->heavyCollisions);
@@ -891,9 +962,17 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	m_BattleState->synergyDamageBonusThisShot = 0;
 	m_BattleState->piercedEnemiesThisShot.clear();
 	m_BattleState->heavyFinisherConsumedThisShot = false;
+	m_BattleState->pierceFinisherPresentedThisShot = false;
 	m_BattleState->anchorFinisherTriggeredThisShot = false;
 	m_BattleState->anchorContactTarget = nullptr;
 	m_BattleState->playerShield = 0;
+	m_BattleState->presentationHitCount = 0;
+	m_BattleState->presentationDamage = 0;
+	m_BattleState->presentationDefeatCount = 0;
+	m_BattleState->presentationChargeInterruptions = 0;
+	m_BattleState->presentationResourceGained.fill(0);
+	m_BattleState->presentationResourceConsumed.fill(0);
+	m_BattleState->presentationFinisherMask = 0;
 
 	if (player != nullptr)
 	{
@@ -902,20 +981,33 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 
 	const PlayerBallData* currentBall =
 		m_RunController->Deck().GetCurrent();
+	const int heavyStacksAtShotStart =
+		m_BattleState->heavyCollisions.stackCount;
+	const int pierceStacksAtShotStart =
+		m_BattleState->pierceTraces.stackCount;
+	const int reflectionStacksAtShotStart =
+		m_BattleState->cushionCharges.stackCount;
+	const int pierceTraceCountAtShotStart = static_cast<int>(
+		m_BattleState->pierceTraces.traces.size());
+	int heavyStacksConsumedOnStart = 0;
+	int pierceStacksConsumedOnStart = 0;
+	bool pierceMinionActivationAttempted = false;
+	bool pierceMinionFinisher = false;
+	std::vector<PierceTraceRules::MinionLaunch> pierceMinionLaunches;
 	if (currentBall != nullptr &&
 		currentBall->definitionId == "player_collision_boost" &&
 		currentBall->status.heavySetupStackConsume > 0 &&
 		m_BattleState->heavyCollisions.stackCount >=
 			currentBall->status.heavySetupStackConsume)
 	{
-		const int consumed = HeavyCollisionRules::Consume(
+		heavyStacksConsumedOnStart = HeavyCollisionRules::Consume(
 			m_BattleState->heavyCollisions,
 			currentBall->status.heavySetupStackConsume);
 		HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
 			m_BattleState->heavyCollisions,
 			currentBall->status.heavyEnemyCollisionMultiplier);
 		RecordBalanceEvent("heavy_collision_boost_armed", {
-			{ "consumed", consumed },
+			{ "consumed", heavyStacksConsumedOnStart },
 			{ "remaining", m_BattleState->heavyCollisions.stackCount },
 			{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
 		});
@@ -924,37 +1016,19 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		(currentBall->definitionId == "player_trace_driver" ||
 		 currentBall->definitionId == "player_minion_finisher"))
 	{
-		const bool finisher =
+		pierceMinionActivationAttempted = true;
+		pierceMinionFinisher =
 			currentBall->definitionId == "player_minion_finisher";
-		const int consumeLimit = finisher
+		const int consumeLimit = pierceMinionFinisher
 			? PierceTraceRules::MaxStackCount
 			: currentBall->status.pierceStackConsumeLimit;
-		const int consumed = PierceTraceRules::ConsumeStacks(
+		pierceStacksConsumedOnStart = PierceTraceRules::ConsumeStacks(
 			m_BattleState->pierceTraces,
 			consumeLimit);
-		const auto launches = PierceTraceRules::BuildMinionLaunches(
+		pierceMinionLaunches = PierceTraceRules::BuildMinionLaunches(
 			m_BattleState->pierceTraces,
-			consumed,
-			finisher);
-		for (const auto& launch : launches)
-		{
-			BallStatus minionStatus = currentBall->status;
-			minionStatus.abilities = {};
-			minionStatus.attack = launch.attack;
-			minionStatus.knockbackTransfer = launch.knockbackMultiplier;
-			BallFactory::CreatePierceMinion(
-				*this,
-				minionStatus,
-				launch.start,
-				launch.direction,
-				PierceTraceRules::MinionLaunchSpeed);
-		}
-		RecordBalanceEvent("pierce_minions_launched", {
-			{ "consumed", consumed },
-			{ "remaining", m_BattleState->pierceTraces.stackCount },
-			{ "minion_count", static_cast<int>(launches.size()) },
-			{ "finisher", finisher },
-		});
+			pierceStacksConsumedOnStart,
+			pierceMinionFinisher);
 	}
 	if (player != nullptr && currentBall != nullptr)
 	{
@@ -967,10 +1041,40 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		auto shotRules = m_BattleState->controller.GetShotRelicRules();
 		shotRules.launchPower = player->GetVelocity().Length();
 		m_BattleState->controller.SetShotRelicRules(shotRules);
-		PublishGameEvent(ShotFiredEvent{ currentBall->definitionId });
+		PublishGameEvent(ShotFiredEvent{
+			currentBall->definitionId,
+			static_cast<int>(currentBall->category),
+		});
 
 		const DirectX::SimpleMath::Vector3 position =
 			player->GetPosition();
+		if (heavyStacksConsumedOnStart > 0)
+		{
+			NotifyAxisResourceChanged(
+				AxisResourceKind::Heavy,
+				AxisResourceOwner::Player,
+				heavyStacksAtShotStart,
+				m_BattleState->heavyCollisions.stackCount,
+				AxisResourceChangeReason::AbilityCost,
+				currentBall->definitionId,
+				false,
+				position);
+		}
+		if (pierceStacksConsumedOnStart > 0 ||
+			(pierceMinionFinisher && !pierceMinionLaunches.empty()))
+		{
+			NotifyAxisResourceChanged(
+				AxisResourceKind::Pierce,
+				AxisResourceOwner::Player,
+				pierceStacksAtShotStart,
+				m_BattleState->pierceTraces.stackCount,
+				pierceMinionFinisher
+					? AxisResourceChangeReason::Finisher
+					: AxisResourceChangeReason::AbilityCost,
+				currentBall->definitionId,
+				pierceMinionFinisher && !pierceMinionLaunches.empty(),
+				position);
+		}
 		const DirectX::SimpleMath::Vector3 velocity =
 			player->GetVelocity();
 		const std::vector<EnemyBall*> enemies =
@@ -1000,10 +1104,50 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			{ "selected_offer_index", GetSelectedBallOfferIndex() },
 			{ "held_offer_index", GetHeldBallOfferIndex() },
 			{ "selected_instance_id", currentBall->instanceId },
+			{ "ball_category", BallCategoryId(currentBall->category) },
 			{ "effective_attack", player->GetAttack() },
+			{ "heavy_stacks_before", heavyStacksAtShotStart },
+			{ "heavy_stacks_consumed_on_start",
+				heavyStacksConsumedOnStart },
+			{ "heavy_stack_gain_limit_per_turn",
+				m_BattleState->heavyCollisions.gainLimitPerTurn },
+			{ "heavy_stack_distance_per_stack",
+				m_BattleState->heavyCollisions.distancePerStack },
+			{ "pierce_stacks_before", pierceStacksAtShotStart },
+			{ "pierce_stacks_consumed_on_start",
+				pierceStacksConsumedOnStart },
+			{ "pierce_stack_max", PierceTraceRules::MaxStackCount },
+			{ "pierce_trace_count_before", pierceTraceCountAtShotStart },
+			{ "pierce_minion_activation_attempted",
+				pierceMinionActivationAttempted },
+			{ "pierce_minions_planned",
+				static_cast<int>(pierceMinionLaunches.size()) },
+			{ "pierce_minion_finisher", pierceMinionFinisher },
+			{ "reflection_stacks_before", reflectionStacksAtShotStart },
 			{ "offers", std::move(offers) },
 			{ "mcp_telemetry", *m_PendingShotTelemetry },
 		};
+		std::vector<BalanceShotEnemySnapshot> shotEnemies;
+		shotEnemies.reserve(enemies.size());
+		for (std::size_t index = 0; index < enemies.size(); ++index)
+		{
+			EnemyBall* enemy = enemies[index];
+			if (enemy == nullptr || enemy->IsDefeated())
+			{
+				continue;
+			}
+			const DirectX::SimpleMath::Vector3 enemyPosition =
+				enemy->GetPosition();
+			shotEnemies.push_back({
+				reinterpret_cast<std::uintptr_t>(enemy),
+				index,
+				enemy->GetEnemyId(),
+				enemy->GetHP(),
+				enemy->GetMaxHP(),
+				enemyPosition.x,
+				enemyPosition.z,
+			});
+		}
 
 		BalanceLogger::GetInstance().BeginShot(
 			currentBall->definitionId,
@@ -1018,12 +1162,57 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			player->GetHP(),
 			CountAliveEnemies(enemies),
 			CountDefeatedEnemies(enemies),
+			shotEnemies,
 			shotContext);
+		if (pierceMinionActivationAttempted)
+		{
+			for (std::size_t launchIndex = 0;
+				launchIndex < pierceMinionLaunches.size();
+				++launchIndex)
+			{
+				const auto& launch = pierceMinionLaunches[launchIndex];
+				BallStatus minionStatus = currentBall->status;
+				minionStatus.abilities = {};
+				minionStatus.attack = launch.attack;
+				minionStatus.knockbackTransfer = launch.knockbackMultiplier;
+				BallFactory::CreatePierceMinion(
+					*this,
+					minionStatus,
+					launch.start,
+					launch.direction,
+					PierceTraceRules::MinionLaunchSpeed);
+				const bool overcharged = launch.attack >
+					PierceTraceRules::MinionBaseAttack ||
+					launch.knockbackMultiplier > 1.0f;
+				PublishGameEvent(AxisAbilityResolvedEvent{
+					AxisResourceKind::Pierce,
+					AxisAbilityAction::PierceMinionLaunched,
+					launch.start,
+					launch.start + launch.direction * 8.0f,
+					launch.attack,
+					static_cast<int>(launchIndex) + 1,
+					0.0f,
+					overcharged,
+					pierceMinionFinisher,
+					0,
+					0,
+					currentBall->definitionId,
+				});
+			}
+			RecordBalanceEvent("pierce_minions_launched", {
+				{ "consumed", pierceStacksConsumedOnStart },
+				{ "remaining", m_BattleState->pierceTraces.stackCount },
+				{ "minion_count", static_cast<int>(pierceMinionLaunches.size()) },
+				{ "finisher", pierceMinionFinisher },
+			});
+		}
 		*m_PendingShotTelemetry = nlohmann::json::object();
 	}
 
 	m_RunController->Deck().MarkCurrentUsed();
-	m_BattleState->controller.NotifyShotFired();
+	m_BattleState->controller.NotifyShotFired(
+		currentBall != nullptr &&
+		currentBall->category == BallCategory::Heavy);
 }
 
 // Player Wall Collisionを通知する。
@@ -1048,12 +1237,73 @@ void Game::NotifyPlayerWallCollision(
 	config.consumesStacks = currentBall->definitionId == "player_bounce";
 	config.consumptionLimit = status.cushionConsumptionLimit;
 	config.reflectedSpeedMultiplier = status.cushionReflectionSpeedMultiplier;
+	const int stacksBefore = m_BattleState->cushionCharges.stackCount;
+	const int activeSetupBonusBefore =
+		m_BattleState->cushionCharges.activeSetupBonus;
+	const int uncappedGenerated =
+		(config.generatesStacks
+			? (std::max)(0, config.stacksPerReflection)
+			: 0) +
+		(m_BattleState->cushionCharges.setupTriggeredThisShot
+			? 0
+			: (std::max)(0, activeSetupBonusBefore));
 	const auto result = CushionChargeRules::ApplyValidReflection(
 		m_BattleState->cushionCharges, config, reflectedVelocity);
+	const int stacksAfter = m_BattleState->cushionCharges.stackCount;
+	const int stacksAfterGeneration = stacksBefore + result.generated;
+	RecordBalanceEvent("cushion_reflection_resolved", {
+		{ "cushion_region", cushionRegion },
+		{ "position_xz", { playerPosition.x, playerPosition.z } },
+		{ "valid_reflections_this_shot",
+			m_BattleState->cushionCharges.validReflectionsThisShot },
+		{ "generated", result.generated },
+		{ "uncapped_generated", uncappedGenerated },
+		{ "consumed", result.consumed },
+		{ "stacks_before", stacksBefore },
+		{ "stacks_after", m_BattleState->cushionCharges.stackCount },
+		{ "setup_triggered", result.setupTriggered },
+		{ "generation_limit", config.generationLimit },
+		{ "consumption_limit", config.consumptionLimit },
+		{ "reflected_speed_multiplier", config.reflectedSpeedMultiplier },
+		{ "velocity_after_effects_xz",
+			{ reflectedVelocity.x, reflectedVelocity.z } },
+	});
+	if (result.generated > 0 || result.consumed > 0 || result.setupTriggered)
+	{
+		DirectX::SimpleMath::Vector3 reflectionDirection = reflectedVelocity;
+		reflectionDirection.y = 0.0f;
+		if (reflectionDirection.LengthSquared() > 0.0001f)
+			reflectionDirection.Normalize();
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Reflection,
+			AxisAbilityAction::ReflectionWallBounce,
+			playerPosition,
+			playerPosition + reflectionDirection * 8.0f,
+			result.generated > 0 ? result.generated : result.consumed,
+			m_BattleState->cushionCharges.validReflectionsThisShot,
+			0.0f,
+			result.consumed > 0 || result.setupTriggered,
+			false,
+			0,
+			0,
+			currentBall->definitionId,
+		});
+	}
 	if (result.generated > 0)
+	{
 		RecordBalanceEvent("cushion_stacks_generated", {
 			{ "amount", result.generated },
 			{ "setup", result.setupTriggered } });
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Reflection,
+			AxisResourceOwner::Player,
+			stacksBefore,
+			stacksAfterGeneration,
+			AxisResourceChangeReason::WallReflection,
+			currentBall->definitionId,
+			false,
+			playerPosition);
+	}
 	if (result.consumed > 0)
 	{
 		m_BattleState->cushionBoostConsumedThisShot = true;
@@ -1063,6 +1313,15 @@ void Game::NotifyPlayerWallCollision(
 			{ "amount", result.consumed },
 			{ "strong_uses_this_shot", m_BattleState->cushionStrongUsesThisShot },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Reflection,
+			AxisResourceOwner::Player,
+			stacksAfterGeneration,
+			stacksAfter,
+			AxisResourceChangeReason::AbilityCost,
+			currentBall->definitionId,
+			false,
+			playerPosition);
 	}
 }
 
@@ -1102,6 +1361,21 @@ int Game::NotifyEnemyEnemySynergyCollision(
 		reinterpret_cast<std::uintptr_t>(target),
 		*velocityBefore,
 		target->GetBall()->GetMutableVelocity());
+	EnemyBall* source = target == first ? second : first;
+	PublishGameEvent(AxisAbilityResolvedEvent{
+		AxisResourceKind::Reflection,
+		AxisAbilityAction::ReflectionPinballCollision,
+		source != nullptr ? source->GetPosition() : target->GetPosition(),
+		target->GetPosition(),
+		damageStage,
+		m_BattleState->cushionCharges.pinballCollisionCount,
+		0.0f,
+		damageStage > 0,
+		true,
+		reinterpret_cast<std::uintptr_t>(source),
+		reinterpret_cast<std::uintptr_t>(target),
+		"player_ricochet_finisher",
+	});
 	return damageStage;
 }
 
@@ -1124,6 +1398,23 @@ void Game::NotifyEnemyWallCollision(
 		enemyId,
 		velocityBefore,
 		velocityAfter);
+	DirectX::SimpleMath::Vector3 direction = velocityAfter;
+	direction.y = 0.0f;
+	if (direction.LengthSquared() > 0.0001f) direction.Normalize();
+	PublishGameEvent(AxisAbilityResolvedEvent{
+		AxisResourceKind::Reflection,
+		AxisAbilityAction::ReflectionWallBounce,
+		enemy->GetPosition(),
+		enemy->GetPosition() + direction * 6.0f,
+		0,
+		m_BattleState->cushionCharges.pinballCollisionCount,
+		0.0f,
+		true,
+		true,
+		enemyId,
+		0,
+		"player_ricochet_finisher",
+	});
 }
 
 void Game::NotifyPlayerPiercedEnemy(
@@ -1135,24 +1426,66 @@ void Game::NotifyPlayerPiercedEnemy(
 	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall == nullptr || currentBall->category != BallCategory::Pierce) return;
 	m_BattleState->piercedEnemiesThisShot.insert(enemy);
-	const bool stackGenerated = PierceTraceRules::RecordPierce(
+	const int stacksBefore = m_BattleState->pierceTraces.stackCount;
+	const bool uniquePierce = PierceTraceRules::RecordPierce(
 		m_BattleState->pierceTraces,
 		reinterpret_cast<std::uintptr_t>(enemy));
+	const int stackGranted = (std::max)(
+		0,
+		m_BattleState->pierceTraces.stackCount - stacksBefore);
 	DirectX::SimpleMath::Vector3 traceDirection = direction;
 	traceDirection.y = 0.0f;
 	if (traceDirection.LengthSquared() > 0.0001f)
 	{
 		traceDirection.Normalize();
 		const int overwrittenBefore = m_BattleState->pierceTraces.overwrittenCount;
-		PierceTraceRules::AddTrace(
+		const bool traceCreated = PierceTraceRules::AddTrace(
 			m_BattleState->pierceTraces,
 			playerPosition,
 			playerPosition + traceDirection * currentBall->status.traceUseDistance);
+		const DirectX::SimpleMath::Vector3 traceEnd = playerPosition +
+			traceDirection * currentBall->status.traceUseDistance;
 		RecordBalanceEvent("pierce_trace_generated", {
 			{ "overwrote_oldest", m_BattleState->pierceTraces.overwrittenCount > overwrittenBefore },
-			{ "stack_generated", stackGenerated },
+			{ "unique_pierce", uniquePierce },
+			{ "requested_amount", uniquePierce ? 1 : 0 },
+			{ "granted_amount", stackGranted },
+			{ "discarded_by_stack_max", uniquePierce ? 1 - stackGranted : 0 },
+			{ "stack_generated", stackGranted > 0 },
+			{ "stacks_before", stacksBefore },
 			{ "stacks", m_BattleState->pierceTraces.stackCount },
+			{ "trace_count", static_cast<int>(m_BattleState->pierceTraces.traces.size()) },
+			{ "trace_start_xz", { playerPosition.x, playerPosition.z } },
+			{ "trace_direction_xz", { traceDirection.x, traceDirection.z } },
+			{ "trace_length", currentBall->status.traceUseDistance },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Pierce,
+			AxisResourceOwner::Player,
+			stacksBefore,
+			m_BattleState->pierceTraces.stackCount,
+			AxisResourceChangeReason::PierceHit,
+			currentBall->definitionId,
+			false,
+			enemy->GetPosition(),
+			enemy);
+		if (traceCreated)
+		{
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Pierce,
+				AxisAbilityAction::PierceTraceCreated,
+				playerPosition,
+				traceEnd,
+				stackGranted,
+				static_cast<int>(m_BattleState->pierceTraces.traces.size()),
+				0.0f,
+				uniquePierce,
+				false,
+				0,
+				reinterpret_cast<std::uintptr_t>(enemy),
+				currentBall->definitionId,
+			});
+		}
 	}
 }
 
@@ -1170,16 +1503,45 @@ void Game::NotifyTraceMovement(
 	if (m_BattleState->controller.GetState() != BattleState::BallsMoving) return;
 	GameObject* owner = ball.GetGameObject();
 	if (owner == nullptr) return;
-	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
-	if (currentBall == nullptr) return;
-	EnemyBall* enemy = owner->GetComponent<EnemyBall>();
-	if (enemy == nullptr) return;
 	DirectX::SimpleMath::Vector3 movement = to - from;
 	movement.y = 0.0f;
+	const float distance = movement.Length();
+	if (PierceMinion* minion = owner->GetComponent<PierceMinion>())
+	{
+		BalanceLogger::GetInstance().RecordPierceMinionMovement(
+			reinterpret_cast<std::uintptr_t>(minion),
+			distance);
+		if (distance > 0.01f)
+		{
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Pierce,
+				AxisAbilityAction::PierceMinionTravel,
+				from,
+				to,
+				0,
+				0,
+				0.0f,
+				false,
+				false,
+				reinterpret_cast<std::uintptr_t>(minion),
+				0,
+				"pierce_minion",
+			});
+		}
+		return;
+	}
+	EnemyBall* enemy = owner->GetComponent<EnemyBall>();
+	if (enemy == nullptr) return;
+	BalanceLogger::GetInstance().RecordEnemyMovement(
+		reinterpret_cast<std::uintptr_t>(enemy),
+		enemy->GetEnemyId(),
+		distance);
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
+	if (currentBall == nullptr) return;
 	HeavyCollisionRules::RecordEnemyMovement(
 		m_BattleState->heavyCollisions,
 		reinterpret_cast<std::uintptr_t>(enemy),
-		movement.Length(),
+		distance,
 		currentBall->status.abilities.heavyDistanceStacks);
 }
 
@@ -1205,14 +1567,34 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 	if (status.abilities.lightweight)
 	{
 		enemy->ApplyLightweight(status.lightweightKnockbackMultiplier);
-		if (HeavyCollisionRules::GenerateOncePerEnemy(
+		const int heavyStacksBefore =
+			m_BattleState->heavyCollisions.stackCount;
+		const auto heavyGain = HeavyCollisionRules::GenerateOncePerEnemy(
 			m_BattleState->heavyCollisions,
-			reinterpret_cast<std::uintptr_t>(enemy)))
+			reinterpret_cast<std::uintptr_t>(enemy));
+		if (heavyGain.requested > 0)
 		{
 			RecordBalanceEvent("heavy_micro_stack_generated", {
+				{ "amount", heavyGain.granted },
+				{ "uncapped_amount", heavyGain.requested },
+				{ "granted_amount", heavyGain.granted },
+				{ "limited_amount", heavyGain.discardedByTurnLimit },
+				{ "storage_limited_amount", heavyGain.discardedByStorageLimit },
+				{ "gain_limit", heavyGain.turnLimit },
+				{ "turn_gained_after", m_BattleState->heavyCollisions.gainedThisTurn },
 				{ "stack_after", m_BattleState->heavyCollisions.stackCount },
 			});
 		}
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Heavy,
+			AxisResourceOwner::Player,
+			heavyStacksBefore,
+			m_BattleState->heavyCollisions.stackCount,
+			AxisResourceChangeReason::Collision,
+			currentBall->definitionId,
+			false,
+			enemy->GetPosition(),
+			enemy);
 	}
 
 	if (currentBall->definitionId == "player_bounce" &&
@@ -1221,6 +1603,26 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			reinterpret_cast<std::uintptr_t>(enemy)))
 	{
 		result.damageBonus += status.cushionBounceAttackBonus;
+		RecordBalanceEvent("cushion_empowered_hit", {
+			{ "target_id", reinterpret_cast<std::uintptr_t>(enemy) },
+			{ "damage_bonus", status.cushionBounceAttackBonus },
+			{ "empowered_hits_remaining",
+				m_BattleState->cushionCharges.empoweredHitsRemaining },
+		});
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Reflection,
+			AxisAbilityAction::ReflectionEmpoweredHit,
+			enemy->GetPosition(),
+			enemy->GetPosition(),
+			status.cushionBounceAttackBonus,
+			m_BattleState->cushionStrongUsesThisShot,
+			0.0f,
+			true,
+			false,
+			0,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			currentBall->definitionId,
+		});
 	}
 	if (currentBall->definitionId == "player_pierce_finisher" &&
 		!m_BattleState->piercedEnemiesThisShot.empty())
@@ -1232,17 +1634,57 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			{ "unique_enemies", uniqueEnemies },
 			{ "damage_bonus", result.damageBonus },
 		});
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Pierce,
+			AxisAbilityAction::PierceFinisherHit,
+			enemy->GetPosition(),
+			enemy->GetPosition(),
+			result.damageBonus,
+			uniqueEnemies,
+			0.0f,
+			uniqueEnemies >= 2,
+			true,
+			0,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			currentBall->definitionId,
+		});
+		if (!m_BattleState->pierceFinisherPresentedThisShot)
+		{
+			m_BattleState->pierceFinisherPresentedThisShot = true;
+			NotifyAxisResourceChanged(
+				AxisResourceKind::Pierce,
+				AxisResourceOwner::Player,
+				m_BattleState->pierceTraces.stackCount,
+				m_BattleState->pierceTraces.stackCount,
+				AxisResourceChangeReason::Finisher,
+				currentBall->definitionId,
+				true,
+				enemy->GetPosition(),
+				enemy);
+		}
 	}
 
 	if (currentBall->definitionId == "player_ricochet_finisher")
 	{
 		const std::uintptr_t enemyId = reinterpret_cast<std::uintptr_t>(enemy);
+		const int stacksBefore = m_BattleState->cushionCharges.stackCount;
 		const bool activated = CushionChargeRules::ActivatePinball(
 			m_BattleState->cushionCharges,
 			enemyId,
 			status.ricochetStackConsume,
 			status.pinballCollisionsPerStage,
 			status.pinballSpeedRetention);
+		RecordBalanceEvent("pinball_activation_attempted", {
+			{ "activated", activated },
+			{ "required", status.ricochetStackConsume },
+			{ "consumed", activated ? status.ricochetStackConsume : 0 },
+			{ "stacks_before", stacksBefore },
+			{ "stacks_after", m_BattleState->cushionCharges.stackCount },
+			{ "target_id", enemyId },
+			{ "collisions_per_damage_stage",
+				status.pinballCollisionsPerStage },
+			{ "speed_retention", status.pinballSpeedRetention },
+		});
 		if (CushionChargeRules::IsPinballTarget(
 			m_BattleState->cushionCharges, enemyId))
 		{
@@ -1264,12 +1706,39 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 				{ "consumed", status.ricochetStackConsume },
 				{ "remaining", m_BattleState->cushionCharges.stackCount },
 			});
+			NotifyAxisResourceChanged(
+				AxisResourceKind::Reflection,
+				AxisResourceOwner::Player,
+				stacksBefore,
+				m_BattleState->cushionCharges.stackCount,
+				AxisResourceChangeReason::Finisher,
+				currentBall->definitionId,
+				true,
+				enemy->GetPosition(),
+				enemy);
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Reflection,
+				AxisAbilityAction::ReflectionPinballActivated,
+				enemy->GetPosition(),
+				enemy->GetPosition(),
+				status.ricochetStackConsume,
+				0,
+				0.0f,
+				true,
+				true,
+				0,
+				enemyId,
+				currentBall->definitionId,
+			});
 		}
 	}
 
 	if (currentBall->definitionId == "player_stop_shield" &&
 		enemy->GetAnchorStacks() > 0)
 	{
+		const int enemyStacksBefore = enemy->GetAnchorStacks();
+		const int playerStacksBefore =
+			m_BattleState->anchorStacks.playerStacks;
 		const auto consumed = AnchorStackRules::ConsumeEnemyStacks(
 			enemy->MutableAnchorStacks(),
 			m_BattleState->anchorStacks,
@@ -1287,6 +1756,75 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			{ "shield", m_BattleState->playerShield },
 			{ "player_anchor_generated", consumed.playerStacksGenerated },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			enemyStacksBefore,
+			enemy->GetAnchorStacks(),
+			AxisResourceChangeReason::ShieldConversion,
+			currentBall->definitionId,
+			false,
+			enemy->GetPosition(),
+			enemy);
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Player,
+			playerStacksBefore,
+			m_BattleState->anchorStacks.playerStacks,
+			AxisResourceChangeReason::ShieldConversion,
+			currentBall->definitionId,
+			false,
+			enemy->GetPosition());
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		const PlayerBall* player = players.empty() ? nullptr : players.front();
+		const DirectX::SimpleMath::Vector3 playerPosition = player != nullptr
+			? player->GetPosition()
+			: enemy->GetPosition();
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorRecovered,
+			enemy->GetPosition(),
+			playerPosition,
+			consumed.consumed,
+			consumed.playerStacksGenerated,
+			0.0f,
+			consumed.playerStacksGenerated > 0,
+			false,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			reinterpret_cast<std::uintptr_t>(player),
+			currentBall->definitionId,
+		});
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorShieldGranted,
+			playerPosition,
+			playerPosition,
+			shieldGain,
+			m_BattleState->playerShield,
+			0.0f,
+			shieldGain >= status.stopShieldAmount,
+			false,
+			reinterpret_cast<std::uintptr_t>(player),
+			reinterpret_cast<std::uintptr_t>(player),
+			currentBall->definitionId,
+		});
+		if (consumed.playerStacksGenerated > 0)
+		{
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Anchor,
+				AxisAbilityAction::AnchorPlayerEmpowered,
+				playerPosition,
+				playerPosition,
+				consumed.playerStacksGenerated,
+				m_BattleState->anchorStacks.playerStacks,
+				0.0f,
+				true,
+				false,
+				reinterpret_cast<std::uintptr_t>(player),
+				reinterpret_cast<std::uintptr_t>(player),
+				currentBall->definitionId,
+			});
+		}
 	}
 
 	if (currentBall->definitionId == "player_anchor_finisher" &&
@@ -1329,7 +1867,21 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 					other->GetPosition() - enemy->GetPosition();
 				offset.y = 0.0f;
 				if (offset.LengthSquared() > radiusSquared) continue;
+				const int hpBefore = other->GetHP();
+				const bool wasDefeated = other->IsDefeated();
+				const DirectX::SimpleMath::Vector3 feedbackPosition =
+					other->GetPosition();
 				other->TakeDamage(aoeDamage);
+				const int applied = (std::max)(0, hpBefore - other->GetHP());
+				if (!wasDefeated && (applied > 0 || other->IsDefeated()))
+				{
+					NotifyCombatFeedback(
+						feedbackPosition,
+						applied,
+						other->IsDefeated(),
+						false,
+						other);
+				}
 				++aoeHitCount;
 			}
 		}
@@ -1341,6 +1893,75 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			{ "aoe_hit_count", aoeHitCount },
 			{ "player_anchor_generated", consumed.playerStacksGenerated },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			available,
+			enemy->GetAnchorStacks(),
+			AxisResourceChangeReason::Finisher,
+			currentBall->definitionId,
+			true,
+			enemy->GetPosition(),
+			enemy);
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Player,
+			playerStacksBefore,
+			m_BattleState->anchorStacks.playerStacks,
+			AxisResourceChangeReason::Finisher,
+			currentBall->definitionId,
+			true,
+			enemy->GetPosition());
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		const PlayerBall* player = players.empty() ? nullptr : players.front();
+		const DirectX::SimpleMath::Vector3 playerPosition = player != nullptr
+			? player->GetPosition()
+			: enemy->GetPosition();
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorRecovered,
+			enemy->GetPosition(),
+			playerPosition,
+			consumed.consumed,
+			consumed.playerStacksGenerated,
+			0.0f,
+			true,
+			true,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			reinterpret_cast<std::uintptr_t>(player),
+			currentBall->definitionId,
+		});
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorFinisherArea,
+			enemy->GetPosition(),
+			enemy->GetPosition(),
+			consumed.consumed,
+			aoeHitCount,
+			status.anchorFinisherAoeRadius,
+			true,
+			true,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			reinterpret_cast<std::uintptr_t>(enemy),
+			currentBall->definitionId,
+		});
+		if (consumed.playerStacksGenerated > 0)
+		{
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Anchor,
+				AxisAbilityAction::AnchorPlayerEmpowered,
+				playerPosition,
+				playerPosition,
+				consumed.playerStacksGenerated,
+				m_BattleState->anchorStacks.playerStacks,
+				0.0f,
+				true,
+				true,
+				reinterpret_cast<std::uintptr_t>(player),
+				reinterpret_cast<std::uintptr_t>(player),
+				currentBall->definitionId,
+			});
+		}
 	}
 
 	return result;
@@ -1357,6 +1978,25 @@ int Game::AbsorbPlayerShieldDamage(int damage)
 		RecordBalanceEvent(
 			"stop_shield_absorbed",
 			{ { "absorbed", absorbed }, { "remaining", m_BattleState->playerShield } });
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		const PlayerBall* player = players.empty() ? nullptr : players.front();
+		const DirectX::SimpleMath::Vector3 position = player != nullptr
+			? player->GetPosition()
+			: DirectX::SimpleMath::Vector3::Zero;
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorShieldAbsorbed,
+			position,
+			position,
+			absorbed,
+			m_BattleState->playerShield,
+			0.0f,
+			absorbed == incoming,
+			false,
+			reinterpret_cast<std::uintptr_t>(player),
+			reinterpret_cast<std::uintptr_t>(player),
+			"player_stop_shield",
+		});
 	}
 	return incoming - absorbed;
 }
@@ -1393,6 +2033,8 @@ void Game::NotifyPlayerChainImpact(
 		!m_BattleState->heavyFinisherConsumedThisShot)
 	{
 		m_BattleState->heavyFinisherConsumedThisShot = true;
+		const int stacksBefore =
+			m_BattleState->heavyCollisions.stackCount;
 		const auto finisher = HeavyCollisionRules::ConsumeForFinisher(
 			m_BattleState->heavyCollisions,
 			currentBall->status.heavyFinisherDamagePerCollision,
@@ -1404,6 +2046,16 @@ void Game::NotifyPlayerChainImpact(
 			{ "damage_bonus", finisher.bonusDamage },
 			{ "remaining_collision_count", m_BattleState->heavyCollisions.stackCount },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Heavy,
+			AxisResourceOwner::Player,
+			stacksBefore,
+			m_BattleState->heavyCollisions.stackCount,
+			AxisResourceChangeReason::Finisher,
+			currentBall->definitionId,
+			true,
+			center,
+			excludedTarget);
 	}
 	if (attackDamage <= 0 || radius <= 0.0f) return;
 	const float radiusSquared = radius * radius;
@@ -1456,7 +2108,12 @@ void Game::NotifyPlayerChainImpact(
 		}
 		++hitCount;
 		totalDamage += applied;
-		NotifyCombatFeedback(feedbackPosition, applied, enemy->IsDefeated(), true);
+		NotifyCombatFeedback(
+			feedbackPosition,
+			applied,
+			enemy->IsDefeated(),
+			true,
+			enemy);
 	}
 	if (hitCount > 0)
 	{
@@ -1515,6 +2172,9 @@ void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
 	if (enemy == nullptr) return;
 	const std::string enemyId = enemy->GetEnemyId();
+	const int enemyAnchorBefore = enemy->GetAnchorStacks();
+	const int playerAnchorBefore =
+		m_BattleState->anchorStacks.playerStacks;
 	const int automaticConsume = AnchorStackRules::DefeatAutoConsumeAmount(
 		enemy->GetAnchorStacks());
 	if (automaticConsume > 0)
@@ -1529,6 +2189,61 @@ void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 			{ "consumed", consumed.consumed },
 			{ "player_anchor_generated", consumed.playerStacksGenerated },
 		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			enemyAnchorBefore,
+			enemy->GetAnchorStacks(),
+			AxisResourceChangeReason::DefeatConversion,
+			enemyId,
+			false,
+			enemy->GetPosition(),
+			enemy);
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Player,
+			playerAnchorBefore,
+			m_BattleState->anchorStacks.playerStacks,
+			AxisResourceChangeReason::DefeatConversion,
+			enemyId,
+			false,
+			enemy->GetPosition());
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		const PlayerBall* player = players.empty() ? nullptr : players.front();
+		const DirectX::SimpleMath::Vector3 playerPosition = player != nullptr
+			? player->GetPosition()
+			: enemy->GetPosition();
+		PublishGameEvent(AxisAbilityResolvedEvent{
+			AxisResourceKind::Anchor,
+			AxisAbilityAction::AnchorRecovered,
+			enemy->GetPosition(),
+			playerPosition,
+			consumed.consumed,
+			consumed.playerStacksGenerated,
+			0.0f,
+			consumed.playerStacksGenerated > 0,
+			false,
+			reinterpret_cast<std::uintptr_t>(enemy),
+			reinterpret_cast<std::uintptr_t>(player),
+			enemyId,
+		});
+		if (consumed.playerStacksGenerated > 0)
+		{
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Anchor,
+				AxisAbilityAction::AnchorPlayerEmpowered,
+				playerPosition,
+				playerPosition,
+				consumed.playerStacksGenerated,
+				m_BattleState->anchorStacks.playerStacks,
+				0.0f,
+				true,
+				false,
+				reinterpret_cast<std::uintptr_t>(player),
+				reinterpret_cast<std::uintptr_t>(player),
+				enemyId,
+			});
+		}
 	}
 	enemy->MutableAnchorStacks() = 0;
 	if (!HasRelic(RelicType::BountyList) ||
@@ -1574,7 +2289,8 @@ void Game::NotifyCombatFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	int damage,
 	bool defeated,
-	bool enemyEnemyCollision)
+	bool enemyEnemyCollision,
+	const EnemyBall* target)
 {
 	InvalidateDebugCombatForecast("エネミー被ダメージ");
 	PublishGameEvent(EnemyDamageEvent{
@@ -1582,15 +2298,60 @@ void Game::NotifyCombatFeedback(
 		damage,
 		defeated,
 		enemyEnemyCollision,
+		reinterpret_cast<std::uintptr_t>(target),
+		target != nullptr ? target->GetEnemyId() : std::string(),
 	});
 }
 
 // Pocket Feedbackを通知する。
+void Game::NotifyCollisionImpact(
+	const DirectX::SimpleMath::Vector3& worldPosition,
+	const DirectX::SimpleMath::Vector3& firstTargetPosition,
+	const DirectX::SimpleMath::Vector3& secondTargetPosition,
+	float relativeApproachSpeed,
+	CombatCollisionKind collisionKind,
+	int damage,
+	bool defeated,
+	const EnemyBall* firstTarget,
+	const EnemyBall* secondTarget)
+{
+	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
+	PublishGameEvent(CollisionImpactEvent{
+		worldPosition,
+		firstTargetPosition,
+		secondTargetPosition,
+		relativeApproachSpeed,
+		collisionKind,
+		damage,
+		defeated,
+		reinterpret_cast<std::uintptr_t>(firstTarget),
+		reinterpret_cast<std::uintptr_t>(secondTarget),
+		firstTarget != nullptr ? firstTarget->GetEnemyId() : std::string(),
+		secondTarget != nullptr ? secondTarget->GetEnemyId() : std::string(),
+		currentBall != nullptr
+			? static_cast<int>(currentBall->category)
+			: static_cast<int>(BallCategory::Standard),
+	});
+}
+
+void Game::NotifyWallImpact(
+	const DirectX::SimpleMath::Vector3& worldPosition,
+	float relativeApproachSpeed,
+	const void* target)
+{
+	PublishGameEvent(WallImpactEvent{
+		worldPosition,
+		relativeApproachSpeed,
+		reinterpret_cast<std::uintptr_t>(target),
+	});
+}
+
 void Game::NotifyPocketFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	bool playerPocket,
 	bool finisher,
-	int damage)
+	int damage,
+	const EnemyBall* target)
 {
 	InvalidateDebugCombatForecast(
 		playerPocket ? "プレイヤーポケット" : "エネミーポケット");
@@ -1599,6 +2360,8 @@ void Game::NotifyPocketFeedback(
 		playerPocket,
 		finisher,
 		damage,
+		reinterpret_cast<std::uintptr_t>(target),
+		target != nullptr ? target->GetEnemyId() : std::string(),
 	});
 }
 
@@ -1623,6 +2386,59 @@ void Game::NotifyPlayerDamage(
 	PublishGameEvent(PlayerDamageEvent{ source, damage, sourceId });
 }
 
+void Game::NotifyChargeInterrupted(
+	const EnemyBall& enemy,
+	const ChargeInterruptionResult& result)
+{
+	const DirectX::SimpleMath::Vector3 position =
+		result.reason == ChargeInterruptReason::Pocketed
+			? enemy.GetPocketEntryPosition()
+			: enemy.GetPosition();
+	InvalidateDebugCombatForecast("Charge妨害");
+	RecordBalanceEvent("enemy_charge_interrupted", {
+		{ "enemy_id", enemy.GetEnemyId() },
+		{ "reason", ToString(result.reason) },
+		{ "movement_distance", result.movementDistance },
+		{ "movement_threshold", result.movementThreshold },
+		{ "pierce_damage", result.pierceDamage },
+		{ "pierce_damage_threshold", result.pierceDamageThreshold },
+	});
+	PublishGameEvent(ChargeInterruptedEvent{
+		position,
+		static_cast<int>(result.reason),
+		reinterpret_cast<std::uintptr_t>(&enemy),
+		enemy.GetEnemyId(),
+	});
+}
+
+void Game::NotifyAxisResourceChanged(
+	AxisResourceKind axis,
+	AxisResourceOwner owner,
+	int valueBefore,
+	int valueAfter,
+	AxisResourceChangeReason reason,
+	const std::string& abilityId,
+	bool finisher,
+	const DirectX::SimpleMath::Vector3& worldPosition,
+	const EnemyBall* target)
+{
+	if (valueBefore == valueAfter && !finisher)
+	{
+		return;
+	}
+	PublishGameEvent(AxisResourceChangedEvent{
+		axis,
+		owner,
+		valueBefore,
+		valueAfter,
+		reason,
+		abilityId,
+		finisher,
+		worldPosition,
+		reinterpret_cast<std::uintptr_t>(target),
+	});
+}
+
 // Game Eventを公開する。
 void Game::PublishGameEvent(const GameEvent& event)
 {
@@ -1633,13 +2449,55 @@ void Game::PublishGameEvent(const GameEvent& event)
 			if constexpr (std::is_same_v<EventType, ShotFiredEvent>)
 			{
 				m_PersistenceRuntime->Statistics().BeginShot(value.ballId);
+				if (m_AudioFeedback != nullptr)
+				{
+					m_AudioFeedback->OnShotFired(value);
+				}
 				if (m_GamePresentation != nullptr)
 				{
-					m_GamePresentation->OnShotFired();
+					m_GamePresentation->OnShotFired(value.ballCategory);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, CollisionImpactEvent>)
+			{
+				if (m_GamePresentation != nullptr &&
+					!m_BalanceRuntime->autoPlayer.IsEnabled())
+				{
+					m_GamePresentation->OnCollisionImpact(value);
+				}
+				if (m_AudioFeedback != nullptr)
+				{
+					const int existingHeavyChainCount =
+						m_GamePresentation != nullptr
+						? m_GamePresentation->GetHeavyPhysicsChainCount()
+						: 0;
+					m_AudioFeedback->OnCollisionImpact(
+						value,
+						existingHeavyChainCount);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, WallImpactEvent>)
+			{
+				if (m_AudioFeedback != nullptr)
+				{
+					m_AudioFeedback->OnWallImpact(value);
 				}
 			}
 			else if constexpr (std::is_same_v<EventType, EnemyDamageEvent>)
 			{
+				if (m_BattleState->controller.GetState() ==
+					BattleState::BallsMoving)
+				{
+					++m_BattleState->presentationHitCount;
+					m_BattleState->presentationDamage +=
+						(std::max)(0, value.damage);
+					if (value.defeated)
+						++m_BattleState->presentationDefeatCount;
+				}
+				if (m_AudioFeedback != nullptr)
+				{
+					m_AudioFeedback->OnEnemyDamage(value);
+				}
 				m_PersistenceRuntime->Statistics().RecordEnemyDamage(value.damage);
 				if (m_GamePresentation != nullptr &&
 					!m_BalanceRuntime->autoPlayer.IsEnabled())
@@ -1648,7 +2506,9 @@ void Game::PublishGameEvent(const GameEvent& event)
 						value.worldPosition,
 						value.damage,
 						value.defeated,
-						value.enemyEnemyCollision);
+						value.enemyEnemyCollision,
+						value.targetKey,
+						value.targetEnemyId);
 				}
 			}
 			else if constexpr (std::is_same_v<EventType, ChainImpactEvent>)
@@ -1675,7 +2535,9 @@ void Game::PublishGameEvent(const GameEvent& event)
 						value.worldPosition,
 						value.playerPocket,
 						value.finisher,
-						value.damage);
+						value.damage,
+						value.targetKey,
+						value.targetEnemyId);
 				}
 			}
 			else if constexpr (std::is_same_v<EventType, PlayerDamageEvent>)
@@ -1691,6 +2553,53 @@ void Game::PublishGameEvent(const GameEvent& event)
 					m_GamePresentation->OnPlayerDamage(
 						value.damage,
 						value.source);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, AxisResourceChangedEvent>)
+			{
+				const std::size_t axis = static_cast<std::size_t>(value.axis);
+				if (axis < m_BattleState->presentationResourceGained.size())
+				{
+					const int delta = value.valueAfter - value.valueBefore;
+					if (delta > 0)
+						m_BattleState->presentationResourceGained[axis] += delta;
+					else
+						m_BattleState->presentationResourceConsumed[axis] += -delta;
+					if (value.finisher)
+						m_BattleState->presentationFinisherMask |=
+							(1u << static_cast<unsigned int>(axis));
+				}
+				if (m_GamePresentation != nullptr &&
+					(!m_BalanceRuntime->autoPlayer.IsEnabled() || IsDebugMode()))
+				{
+					m_GamePresentation->OnAxisResourceChanged(value);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, AxisAbilityResolvedEvent>)
+			{
+				if (m_GamePresentation != nullptr &&
+					(!m_BalanceRuntime->autoPlayer.IsEnabled() || IsDebugMode()))
+				{
+					m_GamePresentation->OnAxisAbilityResolved(value);
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, ChargeInterruptedEvent>)
+			{
+				++m_BattleState->presentationChargeInterruptions;
+				if (m_GamePresentation != nullptr &&
+					(!m_BalanceRuntime->autoPlayer.IsEnabled() || IsDebugMode()))
+				{
+					m_GamePresentation->OnChargeInterrupted(
+						value.worldPosition,
+						static_cast<ChargeInterruptReason>(value.reason));
+				}
+			}
+			else if constexpr (std::is_same_v<EventType, ShotResolvedEvent>)
+			{
+				if (m_GamePresentation != nullptr &&
+					(!m_BalanceRuntime->autoPlayer.IsEnabled() || IsDebugMode()))
+				{
+					m_GamePresentation->OnShotResolved(value);
 				}
 			}
 			else if constexpr (std::is_same_v<EventType, BallAcquiredEvent>)

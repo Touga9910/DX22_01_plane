@@ -1,0 +1,392 @@
+# Caromino Debug / Release性能比較とCPU Updateボトルネック調査
+
+作成日：2026年11月3日
+
+結論
+====
+
+直近の約22 FPSはゲーム本体や追加VFXの負荷ではなく、性能検証用コピーの
+game_mcp_bridge.jsonがstate_publish_interval_frames=1となり、巨大なGameMCP状態を
+毎フレーム生成・JSON化・書き出ししていたことが主原因だった。
+
+前回条件を再現したDebug x64では平均23.52 FPS、CPU Update平均40.92 msであり、
+GameMcpBridge::UpdateがUpdate時間の85.94%を占めた。Release x64では同じ毎フレーム
+公開条件でも平均59.92 FPSまで改善した。
+
+通常プロジェクト設定のstate_publish_interval_frames=60では、Release x64は
+平均59.998 FPS、p95 16.667 ms、p99 16.687 msで安定して60 FPSを達成した。
+CPU Update平均は0.629 ms、CPU Draw平均は0.262 msである。
+
+固定物理は149ステップで全構成一致した。ReleaseのBallPhysicsWorld::Stepは
+1ステップ平均0.343 ms、1ショット合計51.113 msであり、2.483秒のショット全体へ
+分散して実行される。捨て時間は0秒、最大でも3ステップ/描画フレーム
+（毎フレームMCP公開時Debugのみ最大4）で、上限8には一度も達していない。
+固定更新の複数実行は遅いDebugフレームの結果であり、負荷を暴走させる主原因ではない。
+
+Releaseの通常プレイ性能を理由に物理最適化を先行する必要はない。戦闘SE実装へ進んでよい。
+先に直す価値があるのは、性能検証用コピーがGameMCPを毎フレーム公開しないようにすることと、
+開発用MCPの状態生成スパイクを必要に応じて軽量化することである。
+
+
+A. 調査概要
+============
+
+目的
+----
+
+- 約22 FPSがDebug固有か、Releaseでも再現するかを実測する。
+- CPU Update約43 msの処理単位を、重複しない上位区間へ分割する。
+- 固定物理のステップ数、処理時間、捨て時間、描画フレームとの関係を確認する。
+- 物理やVFXを変更せず、次に最適化すべき対象を判断する。
+
+プレイヤーに見える変化はない。選択・狙い・連鎖、物理結果、VFXの見た目は変更していない。
+成功条件はDebug/Releaseの同一物理結果、実測内訳、計測OFF時の非介入を確認できることとした。
+
+実行環境
+--------
+
+- PC：WIN11OHS40236
+- CPU：13th Gen Intel(R) Core(TM) i7-13650HX、20論理プロセッサ
+- OS：Windows NT 10.0.26200.0、x64
+- API：DirectX 11
+- GPU：同一PC・同一GPUで全測定を連続実施。GPU時間とGPU型番は今回のCPU計測には含めていない。
+- 解像度：1600×900、ウィンドウモード
+- VSync：有効、Present(1, 0)
+- 描画：実描画あり。スクリーンショット、録画は計測中に実施していない。
+- 時計：std::chrono::steady_clock
+- Debug x64：主ゲームコード/Od。既存の一部予測・AIファイルのみプロジェクト既定の/O2。
+- Release x64：/O2、/Oi、/GL、/Gy、/fp:precise。
+- C1902回避のためビルド時のみ/Z7、単一コンパイルを使用。最適化レベルは変更せず、検証後にvcxprojを復元した。
+
+固定ショット
+------------
+
+- seed：20260904
+- 敵：8体、normal 3 / strong 4 / tank 1
+- Dense、HP倍率1.5、重量球+0、パワー8
+- 方向XZ：(-0.9916810938126976, -0.1287191057087161)
+- レリックなし、昇天0、全VFX ON
+- 各構成ウォームアップ1回後、測定5回
+- 順序：奇数回 Debug→Release、偶数回 Release→Debug
+
+物理基準値は全20測定と計測OFF確認1回で一致した。
+
+- 有効敵同士衝突：11
+- 撃破：3
+- 物理ステップ：149
+- 敵総移動距離XZ：585.5615844726562
+- 重量スタック：10
+
+測定条件は2種類に分けた。
+
+1. 前回再現条件：GameMCP状態公開間隔1フレーム。前回約22 FPSの実際の計測用コピーと同じ。
+2. 通常設定：公開間隔60フレーム。ソースツリーの通常game_mcp_bridge.jsonと同じ。
+
+後者はボトルネック確認のためMCP公開間隔だけを変えた診断条件であり、物理・VFX・配置は同一である。
+
+
+B. Debug / Release性能比較
+===========================
+
+前回再現条件：GameMCPを毎フレーム公開
+--------------------------------------
+
+項目                              Debug x64     Release x64
+平均FPS                             23.518         59.925
+平均フレーム時間                    42.522 ms      16.688 ms
+p95                                  48.308 ms      16.667 ms
+p99                                  77.771 ms      16.706 ms
+最大                                 78.698 ms      23.485 ms
+1% Low相当（1000 / p99）             12.860 FPS     59.860 FPS
+CPU Update平均                       40.921 ms       4.965 ms
+CPU Draw平均                          1.026 ms       0.291 ms
+Present平均                           0.291 ms       0.308 ms
+物理ステップ                         149            149
+平均物理ステップ/描画フレーム         2.500          0.999
+最大物理ステップ/描画フレーム         4              2
+平均ショット完了時間                  2.534 s        2.490 s
+
+ReleaseはDebugに対して平均FPSが2.55倍、CPU Updateが87.87%短縮した。
+同じ毎フレームMCP公開でもReleaseはほぼ60 FPSへ到達したため、Debug最適化不足の影響は大きい。
+
+通常設定：GameMCPを60フレーム間隔で公開
+------------------------------------------
+
+項目                              Debug x64     Release x64
+平均FPS                             58.349         59.998
+平均フレーム時間                    17.138 ms      16.667 ms
+p95                                  16.673 ms      16.667 ms
+p99                                  37.776 ms      16.687 ms
+最大                                 46.586 ms      16.758 ms
+1% Low相当（1000 / p99）             26.673 FPS     59.927 FPS
+CPU Update平均                        2.702 ms       0.629 ms
+CPU Draw平均                          0.911 ms       0.262 ms
+Present平均                           0.284 ms       0.248 ms
+物理ステップ                         149            149
+平均物理ステップ/描画フレーム         1.026          1.000
+最大物理ステップ/描画フレーム         3              2
+平均ショット完了時間                  2.488 s        2.483 s
+
+Releaseは平均、p95、p99のすべてで60 FPS相当を満たした。
+Debugの平均は58.35 FPSだが、60フレームごとのMCP全状態公開が最大約36.97 msかかるため、
+p99に周期的なスパイクが残る。通常プレイの物理や描画が17 msを継続して消費しているわけではない。
+
+算出方法
+--------
+
+- 平均フレーム時間：ショット計測区間の描画開始間隔の算術平均。
+- 平均FPS：1000 / 平均フレーム時間。
+- p95/p99：各回の昇順フレーム時間に対するnearest-rank。表は5回の値の算術平均。
+- 最大：5回中の最大値。
+- 1% Low相当：1000 / p99。実フレーム列の最遅1%平均ではなく、p99の逆数。
+- ショット時間：計測対象フレーム時間の合計。
+
+
+C. CPU Update内訳
+==================
+
+計測範囲
+--------
+
+上位区間はGame::Update内で相互排他的に計測した。割合はApplicationで測ったCPU Update総時間に対する値で、
+合計が100%を超えない。固定物理内訳は親区間に含まれるため別表とし、上位区間へ加算しない。
+発射コマンドを処理した最初のフレームはGameMCP更新中に計測が開始されるため、開始前処理とタイマー境界を
+「未帰属」とした。計測OFF時は詳細区間のsteady_clock呼び出しを行わない。
+
+通常設定 Debug x64（5回合計、平均145.2描画フレーム/ショット）
+----------------------------------------------------------------
+
+処理                         1ショット総時間   平均/呼出    呼出/shot   Update割合
+Presentation更新                 3.873 ms      0.0267 ms     145.2       0.99%
+GameMCP更新                     71.659 ms      0.4935 ms     145.2      18.27%
+Scene更新                        3.913 ms      0.0270 ms     145.2       1.00%
+Camera更新                       0.444 ms      0.0031 ms     145.2       0.11%
+World Update                     2.569 ms      0.0177 ms     145.2       0.66%
+固定物理更新                   245.504 ms      1.6908 ms     145.2      62.58%
+World LateUpdate                 0.487 ms      0.0034 ms     145.2       0.12%
+BattleController更新             7.773 ms      0.0535 ms     145.2       1.98%
+その他                          13.962 ms      0.0962 ms     145.2       3.56%
+未帰属                          42.093 ms             -          -      10.73%
+
+通常設定 Release x64（5回合計、平均149.0描画フレーム/ショット）
+------------------------------------------------------------------
+
+処理                         1ショット総時間   平均/呼出    呼出/shot   Update割合
+Presentation更新                 0.864 ms      0.0058 ms     149.0       0.92%
+GameMCP更新                     15.007 ms      0.1007 ms     149.0      16.02%
+Scene更新                        0.821 ms      0.0055 ms     149.0       0.88%
+Camera更新                       0.092 ms      0.0006 ms     149.0       0.10%
+World Update                     0.827 ms      0.0055 ms     149.0       0.88%
+固定物理更新                    52.024 ms      0.3492 ms     149.0      55.54%
+World LateUpdate                 0.058 ms      0.0004 ms     149.0       0.06%
+BattleController更新             3.045 ms      0.0204 ms     149.0       3.25%
+その他                          11.504 ms      0.0772 ms     149.0      12.28%
+未帰属                           9.437 ms             -          -      10.07%
+
+Releaseでは固定物理がUpdate内最大割合だが、絶対値は描画フレーム当たり平均0.349 msである。
+「割合が最大」と「フレーム予算上の問題」は分けて判断する必要がある。
+
+前回再現条件の主因
+------------------
+
+- Debug GameMCP：1ショット2096.020 ms、1呼出平均35.168 ms、Updateの85.94%。
+- Debug 固定物理：1ショット247.171 ms、1描画フレーム平均4.147 ms、Updateの10.13%。
+- Release GameMCP：1ショット650.704 ms、1呼出平均4.361 ms、Updateの87.85%。
+
+GameMCPの割合が大きいのはstate_publish_interval_frames=1により、BuildState、GameMcpReadView::Capture、
+多数の配列構築、JSONシリアライズ、ファイル置換を毎フレーム行ったためである。
+
+予測・照準
+----------
+
+ショット中はBattleState::BallsMovingであり、PlayerBall::GeneratePreTrajectoryは0回だった。
+計測されたshot_predictionはDebug/Releaseとも0 ms、0回である。今回の約43 msの原因ではない。
+
+
+D. 固定タイムステップ
+======================
+
+通常設定のステップ分布（5回合計）
+----------------------------------
+
+ステップ/描画フレーム      Debugフレーム数   Releaseフレーム数
+0                                  0                 15
+1                                711                715
+2                                 11                 15
+3                                  4                  0
+4～8                               0                  0
+
+前回再現条件のDebugでは、MCPで描画フレームが遅くなった結果、分布が1:8、2:138、3:147、4:5となった。
+固定更新が重くてフレームが遅れたのではなく、MCPで遅れた実時間を60 Hz物理が追い付いた結果である。
+
+BallPhysicsWorld::Step内訳
+-------------------------
+
+項目                                      Debug通常       Release通常
+呼出回数/ショット                              149              149
+1ステップ平均                               1.6145 ms        0.3430 ms
+1ステップ最大                               5.2367 ms        1.5816 ms
+1ショット合計                             240.565 ms        51.113 ms
+World::FixedUpdate合計/shot                  1.963 ms         0.252 ms
+OnFixedStepCompleted合計/shot                1.923 ms         0.523 ms
+
+ReleaseのBallPhysicsWorld::StepはDebugの約4.71倍高速だった。固定物理親区間の約98%を
+BallPhysicsWorld::Stepが占めるが、Releaseでは1ステップ0.343 msで60 FPS予算に十分収まる。
+
+既存physics_processing_microsecondsとの比較
+-------------------------------------------
+
+- Debug通常：既存240.498 ms、新詳細240.565 ms、差0.067 ms/shot。
+- Release通常：既存51.047 ms、新詳細51.113 ms、差0.066 ms/shot。
+
+両方ともBallPhysicsWorld::Stepの呼出直前から直後が対象で、範囲は同じである。
+既存値は各ステップを整数microsecondsへ切り捨ててから加算するため、149回分の端数だけ小さくなる。
+
+固定時計の判定
+--------------
+
+- 149 / 60 = 2.4833秒のシミュレーション時間と、実測ショット時間2.483～2.534秒は整合する。
+- 捨てられたシミュレーション時間：全20回で0秒。
+- MaxStepsPerFrame=8到達：0回。
+- 最大ステップ数：通常Debug 3、通常Release 2、毎フレームMCP Debug 4。
+- 最大余り：16.51～16.67 ms。1tick未満の通常の累積余りであり、破棄や暴走ではない。
+
+追加VFXによる間接増加はない。前回VFX OFF/ON比較も今回Debug/Release比較も物理149ステップで一致した。
+
+
+E. 負荷の主原因
+================
+
+実測で確認できたこと
+--------------------
+
+1. 約22 FPSの直接原因は性能検証用のGameMCP毎フレーム状態公開である。
+2. Debugの未最適化コードがBuildState/JSON処理を35.17 ms/回まで増幅した。
+3. Releaseでは同じ処理が4.36 ms/回となり、毎フレーム公開でもほぼ60 FPSだった。
+4. 通常公開間隔ではRelease Update 0.629 ms、Draw 0.262 ms、Present 0.248 msで安定60 FPSだった。
+5. Presentation更新はReleaseで平均0.0058 ms/呼出、Draw全体も0.262 msで、VFXは主因ではない。
+6. 予測線はショット中0回で、原因ではない。
+7. 固定物理はDebugでは相対的に重いが、Releaseでは1ステップ0.343 msで問題化していない。
+
+仮説に留まること
+----------------
+
+- BallPhysicsWorld内部のTOI探索、接触解決、環境解決のどれが51.1 ms/shotの中心かは未分割。
+  Releaseの絶対負荷が小さいため、今回はさらにタイマーを挿入していない。
+- GPU時間は測っていない。Present時間が小さく、CPU Drawにも余裕があるが、CPU測定だけで
+  GPUボトルネックが存在しないと断定はしない。
+
+
+F. 改善案
+==========
+
+優先度  対象                         期待効果と根拠                         難易度   物理影響
+P0      性能検証用game_mcp_bridge     公開間隔1によるDebug 23.5 FPSを防ぐ。   低       なし
+        .json / 計測スクリプト         通常値60を明示し、条件をメタデータ化。
+
+P1      GameMcpBridge::BuildState /    Debugの周期的36.97 msスパイクを減らす。 中       なし
+        PublishState /                 不変なカタログ、ルート、ステージ編集情報を
+        GameMcpReadView::Capture        キャッシュし、軽量状態と完全状態を分ける。
+
+P2      BallPhysicsWorld::Step /       将来、球数増加でReleaseの物理時間が増えた    高       中～高
+        ContinuousBallStepper::Step    場合のみ、TOI探索・ResolveContactsを追加計測。
+                                      現在は0.343 ms/stepなので先行最適化しない。
+
+P0はゲーム最適化ではなく検証条件の是正で、物理・ゲーム進行へ影響しない。
+P1もMCP公開データの組み立て方だけを対象にできる。P2は物理順序や再現性へ触れる危険があるため、
+Releaseで実際にフレーム予算を圧迫してから検討する。
+
+未計測の改善率は断定しない。今回、MCP公開間隔1→60によるDebug実測はFPS +148.1%、
+Update時間 -93.4%だったが、これはアルゴリズム最適化ではなく公開頻度の診断比較である。
+
+
+G. 回帰テスト
+==============
+
+ビルド
+------
+
+- Debug x64：成功、警告0、エラー0。
+- Release x64：成功、警告0、エラー0。
+- C1902回避設定：検証後にDebug/Releaseとも通常vcxprojへ復元。
+
+固定ショット
+------------
+
+- Debug/Release、MCP間隔1/60、各5回の全20回で物理基準値が一致。
+- 浮動小数点最適化によるDebug/Release差は今回の固定ショットでは発生しなかった。
+- 計測OFF Releaseを1回実行し、衝突11、撃破3、149ステップ、距離585.5615844726562、
+  重量スタック10が一致した。
+- 計測OFF時はFrameTiming sample_count=0、詳細fixed_physics call_count=0で、詳細計測は走っていない。
+
+C++回帰テスト
+-------------
+
+次の11件はPASSした。
+
+- test_ball_synergy_rules
+- test_ball_upgrade_runtime
+- test_boss_armor_runtime
+- test_ccd_toi_runtime
+- test_enemy_action_runtime
+- test_enemy_validation_runtime
+- test_fixed_timestep_runtime
+- test_progression_profile
+- test_run_map_runtime
+- test_shared_prediction_runtime
+- test_shot_physics_telemetry
+
+test_stage_layout_editorは既存ステージデータにlegacy bossが存在することを要求するline 15の
+アサーションで失敗した。今回変更した性能計測、物理、Debug/Release差とは無関係で、
+ステージデータ契約側の既存不整合として別対応が必要である。
+
+Python契約テスト
+----------------
+
+python/python3はWindowsAppsの実行不能スタブのみで、起動時にアクセスエラーとなったため未実施。
+直前の同一作業ツリー基準ではsave contract 5/5、responsibility 36/37で、既存の
+GetHeavyCollisionCount / GetHeavyCollisionState命名契約1件のみ失敗している。
+
+
+H. 今後の推奨作業
+==================
+
+1. Releaseで60 FPSを安定達成できているか
+   達成している。通常MCP間隔で平均59.998 FPS、p99 16.687 ms、最大16.758 ms。
+
+2. 達成できていない場合の主因
+   該当しない。前回約22 FPSの主因は毎フレームGameMCP公開とDebug最適化不足の組合せ。
+
+3. 最初に最適化すべき関数・ファイル
+   通常ゲームの最適化は不要。開発時のスパイクを直すならGameMcpBridge.cppの
+   BuildState、PublishStateとGameMcpReadView::Captureを最初に扱う。
+
+4. 期待できる改善
+   公開間隔を通常値へ戻した診断比較ではDebug平均23.52→58.35 FPSとなった。
+   キャッシュ等の未実装最適化について具体的な改善率は未計測のため断定しない。
+
+5. 次のVFX・SE開発へ進んでよいか
+   進んでよい。Release CPU Update/Drawには十分な余裕があり、VFX更新・描画は主因ではない。
+   就職作品の説明では「Debugの22 FPSを物理負荷と決めつけず、Release比較と区間計測で
+   開発用MCPの毎フレームJSON公開を特定し、決定的物理を変更せず解決方針を選んだ」と説明できる。
+
+
+成果物
+======
+
+- レポート：Debug_Release性能比較_CPU_Update負荷調査.txt
+- 統合生データ：
+  DX22_01_plane/tools/runtime_tests/ui_performance/
+  20261103_debug_release_cpu_update_final/raw_measurements.json
+- 統合集計JSON：同ディレクトリ/comparison_summary.json
+- 一覧CSV：同ディレクトリ/comparison_summary.csv
+- 計測OFF確認：同ディレクトリ/measurement_off_release/verification.json
+- 各回のraw_state、measurement、プロセスログ：
+  20261103_debug_release_cpu_update_v3（MCP間隔1）
+  20261103_debug_release_cpu_update_mcp60（MCP間隔60）
+- 再計測スクリプト：measure_debug_release_cpu_update.ps1
+- 再集計スクリプト：summarize_debug_release_cpu_update.ps1
+- 計測OFF確認スクリプト：verify_frame_timing_disabled.ps1
+
+今回、性能改善そのもの、物理アルゴリズム、固定タイムステップ、CCD/TOI、敵行動、
+ダメージ、スタック、球性能、CHAIN、VFX、レンダリング手法は変更していない。

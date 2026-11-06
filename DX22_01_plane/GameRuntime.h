@@ -16,6 +16,13 @@ public:
     static void Initialize();
     static void Update(double elapsedSeconds);
     static void ResetFrameTiming();
+    static void RecordFrameTiming(
+        double frameMilliseconds,
+        double updateMilliseconds,
+        double drawMilliseconds,
+        double presentMilliseconds);
+    static bool IsFrameTimingMeasurementActive();
+    static void RecordShotPredictionTiming(double milliseconds);
     static void Draw();
     static void Shutdown();
 

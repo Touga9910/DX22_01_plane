@@ -1,5 +1,6 @@
 #include "PierceMinion.h"
 
+#include "BalanceLogger.h"
 #include "BallComponent.h"
 #include "BallPhysicsRules.h"
 #include "BallRenderComponent.h"
@@ -44,7 +45,16 @@ void PierceMinion::Awake()
 	m_Ball->SetStatus(m_Status);
 	m_Ball->ResetAtPosition(m_Position);
 	m_Ball->GetMutableVelocity() = m_Direction * m_LaunchSpeed;
-	m_Ball->SetPocketHandler([this]() { Destroy(); });
+	m_Ball->SetPocketHandler([this]() { Destroy("pocketed"); });
+	BalanceLogger::GetInstance().RecordPierceMinionSpawn(
+		reinterpret_cast<std::uintptr_t>(this),
+		m_Status.attack,
+		m_Position.x,
+		m_Position.z,
+		m_Direction.x,
+		m_Direction.z,
+		m_LaunchSpeed);
+	m_TelemetryRegistered = true;
 
 	render->LoadModel(
 		"assets/model/GolfBall/golf_ball.obj",
@@ -61,8 +71,10 @@ void PierceMinion::FixedUpdate()
 	BallPhysicsRules::EnemyFriction(
 		m_Ball->GetMutableVelocity(),
 		m_Ball->GetStatus().friction);
-	if (m_Ball->GetPosition().y < -100.0f || m_Ball->IsStopped())
-		Destroy();
+	if (m_Ball->GetPosition().y < -100.0f)
+		Destroy("out_of_bounds");
+	else if (m_Ball->IsStopped())
+		Destroy("stopped");
 }
 
 void PierceMinion::Draw()
@@ -80,11 +92,25 @@ void PierceMinion::Draw()
 
 void PierceMinion::OnDestroy()
 {
+	if (m_TelemetryRegistered && !m_DestructionReported)
+	{
+		BalanceLogger::GetInstance().RecordPierceMinionDestroyed(
+			reinterpret_cast<std::uintptr_t>(this),
+			"external_or_shot_cleanup");
+		m_DestructionReported = true;
+	}
 	if (m_Ball != nullptr) m_Ball->SetPocketHandler({});
 }
 
-void PierceMinion::Destroy()
+void PierceMinion::Destroy(const char* reason)
 {
+	if (m_TelemetryRegistered && !m_DestructionReported)
+	{
+		BalanceLogger::GetInstance().RecordPierceMinionDestroyed(
+			reinterpret_cast<std::uintptr_t>(this),
+			reason != nullptr ? reason : "unknown");
+		m_DestructionReported = true;
+	}
 	if (m_Ball != nullptr)
 	{
 		m_Ball->GetMutableVelocity() = Vector3::Zero;

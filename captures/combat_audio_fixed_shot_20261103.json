@@ -1,0 +1,65 @@
+{
+  "captured_at": "2026-11-03T19:10:00+09:00",
+  "configuration": "Release|x64",
+  "fixture": {
+    "seed": 20260904,
+    "layout": "dense",
+    "enemy_count": 8,
+    "enemy_hp_multiplier": 1.5,
+    "ball": "player_heavy",
+    "upgrade_level": 0,
+    "power": 8,
+    "direction_x": -0.9916810938126976,
+    "direction_z": -0.1287191057087161,
+    "relics": [],
+    "ascension": 0,
+    "resolution": "1600x900",
+    "vsync": true,
+    "state_publish_interval_frames": 60
+  },
+  "physics_regression": {
+    "se_off_on_identical": true,
+    "effective_enemy_enemy_collisions": 11,
+    "defeats": 3,
+    "physics_steps": 149,
+    "total_enemy_distance_xz": 585.5615844726562,
+    "heavy_stacks_generated": 10
+  },
+  "se_on_representative": {
+    "device_initialized": true,
+    "test_tone_mode": true,
+    "se_volume": 0.8,
+    "voice_limit": 16,
+    "maximum_active_voices": 10,
+    "requests": 38,
+    "played": 27,
+    "categories": {
+      "direct_impact": { "requests": 7, "played": 6 },
+      "enemy_impact": { "requests": 11, "played": 7 },
+      "enemy_defeat": { "requests": 3, "played": 2 },
+      "chain_milestone": { "requests": 3, "played": 3 },
+      "wall_impact": { "requests": 14, "played": 9 }
+    },
+    "chain_milestones_requested": [3, 6, 10],
+    "skipped": {
+      "cooldown": 11,
+      "category_limit": 0,
+      "voice_limit": 0,
+      "muted": 0,
+      "missing_asset": 0,
+      "device_unavailable": 0,
+      "backend_error": 0
+    },
+    "raw_summary": "DX22_01_plane/tools/runtime_tests/combat_audio/release_se_on_20261103_1904/summary.json"
+  },
+  "formal_assets_missing_mode": {
+    "completed_without_crash": true,
+    "device_initialized": true,
+    "test_tone_mode": false,
+    "requests": 38,
+    "played": 0,
+    "missing_asset_skips": 38,
+    "backend_error_skips": 0,
+    "raw_summary": "DX22_01_plane/tools/runtime_tests/combat_audio/release_formal_assets_missing_20261103_1910/summary.json"
+  }
+}

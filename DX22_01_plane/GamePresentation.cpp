@@ -3,11 +3,14 @@
 #pragma execution_character_set("utf-8")
 
 #include "Application.h"
+#include "CollisionPresentationRules.h"
 #include "GameObject.h"
 #include "BattleScene.h"
 #include "Camera.h"
 #include "Game.h"
+#include "GameEvent.h"
 #include "GameRuntime.h"
+#include "GameRuntimeState.h"
 #include "GameWorld.h"
 #include "GameSettingsRuntime.h"
 #include "GameRewardState.h"
@@ -19,6 +22,7 @@
 #include "GameDebugController.h"
 #include "GameUi.h"
 #include "EnemyBall.h"
+#include "EnemyAttackComponent.h"
 #include "BreakBall.h"
 #include "PlayerBall.h"
 #include "PlayerBallText.h"
@@ -27,6 +31,7 @@
 #include "json/json.hpp"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -39,7 +44,6 @@ using nlohmann::json;
 
 namespace
 {
-	constexpr float kFrameSeconds = 1.0f / 60.0f;
 	constexpr const char* kTutorialProgressPath =
 		"runtime/tutorial_progress.json";
 	constexpr const char* kBalanceReportPath =
@@ -55,6 +59,116 @@ namespace
 		const unsigned int clamped = static_cast<unsigned int>(
 			std::clamp(alpha, 0.0f, 1.0f) * 255.0f);
 		return (color & 0x00ffffffu) | (clamped << 24u);
+	}
+
+	ImU32 EnemyHpColor(float hpRatio, float opacity)
+	{
+		if (hpRatio <= 0.30f)
+		{
+			return WithAlpha(IM_COL32(255, 74, 72, 255), opacity);
+		}
+		if (hpRatio <= 0.50f)
+		{
+			return WithAlpha(IM_COL32(255, 207, 64, 255), opacity);
+		}
+		return WithAlpha(IM_COL32(72, 225, 108, 255), opacity);
+	}
+
+	void DrawArc(
+		ImDrawList* drawList,
+		const ImVec2& center,
+		float radius,
+		float startAngle,
+		float endAngle,
+		ImU32 color,
+		float thickness)
+	{
+		if (drawList == nullptr || endAngle <= startAngle || thickness <= 0.0f)
+		{
+			return;
+		}
+		drawList->PathArcTo(
+			center,
+			radius,
+			startAngle,
+			endAngle,
+			40);
+		drawList->PathStroke(color, 0, thickness);
+	}
+
+	void DrawEnemyHpRing(
+		const EnemyHpDisplaySettings& settings,
+		const ImVec2& projectedCenter,
+		float projectedRadius,
+		float hpRatio,
+		float trailingRatio,
+		float damageHold)
+	{
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImDrawList* drawList =
+			settings.ringDrawLayer == EnemyHpRingDrawLayer::Foreground
+				? ImGui::GetForegroundDrawList(viewport)
+				: ImGui::GetBackgroundDrawList(viewport);
+		const ImVec2 center(
+			projectedCenter.x + settings.ringOffsetX,
+			projectedCenter.y + settings.ringOffsetY);
+		const float radius = std::clamp(
+			projectedRadius * settings.ringDiameterScale,
+			11.0f,
+			46.0f);
+		const float thickness = std::clamp(
+			settings.ringThickness,
+			2.0f,
+			8.0f);
+		const float opacity = std::clamp(settings.ringOpacity, 0.35f, 1.0f);
+		constexpr float startAngle = -3.92699082f;
+		constexpr float sweepAngle = 4.71238898f;
+		const float endAngle = startAngle + sweepAngle;
+
+		DrawArc(
+			drawList,
+			center,
+			radius,
+			startAngle,
+			endAngle,
+			WithAlpha(IM_COL32(5, 9, 14, 255), opacity * 0.86f),
+			thickness + 2.4f);
+		if (trailingRatio > 0.0f)
+		{
+			DrawArc(
+				drawList,
+				center,
+				radius,
+				startAngle,
+				startAngle + sweepAngle * trailingRatio,
+				WithAlpha(IM_COL32(255, 151, 54, 255), opacity * 0.94f),
+				thickness);
+		}
+		if (hpRatio > 0.0f)
+		{
+			DrawArc(
+				drawList,
+				center,
+				radius,
+				startAngle,
+				startAngle + sweepAngle * hpRatio,
+				EnemyHpColor(hpRatio, opacity),
+				thickness);
+		}
+
+		const float hitPulse = std::clamp(damageHold / 0.28f, 0.0f, 1.0f);
+		if (hitPulse > 0.0f)
+		{
+			DrawArc(
+				drawList,
+				center,
+				radius + thickness * 0.85f + hitPulse * 1.5f,
+				startAngle,
+				endAngle,
+				WithAlpha(IM_COL32(255, 255, 255, 255),
+					opacity * hitPulse * 0.72f),
+				1.2f + hitPulse * 1.3f);
+		}
 	}
 
 	const char* JudgementLabel(const std::string& judgement)
@@ -84,6 +198,106 @@ namespace
 		case StatusEffectType::DefenseDown: return "防御低下";
 		default: return "不明な状態効果";
 		}
+	}
+
+	const char* EnemyActionBadgeLabel(EnemyActionType action)
+	{
+		switch (action)
+		{
+		case EnemyActionType::NormalAttack: return PresentationUtf8(u8"攻");
+		case EnemyActionType::ChargeStart: return PresentationUtf8(u8"溜");
+		case EnemyActionType::ChargeAttack: return PresentationUtf8(u8"強");
+		default: return PresentationUtf8(u8"待");
+		}
+	}
+
+	const char* EnemyActionDisplayName(EnemyActionType action)
+	{
+		switch (action)
+		{
+		case EnemyActionType::NormalAttack: return PresentationUtf8(u8"通常攻撃");
+		case EnemyActionType::ChargeStart: return PresentationUtf8(u8"Charge開始");
+		case EnemyActionType::ChargeAttack: return PresentationUtf8(u8"Charge攻撃");
+		default: return PresentationUtf8(u8"待機");
+		}
+	}
+
+	ImU32 EnemyActionColor(EnemyActionType action)
+	{
+		switch (action)
+		{
+		case EnemyActionType::NormalAttack: return IM_COL32(255, 92, 76, 255);
+		case EnemyActionType::ChargeStart: return IM_COL32(255, 204, 64, 255);
+		case EnemyActionType::ChargeAttack: return IM_COL32(210, 84, 255, 255);
+		default: return IM_COL32(145, 155, 170, 255);
+		}
+	}
+
+	const char* AxisResourceLabel(AxisResourceKind axis)
+	{
+		switch (axis)
+		{
+		case AxisResourceKind::Heavy: return PresentationUtf8(u8"重量");
+		case AxisResourceKind::Pierce: return PresentationUtf8(u8"貫通");
+		case AxisResourceKind::Reflection: return PresentationUtf8(u8"反射");
+		case AxisResourceKind::Anchor: return "Anchor";
+		default: return PresentationUtf8(u8"軸");
+		}
+	}
+
+	ImU32 AxisResourceColor(AxisResourceKind axis)
+	{
+		switch (axis)
+		{
+		case AxisResourceKind::Heavy: return IM_COL32(255, 146, 61, 255);
+		case AxisResourceKind::Pierce: return IM_COL32(184, 92, 255, 255);
+		case AxisResourceKind::Reflection: return IM_COL32(255, 221, 58, 255);
+		case AxisResourceKind::Anchor: return IM_COL32(75, 225, 183, 255);
+		default: return IM_COL32_WHITE;
+		}
+	}
+
+	const char* AxisResourceReasonLabel(AxisResourceChangeReason reason)
+	{
+		switch (reason)
+		{
+		case AxisResourceChangeReason::AbilityCost: return PresentationUtf8(u8"能力コスト");
+		case AxisResourceChangeReason::Collision: return PresentationUtf8(u8"衝突");
+		case AxisResourceChangeReason::TravelDistance: return PresentationUtf8(u8"移動連鎖");
+		case AxisResourceChangeReason::PierceHit: return PresentationUtf8(u8"貫通命中");
+		case AxisResourceChangeReason::WallReflection: return PresentationUtf8(u8"壁反射");
+		case AxisResourceChangeReason::ShieldConversion: return PresentationUtf8(u8"盾変換");
+		case AxisResourceChangeReason::DefeatConversion: return PresentationUtf8(u8"撃破回収");
+		case AxisResourceChangeReason::EndOfShot: return PresentationUtf8(u8"ショット終了");
+		case AxisResourceChangeReason::Finisher: return "FINISHER";
+		default: return "";
+		}
+	}
+
+	bool RectanglesOverlap(const ImVec4& first, const ImVec4& second)
+	{
+		return first.x < second.z && first.z > second.x &&
+			first.y < second.w && first.w > second.y;
+	}
+
+	void DrawEnemyActionBadge(
+		ImDrawList* drawList,
+		const ImVec2& minimum,
+		EnemyActionType action)
+	{
+		const ImVec2 maximum(minimum.x + 25.0f, minimum.y + 25.0f);
+		const ImU32 color = EnemyActionColor(action);
+		drawList->AddRectFilled(
+			minimum, maximum, IM_COL32(12, 18, 28, 238), 5.0f);
+		drawList->AddRect(minimum, maximum, color, 5.0f, 0, 1.7f);
+		const char* label = EnemyActionBadgeLabel(action);
+		const ImVec2 textSize = ImGui::CalcTextSize(label);
+		drawList->AddText(
+			ImVec2(
+				minimum.x + (25.0f - textSize.x) * 0.5f,
+				minimum.y + (25.0f - textSize.y) * 0.5f),
+			color,
+			label);
 	}
 
 	void DrawStatusArrow(ImDrawList* drawList, const ImVec2& minimum, StatusEffectType type)
@@ -292,8 +506,252 @@ void GamePresentation::Initialize(Game& game)
 	LoadDashboard();
 }
 
-void GamePresentation::Update(Game& game)
+void GamePresentation::ClearHitReactions()
 {
+	for (HitReaction& reaction : m_HitReactions)
+	{
+		if (reaction.active && reaction.targetKey != 0)
+		{
+			EnemyBall* target = reinterpret_cast<EnemyBall*>(reaction.targetKey);
+			if (GameRuntime::World().Contains(target))
+				target->SetPresentationHitFlash(0.0f);
+		}
+		reaction = {};
+	}
+	m_CombatReactionDiagnostics.activeHitFlashes = 0;
+}
+
+void GamePresentation::BeginHitReaction(
+	std::uintptr_t targetKey,
+	int damage,
+	bool defeated)
+{
+	++m_CombatReactionDiagnostics.hitFlashRequests;
+	if (damage <= 0 && !defeated)
+	{
+		++m_CombatReactionDiagnostics.zeroDamageFlashesSuppressed;
+		return;
+	}
+	Game* game = Game::GetInstance();
+	EnemyBall* target = reinterpret_cast<EnemyBall*>(targetKey);
+	if (game == nullptr || !game->IsEnemyHitFlashEnabled() ||
+		targetKey == 0 || !GameRuntime::World().Contains(target))
+	{
+		++m_CombatReactionDiagnostics.hitFlashesSkipped;
+		return;
+	}
+
+	CombatPresentationRules::HitFlash flash =
+		CombatPresentationRules::FlashForDamage((std::max)(1, damage));
+	if (defeated)
+	{
+		flash.duration = (std::max)(flash.duration, 0.18f);
+		flash.intensity = 1.0f;
+	}
+
+	HitReaction* slot = nullptr;
+	for (HitReaction& reaction : m_HitReactions)
+	{
+		if (reaction.active && reaction.targetKey == targetKey)
+		{
+			slot = &reaction;
+			break;
+		}
+		if (slot == nullptr && !reaction.active) slot = &reaction;
+	}
+	if (slot == nullptr)
+	{
+		slot = &*std::min_element(
+			m_HitReactions.begin(),
+			m_HitReactions.end(),
+			[](const HitReaction& left, const HitReaction& right)
+			{
+				return left.lifetime < right.lifetime;
+			});
+		EnemyBall* replaced = reinterpret_cast<EnemyBall*>(slot->targetKey);
+		if (slot->targetKey != 0 && GameRuntime::World().Contains(replaced))
+			replaced->SetPresentationHitFlash(0.0f);
+	}
+
+	*slot = HitReaction{
+		targetKey,
+		flash.duration,
+		flash.duration,
+		flash.intensity,
+		true,
+	};
+	target->SetPresentationHitFlash(flash.intensity);
+	++m_CombatReactionDiagnostics.hitFlashesTriggered;
+	const int active = static_cast<int>(std::count_if(
+		m_HitReactions.begin(),
+		m_HitReactions.end(),
+		[](const HitReaction& reaction) { return reaction.active; }));
+	m_CombatReactionDiagnostics.activeHitFlashes = active;
+	m_CombatReactionDiagnostics.maximumActiveHitFlashes = (std::max)(
+		m_CombatReactionDiagnostics.maximumActiveHitFlashes,
+		active);
+}
+
+void GamePresentation::UpdateHitReactions(Game& game, float deltaSeconds)
+{
+	const bool enabled = game.IsEnemyHitFlashEnabled() && IsBattleScene(game);
+	int active = 0;
+	for (HitReaction& reaction : m_HitReactions)
+	{
+		if (!reaction.active) continue;
+		EnemyBall* target = reinterpret_cast<EnemyBall*>(reaction.targetKey);
+		if (!enabled || reaction.targetKey == 0 ||
+			!GameRuntime::World().Contains(target))
+		{
+			if (reaction.targetKey != 0 &&
+				GameRuntime::World().Contains(target))
+				target->SetPresentationHitFlash(0.0f);
+			reaction = {};
+			continue;
+		}
+		reaction.lifetime -= deltaSeconds;
+		if (reaction.lifetime <= 0.0f)
+		{
+			target->SetPresentationHitFlash(0.0f);
+			reaction = {};
+			continue;
+		}
+		const float life = std::clamp(
+			reaction.lifetime / reaction.totalLifetime,
+			0.0f,
+			1.0f);
+		target->SetPresentationHitFlash(
+			reaction.intensity * life * life);
+		++active;
+	}
+	m_CombatReactionDiagnostics.activeHitFlashes = active;
+}
+
+void GamePresentation::UpdateEnemyHpVisuals(float deltaSeconds)
+{
+	std::vector<std::uintptr_t> liveKeys;
+	for (const EnemyBall* enemy :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed())
+		{
+			continue;
+		}
+		const std::uintptr_t key = reinterpret_cast<std::uintptr_t>(enemy);
+		liveKeys.push_back(key);
+		auto visual = std::find_if(
+			m_EnemyHpVisuals.begin(),
+			m_EnemyHpVisuals.end(),
+			[key](const EnemyHpVisual& value)
+			{
+				return value.targetKey == key;
+			});
+		const int hp = (std::max)(0, enemy->GetHP());
+		const int maximumHp = (std::max)(1, enemy->GetMaxHP());
+		if (visual == m_EnemyHpVisuals.end())
+		{
+			m_EnemyHpVisuals.push_back({
+				key,
+				hp,
+				maximumHp,
+				static_cast<float>(hp),
+				0.0f,
+			});
+			continue;
+		}
+		if (hp < visual->currentHp)
+		{
+			visual->trailingHp = (std::max)(
+				visual->trailingHp,
+				static_cast<float>(visual->currentHp));
+			visual->damageHold = 0.28f;
+		}
+		else if (hp > visual->currentHp)
+		{
+			visual->trailingHp = static_cast<float>(hp);
+		}
+		visual->currentHp = hp;
+		visual->maximumHp = maximumHp;
+		visual->damageHold = (std::max)(
+			0.0f,
+			visual->damageHold - deltaSeconds);
+		if (visual->damageHold <= 0.0f)
+		{
+			const float approach = (std::max)(
+				18.0f,
+				static_cast<float>(maximumHp) * 2.5f) * deltaSeconds;
+			visual->trailingHp = (std::max)(
+				static_cast<float>(hp),
+				visual->trailingHp - approach);
+		}
+	}
+	std::erase_if(
+		m_EnemyHpVisuals,
+		[&liveKeys](const EnemyHpVisual& visual)
+		{
+			return std::find(liveKeys.begin(), liveKeys.end(), visual.targetKey) ==
+				liveKeys.end();
+		});
+}
+
+bool GamePresentation::HasTrackedDefeat(std::uintptr_t targetKey) const
+{
+	if (targetKey == 0) return false;
+	return std::find(
+		m_DefeatKeys.begin(),
+		m_DefeatKeys.begin() + m_TrackedDefeatCount,
+		targetKey) != m_DefeatKeys.begin() + m_TrackedDefeatCount;
+}
+
+bool GamePresentation::BeginDefeatReaction(
+	const Vector3& worldPosition,
+	std::uintptr_t targetKey)
+{
+	++m_CombatReactionDiagnostics.defeatRequests;
+	if (HasTrackedDefeat(targetKey))
+	{
+		++m_CombatReactionDiagnostics.duplicateDefeatsSuppressed;
+		return false;
+	}
+	if (targetKey != 0 &&
+		m_TrackedDefeatCount < static_cast<int>(m_DefeatKeys.size()))
+	{
+		m_DefeatKeys[m_TrackedDefeatCount++] = targetKey;
+	}
+	++m_CurrentShotDefeatCount;
+	++m_CombatReactionDiagnostics.uniqueDefeats;
+
+	Game* game = Game::GetInstance();
+	if (game != nullptr && game->IsDefeatVfxEnabled())
+	{
+		CollisionVfxSystem::SpawnRequest request;
+		request.worldPosition = worldPosition;
+		request.collisionAxis = Vector3::UnitX;
+		request.strength = CollisionPresentationRules::Strength::Strong;
+		request.chainTier = CollisionPresentationRules::ChainTier(
+			m_HeavyPhysicsChainCount);
+		request.priority = 4;
+		request.density = game->GetDecorativeRingAmount();
+		request.frame = m_PresentationFrame;
+		request.defeated = true;
+		m_CollisionVfx.Spawn(request);
+	}
+
+	if (game != nullptr && game->IsMultiDefeatEffectsEnabled() &&
+		m_CurrentShotDefeatCount >= 2)
+	{
+		m_MultiDefeatDisplayTotalLifetime =
+			m_CurrentShotDefeatCount >= 3 ? 1.30f : 1.05f;
+		m_MultiDefeatDisplayLifetime = m_MultiDefeatDisplayTotalLifetime;
+		++m_CombatReactionDiagnostics.multiDefeatDisplays;
+	}
+	return true;
+}
+
+void GamePresentation::Update(Game& game, float deltaSeconds)
+{
+	const float presentationDelta = std::clamp(deltaSeconds, 0.0f, 0.10f);
+	m_PresentationTimeSeconds += presentationDelta;
 	if (Input::GetKeyTrigger(VK_F1))
 	{
 		if (m_TutorialActive)
@@ -316,8 +774,14 @@ void GamePresentation::Update(Game& game)
 
 	for (FloatingFeedback& feedback : m_Feedback)
 	{
-		feedback.lifetime -= kFrameSeconds;
+		feedback.lifetime -= presentationDelta;
 	}
+	UpdateHitReactions(game, presentationDelta);
+	UpdateEnemyHpVisuals(presentationDelta);
+	m_CollisionVfx.Update(
+		presentationDelta,
+		(game.IsCollisionImpactEffectsEnabled() || game.IsDefeatVfxEnabled()) &&
+		IsBattleScene(game));
 	std::erase_if(
 		m_Feedback,
 		[](const FloatingFeedback& feedback)
@@ -326,7 +790,7 @@ void GamePresentation::Update(Game& game)
 		});
 	for (ChainRangeFeedback& feedback : m_ChainRanges)
 	{
-		feedback.lifetime -= kFrameSeconds;
+		feedback.lifetime -= presentationDelta;
 	}
 	std::erase_if(
 		m_ChainRanges,
@@ -336,18 +800,30 @@ void GamePresentation::Update(Game& game)
 		});
 	m_ImpactFlashLifetime = (std::max)(
 		0.0f,
-		m_ImpactFlashLifetime - kFrameSeconds);
+		m_ImpactFlashLifetime - presentationDelta);
 	m_DamageFlashLifetime = (std::max)(
 		0.0f,
-		m_DamageFlashLifetime - kFrameSeconds);
+		m_DamageFlashLifetime - presentationDelta);
 	m_HitSummaryLifetime = (std::max)(
 		0.0f,
-		m_HitSummaryLifetime - kFrameSeconds);
+		m_HitSummaryLifetime - presentationDelta);
+	m_HeavyChainDisplayLifetime = (std::max)(
+		0.0f,
+		m_HeavyChainDisplayLifetime - presentationDelta);
+	m_MultiDefeatDisplayLifetime = (std::max)(
+		0.0f,
+		m_MultiDefeatDisplayLifetime - presentationDelta);
+	m_ImpactFlashCooldown = (std::max)(
+		0.0f,
+		m_ImpactFlashCooldown - presentationDelta);
+	m_CameraShakeCooldown = (std::max)(
+		0.0f,
+		m_CameraShakeCooldown - presentationDelta);
 	if (game.IsCameraShakeEnabled() && m_CameraShakeLifetime > 0.0f)
 	{
 		m_CameraShakeLifetime = (std::max)(
 			0.0f,
-			m_CameraShakeLifetime - kFrameSeconds);
+			m_CameraShakeLifetime - presentationDelta);
 		m_CameraShakePhase += 1.65f;
 		const float fade = std::clamp(
 			m_CameraShakeLifetime / 0.24f,
@@ -366,6 +842,12 @@ void GamePresentation::Update(Game& game)
 	}
 
 	const int currentState = static_cast<int>(game.GetBattleState());
+	if (m_PreviousBattleState == static_cast<int>(BattleState::BallsMoving) &&
+		currentState != static_cast<int>(BattleState::BallsMoving))
+	{
+		ClearHitReactions();
+		m_MultiDefeatDisplayLifetime = 0.0f;
+	}
 	if (m_TutorialActive && IsBattleScene(game))
 	{
 		if (m_TutorialStep == TutorialStep::ChooseAndAim &&
@@ -381,11 +863,16 @@ void GamePresentation::Update(Game& game)
 		}
 	}
 	m_PreviousBattleState = currentState;
+	++m_PresentationFrame;
 }
 
 void GamePresentation::Draw(Game& game)
 {
 	DrawFeedback(game);
+	if (GameUi::showDebugger && IsBattleScene(game))
+	{
+		m_CollisionVfx.DrawDebugTuning();
+	}
 	if (m_DashboardOpen)
 	{
 		DrawDashboard();
@@ -482,9 +969,19 @@ void GamePresentation::Draw(Game& game)
 void GamePresentation::DrawEnemyStatusEffects(Game& game)
 {
 	const BattleState state = game.GetBattleState();
+	const bool showActionPlan =
+		state == BattleState::AimingDirection ||
+		state == BattleState::AimingPower ||
+		state == BattleState::BallsMoving;
 	const bool showTimedStatusEffects =
 		state == BattleState::AimingDirection ||
 		state == BattleState::AimingPower;
+	const EnemyHpDisplaySettings& hpDisplay =
+		game.GetEnemyHpDisplaySettings();
+	const bool showOverheadHp =
+		hpDisplay.mode == EnemyHpDisplayMode::OverheadBar;
+	const bool showCircularHp =
+		hpDisplay.mode == EnemyHpDisplayMode::CircularGauge;
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 	const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
@@ -493,6 +990,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
 		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoInputs;
+	std::vector<ImVec4> placedEnemyPanels;
 	int enemyIndex = 0;
 	for (const EnemyBall* enemy :
 		GameRuntime::World().GetComponents<EnemyBall>())
@@ -504,8 +1002,9 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			? effects.GetActiveCount()
 			: 0;
 		const int anchorStacks = enemy->GetAnchorStacks();
-		const int itemCount = effectCount + (anchorStacks > 0 ? 1 : 0);
-		if (itemCount == 0) continue;
+		const int actionCount = showActionPlan ? 1 : 0;
+		const int itemCount = actionCount + effectCount +
+			(anchorStacks > 0 ? 1 : 0);
 
 		ImVec2 center;
 		ImVec2 top;
@@ -515,26 +1014,251 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			continue;
 		}
 		const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
-		const float rowWidth = effectCount * 25.0f +
-			(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
-			(itemCount - 1) * 4.0f;
-		const ImVec2 rowPosition(center.x - rowWidth * 0.5f, center.y + projectedRadius + 7.0f);
-		if (rowPosition.x + rowWidth < viewport->Pos.x || rowPosition.x > viewport->Pos.x + viewport->Size.x ||
-			rowPosition.y + 25.0f < viewport->Pos.y || rowPosition.y > viewport->Pos.y + viewport->Size.y)
+		const std::uintptr_t targetKey =
+			reinterpret_cast<std::uintptr_t>(enemy);
+		const auto hpVisual = std::find_if(
+			m_EnemyHpVisuals.begin(),
+			m_EnemyHpVisuals.end(),
+			[targetKey](const EnemyHpVisual& value)
+			{
+				return value.targetKey == targetKey;
+			});
+		const int currentHp = hpVisual != m_EnemyHpVisuals.end()
+			? hpVisual->currentHp
+			: (std::max)(0, enemy->GetHP());
+		const int maximumHp = hpVisual != m_EnemyHpVisuals.end()
+			? hpVisual->maximumHp
+			: (std::max)(1, enemy->GetMaxHP());
+		const float trailingHp = hpVisual != m_EnemyHpVisuals.end()
+			? hpVisual->trailingHp
+			: static_cast<float>(currentHp);
+		const float damageHold = hpVisual != m_EnemyHpVisuals.end()
+			? hpVisual->damageHold
+			: 0.0f;
+		const float hpRatio = std::clamp(
+			static_cast<float>(currentHp) / static_cast<float>(maximumHp),
+			0.0f,
+			1.0f);
+		const float trailingRatio = std::clamp(
+			trailingHp / static_cast<float>(maximumHp),
+			0.0f,
+			1.0f);
+		if (showCircularHp && currentHp > 0)
+		{
+			DrawEnemyHpRing(
+				hpDisplay,
+				center,
+				projectedRadius,
+				hpRatio,
+				trailingRatio,
+				damageHold);
+		}
+		if (!showOverheadHp && itemCount <= 0)
 		{
 			continue;
 		}
+		constexpr float actionWidth = 76.0f;
+		const float rowWidth = actionCount * actionWidth + effectCount * 25.0f +
+			(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
+			(std::max)(0, itemCount - 1) * 4.0f;
+		const float panelWidth = showOverheadHp
+			? (std::max)(104.0f, rowWidth)
+			: (std::max)(1.0f, rowWidth);
+		const float panelHeight = showOverheadHp
+			? (itemCount > 0 ? 48.0f : 18.0f)
+			: (itemCount > 0 ? 26.0f : 0.0f);
+		const ImVec2 desiredPosition(
+			center.x - panelWidth * 0.5f,
+			center.y + projectedRadius + 6.0f);
+		const std::array<ImVec2, 9> layoutOffsets = {
+			ImVec2(0.0f, 0.0f),
+			ImVec2(0.0f, 52.0f),
+			ImVec2(0.0f, -52.0f - projectedRadius * 2.0f),
+			ImVec2(-58.0f, 26.0f), ImVec2(58.0f, 26.0f),
+			ImVec2(-76.0f, -34.0f), ImVec2(76.0f, -34.0f),
+			ImVec2(-112.0f, 58.0f), ImVec2(112.0f, 58.0f),
+		};
+		float bestScore = FLT_MAX;
+		ImVec2 panelPosition = desiredPosition;
+		ImVec4 panelRectangle{};
+		for (const ImVec2& offset : layoutOffsets)
+		{
+			ImVec2 candidate(
+				desiredPosition.x + offset.x,
+				desiredPosition.y + offset.y);
+			candidate.x = std::clamp(
+				candidate.x,
+				viewport->Pos.x + 8.0f,
+				viewport->Pos.x + viewport->Size.x - panelWidth - 8.0f);
+			candidate.y = std::clamp(
+				candidate.y,
+				viewport->Pos.y + 30.0f,
+				viewport->Pos.y + viewport->Size.y - panelHeight - 12.0f);
+			const ImVec4 rectangle(
+				candidate.x - 3.0f,
+				candidate.y - 3.0f,
+				candidate.x + panelWidth + 3.0f,
+				candidate.y + panelHeight + 3.0f);
+			float overlapArea = 0.0f;
+			for (const ImVec4& placed : placedEnemyPanels)
+			{
+				if (!RectanglesOverlap(rectangle, placed)) continue;
+				const float overlapWidth =
+					(std::min)(rectangle.z, placed.z) -
+					(std::max)(rectangle.x, placed.x);
+				const float overlapHeight =
+					(std::min)(rectangle.w, placed.w) -
+					(std::max)(rectangle.y, placed.y);
+				overlapArea += overlapWidth * overlapHeight;
+			}
+			const float distancePenalty =
+				(offset.x * offset.x + offset.y * offset.y) * 0.015f;
+			const float score = overlapArea * 10.0f + distancePenalty;
+			if (score < bestScore)
+			{
+				bestScore = score;
+				panelPosition = candidate;
+				panelRectangle = rectangle;
+				if (overlapArea <= 0.0f && distancePenalty <= 0.0f) break;
+			}
+		}
+		if (panelPosition.x + panelWidth < viewport->Pos.x ||
+			panelPosition.x > viewport->Pos.x + viewport->Size.x ||
+			panelPosition.y + panelHeight < viewport->Pos.y ||
+			panelPosition.y > viewport->Pos.y + viewport->Size.y)
+		{
+			continue;
+		}
+		placedEnemyPanels.push_back(panelRectangle);
 
 		char windowId[64]{};
 		sprintf_s(windowId, "##enemy_status_effects_%d", currentIndex);
 		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::SetNextWindowPos(rowPosition);
-		ImGui::SetNextWindowSize(ImVec2(rowWidth, 25.0f));
+		ImGui::SetNextWindowPos(panelPosition);
+		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight));
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
 		if (ImGui::Begin(windowId, nullptr, flags))
 		{
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			if (showOverheadHp)
+			{
+				const ImVec2 hpMinimum(
+					panelPosition.x,
+					panelPosition.y);
+				const ImVec2 hpMaximum(
+					panelPosition.x + panelWidth,
+					panelPosition.y + 16.0f);
+				drawList->AddRectFilled(
+					hpMinimum,
+					hpMaximum,
+					IM_COL32(8, 12, 18, 235),
+					4.0f);
+				drawList->AddRectFilled(
+					hpMinimum,
+					ImVec2(
+						hpMinimum.x + panelWidth * trailingRatio,
+						hpMaximum.y),
+					IM_COL32(255, 154, 54, 225),
+					4.0f);
+				const ImU32 hpColor = EnemyHpColor(hpRatio, 1.0f);
+				drawList->AddRectFilled(
+					hpMinimum,
+					ImVec2(
+						hpMinimum.x + panelWidth * hpRatio,
+						hpMaximum.y),
+					hpColor,
+					4.0f);
+				drawList->AddRect(
+					hpMinimum,
+					hpMaximum,
+					IM_COL32(232, 240, 250, 230),
+					4.0f,
+					0,
+					1.2f);
+				char hpText[48]{};
+				sprintf_s(hpText, "HP %d / %d", currentHp, maximumHp);
+				const ImVec2 hpTextSize = ImGui::CalcTextSize(hpText);
+				drawList->AddText(
+					ImVec2(
+						hpMinimum.x + (panelWidth - hpTextSize.x) * 0.5f,
+						hpMinimum.y + (16.0f - hpTextSize.y) * 0.5f),
+					IM_COL32(255, 255, 255, 255),
+					hpText);
+				ImGui::Dummy(ImVec2(panelWidth, 16.0f));
+			}
+			if (itemCount > 0)
+			{
+				ImGui::SetCursorScreenPos(ImVec2(
+					panelPosition.x + (panelWidth - rowWidth) * 0.5f,
+					panelPosition.y + (showOverheadHp ? 22.0f : 0.0f)));
+			}
 			int drawn = 0;
+			if (showActionPlan)
+			{
+				const EnemyActionType action = enemy->GetPlannedAction();
+				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+				const ImVec2 iconMaximum(
+					iconMinimum.x + actionWidth,
+					iconMinimum.y + 25.0f);
+				ImGui::Dummy(ImVec2(actionWidth, 25.0f));
+				DrawEnemyActionBadge(
+					drawList,
+					iconMinimum,
+					action);
+				int expectedDamage = 0;
+				if (action == EnemyActionType::NormalAttack ||
+					action == EnemyActionType::ChargeAttack)
+				{
+					const GameObject* owner = enemy->GetGameObject();
+					const EnemyAttackComponent* attack = owner != nullptr
+						? owner->GetComponent<EnemyAttackComponent>()
+						: nullptr;
+					expectedDamage = attack != nullptr
+						? PlayerBall::CalculateIncomingDamage(
+							attack->CalculateDamage(
+								enemy->GetPlannedDamageMultiplier()))
+						: 0;
+				}
+				const std::string intentText =
+					action == EnemyActionType::NormalAttack ||
+					action == EnemyActionType::ChargeAttack
+						? "P -" + std::to_string(expectedDamage)
+						: action == EnemyActionType::ChargeStart
+							? PresentationUtf8(u8"準備")
+							: "---";
+				drawList->AddText(
+					ImVec2(iconMinimum.x + 30.0f, iconMinimum.y + 4.0f),
+					EnemyActionColor(action),
+					intentText.c_str());
+				++drawn;
+				if (IsMouseInside(iconMinimum, iconMaximum))
+				{
+					ImGui::BeginTooltip();
+					ImGui::TextColored(
+						ImGui::ColorConvertU32ToFloat4(
+							EnemyActionColor(action)),
+						"%s",
+						EnemyActionDisplayName(action));
+					ImGui::Text("行動コスト: %d", enemy->GetPlannedActionCost());
+					ImGui::Text("Charge状態: %s",
+						enemy->IsCharging() ? "Charging" : "Normal");
+					if (action == EnemyActionType::NormalAttack ||
+						action == EnemyActionType::ChargeAttack)
+					{
+						ImGui::TextUnformatted(PresentationUtf8(u8"対象: プレイヤー"));
+						ImGui::Text(
+							PresentationUtf8(u8"予想ダメージ: %d（シールド適用前）"),
+							expectedDamage);
+					}
+					else if (action == EnemyActionType::ChargeStart)
+					{
+						ImGui::TextUnformatted(PresentationUtf8(
+							u8"このターンは攻撃せずChargeを開始"));
+					}
+					ImGui::EndTooltip();
+				}
+			}
 			for (const StatusEffectType effectType : AllStatusEffectTypes)
 			{
 				if (!showTimedStatusEffects) break;
@@ -974,6 +1698,25 @@ void GamePresentation::DrawRelicList(Game& game)
 
 void GamePresentation::OnBattleStarted(Game&)
 {
+	ClearHitReactions();
+	m_CollisionVfx.Reset();
+	m_CombatReactionDiagnostics = {};
+	m_DefeatKeys.fill(0);
+	m_TrackedDefeatCount = 0;
+	m_CurrentShotDefeatCount = 0;
+	m_CurrentShotChargeInterruptions = 0;
+	m_CurrentShotResourceGained.fill(0);
+	m_CurrentShotResourceConsumed.fill(0);
+	m_CurrentShotFinisherMask = 0;
+	m_HitSummaryLifetime = 0.0f;
+	m_EnemyHpVisuals.clear();
+	m_MultiDefeatDisplayLifetime = 0.0f;
+	m_CurrentShotBallCategory = static_cast<int>(BallCategory::Standard);
+	m_HeavyPhysicsChainCount = 0;
+	m_HeavyChainDisplayLifetime = 0.0f;
+	m_HeavyChainMilestone = false;
+	m_ImpactFlashCooldown = 0.0f;
+	m_CameraShakeCooldown = 0.0f;
 	m_BallCardExpansion.fill(0.0f);
 	m_DeckListOpen = false;
 	m_RelicListOpen = false;
@@ -983,10 +1726,27 @@ void GamePresentation::OnBattleStarted(Game&)
 	}
 }
 
-void GamePresentation::OnShotFired()
+void GamePresentation::OnShotFired(int ballCategory)
 {
+	ClearHitReactions();
+	m_CurrentShotBallCategory = ballCategory;
+	m_HeavyPhysicsChainCount = 0;
+	m_HeavyChainDisplayLifetime = 0.0f;
+	m_HeavyChainMilestone = false;
+	m_CollisionVfx.Reset();
+	m_CombatReactionDiagnostics = {};
+	m_DefeatKeys.fill(0);
+	m_TrackedDefeatCount = 0;
+	m_CurrentShotDefeatCount = 0;
+	m_MultiDefeatDisplayLifetime = 0.0f;
+	m_ImpactFlashCooldown = 0.0f;
+	m_CameraShakeCooldown = 0.0f;
 	m_CurrentShotHitCount = 0;
 	m_CurrentShotDamage = 0;
+	m_CurrentShotChargeInterruptions = 0;
+	m_CurrentShotResourceGained.fill(0);
+	m_CurrentShotResourceConsumed.fill(0);
+	m_CurrentShotFinisherMask = 0;
 	m_HitSummaryLifetime = 0.0f;
 	m_BallCardExpansion.fill(0.0f);
 	if (m_TutorialActive &&
@@ -1001,13 +1761,31 @@ void GamePresentation::OnCombatFeedback(
 	const Vector3& worldPosition,
 	int damage,
 	bool defeated,
-	bool enemyEnemyCollision)
+	bool enemyEnemyCollision,
+	std::uintptr_t targetKey,
+	const std::string& targetEnemyId)
 {
+	(void)targetEnemyId;
+	BeginHitReaction(targetKey, damage, defeated);
+	if (defeated && !BeginDefeatReaction(worldPosition, targetKey))
+	{
+		return;
+	}
 	FloatingFeedback feedback;
 	feedback.worldPosition = worldPosition;
-	feedback.totalLifetime = defeated ? 1.35f : 0.95f;
+	feedback.totalLifetime = defeated ? 1.35f : 0.82f;
 	feedback.lifetime = feedback.totalLifetime;
-	feedback.drawRing = true;
+	feedback.fontScale = defeated
+		? m_CurrentShotDefeatCount >= 3 ? 1.38f
+			: m_CurrentShotDefeatCount == 2 ? 1.28f : 1.20f
+		: 0.86f;
+	const bool enhancedImpact =
+		Game::GetInstance()->IsCollisionImpactEffectsEnabled();
+	feedback.drawRing = !enhancedImpact;
+	feedback.enemyEnemyCollision = enemyEnemyCollision;
+	feedback.createdFrame = m_PresentationFrame;
+	feedback.createdTimeSeconds = m_PresentationTimeSeconds;
+	feedback.targetKey = targetKey;
 	feedback.color = defeated
 		? IM_COL32(255, 205, 70, 255)
 		: enemyEnemyCollision
@@ -1015,7 +1793,9 @@ void GamePresentation::OnCombatFeedback(
 			: IM_COL32(255, 118, 80, 255);
 	if (defeated)
 	{
-		feedback.text = "撃破！  -" + std::to_string(damage);
+		feedback.text = m_CurrentShotDefeatCount >= 3
+			? "連続撃破！  -" + std::to_string(damage)
+			: "撃破！  -" + std::to_string(damage);
 	}
 	else if (damage > 0)
 	{
@@ -1025,21 +1805,219 @@ void GamePresentation::OnCombatFeedback(
 	{
 		feedback.text = "防御";
 	}
-	m_Feedback.push_back(std::move(feedback));
-	m_ImpactFlashLifetime = (std::max)(m_ImpactFlashLifetime, 0.11f);
+	bool merged = false;
+	if (!defeated && damage > 0)
+	{
+		for (auto iterator = m_Feedback.rbegin();
+			iterator != m_Feedback.rend();
+			++iterator)
+		{
+			FloatingFeedback& existing = *iterator;
+			const float ageSeconds = (std::max)(
+				0.0f,
+				m_PresentationTimeSeconds - existing.createdTimeSeconds);
+			const Vector3 separation =
+				existing.worldPosition - worldPosition;
+			int existingDamage = 0;
+			if (!existing.playerHudMessage &&
+				existing.enemyEnemyCollision == enemyEnemyCollision &&
+				CombatPresentationRules::CanMergeDamage(
+					existing.targetKey,
+					targetKey,
+					ageSeconds,
+					separation.LengthSquared(),
+					defeated) &&
+				sscanf_s(existing.text.c_str(), "-%d HP", &existingDamage) == 1)
+			{
+				existing.text = "-" +
+					std::to_string(existingDamage + damage) + " HP";
+				existing.worldPosition = worldPosition;
+				existing.createdFrame = m_PresentationFrame;
+				existing.createdTimeSeconds = m_PresentationTimeSeconds;
+				existing.totalLifetime = (std::max)(
+					existing.totalLifetime,
+					feedback.totalLifetime);
+				existing.lifetime = existing.totalLifetime;
+				existing.fontScale = (std::max)(existing.fontScale, 1.08f);
+				merged = true;
+				break;
+			}
+		}
+	}
+	if (!merged)
+	{
+		int visibleDamageNumbers = 0;
+		for (const FloatingFeedback& existing : m_Feedback)
+		{
+			int visibleDamage = 0;
+			if (sscanf_s(
+				existing.text.c_str(),
+				"-%d HP",
+				&visibleDamage) == 1)
+			{
+				++visibleDamageNumbers;
+			}
+		}
+		if (defeated || damage <= 0 ||
+			visibleDamageNumbers <
+				CombatPresentationRules::MaximumFloatingDamageNumbers)
+		{
+			m_Feedback.push_back(std::move(feedback));
+		}
+	}
+	if (!enhancedImpact || defeated)
+	{
+		m_ImpactFlashLifetime = (std::max)(m_ImpactFlashLifetime, 0.11f);
+	}
 	m_CurrentShotHitCount++;
 	m_CurrentShotDamage += (std::max)(0, damage);
-	m_HitSummaryLifetime = 1.15f;
-	if (Game::GetInstance()->IsCameraShakeEnabled())
+	if (Game::GetInstance()->IsCameraShakeEnabled() &&
+		(!enhancedImpact || defeated))
 	{
 		m_CameraShakeLifetime = (std::max)(
 			m_CameraShakeLifetime,
 			defeated ? 0.24f : 0.12f);
-		m_CameraShakeStrength = defeated ? 1.25f : 0.55f;
+		m_CameraShakeStrength = (std::max)(
+			m_CameraShakeStrength,
+			defeated ? 1.25f : 0.55f);
 	}
 	if (Game::GetInstance()->IsVibrationEnabled())
 	{
 		Input::SetVibration(defeated ? 7 : 3, defeated ? 0.78f : 0.36f);
+	}
+}
+
+void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
+{
+	const CollisionPresentationRules::Strength strength =
+		CollisionPresentationRules::Classify(event.relativeApproachSpeed);
+	const bool secondary =
+		event.collisionKind == CombatCollisionKind::EnemyEnemy;
+	const bool heavyShot = event.shotBallCategory ==
+		static_cast<int>(BallCategory::Heavy);
+
+	const float feedbackScale = strength == CollisionPresentationRules::Strength::Strong
+		? 1.10f
+		: strength == CollisionPresentationRules::Strength::Medium
+			? 0.98f
+			: 0.86f;
+	for (FloatingFeedback& feedback : m_Feedback)
+	{
+		if (feedback.createdFrame != m_PresentationFrame ||
+			feedback.enemyEnemyCollision != secondary)
+		{
+			continue;
+		}
+		const Vector3 firstDelta =
+			feedback.worldPosition - event.firstTargetPosition;
+		const Vector3 secondDelta =
+			feedback.worldPosition - event.secondTargetPosition;
+		if (firstDelta.LengthSquared() <= 0.25f ||
+			(secondary && secondDelta.LengthSquared() <= 0.25f))
+		{
+			feedback.fontScale = (std::max)(feedback.fontScale, feedbackScale);
+		}
+	}
+
+	bool milestone = false;
+	int chainTier = 0;
+	if (secondary && heavyShot)
+	{
+		++m_HeavyPhysicsChainCount;
+		chainTier = CollisionPresentationRules::ChainTier(
+			m_HeavyPhysicsChainCount);
+		milestone = CollisionPresentationRules::IsChainMilestone(
+			m_HeavyPhysicsChainCount);
+		if (milestone)
+		{
+			m_HeavyChainDisplayTotalLifetime = chainTier >= 3 ? 1.55f : 1.25f;
+			m_HeavyChainDisplayLifetime = m_HeavyChainDisplayTotalLifetime;
+			m_HeavyChainMilestone = true;
+		}
+		else
+		{
+			m_HeavyChainDisplayTotalLifetime = (std::max)(
+				m_HeavyChainDisplayTotalLifetime,
+				0.95f);
+			m_HeavyChainDisplayLifetime = (std::max)(
+				m_HeavyChainDisplayLifetime,
+				0.95f);
+		}
+	}
+
+	Game* game = Game::GetInstance();
+	const bool showMilestone =
+		milestone && game->IsHeavyChainEffectsEnabled();
+	if (showMilestone)
+	{
+		if (game->IsScreenFlashEnabled() && m_ImpactFlashCooldown <= 0.0f)
+		{
+			m_ImpactFlashLifetime = (std::max)(m_ImpactFlashLifetime, 0.11f);
+			m_ImpactFlashCooldown = 0.16f;
+		}
+		if (game->IsCameraShakeEnabled() && m_CameraShakeCooldown <= 0.0f)
+		{
+			const float milestoneStrength = m_HeavyPhysicsChainCount >= 15
+				? 1.35f
+				: m_HeavyPhysicsChainCount >= 10
+					? 1.05f
+					: m_HeavyPhysicsChainCount >= 6 ? 0.82f : 0.62f;
+			m_CameraShakeLifetime = (std::max)(m_CameraShakeLifetime, 0.18f);
+			m_CameraShakeStrength = (std::max)(
+				m_CameraShakeStrength,
+				milestoneStrength);
+			m_CameraShakeCooldown = 0.12f;
+		}
+	}
+
+	const bool defeatAlreadyPresented = event.defeated &&
+		(HasTrackedDefeat(event.firstTargetKey) ||
+			HasTrackedDefeat(event.secondTargetKey));
+	if (defeatAlreadyPresented || !game->IsCollisionImpactEffectsEnabled())
+	{
+		return;
+	}
+
+	CollisionVfxSystem::SpawnRequest vfx;
+	vfx.worldPosition = event.worldPosition;
+	vfx.collisionAxis = event.firstTargetPosition - event.secondTargetPosition;
+	vfx.strength = strength;
+	vfx.chainTier = chainTier;
+	vfx.priority = event.defeated || showMilestone
+		? 3
+		: strength == CollisionPresentationRules::Strength::Strong
+			? 2
+			: strength == CollisionPresentationRules::Strength::Medium ? 1 : 0;
+	vfx.density = game->GetDecorativeRingAmount();
+	vfx.frame = m_PresentationFrame;
+	vfx.secondaryCollision = secondary;
+	vfx.milestone = showMilestone;
+	vfx.defeated = event.defeated;
+	m_CollisionVfx.Spawn(vfx);
+
+	if (strength == CollisionPresentationRules::Strength::Strong &&
+		game->IsScreenFlashEnabled() && m_ImpactFlashCooldown <= 0.0f)
+	{
+		m_ImpactFlashLifetime = (std::max)(m_ImpactFlashLifetime, 0.08f);
+		m_ImpactFlashCooldown = 0.12f;
+	}
+	if (strength != CollisionPresentationRules::Strength::Weak &&
+		game->IsCameraShakeEnabled() && m_CameraShakeCooldown <= 0.0f)
+	{
+		const float requestedStrength =
+			strength == CollisionPresentationRules::Strength::Strong
+				? (secondary ? 0.72f : 0.88f)
+				: (secondary ? 0.30f : 0.42f);
+		m_CameraShakeLifetime = (std::max)(
+			m_CameraShakeLifetime,
+			strength == CollisionPresentationRules::Strength::Strong
+				? 0.16f
+				: 0.10f);
+		m_CameraShakeStrength = std::clamp(
+			(std::max)(m_CameraShakeStrength, requestedStrength),
+			0.0f,
+			1.5f);
+		m_CameraShakeCooldown = 0.08f;
 	}
 }
 
@@ -1065,8 +2043,16 @@ void GamePresentation::OnPocketFeedback(
 	const Vector3& worldPosition,
 	bool playerPocket,
 	bool finisher,
-	int damage)
+	int damage,
+	std::uintptr_t targetKey,
+	const std::string& targetEnemyId)
 {
+	(void)targetEnemyId;
+	if (!playerPocket && finisher)
+	{
+		BeginHitReaction(targetKey, damage, true);
+		BeginDefeatReaction(worldPosition, targetKey);
+	}
 	FloatingFeedback feedback;
 	feedback.worldPosition = worldPosition;
 	feedback.totalLifetime = 1.5f;
@@ -1129,6 +2115,259 @@ void GamePresentation::OnPlayerDamage(
 	{
 		Input::SetVibration(5, 0.62f);
 	}
+}
+
+void GamePresentation::OnChargeInterrupted(
+	const Vector3& worldPosition,
+	ChargeInterruptReason reason)
+{
+	FloatingFeedback feedback;
+	feedback.worldPosition = worldPosition;
+	feedback.totalLifetime = 1.45f;
+	feedback.lifetime = feedback.totalLifetime;
+	feedback.drawRing = true;
+	feedback.color = IM_COL32(205, 92, 255, 255);
+	switch (reason)
+	{
+	case ChargeInterruptReason::Movement:
+		feedback.text = "CHARGE BREAK  重量";
+		break;
+	case ChargeInterruptReason::PierceDamage:
+		feedback.text = "CHARGE BREAK  貫通";
+		break;
+	case ChargeInterruptReason::Pocketed:
+		feedback.text = "CHARGE BREAK  ポケット";
+		break;
+	case ChargeInterruptReason::Defeated:
+		feedback.text = "CHARGE BREAK  撃破";
+		break;
+	default:
+		return;
+	}
+	m_Feedback.push_back(std::move(feedback));
+}
+
+void GamePresentation::OnAxisResourceChanged(
+	const AxisResourceChangedEvent& event)
+{
+	const int delta = event.valueAfter - event.valueBefore;
+	if (delta == 0 && !event.finisher)
+	{
+		return;
+	}
+	const int axis = static_cast<int>(event.axis);
+	const int owner = static_cast<int>(event.owner);
+	auto updateText = [](FloatingFeedback& feedback)
+	{
+		const auto resourceAxis = static_cast<AxisResourceKind>(
+			feedback.resourceAxis);
+		std::string label = AxisResourceLabel(resourceAxis);
+		if (resourceAxis == AxisResourceKind::Anchor &&
+			feedback.resourceOwner == static_cast<int>(AxisResourceOwner::Enemy))
+		{
+			label = PresentationUtf8(u8"敵Anchor");
+		}
+		const int change = feedback.resourceAfter - feedback.resourceBefore;
+		feedback.text = label;
+		if (change != 0)
+		{
+			feedback.text += change > 0 ? " +" : " ";
+			feedback.text += std::to_string(change);
+		}
+		if (feedback.finisher)
+		{
+			feedback.text += "  FINISHER";
+		}
+		else
+		{
+			feedback.text += "  [";
+			feedback.text += AxisResourceReasonLabel(
+				static_cast<AxisResourceChangeReason>(feedback.resourceReason));
+			feedback.text += "]";
+		}
+	};
+
+	for (auto iterator = m_Feedback.rbegin();
+		iterator != m_Feedback.rend();
+		++iterator)
+	{
+		FloatingFeedback& existing = *iterator;
+		if (existing.createdFrame != m_PresentationFrame ||
+			existing.resourceAxis != axis ||
+			existing.resourceOwner != owner ||
+			existing.targetKey != event.targetKey)
+		{
+			continue;
+		}
+		existing.resourceAfter = event.valueAfter;
+		existing.resourceReason = static_cast<int>(event.reason);
+		existing.finisher = existing.finisher || event.finisher;
+		existing.worldPosition = event.worldPosition;
+		existing.totalLifetime = (std::max)(existing.totalLifetime, 1.20f);
+		existing.lifetime = existing.totalLifetime;
+		updateText(existing);
+		return;
+	}
+
+	FloatingFeedback feedback;
+	feedback.worldPosition = event.worldPosition;
+	feedback.totalLifetime = event.finisher ? 1.55f : 1.10f;
+	feedback.lifetime = feedback.totalLifetime;
+	feedback.fontScale = event.finisher ? 1.12f : 0.88f;
+	feedback.color = AxisResourceColor(event.axis);
+	feedback.createdFrame = m_PresentationFrame;
+	feedback.createdTimeSeconds = m_PresentationTimeSeconds;
+	feedback.targetKey = event.targetKey;
+	feedback.resourceAxis = axis;
+	feedback.resourceOwner = owner;
+	feedback.resourceBefore = event.valueBefore;
+	feedback.resourceAfter = event.valueAfter;
+	feedback.resourceReason = static_cast<int>(event.reason);
+	feedback.finisher = event.finisher;
+	feedback.playerHudMessage = event.targetKey == 0 &&
+		event.worldPosition.LengthSquared() <= 0.0001f;
+	updateText(feedback);
+	m_Feedback.push_back(std::move(feedback));
+}
+
+void GamePresentation::OnAxisAbilityResolved(
+	const AxisAbilityResolvedEvent& event)
+{
+	Game* game = Game::GetInstance();
+	if (game == nullptr || !game->IsCollisionImpactEffectsEnabled()) return;
+
+	CollisionVfxSystem::Style style = CollisionVfxSystem::Style::Pierce;
+	if (event.axis == AxisResourceKind::Reflection)
+		style = CollisionVfxSystem::Style::Reflection;
+	else if (event.axis == AxisResourceKind::Anchor)
+		style = CollisionVfxSystem::Style::Anchor;
+
+	const bool isTravel =
+		event.action == AxisAbilityAction::PierceMinionTravel;
+	const bool isDirected = isTravel ||
+		event.action == AxisAbilityAction::PierceTraceCreated ||
+		event.action == AxisAbilityAction::PierceMinionLaunched ||
+		event.action == AxisAbilityAction::ReflectionWallBounce ||
+		event.action == AxisAbilityAction::ReflectionPinballCollision ||
+		event.action == AxisAbilityAction::AnchorRecovered;
+	if (isDirected)
+	{
+		CollisionVfxSystem::TrailRequest trail;
+		trail.startPosition = event.sourcePosition;
+		trail.endPosition = event.targetPosition;
+		trail.style = style;
+		trail.lifetime = isTravel ? 0.20f : event.finisher ? 0.62f : 0.34f;
+		trail.width = isTravel ? 2.3f : event.finisher ? 5.0f : 3.2f;
+		trail.priority = event.finisher ? 4 : event.enhanced ? 3 : 2;
+		trail.frame = m_PresentationFrame;
+		trail.sourceKey = event.sourceKey;
+		trail.enhanced = event.enhanced;
+		trail.finisher = event.finisher;
+		m_CollisionVfx.SpawnTrail(trail);
+	}
+
+	if (!isTravel)
+	{
+		CollisionVfxSystem::SpawnRequest burst;
+		burst.worldPosition = event.targetPosition;
+		burst.collisionAxis = event.targetPosition - event.sourcePosition;
+		burst.strength = event.finisher
+			? CollisionPresentationRules::Strength::Strong
+			: event.enhanced
+				? CollisionPresentationRules::Strength::Medium
+				: CollisionPresentationRules::Strength::Weak;
+		burst.chainTier = std::clamp(event.tier, 0, 5);
+		burst.priority = event.finisher ? 4 : event.enhanced ? 3 : 2;
+		burst.density = game->GetDecorativeRingAmount();
+		burst.frame = m_PresentationFrame;
+		burst.milestone = event.tier >= 3;
+		burst.enhanced = event.enhanced;
+		burst.finisher = event.finisher;
+		burst.radius = event.radius;
+		burst.style = style;
+		m_CollisionVfx.Spawn(burst);
+	}
+
+	const char* label = nullptr;
+	switch (event.action)
+	{
+	case AxisAbilityAction::PierceTraceCreated:
+		label = PresentationUtf8(u8"貫通痕 生成");
+		break;
+	case AxisAbilityAction::PierceMinionLaunched:
+		label = event.finisher && event.enhanced
+			? "PIERCE OVERCHARGE"
+			: event.enhanced
+				? PresentationUtf8(u8"強化ミニオン 発進")
+				: PresentationUtf8(u8"ミニオン 発進");
+		break;
+	case AxisAbilityAction::PierceFinisherHit:
+		label = "PIERCE FINISHER";
+		break;
+	case AxisAbilityAction::ReflectionWallBounce:
+		label = event.enhanced
+			? PresentationUtf8(u8"強化反射")
+			: PresentationUtf8(u8"反射");
+		break;
+	case AxisAbilityAction::ReflectionEmpoweredHit:
+		label = PresentationUtf8(u8"反射強化 HIT");
+		break;
+	case AxisAbilityAction::ReflectionPinballActivated:
+		label = "RICOCHET FINISHER";
+		break;
+	case AxisAbilityAction::AnchorApplied:
+		label = PresentationUtf8(u8"Anchor 蓄積");
+		break;
+	case AxisAbilityAction::AnchorRecovered:
+		label = PresentationUtf8(u8"Anchor 回収 5:1");
+		break;
+	case AxisAbilityAction::AnchorShieldGranted:
+		label = "SHIELD GAIN";
+		break;
+	case AxisAbilityAction::AnchorShieldAbsorbed:
+		label = "SHIELD BLOCK";
+		break;
+	case AxisAbilityAction::AnchorFinisherArea:
+		label = "ANCHOR FINISHER";
+		break;
+	case AxisAbilityAction::AnchorPlayerEmpowered:
+		label = "PLAYER ANCHOR UP";
+		break;
+	default:
+		break;
+	}
+	if (label == nullptr) return;
+
+	FloatingFeedback feedback;
+	feedback.worldPosition = event.targetPosition;
+	feedback.text = label;
+	if (event.amount > 0 &&
+		event.action != AxisAbilityAction::PierceMinionLaunched)
+	{
+		feedback.text += " +" + std::to_string(event.amount);
+	}
+	feedback.totalLifetime = event.finisher ? 1.65f : 0.92f;
+	feedback.lifetime = feedback.totalLifetime;
+	feedback.fontScale = event.finisher ? 1.16f : 0.84f;
+	feedback.color = AxisResourceColor(event.axis);
+	feedback.drawRing = event.finisher;
+	feedback.createdFrame = m_PresentationFrame;
+	feedback.createdTimeSeconds = m_PresentationTimeSeconds;
+	feedback.targetKey = event.targetKey;
+	feedback.finisher = event.finisher;
+	m_Feedback.push_back(std::move(feedback));
+}
+
+void GamePresentation::OnShotResolved(const ShotResolvedEvent& event)
+{
+	m_CurrentShotHitCount = event.hitCount;
+	m_CurrentShotDamage = event.totalDamage;
+	m_CurrentShotDefeatCount = event.defeatCount;
+	m_CurrentShotChargeInterruptions = event.chargeInterruptions;
+	m_CurrentShotResourceGained = event.resourceGained;
+	m_CurrentShotResourceConsumed = event.resourceConsumed;
+	m_CurrentShotFinisherMask = event.finisherMask;
+	m_HitSummaryLifetime = 2.15f;
 }
 
 void GamePresentation::StartTutorial(bool replay)
@@ -1257,6 +2496,7 @@ void GamePresentation::DrawTutorial(Game& game)
 void GamePresentation::DrawFeedback(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+	ImDrawList* effects = ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 	const ImVec2 topLeft = viewport->Pos;
 	const ImVec2 bottomRight(
@@ -1341,19 +2581,411 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 	}
 
-	for (const FloatingFeedback& feedback : m_Feedback)
+	if (game.IsCollisionImpactEffectsEnabled())
 	{
+		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+		const PlayerBall* player = players.empty() ? nullptr : players.front();
+		if (player != nullptr)
+		{
+			const auto& trail = player->GetTrailPoints();
+			const std::size_t first = trail.size() > 112
+				? trail.size() - 112
+				: 1;
+			for (std::size_t index = first; index < trail.size(); ++index)
+			{
+				const TrailPoint& previous = trail[index - 1];
+				const TrailPoint& current = trail[index];
+				ImVec2 start;
+				ImVec2 end;
+				const Vector3 height(0.0f, 0.32f, 0.0f);
+				if (!TryProjectToScreen(previous.position + height, start) ||
+					!TryProjectToScreen(current.position + height, end))
+					continue;
+				const float life = std::clamp(
+					(std::min)(previous.lifeRatio, current.lifeRatio),
+					0.0f,
+					1.0f);
+				const float intensity = std::clamp(
+					(std::max)(previous.intensity, current.intensity),
+					0.0f,
+					1.0f);
+				const float alpha = life * (0.35f + 0.65f * intensity);
+				if (alpha <= 0.01f) continue;
+				effects->AddLine(
+					start,
+					end,
+					IM_COL32(255, 92, 18, static_cast<int>(66.0f * alpha)),
+					8.0f + intensity * 5.0f);
+				effects->AddLine(
+					start,
+					end,
+					IM_COL32(255, 142, 30, static_cast<int>(184.0f * alpha)),
+					3.8f + intensity * 2.4f);
+				effects->AddLine(
+					start,
+					end,
+					IM_COL32(255, 232, 142, static_cast<int>(232.0f * alpha)),
+					1.1f + intensity * 0.9f);
+			}
+		}
+	}
+
+	m_CollisionVfx.Draw(
+		effects,
+		&TryProjectToScreen,
+		game.IsCollisionImpactEffectsEnabled() || game.IsDefeatVfxEnabled());
+
+	if (m_HeavyChainDisplayLifetime > 0.0f &&
+		m_HeavyPhysicsChainCount > 0 &&
+		game.IsHeavyChainEffectsEnabled())
+	{
+		const int tier = CollisionPresentationRules::ChainTier(
+			m_HeavyPhysicsChainCount);
+		const ImU32 colors[5] = {
+			IM_COL32(205, 238, 255, 255),
+			IM_COL32(255, 224, 92, 255),
+			IM_COL32(255, 154, 58, 255),
+			IM_COL32(255, 178, 38, 255),
+			IM_COL32(255, 238, 150, 255),
+		};
+		const float progress = 1.0f -
+			m_HeavyChainDisplayLifetime / m_HeavyChainDisplayTotalLifetime;
+		const float intro = std::clamp(progress / 0.22f, 0.0f, 1.0f);
+		const float eased = 1.0f - std::pow(1.0f - intro, 3.0f);
+		const float overshoot = std::sin(intro * DirectX::XM_PI) *
+			(tier >= 3 ? 0.18f : 0.08f);
+		const float baseScale = tier >= 3
+			? 2.05f
+			: tier == 2 ? 1.72f : tier == 1 ? 1.46f : 1.12f;
+		const float scale = baseScale * (0.82f + eased * 0.18f + overshoot);
+		const float alpha = std::clamp(
+			m_HeavyChainDisplayLifetime / 0.24f,
+			0.0f,
+			1.0f);
+		const std::string chainText =
+			"CHAIN " + std::to_string(m_HeavyPhysicsChainCount);
+		ImFont* font = ImGui::GetFont();
+		const float fontSize = ImGui::GetFontSize() * scale;
+		const ImVec2 size = font->CalcTextSizeA(
+			fontSize,
+			FLT_MAX,
+			0.0f,
+			chainText.c_str());
+		const bool avoidDebugWindow = game.IsDebugMode() || GameUi::showDebugger;
+		const float centerX = avoidDebugWindow
+			? viewport->Pos.x + viewport->Size.x * 0.405f
+			: viewport->Pos.x + viewport->Size.x * 0.5f;
+		const float centerY = viewport->Pos.y +
+			(avoidDebugWindow ? 108.0f : 88.0f);
+		const float bannerWidth = tier >= 3 ? 360.0f : tier == 2 ? 320.0f : 276.0f;
+		const float bannerHeight = tier >= 3 ? 62.0f : 56.0f;
+		const ImVec2 bannerMinimum(
+			centerX - bannerWidth * 0.5f,
+			centerY - bannerHeight * 0.5f);
+		const ImVec2 bannerMaximum(
+			centerX + bannerWidth * 0.5f,
+			centerY + bannerHeight * 0.5f);
+
+		if (tier >= 2)
+		{
+			foreground->PushClipRect(
+				ImVec2(bannerMinimum.x - 42.0f, bannerMinimum.y - 34.0f),
+				ImVec2(bannerMaximum.x + 42.0f, bannerMaximum.y + 34.0f),
+				true);
+			const int rayCount = tier >= 3 ? 12 : 8;
+			for (int index = 0; index < rayCount; ++index)
+			{
+				const float angle = DirectX::XM_2PI *
+					static_cast<float>(index) / static_cast<float>(rayCount);
+				const float inner = tier >= 3 ? 45.0f : 34.0f;
+				const float outer = inner + 58.0f +
+					26.0f * std::abs(std::sin(angle * 2.3f));
+				foreground->AddLine(
+					ImVec2(centerX + std::cos(angle) * inner,
+						centerY + std::sin(angle) * inner * 0.45f),
+					ImVec2(centerX + std::cos(angle) * outer,
+						centerY + std::sin(angle) * outer * 0.45f),
+					WithAlpha(colors[tier], alpha * (tier >= 3 ? 0.22f : 0.15f)),
+					tier >= 3 ? 1.8f : 1.2f);
+			}
+			foreground->PopClipRect();
+			foreground->AddRectFilled(
+				bannerMinimum,
+				bannerMaximum,
+				IM_COL32(24, 10, 5, static_cast<int>(176.0f * alpha)),
+				18.0f);
+			foreground->AddRect(
+				bannerMinimum,
+				bannerMaximum,
+				WithAlpha(colors[tier], alpha * 0.88f),
+				18.0f,
+				0,
+				tier >= 3 ? 3.2f : 2.0f);
+			foreground->AddLine(
+				ImVec2(bannerMinimum.x + 26.0f, bannerMaximum.y + 7.0f),
+				ImVec2(centerX - 28.0f, bannerMaximum.y + 7.0f),
+				WithAlpha(colors[tier], alpha * 0.82f),
+				2.0f);
+			foreground->AddLine(
+				ImVec2(centerX + 28.0f, bannerMaximum.y + 7.0f),
+				ImVec2(bannerMaximum.x - 26.0f, bannerMaximum.y + 7.0f),
+				WithAlpha(colors[tier], alpha * 0.82f),
+				2.0f);
+			const float ornament = tier >= 3 ? 14.0f : 9.0f;
+			foreground->AddTriangleFilled(
+				ImVec2(bannerMinimum.x - ornament, centerY),
+				ImVec2(bannerMinimum.x + 5.0f, centerY - ornament),
+				ImVec2(bannerMinimum.x + 5.0f, centerY + ornament),
+				WithAlpha(colors[tier], alpha));
+			foreground->AddTriangleFilled(
+				ImVec2(bannerMaximum.x + ornament, centerY),
+				ImVec2(bannerMaximum.x - 5.0f, centerY - ornament),
+				ImVec2(bannerMaximum.x - 5.0f, centerY + ornament),
+				WithAlpha(colors[tier], alpha));
+		}
+
+		const ImVec2 at(centerX - size.x * 0.5f, centerY - size.y * 0.58f);
+		const ImU32 outline = IM_COL32(92, 18, 4, static_cast<int>(245.0f * alpha));
+		for (const ImVec2 offset : {
+			ImVec2(-3.0f, 0.0f), ImVec2(3.0f, 0.0f),
+			ImVec2(0.0f, -3.0f), ImVec2(0.0f, 3.0f) })
+		{
+			foreground->AddText(
+				font,
+				fontSize,
+				ImVec2(at.x + offset.x, at.y + offset.y),
+				outline,
+				chainText.c_str());
+		}
+		foreground->AddText(
+			font,
+			fontSize,
+			at,
+			WithAlpha(colors[tier], alpha),
+			chainText.c_str());
+		foreground->AddText(
+			font,
+			fontSize,
+			ImVec2(at.x, at.y - 1.5f),
+			IM_COL32(255, 250, 220, static_cast<int>(105.0f * alpha)),
+			chainText.c_str());
+		const char* meaning = PresentationUtf8(
+			u8"採用された敵同士の接触回数");
+		const ImVec2 meaningSize = ImGui::CalcTextSize(meaning);
+		foreground->AddText(
+			ImVec2(
+				centerX - meaningSize.x * 0.5f,
+					centerY + bannerHeight * 0.5f + 9.0f),
+			IM_COL32(0, 0, 0, static_cast<int>(220.0f * alpha)),
+			meaning);
+		foreground->AddText(
+			ImVec2(
+				centerX - meaningSize.x * 0.5f,
+					centerY + bannerHeight * 0.5f + 7.0f),
+			IM_COL32(238, 242, 248, static_cast<int>(190.0f * alpha)),
+			meaning);
+	}
+
+	if (m_MultiDefeatDisplayLifetime > 0.0f &&
+		m_CurrentShotDefeatCount >= 2 &&
+		game.IsMultiDefeatEffectsEnabled())
+	{
+		const bool avoidDebugWindow = game.IsDebugMode() || GameUi::showDebugger;
+		const float centerX = avoidDebugWindow
+			? viewport->Pos.x + viewport->Size.x * 0.70f
+			: viewport->Pos.x + viewport->Size.x * 0.5f;
+		const float centerY = viewport->Pos.y +
+			(avoidDebugWindow ? 250.0f :
+				(m_HeavyChainDisplayLifetime > 0.0f ? 154.0f : 94.0f));
+		const float life = std::clamp(
+			m_MultiDefeatDisplayLifetime / m_MultiDefeatDisplayTotalLifetime,
+			0.0f,
+			1.0f);
+		const float intro = std::clamp(
+			(1.0f - life) / 0.18f,
+			0.0f,
+			1.0f);
+		const float alpha = std::clamp(
+			(std::min)(life * 4.5f, 0.72f + intro * 0.28f),
+			0.0f,
+			1.0f);
+		const int tier = CombatPresentationRules::MultiDefeatTier(
+			m_CurrentShotDefeatCount);
+		const ImU32 accent = tier >= 2
+			? IM_COL32(255, 132, 58, static_cast<int>(255.0f * alpha))
+			: IM_COL32(255, 220, 92, static_cast<int>(255.0f * alpha));
+		const std::string text = m_CurrentShotDefeatCount == 2
+			? "DOUBLE BREAK"
+			: "MULTI BREAK  x" + std::to_string(m_CurrentShotDefeatCount);
+		ImFont* multiFont = ImGui::GetFont();
+		const float pop = 0.94f + 0.16f * std::sin(intro * DirectX::XM_PI);
+		const float multiFontSize = ImGui::GetFontSize() *
+			(tier >= 2 ? 1.30f : 1.18f) * pop;
+		const ImVec2 textSize = multiFont->CalcTextSizeA(
+			multiFontSize,
+			FLT_MAX,
+			0.0f,
+			text.c_str());
+		const float width = (std::max)(252.0f, textSize.x + 82.0f);
+		const ImVec2 minimum(centerX - width * 0.5f, centerY - 23.0f);
+		const ImVec2 maximum(centerX + width * 0.5f, centerY + 23.0f);
+		foreground->AddRectFilled(
+			minimum,
+			maximum,
+			IM_COL32(12, 6, 5, static_cast<int>(238.0f * alpha)),
+			13.0f);
+		foreground->AddRect(minimum, maximum, accent, 13.0f, 0, 2.5f);
+		foreground->AddLine(
+			ImVec2(minimum.x - 34.0f, centerY),
+			ImVec2(minimum.x - 4.0f, centerY),
+			accent,
+			3.0f);
+		foreground->AddLine(
+			ImVec2(maximum.x + 4.0f, centerY),
+			ImVec2(maximum.x + 34.0f, centerY),
+			accent,
+			3.0f);
+		const ImVec2 textAt(
+			centerX - textSize.x * 0.5f,
+			centerY - textSize.y * 0.5f);
+		for (const ImVec2 offset : {
+			ImVec2(-2.0f, 0.0f), ImVec2(2.0f, 0.0f),
+			ImVec2(0.0f, -2.0f), ImVec2(0.0f, 2.0f) })
+		{
+			foreground->AddText(
+				multiFont,
+				multiFontSize,
+				ImVec2(textAt.x + offset.x, textAt.y + offset.y),
+				IM_COL32(0, 0, 0, static_cast<int>(250.0f * alpha)),
+				text.c_str());
+		}
+		foreground->AddText(
+			multiFont,
+			multiFontSize,
+			textAt,
+			WithAlpha(
+				IM_COL32(255, 238, 188, 255),
+				alpha),
+			text.c_str());
+	}
+
+	std::vector<std::size_t> feedbackOrder;
+	feedbackOrder.reserve(m_Feedback.size());
+	for (std::size_t index = 0; index < m_Feedback.size(); ++index)
+		feedbackOrder.push_back(index);
+	std::stable_sort(
+		feedbackOrder.begin(),
+		feedbackOrder.end(),
+		[&](std::size_t first, std::size_t second)
+		{
+			const auto priority = [](const FloatingFeedback& feedback)
+			{
+				if (feedback.text.find("撃破") != std::string::npos) return 10000;
+				int damage = 0;
+				return sscanf_s(feedback.text.c_str(), "-%d HP", &damage) == 1
+					? 100 + damage
+					: 0;
+			};
+			return priority(m_Feedback[first]) > priority(m_Feedback[second]);
+		});
+	std::vector<ImVec4> placedFeedbackRectangles;
+	placedFeedbackRectangles.reserve(m_Feedback.size() + 16);
+	if (m_HeavyChainDisplayLifetime > 0.0f &&
+		CollisionPresentationRules::ChainTier(m_HeavyPhysicsChainCount) >= 2)
+	{
+		const bool avoidDebugWindow = game.IsDebugMode() || GameUi::showDebugger;
+		const float protectedCenterX = avoidDebugWindow
+			? viewport->Pos.x + viewport->Size.x * 0.405f
+			: viewport->Pos.x + viewport->Size.x * 0.5f;
+		const float protectedCenterY = viewport->Pos.y +
+			(avoidDebugWindow ? 108.0f : 88.0f);
+		placedFeedbackRectangles.emplace_back(
+			protectedCenterX - 205.0f,
+			protectedCenterY - 40.0f,
+			protectedCenterX + 205.0f,
+			protectedCenterY + 52.0f);
+	}
+	if (m_MultiDefeatDisplayLifetime > 0.0f &&
+		m_CurrentShotDefeatCount >= 2)
+	{
+		const bool avoidDebugWindow = game.IsDebugMode() || GameUi::showDebugger;
+		const float centerX = avoidDebugWindow
+			? viewport->Pos.x + viewport->Size.x * 0.70f
+			: viewport->Pos.x + viewport->Size.x * 0.5f;
+		const float centerY = viewport->Pos.y +
+			(avoidDebugWindow ? 250.0f :
+				(m_HeavyChainDisplayLifetime > 0.0f ? 154.0f : 94.0f));
+		placedFeedbackRectangles.emplace_back(
+			centerX - 178.0f,
+			centerY - 30.0f,
+			centerX + 178.0f,
+			centerY + 30.0f);
+	}
+	if (m_HitSummaryLifetime > 0.0f)
+	{
+		placedFeedbackRectangles.emplace_back(
+			viewport->Pos.x + viewport->Size.x - 400.0f,
+			viewport->Pos.y + 264.0f,
+			viewport->Pos.x + viewport->Size.x - 18.0f,
+			viewport->Pos.y + 360.0f);
+	}
+	for (const EnemyBall* enemy :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
+		ImVec2 center;
+		ImVec2 top;
+		if (!TryProjectToScreen(enemy->GetPosition(), center) ||
+			!TryProjectToScreen(
+				enemy->GetPosition() + Vector3(0.0f, enemy->GetRadius(), 0.0f),
+				top))
+		{
+			continue;
+		}
+		const float radius = (std::max)(14.0f, std::abs(center.y - top.y));
+		placedFeedbackRectangles.emplace_back(
+			center.x - 108.0f,
+			center.y - radius - 76.0f,
+			center.x + 108.0f,
+			center.y + radius + 108.0f);
+	}
+	const std::array<ImVec2, 24> feedbackOffsets = {
+		ImVec2(0.0f, 0.0f),
+		ImVec2(-34.0f, -26.0f), ImVec2(34.0f, -26.0f),
+		ImVec2(-62.0f, -10.0f), ImVec2(62.0f, -10.0f),
+		ImVec2(-42.0f, 28.0f), ImVec2(42.0f, 28.0f),
+		ImVec2(0.0f, 46.0f),
+		ImVec2(-78.0f, 34.0f), ImVec2(78.0f, 34.0f),
+		ImVec2(-96.0f, 0.0f), ImVec2(96.0f, 0.0f),
+		ImVec2(-72.0f, 68.0f), ImVec2(72.0f, 68.0f),
+		ImVec2(0.0f, 76.0f),
+		ImVec2(-108.0f, 58.0f), ImVec2(108.0f, 58.0f),
+		ImVec2(-120.0f, 18.0f), ImVec2(120.0f, 18.0f),
+		ImVec2(-45.0f, 98.0f), ImVec2(45.0f, 98.0f),
+		ImVec2(0.0f, 112.0f),
+		ImVec2(-105.0f, 96.0f), ImVec2(105.0f, 96.0f),
+	};
+	for (const std::size_t feedbackIndex : feedbackOrder)
+	{
+		const FloatingFeedback& feedback = m_Feedback[feedbackIndex];
 		ImVec2 position;
+		ImVec2 worldAnchor;
 		const bool playerHudMessage = feedback.playerHudMessage;
 		if (playerHudMessage)
 		{
 			position = ImVec2(
 				viewport->Pos.x + viewport->Size.x * 0.5f,
-				viewport->Pos.y + 105.0f);
+				viewport->Pos.y +
+					(m_HeavyChainDisplayLifetime > 0.0f ? 278.0f : 105.0f));
+			worldAnchor = position;
 		}
-		else if (!TryProjectToScreen(feedback.worldPosition, position))
+		else if (!TryProjectToScreen(feedback.worldPosition, worldAnchor))
 		{
 			continue;
+		}
+		else
+		{
+			position = worldAnchor;
 		}
 
 		const float progress = 1.0f -
@@ -1365,15 +2997,102 @@ void GamePresentation::DrawFeedback(Game& game)
 			0.0f,
 			1.0f);
 		const float alpha = fadeIn * fadeOut;
-		const ImVec2 textSize = ImGui::CalcTextSize(feedback.text.c_str());
-		const ImVec2 textPosition(
+		ImFont* font = ImGui::GetFont();
+		const float fontSize = ImGui::GetFontSize() * feedback.fontScale;
+		const ImVec2 textSize = font->CalcTextSizeA(
+			fontSize,
+			FLT_MAX,
+			0.0f,
+			feedback.text.c_str());
+		ImVec2 textPosition(
 			position.x - textSize.x * 0.5f,
 			position.y - textSize.y * 0.5f);
+		if (!playerHudMessage)
+		{
+			float bestScore = FLT_MAX;
+			ImVec2 bestPosition = textPosition;
+			ImVec4 bestRectangle{};
+			for (const ImVec2& offset : feedbackOffsets)
+			{
+				ImVec2 candidate(
+					textPosition.x + offset.x,
+					textPosition.y + offset.y);
+				candidate.x = std::clamp(
+					candidate.x,
+					viewport->Pos.x + 12.0f,
+					viewport->Pos.x + viewport->Size.x - textSize.x - 12.0f);
+				candidate.y = std::clamp(
+					candidate.y,
+					viewport->Pos.y + 28.0f,
+					viewport->Pos.y + viewport->Size.y - textSize.y - 18.0f);
+				const ImVec4 candidateRectangle(
+					candidate.x - 5.0f,
+					candidate.y - 3.0f,
+					candidate.x + textSize.x + 5.0f,
+					candidate.y + textSize.y + 3.0f);
+				float overlapArea = 0.0f;
+				for (const ImVec4& placed : placedFeedbackRectangles)
+				{
+					const float width = (std::max)(
+						0.0f,
+						(std::min)(candidateRectangle.z, placed.z) -
+						(std::max)(candidateRectangle.x, placed.x));
+					const float height = (std::max)(
+						0.0f,
+						(std::min)(candidateRectangle.w, placed.w) -
+						(std::max)(candidateRectangle.y, placed.y));
+					overlapArea += width * height;
+				}
+				const float distancePenalty =
+					(offset.x * offset.x + offset.y * offset.y) * 0.012f;
+				const float score = overlapArea * 12.0f + distancePenalty;
+				if (score < bestScore)
+				{
+					bestScore = score;
+					bestPosition = candidate;
+					bestRectangle = candidateRectangle;
+					if (overlapArea <= 0.0f && distancePenalty <= 0.0f) break;
+				}
+			}
+			textPosition = bestPosition;
+			placedFeedbackRectangles.push_back(bestRectangle);
+		}
+		const bool defeated =
+			feedback.text.find("撃破") != std::string::npos;
+		if (defeated)
+		{
+			foreground->AddRectFilled(
+				ImVec2(textPosition.x - 7.0f, textPosition.y - 4.0f),
+				ImVec2(textPosition.x + textSize.x + 7.0f,
+					textPosition.y + textSize.y + 4.0f),
+				IM_COL32(38, 18, 2, static_cast<int>(156.0f * alpha)),
+				7.0f);
+		}
+		else if (!playerHudMessage)
+		{
+			foreground->AddRectFilled(
+				ImVec2(textPosition.x - 5.0f, textPosition.y - 2.0f),
+				ImVec2(textPosition.x + textSize.x + 5.0f,
+					textPosition.y + textSize.y + 2.0f),
+				IM_COL32(6, 12, 18, static_cast<int>(92.0f * alpha)),
+				5.0f);
+		}
+		for (const ImVec2 outlineOffset : {
+			ImVec2(-1.8f, 0.0f), ImVec2(1.8f, 0.0f),
+			ImVec2(0.0f, -1.8f), ImVec2(0.0f, 1.8f) })
+		{
+			foreground->AddText(
+				font,
+				fontSize,
+				ImVec2(
+					textPosition.x + outlineOffset.x,
+					textPosition.y + outlineOffset.y),
+				IM_COL32(0, 0, 0, static_cast<int>(225.0f * alpha)),
+				feedback.text.c_str());
+		}
 		foreground->AddText(
-			ImVec2(textPosition.x + 2.0f, textPosition.y + 2.0f),
-			IM_COL32(0, 0, 0, static_cast<int>(210.0f * alpha)),
-			feedback.text.c_str());
-		foreground->AddText(
+			font,
+			fontSize,
 			textPosition,
 			WithAlpha(feedback.color, alpha),
 			feedback.text.c_str());
@@ -1381,7 +3100,7 @@ void GamePresentation::DrawFeedback(Game& game)
 		{
 			const float radius = 16.0f + progress * 48.0f;
 			foreground->AddCircle(
-				position,
+				worldAnchor,
 				radius,
 				WithAlpha(feedback.color, alpha * 0.7f),
 				32,
@@ -1389,20 +3108,146 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 	}
 
-	if (m_HitSummaryLifetime > 0.0f && m_CurrentShotHitCount > 0)
+	if (GameUi::showDebugger && IsBattleScene(game))
 	{
-		std::ostringstream summary;
-		summary << m_CurrentShotHitCount << "ヒット"
-			<< "   合計ダメージ " << m_CurrentShotDamage;
-		const std::string text = summary.str();
-		const ImVec2 size = ImGui::CalcTextSize(text.c_str());
-		const ImVec2 position(
-			viewport->Pos.x + viewport->Size.x - size.x - 32.0f,
-			viewport->Pos.y + 56.0f);
+		const CollisionVfxDiagnostics& vfx =
+			m_CollisionVfx.GetDiagnostics();
+		char diagnostics[256]{};
+		sprintf_s(
+			diagnostics,
+			"VFX impact=%d chain=%d sparks=%d/%d waves=%d/%d burst=%d/%d trail=%d/%d hitflash=%d/%d defeat=%d dup=%d gen=%d skip=%d merge=%d prim=%d/%d",
+			vfx.impactEvents,
+			m_HeavyPhysicsChainCount,
+			vfx.activeSparks,
+			vfx.maximumActiveSparks,
+			vfx.activeWaves,
+			vfx.maximumActiveWaves,
+			vfx.activeBursts,
+			vfx.maximumActiveBursts,
+			vfx.activeTrails,
+			vfx.maximumActiveTrails,
+			m_CombatReactionDiagnostics.activeHitFlashes,
+			m_CombatReactionDiagnostics.maximumActiveHitFlashes,
+			m_CombatReactionDiagnostics.uniqueDefeats,
+			m_CombatReactionDiagnostics.duplicateDefeatsSuppressed,
+			vfx.sparksGenerated + vfx.burstsGenerated + vfx.trailsGenerated,
+			vfx.sparksSkipped + vfx.wavesSkipped + vfx.burstsSkipped +
+				vfx.trailsSkipped,
+			vfx.wavesMerged,
+			vfx.primitiveSubmissionsLastFrame,
+			vfx.maximumPrimitiveSubmissions);
 		foreground->AddText(
-			position,
-			IM_COL32(255, 224, 100, 255),
-			text.c_str());
+			ImVec2(viewport->Pos.x + 18.0f, viewport->Pos.y + viewport->Size.y - 28.0f),
+			IM_COL32(210, 235, 255, 230),
+			diagnostics);
+		const FrameTimingSnapshot& timing = game.GetFrameTimingSnapshot();
+		char timingText[256]{};
+		sprintf_s(
+			timingText,
+			"FRAME %s n=%d avg=%.2f p95=%.2f p99=%.2f max=%.2f ms  update=%.2f draw=%.2f present=%.2f",
+			timing.active ? "MEASURING" : timing.completed ? "SHOT" : "IDLE",
+			timing.sampleCount,
+			timing.averageFrameMilliseconds,
+			timing.p95FrameMilliseconds,
+			timing.p99FrameMilliseconds,
+			timing.maximumFrameMilliseconds,
+			timing.averageUpdateMilliseconds,
+			timing.averageDrawMilliseconds,
+			timing.averagePresentMilliseconds);
+		foreground->AddText(
+			ImVec2(viewport->Pos.x + 18.0f, viewport->Pos.y + viewport->Size.y - 50.0f),
+			IM_COL32(255, 232, 150, 235),
+			timingText);
+	}
+
+	if (m_HitSummaryLifetime > 0.0f)
+	{
+		std::vector<std::string> lines;
+		std::ostringstream primary;
+		primary << "SHOT RESULT   DMG " << m_CurrentShotDamage
+			<< "   HIT " << m_CurrentShotHitCount;
+		lines.push_back(primary.str());
+		if (m_CurrentShotDefeatCount > 0 ||
+			m_CurrentShotChargeInterruptions > 0)
+		{
+			std::ostringstream result;
+			if (m_CurrentShotDefeatCount > 0)
+				result << "BREAK " << m_CurrentShotDefeatCount;
+			if (m_CurrentShotChargeInterruptions > 0)
+			{
+				if (m_CurrentShotDefeatCount > 0) result << "   ";
+				result << "CHARGE BREAK " << m_CurrentShotChargeInterruptions;
+			}
+			lines.push_back(result.str());
+		}
+		std::ostringstream resources;
+		int resourceItems = 0;
+		for (std::size_t index = 0;
+			index < m_CurrentShotResourceGained.size();
+			++index)
+		{
+			const int gained = m_CurrentShotResourceGained[index];
+			const int consumed = m_CurrentShotResourceConsumed[index];
+			if (gained <= 0 && consumed <= 0) continue;
+			if (resourceItems > 0) resources << "   ";
+			resources << AxisResourceLabel(
+				static_cast<AxisResourceKind>(index));
+			if (gained > 0) resources << " +" << gained;
+			if (consumed > 0) resources << " -" << consumed;
+			++resourceItems;
+			if (resourceItems >= 2) break;
+		}
+		if (m_CurrentShotFinisherMask != 0)
+		{
+			if (resourceItems > 0) resources << "   ";
+			resources << "FINISHER";
+		}
+		if (resourceItems > 0 || m_CurrentShotFinisherMask != 0)
+			lines.push_back(resources.str());
+		if (lines.size() == 1 && m_CurrentShotHitCount == 0)
+			lines.push_back("NO HIT");
+
+		float width = 0.0f;
+		for (const std::string& line : lines)
+			width = (std::max)(width, ImGui::CalcTextSize(line.c_str()).x);
+		width += 34.0f;
+		const float height = 18.0f +
+			static_cast<float>(lines.size()) * 22.0f;
+		// Keep the result below the built-in top-right HUD and the debug-battle
+		// controls.  Dense battles also tend to occupy the centre-left, so this
+		// preserves a stable, readable result area without covering enemy state.
+		constexpr float summaryTop = 270.0f;
+		const ImVec2 maximum(
+			viewport->Pos.x + viewport->Size.x - 26.0f,
+			viewport->Pos.y + summaryTop + height);
+		const ImVec2 minimum(
+			maximum.x - width,
+			viewport->Pos.y + summaryTop);
+		const float alpha = std::clamp(
+			m_HitSummaryLifetime / 0.28f,
+			0.0f,
+			1.0f);
+		foreground->AddRectFilled(
+			minimum,
+			maximum,
+			IM_COL32(8, 13, 22, static_cast<int>(226.0f * alpha)),
+			9.0f);
+		foreground->AddRect(
+			minimum,
+			maximum,
+			IM_COL32(255, 207, 72, static_cast<int>(235.0f * alpha)),
+			9.0f,
+			0,
+			1.6f);
+		for (std::size_t index = 0; index < lines.size(); ++index)
+		{
+			foreground->AddText(
+				ImVec2(minimum.x + 17.0f, minimum.y + 10.0f + index * 22.0f),
+				index == 0
+					? IM_COL32(255, 224, 100, static_cast<int>(255.0f * alpha))
+					: IM_COL32(224, 235, 246, static_cast<int>(240.0f * alpha)),
+				lines[index].c_str());
+		}
 	}
 }
 
@@ -1489,7 +3334,7 @@ void GamePresentation::DrawDashboard()
 				if (metric.percentage)
 				{
 					ImGui::Text(
-						"%-24s %6.1f%%   目標 %.1f–%.1f%%",
+						"%-24s %6.1f%%   目標 %.1f?%.1f%%",
 						metric.label.c_str(),
 						displayValue,
 						displayMin,
@@ -1498,7 +3343,7 @@ void GamePresentation::DrawDashboard()
 				else
 				{
 					ImGui::Text(
-						"%-24s %6.1f   目標 %.1f–%.1f",
+						"%-24s %6.1f   目標 %.1f?%.1f",
 						metric.label.c_str(),
 						displayValue,
 						displayMin,

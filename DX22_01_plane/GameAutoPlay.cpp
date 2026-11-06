@@ -1396,6 +1396,7 @@ void Game::OnBattleStageStarted(const StageData& stage)
 			{
 				{ "instance_id", ball->instanceId },
 				{ "id", ball->definitionId },
+				{ "category", BallCategoryId(ball->category) },
 				{ "upgrade_level", ball->upgradeLevel },
 				{ "attack", GetEffectivePlayerBallAttack(ball) },
 			});
@@ -1429,6 +1430,26 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	}
 	const EncounterThreatSnapshot encounterThreat =
 		m_EncounterBalance->Evaluate(encounterInput);
+	const bool validationEnabled =
+		stage.enemyValidation.has_value() &&
+		stage.enemyValidation->enabled;
+	const nlohmann::json enemyValidationContext =
+		validationEnabled
+		? nlohmann::json{
+			{ "enabled", true },
+			{ "hp_multiplier", stage.enemyValidation->hpMultiplier },
+			{ "enemy_count", static_cast<int>(stage.enemies.size()) },
+			{ "layout_pattern", EnemyValidationLayoutPatternId(
+				stage.enemyValidation->layoutPattern) },
+			{ "seed", stage.enemyValidation->seed },
+		}
+		: nlohmann::json{
+			{ "enabled", false },
+			{ "hp_multiplier", 1.0f },
+			{ "enemy_count", static_cast<int>(stage.enemies.size()) },
+			{ "layout_pattern", "existing" },
+			{ "seed", nullptr },
+		};
 	const nlohmann::json stageContext =
 	{
 		{ "progress", m_RunController->Status().progress },
@@ -1440,6 +1461,7 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		{ "layout_source", encounterThreat.layoutSource },
 		{ "deck", std::move(deckJson) },
 		{ "owned_relics", std::move(relicsJson) },
+		{ "enemy_validation", enemyValidationContext },
 		{
 			"baseline_difficulty",
 			{

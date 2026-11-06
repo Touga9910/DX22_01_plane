@@ -32,6 +32,8 @@ void BattleController::BeginStage(StageType stageType)
     m_StageType = stageType;
     m_BountyRewardClaimed = false;
     m_PocketedEnemyQueue.clear();
+    m_EnemyActionPlanner.Reset();
+    PlanNextTurn();
 }
 
 void BattleController::QueuePocketedEnemy(EnemyBall* enemy)
@@ -140,6 +142,8 @@ void BattleController::Initialize(
 {
     m_World = &world;
     m_Hooks = std::move(hooks);
+    m_EnemyActionPlanner.LoadConfig(
+        "assets/data/enemy_action_rules.json");
     Reset();
 }
 
@@ -149,6 +153,7 @@ void BattleController::StartBattle()
     m_Result = BattleResult::None;
     m_AllBallsStoppedTickCount = 0;
     m_Active = true;
+    m_EnemyActionPlanner.Reset();
 }
 
 void BattleController::Reset()
@@ -157,6 +162,7 @@ void BattleController::Reset()
     m_Result = BattleResult::None;
     m_AllBallsStoppedTickCount = 0;
     m_Active = false;
+    m_EnemyActionPlanner.Reset();
 }
 
 void BattleController::Update()
@@ -241,7 +247,7 @@ void BattleController::BeginAimingPower()
     m_State = BattleState::AimingPower;
 }
 
-void BattleController::NotifyShotFired()
+void BattleController::NotifyShotFired(bool heavyShot)
 {
     if (!m_Active || IsFinished())
     {
@@ -249,6 +255,16 @@ void BattleController::NotifyShotFired()
     }
 
     m_AllBallsStoppedTickCount = 0;
+    if (m_World != nullptr)
+    {
+        for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+        {
+            if (enemy != nullptr)
+            {
+                enemy->BeginChargeShotTracking(heavyShot);
+            }
+        }
+    }
     m_State = BattleState::BallsMoving;
 }
 
@@ -374,6 +390,8 @@ void BattleController::CompleteShot()
         physics->Acceleration() =
             DirectX::SimpleMath::Vector3::Zero;
     }
+
+    ResolveChargeInterruptions();
 
     if (m_Hooks.restorePocketedPlayer)
     {
@@ -514,9 +532,37 @@ void BattleController::ProcessEnemyAttack()
             continue;
         }
 
+        const EnemyActionType action = enemy->GetPlannedAction();
+        if (action == EnemyActionType::Wait)
+        {
+            continue;
+        }
+        if (action == EnemyActionType::ChargeStart)
+        {
+            enemy->BeginCharge();
+            continue;
+        }
+        if (action == EnemyActionType::ChargeAttack &&
+            !enemy->IsCharging())
+        {
+            continue;
+        }
+        if (action != EnemyActionType::NormalAttack &&
+            action != EnemyActionType::ChargeAttack)
+        {
+            continue;
+        }
+
         const int hpBefore = player->GetHP();
 
-        attack->Attack(player);
+        attack->Attack(
+            player,
+            enemy->GetPlannedDamageMultiplier());
+
+        if (action == EnemyActionType::ChargeAttack)
+        {
+            enemy->CompleteChargeAttack();
+        }
 
         const int hpAfter = player->GetHP();
         const int damage =
@@ -525,7 +571,9 @@ void BattleController::ProcessEnemyAttack()
         if (m_Hooks.notifyPlayerDamage)
         {
             m_Hooks.notifyPlayerDamage(
-                "enemy_attack",
+                action == EnemyActionType::ChargeAttack
+                    ? "enemy_charge_attack"
+                    : "enemy_attack",
                 damage,
                 enemy->GetEnemyId(),
                 hpBefore,
@@ -597,7 +645,87 @@ void BattleController::ProcessTurnEnd()
         return;
     }
 
+    PlanNextTurn();
     m_State = BattleState::AimingDirection;
+}
+
+void BattleController::PlanNextTurn()
+{
+    if (m_World == nullptr)
+    {
+        return;
+    }
+
+    const std::vector<EnemyBall*> enemies =
+        m_World->GetComponents<EnemyBall>();
+    std::vector<EnemyActionCandidate> candidates;
+    candidates.reserve(enemies.size());
+    for (EnemyBall* enemy : enemies)
+    {
+        bool canAct = false;
+        if (enemy != nullptr &&
+            !enemy->IsDefeated() &&
+            !enemy->IsPocketed() &&
+            !enemy->IsStunned())
+        {
+            GameObject* owner = enemy->GetGameObject();
+            canAct = owner != nullptr &&
+                owner->GetComponent<EnemyAttackComponent>() != nullptr;
+        }
+        candidates.push_back({
+            reinterpret_cast<std::uintptr_t>(enemy),
+            canAct,
+            enemy != nullptr && enemy->IsCharging(),
+            enemy != nullptr && enemy->CanUseCharge(),
+        });
+    }
+
+    const EnemyActionTurnPlan plan =
+        m_EnemyActionPlanner.PlanTurn(candidates);
+    for (std::size_t index = 0; index < enemies.size(); ++index)
+    {
+        EnemyBall* enemy = enemies[index];
+        if (enemy == nullptr)
+        {
+            continue;
+        }
+        const PlannedEnemyAction& assignment = plan.actions[index];
+        enemy->SetPlannedAction(
+            assignment.action,
+            assignment.cost,
+            m_EnemyActionPlanner.Config().chargeDamageMultiplier);
+    }
+
+    if (m_Hooks.enemyActionPlanConfirmed)
+    {
+        m_Hooks.enemyActionPlanConfirmed(plan);
+    }
+}
+
+void BattleController::ResolveChargeInterruptions()
+{
+    if (m_World == nullptr)
+    {
+        return;
+    }
+    const EnemyActionConfig& config = m_EnemyActionPlanner.Config();
+    for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+    {
+        if (enemy == nullptr)
+        {
+            continue;
+        }
+        const std::optional<ChargeInterruptionResult> result =
+            enemy->EndChargeShotTracking(
+                config.heavyInterruptDiameterMultiplier,
+                config.pierceInterruptMaxHpRatio);
+        if (result.has_value() &&
+            result->WasInterrupted() &&
+            m_Hooks.chargeInterrupted)
+        {
+            m_Hooks.chargeInterrupted(*enemy, *result);
+        }
+    }
 }
 
 bool BattleController::TryRecoverClearedBattle(

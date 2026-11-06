@@ -53,3 +53,43 @@ bool GameSettingsRuntime::IsCameraShakeEnabled() const
 {
 	return m_Manager.Get().cameraShakeEnabled;
 }
+
+bool GameSettingsRuntime::IsCollisionImpactEffectsEnabled() const
+{
+	return m_Manager.Get().collisionImpactEffectsEnabled;
+}
+
+bool GameSettingsRuntime::IsHeavyChainEffectsEnabled() const
+{
+	return m_Manager.Get().heavyChainEffectsEnabled;
+}
+
+bool GameSettingsRuntime::IsEnemyHitFlashEnabled() const
+{
+	return m_Manager.Get().enemyHitFlashEnabled;
+}
+
+bool GameSettingsRuntime::IsDefeatVfxEnabled() const
+{
+	return m_Manager.Get().defeatVfxEnabled;
+}
+
+bool GameSettingsRuntime::IsMultiDefeatEffectsEnabled() const
+{
+	return m_Manager.Get().multiDefeatEffectsEnabled;
+}
+
+bool GameSettingsRuntime::IsFrameTimeMeasurementEnabled() const
+{
+	return m_Manager.Get().frameTimeMeasurementEnabled;
+}
+
+int GameSettingsRuntime::GetDecorativeRingAmount() const
+{
+	return m_Manager.Get().decorativeRingAmount;
+}
+
+const EnemyHpDisplaySettings& GameSettingsRuntime::GetEnemyHpDisplaySettings() const
+{
+	return m_Manager.Get().enemyHpDisplay;
+}

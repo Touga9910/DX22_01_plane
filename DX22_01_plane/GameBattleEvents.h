@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameTypes.h"
+#include "GameEvent.h"
 
 #include <string>
 
@@ -33,6 +34,10 @@ public:
 		EnemyBall* enemy,
 		const DirectX::SimpleMath::Vector3& velocityBefore,
 		DirectX::SimpleMath::Vector3& velocityAfter);
+	static void WallImpact(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		float relativeApproachSpeed,
+		const void* target);
     static void PlayerPiercedEnemy(
         EnemyBall* enemy,
         const DirectX::SimpleMath::Vector3& playerPosition,
@@ -54,7 +59,18 @@ public:
         const DirectX::SimpleMath::Vector3& worldPosition,
         int damage,
         bool defeated,
-        bool enemyEnemyCollision);
+		bool enemyEnemyCollision,
+		const EnemyBall* target);
+    static void CollisionImpact(
+        const DirectX::SimpleMath::Vector3& worldPosition,
+        const DirectX::SimpleMath::Vector3& firstTargetPosition,
+        const DirectX::SimpleMath::Vector3& secondTargetPosition,
+        float relativeApproachSpeed,
+        CombatCollisionKind collisionKind,
+        int damage,
+        bool defeated,
+        const EnemyBall* firstTarget,
+        const EnemyBall* secondTarget = nullptr);
     static void BalanceAutoFullHpEnemySurvived();
     static void EnemyPocketed(EnemyBall* enemy);
     static void EnemyDefeated(EnemyBall* enemy);

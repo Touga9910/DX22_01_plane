@@ -30,6 +30,7 @@ struct DebugBattleSetup
     std::array<bool, static_cast<size_t>(AchievementId::Count)> achievements{};
     int armor = 2;
     int breakShots = 0;
+    EnemyValidationSettings enemyValidation{};
     std::vector<DirectX::SimpleMath::Vector3> breakBallPositions{
         {-4.0f, TableConfig::FIELD_HEIGHT, 10.0f},
         {4.0f, TableConfig::FIELD_HEIGHT, 10.0f}
@@ -40,7 +41,8 @@ struct DebugBattleSetup
         if (maxHp < 1 || maxHp > 9999 || hp < 1 || hp > maxHp || money < 0 || money > 999999)
             return "HP・最大HP・所持金が範囲外です。";
         if (deck.empty() || deck.size() > 64) return "デッキは1～64個にしてください。";
-        if (enemies.empty() || enemies.size() > 32) return "敵は1～32体にしてください。";
+        if ((!enemyValidation.enabled && enemies.empty()) || enemies.size() > 32)
+            return "敵は1～32体にしてください。";
         if (highestUnlockedAscension < 0 ||
             highestUnlockedAscension > ProgressionProfile::MaximumAscension ||
             selectedAscension < 0 || selectedAscension > highestUnlockedAscension)
@@ -49,6 +51,10 @@ struct DebugBattleSetup
             return "Armorは1～2、またはArmor 0とBreak残り1～2を指定してください。";
         if (breakBallPositions.size() > 16)
             return "ブレイクボールは0～16個にしてください。";
+        if (!IsSupportedEnemyHpMultiplier(enemyValidation.hpMultiplier))
+            return "敵HP倍率は1.0・1.5・2.0から選択してください。";
+        if (!IsSupportedEnemyValidationCount(enemyValidation.enemyCount))
+            return "検証用の敵数は6・8・10体から選択してください。";
         auto inside = [](const auto& pos, float radius) {
             return std::isfinite(pos.x) && std::isfinite(pos.z) &&
                 std::abs(pos.x) + radius < TableConfig::GetFieldWidth() * 0.5f &&
@@ -65,14 +71,17 @@ struct DebugBattleSetup
             if (!inside(playerPosition, ball.status.radius)) return "自球の開始位置を台の内側へ移してください。";
         }
         int bosses = 0;
-        for (const auto& enemy : enemies)
+        if (!enemyValidation.enabled)
         {
-            const auto& data = enemy.spawn.enemyData;
-            if (data.maxHp < 1 || data.maxHp > 9999 || enemy.hp < 1 || enemy.hp > data.maxHp ||
-                !IsValidBallStatus(data.status) || data.status.radius < 0.1f || data.status.radius > 12)
-                return "敵のHP・性能が範囲外です。";
-            if (!inside(enemy.spawn.position, data.status.radius)) return "敵の位置を台の内側へ移してください。";
-            if (data.id == "enemy_boss_core") ++bosses;
+            for (const auto& enemy : enemies)
+            {
+                const auto& data = enemy.spawn.enemyData;
+                if (data.maxHp < 1 || data.maxHp > 9999 || enemy.hp < 1 || enemy.hp > data.maxHp ||
+                    !IsValidBallStatus(data.status) || data.status.radius < 0.1f || data.status.radius > 12)
+                    return "敵のHP・性能が範囲外です。";
+                if (!inside(enemy.spawn.position, data.status.radius)) return "敵の位置を台の内側へ移してください。";
+                if (data.id == "enemy_boss_core") ++bosses;
+            }
         }
         if (bosses > 1) return "Armorボスは1体までにしてください。";
         return {};
@@ -108,20 +117,29 @@ struct DebugBattleSetup
                 {"x", enemy.spawn.position.x}, {"z", enemy.spawn.position.z}});
         for (const auto& position : breakBallPositions)
             breakBalls.push_back({{"x", position.x}, {"z", position.z}});
-        return {{"version", 1}, {"hp", hp}, {"max_hp", maxHp}, {"money", money}, {"seed", seed},
+        return {{"version", 2}, {"hp", hp}, {"max_hp", maxHp}, {"money", money}, {"seed", seed},
             {"player_x", playerPosition.x}, {"player_z", playerPosition.z}, {"deck", balls},
             {"enemies", foes}, {"relics", relics},
             {"highest_unlocked_ascension", highestUnlockedAscension},
             {"selected_ascension", selectedAscension},
             {"achievements", achievements},
             {"armor", armor}, {"break_shots", breakShots},
+            {"enemy_validation", {
+                {"enabled", enemyValidation.enabled},
+                {"hp_multiplier", enemyValidation.hpMultiplier},
+                {"enemy_count", enemyValidation.enemyCount},
+                {"layout_pattern", EnemyValidationLayoutPatternId(
+                    enemyValidation.layoutPattern)},
+            }},
             {"break_balls", breakBalls}};
     }
 
     static DebugBattleSetup FromJson(const nlohmann::json& j,
         const std::vector<PlayerBallData>& catalog, const std::vector<EnemyData>& enemyCatalog)
     {
-        if (j.at("version").get<int>() != 1) throw std::runtime_error("未対応のプリセット形式です。");
+        const int version = j.at("version").get<int>();
+        if (version != 1 && version != 2)
+            throw std::runtime_error("未対応のプリセット形式です。");
         DebugBattleSetup next;
         next.hp = j.at("hp").get<int>(); next.maxHp = j.at("max_hp").get<int>();
         next.money = j.at("money").get<int>();
@@ -131,6 +149,24 @@ struct DebugBattleSetup
         next.playerPosition.x = j.at("player_x").get<float>(); next.playerPosition.z = j.at("player_z").get<float>();
         next.armor = j.at("armor").get<int>(); next.breakShots = j.at("break_shots").get<int>();
         next.relics = j.at("relics").get<decltype(next.relics)>();
+        if (j.contains("enemy_validation"))
+        {
+            const auto& validation = j.at("enemy_validation");
+            if (!validation.is_object())
+                throw std::runtime_error("敵検証設定の形式が不正です。");
+            next.enemyValidation.enabled = validation.at("enabled").get<bool>();
+            next.enemyValidation.hpMultiplier =
+                validation.at("hp_multiplier").get<float>();
+            next.enemyValidation.enemyCount =
+                validation.at("enemy_count").get<int>();
+            const std::string pattern =
+                validation.at("layout_pattern").get<std::string>();
+            if (!TryParseEnemyValidationLayoutPattern(
+                pattern, next.enemyValidation.layoutPattern))
+            {
+                throw std::runtime_error("敵配置パターンが不正です。");
+            }
+        }
         if (j.contains("break_balls"))
         {
             if (!j.at("break_balls").is_array() || j.at("break_balls").size() > 16)

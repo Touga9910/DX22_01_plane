@@ -30,6 +30,7 @@
 #include "BalanceLogger.h"
 #include "GameMcpBridge.h"
 #include "GamePresentation.h"
+#include "AudioFeedback.h"
 #include "GameSaveManager.h"
 #include "BossShotPlanner.h"
 #include "GameDebugController.h"
@@ -65,6 +66,7 @@
 #include "imgui/imgui_impl_win32.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -90,6 +92,45 @@ void GameRuntime::Update(double elapsedSeconds)
 void GameRuntime::ResetFrameTiming()
 {
 	Game::ResetFrameTiming();
+}
+
+void GameRuntime::RecordFrameTiming(
+	double frameMilliseconds,
+	double updateMilliseconds,
+	double drawMilliseconds,
+	double presentMilliseconds)
+{
+	Game& game = CurrentGame();
+	if (!game.IsFrameTimeMeasurementEnabled() ||
+		!game.m_RuntimeState->IsFrameTimingMeasurementActive())
+	{
+		return;
+	}
+	game.m_RuntimeState->RecordFrameTiming(
+		frameMilliseconds,
+		updateMilliseconds,
+		drawMilliseconds,
+		presentMilliseconds,
+		game.m_RuntimeState->CapturePhysicsTiming().stepsLastFrame,
+		game.GetBattleState() == BattleState::BallsMoving);
+}
+
+bool GameRuntime::IsFrameTimingMeasurementActive()
+{
+	Game& game = CurrentGame();
+	return game.IsFrameTimeMeasurementEnabled() &&
+		game.m_RuntimeState->IsFrameTimingMeasurementActive();
+}
+
+void GameRuntime::RecordShotPredictionTiming(double milliseconds)
+{
+	Game& game = CurrentGame();
+	if (!game.IsFrameTimeMeasurementEnabled() ||
+		!game.m_RuntimeState->IsFrameTimingMeasurementActive())
+	{
+		return;
+	}
+	game.m_RuntimeState->RecordShotPredictionTiming(milliseconds);
 }
 
 void GameRuntime::Draw()
@@ -573,9 +614,32 @@ namespace
 			return false;
 		}
 
+		const EnemyActionType action = enemy->GetPlannedAction();
+		if (action != EnemyActionType::NormalAttack &&
+			action != EnemyActionType::ChargeAttack)
+		{
+			return false;
+		}
+		if (action == EnemyActionType::ChargeAttack &&
+			!enemy->IsCharging())
+		{
+			return false;
+		}
+
 		GameObject* owner = enemy->GetGameObject();
 		return owner != nullptr &&
 			owner->GetComponent<EnemyAttackComponent>() != nullptr;
+	}
+
+	const char* EnemyPlanDebugLabel(const EnemyBall& enemy)
+	{
+		switch (enemy.GetPlannedAction())
+		{
+		case EnemyActionType::NormalAttack: return "通常攻撃予定";
+		case EnemyActionType::ChargeStart: return "Charge開始予定";
+		case EnemyActionType::ChargeAttack: return "Charge攻撃予定";
+		default: return "待機";
+		}
 	}
 
 	const char* GetBattleStateDebugName(BattleState state)
@@ -694,6 +758,7 @@ Game::Game()
 	, m_BalanceRuntime(std::make_unique<GameBalanceRuntime>())
 	, m_SettingsRuntime(std::make_unique<GameSettingsRuntime>())
 	, m_PersistenceRuntime(std::make_unique<GamePersistenceRuntime>())
+	, m_AudioFeedback(std::make_unique<AudioFeedback>())
 	, m_PendingShotTelemetry(std::make_unique<nlohmann::json>(
 		nlohmann::json::object()))
 	, m_EncounterBalance(std::make_unique<GameEncounterBalance>())
@@ -768,16 +833,22 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 			? "撃破"
 			: enemy->IsPocketed()
 				? "ポケット中"
-				: canAttack
-					? "攻撃予定"
-					: "攻撃不可";
+				: EnemyPlanDebugLabel(*enemy);
 
 		if (canAttack && player != nullptr && !player->IsDefeated())
 		{
+			const GameObject* owner = enemy->GetGameObject();
+			const EnemyAttackComponent* attack = owner != nullptr
+				? owner->GetComponent<EnemyAttackComponent>()
+				: nullptr;
 			next.attackerCount++;
-			enemySnapshot.damageBeforeMinimum = enemy->GetAttack();
+			enemySnapshot.damageBeforeMinimum = attack != nullptr
+				? attack->CalculateDamage(
+					enemy->GetPlannedDamageMultiplier())
+				: 0;
 			enemySnapshot.expectedDamage =
-				PlayerBall::CalculateIncomingDamage(enemy->GetAttack());
+				PlayerBall::CalculateIncomingDamage(
+					enemySnapshot.damageBeforeMinimum);
 			enemySnapshot.minimumDamageApplied =
 				enemySnapshot.damageBeforeMinimum < 1;
 			next.theoreticalDamage += enemySnapshot.expectedDamage;
@@ -1055,6 +1126,10 @@ void Game::Init()
 	// 描画処理を初期化
 	Renderer::Init();
 	m_Instance->m_SettingsRuntime->Initialize();
+	const bool allowGeneratedAudioTestTones =
+		std::wstring(GetCommandLineW()).find(L"--audio-test-tones") !=
+		std::wstring::npos;
+	m_Instance->m_AudioFeedback->Initialize(allowGeneratedAudioTestTones);
 
 	// 入力処理を初期化
 	Input::Create();
@@ -1093,6 +1168,27 @@ void Game::Init()
 // 更新
 void Game::Update(double elapsedSeconds)
 {
+	using TimingClock = std::chrono::steady_clock;
+	UpdateTimingFrame updateTiming{};
+	bool measureUpdate =
+		m_Instance->m_RuntimeState->IsFrameTimingMeasurementActive();
+	auto updateTimingStarted = measureUpdate
+		? TimingClock::now()
+		: TimingClock::time_point{};
+	const auto startSection = [&]()
+	{
+		return measureUpdate
+			? TimingClock::now()
+			: TimingClock::time_point{};
+	};
+	const auto finishSection = [&](const TimingClock::time_point& started)
+	{
+		return measureUpdate
+			? std::chrono::duration<double, std::milli>(
+				TimingClock::now() - started).count()
+			: 0.0;
+	};
+
 	m_Instance->RemoveDestroyedGameObjects();
 
 	// 入力処理を更新
@@ -1128,14 +1224,39 @@ void Game::Update(double elapsedSeconds)
 	}
 	m_Instance->m_PersistenceRuntime->AdvanceFrame(
 		m_Instance->IsRunSessionActive());
+	const auto audioFeedbackStarted = startSection();
+	if (m_Instance->m_AudioFeedback != nullptr)
+	{
+		m_Instance->m_AudioFeedback->Update(
+			elapsedSeconds,
+			m_Instance->GetSeVolume());
+	}
+	updateTiming.audioFeedbackMilliseconds =
+		finishSection(audioFeedbackStarted);
+	const auto presentationStarted = startSection();
 	if (m_Instance->m_GamePresentation != nullptr)
 	{
-		m_Instance->m_GamePresentation->Update(*m_Instance);
+		m_Instance->m_GamePresentation->Update(
+			*m_Instance,
+			static_cast<float>(elapsedSeconds));
 	}
+	updateTiming.presentationMilliseconds =
+		finishSection(presentationStarted);
 
+	const auto gameMcpStarted = startSection();
 	if (m_Instance->m_GameMcpBridge != nullptr)
 	{
 		m_Instance->m_GameMcpBridge->Update(*m_Instance);
+	}
+	updateTiming.gameMcpMilliseconds = finishSection(gameMcpStarted);
+	if (!measureUpdate &&
+		m_Instance->m_RuntimeState->IsFrameTimingMeasurementActive())
+	{
+		// The fire_shot command begins measurement during the MCP update.
+		// Profile the remaining work without paying detailed-timer overhead
+		// while measurement is disabled.
+		measureUpdate = true;
+		updateTimingStarted = TimingClock::now();
 	}
 
 	if (m_Instance->m_BalanceRuntime->autoPlayer.Update(*m_Instance))
@@ -1162,23 +1283,58 @@ void Game::Update(double elapsedSeconds)
 	}
 
 	// シーンを更新
+	const auto sceneStarted = startSection();
 	if (Scene* scene = m_Instance->GetCurrentScene())
 	{
 		scene->Update();
 	}
+	updateTiming.sceneMilliseconds = finishSection(sceneStarted);
 
 	// カメラを更新
+	const auto cameraStarted = startSection();
 	m_Instance->m_Camera.Update();
+	updateTiming.cameraMilliseconds = finishSection(cameraStarted);
 
 	// オブジェクトを更新
+	const auto worldUpdateStarted = startSection();
 	m_Instance->m_RuntimeState->World().Update();
+	updateTiming.worldUpdateMilliseconds =
+		finishSection(worldUpdateStarted);
 
 	// Input/AI/MCP have run once. Only physical motion may catch up here.
+	const auto fixedPhysicsStarted = startSection();
 	m_Instance->UpdateFixedPhysics(elapsedSeconds);
+	updateTiming.fixedPhysicsMilliseconds =
+		finishSection(fixedPhysicsStarted);
 
+	const auto worldLateUpdateStarted = startSection();
 	m_Instance->m_RuntimeState->World().LateUpdate();
+	updateTiming.worldLateUpdateMilliseconds =
+		finishSection(worldLateUpdateStarted);
 	m_Instance->RemoveDestroyedGameObjects();
+	const auto battleControllerStarted = startSection();
 	m_Instance->m_BattleState->controller.Update();
+	updateTiming.battleControllerMilliseconds =
+		finishSection(battleControllerStarted);
+	if (measureUpdate)
+	{
+		const double measuredTotal = std::chrono::duration<double, std::milli>(
+			TimingClock::now() - updateTimingStarted).count();
+		const double classifiedTotal =
+			updateTiming.audioFeedbackMilliseconds +
+			updateTiming.presentationMilliseconds +
+			updateTiming.gameMcpMilliseconds +
+			updateTiming.sceneMilliseconds +
+			updateTiming.cameraMilliseconds +
+			updateTiming.worldUpdateMilliseconds +
+			updateTiming.fixedPhysicsMilliseconds +
+			updateTiming.worldLateUpdateMilliseconds +
+			updateTiming.battleControllerMilliseconds;
+		updateTiming.otherMilliseconds = (std::max)(
+			0.0,
+			measuredTotal - classifiedTotal);
+		m_Instance->m_RuntimeState->RecordUpdateTiming(updateTiming);
+	}
 
 	const BattleResult battleResult =
 		m_Instance->m_BattleState->controller.ConsumeResult();
@@ -1221,10 +1377,18 @@ void Game::UpdateFixedPhysics(double elapsedSeconds)
 
 	for (int step = 0; step < steps; ++step)
 	{
+		const bool measureDetailedPhysics =
+			m_RuntimeState->IsFrameTimingMeasurementActive();
+		const auto worldFixedStarted = measureDetailedPhysics
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
 		const BattleState previousState =
 			m_BattleState->controller.GetState();
 
 		m_RuntimeState->World().FixedUpdate();
+		const auto worldFixedFinished = measureDetailedPhysics
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
 
 		const BattleState physicsState = GetBattleState();
 		const BallPhysicsWorldContext physicsContext{
@@ -1241,15 +1405,50 @@ void Game::UpdateFixedPhysics(double elapsedSeconds)
 				NotifyTraceMovement(ball, from, to);
 			}
 		};
-		const auto physicsResult =
-			BallPhysicsWorld::Step(physicsContext);
+		BalanceLogger& balanceLogger = BalanceLogger::GetInstance();
+		const bool measurePhysics = balanceLogger.IsShotActive();
+		const auto physicsStarted =
+			(measurePhysics || measureDetailedPhysics)
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
+		const auto physicsResult = BallPhysicsWorld::Step(physicsContext);
+		const auto physicsFinished =
+			(measurePhysics || measureDetailedPhysics)
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
+		if (measurePhysics)
+		{
+			balanceLogger.RecordPhysicsStep(
+				std::chrono::duration_cast<std::chrono::microseconds>(
+					physicsFinished - physicsStarted).count());
+		}
 
 		m_RuntimeState->RecordPhysicsStep(
 			physicsResult.substeps,
 			physicsResult.limitReached);
 
+		const auto fixedControllerStarted = measureDetailedPhysics
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
 		const bool stopCatchUp =
 			m_BattleState->controller.OnFixedStepCompleted();
+		const auto fixedControllerFinished = measureDetailedPhysics
+			? std::chrono::steady_clock::now()
+			: std::chrono::steady_clock::time_point{};
+		if (measureDetailedPhysics)
+		{
+			const auto milliseconds = [](const auto& start, const auto& end)
+			{
+				return std::chrono::duration<double, std::milli>(
+					end - start).count();
+			};
+			m_RuntimeState->RecordFixedPhysicsDetail(
+				milliseconds(worldFixedStarted, worldFixedFinished),
+				milliseconds(physicsStarted, physicsFinished),
+				milliseconds(
+					fixedControllerStarted,
+					fixedControllerFinished));
+		}
 
 		const BattleState currentState =
 			m_BattleState->controller.GetState();
@@ -1768,6 +1967,102 @@ PausePresentationIntent GamePresentation::DrawPause(
 	settingsChanged |= ImGui::Checkbox(
 		"カメラ揺れ",
 		&settings.cameraShakeEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"衝突強度演出",
+		&settings.collisionImpactEffectsEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"重量CHAIN演出",
+		&settings.heavyChainEffectsEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"敵の被弾フラッシュ",
+		&settings.enemyHitFlashEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"撃破専用VFX",
+		&settings.defeatVfxEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"複数撃破表示",
+		&settings.multiDefeatEffectsEnabled);
+	settingsChanged |= ImGui::Checkbox(
+		"ショット中フレーム時間計測",
+		&settings.frameTimeMeasurementEnabled);
+	settingsChanged |= ImGui::SliderInt(
+		"装飾リング量",
+		&settings.decorativeRingAmount,
+		0,
+		3);
+	constexpr const char* enemyHpModeLabels[] =
+	{
+		"従来の頭上HPバー",
+		"円形HPゲージ",
+		"HP非表示",
+	};
+	int enemyHpMode = std::clamp(
+		static_cast<int>(settings.enemyHpDisplay.mode),
+		0,
+		IM_ARRAYSIZE(enemyHpModeLabels) - 1);
+	if (ImGui::Combo(
+		"敵HP表示",
+		&enemyHpMode,
+		enemyHpModeLabels,
+		IM_ARRAYSIZE(enemyHpModeLabels)))
+	{
+		settings.enemyHpDisplay.mode =
+			static_cast<EnemyHpDisplayMode>(enemyHpMode);
+		settingsChanged = true;
+	}
+	if (ImGui::TreeNode("円形HPゲージ調整"))
+	{
+		settingsChanged |= ImGui::SliderFloat(
+			"横オフセット",
+			&settings.enemyHpDisplay.ringOffsetX,
+			-40.0f,
+			40.0f,
+			"%.0f px");
+		settingsChanged |= ImGui::SliderFloat(
+			"縦オフセット",
+			&settings.enemyHpDisplay.ringOffsetY,
+			-40.0f,
+			40.0f,
+			"%.0f px");
+		settingsChanged |= ImGui::SliderFloat(
+			"直径倍率",
+			&settings.enemyHpDisplay.ringDiameterScale,
+			0.50f,
+			1.30f,
+			"%.2f");
+		settingsChanged |= ImGui::SliderFloat(
+			"リング太さ",
+			&settings.enemyHpDisplay.ringThickness,
+			2.0f,
+			8.0f,
+			"%.1f px");
+		settingsChanged |= ImGui::SliderFloat(
+			"リング不透明度",
+			&settings.enemyHpDisplay.ringOpacity,
+			0.35f,
+			1.0f,
+			"%.2f");
+		constexpr const char* layerLabels[] =
+		{
+			"通常UIより背面",
+			"通常UIより前面",
+		};
+		int drawLayer = std::clamp(
+			static_cast<int>(settings.enemyHpDisplay.ringDrawLayer),
+			0,
+			IM_ARRAYSIZE(layerLabels) - 1);
+		if (ImGui::Combo(
+			"描画順序",
+			&drawLayer,
+			layerLabels,
+			IM_ARRAYSIZE(layerLabels)))
+		{
+			settings.enemyHpDisplay.ringDrawLayer =
+				static_cast<EnemyHpRingDrawLayer>(drawLayer);
+			settingsChanged = true;
+		}
+		ImGui::TreePop();
+	}
 	if (vibrationWasEnabled && !settings.vibrationEnabled)
 	{
 		Input::SetVibration(0, 0.0f);
@@ -1851,6 +2146,7 @@ void Game::Uninit()
 	if (m_Instance != nullptr)
 	{
 		m_Instance->m_SettingsRuntime->SaveIfDirty();
+		m_Instance->m_AudioFeedback.reset();
 		m_Instance->m_GamePresentation.reset();
 		if (m_Instance->m_GameMcpBridge != nullptr)
 		{
@@ -1930,6 +2226,85 @@ bool Game::IsScreenFlashEnabled() const
 bool Game::IsCameraShakeEnabled() const
 {
 	return m_SettingsRuntime->IsCameraShakeEnabled();
+}
+
+bool Game::IsCollisionImpactEffectsEnabled() const
+{
+	return m_SettingsRuntime->IsCollisionImpactEffectsEnabled();
+}
+
+bool Game::IsHeavyChainEffectsEnabled() const
+{
+	return m_SettingsRuntime->IsHeavyChainEffectsEnabled();
+}
+
+bool Game::IsEnemyHitFlashEnabled() const
+{
+	return m_SettingsRuntime->IsEnemyHitFlashEnabled();
+}
+
+bool Game::IsDefeatVfxEnabled() const
+{
+	return m_SettingsRuntime->IsDefeatVfxEnabled();
+}
+
+bool Game::IsMultiDefeatEffectsEnabled() const
+{
+	return m_SettingsRuntime->IsMultiDefeatEffectsEnabled();
+}
+
+bool Game::IsFrameTimeMeasurementEnabled() const
+{
+	return m_SettingsRuntime->IsFrameTimeMeasurementEnabled();
+}
+
+int Game::GetDecorativeRingAmount() const
+{
+	return m_SettingsRuntime->GetDecorativeRingAmount();
+}
+
+const EnemyHpDisplaySettings& Game::GetEnemyHpDisplaySettings() const
+{
+	return m_SettingsRuntime->GetEnemyHpDisplaySettings();
+}
+
+const CollisionVfxDiagnostics& Game::GetCollisionVfxDiagnostics() const
+{
+	static const CollisionVfxDiagnostics empty{};
+	if (m_GamePresentation == nullptr) return empty;
+	return m_GamePresentation->GetCollisionVfxDiagnostics();
+}
+
+const CombatReactionDiagnostics& Game::GetCombatReactionDiagnostics() const
+{
+	static const CombatReactionDiagnostics empty{};
+	if (m_GamePresentation == nullptr) return empty;
+	return m_GamePresentation->GetCombatReactionDiagnostics();
+}
+
+int Game::GetHeavyPhysicsChainPresentationCount() const
+{
+	if (m_GamePresentation == nullptr) return 0;
+	return m_GamePresentation->GetHeavyPhysicsChainCount();
+}
+
+const AudioFeedbackDiagnostics& Game::GetAudioFeedbackDiagnostics() const
+{
+	static const AudioFeedbackDiagnostics empty{};
+	if (m_AudioFeedback == nullptr) return empty;
+	return m_AudioFeedback->Diagnostics();
+}
+
+float Game::GetSeVolume() const
+{
+	return m_SettingsRuntime != nullptr
+		? m_SettingsRuntime->Current().seVolume
+		: 0.0f;
+}
+
+const FrameTimingSnapshot& Game::GetFrameTimingSnapshot() const
+{
+	return m_RuntimeState->CaptureFrameTiming();
 }
 
 const std::string& Game::GetSaveLoadMessage() const
@@ -2134,7 +2509,8 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 			pocketPosition,
 			false,
 			true,
-			hpBefore);
+			hpBefore,
+			enemy);
 		enemy->Defeat();
 		if (!wasAlreadyDefeated && pocketDamage < hpBefore)
 		{
@@ -2160,7 +2536,8 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		pocketPosition,
 		false,
 		false,
-		pocketDamage);
+		pocketDamage,
+		enemy);
 	m_BattleState->controller.QueuePocketedEnemy(enemy);
 	RecordBalanceEvent(
 		"enemy_pocket_controlled",

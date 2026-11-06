@@ -220,6 +220,21 @@
     <ClInclude Include="BallPhysicsRules.h">
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
     </ClInclude>
+    <ClInclude Include="CollisionPresentationRules.h">
+      <Filter>ヘッダー ファイル\05_UI</Filter>
+    </ClInclude>
+	<ClInclude Include="CombatPresentationRules.h">
+	  <Filter>ヘッダー ファイル\05_UI</Filter>
+	</ClInclude>
+	<ClInclude Include="CombatAudioRules.h">
+	  <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
+	</ClInclude>
+	<ClInclude Include="AudioFeedback.h">
+	  <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
+	</ClInclude>
+    <ClInclude Include="CollisionVfxSystem.h">
+      <Filter>ヘッダー ファイル\05_UI</Filter>
+    </ClInclude>
     <ClInclude Include="BallPhysicsComponent.h">
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
     </ClInclude>
@@ -415,6 +430,21 @@
     <ClInclude Include="BattleController.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
+    <ClInclude Include="EnemyActionPlanner.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyChargeRules.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyHpScaling.h">
+      <Filter>ヘッダー ファイル\08_Tools\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyValidationLayout.h">
+      <Filter>ヘッダー ファイル\08_Tools\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyValidationSettings.h">
+      <Filter>ヘッダー ファイル\08_Tools\Debug</Filter>
+    </ClInclude>
     <ClInclude Include="BattleTypes.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
@@ -444,6 +474,12 @@
     </ClInclude>
     <ClInclude Include="HeavyCollisionRules.h">
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
+    </ClInclude>
+    <ClInclude Include="ShotPhysicsTelemetry.h">
+      <Filter>ヘッダー ファイル\07_RunSystem\Statistics</Filter>
+    </ClInclude>
+    <ClInclude Include="PierceAttackTelemetry.h">
+      <Filter>ヘッダー ファイル\07_RunSystem\Statistics</Filter>
     </ClInclude>
     <ClInclude Include="PierceTraceRules.h">
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
@@ -1091,8 +1127,20 @@
     <ClCompile Include="GamePresentation.cpp">
       <Filter>ソース ファイル\05_UI</Filter>
     </ClCompile>
+	<ClCompile Include="AudioFeedback.cpp">
+	  <Filter>ソース ファイル\00_Application\Audio</Filter>
+	</ClCompile>
+    <ClCompile Include="CollisionVfxSystem.cpp">
+      <Filter>ソース ファイル\05_UI</Filter>
+    </ClCompile>
     <ClCompile Include="BattleController.cpp">
       <Filter>ソース ファイル\02_Gameplay\Buttle</Filter>
+    </ClCompile>
+    <ClCompile Include="EnemyActionPlanner.cpp">
+      <Filter>ソース ファイル\02_Gameplay\Buttle</Filter>
+    </ClCompile>
+    <ClCompile Include="EnemyValidationLayout.cpp">
+      <Filter>ソース ファイル\08_Tools\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GameBattleBridge.cpp">
       <Filter>ソース ファイル\02_Gameplay\Buttle</Filter>

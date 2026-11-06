@@ -1,11 +1,14 @@
 #pragma once
 
+#include "PierceAttackTelemetry.h"
+#include "ShotPhysicsTelemetry.h"
 #include "json/json.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 enum class BalanceCollisionType
@@ -44,6 +47,8 @@ struct BalanceEnemySnapshot
 	float positionZ = 0.0f;
 };
 
+using BalanceShotEnemySnapshot = ShotPhysicsTelemetry::EnemyDescriptor;
+
 class BalanceLogger final
 {
 public:
@@ -78,12 +83,63 @@ public:
 		int playerHp,
 		int enemiesAlive,
 		int enemiesDefeatedTotal,
+		const std::vector<BalanceShotEnemySnapshot>& enemies,
 		const nlohmann::json& shotContext = nlohmann::json::object());
 
 	void RecordDamageCollision(
 		BalanceCollisionType collisionType,
 		int damageToFirstEnemy = -1,
 		int damageToSecondEnemy = -1);
+	void RecordEnemyEnemyCollision(
+		std::uintptr_t firstEnemyKey,
+		const std::string& firstEnemyId,
+		std::uintptr_t secondEnemyKey,
+		const std::string& secondEnemyId,
+		float approachSpeed,
+		float positionX,
+		float positionZ);
+	void RecordEnemyMovement(
+		std::uintptr_t enemyKey,
+		const std::string& enemyId,
+		float distance);
+	void RecordPhysicsStep(long long processingMicroseconds);
+	void RecordWallReflection(
+		int wallIndex,
+		const std::string& wallGroup,
+		const std::string& ballKind,
+		float positionX,
+		float positionZ,
+		float velocityBeforeX,
+		float velocityBeforeZ,
+		float velocityAfterPhysicsX,
+		float velocityAfterPhysicsZ,
+		float velocityAfterEffectsX,
+		float velocityAfterEffectsZ);
+	void RecordBounceSpecialDamage(
+		int damageStage,
+		int calculatedDamage,
+		int appliedHpDamage);
+	void RecordPierceMinionSpawn(
+		std::uintptr_t minionKey,
+		int attack,
+		float spawnX,
+		float spawnZ,
+		float directionX,
+		float directionZ,
+		float launchSpeed);
+	void RecordPierceMinionMovement(
+		std::uintptr_t minionKey,
+		float distance);
+	void RecordPierceMinionDestroyed(
+		std::uintptr_t minionKey,
+		const std::string& reason);
+	void RecordPierceAttack(
+		PierceAttackSource source,
+		std::uintptr_t sourceKey,
+		std::uintptr_t targetKey,
+		int calculatedDamage,
+		int appliedHpDamage,
+		bool targetWasAlive);
 	void RecordPlayerDamage(
 		const std::string& source,
 		int damage,
@@ -116,6 +172,18 @@ public:
 	bool IsStageActive() const { return m_StageActive; }
 	bool IsShotActive() const { return m_ShotActive; }
 	const std::filesystem::path& GetLogPath() const { return m_LogPath; }
+	const nlohmann::json& GetLatestShotPhysicsTelemetry() const
+	{
+		return m_LatestShotPhysicsTelemetry;
+	}
+	const nlohmann::json& GetLatestShotPierceAttackTelemetry() const
+	{
+		return m_LatestShotPierceAttackTelemetry;
+	}
+	const nlohmann::json& GetLatestShotBounceTelemetry() const
+	{
+		return m_LatestShotBounceTelemetry;
+	}
 
 private:
 	BalanceLogger() = default;
@@ -137,7 +205,12 @@ private:
 
 	nlohmann::json m_Root;
 	nlohmann::json m_PendingShot;
+	nlohmann::json m_LatestShotPhysicsTelemetry;
+	nlohmann::json m_LatestShotPierceAttackTelemetry;
+	nlohmann::json m_LatestShotBounceTelemetry;
 	std::filesystem::path m_LogPath;
+	ShotPhysicsTelemetry m_ShotPhysicsTelemetry;
+	PierceAttackTelemetry m_PierceAttackTelemetry;
 
 	std::size_t m_CurrentStageIndex = NoStage;
 	long long m_RunStartedMs = 0;
@@ -154,6 +227,18 @@ private:
 		BalanceCollisionType::PlayerEnemy;
 	bool m_HasCurrentDamageCollision = false;
 	int m_DefeatedAtShotStart = 0;
+	int m_BounceSpecialDamageEventCount = 0;
+	int m_BounceSpecialCalculatedDamage = 0;
+	int m_BounceSpecialAppliedDamage = 0;
+	int m_BounceMaximumDamageStage = 0;
+	int m_BounceTimelineNextEventIndex = 0;
+	int m_BouncePhysicalReflectionsSoFar = 0;
+	int m_BouncePlayerReflectionsSoFar = 0;
+	int m_BouncePinballReflectionsSoFar = 0;
+	int m_BounceNextTargetIndex = 0;
+	nlohmann::json m_BounceAttackTimeline = nlohmann::json::array();
+	std::unordered_map<std::uintptr_t, int> m_BounceTargetIndices;
+	std::unordered_map<std::uintptr_t, int> m_BouncePendingEmpoweredBonuses;
 
 	bool m_RunActive = false;
 	bool m_StageActive = false;

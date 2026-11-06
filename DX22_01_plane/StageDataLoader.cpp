@@ -81,6 +81,7 @@ namespace
             value.value("textureDirectory", data.textureDirectory);
         data.rewardMoney = value.value("rewardMoney", data.rewardMoney);
         data.rewardExp = value.value("rewardExp", data.rewardExp);
+        data.canCharge = value.value("canCharge", data.canCharge);
 
         if (value.contains("status"))
         {

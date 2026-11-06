@@ -2,6 +2,7 @@
 
 #include "BattleSceneServices.h"
 #include "Collision.h"
+#include "EnemyHpScaling.h"
 #include "PlayerBall.h"
 #include "StageDataLoader.h"
 #include "TableConfig.h"
@@ -58,6 +59,13 @@ BattleSceneSetupResult BattleSceneSetup::Prepare() const
     for (EnemySpawnData& spawn : adjustedStage.enemies)
     {
         m_Services.ApplyEnemyDifficultyScaling(spawn.enemyData);
+        if (adjustedStage.enemyValidation.has_value() &&
+            adjustedStage.enemyValidation->enabled)
+        {
+            spawn.enemyData.maxHp = EnemyHpScaling::ApplyMultiplier(
+                spawn.enemyData.maxHp,
+                adjustedStage.enemyValidation->hpMultiplier);
+        }
     }
     if (!usesMcpStageOverride)
     {

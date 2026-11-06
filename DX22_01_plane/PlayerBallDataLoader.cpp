@@ -4,6 +4,7 @@
 #include "json/json.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 
@@ -63,6 +64,19 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 				root.value("restHealRatio", result.restHealRatio),
 				0.01f,
 				1.0f);
+			const float configuredHeavyStackDistance = root.value(
+				"heavyStackDistancePerStack",
+				result.heavyStackDistancePerStack);
+			result.heavyStackDistancePerStack =
+				std::isfinite(configuredHeavyStackDistance) &&
+				configuredHeavyStackDistance > 0.0f
+				? configuredHeavyStackDistance
+				: HeavyCollisionRules::DefaultDistancePerStack;
+			result.heavyStackGainLimitPerTurn = (std::max)(
+				0,
+				root.value(
+					"heavyStackGainLimitPerTurn",
+					result.heavyStackGainLimitPerTurn));
 			if (root.contains("balls") && root["balls"].is_array())
 			{
 				for (const json& ballJson : root["balls"])
@@ -109,6 +123,10 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 			result.defaultBallStatus = fallbackBallStatus;
 			result.defaultRunStatus = fallbackRunStatus;
 			result.restHealRatio = 0.25f;
+			result.heavyStackDistancePerStack =
+				HeavyCollisionRules::DefaultDistancePerStack;
+			result.heavyStackGainLimitPerTurn =
+				HeavyCollisionRules::DefaultGainLimitPerTurn;
 			result.ballDefinitions.clear();
 		}
 	}

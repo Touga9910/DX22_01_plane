@@ -16,6 +16,7 @@
 #include "GameMcpBridge.h"
 #include "BalanceLogger.h"
 #include "EnemyBall.h"
+#include "EnemyValidationLayout.h"
 #include "PlayerBall.h"
 #include "PlayerBallText.h"
 #include "EnemyText.h"
@@ -232,6 +233,46 @@ bool GameDebugController::StartBattle(Game& game)
 {
     m_DebugMessage = m_DebugSetup.Validate();
     if (!m_DebugMessage.empty()) return false;
+    StageData stage;
+    stage.id = "debug_battle";
+    if (m_DebugSetup.enemyValidation.enabled)
+    {
+        EnemyValidationSettings activeValidation =
+            m_DebugSetup.enemyValidation;
+        activeValidation.seed = m_DebugSetup.seed;
+        float playerRadius = 0.01f;
+        for (const PlayerBallData& ball : m_DebugSetup.deck)
+        {
+            playerRadius = (std::max)(playerRadius, ball.status.radius);
+        }
+        EnemyValidationLayoutResult generated =
+            EnemyValidationLayout::Generate(
+                m_DebugEnemyCatalog,
+                activeValidation,
+                m_DebugSetup.playerPosition,
+                playerRadius);
+        if (!generated.Succeeded())
+        {
+            m_DebugMessage = generated.error;
+            return false;
+        }
+        stage.enemies = std::move(generated.enemies);
+        stage.preserveLayout = true;
+        stage.enemyValidation = activeValidation;
+    }
+    else
+    {
+        for (const auto& enemy : m_DebugSetup.enemies)
+        {
+            stage.enemies.push_back(enemy.spawn);
+            // 編集した半径を見た目にも反映し、当たり判定だけが大きくならないようにする。
+            const float radius = enemy.spawn.enemyData.status.radius;
+            stage.enemies.back().enemyData.scale = {radius, radius, radius};
+            if (enemy.spawn.enemyData.id == "enemy_boss_core") stage.stageType = StageType::Boss;
+            else if (stage.stageType != StageType::Boss && enemy.spawn.enemyData.id.find("midboss") != std::string::npos)
+                stage.stageType = StageType::MidBoss;
+        }
+    }
     // 描画中にSceneを破棄しない。再戦でも前の球を破棄してから初期状態を作る。
     if (m_DebugMode) game.ChangeScene(SceneType::Title);
     m_DebugPreviousRun = GameDebugHost::CaptureRunSnapshot(game);
@@ -239,18 +280,6 @@ bool GameDebugController::StartBattle(Game& game)
     m_DebugMode = true;
     m_DebugActiveSetup = m_DebugSetup;
     m_DebugEditorOpen = m_DebugBattleFinished = false;
-    StageData stage;
-    stage.id = "debug_battle";
-    for (const auto& enemy : m_DebugSetup.enemies)
-    {
-        stage.enemies.push_back(enemy.spawn);
-        // 編集した半径を見た目にも反映し、当たり判定だけが大きくならないようにする。
-        const float radius = enemy.spawn.enemyData.status.radius;
-        stage.enemies.back().enemyData.scale = {radius, radius, radius};
-        if (enemy.spawn.enemyData.id == "enemy_boss_core") stage.stageType = StageType::Boss;
-        else if (stage.stageType != StageType::Boss && enemy.spawn.enemyData.id.find("midboss") != std::string::npos)
-            stage.stageType = StageType::MidBoss;
-    }
     GameDebugHost::StartBattle(game, m_DebugSetup.seed, std::move(stage));
     for (auto* player : GameRuntime::World().GetComponents<PlayerBall>()) player->SetState(PlayerBall::State::Idle);
     BalanceLogger::GetInstance().RecordEvent("debug_battle_setup", m_DebugSetup.ToJson());
@@ -270,8 +299,15 @@ void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
 // Debug Battle Enemyを適用
 void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
-    if (!m_DebugMode || !enemy || index >= m_DebugSetup.enemies.size()) return;
-    const DebugBattleSetup::Enemy& configured = m_DebugSetup.enemies[index];
+    if (!m_DebugMode || !enemy) return;
+    if (m_DebugActiveSetup.enemyValidation.enabled)
+    {
+        enemy->SetHP(enemy->GetMaxHP());
+        return;
+    }
+    if (index >= m_DebugActiveSetup.enemies.size()) return;
+    const DebugBattleSetup::Enemy& configured =
+        m_DebugActiveSetup.enemies[index];
     const int configuredMaxHp = (std::max)(1, configured.spawn.enemyData.maxHp);
     const float hpRatio = std::clamp(
         static_cast<float>(configured.hp) / static_cast<float>(configuredMaxHp),
@@ -574,6 +610,49 @@ void GameDebugController::Draw(Game& game)
         }
         if (ImGui::BeginTabItem("敵編成・配置"))
         {
+            ImGui::SeparatorText("HP・敵数・配置の比較検証");
+            ImGui::Checkbox(
+                "比較検証設定を有効化",
+                &m_DebugSetup.enemyValidation.enabled);
+            ImGui::TextDisabled(
+                "有効時は次の戦闘だけ、既存3種で低/標準/高耐久の固定比率を生成します。");
+            const char* hpLabels[] = { "x1.0", "x1.5", "x2.0" };
+            const float hpValues[] = { 1.0f, 1.5f, 2.0f };
+            int hpIndex = m_DebugSetup.enemyValidation.hpMultiplier < 1.25f
+                ? 0
+                : (m_DebugSetup.enemyValidation.hpMultiplier < 1.75f ? 1 : 2);
+            if (ImGui::Combo("敵HP倍率", &hpIndex, hpLabels, IM_ARRAYSIZE(hpLabels)))
+                m_DebugSetup.enemyValidation.hpMultiplier = hpValues[hpIndex];
+            const char* countLabels[] = { "6体", "8体", "10体" };
+            const int countValues[] = { 6, 8, 10 };
+            int countIndex = m_DebugSetup.enemyValidation.enemyCount == 6
+                ? 0
+                : (m_DebugSetup.enemyValidation.enemyCount == 10 ? 2 : 1);
+            if (ImGui::Combo("敵数", &countIndex, countLabels, IM_ARRAYSIZE(countLabels)))
+                m_DebugSetup.enemyValidation.enemyCount = countValues[countIndex];
+            const char* patternLabels[] = { "Dense（密集）", "Line（直線）", "Random（シード配置）" };
+            int patternIndex = static_cast<int>(
+                m_DebugSetup.enemyValidation.layoutPattern);
+            if (ImGui::Combo(
+                "配置パターン",
+                &patternIndex,
+                patternLabels,
+                IM_ARRAYSIZE(patternLabels)))
+            {
+                m_DebugSetup.enemyValidation.layoutPattern =
+                    static_cast<EnemyValidationLayoutPattern>(patternIndex);
+            }
+            ImGui::TextDisabled(
+                "6体=2/3/1、8体=3/4/1、10体=4/5/1（enemy_normal/strong/tank）。");
+            ImGui::TextDisabled(
+                "Random配置は「HP・所持金・レリック」の乱数シードで再現します。");
+            if (m_DebugSetup.enemyValidation.enabled)
+            {
+                ImGui::TextColored(
+                    ImVec4(0.35f, 0.85f, 1.0f, 1.0f),
+                    "下の手動敵編成・位置・開始HPは比較検証中は使用しません。");
+            }
+            ImGui::SeparatorText("手動の敵編成・配置");
             if (ImGui::BeginCombo("既存ステージから編成を作る", "ステージを選択"))
             {
                 for (const auto& stage : m_DebugStages)

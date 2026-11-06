@@ -27,6 +27,10 @@ int main()
     setup.achievements[static_cast<size_t>(AchievementId::DamageEight)] = true;
     setup.breakBallPositions = {{-12, TableConfig::FIELD_HEIGHT, 8},
         {11, TableConfig::FIELD_HEIGHT, -7}, {0, TableConfig::FIELD_HEIGHT, 15}};
+    setup.enemyValidation.enabled = true;
+    setup.enemyValidation.hpMultiplier = 1.5f;
+    setup.enemyValidation.enemyCount = 10;
+    setup.enemyValidation.layoutPattern = EnemyValidationLayoutPattern::Line;
     assert(setup.Validate().empty());
     const auto roundtrip = DebugBattleSetup::FromJson(setup.ToJson(), catalog, enemies);
     assert(roundtrip.ToJson() == setup.ToJson());
@@ -40,6 +44,8 @@ int main()
         roundtrip.breakBallPositions[1].x == 11 &&
         roundtrip.breakBallPositions[1].z == -7);
     auto legacyJson = setup.ToJson();
+    legacyJson["version"] = 1;
+    legacyJson.erase("enemy_validation");
     legacyJson.erase("highest_unlocked_ascension");
     legacyJson.erase("selected_ascension");
     legacyJson.erase("achievements");
@@ -48,6 +54,11 @@ int main()
     assert(legacy.highestUnlockedAscension == 0 && legacy.selectedAscension == 0);
     assert(std::none_of(legacy.achievements.begin(), legacy.achievements.end(), [](bool value) { return value; }));
     assert(legacy.breakBallPositions.size() == 2);
+    assert(!legacy.enemyValidation.enabled &&
+        legacy.enemyValidation.hpMultiplier == 1.0f &&
+        legacy.enemyValidation.enemyCount == 8 &&
+        legacy.enemyValidation.layoutPattern ==
+            EnemyValidationLayoutPattern::Random);
     PlayerDeck deck;
     deck.SetDefaultDeck(roundtrip.deck); deck.Seed(123); deck.ResetToDefault();
     assert(deck.GetRewardTargetCount() == 3);
@@ -68,7 +79,8 @@ int main()
     auto j = setup.ToJson(); j["hp"] = 0; reject(j);
     j = setup.ToJson(); j["hp"] = 51; reject(j);
     j = setup.ToJson(); j["deck"] = nlohmann::json::array(); reject(j);
-    j = setup.ToJson(); j["enemies"] = nlohmann::json::array(); reject(j);
+    j = setup.ToJson(); j["enemy_validation"]["enabled"] = false;
+    j["enemies"] = nlohmann::json::array(); reject(j);
     j = setup.ToJson(); j["enemies"][0]["id"] = "missing"; reject(j);
     j = setup.ToJson(); j["deck"][0]["definition_id"] = "missing"; reject(j);
     j = setup.ToJson(); j["seed"] = -1; reject(j);
@@ -82,6 +94,10 @@ int main()
     for (int i = 0; i < 17; ++i) j["break_balls"].push_back({{"x", 0}, {"z", 0}});
     reject(j);
     j = setup.ToJson(); j["break_balls"][0]["x"] = 500; reject(j);
+    j = setup.ToJson(); j["enemy_validation"]["hp_multiplier"] = 1.25; reject(j);
+    j = setup.ToJson(); j["enemy_validation"]["enemy_count"] = 7; reject(j);
+    j = setup.ToJson(); j["enemy_validation"]["layout_pattern"] = "grid"; reject(j);
+    setup.enemyValidation.enabled = false;
     j = setup.ToJson(); j["enemies"][0]["hp"] = 99999; reject(j);
     auto invalid = setup; invalid.playerPosition.x = std::numeric_limits<float>::quiet_NaN(); assert(!invalid.Validate().empty());
     invalid = setup; invalid.deck[0].status.mass = std::numeric_limits<float>::infinity(); assert(!invalid.Validate().empty());

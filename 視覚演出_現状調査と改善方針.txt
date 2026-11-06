@@ -1,0 +1,673 @@
+Caromino 視覚演出・エフェクトシステム 現状調査と改善方針
+作成日：2026年11月2日
+
+【調査範囲】
+・対象：DX22_01_plane/DX22_01_plane 以下のゲーム本体、描画、UI、物理イベント、音響、assets
+・今回は調査と改善方針の提示のみ。バージョン管理対象のソース、設定、アセット、ゲームルールは変更していない。
+・実機起動に伴い、git ignore対象の saves/run_save.json、imgui.ini、runtime/game_mcp、logs/balance はゲーム自身により更新された。既存状態を誤って失わないため削除・巻戻しはしていない。
+・根拠表記は、リポジトリルート「DX22_01_plane」からの相対パスと行番号である。
+・[コード確認]：ソース／アセットから確認できた事実
+・[実機確認]：既存 x64/Debug 実行ファイルを起動して画面上で確認できた事実
+・[実機未確認]：コード上の存在は確認したが、今回の起動では表示まで到達できなかった事項
+・[提案]：将来の改善案。現時点では未実装
+
+【実機確認の制約】
+・タイトル画面と新規ランのルート選択画面は確認できた。
+・通常戦闘ルート選択後、数秒待ってもメインウィンドウにはゴルフ場背景と上部メニューのみが残り、盤面、球、戦闘HUDは表示されなかった。原因調査や修正は今回の範囲外である。
+・そのため、通常ショット、重量の大規模連鎖、貫通ミニオン、壁反射、特殊能力は実機では未確認。以下の戦闘演出評価は主にコード確認であり、「実際に地味である」とは断定しない。
+・DX22 Game MCPによる状態取得も試したが、接続先のHTTP 429で利用できなかった。
+・既存のゲーム内キャプチャ機能は確認できず、キャプチャ機能を追加する変更も行っていないため、画像・動画ファイルは保存していない。
+
+======================================================================
+1. 総評
+======================================================================
+
+1-1. 現在の視覚演出環境
+
+[コード確認]
+DirectX 11の基本的な3D描画、深度バッファ、単一方向光、モデル／マテリアル／テクスチャ描画、ImGuiの前景UIが存在する。戦闘フィードバックはGameEvent系の通知をGamePresentationが受け、ダメージ数字、拡大リング、画面フラッシュ、赤枠、カメラシェイク、振動、命中数・合計ダメージ表示を作る構成である。
+
+根拠：
+・D3D11デバイス／スワップチェーン生成：DX22_01_plane/Renderer.cpp:42-72
+・バックバッファ、深度、ビューポート：DX22_01_plane/Renderer.cpp:81-93
+・画面描画先はバックバッファ1枚：DX22_01_plane/Renderer.cpp:312-323
+・Presentationの戦闘通知口：DX22_01_plane/GamePresentation.h:98-117
+・戦闘フィードバック描画：DX22_01_plane/GamePresentation.cpp:1373-1522
+・ルール上のイベントと表示を分ける方針：DX22_01_plane/GamePresentation.h:84-86
+
+1-2. できていること
+
+・プレイヤーHP、シールド、所持金、デッキ等の戦闘HUDがある。
+・敵行動バッジ、時間制状態、Enemy Anchor、プレイヤー側の重量／貫通／反射／Anchorの数値バッジがある。
+・直接攻撃、敵同士衝突、撃破、ポケット、プレイヤーダメージ、Charge中断に対する最低限の色分けフィードバックがある。
+・プレイヤー球の残像、照準予測、命中予測円、オブジェクト球方向、連鎖範囲、貫通痕が描かれる。
+・画面フラッシュ、カメラシェイク、振動は個別に無効化できる。
+・物理／ルール側からPresentationへ通知する既存経路があり、将来の演出をゲームルールから分離して追加しやすい。
+
+1-3. 特に不足していること
+
+・汎用パーティクル、火花、爆発、発光、ポストプロセス、ヒットストップ、SE一式がない。
+・11～15回の重量連鎖や10回の貫通攻撃を、通常の1～2回と明確に違う「段階的な盛り上がり」に変換する仕組みがない。
+・スタック獲得／消費、フィニッシャー、オーバーチャージ、アンカー回収など、ルール上の重要な状態遷移が、ログまたは数値更新だけで終わる箇所が多い。
+・衝突種別は色で多少区別されるが、同じ浮遊文字＋リングという構造であり、直接衝突と敵同士の二次衝突の質感・勢い・音が十分に分かれていない。
+・敵の汎用HPバーと、反射の連続跳弾対象、貫通フィニッシャー等の特殊状態マーカーが不足している。
+・音声ファイルがなく、XAudio2のサンプル実装もゲームから使用されていない。
+
+1-4. 最大のボトルネック
+
+最大のボトルネックは、描画APIそのものより「ゲーム内の意味をPresentationへ伝える情報粒度」である。現在のOnCombatFeedbackは座標、ダメージ、撃破、敵同士衝突フラグまでで、衝突速度、接触点、軸、スタック変化、通常／フィニッシャー等を受け取らない（DX22_01_plane/GamePresentation.h:100-104）。一方、衝突処理ではrelativeApproachSpeedとcontactPositionを既に計算している（DX22_01_plane/BallCollisionComponent.cpp:388-402）。この情報を純粋なイベントデータとして橋渡しすれば、物理層へ描画依存を入れず、既存Presentationだけでも演出の強弱を大きく改善できる。
+
+======================================================================
+2. 描画・エフェクト基盤
+======================================================================
+
+2-1. レンダリング基盤 実装状況一覧
+
+項目                         状態        調査結果／根拠
+DirectX 11                   実装済み    デバイス、コンテキスト、スワップチェーン、RTV/DSVを保持。Renderer.h:81-100、Renderer.cpp:42-93。
+3Dモデル描画                 実装済み    AssimpでStaticMeshを読み、BallRenderComponentがサブセット単位で描画。StaticMesh.cpp:4-20、BallRenderComponent.cpp:62-86。
+マテリアル管理               一部実装    Materialごとの定数バッファ、Diffuse等を設定可能。Material.h:26-85。Emission/Shininessフィールドはあるが、litTexturePSはDiffuse中心でEmissionを出力に使わない。
+テクスチャ管理               一部実装    stb_imageでRGBA SRVを生成。Texture.cpp:7-61。中央キャッシュ、参照共有、ミップ生成はなく、MipLevels=1（Texture.cpp:27、86）。
+シェーダー管理               一部実装    lit/unlitのVS/PSを各描画側でロード。Shader.cpp:7-58。キャッシュ、ホットリロード、バリエーション管理は未確認。
+ライティング                 一部実装    固定の方向光1灯とambient/diffuse。Renderer.h:38-46、Renderer.cpp:203-210。動的点光源、影は未実装。
+透明オブジェクト描画         一部実装    標準状態がアルファブレンド（Renderer.cpp:111-142）。ただし専用透明パス、奥行きソート、深度書込み制御はない。
+加算合成                     一部実装    ブレンド状態自体は生成（Renderer.h:29-35、Renderer.cpp:132-135）。アプリ側でBS_ADDITIVEを選択する使用箇所は確認できず、実質未使用。
+描画順序                     一部実装    GameWorldの生成順、GameObjectのコンポーネント順で描画。GameWorld.cpp:84-90、GameObject.cpp:87-106。描画キュー／材質ソートなし。ImGuiは3D後に描かれる。
+ポストプロセス               未実装      アプリ固有のポストプロセス呼出しなし。DirectXTK側の利用可能コードは存在してもゲーム本体から未使用。
+RenderTexture／オフスクリーン 未実装      DrawStartはバックバッファRTVだけをバインド。Renderer.cpp:319-323。別の描画テクスチャは確認できない。
+深度バッファ                 実装済み    DSV作成と深度有効／無効状態あり。Renderer.cpp:238-299、369-385。
+インスタンシング             未実装      DrawInstanced、DrawIndexedInstanced、SV_InstanceIDの本体使用なし。
+バッチ描画                   未実装      3D側は球／ガイドのサブセットごとにDraw。アプリ独自SpriteBatchなし。ImGui内部バッチはUIライブラリの範囲であり、3Dエフェクト基盤ではない。
+
+再利用しやすい機能：Materialの色変更、既存メッシュ描画、Texture2Dの画面四角形、ImGui foreground draw list、アルファ／加算ブレンド状態、深度ON/OFF、GamePresentationの寿命付きフィードバック配列。
+
+注意：加算ブレンド状態が「存在する」ことと、加算用テクスチャ／描画順／深度ルールを備えたエフェクトシステムが「使える」ことは別である。現状は前者のみ。
+
+2-2. エフェクト関連 実装状況
+
+項目                         状態        管理場所・使用場面
+パーティクル                 未実装      粒子Emitter、粒子更新、上限、プールを確認できない。
+衝突火花                     未実装      OnCombatFeedbackは文字・リング・フラッシュ・シェイクのみ。
+爆発                         未実装      爆発テクスチャ、アニメーション、専用描画なし。
+衝撃波                       一部実装    ImGuiの拡大リングと連鎖範囲円。GamePresentation.cpp:1400-1506。3D波面や歪みではない。
+トレイル／残像              実装済み    PlayerBallが一定距離ごとに球メッシュ残像を追加し縮小。PlayerBall.cpp:154-210、376-411。PierceMinionにはなし。
+発光                         未実装      明るい色は出せるが、Emissionの画面発光・Bloomなし。
+色変化                       実装済み    BallRenderComponent::SetTintColor。BallRenderComponent.cpp:48-59。貫通ミニオンは紫の半透明色。
+スケールアニメーション       一部実装    残像の縮小、フィードバック円の拡大、UIカード展開。汎用アニメーション機構はない。
+点滅                         未実装      汎用点滅／被弾点滅は確認できない。
+フェード                     実装済み    浮遊文字、リング、連鎖範囲、残像が寿命に応じて薄くなる。GamePresentation.cpp:1460-1506。
+カメラシェイク               実装済み    Camera targetをsin/cosで揺らす。GamePresentation.cpp:399-417。設定でOFF可。
+ヒットストップ               未実装      時間停止／局所スロー処理なし。
+ダメージ数字                 実装済み    OnCombatFeedback→FloatingFeedback。GamePresentation.cpp:1086-1130、1460-1506。
+コンボ表示                   一部実装    1ショット中の命中数と合計ダメージ表示。GamePresentation.cpp:1508-1522。段階色、倍率、節目演出なし。
+スタック獲得演出             未実装      常設数値バッジはあるが、増減通知／飛び込み表示なし。
+球の強化時演出               未実装      強化情報UIはあるが、球のオーラ、発光、変身、到達演出なし。
+画面全体演出                 実装済み    被弾赤枠、impact flash。GamePresentation.cpp:1373-1398。強度は固定値中心。
+
+2-3. 音響関連
+
+[コード確認]
+・XAudio2でWAVを読み、ラベルごとにSourceVoiceを持つSoundクラスはある（DX22_01_plane/sound.cpp:23-99）。
+・登録ラベルはサンプルBGM 1件のみで、SEラベルはコメントアウト（sound.h:7-15）。参照先「asset/BGM/sample000.wav」も現在のassets配下に存在しない（sound.h:33-39）。
+・ゲーム本体でSoundの生成、初期化、Playを呼ぶ箇所は確認できない。
+・assets内にwav/mp3/ogg/flac等の音声ファイルはない。
+・Playは同ラベルのSourceVoiceを破棄して作り直すため、同じSEの自然な多重再生には向かない（sound.cpp:128-145）。
+・音量／ピッチ変更API、同時発音数、優先度、クールダウン、同一フレーム集約はない。
+・設定画面にはBGM/SE音量値があるが、将来の音声実装用に保存する段階である（Game.cpp:1784-1799、SettingsManager.cpp:35-40、87-88）。
+
+結論：球衝突、壁反射、攻撃、撃破、能力発動、スタック増減のSEはすべて未実装。既存SoundはWAVロードの参考にはなるが、戦闘SE基盤としては、ボイスプール、音量／ピッチ、連打抑制、カテゴリ音量との接続が必要であり、そのままでは再利用性が低い。
+
+======================================================================
+3. 戦闘場面別の演出
+======================================================================
+
+以下の「強度変更」は実行時にダメージ／速度へ追従するかを示す。画面フラッシュ、シェイク、振動のON/OFFは設定可能だが、連続値のエフェクト強度設定はない。
+
+1) ショットを構えているとき
+・視覚：[コード確認] 照準線、予測命中位置、対象球の移動方向、連鎖範囲、貫通痕。PlayerBall.cpp:747-877。
+・SE：なし。
+・条件／発生源：PlayerBallのエイム／予測更新。GameShotPrediction::PredictはGameBattleBridge.cpp:333-340。
+・強度：線幅等はコード固定。再利用性は中（既存ガイドメッシュを他軸へ流用可能）。
+・不足：軸ごとの色凡例、反射後の軌道、特殊能力が発動するかの明確な予告。
+
+2) エイム変更中
+・視覚：予測を再計算してガイドを更新。BallShotPredictionには壁・球・ポケット等のルール情報が渡る。
+・SE：なし。
+・不足：反射後までの候補比較、危険／有効ターゲット強調。多数ガイド時の可読性。
+
+3) 球を発射した瞬間
+・視覚：予測線を消し、移動中は球残像を追加。OnShotFiredは集計をリセットするが、発射バーストはない（GamePresentation.cpp:1072-1084）。
+・SE：なし。
+・不足：発射フラッシュ、球の圧縮／伸張、軸色の短いリボン、発射SE。
+
+4) プレイヤー球が敵へ衝突
+・視覚：橙系のダメージ文字、リング、impact flash、固定強度のシェイク／振動。GamePresentation.cpp:1086-1130。
+・SE：なし。
+・発生源：BallCollisionComponent→GameBattleEvents::CombatFeedback→GameProgression::NotifyCombatFeedback→GameEvent→GamePresentation。
+・強度：撃破か否かでシェイク値が変わるが、速度やダメージ量には連続追従しない。再利用性は高。
+・不足：接触点の火花、法線方向、重量感、軸固有色、速度段階。
+
+5) 敵同士が衝突
+・視覚：水色系の文字／リングになるが、直接衝突と同じFloatingFeedback構造。GamePresentation.cpp:1086-1130。
+・SE：なし。
+・強度：敵同士フラグによる色差のみ。11～15連鎖を特別扱いする段階演出なし。
+・不足：二次衝突の接触点表示、連鎖番号、連鎖段階色、強衝撃時の大リング／短い画面アクセント。
+
+6) 敵がダメージを受ける
+・視覚：ダメージ数値、ショット命中数・合計ダメージ。敵本体の被弾点滅や汎用HPバーは確認できない。
+・SE：なし。
+・不足：現在HPの即時変化、被弾方向、弱／強／クリティカル相当の差。
+
+7) 敵撃破
+・視覚：金色の撃破文字／リング、強めのシェイク。OnCombatFeedbackのdefeated分岐。
+・SE：なし。
+・不足：敵本体の消滅アニメーション、破片／粒子、撃破SE、連鎖撃破数。
+
+8) 敵がポケットへ落ちる
+・視覚：スクラッチ／フィニッシャー等の文字とリング、画面フラッシュ、シェイク。GamePresentation.cpp:1150-1187。
+・SE：なし。
+・不足：吸い込み方向、穴への収束、落下音、フィニッシャー専用の格上表現。
+
+9) 球が壁へ反射
+・視覚：反射スタック等はルール処理とログのみ。壁接触火花、波紋、壁発光なし。
+・SE：なし。
+・発生源：PlayerWallCollisionEventは位置・反射後速度を持つが、Presentationへ専用表示されない（GameBattleEvents.h:20-29、GameProgression.cpp:1101-1165）。
+・不足：接触位置、反射回数、速度維持／強化の可視化。
+
+10) ショット終了
+・視覚：命中数／合計ダメージはショット中に表示されるが、結果を締める演出や評価表示は弱い。スタック精算は主にログ／バッジ更新。
+・SE：なし。
+・不足：連鎖結果、得た／使ったスタック、次ショットへ残る状態の簡潔なサマリー。
+
+11) 敵が攻撃
+・視覚：敵頭上の行動バッジと時間制状態がある（GamePresentation.cpp:535-677）。プレイヤーダメージ時は赤枠、文字、シェイク（1189-1218）。
+・SE：なし。
+・不足：攻撃開始の予備動作、攻撃線／対象、着弾表現、攻撃種別ごとの音。
+
+12) Charge等の特殊行動
+・視覚：行動バッジ、Charge Breakの紫文字／リング（GamePresentation.cpp:1220-1248）。
+・SE：なし。
+・不足：Charge開始時の蓄積、段階変化、完了時の強い発動、解除理由ごとの差。
+
+3-2. UI・戦闘情報
+
+項目                     状態と「気づけるか」
+プレイヤーHP             実装済み。HUDに数値とバー。GamePresentation.cpp:794-920。
+敵HP                     汎用の頭上HPバーは未確認。ボス等の一部説明テキストはあるが、全敵の即時把握には不足。
+ダメージ表示             実装済み。位置付き浮遊文字。ただし同時多発時の重なり回避なし。
+各軸スタック             重量、貫通、反射、Player Anchorを頭上バッジ表示。存在は気づけるが、増減理由は伝わりにくい。
+スタック獲得・消費通知   未実装。ログと数値差分を見ないと気づきにくい。
+球の強化段階             カード／情報表示はあるが、戦闘中の球外観への段階表現は不足。
+特殊能力発動             Charge Break等の一部のみ。フィニッシャー／オーバーチャージ／跳弾対象等は不足。
+攻撃／軌道予測           実装済みだが反射後は意図的に0回まで。PlayerBall.cpp:750-763。
+敵行動予告               行動バッジあり。対象、範囲、残り段階の強調は改善余地。
+戦闘終了演出             コード上に結果UI／シーンはあるが、今回の戦闘実機確認はできず視認性は未確認。
+
+[実機確認]
+タイトルはゴルフ場背景、ロゴ、中央のランメニュー、上部のImGuiメニューで構成される。新規ラン後のルートマップは黒基調の大きなImGuiウィンドウで、HP、所持金、デッキ数、ルート候補を読めた。ただしゲーム画面より開発ツールに近い外観で、初見5～10秒の魅力を戦闘の派手さへ接続する部分は今回確認できなかった。
+
+======================================================================
+4. 4軸の視覚演出
+======================================================================
+
+4-1. 重量軸
+
+[コード確認]
+・移動距離によるスタック、敵ごとのmicro gain、消費、ダメージ倍率、フィニッシャーのルールはある（HeavyCollisionRules.h:30-36、80-109、133-185）。
+・重量命中、吹き飛び、敵同士衝突は通常のCombatFeedbackを使う。専用火花、衝撃方向、強いノックバックの視覚差はない。
+・距離スタック獲得とmicro stack獲得はログ中心（GameProgression.cpp:659-672、1309-1347）。獲得演出なし。
+・連鎖衝撃球はChainImpactとして範囲円と「連鎖範囲 R / N体に連鎖」を表示（GamePresentation.cpp:1132-1148、1400-1458）。
+・11～15回の有効衝突は、同型の水色フィードバックが複数発生し、最終的に命中数／合計ダメージが増えるだけで、連鎖数に応じたサイズ、色、画面縁、音階等の段階変化はない。
+・衝突速度はBallCollisionComponent内で計算済みだがPresentationへ渡していないため、衝撃量に応じた演出変化はない（BallCollisionComponent.cpp:388-402、460、533）。
+
+[提案]
+既存ImGuiだけでも「CHAIN 3/6/10/15」の節目、色の白→黄→橙、リング半径とシェイクの上限付き強化、最後の合計結果を追加できる。速度は3段階へ量子化し、毎衝突で無制限に強くせず、同一フレームは最大1つの代表演出へ集約する。
+
+4-2. 貫通軸
+
+[コード確認]
+・固有敵命中でスタックを増やし、最大15、痕跡最大3、条件によりミニオン攻撃を作る（PierceTraceRules.h:14-19、52-121）。
+・貫通痕は3Dガイド線とImGui前景線の双方で表示される（PlayerBall.cpp:879-892、GamePresentation.cpp:749-791）。同じ情報の二重表現になり得るため実機で整理が必要。
+・痕跡生成、スタック増加、消費はルール処理とログ中心（GameProgression.cpp:947-964、1227-1267）。生成バースト／増減通知なし。
+・ミニオンは紫色・alpha 0.75の通常球メッシュとして生成される（PierceMinion.cpp:26-66）。生成アニメーション、移動トレイルなし。
+・ミニオン命中は通常のCombatFeedbackに合流する。連続10攻撃を段階的に見せる専用コンボ表現なし。
+・通常ミニオンとフィニッシャー／オーバーチャージは主に性能値で分かれ、外観の明確な区別は確認できない。
+
+[提案]
+通常＝紫、閾値到達＝白紫、フィニッシャー＝金紫という一貫した色規則、ミニオン番号／攻撃源アイコン、3DかImGuiどちらか一方に整理した痕跡を先に行う。粒子なしでも識別性を上げられる。
+
+4-3. 反射軸
+
+[コード確認]
+・壁反射によるスタック生成／消費、強化ヒット、連続跳弾対象のルールは存在する（CushionChargeRules.h:13-28、75-170）。
+・壁反射処理はスタック、速度、ピンボール状態を更新するが、専用Presentation通知はない（GameProgression.cpp:1101-1225）。
+・頭上の「跳」スタック数は見えるが、反射回数、今回の強化倍率、連続跳弾中の対象表示はない。
+・BallShotPrediction自体はゲーム状態を含む予測を行う（GameBattleBridge.cpp:297-357、BallShotPrediction.cpp:720以降）。しかし表示側はpreviewReflections=0を明示し、最初のブロック点より後のプレイヤー軌道を描かない（PlayerBall.cpp:747-765）。
+
+結論：反射後軌道の計算基盤はあるが、現在の表示仕様では反射後を見せない。今回の問題は予測器の完全欠如ではなく、表示する反射数、可読性、攻撃候補の選び方である。実装変更は今回行っていない。
+
+4-4. アンカー軸
+
+[コード確認]
+・Enemy Anchor付与、5:1変換、消費、シールド、フィニッシャー、帰還位置のルールがある（AnchorStackRules.h:12-19、30-78、94-133）。
+・敵のAnchor数とPlayer Anchor数は頭上バッジで表示される（GamePresentation.cpp:563-566、679-746）。
+・Enemy Anchor付与はショット終了時の処理とログが中心（GameProgression.cpp:675-697）。付与瞬間の色変化、段階外観なし。
+・停止時シールドは敵スタック消費とプレイヤーシールド加算を行い、HUDのシールド数には反映される（GameProgression.cpp:1419-1439）。吸収／防御エフェクトなし。
+・敵撃破時の自動変換／回収はログ中心（GameProgression.cpp:1663-1682）。敵からプレイヤーへ飛ぶ回収表現なし。
+・フィニッシャーの範囲ダメージ処理はある（GameProgression.cpp:1441-1493）。直接対象は通常Feedbackになるが、周辺対象へのTakeDamageに個別Feedbackがない経路があり、AOEの一部が視覚通知されない可能性がある。
+・Player Anchorによる自己強化は数値バッジ中心で、球色、輪郭、オーラ等の段階表現なし。
+
+[提案]
+付与＝敵へ短い青緑リング、蓄積＝バッジの段階色、消費／回収＝敵からプレイヤーへの細線、シールド＝球の外周円、AOE＝対象ごとの短いリング、という低コストの視覚文法を既存ImGuiで統一する。
+
+======================================================================
+5. アセット一覧
+======================================================================
+
+5-1. 既存素材と使用状況
+
+分類／相対パス                                      使用状況・場面・再利用性
+assets/model/golfball/golf_ball.obj/.mtl            使用中。PlayerBall、敵、BreakBall、NuisanceBall、PierceMinion。色替えで軸表現に再利用可。
+assets/model/arrow/arrow.fbx、arrow.png              本体コードからの参照を確認できず未使用候補。方向表示へ再利用可能だが、正常ロード／見た目は要実機確認。
+assets/model/cylinder/cylinder.obj                    参照なし。リング柱や範囲表示候補だが、専用材質／透過検証が必要。
+assets/model/golf_pole/golf_pole_NO_HOLE.obj/.mtl     参照なし。戦闘エフェクトへの直接再利用性は低い。
+assets/model/SkyBox/SkyBox.obj                        参照なし。SkyBox描画機構も確認できず、存在＝利用可能とは言えない。
+assets/texture/billiard_felt.png                      使用中。盤面。GroundRenderComponent.cpp:60。
+assets/texture/background1.png                        使用中。Title、StageSelect、RestSite。TitleScene.cpp:34、StageSelectScene.cpp:86、RestSiteScene.cpp:31。
+assets/texture/background2.png                        使用中。Shop、Result。ShopScene.cpp:32、ResultScene.cpp:188。
+assets/texture/titlerogo.png                          使用中。タイトル。TitleScene.cpp:41。
+assets/texture/resultString.png                       使用中。結果。ResultScene.cpp:194。
+assets/texture/golf_jou_man.png                       使用中。結果。ResultScene.cpp:202。
+assets/texture/dice.png                               本体参照なし。演出素材としては用途限定。
+assets/texture/field.jpg、grass.jpg、gravel.jpg       本体参照なし。背景／地面候補。VFX素材ではない。
+assets/texture/terain.png                             本体参照なし。背景候補。
+assets/texture/ui_back.png、ui_number.png、ui_string.png 本体参照なし。旧UI素材候補。アトラス仕様の確認が必要で、そのまま演出へ流用できるとは断定不可。
+shader/litTextureVS.hlsl、litTexturePS.hlsl           使用中。Ball／Ground／TableFrame。基本テクスチャ・Diffuseのみ。
+shader/unlitTextureVS.hlsl、unlitTexturePS.hlsl       使用中。Texture2D。画面スプライトの基盤として再利用可。
+assets/fonts/BIZUDPGothic-Regular.ttf                 使用中。ImGui日本語。Application.cpp:233。
+assets/fonts/NotoSansJP-VF.ttf                        本体参照を確認できず未使用候補。
+assets/data/*.json                                    ゲームデータ。VFX素材ではないが、軸状態／敵定義／ステージ情報の演出条件に利用可能。
+
+5-2. 存在しない／不足する素材
+
+・火花、煙、光点、衝撃波、発光円、斬撃、吸収、シールド等のエフェクト用透過テクスチャ。
+・パーティクル用アトラス、フリップブック、ノイズ、マスク。
+・衝突、壁、攻撃、撃破、Charge、スタック増減、フィニッシャー用SE。
+・通常／強／連鎖／オーバーチャージを音階や質感で分ける音素材。
+・アニメーションファイル、スプライトアニメ定義。
+・Bloom、歪み、輪郭、発光用シェーダー。
+
+5-3. 棚卸し上の注意
+
+・ファイル参照がない素材は「未使用候補」であり、外部ツールや将来用の意図までは断定しない。
+・DirectXTKにSpriteBatchやPostProcess相当のコードが同梱されていても、ゲーム本体が利用していないため「実装済み」と扱わない。
+・モデル／画像の存在だけでは、座標系、透過、UV、材質、実際のロード成功を保証しない。未使用候補は実装前に単体表示確認が必要。
+
+======================================================================
+6. 演出イベントの接続候補
+======================================================================
+
+容易さ：高＝既存イベントからPresentation追加だけで済む、低＝新しい事実データや複数層の変更が多い。
+
+イベント／実処理 | 発生元 | 取得できる情報 | 現在の演出 | 追加容易さ | 依存関係への影響・変更候補
+
+ショット開始／ShotFired
+・発生元：PlayerBall::Shot系→GameBattleEvents→GameEvent。PlayerBall.cpp:703-733、GameEvent.h:8-60。
+・情報：発射事実、現在はPresentation側の集計リセット中心。
+・現在：予測消去、残像開始、命中集計初期化。SEなし。
+・容易さ：高。
+・候補：GameEvent.h、GameProgression.cpp、GamePresentation.h/.cpp。速度／軸をイベントへ足す場合のみpayload拡張。
+
+球同士衝突／CombatFeedback
+・発生元：BallCollisionComponent.cpp:343-564。
+・情報：対象、衝突前速度、relativeApproachSpeed、contactPosition、ダメージ、撃破、敵同士フラグ。
+・現在：Presentationへは敵位置、ダメージ、撃破、敵同士フラグのみ。文字、リング、flash、shake。
+・容易さ：中。
+・候補：GameBattleEvents.h、GameBattleBridge.cpp、GameEvent.h、GameProgression.cpp、GamePresentation.*。接触点／強度を値として渡し、BallCollisionComponentから描画クラスをincludeしない。
+
+壁反射／PlayerWallCollision
+・発生元：GameBattleEvents.h:20-29、GameProgression.cpp:1101-1165。
+・情報：壁region、位置、反射後速度、反射スタック状態。
+・現在：ルール更新／ログ。専用VFX/SEなし。
+・容易さ：中。
+・候補：GameEventへWallImpactEventを追加し、Presentationと将来Audioへ配信。
+
+ダメージ確定／EnemyDamageEvent
+・発生元：GameProgression::NotifyCombatFeedback。GameProgression.cpp:1722-1735、1801-1877。
+・情報：座標、ダメージ、撃破、敵同士衝突。
+・現在：浮遊数字等。
+・容易さ：高。
+・候補：軸、source kind、intensity tierを追加。既存イベントルートを維持。
+
+敵撃破
+・発生元：CombatFeedbackのdefeated、ポケット／EnemyDefeat系。
+・情報：対象、位置、ダメージ、ポケット種別等は経路ごとに異なる。
+・現在：金文字、リング、強めのshake。SEなし。
+・容易さ：高～中。
+・候補：撃破理由をenum化し、同じPresentation入口で見た目を分岐。
+
+スタック獲得
+・発生元：HeavyCollisionRules、PierceTraceRules、CushionChargeRules、AnchorStackRulesを呼ぶGameProgressionの各処理。
+・情報：軸、増加前後、増加量、対象、理由は呼出し地点で取得可能。
+・現在：数値バッジ更新／ログ。
+・容易さ：中。
+・候補：汎用ResourceChangedEventをGameEventへ追加。ルールクラスにVFXを入れない。
+
+スタック消費
+・発生元：各軸のフィニッシャー、壁反射、Anchor変換等。
+・情報：消費量、残量、発動能力。
+・現在：数値差／ログ。
+・容易さ：中。
+・候補：ResourceChangedEventとAbilityActivatedEventを分け、Presentationが表示を集約。
+
+特殊能力発動
+・発生元：GameProgressionのHeavy finisher、Pierce minion、Ricochet、Anchor finisher等。
+・情報：軸、能力ID、対象数、範囲、通常／finisher。
+・現在：一部は汎用ChainImpact／CombatFeedback、Charge Breakのみ専用表示。
+・容易さ：中。
+・候補：AbilityActivatedEvent。文字列ではなくenum/IDを使い、表示文言はPresentation側。
+
+ミニオン生成
+・発生元：GameProgression.cpp:1069-1089、PierceMinion.cpp:26-66。
+・情報：生成位置、方向、速度、通常／finisher、連番。
+・現在：紫の球が出現。生成演出／SEなし。
+・容易さ：中。
+・候補：生成直後にGameEventを発行。PierceMinion自身へPresentation依存を入れない。
+
+貫通痕生成
+・発生元：GameProgression.cpp:1227-1267、PierceTraceRules.h:105-121。
+・情報：start/end、trace id、上書き有無、スタック。
+・現在：3D線＋ImGui線／ラベル。
+・容易さ：高。
+・候補：既存痕表示を一系統へ整理し、生成瞬間だけPulseをPresentationで追加。
+
+アンカー回収
+・発生元：敵撃破時の自動変換。GameProgression.cpp:1663-1682。
+・情報：敵側消費量、プレイヤー獲得量、敵／プレイヤー位置。
+・現在：ログ／バッジ更新。
+・容易さ：中。
+・候補：ResourceTransferredEventまたはResourceChangedEvent 2件＋source position。
+
+ショット終了
+・発生元：PlayerBall停止、GameProgressionのend shot処理。
+・情報：命中数、合計ダメージ、各軸変化、残存状態をGame側で集約可能。
+・現在：ルール精算とログ。Presentationの簡潔な結果カードなし。
+・容易さ：中。
+・候補：ShotSummaryEventを値オブジェクトで渡す。GamePresentationが短時間表示。
+
+推奨する依存方向：Physics/Rules → 値だけのBattleEvent/GameEvent → Gameのルーティング → GamePresentation／将来のAudioFeedback。Physics/RulesからRenderer、ImGui、Soundを直接参照しない。
+
+======================================================================
+7. パフォーマンス面の課題
+======================================================================
+
+7-1. 現状
+
+・パーティクル最大数：パーティクル自体が未実装のため上限なし。
+・生成／破棄：FloatingFeedbackとChainRangeFeedbackはvectorへpushし、寿命切れをerase_if（GamePresentation.cpp:348-384）。上限、予約、プール、同一位置統合なし。
+・オブジェクトプール：確認できない。PierceMinionは能力発動ごとに生成され、停止／範囲外で破棄（PierceMinion.cpp:26-78）。
+・大量衝突の間引き：確認できない。CombatFeedbackは衝突ごとに追加される。
+・SE大量再生対策：SE未実装。同時発音数、同音クールダウン、音量正規化なし。
+・透明／加算負荷：現在の加算エフェクト使用はないため現状負荷は小さい。将来の半透明粒子は奥行きソート、オーバードロー、fill rateが課題。
+・描画回数計測：アプリ独自draw-callカウンタ、GPU timestamp/queryは確認できない。
+・FPS：ウィンドウタイトルへ1秒ごとのFPSを表示（Application.cpp:251-356）。フレーム時間、CPU/GPU内訳、p95/p99はない。
+・物理計測：FixedStepClockは60Hz、最大ステップ数と捨て時間を持ち、GameRuntimeStateはphysicsSubsteps等を追跡する（FixedStepClock.h:9-15、GameRuntimeState.cpp:48-86）。VFX負荷とは分離して記録が必要。
+・演出ON/OFF：screen flash、camera shake、vibrationのみ（Game.cpp:1960-1972）。粒子、数字、トレイル、リング、SEカテゴリ等の個別切替なし。
+・強度設定：ON/OFFだけで、VFX量／倍率／低負荷モードなし。
+
+7-2. 現在すでに注意すべき描画回数
+
+・3Dガイド線はセグメントごとにメッシュDrawを行い、円は48分割（PlayerBall.cpp:894-950）。
+・連鎖範囲はフィードバックごとに毎フレーム64点を生成してImGui描画（GamePresentation.cpp:1400-1458）。
+・球メッシュはサブセットごとのDraw（BallRenderComponent.cpp:62-86）。インスタンシングなし。
+・PlayerBall残像はvector先頭eraseを使うため、増加させる場合はO(n)移動に注意（PlayerBall.cpp:376-411）。
+
+7-3. 必要な負荷検証
+
+[提案]
+同一リプレイ／固定seedで、通常、重量15衝突、貫通10攻撃、両者複合の4ケースを用意し、FPSだけでなくCPU frame ms、GPU frame ms、physics substeps、draw calls、フィードバック生成数、同時SE voice数を記録する。目標値は先に決め、同時表示上限と間引きを負荷試験前に実装する。
+
+推奨制御：
+・同一フレーム／近距離の衝突は代表1件＋数字合算。
+・画面上の軽量フィードバック上限、重要イベント用の予約枠。
+・低／標準／高のVFX密度、screen flash／shake個別設定を維持。
+・音は同一SEの最短間隔、voice上限、古い低優先音の打切り、速度に応じた狭いpitch変化。
+・盤面、予測線、敵HP、危険予告を装飾より常に高い優先度で描く。
+
+======================================================================
+8. 改善候補一覧
+======================================================================
+
+8-A. 既存の仕組みだけで追加できる演出
+
+A1 連鎖段階表示
+・対象：敵同士衝突、ショット中／終了。
+・現状：一部実装（命中数と合計ダメージのみ）。
+・必要：GamePresentationの文字、色、リングサイズ、節目表示。コードのみ。
+・難易度：低。効果：11～15連鎖が一目で分かる。
+・懸念：文字重なり。節目だけ強くし、毎回全画面演出にしない。
+・候補：GamePresentation.h/.cpp、GameProgression.cpp。
+
+A2 スタック増減の短時間通知
+・対象：4軸の獲得／消費。
+・現状：未実装（常設バッジはあり）。
+・必要：既存ImGuiの「重量 +2」「貫通 -10」等。コードのみ。
+・難易度：低～中。効果：ルールの因果が伝わる。
+・懸念：連打時のノイズ。軸ごとに同一フレーム集約。
+・候補：GameEvent.h、GameProgression.cpp、GamePresentation.*。
+
+A3 軸ごとの統一色／リング規則
+・対象：命中、能力発動、結果表示。
+・現状：一部実装（貫通紫、Anchor表示等はあるが一貫しない）。
+・必要：既存Material tint、ImGui色、リング。コード／設定。
+・難易度：低。効果：重量・貫通・反射・Anchorを初見でも識別。
+・懸念：色覚差と盤面色。色だけでなく形／ラベルも併用。
+・候補：GamePresentation.cpp、BallRenderComponent.cpp、PierceMinion.cpp。
+
+A4 敵HPと特殊対象マーカー
+・対象：全戦闘、連続跳弾対象、Charge対象。
+・現状：一部実装（行動／状態バッジあり、汎用HPは不足）。
+・必要：既存world-to-screen＋ImGuiバー／枠。コードのみ。
+・難易度：中。効果：盤面の因果と撃破直前が分かる。
+・懸念：敵数増加時の混雑。距離／重要度で簡略表示。
+・候補：GamePresentation.cpp:535-746。
+
+8-B. 既存システムの小規模拡張で追加できる演出
+
+B1 衝突強度3段階
+・対象：直接衝突、敵同士衝突、壁反射。
+・現状：未実装。衝突速度は計算済みだが未伝達。
+・必要：イベントpayloadへcontact position、relative speed、source kind。コード。
+・難易度：中。効果：大きく吹き飛ばした感触と重量連鎖の差。
+・懸念：強度無制限化。正規化・clamp・画面演出のクールダウン必須。
+・候補：BallCollisionComponent.cpp、GameBattleEvents.h、GameBattleBridge.cpp、GameEvent.h、GameProgression.cpp、GamePresentation.*。
+
+B2 能力発動／フィニッシャーイベント
+・対象：Heavy chain、Pierce finisher、Ricochet、Anchor finisher。
+・現状：一部実装。ルールと汎用Feedbackはあるが、能力名と段階がPresentationへ来ない。
+・必要：AbilityActivatedEventと表示テンプレート。コード。
+・難易度：中。効果：軸の見せ場が明確になる。
+・懸念：Gameへ分岐を増やしすぎない。Presentation側テーブル化。
+・候補：GameEvent.h、GameProgression.cpp、GamePresentation.*。
+
+B3 反射後予測の表示範囲切替
+・対象：構え／エイム、反射軸。
+・現状：予測器はあるが表示はpreviewReflections=0。
+・必要：表示反射数、線の減衰、第一候補の強調。コード／設定。
+・難易度：中。効果：反射後の攻撃機会を理解しやすい。
+・懸念：線が多すぎる。最大1～2反射、後段を薄くする。
+・候補：PlayerBall.cpp:747-877、BallShotPrediction.*、GameBattleBridge.cpp。
+
+B4 戦闘SEサービスの最小拡張
+・対象：衝突、壁、撃破、能力、スタック。
+・現状：未実装。XAudio2サンプルのみ。
+・必要：voice pool、カテゴリ音量、pitch/volume、同音抑制、イベント接続、素材。
+・難易度：中。効果：視覚演出と同期し手応えが大幅向上。
+・懸念：15衝突で飽和。集約とvoice上限。
+・候補：sound.h/.cppの再設計または小さなGame所有AudioFeedback、SettingsManager.*、GameEvent経路。
+
+B5 フィードバック上限／集約
+・対象：大規模連鎖、ミニオン連打。
+・現状：未実装。
+・必要：優先度、最大数、近接合算、デバッグカウンタ。コード／設定。
+・難易度：中。効果：派手さを維持しつつ盤面を保つ。
+・懸念：間引きで重要情報を消さない。
+・候補：GamePresentation.h/.cpp、GameRuntimeState.*。
+
+8-C. 新しい描画機能が必要な演出
+
+C1 汎用パーティクル／ビルボード
+・対象：火花、発射、撃破、吸収、ミニオントレイル。
+・現状：未実装。
+・必要：粒子更新、ビルボード、テクスチャアトラス、加算／alphaパス、pool、上限、デバッグ表示。
+・難易度：高。効果：瞬間的な派手さと軸ごとの質感が大幅向上。
+・懸念：draw call、overdraw、ソート、寿命管理。まずB5の予算設計が必要。
+・候補：Renderer、GamePresentation所有の新規EffectRenderer（Singletonにはしない）、専用shader／assets。
+
+C2 オフスクリーン＋Bloom
+・対象：能力発動、オーバーチャージ、強衝突。
+・現状：未実装。
+・必要：RenderTexture、輝度抽出、blur、合成、resize対応。
+・難易度：高。効果：発光表現。
+・懸念：GPU帯域、解像度依存、UIまで滲ませない合成順。
+・候補：Renderer.cpp/h、Applicationの描画順、専用shader。
+
+C3 画面歪み／本格衝撃波
+・対象：大連鎖、フィニッシャー。
+・現状：ImGuiリングのみ。
+・必要：scene colorのサンプリング、波面mask、post process。
+・難易度：高。効果：大技の格上感。
+・懸念：盤面認識を壊しやすい。短時間・低振幅・設定OFF必須。
+・候補：C2と同じ基盤。
+
+8-D. 素材の作成・調達が必要な演出
+
+D1 最小SEパック
+・対象：球、壁、攻撃、撃破、4軸発動、スタック増減。
+・現状：未実装／素材なし。
+・必要：WAV素材、音量基準、loop/one-shot定義、利用許諾記録。
+・難易度：中。効果：手応えと連鎖のリズム。
+・懸念：音圧飽和、素材テイスト不統一。B4の制御が前提。
+・候補：assets/audio（将来）、音声設定、AudioFeedback。
+
+D2 軽量VFXテクスチャパック
+・対象：火花、円、光点、吸収、シールド。
+・現状：未実装／素材なし。
+・必要：白基調の透過mask／アトラス、軸色はコード着色。
+・難易度：低～中。効果：1素材を4軸へ再利用可能。
+・懸念：premultiplied alphaとblend方式の統一。
+・候補：将来のEffectRenderer、Texture管理。
+
+D3 UIアイコン
+・対象：Heavy、Pierce、Ricochet、Anchor、finisher、overcharge。
+・現状：文字バッジ中心。
+・必要：小サイズでも読める単色アイコン、色覚対応。
+・難易度：低～中。効果：初見の識別速度向上。
+・懸念：説明なしで意味が伝わらない。短いラベル併用。
+・候補：GamePresentation.cpp、assets/ui（将来）。
+
+======================================================================
+9. 改善優先順位
+======================================================================
+
+P0（最優先、5項目）
+
+P0-1 衝突フィードバックを「種別×強度×連鎖段階」で統一
+・効果：重量15連鎖と通常衝突の差がすぐ分かる。4軸へ再利用可。
+・工数：中。新描画基盤なし。既存GameEvent／GamePresentationを拡張。
+・就職作品として：物理データをPresentationへ疎結合で渡す設計と、演出強度の正規化を説明できる。
+
+P0-2 4軸の獲得・消費・発動を同じ視覚文法で表示
+・効果：数値インフレの原因と結果、軸の違いが初見に伝わる。
+・工数：低～中。既存ImGui、色、リング、バッジを再利用。
+・可読性：常時派手にせず、増減と閾値だけ強調する。
+
+P0-3 敵HP、発動対象、ショット結果サマリーを整備
+・効果：何が起き、誰が次に倒れ、特殊能力がどこへ向くか分かる。
+・工数：中。既存world-to-screen UIを再利用。
+・可読性：装飾より盤面情報を前面に保つ。
+
+P0-4 最小戦闘SE基盤と音の間引き
+・効果：5～10秒で感じる手応えを大きく改善し、連鎖を耳でも数えられる。
+・工数：中。音素材も必要。
+・条件：voice上限、同音クールダウン、速度に応じた小さなpitch差を同時に設計する。
+
+P0-5 負荷計測とVFX予算を先に決める
+・効果：審査会指摘の「インフレ時に見えるか／動くか」を数値で回答できる。
+・工数：中。FPSだけでなくframe ms、draw calls、feedback数、SE voicesを記録。
+・条件：固定ケースで演出OFF／ON比較を行う。
+
+P1（優先）
+
+・反射後1～2回分の軌道予測と連続跳弾対象マーカー。
+・PierceMinionの生成、軌跡、通常／フィニッシャー外観差。
+・Anchorの付与、回収、シールド、AOEを同じ青緑系の流れで表示。
+・敵本体の短い被弾点滅、発射／撃破のscale/fade。
+・貫通痕の3D／ImGui二重表現を整理。
+・フィードバックの上限、合算、優先度、低負荷モード。
+
+P2（後回し）
+
+・汎用GPUパーティクル、インスタンシング。
+・Bloom、画面歪み、複数RenderTextureのポストプロセス。
+・高度な破片、煙、長いアニメーション、豪華な画面遷移。
+・これらは魅力を増やすが、現在は「何が起きたか」を伝えるP0の方が費用対効果が高い。
+
+推奨作業順：P0-5の計測項目定義 → P0-1のイベント情報拡張 → P0-2/P0-3の既存UIプロトタイプ → P0-4音響 → 固定インフレケースで可読性／負荷比較 → P1 → 必要性を再評価してP2。
+
+======================================================================
+10. 次の開発に向けた提案
+======================================================================
+
+10-1. 最初に実装するべき3項目
+
+第1項目：Impact／Resource／Abilityの事実イベントを整える
+・Impact：接触点、相対接近速度、direct/enemy-enemy/wall、ダメージ、撃破、軸。
+・ResourceChanged：軸、前後値、差分、獲得／消費理由、対象位置。
+・AbilityActivated：能力ID、軸、通常／finisher、対象数、範囲。
+・変更候補：GameBattleEvents.h、GameBattleBridge.cpp、GameEvent.h、BallCollisionComponent.cpp、GameProgression.cpp、GamePresentation.h/.cpp。
+・再利用：既存のstd::variant GameEventとPublishGameEvent経路（GameEvent.h:8-60、GameProgression.cpp:1801-1877）。
+・注意：イベントはRenderer/ImGui型を持たず、値だけにする。物理からGamePresentationを呼ばない。
+
+第2項目：既存ImGui／Materialだけで4軸の視覚文法を試作する
+・重量＝橙／同心リング／CHAIN節目、貫通＝紫／線／攻撃源番号、反射＝黄／壁点／反射番号、Anchor＝青緑／付与と回収の流れ。
+・敵HP、特殊対象、ショット結果を同時に最小構成で出し、盤面が隠れない表示密度を決める。
+・変更候補：GamePresentation.h/.cpp、PlayerBall.cpp、BallRenderComponent.cpp。
+・再利用：FloatingFeedback、ChainRangeFeedback、world-to-screen、DrawEnemyStatusEffects、DrawBattleHud。
+・注意：新しいManagerを作らず、寿命付きの表示状態はGamePresentationへ置く。Gameにはルール判断だけを残す。
+
+第3項目：最小SEと負荷観測を同じインフレケースで検証する
+・衝突、壁、撃破、能力の4カテゴリから開始し、voice pool、カテゴリ音量、同音クールダウン、velocity→volume/pitchのclampを持たせる。
+・同時にCPU/GPU frame ms、draw calls、feedback count、voice countを表示／ログ化する。
+・変更候補：sound.h/.cppを参考にしたGame所有のAudioFeedback、SettingsManager.*、Application.cpp、GameRuntimeState.*、GamePresentation.*。
+・注意：Sound Singletonを追加しない。所有者と寿命をGame/Applicationの既存構造へ合わせ、Presentationは抽象的な通知または既存イベントを共有する。
+
+10-2. 新しい汎用エフェクトシステムが必要になる条件
+
+現在のP0は既存ImGui／メッシュ／色変更で実現できるため、最初から大規模なEffectManagerを作る必要はない。ただし、次の要求が確定した場合は、小さな汎用システムをGamePresentationの構成要素として作る理由がある。
+
+・数十～数百個の短命スプライトを、同じ更新／寿命／色／scale規則で扱う。
+・加算とalphaを分け、奥行き、描画順、バッチ、上限を一元管理する。
+・火花、吸収、トレイル、撃破等をデータ駆動で再利用する。
+・低／標準／高品質、全体OFF、デバッグ数表示を共通化する。
+
+その場合も「Global Singleton EffectManager」ではなく、GamePresentationが所有するEffectRenderer／EffectPoolとし、Rendererへの依存を.cpp側へ閉じ込める。ルール層はEffect型を知らず、事実イベントだけを発行する。
+
+10-3. 検証すべき項目
+
+・通常1～2衝突と重量11／15衝突を、無説明の第三者が見分けられるか。
+・貫通10攻撃で攻撃源、対象、合計結果が追えるか。
+・通常ミニオンとフィニッシャー／オーバーチャージが色以外の形／ラベルでも区別できるか。
+・反射後予測を1～2回表示しても線が敵HPや危険予告を隠さないか。
+・Anchor付与→消費→回収→シールドの因果を、ログを読まず理解できるか。
+・同一フレームの多重ダメージ数字が重ならず、重要な撃破／能力発動が埋もれないか。
+・screen flash、shake、vibration、VFX密度、SEを個別に切ってもルール情報が失われないか。
+・通常／重量15／貫通10／複合ケースで、演出OFF/ONのCPU/GPU frame time、draw calls、物理substeps、voice数を比較する。
+・ウィンドウサイズ変更、全画面、解像度差でworld-to-screen UIとポスト処理が壊れないか。
+・長時間プレイでfeedback、voice、minion、texture等の寿命とメモリが増え続けないか。
+
+【最終結論】
+
+Carominoには、数値インフレを受け取るルールと、最低限のフィードバックを出すPresentation層が既にある。したがって最初の改善は、パーティクルやBloomの新設ではなく、既存イベントへ「接触点・強度・軸・スタック変化・発動能力」を追加し、既存ImGui／リング／色／シェイク／数字を意味のある段階表現へ組み直すのが最も費用対効果が高い。
+
+その後、最小SEと負荷予算を整え、固定したインフレケースで可読性と性能を測る。汎用パーティクルやポストプロセスは、このP0で不足する瞬間的な質感が明確になってから追加する方が、過剰な基盤実装と循環依存を避け、就職作品としても「ルール、通知、Presentation、描画、計測を分離した設計」を説明しやすい。

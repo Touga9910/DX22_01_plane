@@ -173,5 +173,7 @@
   ],
   "currentHp": 50,
   "restHealRatio": 0.25,
+  "heavyStackDistancePerStack": 40.0,
+  "heavyStackGainLimitPerTurn": 10,
   "maxHp": 50
 }

@@ -1,61 +1,209 @@
-#pragma once
+ï»¿#pragma once
 
 #include <SimpleMath.h>
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <variant>
 
-// ƒvƒŒƒCƒ„[‚ªƒ{[ƒ‹‚ğ”­Ë‚µ‚½‚±‚Æ‚ğ’Ê’m‚·‚éƒCƒxƒ“ƒg
+enum class CombatCollisionKind
+{
+	PlayerEnemy,
+	EnemyEnemy,
+	Wall,
+};
+
+enum class AxisResourceKind
+{
+	Heavy = 0,
+	Pierce,
+	Reflection,
+	Anchor,
+	Count,
+};
+
+enum class AxisResourceOwner
+{
+	Player,
+	Enemy,
+};
+
+enum class AxisResourceChangeReason
+{
+	AbilityCost,
+	Collision,
+	TravelDistance,
+	PierceHit,
+	WallReflection,
+	ShieldConversion,
+	DefeatConversion,
+	EndOfShot,
+	Finisher,
+};
+
+// ãƒ«ãƒ¼ãƒ«å´ã§ç¢ºå®šã—ãŸ3è»¸èƒ½åŠ›ã®çµæœã€‚æç”»æ–¹æ³•ã§ã¯ãªãã€ä½•ãŒã©ã“ã‹ã‚‰
+// ã©ã“ã¸èµ·ããŸã‹ã ã‘ã‚’Presentationã¸æ¸¡ã™ã€‚
+enum class AxisAbilityAction
+{
+	PierceTraceCreated,
+	PierceMinionLaunched,
+	PierceMinionTravel,
+	PierceFinisherHit,
+	ReflectionWallBounce,
+	ReflectionEmpoweredHit,
+	ReflectionPinballActivated,
+	ReflectionPinballCollision,
+	AnchorApplied,
+	AnchorRecovered,
+	AnchorShieldGranted,
+	AnchorShieldAbsorbed,
+	AnchorFinisherArea,
+	AnchorPlayerEmpowered,
+};
+
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒãƒœãƒ¼ãƒ«ã‚’ç™ºå°„ã—ãŸã“ã¨ã‚’é€šçŸ¥ã™ã‚‹ã‚¤ãƒ™ãƒ³ãƒˆ
 struct ShotFiredEvent
 {
-	std::string ballId;	// ”­Ë‚µ‚½ƒ{[ƒ‹‚Ì’è‹`ID
+	std::string ballId;	// ç™ºå°„ã—ãŸãƒœãƒ¼ãƒ«ã®å®šç¾©ID
+	int ballCategory = 0;
 };
 
-// “G‚Öƒ_ƒ[ƒW‚ª”­¶‚µ‚½‚±‚Æ‚ğ’Ê’m‚·‚éƒCƒxƒ“ƒg
+// One accepted collision episode. Enemy-enemy events are emitted from the
+// same resolved contact used by ShotPhysicsTelemetry.
+struct CollisionImpactEvent
+{
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	DirectX::SimpleMath::Vector3 firstTargetPosition{};
+	DirectX::SimpleMath::Vector3 secondTargetPosition{};
+	float relativeApproachSpeed = 0.0f;
+	CombatCollisionKind collisionKind = CombatCollisionKind::PlayerEnemy;
+	int damage = 0;
+	bool defeated = false;
+	std::uintptr_t firstTargetKey = 0;
+	std::uintptr_t secondTargetKey = 0;
+	std::string firstTargetEnemyId;
+	std::string secondTargetEnemyId;
+	int shotBallCategory = 0;
+};
+
+// An already accepted wall reflection. Presentation consumers must not run a
+// second wall-contact test from this fact.
+struct WallImpactEvent
+{
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	float relativeApproachSpeed = 0.0f;
+	std::uintptr_t targetKey = 0;
+};
+
+// æ•µã¸ãƒ€ãƒ¡ãƒ¼ã‚¸ãŒç™ºç”Ÿã—ãŸã“ã¨ã‚’é€šçŸ¥ã™ã‚‹ã‚¤ãƒ™ãƒ³ãƒˆ
 struct EnemyDamageEvent
 {
-	DirectX::SimpleMath::Vector3 worldPosition{};	// ƒ_ƒ[ƒW‚ª”­¶‚µ‚½ƒ[ƒ‹ƒhÀ•W
-	int damage = 0;									// —^‚¦‚½ƒ_ƒ[ƒW—Ê
-	bool defeated = false;							// ‚±‚Ìƒ_ƒ[ƒW‚Å“G‚ğŒ‚”j‚µ‚½‚©
-	bool enemyEnemyCollision = false;				// “G“¯m‚ÌÕ“Ë‚É‚æ‚éƒ_ƒ[ƒW‚©
+	DirectX::SimpleMath::Vector3 worldPosition{};	// ãƒ€ãƒ¡ãƒ¼ã‚¸ãŒç™ºç”Ÿã—ãŸãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+	int damage = 0;									// ä¸ãˆãŸãƒ€ãƒ¡ãƒ¼ã‚¸é‡
+	bool defeated = false;							// ã“ã®ãƒ€ãƒ¡ãƒ¼ã‚¸ã§æ•µã‚’æ’ƒç ´ã—ãŸã‹
+	bool enemyEnemyCollision = false;				// æ•µåŒå£«ã®è¡çªã«ã‚ˆã‚‹ãƒ€ãƒ¡ãƒ¼ã‚¸ã‹
+	std::uintptr_t targetKey = 0;					// è¡¨ç¤ºå¯¾è±¡ã‚’è­˜åˆ¥ã™ã‚‹åŒæœŸã‚¤ãƒ™ãƒ³ãƒˆå†…ã‚­ãƒ¼
+	std::string targetEnemyId;						// è¨ºæ–­ç”¨ã€‚ãƒ«ãƒ¼ãƒ«åˆ¤å®šã«ã¯ä½¿ç”¨ã—ãªã„
 };
 
-// ˜A½ÕŒ‚Œø‰Ê‚ª”­¶‚µ‚½‚±‚Æ‚ğ’Ê’m‚·‚éƒCƒxƒ“ƒg
+// é€£é–è¡æ’ƒåŠ¹æœãŒç™ºç”Ÿã—ãŸã“ã¨ã‚’é€šçŸ¥ã™ã‚‹ã‚¤ãƒ™ãƒ³ãƒˆ
 struct ChainImpactEvent
 {
-	DirectX::SimpleMath::Vector3 worldPosition{};	// ˜A½ÕŒ‚‚Ì’†SÀ•W
-	float radius = 0.0f;							// Œø‰Ê”¼Œa
-	int hitCount = 0;								// Œø‰Ê‚É‚æ‚Á‚Ä–½’†‚µ‚½‘ÎÛ”
+	DirectX::SimpleMath::Vector3 worldPosition{};	// é€£é–è¡æ’ƒã®ä¸­å¿ƒåº§æ¨™
+	float radius = 0.0f;							// åŠ¹æœåŠå¾„
+	int hitCount = 0;								// åŠ¹æœã«ã‚ˆã£ã¦å‘½ä¸­ã—ãŸå¯¾è±¡æ•°
 };
 
-// ƒ|ƒPƒbƒg‚ÉŠÖ‚·‚éƒtƒB[ƒhƒoƒbƒN•\¦‚Ö“n‚·ƒCƒxƒ“ƒg
+// ãƒã‚±ãƒƒãƒˆã«é–¢ã™ã‚‹ãƒ•ã‚£ãƒ¼ãƒ‰ãƒãƒƒã‚¯è¡¨ç¤ºã¸æ¸¡ã™ã‚¤ãƒ™ãƒ³ãƒˆ
 struct PocketFeedbackEvent
 {
-	DirectX::SimpleMath::Vector3 worldPosition{};	// ƒ|ƒPƒbƒgˆ—‚ª”­¶‚µ‚½ƒ[ƒ‹ƒhÀ•W
-	bool playerPocket = false;						// ƒvƒŒƒCƒ„[ƒ{[ƒ‹‚Ìƒ|ƒPƒbƒgˆ—‚©
-	bool finisher = false;							// ƒtƒBƒjƒbƒVƒƒ[Œø‰Ê‚Æ‚µ‚Äˆ—‚³‚ê‚½‚©
-	int damage = 0;									// ƒ|ƒPƒbƒgˆ—‚Å”­¶‚µ‚½ƒ_ƒ[ƒW—Ê
+	DirectX::SimpleMath::Vector3 worldPosition{};	// ãƒã‚±ãƒƒãƒˆå‡¦ç†ãŒç™ºç”Ÿã—ãŸãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™
+	bool playerPocket = false;						// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒœãƒ¼ãƒ«ã®ãƒã‚±ãƒƒãƒˆå‡¦ç†ã‹
+	bool finisher = false;							// ãƒ•ã‚£ãƒ‹ãƒƒã‚·ãƒ£ãƒ¼åŠ¹æœã¨ã—ã¦å‡¦ç†ã•ã‚ŒãŸã‹
+	int damage = 0;									// ãƒã‚±ãƒƒãƒˆå‡¦ç†ã§ç™ºç”Ÿã—ãŸãƒ€ãƒ¡ãƒ¼ã‚¸é‡
+	std::uintptr_t targetKey = 0;
+	std::string targetEnemyId;
 };
 
-// ƒvƒŒƒCƒ„[‚Öƒ_ƒ[ƒW‚ª”­¶‚µ‚½‚±‚Æ‚ğ’Ê’m‚·‚éƒCƒxƒ“ƒg
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸ãƒ€ãƒ¡ãƒ¼ã‚¸ãŒç™ºç”Ÿã—ãŸã“ã¨ã‚’é€šçŸ¥ã™ã‚‹ã‚¤ãƒ™ãƒ³ãƒˆ
 struct PlayerDamageEvent
 {
-	std::string source;		// ƒ_ƒ[ƒWŒ´ˆö‚ğ•\‚·•¶š—ñ
-	int damage = 0;			// ó‚¯‚½ƒ_ƒ[ƒW—Ê
-	std::string sourceId;	// ƒ_ƒ[ƒWŒ³‚ğ¯•Ê‚·‚éID
+	std::string source;		// ãƒ€ãƒ¡ãƒ¼ã‚¸åŸå› ã‚’è¡¨ã™æ–‡å­—åˆ—
+	int damage = 0;			// å—ã‘ãŸãƒ€ãƒ¡ãƒ¼ã‚¸é‡
+	std::string sourceId;	// ãƒ€ãƒ¡ãƒ¼ã‚¸å…ƒã‚’è­˜åˆ¥ã™ã‚‹ID
 };
 
-// V‚µ‚¢ƒ{[ƒ‹‚ğæ“¾‚µ‚½‚±‚Æ‚ğ’Ê’m‚·‚éƒCƒxƒ“ƒg
+// ç‰©ç†ãƒ»ãƒ«ãƒ¼ãƒ«å´ã§ç¢ºå®šã—ãŸè»¸ãƒªã‚½ãƒ¼ã‚¹ã®å¤‰åŒ–ã ã‘ã‚’Presentationã¸æ¸¡ã™ã€‚
+// æç”»æ–¹æ³•ã‚„è¡¨ç¤ºæ™‚é–“ã¯ä¸€åˆ‡å«ã‚ãªã„ã€‚
+struct AxisResourceChangedEvent
+{
+	AxisResourceKind axis = AxisResourceKind::Heavy;
+	AxisResourceOwner owner = AxisResourceOwner::Player;
+	int valueBefore = 0;
+	int valueAfter = 0;
+	AxisResourceChangeReason reason = AxisResourceChangeReason::Collision;
+	std::string abilityId;
+	bool finisher = false;
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	std::uintptr_t targetKey = 0;
+};
+
+struct AxisAbilityResolvedEvent
+{
+	AxisResourceKind axis = AxisResourceKind::Pierce;
+	AxisAbilityAction action = AxisAbilityAction::PierceTraceCreated;
+	DirectX::SimpleMath::Vector3 sourcePosition{};
+	DirectX::SimpleMath::Vector3 targetPosition{};
+	int amount = 0;
+	int tier = 0;
+	float radius = 0.0f;
+	bool enhanced = false;
+	bool finisher = false;
+	std::uintptr_t sourceKey = 0;
+	std::uintptr_t targetKey = 0;
+	std::string abilityId;
+};
+
+struct ChargeInterruptedEvent
+{
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	int reason = 0;
+	std::uintptr_t targetKey = 0;
+	std::string targetEnemyId;
+};
+
+// ç‰©ç†åœæ­¢ã¨EndOfShotåŠ¹æœã®ç¢ºå®šå¾Œã«1å›ã ã‘ç™ºè¡Œã™ã‚‹è¡¨ç¤ºç”¨ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆã€‚
+struct ShotResolvedEvent
+{
+	int hitCount = 0;
+	int totalDamage = 0;
+	int defeatCount = 0;
+	int chargeInterruptions = 0;
+	std::array<int, static_cast<std::size_t>(AxisResourceKind::Count)>
+		resourceGained{};
+	std::array<int, static_cast<std::size_t>(AxisResourceKind::Count)>
+		resourceConsumed{};
+	std::uint32_t finisherMask = 0;
+};
+
+// æ–°ã—ã„ãƒœãƒ¼ãƒ«ã‚’å–å¾—ã—ãŸã“ã¨ã‚’é€šçŸ¥ã™ã‚‹ã‚¤ãƒ™ãƒ³ãƒˆ
 struct BallAcquiredEvent
 {
-	std::string ballId;	// æ“¾‚µ‚½ƒ{[ƒ‹‚Ì’è‹`ID
+	std::string ballId;	// å–å¾—ã—ãŸãƒœãƒ¼ãƒ«ã®å®šç¾©ID
 };
 
-// ƒQ[ƒ€“à‚Å’Ê’m‚³‚ê‚éƒCƒxƒ“ƒgŒ^‚ğ1‚Â‚É‚Ü‚Æ‚ß‚½variant
+// ã‚²ãƒ¼ãƒ å†…ã§é€šçŸ¥ã•ã‚Œã‚‹ã‚¤ãƒ™ãƒ³ãƒˆå‹ã‚’1ã¤ã«ã¾ã¨ã‚ãŸvariant
 using GameEvent = std::variant<
 	ShotFiredEvent,
+	CollisionImpactEvent,
+	WallImpactEvent,
 	EnemyDamageEvent,
 	ChainImpactEvent,
 	PocketFeedbackEvent,
 	PlayerDamageEvent,
+	AxisResourceChangedEvent,
+	AxisAbilityResolvedEvent,
+	ChargeInterruptedEvent,
+	ShotResolvedEvent,
 	BallAcquiredEvent>;

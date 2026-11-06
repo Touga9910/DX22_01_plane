@@ -24,6 +24,7 @@ struct TrailPoint
 	DirectX::SimpleMath::Vector3 position;
 	int timestamp;
 	float lifeRatio;
+	float intensity = 0.0f;
 };
 
 //=======================================
@@ -107,6 +108,10 @@ public:
 	bool IsStopped() const { return m_Ball->IsStopped(); }
 	DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
 	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
+	const std::vector<TrailPoint>& GetTrailPoints() const noexcept
+	{
+		return m_TrajectoryPositions;
+	}
 	BallComponent* GetBall() const { return m_Ball; }
 
 	//=======================================

@@ -1,4 +1,5 @@
 ﻿#include "GameMcpBridge.h"
+#include "BalanceLogger.h"
 #include "BallStatusJson.h"
 #include "GameObject.h"
 #include "json/json.hpp"
@@ -28,6 +29,9 @@
 #include "StageSelectScene.h"
 #include "TitleScene.h"
 #include "BallPhysicsWorld.h"
+#include "CollisionVfxSystem.h"
+#include "GamePresentation.h"
+#include "AudioFeedback.h"
 #include "PlayerBall.h"
 #include "Pocket.h"
 #include "StageDataLoader.h"
@@ -251,6 +255,7 @@ namespace
 				{ "enemy_id", spawn.enemyId },
 				{ "position", VectorToJson(spawn.position) },
 				{ "max_hp", spawn.enemyData.maxHp },
+				{ "can_charge", spawn.enemyData.canCharge },
 				{ "frontal_damage_multiplier", spawn.enemyData.frontalDamageMultiplier },
 				{ "pocket_damage_ratio", spawn.enemyData.pocketDamageRatio },
 				{ "attack", spawn.enemyData.status.attack },
@@ -794,6 +799,194 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "max_steps_per_frame", FixedStepClock::MaxStepsPerFrame },
 		{ "dropped_seconds", snapshot.physics.droppedSeconds },
 	};
+	const FrameTimingSnapshot& frameTiming = game.GetFrameTimingSnapshot();
+	const auto timingAggregateJson = [](const TimingAggregate& aggregate)
+	{
+		return nlohmann::json{
+			{ "total_ms", aggregate.totalMilliseconds },
+			{ "average_ms_per_call", aggregate.callCount > 0
+				? aggregate.totalMilliseconds /
+					static_cast<double>(aggregate.callCount)
+				: 0.0 },
+			{ "maximum_ms", aggregate.maximumMilliseconds },
+			{ "call_count", aggregate.callCount },
+		};
+	};
+	nlohmann::json physicsStepHistogram = nlohmann::json::object();
+	for (std::size_t step = 0;
+		step < frameTiming.physicsStepsPerFrameHistogram.size();
+		++step)
+	{
+		physicsStepHistogram[std::to_string(step)] =
+			frameTiming.physicsStepsPerFrameHistogram[step];
+	}
+	state["frame_timing"] = {
+		{ "enabled", game.IsFrameTimeMeasurementEnabled() },
+		{ "active", frameTiming.active },
+		{ "completed", frameTiming.completed },
+		{ "sequence", frameTiming.sequence },
+		{ "sample_count", frameTiming.sampleCount },
+		{ "physics_step_count", frameTiming.physicsStepCount },
+		{ "average_frame_ms", frameTiming.averageFrameMilliseconds },
+		{ "maximum_frame_ms", frameTiming.maximumFrameMilliseconds },
+		{ "p95_frame_ms", frameTiming.p95FrameMilliseconds },
+		{ "p99_frame_ms", frameTiming.p99FrameMilliseconds },
+		{ "average_fps", frameTiming.averageFps },
+		{ "one_percent_low_fps", frameTiming.onePercentLowFps },
+		{ "shot_duration_seconds", frameTiming.shotDurationSeconds },
+		{ "average_update_ms", frameTiming.averageUpdateMilliseconds },
+		{ "maximum_update_ms", frameTiming.maximumUpdateMilliseconds },
+		{ "average_draw_ms", frameTiming.averageDrawMilliseconds },
+		{ "maximum_draw_ms", frameTiming.maximumDrawMilliseconds },
+		{ "average_present_ms", frameTiming.averagePresentMilliseconds },
+		{ "maximum_present_ms", frameTiming.maximumPresentMilliseconds },
+		{ "average_physics_steps_per_frame", frameTiming.sampleCount > 0
+			? static_cast<double>(frameTiming.physicsStepCount) /
+				static_cast<double>(frameTiming.sampleCount)
+			: 0.0 },
+		{ "maximum_physics_steps_per_frame",
+			frameTiming.maximumPhysicsStepsPerFrame },
+		{ "frames_at_observed_max_physics_steps",
+			frameTiming.framesAtMaximumPhysicsSteps },
+		{ "frames_at_physics_step_cap",
+			frameTiming.framesAtPhysicsStepCap },
+		{ "zero_physics_step_frames", frameTiming.zeroPhysicsStepFrames },
+		{ "physics_steps_per_frame_histogram", physicsStepHistogram },
+		{ "simulated_physics_seconds",
+			frameTiming.physicsStepCount * FixedStepClock::StepSeconds },
+		{ "dropped_simulation_seconds",
+			frameTiming.droppedSimulationSeconds },
+		{ "maximum_fixed_step_remainder_seconds",
+			frameTiming.maximumRemainderSeconds },
+		{ "maximum_consecutive_frames_over_16_667_ms",
+			frameTiming.maximumConsecutiveDelayedFrames },
+		{ "update_breakdown_scope", "mutually_exclusive_top_level" },
+		{ "update_breakdown", {
+			{ "audio_feedback", timingAggregateJson(frameTiming.audioFeedbackUpdate) },
+			{ "presentation", timingAggregateJson(frameTiming.presentationUpdate) },
+			{ "game_mcp", timingAggregateJson(frameTiming.gameMcpUpdate) },
+			{ "scene", timingAggregateJson(frameTiming.sceneUpdate) },
+			{ "camera", timingAggregateJson(frameTiming.cameraUpdate) },
+			{ "world_update", timingAggregateJson(frameTiming.worldUpdate) },
+			{ "fixed_physics", timingAggregateJson(frameTiming.fixedPhysicsUpdate) },
+			{ "world_late_update", timingAggregateJson(frameTiming.worldLateUpdate) },
+			{ "battle_controller", timingAggregateJson(frameTiming.battleControllerUpdate) },
+			{ "other", timingAggregateJson(frameTiming.otherUpdate) },
+		} },
+		{ "contained_detail_scope", "contained_in_parent_not_additive" },
+		{ "contained_detail", {
+			{ "world_fixed_update", timingAggregateJson(frameTiming.worldFixedUpdate) },
+			{ "ball_physics_world_step", timingAggregateJson(frameTiming.ballPhysicsWorldStep) },
+			{ "fixed_battle_controller", timingAggregateJson(frameTiming.fixedBattleController) },
+			{ "shot_prediction", timingAggregateJson(frameTiming.shotPrediction) },
+		} },
+		{ "clock", "cpu_steady_clock" },
+		{ "gpu_time_measured", false },
+		{ "includes_vsync_wait", true },
+	};
+	const CollisionVfxDiagnostics& collisionVfx =
+		game.GetCollisionVfxDiagnostics();
+	const CombatReactionDiagnostics& combatReaction =
+		game.GetCombatReactionDiagnostics();
+	state["collision_vfx"] = {
+		{ "heavy_chain_count", game.GetHeavyPhysicsChainPresentationCount() },
+		{ "impact_events", collisionVfx.impactEvents },
+		{ "sparks_generated", collisionVfx.sparksGenerated },
+		{ "sparks_skipped", collisionVfx.sparksSkipped },
+		{ "waves_generated", collisionVfx.wavesGenerated },
+		{ "waves_merged", collisionVfx.wavesMerged },
+		{ "waves_skipped", collisionVfx.wavesSkipped },
+		{ "bursts_generated", collisionVfx.burstsGenerated },
+		{ "bursts_skipped", collisionVfx.burstsSkipped },
+		{ "defeat_requests", collisionVfx.defeatRequests },
+		{ "defeat_vfx_generated", collisionVfx.defeatVfxGenerated },
+		{ "defeat_vfx_skipped", collisionVfx.defeatVfxSkipped },
+		{ "active_sparks", collisionVfx.activeSparks },
+		{ "active_waves", collisionVfx.activeWaves },
+		{ "active_bursts", collisionVfx.activeBursts },
+		{ "maximum_active_sparks", collisionVfx.maximumActiveSparks },
+		{ "maximum_active_waves", collisionVfx.maximumActiveWaves },
+		{ "maximum_active_bursts", collisionVfx.maximumActiveBursts },
+		{ "hit_flash_requests", combatReaction.hitFlashRequests },
+		{ "hit_flashes_triggered", combatReaction.hitFlashesTriggered },
+		{ "zero_damage_flashes_suppressed",
+			combatReaction.zeroDamageFlashesSuppressed },
+		{ "hit_flashes_skipped", combatReaction.hitFlashesSkipped },
+		{ "active_hit_flashes", combatReaction.activeHitFlashes },
+		{ "maximum_active_hit_flashes",
+			combatReaction.maximumActiveHitFlashes },
+		{ "unique_defeats", combatReaction.uniqueDefeats },
+		{ "duplicate_defeats_suppressed",
+			combatReaction.duplicateDefeatsSuppressed },
+		{ "multi_defeat_displays", combatReaction.multiDefeatDisplays },
+		{ "primitive_submissions_last_frame",
+			collisionVfx.primitiveSubmissionsLastFrame },
+		{ "maximum_primitive_submissions",
+			collisionVfx.maximumPrimitiveSubmissions },
+	};
+	const AudioFeedbackDiagnostics& audio =
+		game.GetAudioFeedbackDiagnostics();
+	const auto audioCategory = [&](CombatSeCategory category)
+	{
+		const std::size_t index = CombatAudioRules::Index(category);
+		return nlohmann::json{
+			{ "requests", audio.categoryRequests[index] },
+			{ "played", audio.categoryPlayed[index] },
+		};
+	};
+	state["audio_feedback"] = {
+		{ "device_initialized", audio.deviceInitialized },
+		{ "enabled", audio.enabled },
+		{ "se_volume", game.GetSeVolume() },
+		{ "test_tone_mode", audio.testToneMode },
+		{ "active_voices", audio.activeVoices },
+		{ "maximum_active_voices", audio.maximumActiveVoices },
+		{ "voice_limit", audio.voiceLimit },
+		{ "loaded_audio_bytes", audio.loadedAudioBytes },
+		{ "loaded_asset_files", audio.loadedAssetFiles },
+		{ "missing_asset_files", audio.missingAssetFiles },
+		{ "requests", audio.requests },
+		{ "played", audio.played },
+		{ "skipped", {
+			{ "cooldown", audio.cooldownSkipped },
+			{ "category_limit", audio.categoryLimitSkipped },
+			{ "voice_limit", audio.voiceLimitSkipped },
+			{ "muted", audio.mutedSkipped },
+			{ "missing_asset", audio.missingAssetSkipped },
+			{ "device_unavailable", audio.deviceUnavailableSkipped },
+			{ "backend_error", audio.backendErrorSkipped },
+		} },
+		{ "duplicates_suppressed", {
+			{ "defeats", audio.duplicateDefeatsSuppressed },
+			{ "chain_milestones", audio.duplicateMilestonesSuppressed },
+		} },
+		{ "chain_stages", {
+			{ "3", { { "requests", audio.chainStageRequests[0] }, { "played", audio.chainStagePlayed[0] } } },
+			{ "6", { { "requests", audio.chainStageRequests[1] }, { "played", audio.chainStagePlayed[1] } } },
+			{ "10", { { "requests", audio.chainStageRequests[2] }, { "played", audio.chainStagePlayed[2] } } },
+			{ "15", { { "requests", audio.chainStageRequests[3] }, { "played", audio.chainStagePlayed[3] } } },
+		} },
+		{ "categories", {
+			{ "direct_impact", audioCategory(CombatSeCategory::DirectImpact) },
+			{ "enemy_impact", audioCategory(CombatSeCategory::EnemyImpact) },
+			{ "enemy_defeat", audioCategory(CombatSeCategory::EnemyDefeat) },
+			{ "chain_milestone", audioCategory(CombatSeCategory::ChainMilestone) },
+			{ "wall_impact", audioCategory(CombatSeCategory::WallImpact) },
+		} },
+		{ "timing", {
+			{ "last_update_ms", audio.lastUpdateMilliseconds },
+			{ "average_update_ms", audio.updateCount > 0
+				? audio.totalUpdateMilliseconds /
+					static_cast<double>(audio.updateCount)
+				: 0.0 },
+			{ "maximum_update_ms", audio.maximumUpdateMilliseconds },
+			{ "average_request_ms", audio.requests > 0
+				? audio.totalRequestMilliseconds /
+					static_cast<double>(audio.requests)
+				: 0.0 },
+			{ "maximum_request_ms", audio.maximumRequestMilliseconds },
+		} },
+	};
 	state["table"] = {
 		{ "field_width", TableConfig::GetFieldWidth() },
 		{ "field_depth", TableConfig::GetFieldDepth() },
@@ -1102,6 +1295,22 @@ nlohmann::json GameMcpBridge::BuildState(
             {"consumes_enemy_damage_relics", false}});
     }
 	state["enemies"] = nlohmann::json::array();
+	const EnemyActionConfig enemyActionConfig =
+		game.GetEnemyActionConfig();
+	state["enemy_action_rules"] = {
+		{ "maximum_budget", enemyActionConfig.maximumBudget },
+		{ "normal_attack_cost", enemyActionConfig.normalAttackCost },
+		{ "charge_start_cost", enemyActionConfig.chargeStartCost },
+		{ "charge_attack_cost", enemyActionConfig.chargeAttackCost },
+		{ "maximum_charge_starts_per_turn",
+			enemyActionConfig.maximumChargeStartsPerTurn },
+		{ "charge_damage_multiplier",
+			enemyActionConfig.chargeDamageMultiplier },
+		{ "heavy_interrupt_diameter_multiplier",
+			enemyActionConfig.heavyInterruptDiameterMultiplier },
+		{ "pierce_interrupt_max_hp_ratio",
+			enemyActionConfig.pierceInterruptMaxHpRatio },
+	};
 	const std::vector<EnemyBall*> enemies =
 		GameRuntime::World().GetComponents<EnemyBall>();
 	for (std::size_t enemyIndex = 0;
@@ -1130,6 +1339,10 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "target_id",
 				"enemy:" + std::to_string(enemyIndex) },
 			{ "enemy_id", enemy->GetEnemyId() },
+			{ "can_charge", enemy->CanUseCharge() },
+			{ "charge_state", ToString(enemy->GetChargeState()) },
+			{ "planned_action", ToString(enemy->GetPlannedAction()) },
+			{ "planned_action_cost", enemy->GetPlannedActionCost() },
 			{ "hp", enemy->GetHP() },
 			{ "max_hp", enemy->GetMaxHP() },
 			{ "attack", enemy->GetAttack() },
@@ -1143,7 +1356,9 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "pocketed", enemy->IsPocketed() },
             { "pocket_immune", enemy->IsArmorBoss() },
 			{ "can_attack_this_turn",
-				!enemy->IsDefeated() && !enemy->IsPocketed() },
+				!enemy->IsDefeated() && !enemy->IsPocketed() &&
+				(enemy->GetPlannedAction() == EnemyActionType::NormalAttack ||
+				 enemy->GetPlannedAction() == EnemyActionType::ChargeAttack) },
 			{ "pocket_queue_index",
 				game.GetPocketQueueIndex(enemy) },
 			{ "hp_ratio",
@@ -1555,12 +1770,29 @@ nlohmann::json GameMcpBridge::BuildState(
 		game.WasCushionBoostConsumedThisShot();
 	state["ball_synergies"] = {
 		{ "heavy_stacks", game.GetHeavyCollisionCount() },
+		{ "heavy_stack_distance_per_stack",
+			game.GetHeavyCollisionState().distancePerStack },
+		{ "heavy_stack_gain_limit_per_turn",
+			game.GetHeavyCollisionState().gainLimitPerTurn },
+		{ "heavy_stacks_gained_this_turn",
+			game.GetHeavyCollisionState().gainedThisTurn },
 		{ "pierce_stacks", game.GetPierceTraceState().stackCount },
+		{ "pierce_stack_max", PierceTraceRules::MaxStackCount },
+		{ "pierce_trace_count",
+			static_cast<int>(game.GetPierceTraceState().traces.size()) },
+		{ "pierce_trace_max",
+			static_cast<int>(PierceTraceRules::MaxTraceCount) },
 		{ "player_anchor_stacks", game.GetPlayerAnchorStacks() },
 		{ "cushion_strong_uses_this_shot", game.GetCushionStrongUsesThisShot() },
 		{ "pierce_traces", nlohmann::json::array() },
 		{ "enemy_anchor_stacks", nlohmann::json::array() },
 	};
+	state["latest_shot_physics_chain"] =
+		BalanceLogger::GetInstance().GetLatestShotPhysicsTelemetry();
+	state["latest_shot_pierce_attack"] =
+		BalanceLogger::GetInstance().GetLatestShotPierceAttackTelemetry();
+	state["latest_shot_bounce_axis"] =
+		BalanceLogger::GetInstance().GetLatestShotBounceTelemetry();
 	for (const auto& trace : game.GetPierceTraceState().traces)
 	{
 		state["ball_synergies"]["pierce_traces"].push_back({

@@ -1,6 +1,8 @@
 ﻿#include "BalanceLogger.h"
 
 #include "json/json.hpp"
+#include "HeavyCollisionRules.h"
+#include "PierceTraceRules.h"
 
 #include <algorithm>
 #include <chrono>
@@ -11,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <system_error>
+#include <unordered_set>
 
 using json = nlohmann::json;
 
@@ -19,6 +22,324 @@ namespace
 	double RoundToTwoDecimals(double value)
 	{
 		return std::round(value * 100.0) / 100.0;
+	}
+
+	json MakePierceSourceTotalsJson(
+		const PierceAttackSourceTotals& totals);
+
+	json MakeShotPhysicsTelemetryJson(
+		const ShotPhysicsTelemetry::Snapshot& telemetry)
+	{
+		json enemyDistances = json::array();
+		for (const auto& item : telemetry.enemyDistances)
+		{
+			enemyDistances.push_back({
+				{ "enemy_index", item.enemy.stableIndex },
+				{ "enemy_id", item.enemy.enemyId },
+				{ "initial_hp", item.enemy.hp },
+				{ "max_hp", item.enemy.maxHp },
+				{ "initial_position", {
+					item.enemy.positionX,
+					item.enemy.positionZ,
+				} },
+				{ "distance_xz", item.distance },
+			});
+		}
+
+		json collisionEvents = json::array();
+		for (std::size_t index = 0;
+			index < telemetry.collisions.size();
+			++index)
+		{
+			const auto& event = telemetry.collisions[index];
+			collisionEvents.push_back({
+				{ "event_index", index },
+				{ "first_enemy_index", event.firstEnemyIndex },
+				{ "second_enemy_index", event.secondEnemyIndex },
+				{ "approach_speed", event.approachSpeed },
+				{ "position_xz", {
+					event.positionX,
+					event.positionZ,
+				} },
+			});
+		}
+
+		json pairSummaries = json::array();
+		for (const auto& pair : telemetry.pairSummaries)
+		{
+			pairSummaries.push_back({
+				{ "first_enemy_index", pair.firstEnemyIndex },
+				{ "second_enemy_index", pair.secondEnemyIndex },
+				{ "collision_count", pair.collisionCount },
+			});
+		}
+
+		json wallReflections = json::array();
+		for (std::size_t index = 0;
+			index < telemetry.wallReflections.size();
+			++index)
+		{
+			const auto& event = telemetry.wallReflections[index];
+			const double speedBefore = std::hypot(
+				event.velocityBeforeX,
+				event.velocityBeforeZ);
+			const double speedAfterPhysics = std::hypot(
+				event.velocityAfterPhysicsX,
+				event.velocityAfterPhysicsZ);
+			const double speedAfterEffects = std::hypot(
+				event.velocityAfterEffectsX,
+				event.velocityAfterEffectsZ);
+			wallReflections.push_back({
+				{ "event_index", index },
+				{ "timeline_event_index", event.timelineEventIndex },
+				{ "wall_index", event.wallIndex },
+				{ "wall_group", event.wallGroup },
+				{ "ball_kind", event.ballKind },
+				{ "position_xz", { event.positionX, event.positionZ } },
+				{ "velocity_before_xz", {
+					event.velocityBeforeX,
+					event.velocityBeforeZ } },
+				{ "velocity_after_physics_xz", {
+					event.velocityAfterPhysicsX,
+					event.velocityAfterPhysicsZ } },
+				{ "velocity_after_effects_xz", {
+					event.velocityAfterEffectsX,
+					event.velocityAfterEffectsZ } },
+				{ "speed_before", speedBefore },
+				{ "speed_after_physics", speedAfterPhysics },
+				{ "speed_after_effects", speedAfterEffects },
+				{ "physics_speed_retention", speedBefore > 0.000001
+					? speedAfterPhysics / speedBefore : 0.0 },
+				{ "final_speed_retention", speedBefore > 0.000001
+					? speedAfterEffects / speedBefore : 0.0 },
+			});
+		}
+
+		return {
+			{ "enabled", true },
+			{ "effective_collision_definition",
+				"A new approaching enemy-enemy contact episode accepted by BallPhysicsRules::Pair. Persistent contact is counted once; separation followed by re-contact is counted again." },
+			{ "effective_enemy_enemy_collision_count",
+				static_cast<int>(telemetry.collisions.size()) },
+			{ "involved_enemy_count", telemetry.involvedEnemyCount },
+			{ "unique_enemy_pair_count",
+				static_cast<int>(telemetry.pairSummaries.size()) },
+			{ "maximum_collisions_for_one_pair",
+				telemetry.maximumCollisionsForOnePair },
+			{ "enemy_distances", std::move(enemyDistances) },
+			{ "total_enemy_distance_xz", telemetry.totalEnemyDistance },
+			{ "maximum_enemy_distance_xz", telemetry.maximumEnemyDistance },
+			{ "collision_events", std::move(collisionEvents) },
+			{ "pair_summaries", std::move(pairSummaries) },
+			{ "wall_reflections", std::move(wallReflections) },
+			{ "physics_processing_microseconds",
+				telemetry.physicsProcessingMicroseconds },
+			{ "physics_step_count", telemetry.physicsStepCount },
+		};
+	}
+
+	json MakeBounceTelemetryJson(
+		const ShotPhysicsTelemetry::Snapshot& physics,
+		const PierceAttackTelemetrySnapshot& attacks,
+		const json& attackTimeline,
+		int validReflections,
+		int stackGeneratingReflections,
+		int stackConsumingReflections,
+		int stacksBefore,
+		int uncappedGain,
+		int actualGain,
+		int consumed,
+		int stacksAfter,
+		int pinballAttempts,
+		int pinballActivations,
+		int pinballFizzleCount,
+		int empoweredHitActivations,
+		int specialDamageEventCount,
+		int specialCalculatedDamage,
+		int specialAppliedDamage,
+		int maximumDamageStage,
+		int enemiesDefeated,
+		long long shotDurationMs)
+	{
+		int playerReflections = 0;
+		int pinballReflections = 0;
+		for (const auto& event : physics.wallReflections)
+		{
+			if (event.ballKind == "player") ++playerReflections;
+			else if (event.ballKind == "pinball_target") ++pinballReflections;
+		}
+		const auto makeAttackPhaseSummary = [&attackTimeline](
+			const char* phase)
+		{
+			int attackChecks = 0;
+			int hits = 0;
+			int effectiveAttacks = 0;
+			int calculatedDamage = 0;
+			int appliedDamage = 0;
+			int overkillDamage = 0;
+			std::unordered_set<int> uniqueEffectiveTargets;
+			for (const auto& event : attackTimeline)
+			{
+				if (event.value("timing_phase", "") != phase) continue;
+				++attackChecks;
+				if (event.value("target_was_alive", false)) ++hits;
+				const int applied = (std::max)(
+					0,
+					event.value("applied_hp_damage", 0));
+				if (applied > 0)
+				{
+					++effectiveAttacks;
+					uniqueEffectiveTargets.insert(
+						event.value("target_index", -1));
+				}
+				calculatedDamage += (std::max)(
+					0,
+					event.value("calculated_damage", 0));
+				appliedDamage += applied;
+				overkillDamage += (std::max)(
+					0,
+					event.value("overkill_damage", 0));
+			}
+			uniqueEffectiveTargets.erase(-1);
+			return json{
+				{ "attack_check_count", attackChecks },
+				{ "hit_count", hits },
+				{ "effective_attack_count", effectiveAttacks },
+				{ "calculated_damage", calculatedDamage },
+				{ "applied_hp_damage", appliedDamage },
+				{ "overkill_damage", overkillDamage },
+				{ "unique_effective_target_count",
+					static_cast<int>(uniqueEffectiveTargets.size()) },
+			};
+		};
+		const json beforeFirstReflection =
+			makeAttackPhaseSummary("before_first_reflection");
+		const json afterFirstReflection =
+			makeAttackPhaseSummary("after_first_reflection");
+		return {
+			{ "enabled", true },
+			{ "physical_reflection_definition",
+				"A BallPhysicsRules::Wall call that accepted an approaching contact and changed velocity. Persistent contact without a new accepted bounce is not counted." },
+			{ "effective_attack_definition",
+				"A contact attack that actually reduced enemy HP." },
+			{ "physical_reflection_count",
+				static_cast<int>(physics.wallReflections.size()) },
+			{ "player_physical_reflection_count", playerReflections },
+			{ "pinball_target_physical_reflection_count", pinballReflections },
+			{ "effective_reflection_count", validReflections },
+			{ "stack_generating_reflection_count", stackGeneratingReflections },
+			{ "stack_consuming_reflection_count", stackConsumingReflections },
+			{ "attacks", MakePierceSourceTotalsJson(attacks.total) },
+			{ "attack_timing_classification",
+				"Exclusive by the first accepted player or pinball-target wall reflection. Reflection-derived is an independent attribute and does not add another attack count." },
+			{ "attack_timing", {
+				{ "before_first_reflection", beforeFirstReflection },
+				{ "after_first_reflection", afterFirstReflection },
+			} },
+			{ "attack_timeline", attackTimeline },
+			{ "post_reflection_effective_attack_succeeded",
+				afterFirstReflection.value("effective_attack_count", 0) > 0 },
+			{ "unique_effective_target_count", attacks.uniqueEffectiveTargetCount },
+			{ "special_effect_activation_count",
+				empoweredHitActivations + pinballActivations +
+					specialDamageEventCount },
+			{ "pinball_activation_attempt_count", pinballAttempts },
+			{ "pinball_activation_count", pinballActivations },
+			{ "pinball_fizzle_count", pinballFizzleCount },
+			{ "empowered_hit_activation_count", empoweredHitActivations },
+			{ "pinball_damage_event_count", specialDamageEventCount },
+			{ "pinball_maximum_damage_stage", maximumDamageStage },
+			{ "pinball_calculated_bonus_damage", specialCalculatedDamage },
+			{ "pinball_applied_bonus_damage", specialAppliedDamage },
+			{ "enemies_defeated", enemiesDefeated },
+			{ "reflection_stacks_before", stacksBefore },
+			{ "reflection_stacks_uncapped_gain", uncappedGain },
+			{ "reflection_stacks_generated", actualGain },
+			{ "reflection_stacks_consumed", consumed },
+			{ "reflection_stacks_after", stacksAfter },
+			{ "reflection_stack_max", nullptr },
+			{ "reflection_stacks_discarded_by_max", 0 },
+			{ "shot_duration_ms", shotDurationMs },
+			{ "physics_processing_microseconds",
+				physics.physicsProcessingMicroseconds },
+			{ "physics_step_count", physics.physicsStepCount },
+			{ "average_physics_processing_microseconds_per_step",
+				physics.physicsStepCount > 0
+					? static_cast<double>(physics.physicsProcessingMicroseconds) /
+						static_cast<double>(physics.physicsStepCount)
+					: 0.0 },
+		};
+	}
+
+	json MakePierceSourceTotalsJson(
+		const PierceAttackSourceTotals& totals)
+	{
+		return {
+			{ "attack_check_count", totals.attackCheckCount },
+			{ "hit_count", totals.hitCount },
+			{ "effective_attack_count", totals.effectiveAttackCount },
+			{ "calculated_damage", totals.calculatedDamage },
+			{ "applied_hp_damage", totals.appliedHpDamage },
+			{ "overkill_damage", totals.overkillDamage },
+		};
+	}
+
+	json MakePierceAttackTelemetryJson(
+		const PierceAttackTelemetrySnapshot& telemetry)
+	{
+		json minions = json::array();
+		for (const auto& minion : telemetry.minions)
+		{
+			minions.push_back({
+				{ "minion_id", minion.ordinal },
+				{ "attack", minion.attack },
+				{ "spawn_position_xz", {
+					minion.spawnX,
+					minion.spawnZ,
+				} },
+				{ "launch_direction_xz", {
+					minion.directionX,
+					minion.directionZ,
+				} },
+				{ "launch_speed", minion.launchSpeed },
+				{ "movement_distance_xz", minion.movementDistance },
+				{ "lifetime_microseconds", minion.lifetimeMicroseconds },
+				{ "destruction_reason", minion.destructionReason },
+				{ "attack_check_count", minion.attackCheckCount },
+				{ "hit_count", minion.hitCount },
+				{ "effective_attack_count", minion.effectiveAttackCount },
+				{ "calculated_damage", minion.calculatedDamage },
+				{ "applied_hp_damage", minion.appliedHpDamage },
+				{ "overkill_damage", minion.overkillDamage },
+				{ "unique_target_count", minion.uniqueTargetCount },
+			});
+		}
+
+		return {
+			{ "enabled", true },
+			{ "classification",
+				"Exclusive source categories. A player contact that consumes a pierce use is player_pierce, not also player_direct." },
+			{ "effective_attack_definition",
+				"A contact attack that actually reduced enemy HP." },
+			{ "sources", {
+				{ "player_direct", MakePierceSourceTotalsJson(telemetry.playerDirect) },
+				{ "player_pierce", MakePierceSourceTotalsJson(telemetry.playerPierce) },
+				{ "minion", MakePierceSourceTotalsJson(telemetry.minion) },
+				{ "trace", MakePierceSourceTotalsJson(telemetry.trace) },
+				{ "other", MakePierceSourceTotalsJson(telemetry.other) },
+			} },
+			{ "total", MakePierceSourceTotalsJson(telemetry.total) },
+			{ "unique_effective_target_count",
+				telemetry.uniqueEffectiveTargetCount },
+			{ "minions_generated", telemetry.minionsGenerated },
+			{ "maximum_simultaneous_minions",
+				telemetry.maximumSimultaneousMinions },
+			{ "minions_without_effective_attack",
+				telemetry.minionsWithoutEffectiveAttack },
+			{ "minions_with_multiple_targets",
+				telemetry.minionsWithMultipleTargets },
+			{ "minions", std::move(minions) },
+		};
 	}
 }
 
@@ -137,6 +458,11 @@ void BalanceLogger::BeginRun(
 	m_CurrentStageIndex = NoStage;
 	m_StageActive = false;
 	m_ShotActive = false;
+	m_ShotPhysicsTelemetry.Reset();
+	m_PierceAttackTelemetry.Reset();
+	m_LatestShotPhysicsTelemetry = json(nullptr);
+	m_LatestShotPierceAttackTelemetry = json(nullptr);
+	m_LatestShotBounceTelemetry = json(nullptr);
 	m_RunActive = true;
 	m_SavePending = true;
 
@@ -168,6 +494,15 @@ void BalanceLogger::BeginStage(
 			playerMaxHp,
 			0);
 	}
+
+	// Latest-shot MCP data belongs to the previous battle until the next
+	// battle begins. Clear it here so a restarted battle cannot expose stale
+	// Pierce or physics telemetry before its first shot.
+	m_ShotPhysicsTelemetry.Reset();
+	m_PierceAttackTelemetry.Reset();
+	m_LatestShotPhysicsTelemetry = json(nullptr);
+	m_LatestShotPierceAttackTelemetry = json(nullptr);
+	m_LatestShotBounceTelemetry = json(nullptr);
 
 	json enemiesJson = json::array();
 	for (const BalanceEnemySnapshot& enemy : enemies)
@@ -241,6 +576,7 @@ void BalanceLogger::BeginShot(
 	int playerHp,
 	int enemiesAlive,
 	int enemiesDefeatedTotal,
+	const std::vector<BalanceShotEnemySnapshot>& enemies,
 	const json& shotContext)
 {
 	json* stage = GetCurrentStage();
@@ -262,6 +598,20 @@ void BalanceLogger::BeginShot(
 	m_EnemyEnemyDamageObserved = false;
 	m_HasCurrentDamageCollision = false;
 	m_DefeatedAtShotStart = enemiesDefeatedTotal;
+	m_ShotPhysicsTelemetry.BeginShot(enemies);
+	m_PierceAttackTelemetry.BeginShot();
+	m_BounceSpecialDamageEventCount = 0;
+	m_BounceSpecialCalculatedDamage = 0;
+	m_BounceSpecialAppliedDamage = 0;
+	m_BounceMaximumDamageStage = 0;
+	m_BounceTimelineNextEventIndex = 0;
+	m_BouncePhysicalReflectionsSoFar = 0;
+	m_BouncePlayerReflectionsSoFar = 0;
+	m_BouncePinballReflectionsSoFar = 0;
+	m_BounceNextTargetIndex = 0;
+	m_BounceAttackTimeline = json::array();
+	m_BounceTargetIndices.clear();
+	m_BouncePendingEmpoweredBonuses.clear();
 
 	m_PendingShot =
 	{
@@ -288,6 +638,208 @@ void BalanceLogger::BeginShot(
 	};
 
 	m_ShotActive = true;
+}
+
+void BalanceLogger::RecordEnemyEnemyCollision(
+	std::uintptr_t firstEnemyKey,
+	const std::string& firstEnemyId,
+	std::uintptr_t secondEnemyKey,
+	const std::string& secondEnemyId,
+	float approachSpeed,
+	float positionX,
+	float positionZ)
+{
+	if (!m_ShotActive)
+	{
+		return;
+	}
+	RecordDamageCollision(BalanceCollisionType::EnemyEnemy);
+	m_ShotPhysicsTelemetry.RecordEnemyEnemyCollision(
+		firstEnemyKey,
+		firstEnemyId,
+		secondEnemyKey,
+		secondEnemyId,
+		approachSpeed,
+		positionX,
+		positionZ);
+}
+
+void BalanceLogger::RecordEnemyMovement(
+	std::uintptr_t enemyKey,
+	const std::string& enemyId,
+	float distance)
+{
+	m_ShotPhysicsTelemetry.RecordEnemyMovement(
+		enemyKey,
+		enemyId,
+		distance);
+}
+
+void BalanceLogger::RecordPhysicsStep(
+	long long processingMicroseconds)
+{
+	m_ShotPhysicsTelemetry.RecordPhysicsStep(
+		processingMicroseconds);
+}
+
+void BalanceLogger::RecordWallReflection(
+	int wallIndex,
+	const std::string& wallGroup,
+	const std::string& ballKind,
+	float positionX,
+	float positionZ,
+	float velocityBeforeX,
+	float velocityBeforeZ,
+	float velocityAfterPhysicsX,
+	float velocityAfterPhysicsZ,
+	float velocityAfterEffectsX,
+	float velocityAfterEffectsZ)
+{
+	if (!m_ShotActive) return;
+	const int timelineEventIndex = m_BounceTimelineNextEventIndex++;
+	m_ShotPhysicsTelemetry.RecordWallReflection(
+		wallIndex,
+		wallGroup,
+		ballKind,
+		positionX,
+		positionZ,
+		velocityBeforeX,
+		velocityBeforeZ,
+		velocityAfterPhysicsX,
+		velocityAfterPhysicsZ,
+		velocityAfterEffectsX,
+		velocityAfterEffectsZ,
+		timelineEventIndex);
+	++m_BouncePhysicalReflectionsSoFar;
+	if (ballKind == "player") ++m_BouncePlayerReflectionsSoFar;
+	else if (ballKind == "pinball_target") ++m_BouncePinballReflectionsSoFar;
+}
+
+void BalanceLogger::RecordBounceSpecialDamage(
+	int damageStage,
+	int calculatedDamage,
+	int appliedHpDamage)
+{
+	if (!m_ShotActive || damageStage <= 0) return;
+	++m_BounceSpecialDamageEventCount;
+	m_BounceSpecialCalculatedDamage += (std::max)(0, calculatedDamage);
+	m_BounceSpecialAppliedDamage += (std::max)(0, appliedHpDamage);
+	m_BounceMaximumDamageStage = (std::max)(
+		m_BounceMaximumDamageStage,
+		damageStage);
+	if (!m_BounceAttackTimeline.empty())
+	{
+		auto& attack = m_BounceAttackTimeline.back();
+		attack["reflection_derived"] = true;
+		attack["reflection_derivation"] = "pinball_damage_stage";
+		attack["reflection_damage_stage"] = damageStage;
+		attack["reflection_bonus_calculated_damage"] =
+			(std::max)(0, calculatedDamage);
+		attack["reflection_bonus_applied_hp_damage"] =
+			(std::max)(0, appliedHpDamage);
+	}
+}
+
+void BalanceLogger::RecordPierceMinionSpawn(
+	std::uintptr_t minionKey,
+	int attack,
+	float spawnX,
+	float spawnZ,
+	float directionX,
+	float directionZ,
+	float launchSpeed)
+{
+	m_PierceAttackTelemetry.RecordMinionSpawn(
+		minionKey,
+		attack,
+		spawnX,
+		spawnZ,
+		directionX,
+		directionZ,
+		launchSpeed);
+}
+
+void BalanceLogger::RecordPierceMinionMovement(
+	std::uintptr_t minionKey,
+	float distance)
+{
+	m_PierceAttackTelemetry.RecordMinionMovement(
+		minionKey,
+		distance);
+}
+
+void BalanceLogger::RecordPierceMinionDestroyed(
+	std::uintptr_t minionKey,
+	const std::string& reason)
+{
+	m_PierceAttackTelemetry.RecordMinionDestroyed(
+		minionKey,
+		reason);
+}
+
+void BalanceLogger::RecordPierceAttack(
+	PierceAttackSource source,
+	std::uintptr_t sourceKey,
+	std::uintptr_t targetKey,
+	int calculatedDamage,
+	int appliedHpDamage,
+	bool targetWasAlive)
+{
+	m_PierceAttackTelemetry.RecordAttack(
+		source,
+		sourceKey,
+		targetKey,
+		calculatedDamage,
+		appliedHpDamage,
+		targetWasAlive);
+	if (!m_ShotActive) return;
+	const auto [targetIt, inserted] = m_BounceTargetIndices.try_emplace(
+		targetKey,
+		m_BounceNextTargetIndex);
+	if (inserted) ++m_BounceNextTargetIndex;
+	const auto empowered = m_BouncePendingEmpoweredBonuses.find(targetKey);
+	const bool reflectionDerived =
+		empowered != m_BouncePendingEmpoweredBonuses.end();
+	const int reflectionBonus = reflectionDerived ? empowered->second : 0;
+	const int safeCalculatedDamage = (std::max)(0, calculatedDamage);
+	const int safeAppliedDamage = (std::max)(0, appliedHpDamage);
+	const char* contactSource = !m_HasCurrentDamageCollision
+		? "unknown"
+		: (m_CurrentDamageCollisionType == BalanceCollisionType::PlayerEnemy
+			? "player_enemy_collision"
+			: "enemy_enemy_collision");
+	m_BounceAttackTimeline.push_back({
+		{ "attack_event_index",
+			static_cast<int>(m_BounceAttackTimeline.size()) },
+		{ "timeline_event_index", m_BounceTimelineNextEventIndex++ },
+		{ "source", contactSource },
+		{ "telemetry_source", ToString(source) },
+		{ "target_index", targetIt->second },
+		{ "target_was_alive", targetWasAlive },
+		{ "calculated_damage", safeCalculatedDamage },
+		{ "applied_hp_damage", safeAppliedDamage },
+		{ "overkill_damage", targetWasAlive
+			? (std::max)(0, safeCalculatedDamage - safeAppliedDamage)
+			: 0 },
+		{ "timing_phase", m_BouncePhysicalReflectionsSoFar > 0
+			? "after_first_reflection"
+			: "before_first_reflection" },
+		{ "physical_reflections_before",
+			m_BouncePhysicalReflectionsSoFar },
+		{ "player_reflections_before", m_BouncePlayerReflectionsSoFar },
+		{ "pinball_reflections_before", m_BouncePinballReflectionsSoFar },
+		{ "reflection_derived", reflectionDerived },
+		{ "reflection_derivation", reflectionDerived
+			? json("cushion_empowered_hit")
+			: json(nullptr) },
+		{ "reflection_damage_stage", nullptr },
+		{ "reflection_bonus_calculated_damage", reflectionDerived
+			? json(reflectionBonus)
+			: json(nullptr) },
+		{ "reflection_bonus_applied_hp_damage", nullptr },
+	});
+	if (reflectionDerived)
+		m_BouncePendingEmpoweredBonuses.erase(empowered);
 }
 
 void BalanceLogger::RecordDamageCollision(
@@ -398,6 +950,17 @@ void BalanceLogger::RecordEvent(
 	{
 		return;
 	}
+	if (m_ShotActive && eventType == "cushion_empowered_hit")
+	{
+		const std::uintptr_t targetKey = static_cast<std::uintptr_t>(
+			details.value("target_id", static_cast<std::uint64_t>(0)));
+		if (targetKey != 0)
+		{
+			m_BouncePendingEmpoweredBonuses[targetKey] = (std::max)(
+				0,
+				details.value("damage_bonus", 0));
+		}
+	}
 
 	json event =
 	{
@@ -474,6 +1037,252 @@ void BalanceLogger::EndShot(
 			enemiesDefeatedTotal - m_DefeatedAtShotStart);
 	m_PendingShot["enemies_alive_after"] = enemiesAlive;
 	m_PendingShot["player_hp_after"] = playerHp;
+	const ShotPhysicsTelemetry::Snapshot physicsSnapshot =
+		m_ShotPhysicsTelemetry.EndShot();
+	const PierceAttackTelemetrySnapshot attackSnapshot =
+		m_PierceAttackTelemetry.EndShot();
+	m_LatestShotPhysicsTelemetry = MakeShotPhysicsTelemetryJson(
+		physicsSnapshot);
+	m_LatestShotPierceAttackTelemetry = MakePierceAttackTelemetryJson(
+		attackSnapshot);
+	int heavyStacksUncappedGain = 0;
+	int heavyStacksGenerated = 0;
+	int heavyStacksDiscardedByTurnLimit = 0;
+	int heavyStacksDiscardedByStorageLimit = 0;
+	int pierceStacksUncappedGain = 0;
+	int pierceStacksGenerated = 0;
+	int reflectionValidCount = 0;
+	int reflectionGeneratingCount = 0;
+	int reflectionConsumingCount = 0;
+	int reflectionStacksUncappedGain = 0;
+	int reflectionStacksGenerated = 0;
+	int reflectionStacksConsumed = 0;
+	int pinballActivationAttempts = 0;
+	int pinballActivations = 0;
+	int empoweredHitActivations = 0;
+	int heavyStacksConsumed =
+		m_PendingShot["shot_context"].value(
+			"heavy_stacks_consumed_on_start",
+			0);
+	for (const json& event : m_PendingShot["shot_events"])
+	{
+		const std::string eventType =
+			event.value("event_type", std::string());
+		const json details = event.value("details", json::object());
+		if (eventType == "heavy_distance_stacks_generated" ||
+			eventType == "heavy_micro_stack_generated")
+		{
+			const int legacyAmount =
+				eventType == "heavy_micro_stack_generated"
+				? 1
+				: details.value("amount", 0);
+			heavyStacksUncappedGain += (std::max)(
+				0,
+				details.value("uncapped_amount", legacyAmount));
+			heavyStacksGenerated += (std::max)(
+				0,
+				details.value("granted_amount", legacyAmount));
+			heavyStacksDiscardedByTurnLimit += (std::max)(
+				0,
+				details.value("limited_amount", 0));
+			heavyStacksDiscardedByStorageLimit += (std::max)(
+				0,
+				details.value("storage_limited_amount", 0));
+		}
+		else if (eventType == "pierce_trace_generated")
+		{
+			const int legacyAmount =
+				details.value("stack_generated", false) ? 1 : 0;
+			pierceStacksUncappedGain += (std::max)(
+				0,
+				details.value("requested_amount", legacyAmount));
+			pierceStacksGenerated += (std::max)(
+				0,
+				details.value("granted_amount", legacyAmount));
+		}
+		else if (eventType == "heavy_collision_boost_armed")
+		{
+			heavyStacksConsumed += (std::max)(
+				0, details.value("consumed", 0));
+		}
+		else if (eventType == "heavy_finisher_triggered")
+		{
+			heavyStacksConsumed += (std::max)(
+				0, details.value("consumed_collision_count", 0));
+		}
+		else if (eventType == "cushion_reflection_resolved")
+		{
+			reflectionValidCount = (std::max)(
+				reflectionValidCount,
+				details.value("valid_reflections_this_shot", 0));
+			reflectionStacksUncappedGain += (std::max)(
+				0,
+				details.value("uncapped_generated", 0));
+			const int generated = (std::max)(
+				0,
+				details.value("generated", 0));
+			const int consumed = (std::max)(
+				0,
+				details.value("consumed", 0));
+			reflectionStacksGenerated += generated;
+			reflectionStacksConsumed += consumed;
+			if (generated > 0) ++reflectionGeneratingCount;
+			if (consumed > 0) ++reflectionConsumingCount;
+		}
+		else if (eventType == "pinball_activation_attempted")
+		{
+			++pinballActivationAttempts;
+			if (details.value("activated", false))
+			{
+				++pinballActivations;
+				reflectionStacksConsumed += (std::max)(
+					0,
+					details.value("consumed", 0));
+			}
+		}
+		else if (eventType == "cushion_empowered_hit")
+		{
+			++empoweredHitActivations;
+		}
+	}
+	const int heavyStackGainLimitPerTurn = (std::max)(
+		0,
+		m_PendingShot["shot_context"].value(
+			"heavy_stack_gain_limit_per_turn",
+			10));
+	const float heavyStackDistancePerStack =
+		m_PendingShot["shot_context"].value(
+			"heavy_stack_distance_per_stack",
+			HeavyCollisionRules::DefaultDistancePerStack);
+	m_PendingShot["heavy_stacks_uncapped_gain"] =
+		heavyStacksUncappedGain;
+	m_PendingShot["heavy_stacks_generated"] = heavyStacksGenerated;
+	m_PendingShot["heavy_stack_gain_limit_per_turn"] =
+		heavyStackGainLimitPerTurn;
+	m_PendingShot["heavy_stack_distance_per_stack"] =
+		heavyStackDistancePerStack;
+	m_PendingShot["heavy_stacks_discarded_by_turn_limit"] =
+		heavyStacksDiscardedByTurnLimit;
+	m_PendingShot["heavy_stacks_discarded_by_storage_limit"] =
+		heavyStacksDiscardedByStorageLimit;
+	m_PendingShot["heavy_stacks_consumed"] = heavyStacksConsumed;
+	const int heavyStacksBefore =
+		m_PendingShot["shot_context"].value("heavy_stacks_before", 0);
+	m_PendingShot["heavy_stacks_before"] = heavyStacksBefore;
+	m_PendingShot["heavy_stacks_after"] = (std::max)(
+		0,
+		heavyStacksBefore + heavyStacksGenerated - heavyStacksConsumed);
+	const int pierceStacksBefore = (std::max)(
+		0,
+		m_PendingShot["shot_context"].value(
+			"pierce_stacks_before",
+			0));
+	const int pierceStacksConsumed = (std::max)(
+		0,
+		m_PendingShot["shot_context"].value(
+			"pierce_stacks_consumed_on_start",
+			0));
+	const int pierceStacksAfter = std::clamp(
+		pierceStacksBefore - pierceStacksConsumed + pierceStacksGenerated,
+		0,
+		PierceTraceRules::MaxStackCount);
+	const int pierceMinionsPlanned = (std::max)(
+		0,
+		m_PendingShot["shot_context"].value(
+			"pierce_minions_planned",
+			0));
+	const bool pierceMinionActivationAttempted =
+		m_PendingShot["shot_context"].value(
+			"pierce_minion_activation_attempted",
+			false);
+	m_PendingShot["pierce_stacks_before"] = pierceStacksBefore;
+	m_PendingShot["pierce_stacks_uncapped_gain"] =
+		pierceStacksUncappedGain;
+	m_PendingShot["pierce_stacks_generated"] = pierceStacksGenerated;
+	m_PendingShot["pierce_stacks_consumed"] = pierceStacksConsumed;
+	m_PendingShot["pierce_stacks_after"] = pierceStacksAfter;
+	m_PendingShot["pierce_stack_max"] = PierceTraceRules::MaxStackCount;
+	m_PendingShot["pierce_stack_max_reached"] =
+		pierceStacksAfter >= PierceTraceRules::MaxStackCount;
+	m_PendingShot["pierce_minion_fizzle_count"] =
+		pierceMinionActivationAttempted && pierceMinionsPlanned == 0 ? 1 : 0;
+	m_LatestShotPhysicsTelemetry["heavy_stacks_uncapped_gain"] =
+		heavyStacksUncappedGain;
+	m_LatestShotPhysicsTelemetry["heavy_stacks_generated"] =
+		heavyStacksGenerated;
+	m_LatestShotPhysicsTelemetry["heavy_stack_gain_limit_per_turn"] =
+		heavyStackGainLimitPerTurn;
+	m_LatestShotPhysicsTelemetry["heavy_stack_distance_per_stack"] =
+		heavyStackDistancePerStack;
+	m_LatestShotPhysicsTelemetry["heavy_stacks_discarded_by_turn_limit"] =
+		heavyStacksDiscardedByTurnLimit;
+	m_LatestShotPhysicsTelemetry["heavy_stacks_discarded_by_storage_limit"] =
+		heavyStacksDiscardedByStorageLimit;
+	m_LatestShotPierceAttackTelemetry["shot_duration_ms"] =
+		nowMs - m_ShotStartedMs;
+	m_LatestShotPierceAttackTelemetry["pierce_stacks_before"] =
+		pierceStacksBefore;
+	m_LatestShotPierceAttackTelemetry["pierce_stacks_uncapped_gain"] =
+		pierceStacksUncappedGain;
+	m_LatestShotPierceAttackTelemetry["pierce_stacks_generated"] =
+		pierceStacksGenerated;
+	m_LatestShotPierceAttackTelemetry["pierce_stacks_consumed"] =
+		pierceStacksConsumed;
+	m_LatestShotPierceAttackTelemetry["pierce_stacks_after"] =
+		pierceStacksAfter;
+	m_LatestShotPierceAttackTelemetry["pierce_stack_max"] =
+		PierceTraceRules::MaxStackCount;
+	m_LatestShotPierceAttackTelemetry["pierce_stack_max_reached"] =
+		pierceStacksAfter >= PierceTraceRules::MaxStackCount;
+	m_LatestShotPierceAttackTelemetry["pierce_minion_fizzle_count"] =
+		pierceMinionActivationAttempted && pierceMinionsPlanned == 0 ? 1 : 0;
+	const int reflectionStacksBefore = (std::max)(
+		0,
+		m_PendingShot["shot_context"].value(
+			"reflection_stacks_before",
+			0));
+	const int reflectionStacksAfter = (std::max)(
+		0,
+		reflectionStacksBefore + reflectionStacksGenerated -
+			reflectionStacksConsumed);
+	const int pinballFizzleCount =
+		pinballActivationAttempts > 0 && pinballActivations == 0 ? 1 : 0;
+	m_LatestShotBounceTelemetry = MakeBounceTelemetryJson(
+		physicsSnapshot,
+		attackSnapshot,
+		m_BounceAttackTimeline,
+		reflectionValidCount,
+		reflectionGeneratingCount,
+		reflectionConsumingCount,
+		reflectionStacksBefore,
+		reflectionStacksUncappedGain,
+		reflectionStacksGenerated,
+		reflectionStacksConsumed,
+		reflectionStacksAfter,
+		pinballActivationAttempts,
+		pinballActivations,
+		pinballFizzleCount,
+		empoweredHitActivations,
+		m_BounceSpecialDamageEventCount,
+		m_BounceSpecialCalculatedDamage,
+		m_BounceSpecialAppliedDamage,
+		m_BounceMaximumDamageStage,
+		(std::max)(0, enemiesDefeatedTotal - m_DefeatedAtShotStart),
+		nowMs - m_ShotStartedMs);
+	m_PendingShot["reflection_stacks_before"] = reflectionStacksBefore;
+	m_PendingShot["reflection_stacks_uncapped_gain"] =
+		reflectionStacksUncappedGain;
+	m_PendingShot["reflection_stacks_generated"] =
+		reflectionStacksGenerated;
+	m_PendingShot["reflection_stacks_consumed"] =
+		reflectionStacksConsumed;
+	m_PendingShot["reflection_stacks_after"] = reflectionStacksAfter;
+	m_PendingShot["reflection_stack_max"] = nullptr;
+	m_PendingShot["reflection_stacks_discarded_by_max"] = 0;
+	m_PendingShot["reflection_pinball_fizzle_count"] = pinballFizzleCount;
+	m_PendingShot["physics_chain"] = m_LatestShotPhysicsTelemetry;
+	m_PendingShot["pierce_attack"] = m_LatestShotPierceAttackTelemetry;
+	m_PendingShot["bounce_axis"] = m_LatestShotBounceTelemetry;
 
 	(*stage)["shots"].push_back(std::move(m_PendingShot));
 	m_PendingShot = json{};
@@ -581,6 +1390,7 @@ void BalanceLogger::EndStage(
 			GetEpochMilliseconds() - m_StageStartedMs
 		},
 		{ "total_shots", totalShots },
+		{ "turn_count", totalShots },
 		{ "player_hp", playerHp },
 		{ "player_max_hp", playerMaxHp },
 		{ "remaining_hp_ratio", RoundToTwoDecimals(hpRatio) },

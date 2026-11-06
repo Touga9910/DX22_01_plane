@@ -92,10 +92,9 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             "const int finalDamage = CalculateIncomingDamage(damage);",
             player_cpp,
         )
-        self.assertIn(
-            "PlayerBall::CalculateIncomingDamage(enemy->GetAttack())",
-            game,
-        )
+        self.assertIn("attack->CalculateDamage(", game)
+        self.assertIn("enemy->GetPlannedDamageMultiplier()", game)
+        self.assertIn("PlayerBall::CalculateIncomingDamage(", game)
 
 
 if __name__ == "__main__":

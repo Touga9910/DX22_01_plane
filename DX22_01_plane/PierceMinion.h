@@ -19,7 +19,7 @@ public:
 	void FixedUpdate() override;
 	void Draw() override;
 	void OnDestroy() override;
-	void Destroy();
+	void Destroy(const char* reason = "external");
 
 	BallComponent* GetBall() const { return m_Ball; }
 
@@ -29,4 +29,6 @@ private:
 	DirectX::SimpleMath::Vector3 m_Direction;
 	float m_LaunchSpeed = 0.0f;
 	BallComponent* m_Ball = nullptr;
+	bool m_TelemetryRegistered = false;
+	bool m_DestructionReported = false;
 };

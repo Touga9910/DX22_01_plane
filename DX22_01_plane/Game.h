@@ -13,6 +13,7 @@
 #include "json/json_fwd.hpp"
 
 class EnemyBall;
+struct EnemyActionConfig;
 class BallComponent;
 class Camera;
 class Component;
@@ -26,6 +27,12 @@ class GameMcpBridge;
 class GameMcpCommands;
 class GameMcpReadView;
 class GamePresentation;
+class AudioFeedback;
+struct AudioFeedbackDiagnostics;
+struct CollisionVfxDiagnostics;
+struct CombatReactionDiagnostics;
+struct FrameTimingSnapshot;
+struct EnemyHpDisplaySettings;
 class GameObject;
 class GameRuntime;
 class GameRuntimeState;
@@ -105,6 +112,7 @@ private:
 	std::unique_ptr<GamePersistenceRuntime> m_PersistenceRuntime;
 	std::unique_ptr<GameMcpBridge> m_GameMcpBridge;
 	std::unique_ptr<GamePresentation> m_GamePresentation;
+	std::unique_ptr<AudioFeedback> m_AudioFeedback;
 	std::unique_ptr<nlohmann::json> m_PendingShotTelemetry;
 	std::unique_ptr<GameEncounterBalance> m_EncounterBalance;
 
@@ -224,6 +232,16 @@ private:
 	// ===== イベント配信とデバッグ戦闘情報 =====
 	// 戦闘イベントを各記録系へ通知し、予測値とプレイヤー被弾履歴を更新
 	void PublishGameEvent(const GameEvent& event);
+	void NotifyAxisResourceChanged(
+		AxisResourceKind axis,
+		AxisResourceOwner owner,
+		int valueBefore,
+		int valueAfter,
+		AxisResourceChangeReason reason,
+		const std::string& abilityId,
+		bool finisher,
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		const EnemyBall* target = nullptr);
 	void RecordDebugPlayerDamage(
 		const std::string& source,
 		const std::string& sourceId,
@@ -282,6 +300,7 @@ public:
 	// 現在の戦闘フェーズ・結果・稼働状態と、報酬UIやボール停止状態を返す。
 	// BattleStateを取得する
 	BattleState GetBattleState() const;
+	EnemyActionConfig GetEnemyActionConfig() const;
 
 	BattleResult GetLastBattleResult() const
 	{
@@ -372,6 +391,20 @@ public:
 	bool IsScreenFlashEnabled() const;
 	// カメラ揺れ設定が有効かを返す。
 	bool IsCameraShakeEnabled() const;
+	bool IsCollisionImpactEffectsEnabled() const;
+	bool IsHeavyChainEffectsEnabled() const;
+	bool IsEnemyHitFlashEnabled() const;
+	bool IsDefeatVfxEnabled() const;
+	bool IsMultiDefeatEffectsEnabled() const;
+	bool IsFrameTimeMeasurementEnabled() const;
+	int GetDecorativeRingAmount() const;
+	const EnemyHpDisplaySettings& GetEnemyHpDisplaySettings() const;
+	const CollisionVfxDiagnostics& GetCollisionVfxDiagnostics() const;
+	const CombatReactionDiagnostics& GetCombatReactionDiagnostics() const;
+	int GetHeavyPhysicsChainPresentationCount() const;
+	const AudioFeedbackDiagnostics& GetAudioFeedbackDiagnostics() const;
+	float GetSeVolume() const;
+	const FrameTimingSnapshot& GetFrameTimingSnapshot() const;
 
 	// ===== プレイヤー状態とステージ遷移 =====
 	// ボールとランのステータスを同期し、戦闘・ショップ・休憩・報酬間の遷移を進める。
@@ -441,18 +474,37 @@ public:
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		int damage,
 		bool defeated,
-		bool enemyEnemyCollision);
+		bool enemyEnemyCollision,
+		const EnemyBall* target);
+	void NotifyCollisionImpact(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		const DirectX::SimpleMath::Vector3& firstTargetPosition,
+		const DirectX::SimpleMath::Vector3& secondTargetPosition,
+		float relativeApproachSpeed,
+		CombatCollisionKind collisionKind,
+		int damage,
+		bool defeated,
+		const EnemyBall* firstTarget,
+		const EnemyBall* secondTarget);
+	void NotifyWallImpact(
+		const DirectX::SimpleMath::Vector3& worldPosition,
+		float relativeApproachSpeed,
+		const void* target);
 	void NotifyPocketFeedback(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		bool playerPocket,
 		bool finisher,
-		int damage = 0);
+		int damage = 0,
+		const EnemyBall* target = nullptr);
 	void NotifyPlayerDamage(
 		const std::string& source,
 		int damage,
 		const std::string& sourceId = std::string(),
 		int hpBefore = -1,
 		int hpAfter = -1);
+	void NotifyChargeInterrupted(
+		const EnemyBall& enemy,
+		const ChargeInterruptionResult& result);
 	void InvalidateDebugCombatForecast(const char* reason);
 
 	// ===== ポケット判定と復帰位置 =====

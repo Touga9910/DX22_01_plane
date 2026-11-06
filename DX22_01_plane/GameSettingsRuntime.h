@@ -18,6 +18,14 @@ public:
 	bool IsVibrationEnabled() const;
 	bool IsScreenFlashEnabled() const;
 	bool IsCameraShakeEnabled() const;
+	bool IsCollisionImpactEffectsEnabled() const;
+	bool IsHeavyChainEffectsEnabled() const;
+	bool IsEnemyHitFlashEnabled() const;
+	bool IsDefeatVfxEnabled() const;
+	bool IsMultiDefeatEffectsEnabled() const;
+	bool IsFrameTimeMeasurementEnabled() const;
+	int GetDecorativeRingAmount() const;
+	const EnemyHpDisplaySettings& GetEnemyHpDisplaySettings() const;
 
 private:
 	SettingsManager m_Manager;

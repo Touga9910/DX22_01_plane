@@ -26,6 +26,60 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+    EnemyDamageKind DamageKindFromSource(
+        const BallComponent* source,
+        const PlayerBall* sourcePlayer)
+    {
+        if (sourcePlayer != nullptr &&
+            GameBattleView::IsCurrentShotPierceCategory())
+        {
+            return EnemyDamageKind::PierceAxis;
+        }
+        const GameObject* owner =
+            source != nullptr ? source->GetGameObject() : nullptr;
+        if (owner != nullptr &&
+            owner->GetComponent<PierceMinion>() != nullptr)
+        {
+            return EnemyDamageKind::PierceAxis;
+        }
+        return EnemyDamageKind::Other;
+    }
+
+	struct PierceTelemetrySource
+	{
+		PierceAttackSource type = PierceAttackSource::Other;
+		std::uintptr_t key = 0;
+	};
+
+	PierceTelemetrySource PierceSourceFromContact(
+		const BallComponent* source,
+		const PlayerBall* sourcePlayer,
+		bool consumedPierceUse)
+	{
+		if (sourcePlayer != nullptr &&
+			GameBattleView::IsCurrentShotPierceCategory())
+		{
+			return {
+				consumedPierceUse
+					? PierceAttackSource::PlayerPierce
+					: PierceAttackSource::PlayerDirect,
+				0,
+			};
+		}
+		const GameObject* owner =
+			source != nullptr ? source->GetGameObject() : nullptr;
+		PierceMinion* minion =
+			owner != nullptr ? owner->GetComponent<PierceMinion>() : nullptr;
+		if (minion != nullptr)
+		{
+			return {
+				PierceAttackSource::Minion,
+				reinterpret_cast<std::uintptr_t>(minion),
+			};
+		}
+		return {};
+	}
+
     struct LiveShotRules final
     {
         int ConsumeBankShotDamageMultiplier()
@@ -96,24 +150,66 @@ void BallCollisionComponent::ResolveEnvironment(
 	if (!CanSimulate() || CheckPocketHitAlongMovement(movementStart, pockets)) return;
     auto body = CapturePhysicsBody();
 	auto* enemy = GetGameObject()->GetComponent<EnemyBall>();
-	const auto resolveWall = [&](const Collision::Segment& wall, const Vector3& interior)
+	const bool telemetryActive =
+		BalanceLogger::GetInstance().IsShotActive();
+	const auto resolveWall = [&](
+		const Collision::Segment& wall,
+		const Vector3& interior,
+		int wallIndex,
+		const char* wallGroup)
 	{
 		const Vector3 velocityBefore = body.velocity;
 		const bool bounced = BallPhysicsRules::Wall(body, wall, interior);
+		const Vector3 velocityAfterPhysics = body.velocity;
+		if (bounced)
+		{
+			GameBattleEvents::WallImpact(
+				body.position,
+				velocityBefore.Length(),
+				GetGameObject());
+		}
 		if (bounced && body.player)
 			GameBattleEvents::PlayerWallCollision(0, body.position, body.velocity);
+		const bool wasPinballTarget = bounced && telemetryActive &&
+			enemy != nullptr &&
+			GameBattleView::IsPinballTarget(
+				reinterpret_cast<std::uintptr_t>(enemy));
 		if (bounced && enemy != nullptr)
 			GameBattleEvents::EnemyWallCollision(
 				enemy, velocityBefore, body.velocity);
+		if (bounced && telemetryActive && (body.player || wasPinballTarget))
+		{
+			BalanceLogger::GetInstance().RecordWallReflection(
+				wallIndex,
+				wallGroup,
+				body.player ? "player" : "pinball_target",
+				body.position.x,
+				body.position.z,
+				velocityBefore.x,
+				velocityBefore.z,
+				velocityAfterPhysics.x,
+				velocityAfterPhysics.z,
+				body.velocity.x,
+				body.velocity.z);
+		}
 	};
     if (body.boss)
     {
-		for (const auto& wall : BallPhysicsRules::BossWalls())
-			resolveWall(wall, Vector3::Zero);
+		const auto& bossWalls = BallPhysicsRules::BossWalls();
+		for (std::size_t index = 0; index < bossWalls.size(); ++index)
+			resolveWall(
+				bossWalls[index],
+				Vector3::Zero,
+				static_cast<int>(index),
+				"boss");
     }
-    for (const auto& wall : walls)
+	for (std::size_t index = 0; index < walls.size(); ++index)
     {
-		resolveWall(wall, interiorReference);
+		resolveWall(
+			walls[index],
+			interiorReference,
+			static_cast<int>(index),
+			"table");
     }
     // Walls only change motion; rebuilding unchanged contact histories for each
     // wall copied the same vectors repeatedly during every TOI iteration.
@@ -144,6 +240,8 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	BallComponent* other = otherCollision->m_BallComponent;
     auto first = CapturePhysicsBody();
     auto second = otherContact.CapturePhysicsBody();
+	const Vector3 firstPositionBefore = first.position;
+	const Vector3 secondPositionBefore = second.position;
 	const Vector3 firstVelocityBefore = first.velocity;
 	const Vector3 secondVelocityBefore = second.velocity;
 	const int firstPierceUsesBefore = first.pierceUses;
@@ -195,6 +293,32 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
     }
     const bool isPlayerEnemyCollision = (myPlayer && otherEnemy) || (myEnemy && otherPlayer);
     const bool isEnemyEnemyCollision = myEnemy && otherEnemy;
+	Vector3 impactNormal = firstPositionBefore - secondPositionBefore;
+	impactNormal.y = 0.0f;
+	if (impactNormal.LengthSquared() > 0.00000001f)
+	{
+		impactNormal.Normalize();
+	}
+	else
+	{
+		impactNormal = secondVelocityBefore - firstVelocityBefore;
+		impactNormal.y = 0.0f;
+		if (impactNormal.LengthSquared() > 0.00000001f)
+			impactNormal.Normalize();
+		else
+			impactNormal = Vector3::UnitX;
+	}
+	float relativeApproachSpeed = (std::max)(
+		0.0f,
+		-(firstVelocityBefore - secondVelocityBefore).Dot(impactNormal));
+	if (!std::isfinite(relativeApproachSpeed))
+	{
+		relativeApproachSpeed = 0.0f;
+	}
+	const Vector3 contactPosition =
+		(firstPositionBefore + secondPositionBefore) * 0.5f;
+	int impactDamage = 0;
+	bool impactDefeated = false;
 	int pinballCollisionBonus = 0;
 	if (isEnemyEnemyCollision)
 	{
@@ -277,17 +401,71 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			}
 			else if (isEnemyEnemyCollision)
 			{
-				// 両方の敵にダメージが入っても、衝突回数は1回。
-				BalanceLogger::GetInstance().RecordDamageCollision(
-					BalanceCollisionType::EnemyEnemy);
+				BalanceLogger::GetInstance().RecordEnemyEnemyCollision(
+					reinterpret_cast<std::uintptr_t>(myEnemy),
+					myEnemy->GetEnemyId(),
+					reinterpret_cast<std::uintptr_t>(otherEnemy),
+					otherEnemy->GetEnemyId(),
+					relativeApproachSpeed,
+					contactPosition.x,
+					contactPosition.z);
 			}
 
 			if (myEnemy != nullptr)
 			{
-				myEnemy->TakeDamage(myEnemy->AdjustCollisionDamage(damageToThis, other->GetPosition()));
+				const int adjustedDamage =
+					myEnemy->AdjustCollisionDamage(
+						damageToThis,
+						other->GetPosition());
+				const int calculatedDamage =
+					myEnemy->CalculateDamageTaken(adjustedDamage);
+				const int baseAdjustedDamage = pinballCollisionBonus > 0
+					? myEnemy->AdjustCollisionDamage(
+						(std::max)(0, damageToThis - pinballCollisionBonus),
+						other->GetPosition())
+					: 0;
+				const int baseCalculatedDamage = pinballCollisionBonus > 0
+					? myEnemy->CalculateDamageTaken(baseAdjustedDamage)
+					: 0;
+				const PierceTelemetrySource source =
+					PierceSourceFromContact(
+						other,
+						otherPlayer,
+						otherPlayer != nullptr &&
+						second.pierceUses > secondPierceUsesBefore);
+				myEnemy->TakeDamage(
+					adjustedDamage,
+					DamageKindFromSource(other, otherPlayer));
 				const int appliedDamage = (std::max)(
 					0,
 					myEnemyHpBefore - myEnemy->GetHP());
+				impactDamage += appliedDamage;
+				if (source.type != PierceAttackSource::Other ||
+					GameBattleView::IsCurrentShotBounceCategory())
+				{
+					BalanceLogger::GetInstance().RecordPierceAttack(
+						source.type,
+						source.key,
+						reinterpret_cast<std::uintptr_t>(myEnemy),
+						calculatedDamage,
+						appliedDamage,
+						!myEnemyWasDefeated);
+				}
+				if (pinballCollisionBonus > 0)
+				{
+					const int calculatedBonus = (std::max)(
+						0,
+						calculatedDamage - baseCalculatedDamage);
+					const int baseAppliedDamage = myEnemyWasDefeated
+						? 0
+						: (std::min)(myEnemyHpBefore, baseCalculatedDamage);
+					BalanceLogger::GetInstance().RecordBounceSpecialDamage(
+						pinballCollisionBonus,
+						calculatedBonus,
+						(std::max)(0, appliedDamage - baseAppliedDamage));
+				}
+				impactDefeated = impactDefeated ||
+					(!myEnemyWasDefeated && myEnemy->IsDefeated());
 				if (!myEnemyWasDefeated &&
 					(appliedDamage > 0 || myEnemy->IsDefeated()))
 				{
@@ -295,7 +473,8 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 						myEnemyFeedbackPosition,
 						appliedDamage,
 						myEnemy->IsDefeated(),
-						isEnemyEnemyCollision);
+						isEnemyEnemyCollision,
+						myEnemy);
 				}
 				if (myEnemyWasFullHp &&
 					!myEnemy->IsDefeated())
@@ -311,10 +490,59 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 
 			if (otherEnemy != nullptr)
 			{
-				otherEnemy->TakeDamage(otherEnemy->AdjustCollisionDamage(damageToOther, GetPosition()));
+				const int adjustedDamage =
+					otherEnemy->AdjustCollisionDamage(
+						damageToOther,
+						GetPosition());
+				const int calculatedDamage =
+					otherEnemy->CalculateDamageTaken(adjustedDamage);
+				const int baseAdjustedDamage = pinballCollisionBonus > 0
+					? otherEnemy->AdjustCollisionDamage(
+						(std::max)(0, damageToOther - pinballCollisionBonus),
+						GetPosition())
+					: 0;
+				const int baseCalculatedDamage = pinballCollisionBonus > 0
+					? otherEnemy->CalculateDamageTaken(baseAdjustedDamage)
+					: 0;
+				const PierceTelemetrySource source =
+					PierceSourceFromContact(
+						m_BallComponent,
+						myPlayer,
+						myPlayer != nullptr &&
+						first.pierceUses > firstPierceUsesBefore);
+				otherEnemy->TakeDamage(
+					adjustedDamage,
+					DamageKindFromSource(m_BallComponent, myPlayer));
 				const int appliedDamage = (std::max)(
 					0,
 					otherEnemyHpBefore - otherEnemy->GetHP());
+				impactDamage += appliedDamage;
+				if (source.type != PierceAttackSource::Other ||
+					GameBattleView::IsCurrentShotBounceCategory())
+				{
+					BalanceLogger::GetInstance().RecordPierceAttack(
+						source.type,
+						source.key,
+						reinterpret_cast<std::uintptr_t>(otherEnemy),
+						calculatedDamage,
+						appliedDamage,
+						!otherEnemyWasDefeated);
+				}
+				if (pinballCollisionBonus > 0)
+				{
+					const int calculatedBonus = (std::max)(
+						0,
+						calculatedDamage - baseCalculatedDamage);
+					const int baseAppliedDamage = otherEnemyWasDefeated
+						? 0
+						: (std::min)(otherEnemyHpBefore, baseCalculatedDamage);
+					BalanceLogger::GetInstance().RecordBounceSpecialDamage(
+						pinballCollisionBonus,
+						calculatedBonus,
+						(std::max)(0, appliedDamage - baseAppliedDamage));
+				}
+				impactDefeated = impactDefeated ||
+					(!otherEnemyWasDefeated && otherEnemy->IsDefeated());
 				if (!otherEnemyWasDefeated &&
 					(appliedDamage > 0 || otherEnemy->IsDefeated()))
 				{
@@ -322,7 +550,8 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 						otherEnemyFeedbackPosition,
 						appliedDamage,
 						otherEnemy->IsDefeated(),
-						isEnemyEnemyCollision);
+						isEnemyEnemyCollision,
+						otherEnemy);
 				}
 				if (otherEnemyWasFullHp &&
 					!otherEnemy->IsDefeated())
@@ -350,6 +579,24 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 					damageToOther,
 					myPlayer->GetStatus().chainImpactRadius);
 			}
+
+	if (isPlayerEnemyCollision || isEnemyEnemyCollision)
+	{
+		EnemyBall* firstTarget = myEnemy != nullptr ? myEnemy : otherEnemy;
+		EnemyBall* secondTarget = isEnemyEnemyCollision ? otherEnemy : nullptr;
+		GameBattleEvents::CollisionImpact(
+			contactPosition,
+			firstTarget != nullptr ? firstTarget->GetPosition() : contactPosition,
+			secondTarget != nullptr ? secondTarget->GetPosition() : contactPosition,
+			relativeApproachSpeed,
+			isEnemyEnemyCollision
+				? CombatCollisionKind::EnemyEnemy
+				: CombatCollisionKind::PlayerEnemy,
+			impactDamage,
+			impactDefeated,
+			firstTarget,
+			secondTarget);
+	}
 
     if (isPlayerEnemyCollision)
     {

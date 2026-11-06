@@ -298,16 +298,21 @@ void Application::MainLoop()
            nowCount = liWork.QuadPart;
            // 1/60秒が経過したか？
            if (nowCount >= oldCount + frequency / renderHz) {
+			   const double frameMilliseconds =
+				   static_cast<double>(nowCount - oldCount) * 1000.0 /
+				   static_cast<double>(frequency);
 
                // ImGuiフレーム開始（Game::Draw()より前に必ず呼ぶ）
                ImGui_ImplDX11_NewFrame();
                ImGui_ImplWin32_NewFrame();
                ImGui::NewFrame();
 
-               GameRuntime::Update(static_cast<double>(nowCount - oldCount) /
-                   static_cast<double>(frequency));
+			   const auto updateStarted = std::chrono::steady_clock::now();
+               GameRuntime::Update(frameMilliseconds / 1000.0);
+			   const auto updateFinished = std::chrono::steady_clock::now();
 
                // ゲーム描画
+			   const auto drawStarted = std::chrono::steady_clock::now();
                GameRuntime::Draw();
 
                
@@ -321,9 +326,20 @@ void Application::MainLoop()
                    ImGui::UpdatePlatformWindows();
                    ImGui::RenderPlatformWindowsDefault();
                }
-               
+			   const auto drawFinished = std::chrono::steady_clock::now();
 
+			   const auto presentStarted = std::chrono::steady_clock::now();
                Renderer::DrawEnd();
+			   const auto presentFinished = std::chrono::steady_clock::now();
+			   const auto milliseconds = [](const auto& start, const auto& end)
+			   {
+				   return std::chrono::duration<double, std::milli>(end - start).count();
+			   };
+			   GameRuntime::RecordFrameTiming(
+				   frameMilliseconds,
+				   milliseconds(updateStarted, updateFinished),
+				   milliseconds(drawStarted, drawFinished),
+				   milliseconds(presentStarted, presentFinished));
 
                fpsCounter++; // ゲーム処理を実行したら＋１する
                oldCount = nowCount;

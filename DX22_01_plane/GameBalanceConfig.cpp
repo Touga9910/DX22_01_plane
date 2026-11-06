@@ -161,6 +161,12 @@ void Game::LoadPlayerStatusFromJson(
 	);
 	m_RunController->RestHealRatio() = loadResult.restHealRatio;
 	m_PersistenceRuntime->DefaultRestHealRatio() = loadResult.restHealRatio;
+	HeavyCollisionRules::SetDistancePerStack(
+		m_BattleState->heavyCollisions,
+		loadResult.heavyStackDistancePerStack);
+	HeavyCollisionRules::SetGainLimitPerTurn(
+		m_BattleState->heavyCollisions,
+		loadResult.heavyStackGainLimitPerTurn);
 	std::vector<PlayerBallData> unlockedCatalog;
 	for (const auto& ball : loadResult.ballDefinitions)
 		if (m_PersistenceRuntime->Profile().IsBallUnlocked(ball.definitionId))

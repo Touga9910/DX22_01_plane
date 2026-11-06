@@ -914,6 +914,9 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
 	add(input.cushionCharges.pendingSetupBonus);
 	add(input.cushionCharges.activeSetupBonus);
 	add(input.heavyCollisions.stackCount);
+	scalar(input.heavyCollisions.distancePerStack);
+	add(input.heavyCollisions.gainLimitPerTurn);
+	add(input.heavyCollisions.gainedThisTurn);
 	scalar(input.heavyCollisions.pendingEnemyCollisionMultiplier);
 	scalar(input.heavyCollisions.activeEnemyCollisionMultiplier);
 	add(input.playerAnchorStacks);
@@ -958,6 +961,11 @@ void BallShotPrediction::WriteVerificationPrediction(const Input& input, const P
 		{"cushion_boost_consumed", result.cushionBoostConsumed},
 		{"chain_impact_hits", result.chainImpactHits},
 		{"stop_shield_granted", result.stopShieldGranted},
+		{"heavy_stacks", result.heavyCollisions.stackCount},
+		{"heavy_stacks_gained_this_turn",
+			result.heavyCollisions.gainedThisTurn},
+		{"heavy_stack_distance_per_stack",
+			result.heavyCollisions.distancePerStack},
         {"player_enemy_contacts", result.shot.playerEnemyContacts}, {"enemy_enemy_contacts", result.shot.enemyEnemyContacts}};
     std::filesystem::create_directories("runtime");
     std::ofstream("runtime/shot_prediction_expected.json") << data.dump(2);
@@ -971,6 +979,11 @@ void BallShotPrediction::WriteVerificationActual(const Input& input)
     const nlohmann::json data = {{"balls", balls},
         {"cushions", CushionJson(input.cushionCharges)},
 		{"cushion_boost_consumed", input.cushionBoostConsumed},
+		{"heavy_stacks", input.heavyCollisions.stackCount},
+		{"heavy_stacks_gained_this_turn",
+			input.heavyCollisions.gainedThisTurn},
+		{"heavy_stack_distance_per_stack",
+			input.heavyCollisions.distancePerStack},
         {"player_enemy_contacts", input.playerEnemyContacts},
         {"enemy_enemy_contacts", input.enemyEnemyContacts}};
     std::filesystem::create_directories("runtime");

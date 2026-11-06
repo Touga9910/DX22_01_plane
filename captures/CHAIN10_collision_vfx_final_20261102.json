@@ -1,0 +1,18 @@
+{
+  "captured_at": "2026-11-02T12:21:47.173Z",
+  "observed": {
+    "chain": 10,
+    "active_sparks": 64,
+    "active_waves": 8,
+    "active_bursts": 4,
+    "impact_events": 17,
+    "maximum_active_sparks": 64,
+    "maximum_active_waves": 8,
+    "maximum_active_bursts": 4
+  },
+  "fixed_shot": {
+    "direction_x": -0.9916810938126976,
+    "direction_z": -0.1287191057087161,
+    "power": 8
+  }
+}
