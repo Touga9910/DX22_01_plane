@@ -2172,6 +2172,10 @@ void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
 	if (enemy == nullptr) return;
 	const std::string enemyId = enemy->GetEnemyId();
+	RecordBalanceEvent("enemy_defeated", {
+		{ "enemy_id", enemyId },
+		{ "board_ability", ToString(enemy->GetBoardAbilityType()) },
+	});
 	const int enemyAnchorBefore = enemy->GetAnchorStacks();
 	const int playerAnchorBefore =
 		m_BattleState->anchorStacks.playerStacks;
@@ -2594,6 +2598,14 @@ void Game::PublishGameEvent(const GameEvent& event)
 						static_cast<ChargeInterruptReason>(value.reason));
 				}
 			}
+			else if constexpr (std::is_same_v<EventType, EnemyAbilityStateChangedEvent>)
+			{
+				if (m_GamePresentation != nullptr &&
+					(!m_BalanceRuntime->autoPlayer.IsEnabled() || IsDebugMode()))
+				{
+					m_GamePresentation->OnEnemyAbilityStateChanged(value);
+				}
+			}
 			else if constexpr (std::is_same_v<EventType, ShotResolvedEvent>)
 			{
 				if (m_GamePresentation != nullptr &&
@@ -2608,6 +2620,25 @@ void Game::PublishGameEvent(const GameEvent& event)
 			}
 		},
 		event);
+}
+
+void Game::NotifyEnemyAbilityStateChanged(
+	const EnemyAbilityStateChangedEvent& event)
+{
+	BalanceLogger::GetInstance().RecordEvent(
+		"enemy_board_ability_state_changed",
+		{
+			{ "enemy_id", event.targetEnemyId },
+			{ "ability_id", event.abilityId },
+			{ "reason", event.reason },
+			{ "previous_stage", event.previousStage },
+			{ "current_stage", event.currentStage },
+			{ "previous_attack", event.previousAttack },
+			{ "current_attack", event.currentAttack },
+			{ "nearby_living_allies", event.nearbyLivingAllies },
+			{ "collision_speed", event.collisionSpeed },
+		});
+	PublishGameEvent(event);
 }
 
 // Balance Eventを記録する。

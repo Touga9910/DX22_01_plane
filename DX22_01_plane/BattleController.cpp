@@ -33,6 +33,13 @@ void BattleController::BeginStage(StageType stageType)
     m_BountyRewardClaimed = false;
     m_PocketedEnemyQueue.clear();
     m_EnemyActionPlanner.Reset();
+    if (m_World != nullptr)
+    {
+        for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+        {
+            if (enemy != nullptr) enemy->RefreshBoardAbilityState(false);
+        }
+    }
     PlanNextTurn();
 }
 
@@ -392,6 +399,13 @@ void BattleController::CompleteShot()
     }
 
     ResolveChargeInterruptions();
+
+    // Positions are now stable. Re-evaluate only board-dependent modifiers;
+    // the already committed action type and budget remain untouched.
+    for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+    {
+        if (enemy != nullptr) enemy->RefreshBoardAbilityState(true);
+    }
 
     if (m_Hooks.restorePocketedPlayer)
     {

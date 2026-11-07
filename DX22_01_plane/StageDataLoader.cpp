@@ -114,6 +114,65 @@ namespace
                 gimmick.value("collisionCountGraceTicks", data.collisionCountGraceTicks),
                 0,
                 120);
+            if (gimmick.contains("boardAbility") &&
+                gimmick["boardAbility"].is_object())
+            {
+                const auto& ability = gimmick["boardAbility"];
+                data.boardAbility.type = EnemyBoardAbilityTypeFromString(
+                    ability.value("type", std::string("none")));
+                data.boardAbility.radius = std::clamp(
+                    ability.value("radius", data.boardAbility.radius),
+                    0.0f,
+                    100.0f);
+                data.boardAbility.maximumAttack = std::clamp(
+                    ability.value(
+                        "maximumAttack",
+                        data.boardAbility.maximumAttack),
+                    0,
+                    99);
+                if (ability.contains("attackByStage") &&
+                    ability["attackByStage"].is_array())
+                {
+                    for (std::size_t index = 0;
+                        index < data.boardAbility.swarmAttackByStage.size() &&
+                        index < ability["attackByStage"].size();
+                        ++index)
+                    {
+                        if (ability["attackByStage"][index].is_number_integer())
+                        {
+                            data.boardAbility.swarmAttackByStage[index] =
+                                std::clamp(
+                                    ability["attackByStage"][index].get<int>(),
+                                    0,
+                                    99);
+                        }
+                    }
+                }
+                data.boardAbility.brittleCollisionSpeed = std::clamp(
+                    ability.value(
+                        "collisionSpeedThreshold",
+                        data.boardAbility.brittleCollisionSpeed),
+                    0.0f,
+                    1000.0f);
+                data.boardAbility.brittleAttack = std::clamp(
+                    ability.value(
+                        "brittleAttack",
+                        data.boardAbility.brittleAttack),
+                    0,
+                    99);
+                data.boardAbility.brittleActionCount = std::clamp(
+                    ability.value(
+                        "brittleActionCount",
+                        data.boardAbility.brittleActionCount),
+                    1,
+                    99);
+                data.boardAbility.protectionDamageReduction = std::clamp(
+                    ability.value(
+                        "damageReduction",
+                        data.boardAbility.protectionDamageReduction),
+                    0,
+                    99);
+            }
             if (gimmick.contains("nuisanceBall") && gimmick["nuisanceBall"].is_object())
             {
                 const auto& nuisance = gimmick["nuisanceBall"];

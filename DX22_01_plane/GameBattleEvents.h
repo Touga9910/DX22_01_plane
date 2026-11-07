@@ -38,6 +38,8 @@ public:
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		float relativeApproachSpeed,
 		const void* target);
+	static void EnemyAbilityStateChanged(
+		const EnemyAbilityStateChangedEvent& event);
     static void PlayerPiercedEnemy(
         EnemyBall* enemy,
         const DirectX::SimpleMath::Vector3& playerPosition,

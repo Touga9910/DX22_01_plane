@@ -119,7 +119,11 @@ public:
     void SetHP(int hp) { m_Ball->SetHP(hp); }
     int GetHP() const { return m_Ball->GetHP(); }
     int GetMaxHP() const { return m_Ball->GetMaxHP(); }
-    int GetAttack() const { return m_Ball->GetAttack(); }
+    int GetAttack() const;
+    int GetAttackBeforeBoardAbility() const
+    {
+        return m_Ball != nullptr ? m_Ball->GetAttack() : 0;
+    }
     int GetDefense() const { return m_Ball->GetDefense(); }
     void SetStatusEffects(const StatusEffectCollection& effects)
     {
@@ -137,6 +141,9 @@ public:
     }
     bool IsStopped() const { return m_Ball->IsStopped(); }
     float GetRadius() const { return m_Ball->GetRadius(); }
+	// Presentation uses the radius of the rendered mesh. The physics radius can
+	// be explicitly overridden by enemy data and must not drive an on-model UI.
+	float GetVisualRadius() const;
     DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
     DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
     BallComponent* GetBall() const { return m_Ball; }
@@ -148,6 +155,29 @@ public:
     // 敵データ・ステータス
     // -------------------------
     const std::string& GetEnemyId() const { return m_EnemyData.id; }
+    EnemyBoardAbilityType GetBoardAbilityType() const
+    {
+        return m_EnemyData.boardAbility.type;
+    }
+    float GetBoardAbilityRadius() const
+    {
+        return m_EnemyData.boardAbility.radius;
+    }
+    int GetNearbyLivingAllyCount() const
+    {
+        return (std::max)(0, m_NearbyLivingAllies);
+    }
+    int GetSwarmStage() const { return m_SwarmStage; }
+    bool IsBrittle() const { return m_BrittleActionsRemaining > 0; }
+    int GetBrittleActionsRemaining() const
+    {
+        return m_BrittleActionsRemaining;
+    }
+    bool IsProtectedByResonator() const;
+    int GetProtectionDamageReduction() const;
+    void RefreshBoardAbilityState(bool notifyChange);
+    void RegisterWallImpact(float collisionSpeed);
+    void ConsumeBoardAbilityAfterAttack();
     void ApplyHotReloadData(const EnemyData& data);
     void ApplyStatusKeepHpRate(const BallStatus& status);
 
@@ -171,6 +201,12 @@ private:
     void DestroyNuisanceBall();
     bool HasLiveNuisanceBall() const;
     void SpawnNuisanceBall();
+    int CalculateDamageTakenWithoutProtection(int damage) const;
+    void PublishBoardAbilityChange(
+        const char* reason,
+        int previousStage,
+        int previousAttack,
+        float collisionSpeed = 0.0f) const;
 
 private:
     BallComponent* m_Ball = nullptr;
@@ -196,6 +232,10 @@ private:
     int m_NuisanceTurnsUntilSpawn = 0;
     bool m_NuisanceWarningVisible = false;
     int m_StunTurnsRemaining = 0;
+    int m_NearbyLivingAllies = -1;
+    int m_SwarmStage = 0;
+    int m_BrittleActionsRemaining = 0;
+    int m_ProtectionState = -1;
     bool m_SkipNextGimmickAdvance = false;
     EnemyActionType m_PlannedAction = EnemyActionType::Wait;
     int m_PlannedActionCost = 0;

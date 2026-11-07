@@ -349,6 +349,11 @@ BalanceLogger& BalanceLogger::GetInstance()
 	return instance;
 }
 
+BalanceLogger::BalanceLogger()
+	: m_BalanceMetadata(LoadBalanceMetadata())
+{
+}
+
 void BalanceLogger::BeginRun(
 	int playerMaxHp,
 	int playerCurrentHp,
@@ -367,6 +372,8 @@ void BalanceLogger::BeginRun(
 
 	m_RunStartedMs = GetEpochMilliseconds();
 	const std::string runId = MakeRunId();
+	const std::string startedAt = MakeUtcTimestamp();
+	m_BalanceMetadata = LoadBalanceMetadata();
 	m_LogPath =
 		std::filesystem::path("logs") /
 		(runContext.value("debug_sandbox", false) ? "debug_battle" : "balance") /
@@ -398,9 +405,22 @@ void BalanceLogger::BeginRun(
 
 	m_Root =
 	{
-		{ "schema_version", 3 },
+		{ "schema_version", 4 },
+		{ "data_schema_version", 4 },
+		{
+			"balance_version",
+			m_BalanceMetadata.value(
+				"balance_version",
+				std::string("Legacy/Unknown"))
+		},
+		{
+			"balance_config_hash",
+			m_BalanceMetadata.value(
+				"balance_config_hash",
+				std::string())
+		},
 		{ "run_id", runId },
-		{ "started_at", MakeUtcTimestamp() },
+		{ "started_at", startedAt },
 		{ "controller_type", controllerType },
 		{
 			"controller",
@@ -423,12 +443,33 @@ void BalanceLogger::BeginRun(
 			}
 		},
 		{ "run_context", runContext },
+		{
+			"measurement",
+			{
+				{ "measured_at", startedAt },
+				{ "mode", controllerType },
+				{
+					"seeds",
+					runContext.value("randomness", json(nullptr))
+				},
+				{
+					"validation",
+					runContext.value("validation", json(nullptr))
+				},
+			}
+		},
 		{ "configuration", MakeConfigurationSnapshot() },
 		{
 			"build",
 			{
 				{ "compiled_date", __DATE__ },
 				{ "compiled_time", __TIME__ },
+				{
+					"git_commit",
+					m_BalanceMetadata.value(
+						"git_commit",
+						std::string("unknown"))
+				},
 #if defined(_MSC_VER)
 				{ "compiler", "msvc" },
 				{ "compiler_version", _MSC_VER },
@@ -1630,29 +1671,90 @@ double BalanceLogger::CalculateShotScore(int collisionEffect)
 
 json BalanceLogger::MakeConfigurationSnapshot()
 {
-	static const std::filesystem::path paths[] =
+	json paths = json::array();
+	std::ifstream registry("assets/data/balance_version.json");
+	if (registry)
 	{
-		"assets/data/stage_01.json",
-		"assets/data/enemy_data.json",
-		"assets/data/player_status.json",
-		"assets/data/player_deck.json",
-		"assets/data/dynamic_balance.json",
-		"assets/data/difficulty_profiles.json",
-		"assets/data/balance_validation.json",
-		"assets/data/encounter_balance.json",
-		"assets/data/pocket_rules.json",
-		"assets/data/balance_autoplay.json",
-		"assets/data/balance_targets.json",
-		"tools/game_mcp/player_profiles.json",
-		"tools/game_mcp/build_profiles.json",
-	};
+		try
+		{
+			json value;
+			registry >> value;
+			if (value.contains("managed_files") &&
+				value["managed_files"].is_array())
+			{
+				paths = value["managed_files"];
+			}
+		}
+		catch (const json::exception&)
+		{
+			paths = json::array();
+		}
+	}
+	if (paths.empty())
+	{
+		paths = {
+			"assets/data/stage_01.json",
+			"assets/data/enemy_data.json",
+			"assets/data/player_status.json",
+			"assets/data/player_deck.json",
+			"assets/data/dynamic_balance.json",
+			"assets/data/difficulty_profiles.json",
+			"assets/data/encounter_balance.json",
+			"assets/data/pocket_rules.json",
+		};
+	}
 
 	json files = json::array();
-	for (const std::filesystem::path& path : paths)
+	for (const json& value : paths)
 	{
+		if (!value.is_string())
+		{
+			continue;
+		}
+		const std::filesystem::path path = value.get<std::string>();
 		files.push_back(MakeFileFingerprint(path));
 	}
 	return { { "files", std::move(files) } };
+}
+
+json BalanceLogger::LoadBalanceMetadata()
+{
+	json result = {
+		{ "balance_version", "Legacy/Unknown" },
+		{ "balance_config_hash", "" },
+		{ "git_commit", "unknown" },
+	};
+	std::ifstream source("assets/data/balance_version.json");
+	if (!source)
+	{
+		return result;
+	}
+	try
+	{
+		json registry;
+		source >> registry;
+		if (registry.contains("current_version") &&
+			registry["current_version"].is_string())
+		{
+			result["balance_version"] = registry["current_version"];
+		}
+		if (registry.contains("current_config_hash") &&
+			registry["current_config_hash"].is_string())
+		{
+			result["balance_config_hash"] =
+				registry["current_config_hash"];
+		}
+		if (registry.contains("registered_git_commit") &&
+			registry["registered_git_commit"].is_string())
+		{
+			result["git_commit"] = registry["registered_git_commit"];
+		}
+	}
+	catch (const json::exception&)
+	{
+		return result;
+	}
+	return result;
 }
 
 json BalanceLogger::MakeFileFingerprint(

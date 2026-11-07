@@ -175,8 +175,11 @@ void BallCollisionComponent::ResolveEnvironment(
 			GameBattleView::IsPinballTarget(
 				reinterpret_cast<std::uintptr_t>(enemy));
 		if (bounced && enemy != nullptr)
+		{
+			enemy->RegisterWallImpact(velocityBefore.Length());
 			GameBattleEvents::EnemyWallCollision(
 				enemy, velocityBefore, body.velocity);
+		}
 		if (bounced && telemetryActive && (body.player || wasPinballTarget))
 		{
 			BalanceLogger::GetInstance().RecordWallReflection(

@@ -44,11 +44,11 @@ class BalanceConfigurationTests(unittest.TestCase):
             set(profiles["profiles"]),
             {"standard", "heavy", "pierce", "bounce", "anchor"},
         )
-        self.assertIn('{ "schema_version", 3 }', logger_source)
-        self.assertIn(
-            '"tools/game_mcp/build_profiles.json"',
-            logger_source,
-        )
+        self.assertIn('{ "schema_version", 4 }', logger_source)
+        self.assertIn('"balance_version"', logger_source)
+        self.assertIn('"balance_config_hash"', logger_source)
+        self.assertIn('"measurement"', logger_source)
+        self.assertIn('"build_profile_settings_hash"', logger_source)
         self.assertIn('{ "build_profile", buildProfile }', game_source)
         self.assertIn(
             '{ "build_profile_settings_hash", buildProfileSettingsHash }',

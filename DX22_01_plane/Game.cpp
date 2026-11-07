@@ -64,16 +64,20 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx11.h"
 #include "imgui/imgui_impl_win32.h"
+#include "stb_image.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <wrl/client.h>
 
 using DirectX::SimpleMath::Vector3;
 
@@ -177,6 +181,230 @@ void GameRuntime::DestroyObject(GameObject* object)
 
 namespace
 {
+	struct BallCardTexture
+	{
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
+		int width = 0;
+		int height = 0;
+
+		bool IsValid() const noexcept
+		{
+			return view != nullptr && width > 0 && height > 0;
+		}
+	};
+
+	class BallCardArtResources final
+	{
+	public:
+		void Load()
+		{
+			if (m_LoadAttempted)
+			{
+				return;
+			}
+			m_LoadAttempted = true;
+
+			LoadTexture("assets/UI/Cards/card_base.png", m_Base);
+			LoadTexture("assets/UI/Cards/frame_generic.png", m_Frames[CategoryIndex(BallCategory::Standard)]);
+			LoadTexture("assets/UI/Cards/frame_heavy.png", m_Frames[CategoryIndex(BallCategory::Heavy)]);
+			LoadTexture("assets/UI/Cards/frame_pierce.png", m_Frames[CategoryIndex(BallCategory::Pierce)]);
+			LoadTexture("assets/UI/Cards/frame_reflect.png", m_Frames[CategoryIndex(BallCategory::Bounce)]);
+			LoadTexture("assets/UI/Cards/frame_anchor.png", m_Frames[CategoryIndex(BallCategory::Anchor)]);
+			LoadTexture("assets/UI/Cards/icon_heavy.png", m_Icons[CategoryIndex(BallCategory::Heavy)]);
+			LoadTexture("assets/UI/Cards/icon_pierce.png", m_Icons[CategoryIndex(BallCategory::Pierce)]);
+			LoadTexture("assets/UI/Cards/icon_reflect.png", m_Icons[CategoryIndex(BallCategory::Bounce)]);
+			LoadTexture("assets/UI/Cards/icon_anchor.png", m_Icons[CategoryIndex(BallCategory::Anchor)]);
+		}
+
+		void Reset()
+		{
+			m_Base = {};
+			m_Frames = {};
+			m_Icons = {};
+			m_LoadAttempted = false;
+		}
+
+		const BallCardTexture* Base() const noexcept
+		{
+			return m_Base.IsValid() ? &m_Base : nullptr;
+		}
+
+		const BallCardTexture* Frame(BallCategory category) const noexcept
+		{
+			const BallCardTexture& texture = m_Frames[CategoryIndex(category)];
+			return texture.IsValid() ? &texture : nullptr;
+		}
+
+		const BallCardTexture* Icon(BallCategory category) const noexcept
+		{
+			const BallCardTexture& texture = m_Icons[CategoryIndex(category)];
+			return texture.IsValid() ? &texture : nullptr;
+		}
+
+	private:
+		static constexpr std::size_t CategoryIndex(BallCategory category) noexcept
+		{
+			switch (category)
+			{
+			case BallCategory::Heavy: return 1;
+			case BallCategory::Pierce: return 2;
+			case BallCategory::Bounce: return 3;
+			case BallCategory::Anchor: return 4;
+			default: return 0;
+			}
+		}
+
+		static bool LoadTexture(const char* path, BallCardTexture& destination)
+		{
+			int channels = 0;
+			unsigned char* pixels = stbi_load(
+				path,
+				&destination.width,
+				&destination.height,
+				&channels,
+				STBI_rgb_alpha);
+			if (pixels == nullptr)
+			{
+				std::cerr << "Ball card texture load failed: " << path << '\n';
+				destination = {};
+				return false;
+			}
+
+			ID3D11Device* device = Renderer::GetDevice();
+			if (device == nullptr)
+			{
+				stbi_image_free(pixels);
+				destination = {};
+				return false;
+			}
+
+			D3D11_TEXTURE2D_DESC description{};
+			description.Width = static_cast<UINT>(destination.width);
+			description.Height = static_cast<UINT>(destination.height);
+			description.MipLevels = 1;
+			description.ArraySize = 1;
+			description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			description.SampleDesc.Count = 1;
+			description.Usage = D3D11_USAGE_IMMUTABLE;
+			description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+			D3D11_SUBRESOURCE_DATA initialData{};
+			initialData.pSysMem = pixels;
+			initialData.SysMemPitch = description.Width * 4;
+
+			Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+			HRESULT result = device->CreateTexture2D(
+				&description,
+				&initialData,
+				texture.GetAddressOf());
+			if (SUCCEEDED(result))
+			{
+				result = device->CreateShaderResourceView(
+					texture.Get(),
+					nullptr,
+					destination.view.GetAddressOf());
+			}
+			stbi_image_free(pixels);
+			if (FAILED(result))
+			{
+				std::cerr << "Ball card texture GPU upload failed: " << path << '\n';
+				destination = {};
+				return false;
+			}
+			return true;
+		}
+
+		bool m_LoadAttempted = false;
+		BallCardTexture m_Base;
+		std::array<BallCardTexture, 5> m_Frames{};
+		std::array<BallCardTexture, 5> m_Icons{};
+	};
+
+	BallCardArtResources& GetBallCardArtResources()
+	{
+		static BallCardArtResources resources;
+		return resources;
+	}
+
+	ImTextureRef MakeTextureReference(const BallCardTexture& texture)
+	{
+		return ImTextureRef(static_cast<ImTextureID>(
+			reinterpret_cast<std::uintptr_t>(texture.view.Get())));
+	}
+
+	void DrawTextureCover(
+		ImDrawList* drawList,
+		const BallCardTexture& texture,
+		const ImVec2& minimum,
+		const ImVec2& maximum,
+		ImU32 tint = IM_COL32_WHITE)
+	{
+		if (drawList == nullptr || !texture.IsValid())
+		{
+			return;
+		}
+
+		const float targetWidth = (std::max)(1.0f, maximum.x - minimum.x);
+		const float targetHeight = (std::max)(1.0f, maximum.y - minimum.y);
+		const float sourceAspect = static_cast<float>(texture.width) /
+			static_cast<float>(texture.height);
+		const float targetAspect = targetWidth / targetHeight;
+		ImVec2 uvMinimum(0.0f, 0.0f);
+		ImVec2 uvMaximum(1.0f, 1.0f);
+		if (targetAspect > sourceAspect)
+		{
+			const float visibleHeight = sourceAspect / targetAspect;
+			uvMinimum.y = (1.0f - visibleHeight) * 0.5f;
+			uvMaximum.y = uvMinimum.y + visibleHeight;
+		}
+		else
+		{
+			const float visibleWidth = targetAspect / sourceAspect;
+			uvMinimum.x = (1.0f - visibleWidth) * 0.5f;
+			uvMaximum.x = uvMinimum.x + visibleWidth;
+		}
+
+		drawList->AddImage(
+			MakeTextureReference(texture),
+			minimum,
+			maximum,
+			uvMinimum,
+			uvMaximum,
+			tint);
+	}
+
+	void DrawTextureContain(
+		ImDrawList* drawList,
+		const BallCardTexture& texture,
+		const ImVec2& minimum,
+		const ImVec2& maximum,
+		ImU32 tint = IM_COL32_WHITE)
+	{
+		if (drawList == nullptr || !texture.IsValid())
+		{
+			return;
+		}
+
+		const float areaWidth = (std::max)(1.0f, maximum.x - minimum.x);
+		const float areaHeight = (std::max)(1.0f, maximum.y - minimum.y);
+		const float scale = (std::min)(
+			areaWidth / static_cast<float>(texture.width),
+			areaHeight / static_cast<float>(texture.height));
+		const ImVec2 drawnSize(
+			static_cast<float>(texture.width) * scale,
+			static_cast<float>(texture.height) * scale);
+		const ImVec2 offset(
+			(areaWidth - drawnSize.x) * 0.5f,
+			(areaHeight - drawnSize.y) * 0.5f);
+		drawList->AddImage(
+			MakeTextureReference(texture),
+			ImVec2(minimum.x + offset.x, minimum.y + offset.y),
+			ImVec2(minimum.x + offset.x + drawnSize.x, minimum.y + offset.y + drawnSize.y),
+			ImVec2(0.0f, 0.0f),
+			ImVec2(1.0f, 1.0f),
+			tint);
+	}
+
 	const char* const kClearRewardNames[] =
 	{
 		UiText::RewardNewBall,
@@ -236,6 +464,44 @@ namespace
 		bool openDetails = false;
 	};
 
+	struct BallCardTextLayout
+	{
+		float titleSideInset = 0.12f;
+		float titleTop = 0.045f;
+		float titleBottom = 0.158f;
+		float nameY = 0.052f;
+		float categoryY = 0.108f;
+		float metadataTop = 0.158f;
+		float metadataBottom = 0.205f;
+		float descriptionSideInset = 0.09f;
+		float descriptionTop = 0.635f;
+	};
+
+	BallCardTextLayout GetBallCardTextLayout(BallCategory category)
+	{
+		BallCardTextLayout layout;
+		// 軸別フレームは上部の角飾りだけ幅が異なる。
+		// 縦位置は共通にし、タイトルの左右安全域だけ素材に合わせる。
+		switch (category)
+		{
+		case BallCategory::Heavy:
+			layout.titleSideInset = 0.18f;
+			break;
+		case BallCategory::Bounce:
+			layout.titleSideInset = 0.19f;
+			break;
+		case BallCategory::Pierce:
+			layout.titleSideInset = 0.16f;
+			break;
+		case BallCategory::Anchor:
+			layout.titleSideInset = 0.20f;
+			break;
+		default:
+			break;
+		}
+		return layout;
+	}
+
 	BallCardInteraction DrawBallSelectionCard(
 		const PlayerBallData& ball,
 		int index,
@@ -248,41 +514,79 @@ namespace
 	{
 		BallCardInteraction interaction;
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		BallCardArtResources& art = GetBallCardArtResources();
+		art.Load();
 		const auto ballColor = PlayerBallText::GetColor(ball);
 		const ImU32 accent = ImGui::ColorConvertFloat4ToU32(
 			ImVec4(ballColor[0], ballColor[1], ballColor[2], 1.0f));
-		const ImU32 cardBackground = selected
-			? IM_COL32(27, 34, 46, 248)
-			: (held ? IM_COL32(20, 36, 43, 244) : IM_COL32(15, 21, 30, 236));
 		const ImU32 borderColor = selected
 			? IM_COL32(255, 221, 118, 255)
 			: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(92, 105, 126, 210));
 		const ImVec2 cardMax(position.x + size.x, position.y + size.y);
-		constexpr float cornerRadius = 12.0f;
-		constexpr float footerHeight = 38.0f;
-		// 展開の終盤までは球の識別情報だけを見せ、
-		// 十分な高さができてから詳細とホールド操作を表示
+		// 従来の2段階展開を維持し、十分な高さになってから
+		// 詳細レイアウトとホールド操作を有効にする。
 		const bool detailsVisible = expansion >= 0.82f;
+		const float layoutScale = size.x / 252.0f;
+		const float readableScale = (std::max)(0.78f, layoutScale);
+		const float cornerRadius = 12.0f * layoutScale;
+		const float footerHeight =
+			(detailsVisible ? 38.0f : 28.0f) * layoutScale;
+		const BallCardTextLayout textLayout =
+			GetBallCardTextLayout(ball.category);
 
 		drawList->AddRectFilled(
 			ImVec2(position.x + 5.0f, position.y + 7.0f),
 			ImVec2(cardMax.x + 5.0f, cardMax.y + 7.0f),
-			IM_COL32(0, 0, 0, 105),
+			IM_COL32(0, 0, 0, 142),
 			cornerRadius);
-		drawList->AddRectFilled(position, cardMax, cardBackground, cornerRadius);
-		drawList->AddRectFilled(
-			position,
-			ImVec2(cardMax.x, position.y + 6.0f),
-			accent,
-			cornerRadius,
-			ImDrawFlags_RoundCornersTop);
-		drawList->AddRect(
-			position,
-			cardMax,
-			borderColor,
-			cornerRadius,
-			0,
-			selected ? 3.0f : 1.5f);
+		drawList->PushClipRect(position, cardMax, true);
+		if (const BallCardTexture* base = art.Base())
+		{
+			// 2:3背景はUVを中央クロップし、円形模様を歪ませない。
+			DrawTextureCover(drawList, *base, position, cardMax);
+		}
+		else
+		{
+			drawList->AddRectFilled(
+				position,
+				cardMax,
+				IM_COL32(10, 31, 34, 246),
+				cornerRadius);
+		}
+
+		if (const BallCardTexture* icon = art.Icon(ball.category))
+		{
+			DrawTextureContain(
+				drawList,
+				*icon,
+				ImVec2(
+					position.x + size.x * 0.18f,
+					position.y + size.y * 0.20f),
+				ImVec2(
+					cardMax.x - size.x * 0.18f,
+					position.y + size.y * 0.60f));
+		}
+
+		if (const BallCardTexture* frame = art.Frame(ball.category))
+		{
+			DrawTextureCover(drawList, *frame, position, cardMax);
+		}
+		else
+		{
+			drawList->AddRect(position, cardMax, accent, cornerRadius, 0, 3.0f);
+		}
+
+		if (selected || held)
+		{
+			drawList->AddRect(
+				ImVec2(position.x + 3.0f, position.y + 3.0f),
+				ImVec2(cardMax.x - 3.0f, cardMax.y - 3.0f),
+				borderColor,
+				cornerRadius,
+				0,
+				selected ? 3.0f : 2.0f);
+		}
+		drawList->PopClipRect();
 
 		ImGui::PushID(index);
 		ImGui::SetCursorScreenPos(position);
@@ -320,188 +624,230 @@ namespace
 			ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 		}
 
-		const float padding = 13.0f;
-		const float contentWidth = size.x - padding * 2.0f;
 		ImFont* font = ImGui::GetFont();
 		const float fontSize = ImGui::GetFontSize();
 		char text[160]{};
 
-		drawList->PushClipRect(position, cardMax, true);
-		if (!detailsVisible)
+		const auto addText = [drawList, font](
+			float textSize,
+			const ImVec2& textPosition,
+			ImU32 color,
+			const char* value,
+			float wrapWidth = 0.0f)
 		{
-			sprintf_s(text, "[%s] %s",
-				GetPlayerBallAbilityName(ball),
-				PlayerBallText::GetRoles(ball.definitionId));
+			if (value == nullptr)
+			{
+				return;
+			}
 			drawList->AddText(
 				font,
-				fontSize * 0.76f,
-				ImVec2(position.x + padding, position.y + 12.0f),
-				IM_COL32(224, 231, 242, 255),
-				text);
-			const ImVec2 ballCenter(position.x + 30.0f, position.y + 54.0f);
-			drawList->AddCircleFilled(ballCenter, 18.0f, IM_COL32(3, 7, 12, 210), 28);
-			drawList->AddCircleFilled(ballCenter, 14.0f, accent, 28);
-			drawList->AddCircle(ballCenter, 18.0f, accent, 28, 2.0f);
-			drawList->AddText(
-				font,
-				fontSize * 0.95f,
-				ImVec2(position.x + 56.0f, position.y + 42.0f),
-				IM_COL32(255, 255, 255, 255),
-				PlayerBallText::GetName(ball.definitionId));
-			sprintf_s(text, PlayerBallText::Utf8(u8"攻撃力：%d"), attack);
-			drawList->AddText(
-				font,
-				fontSize * 0.78f,
-				ImVec2(position.x + 56.0f, position.y + 65.0f),
-				IM_COL32(241, 224, 158, 255),
-				text);
-			drawList->AddText(
-				font,
-				fontSize * 0.71f,
-				ImVec2(position.x + padding, position.y + 91.0f),
-				IM_COL32(184, 195, 211, 255),
-				PlayerBallText::GetShortDescription(ball.definitionId),
+				textSize,
+				ImVec2(textPosition.x + 1.0f, textPosition.y + 1.0f),
+				IM_COL32(0, 0, 0, 210),
+				value,
 				nullptr,
-				contentWidth);
-			const char* stateText = selected
-				? PlayerBallText::Utf8(u8"選択中")
-				: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
-			const ImVec2 stateSize = ImGui::CalcTextSize(stateText);
+				wrapWidth);
 			drawList->AddText(
-				ImVec2(cardMax.x - stateSize.x - 10.0f, cardMax.y - 20.0f),
-				selected
-					? IM_COL32(255, 221, 118, 255)
-					: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(145, 156, 174, 230)),
-				stateText);
-			drawList->PopClipRect();
-			ImGui::PopID();
-			return interaction;
-		}
+				font,
+				textSize,
+				textPosition,
+				color,
+				value,
+				nullptr,
+				wrapWidth);
+		};
+		const auto addCenteredTextInRegion = [&](
+			float requestedTextSize,
+			const ImVec2& regionMinimum,
+			const ImVec2& regionMaximum,
+			float y,
+			ImU32 color,
+			const char* value)
+		{
+			const float availableWidth =
+				(std::max)(1.0f, regionMaximum.x - regionMinimum.x);
+			ImVec2 measured = font->CalcTextSizeA(
+				requestedTextSize,
+				(std::numeric_limits<float>::max)(),
+				0.0f,
+				value);
+			float textSize = requestedTextSize;
+			if (measured.x > availableWidth)
+			{
+				textSize = (std::max)(
+					requestedTextSize * 0.82f,
+					requestedTextSize * availableWidth / measured.x);
+				measured = font->CalcTextSizeA(
+					textSize,
+					(std::numeric_limits<float>::max)(),
+					0.0f,
+					value);
+			}
+			addText(
+				textSize,
+				ImVec2(
+					regionMinimum.x + (availableWidth - measured.x) * 0.5f,
+					y),
+				color,
+				value);
+		};
 
-		sprintf_s(text, "%d  [%s] %s", index + 1,
-			GetPlayerBallAbilityName(ball),
-			PlayerBallText::GetRoles(ball.definitionId));
-		drawList->AddText(
-			font,
-			fontSize * 0.83f,
-			ImVec2(position.x + padding, position.y + 13.0f),
-			IM_COL32(220, 230, 243, 255),
-			text);
+		drawList->PushClipRect(position, cardMax, true);
 
-		const ImVec2 ballCenter(position.x + 30.0f, position.y + 61.0f);
-		drawList->AddCircleFilled(ballCenter, 18.0f, IM_COL32(3, 7, 12, 210), 28);
-		drawList->AddCircleFilled(ballCenter, 14.0f, accent, 28);
-		drawList->AddCircle(ballCenter, 18.0f, accent, 28, 2.0f);
-
-		drawList->AddText(
-			font,
-			fontSize * 1.05f,
-			ImVec2(position.x + 55.0f, position.y + 48.0f),
+		const ImVec2 titleMinimum(
+			position.x + size.x * textLayout.titleSideInset,
+			position.y + size.y * textLayout.titleTop);
+		const ImVec2 titleMaximum(
+			cardMax.x - size.x * textLayout.titleSideInset,
+			position.y + size.y * textLayout.titleBottom);
+		drawList->PushClipRect(titleMinimum, titleMaximum, true);
+		addCenteredTextInRegion(
+			fontSize * 0.92f * readableScale,
+			titleMinimum,
+			titleMaximum,
+			position.y + size.y * textLayout.nameY,
 			IM_COL32(255, 255, 255, 255),
 			PlayerBallText::GetName(ball.definitionId));
-		sprintf_s(text, "Lv.%d  /  No.%llu", ball.upgradeLevel,
-			static_cast<unsigned long long>(ball.instanceId));
-		drawList->AddText(
-			font,
-			fontSize * 0.72f,
-			ImVec2(position.x + 55.0f, position.y + 70.0f),
-			IM_COL32(158, 171, 191, 255),
-			text);
-
-		// 数値を埋め込む文もUTF-8の書式文字列を使い、ImGuiへ渡す。
 		sprintf_s(
 			text,
-			PlayerBallText::Utf8(u8"攻撃力：%d"),
-			attack);
-		drawList->AddText(
-			font,
-			fontSize * 0.83f,
-			ImVec2(position.x + padding, position.y + 94.0f),
-			IM_COL32(238, 242, 248, 255),
+			"[%s] %s",
+			GetPlayerBallAbilityName(ball),
+			PlayerBallText::GetRoles(ball.definitionId));
+		addCenteredTextInRegion(
+			fontSize * 0.66f * readableScale,
+			titleMinimum,
+			titleMaximum,
+			position.y + size.y * textLayout.categoryY,
+			IM_COL32(220, 230, 243, 255),
 			text);
-		sprintf_s(
-			text,
-			PlayerBallText::Utf8(u8"重さ %.1f   大きさ %.1f"),
-			ball.status.mass,
-			ball.status.radius);
-		drawList->AddText(
+		drawList->PopClipRect();
 
-			font,
-			fontSize * 0.75f,
-			ImVec2(position.x + padding, position.y + 115.0f),
-			IM_COL32(176, 188, 205, 255),
-			text);
-
-		drawList->AddLine(
-			ImVec2(position.x + padding, position.y + 139.0f),
-			ImVec2(cardMax.x - padding, position.y + 139.0f),
-			IM_COL32(83, 94, 113, 180));
-		drawList->AddText(
-			font,
-			fontSize * 0.78f,
-			ImVec2(position.x + padding, position.y + 149.0f),
-			IM_COL32(249, 224, 139, 255),
-			GetPlayerBallAimHint(ball.definitionId),
-			nullptr,
-			contentWidth);
-
-		if (size.y >= 252.0f && size.x >= 190.0f)
+		if (detailsVisible)
 		{
-			drawList->AddText(
-				font,
-				fontSize * 0.68f,
-				ImVec2(position.x + padding, position.y + 190.0f),
-				IM_COL32(171, 181, 197, 255),
-				PlayerBallText::GetDescription(ball.definitionId),
-				nullptr,
-				contentWidth);
+			sprintf_s(
+				text,
+				"Lv.%d / No.%llu",
+				ball.upgradeLevel,
+				static_cast<unsigned long long>(ball.instanceId));
+			const ImVec2 metadataMinimum(
+				position.x + size.x * 0.22f,
+				position.y + size.y * textLayout.metadataTop);
+			const ImVec2 metadataMaximum(
+				cardMax.x - size.x * 0.22f,
+				position.y + size.y * textLayout.metadataBottom);
+			drawList->PushClipRect(
+				metadataMinimum,
+				metadataMaximum,
+				true);
+			addCenteredTextInRegion(
+				fontSize * 0.58f * readableScale,
+				metadataMinimum,
+				metadataMaximum,
+				position.y + size.y * 0.165f,
+				IM_COL32(174, 188, 207, 255),
+				text);
+			drawList->PopClipRect();
 		}
+
+		const ImVec2 descriptionMinimum(
+			position.x + size.x * textLayout.descriptionSideInset,
+			position.y + size.y * textLayout.descriptionTop);
+		const ImVec2 descriptionMaximum(
+			cardMax.x - size.x * textLayout.descriptionSideInset,
+			footerPosition.y - 3.0f * layoutScale);
+		const float descriptionPadding = size.x * 0.025f;
+		const float descriptionTextLeft =
+			descriptionMinimum.x + descriptionPadding;
+		const float descriptionTextRight =
+			descriptionMaximum.x - descriptionPadding;
+		const float descriptionTextWidth = (std::max)(
+			1.0f,
+			descriptionTextRight - descriptionTextLeft);
+		drawList->AddRectFilled(
+			descriptionMinimum,
+			descriptionMaximum,
+			IM_COL32(2, 11, 15, 168),
+			7.0f * layoutScale);
+		drawList->PushClipRect(descriptionMinimum, descriptionMaximum, true);
+
+		sprintf_s(text, PlayerBallText::Utf8(u8"攻撃力：%d"), attack);
+		addText(
+			fontSize * 0.76f * readableScale,
+			ImVec2(descriptionTextLeft, position.y + size.y * 0.655f),
+			IM_COL32(247, 229, 163, 255),
+			text);
+		drawList->AddLine(
+			ImVec2(descriptionTextLeft, position.y + size.y * 0.710f),
+			ImVec2(descriptionTextRight, position.y + size.y * 0.710f),
+			IM_COL32(92, 111, 121, 190),
+			1.0f * layoutScale);
+
+		if (detailsVisible)
+		{
+			addText(
+				fontSize * 0.62f * readableScale,
+				ImVec2(descriptionTextLeft, position.y + size.y * 0.725f),
+				IM_COL32(255, 225, 132, 255),
+				GetPlayerBallAimHint(ball.definitionId),
+				descriptionTextWidth);
+			addText(
+				fontSize * 0.58f * readableScale,
+				ImVec2(descriptionTextLeft, position.y + size.y * 0.815f),
+				IM_COL32(210, 222, 230, 255),
+				PlayerBallText::GetShortDescription(ball.definitionId),
+				descriptionTextWidth);
+		}
+		else
+		{
+			addText(
+				fontSize * 0.62f * readableScale,
+				ImVec2(descriptionTextLeft, position.y + size.y * 0.735f),
+				IM_COL32(216, 228, 235, 255),
+				PlayerBallText::GetShortDescription(ball.definitionId),
+				descriptionTextWidth);
+		}
+		drawList->PopClipRect();
 
 		const ImU32 footerBackground = selected
 			? IM_COL32(184, 137, 38, 235)
-			: (held ? IM_COL32(23, 122, 116, 245)
-				: (footerHovered ? IM_COL32(58, 74, 96, 245) : IM_COL32(35, 45, 60, 240)));
+			: (held
+				? IM_COL32(23, 122, 116, 245)
+				: (footerHovered
+					? IM_COL32(58, 74, 96, 245)
+					: IM_COL32(12, 31, 39, 232)));
 		drawList->AddRectFilled(
 			footerPosition,
 			cardMax,
 			footerBackground,
 			cornerRadius,
 			ImDrawFlags_RoundCornersBottom);
-		const char* footerText = selected
-			? PlayerBallText::Utf8(u8"今回使用")
-			: (held
-				? PlayerBallText::Utf8(u8"ホールド解除")
-				: PlayerBallText::Utf8(u8"ホールド"));
-		const ImVec2 footerTextSize = ImGui::CalcTextSize(footerText);
-		drawList->AddText(
+		const char* footerText = detailsVisible
+			? (selected
+				? PlayerBallText::Utf8(u8"今回使用")
+				: (held
+					? PlayerBallText::Utf8(u8"ホールド解除")
+					: PlayerBallText::Utf8(u8"ホールド")))
+			: (selected
+				? PlayerBallText::Utf8(u8"選択中")
+				: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札")));
+		const float footerFontSize = fontSize * 0.78f * readableScale;
+		const ImVec2 footerTextSize = font->CalcTextSizeA(
+			footerFontSize,
+			(std::numeric_limits<float>::max)(),
+			0.0f,
+			footerText);
+		addText(
+			footerFontSize,
 			ImVec2(
 				position.x + (size.x - footerTextSize.x) * 0.5f,
 				footerPosition.y + (footerHeight - footerTextSize.y) * 0.5f),
 			IM_COL32(255, 255, 255, 255),
 			footerText);
 
-		if (selected || held)
-		{
-			const char* badgeText = selected ? "SELECT" : "HOLD";
-			const ImVec2 badgeSize = ImGui::CalcTextSize(badgeText);
-			const ImVec2 badgeMin(cardMax.x - badgeSize.x - 20.0f, position.y + 11.0f);
-			const ImVec2 badgeMax(cardMax.x - 8.0f, position.y + 11.0f + badgeSize.y + 8.0f);
-			drawList->AddRectFilled(
-				badgeMin,
-				badgeMax,
-				selected ? IM_COL32(220, 164, 51, 255) : IM_COL32(31, 151, 142, 255),
-				6.0f);
-			drawList->AddText(
-				ImVec2(badgeMin.x + 6.0f, badgeMin.y + 4.0f),
-				IM_COL32(255, 255, 255, 255),
-				badgeText);
-		}
-
 		drawList->PopClipRect();
 		ImGui::PopID();
 		return interaction;
 	}
-
 	void DrawTermTooltip(const char* term, const char* explanation)
 	{
 		ImGui::TextColored(ImVec4(0.72f, 0.84f, 1.0f, 1.0f), "%s (?)", term);
@@ -1125,6 +1471,7 @@ void Game::Init()
 	}
 	// 描画処理を初期化
 	Renderer::Init();
+	GetBallCardArtResources().Load();
 	m_Instance->m_SettingsRuntime->Initialize();
 	const bool allowGeneratedAudioTestTones =
 		std::wstring(GetCommandLineW()).find(L"--audio-test-tones") !=
@@ -1857,6 +2204,16 @@ void Game::Draw()
 	}
 
 	m_Instance->m_DebugController->DrawDiagnostics(*m_Instance);
+	ImGui::EndDisabled();
+
+	// Submit world-linked presentation before interactive card windows so an
+	// expanded card always remains the foremost readable combat element.
+	if (m_Instance->m_GamePresentation != nullptr)
+	{
+		m_Instance->m_GamePresentation->Draw(*m_Instance);
+	}
+
+	ImGui::BeginDisabled(m_Instance->IsPaused() || m_Instance->m_DebugController->IsEditorOpen());
 	if (dynamic_cast<BattleScene*>(m_Instance->GetCurrentScene()) != nullptr &&
 		m_Instance->m_RunController->Deck().GetOfferCount() > 0)
 	{
@@ -1872,11 +2229,6 @@ void Game::Draw()
 	}
 
 	ImGui::EndDisabled();
-
-	if (m_Instance->m_GamePresentation != nullptr)
-	{
-		m_Instance->m_GamePresentation->Draw(*m_Instance);
-	}
 
 	m_Instance->DrawDebugMode();
 	if (m_Instance->IsPaused() && !m_Instance->m_DebugController->IsEditorOpen())
@@ -2191,6 +2543,7 @@ void Game::Uninit()
 	Input::Release();
 
 	// 描画処理を終了
+	GetBallCardArtResources().Reset();
 	Renderer::Uninit();
 
 	// インスタンスを削除
@@ -3425,8 +3778,9 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		70.0f,
 		132.0f);
 	const float gap = 14.0f;
-	const float collapsedCardHeight = 158.0f;
-	const float expandedCardHeight = std::clamp(
+	constexpr float cardAspectRatio = 3.0f / 4.0f;
+	constexpr float collapsedCardScale = 0.72f;
+	const float expandedCardHeightLimit = std::clamp(
 		viewport->WorkSize.y * 0.43f,
 		270.0f,
 		330.0f);
@@ -3436,8 +3790,16 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		(viewport->WorkSize.x - horizontalPadding * 2.0f -
 			gap * static_cast<float>((std::max)(0, offerCount - 1))) /
 		static_cast<float>(offerCount);
-	const float cardWidth = (std::min)(252.0f, availableCardWidth);
-	const float cardsWidth = cardWidth * static_cast<float>(offerCount) +
+	const float expandedCardWidth = (std::min)(
+		(std::min)(252.0f, availableCardWidth),
+		expandedCardHeightLimit * cardAspectRatio);
+	const ImVec2 expandedCardSize(
+		expandedCardWidth,
+		expandedCardWidth / cardAspectRatio);
+	const ImVec2 collapsedCardSize(
+		expandedCardSize.x * collapsedCardScale,
+		expandedCardSize.y * collapsedCardScale);
+	const float cardsWidth = expandedCardSize.x * static_cast<float>(offerCount) +
 		gap * static_cast<float>((std::max)(0, offerCount - 1));
 	const float cardsStartX = viewport->WorkPos.x +
 		(viewport->WorkSize.x - cardsWidth) * 0.5f;
@@ -3447,37 +3809,50 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		value = std::clamp(value, 0.0f, 1.0f);
 		return value * value * (3.0f - 2.0f * value);
 	};
-	const auto cardHeightFor = [&](float expansion)
+	const auto cardScaleFor = [&](float expansion)
 	{
-		return collapsedCardHeight +
-			(expandedCardHeight - collapsedCardHeight) *
-			easedExpansion(expansion);
+		return collapsedCardScale +
+			(1.0f - collapsedCardScale) * easedExpansion(expansion);
+	};
+	const auto cardSizeFor = [&](float expansion)
+	{
+		const float scale = cardScaleFor(expansion);
+		return ImVec2(
+			expandedCardSize.x * scale,
+			expandedCardSize.y * scale);
 	};
 
 	const ImVec2 mousePosition = ImGui::GetIO().MousePos;
 	const float animationStep =
 		(std::min)(ImGui::GetIO().DeltaTime, 0.05f) * 8.5f;
-	float tallestCardHeight = collapsedCardHeight;
+	float tallestCardHeight = collapsedCardSize.y;
+	int frontCardIndex = -1;
 	for (int index = 0;
 		index < offerCount && index < static_cast<int>(m_BallCardExpansion.size());
 		index++)
 	{
 		float& expansion = m_BallCardExpansion[static_cast<std::size_t>(index)];
-		const float currentHeight = cardHeightFor(expansion);
-		const float cardLeft = cardsStartX +
-			static_cast<float>(index) * (cardWidth + gap);
+		const ImVec2 currentSize = cardSizeFor(expansion);
+		const float slotLeft = cardsStartX +
+			static_cast<float>(index) * (expandedCardSize.x + gap);
+		const float cardLeft = slotLeft +
+			(expandedCardSize.x - currentSize.x) * 0.5f;
 		const bool hovered =
 			mousePosition.x >= cardLeft &&
-			mousePosition.x <= cardLeft + cardWidth &&
-			mousePosition.y >= cardBottom - currentHeight &&
+			mousePosition.x <= cardLeft + currentSize.x &&
+			mousePosition.y >= cardBottom - currentSize.y &&
 			mousePosition.y <= cardBottom;
+		if (hovered)
+		{
+			frontCardIndex = index;
+		}
 		expansion = std::clamp(
 			expansion + (hovered ? animationStep : -animationStep),
 			0.0f,
 			1.0f);
 		tallestCardHeight = (std::max)(
 			tallestCardHeight,
-			cardHeightFor(expansion));
+			cardSizeFor(expansion).y);
 	}
 	for (std::size_t index = static_cast<std::size_t>((std::min)(offerCount, 4));
 		index < m_BallCardExpansion.size();
@@ -3512,19 +3887,19 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	drawList->AddRectFilledMultiColor(
-		ImVec2(panelPosition.x, cardBottom - collapsedCardHeight - 16.0f),
+		ImVec2(panelPosition.x, cardBottom - collapsedCardSize.y - 16.0f),
 		ImVec2(panelPosition.x + viewport->WorkSize.x, cardBottom + 12.0f),
 		IM_COL32(5, 9, 15, 0),
 		IM_COL32(5, 9, 15, 0),
 		IM_COL32(5, 9, 15, 218),
 		IM_COL32(5, 9, 15, 218));
 
-	for (int index = 0; index < offerCount; index++)
+	const auto drawCard = [&](int index)
 	{
 		const PlayerBallData* ball = model.offers[static_cast<std::size_t>(index)];
 		if (ball == nullptr)
 		{
-			continue;
+			return;
 		}
 
 		const bool selected = intent.selectedOfferIndex == index;
@@ -3532,16 +3907,18 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		const float expansion = index < static_cast<int>(m_BallCardExpansion.size())
 			? m_BallCardExpansion[static_cast<std::size_t>(index)]
 			: 0.0f;
-		const float cardHeight = cardHeightFor(expansion);
+		const ImVec2 cardSize = cardSizeFor(expansion);
+		const float slotLeft = cardsStartX +
+			static_cast<float>(index) * (expandedCardSize.x + gap);
 		const ImVec2 cardPosition(
-			cardsStartX + static_cast<float>(index) * (cardWidth + gap),
-			cardBottom - cardHeight);
+			slotLeft + (expandedCardSize.x - cardSize.x) * 0.5f,
+			cardBottom - cardSize.y);
 		const BallCardInteraction interaction = DrawBallSelectionCard(
 			*ball,
 			index,
 			model.effectiveAttacks[static_cast<std::size_t>(index)],
 			cardPosition,
-			ImVec2(cardWidth, cardHeight),
+			cardSize,
 			selected,
 			held,
 			expansion);
@@ -3565,6 +3942,19 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		{
 			intent.selectedHoldIndex = held ? -1 : index;
 		}
+	};
+
+	// ホバー中のカードを最後にsubmitし、常に手前へ描画する。
+	for (int index = 0; index < offerCount; ++index)
+	{
+		if (index != frontCardIndex)
+		{
+			drawCard(index);
+		}
+	}
+	if (frontCardIndex >= 0 && frontCardIndex < offerCount)
+	{
+		drawCard(frontCardIndex);
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_Appearing);

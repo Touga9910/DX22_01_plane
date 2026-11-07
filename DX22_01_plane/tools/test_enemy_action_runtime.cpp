@@ -1,5 +1,6 @@
 #include "../EnemyActionPlanner.h"
 #include "../EnemyChargeRules.h"
+#include "../EnemyBoardAbilityRules.h"
 
 #include <SimpleMath.h>
 
@@ -44,6 +45,20 @@ namespace
 
 int main()
 {
+	const std::array<int, 3> swarmAttack{ 1, 2, 3 };
+	assert(EnemyBoardAbilityRules::SwarmStage(0) == 0);
+	assert(EnemyBoardAbilityRules::SwarmStage(1) == 0);
+	assert(EnemyBoardAbilityRules::SwarmStage(2) == 1);
+	assert(EnemyBoardAbilityRules::SwarmStage(3) == 1);
+	assert(EnemyBoardAbilityRules::SwarmStage(4) == 2);
+	assert(EnemyBoardAbilityRules::SwarmStage(10) == 2);
+	assert(EnemyBoardAbilityRules::SwarmAttack(8, swarmAttack, 3) == 3);
+	assert(!EnemyBoardAbilityRules::QualifiesForBrittle(5.99f, 6.0f));
+	assert(EnemyBoardAbilityRules::QualifiesForBrittle(6.0f, 6.0f));
+	assert(EnemyBoardAbilityRules::ApplyProtectionReduction(3, 1) == 2);
+	assert(EnemyBoardAbilityRules::ApplyProtectionReduction(1, 1) == 0);
+	assert(EnemyBoardAbilityRules::ApplyProtectionReduction(0, 1) == 0);
+
     EnemyActionPlanner planner;
     const std::filesystem::path configPath =
         std::filesystem::path(__FILE__).parent_path().parent_path() /

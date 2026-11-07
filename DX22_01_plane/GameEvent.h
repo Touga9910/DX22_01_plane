@@ -173,6 +173,23 @@ struct ChargeInterruptedEvent
 	std::string targetEnemyId;
 };
 
+// A gameplay-side board-dependent enemy state changed. The event contains
+// only the resolved fact; presentation never re-evaluates ranges or impacts.
+struct EnemyAbilityStateChangedEvent
+{
+	DirectX::SimpleMath::Vector3 worldPosition{};
+	std::uintptr_t targetKey = 0;
+	std::string targetEnemyId;
+	std::string abilityId;
+	std::string reason;
+	int previousStage = 0;
+	int currentStage = 0;
+	int previousAttack = 0;
+	int currentAttack = 0;
+	int nearbyLivingAllies = 0;
+	float collisionSpeed = 0.0f;
+};
+
 // 物理停止とEndOfShot効果の確定後に1回だけ発行する表示用スナップショット。
 struct ShotResolvedEvent
 {
@@ -205,5 +222,6 @@ using GameEvent = std::variant<
 	AxisResourceChangedEvent,
 	AxisAbilityResolvedEvent,
 	ChargeInterruptedEvent,
+	EnemyAbilityStateChangedEvent,
 	ShotResolvedEvent,
 	BallAcquiredEvent>;

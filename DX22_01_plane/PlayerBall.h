@@ -112,6 +112,15 @@ public:
 	{
 		return m_TrajectoryPositions;
 	}
+	bool IsPowerDragging() const noexcept { return m_IsPowerDragging; }
+	float GetShotPower() const noexcept { return m_ShotPower; }
+	float GetShotPowerRatio() const noexcept
+	{
+		const float range = m_MaxShotPower - m_MinShotPower;
+		return range > 0.0f
+			? std::clamp((m_ShotPower - m_MinShotPower) / range, 0.0f, 1.0f)
+			: 0.0f;
+	}
 	BallComponent* GetBall() const { return m_Ball; }
 
 	//=======================================
@@ -281,6 +290,7 @@ private:
 
 	std::uint64_t m_LastPreviewWorldKey = 0;
 	bool m_PreviewComplete = false;
+	float m_PreviewReachableDistance = 0.0f;
 
 	//=======================================
 	// 弾道予測描画

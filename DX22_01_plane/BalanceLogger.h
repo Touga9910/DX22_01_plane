@@ -184,9 +184,13 @@ public:
 	{
 		return m_LatestShotBounceTelemetry;
 	}
+	const nlohmann::json& GetBalanceMetadata() const
+	{
+		return m_BalanceMetadata;
+	}
 
 private:
-	BalanceLogger() = default;
+	BalanceLogger();
 
 	void Save();
 	nlohmann::json* GetCurrentStage();
@@ -195,6 +199,7 @@ private:
 	static std::string MakeUtcTimestamp();
 	static std::string MakeRunId();
 	static double CalculateShotScore(int collisionEffect);
+	static nlohmann::json LoadBalanceMetadata();
 	static nlohmann::json MakeConfigurationSnapshot();
 	static nlohmann::json MakeFileFingerprint(
 		const std::filesystem::path& path);
@@ -208,6 +213,7 @@ private:
 	nlohmann::json m_LatestShotPhysicsTelemetry;
 	nlohmann::json m_LatestShotPierceAttackTelemetry;
 	nlohmann::json m_LatestShotBounceTelemetry;
+	nlohmann::json m_BalanceMetadata;
 	std::filesystem::path m_LogPath;
 	ShotPhysicsTelemetry m_ShotPhysicsTelemetry;
 	PierceAttackTelemetry m_PierceAttackTelemetry;

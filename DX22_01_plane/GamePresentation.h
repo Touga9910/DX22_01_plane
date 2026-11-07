@@ -15,6 +15,7 @@ class Game;
 struct CollisionImpactEvent;
 struct AxisResourceChangedEvent;
 struct AxisAbilityResolvedEvent;
+struct EnemyAbilityStateChangedEvent;
 struct ShotResolvedEvent;
 enum class ChargeInterruptReason;
 struct PlayerBallData;
@@ -153,6 +154,8 @@ public:
 	void OnChargeInterrupted(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		ChargeInterruptReason reason);
+	void OnEnemyAbilityStateChanged(
+		const EnemyAbilityStateChangedEvent& event);
 	void OnAxisResourceChanged(const AxisResourceChangedEvent& event);
 	void OnAxisAbilityResolved(const AxisAbilityResolvedEvent& event);
 	void OnShotResolved(const ShotResolvedEvent& event);
@@ -217,6 +220,13 @@ private:
 		float damageHold = 0.0f;
 	};
 
+	struct EnemyInfoLayoutVisual
+	{
+		std::uintptr_t targetKey = 0;
+		DirectX::SimpleMath::Vector2 position{};
+		bool initialized = false;
+	};
+
 	struct DashboardMetric
 	{
 		std::string id;
@@ -240,6 +250,41 @@ private:
 		std::string judgement;
 	};
 
+	struct DashboardVersionData
+	{
+		std::string version;
+		std::string lastMeasuredAt;
+		std::string configurationFingerprint;
+		std::string conditionSignature;
+		std::string conditionSummary;
+		std::string historyReason;
+		std::string historyTarget;
+		bool hasData = false;
+		bool current = false;
+		bool smallSampleWarning = false;
+		bool mixedConfigurationWarning = false;
+		bool heterogeneousConditionsWarning = false;
+		int runCount = 0;
+		int terminalRunCount = 0;
+		int totalShotCount = 0;
+		float clearRate = 0.0f;
+		float averageDamage = 0.0f;
+		float averageShots = 0.0f;
+		float averageBattleTurns = 0.0f;
+		float reflectionSuccessRate = 0.0f;
+		bool hasClearRate = false;
+		bool hasAverageDamage = false;
+		bool hasAverageShots = false;
+		bool hasAverageBattleTurns = false;
+		bool hasReflectionSuccessRate = false;
+		std::array<int, 4> axisGained{};
+		std::array<int, 4> axisConsumed{};
+		std::array<int, 4> axisFinishers{};
+		std::array<bool, 4> hasAxisGained{};
+		std::array<bool, 4> hasAxisConsumed{};
+		std::array<bool, 4> hasAxisFinishers{};
+	};
+
 	struct DashboardData
 	{
 		bool loaded = false;
@@ -247,6 +292,12 @@ private:
 		std::string generatedAt;
 		std::string warning;
 		std::string judgement;
+		std::string currentBalanceVersion;
+		std::string selectedBalanceVersion;
+		std::string latestMeasuredBalanceVersion;
+		bool currentVersionHasData = false;
+		int selectedVersionIndex = 0;
+		int comparisonVersionIndex = -1;
 		int analyzedRuns = 0;
 		int balanceSamples = 0;
 		float balanceScore = 0.0f;
@@ -256,6 +307,7 @@ private:
 		float averageMoneyPerRun = 0.0f;
 		std::vector<DashboardMetric> metrics;
 		std::vector<StageSummary> stages;
+		std::vector<DashboardVersionData> versions;
 	};
 
 	void StartTutorial(bool replay);
@@ -312,6 +364,7 @@ private:
 	DeckListView m_DeckListView = DeckListView::All;
 	std::vector<FloatingFeedback> m_Feedback;
 	std::vector<EnemyHpVisual> m_EnemyHpVisuals;
+	std::vector<EnemyInfoLayoutVisual> m_EnemyInfoLayouts;
 	CollisionVfxSystem m_CollisionVfx;
 	unsigned long long m_PresentationFrame = 0;
 	float m_PresentationTimeSeconds = 0.0f;

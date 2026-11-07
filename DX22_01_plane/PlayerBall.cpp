@@ -778,20 +778,49 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 			std::chrono::duration<double, std::milli>(
 				std::chrono::steady_clock::now() - predictionStarted).count());
 	}
-    m_PrePositions.clear();
-	const Game* game = Game::GetInstance();
-	const PlayerBallData* previewBall = game != nullptr
-		? game->GetCurrentPlayerBallData()
-		: nullptr;
-	if (previewBall == nullptr && game != nullptr)
-		previewBall = game->GetBallOffer(game->GetSelectedBallOfferIndex());
-	const std::size_t previewReflections =
-		previewBall != nullptr && previewBall->category == BallCategory::Bounce
-			? 1u
-			: 0u;
-    const auto previewPoints = prediction.PreviewPointCount(previewReflections);
-    for (std::size_t i = 0; i < previewPoints; ++i)
-        m_PrePositions.push_back({ prediction.path[i], 0, 1.0f });
+	m_PrePositions.clear();
+	constexpr std::size_t previewReflections = 0u;
+	const auto previewPoints = prediction.PreviewPointCount(previewReflections);
+	const bool currentPowerReachesContact =
+		prediction.PreviewReachesLimit(previewReflections);
+	auto pathDistance = [](const auto& path, std::size_t pointCount)
+	{
+		float distance = 0.0f;
+		for (std::size_t index = 1; index < pointCount; ++index)
+		{
+			distance += (path[index] - path[index - 1]).Length();
+		}
+		return distance;
+	};
+	m_PreviewReachableDistance = pathDistance(prediction.path, previewPoints);
+
+	const BallShotPrediction::Result* displayedPrediction = &prediction;
+	std::size_t displayedPoints = previewPoints;
+	BallShotPrediction::Result maximumPowerPrediction;
+	if (!currentPowerReachesContact && initialVelocity.LengthSquared() > 0.0001f)
+	{
+		Vector3 direction = initialVelocity;
+		direction.Normalize();
+		maximumPowerPrediction = GameShotPrediction::Predict(
+			*this,
+			direction * m_MaxShotPower,
+			true);
+		const std::size_t maximumPoints =
+			maximumPowerPrediction.PreviewPointCount(previewReflections);
+		const float maximumDistance = pathDistance(
+			maximumPowerPrediction.path,
+			maximumPoints);
+		if (maximumPowerPrediction.PreviewReachesLimit(previewReflections) ||
+			maximumDistance > m_PreviewReachableDistance)
+		{
+			displayedPrediction = &maximumPowerPrediction;
+			displayedPoints = maximumPoints;
+		}
+	}
+	for (std::size_t index = 0; index < displayedPoints; ++index)
+	{
+		m_PrePositions.push_back({ displayedPrediction->path[index], 0, 1.0f });
+	}
     // Keep the original aiming-only display: no reflected player trajectory,
     // just a short direction guide for the ball at the first blocking contact.
     m_PreviewHitBall = prediction.initialContactGuide.hitBall;
@@ -799,8 +828,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
     m_PreviewGhostBallPosition = prediction.initialContactGuide.playerPosition;
     m_PreviewHitBallPosition = prediction.initialContactGuide.ballPosition;
     m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
-    m_PreviewComplete = prediction.PreviewReachesLimit(previewReflections) ||
-        (prediction.complete && !prediction.pathTruncated);
+	m_PreviewComplete = currentPowerReachesContact;
 	m_LastPreviewWorldKey = GameShotPrediction::WorldKey();
 }
 
@@ -856,23 +884,27 @@ void PlayerBall::DrawTrajectoryLine()
 	const float OBJECT_LINE_THICKNESS = 0.32f;
 	const float OBJECT_LINE_LENGTH = 10.0f;
 
-    float startTrim = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
+	float startTrim = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
+	float traveledDistance = 0.0f;
 	for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
 	{
 		Vector3 start = m_PrePositions[i].position;
 		Vector3 end = m_PrePositions[i + 1].position;
 
-        Vector3 direction = end - start;
-        const float length = direction.Length();
-        if (length <= startTrim) { startTrim -= length; continue; }
-        if (startTrim > 0.0f) { start += direction * (startTrim / length); startTrim = 0.0f; }
-        // A dashed tail identifies a bounded/incomplete prediction.
-        if (!m_PreviewComplete && i > m_PrePositions.size() * 3 / 4 && i % 2 == 0) continue;
+		Vector3 direction = end - start;
+		const float length = direction.Length();
+		const float segmentStartDistance = traveledDistance;
+		traveledDistance += length;
+		if (length <= startTrim) { startTrim -= length; continue; }
+		if (startTrim > 0.0f) { start += direction * (startTrim / length); startTrim = 0.0f; }
+		const bool directionOnly =
+			!m_PreviewComplete && segmentStartDistance >= m_PreviewReachableDistance - 0.001f;
+		if (directionOnly && i % 2 == 0) continue;
 
 		DrawGuideSegment(
 			start,
 			end,
-			MAIN_LINE_THICKNESS,
+			directionOnly ? MAIN_LINE_THICKNESS * 0.72f : MAIN_LINE_THICKNESS,
 			Y_OFFSET,
 			0);
 	}

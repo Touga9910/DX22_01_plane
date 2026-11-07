@@ -1793,6 +1793,8 @@ nlohmann::json GameMcpBridge::BuildState(
 		BalanceLogger::GetInstance().GetLatestShotPierceAttackTelemetry();
 	state["latest_shot_bounce_axis"] =
 		BalanceLogger::GetInstance().GetLatestShotBounceTelemetry();
+	state["balance_metadata"] =
+		BalanceLogger::GetInstance().GetBalanceMetadata();
 	for (const auto& trace : game.GetPierceTraceState().traces)
 	{
 		state["ball_synergies"]["pierce_traces"].push_back({

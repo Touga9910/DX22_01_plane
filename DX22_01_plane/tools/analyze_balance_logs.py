@@ -32,6 +32,9 @@ DEFAULT_LOG_DIRECTORY = Path("logs/balance")
 DEFAULT_TARGET_FILE = Path("assets/data/balance_targets.json")
 DEFAULT_OUTPUT_FILE = Path("logs/balance/balance_report.json")
 DEFAULT_FEEDBACK_DIRECTORY = Path("logs/balance_feedback")
+DEFAULT_BALANCE_REGISTRY = Path("assets/data/balance_version.json")
+LEGACY_BALANCE_VERSION = "Legacy/Unknown"
+SUPPORTED_RUN_SCHEMA_VERSIONS = {1, 2, 3, 4}
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,7 @@ class RunFilters:
     validation_variants: tuple[str, ...] = ()
     dynamic_balance_enabled: bool | None = None
     configuration_fingerprints: tuple[str, ...] = ()
+    balance_versions: tuple[str, ...] = ()
 
 
 LoadedRun = tuple[Path, dict[str, Any], dict[str, Any]]
@@ -84,6 +88,18 @@ def parse_arguments() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_FEEDBACK_DIRECTORY,
         help="Directory containing optional human playtest feedback.",
+    )
+    parser.add_argument(
+        "--balance-registry",
+        type=Path,
+        default=DEFAULT_BALANCE_REGISTRY,
+        help="Current balance version registry JSON.",
+    )
+    parser.add_argument(
+        "--balance-version",
+        action="append",
+        default=[],
+        help="Include only this explicit balance version. May be repeated.",
     )
     parser.add_argument(
         "--controller-type",
@@ -274,6 +290,13 @@ def extract_run_filter_values(run: dict[str, Any]) -> dict[str, Any]:
         dynamic_balance = None
 
     return {
+        "balance_version": (
+            str(run.get("balance_version", "")).strip()
+            or LEGACY_BALANCE_VERSION
+        ),
+        "balance_config_hash": str(
+            run.get("balance_config_hash", "")
+        ).strip(),
         "controller_type": str(
             controller.get(
                 "type",
@@ -311,6 +334,11 @@ def _filter_reasons(
 ) -> list[str]:
     reasons: list[str] = []
     checks = (
+        (
+            "balance_version",
+            values["balance_version"],
+            filters.balance_versions,
+        ),
         (
             "controller_type",
             values["controller_type"],
@@ -368,6 +396,7 @@ def _filters_to_json(filters: RunFilters) -> dict[str, Any]:
         "configuration_fingerprints": list(
             filters.configuration_fingerprints
         ),
+        "balance_versions": list(filters.balance_versions),
     }
 
 
@@ -381,6 +410,9 @@ def select_run_logs(
     requested_filters = filters or RunFilters()
     loaded: list[LoadedRun] = []
     invalid_file_count = 0
+    duplicate_file_count = 0
+    unsupported_schema_count = 0
+    seen_run_ids: set[str] = set()
 
     log_paths = (
         sorted(log_directory.glob("run_*.json"))
@@ -394,6 +426,24 @@ def select_run_logs(
             print(f"[skip] {log_path}: {error}")
             invalid_file_count += 1
             continue
+        schema_version = run.get("schema_version")
+        if schema_version is not None and (
+            not isinstance(schema_version, int)
+            or schema_version not in SUPPORTED_RUN_SCHEMA_VERSIONS
+        ):
+            print(
+                f"[skip unsupported schema] {log_path}: "
+                f"schema_version={schema_version!r}"
+            )
+            unsupported_schema_count += 1
+            continue
+        run_id = str(run.get("run_id", "")).strip()
+        if run_id and run_id in seen_run_ids:
+            print(f"[skip duplicate] {log_path}: run_id={run_id}")
+            duplicate_file_count += 1
+            continue
+        if run_id:
+            seen_run_ids.add(run_id)
         loaded.append((log_path, run, extract_run_filter_values(run)))
 
     resolved_latest_fingerprint = ""
@@ -418,6 +468,7 @@ def select_run_logs(
                 requested_filters.dynamic_balance_enabled
             ),
             configuration_fingerprints=(resolved_latest_fingerprint,),
+            balance_versions=requested_filters.balance_versions,
         )
 
     selected: list[LoadedRun] = []
@@ -426,6 +477,8 @@ def select_run_logs(
     selected_configurations: Counter[str] = Counter()
     selected_build_profiles: Counter[str] = Counter()
     selected_build_hashes: Counter[str] = Counter()
+    selected_balance_versions: Counter[str] = Counter()
+    selected_balance_hashes: Counter[str] = Counter()
     for item in loaded:
         values = item[2]
         fingerprint = str(values["configuration_fingerprint"])
@@ -441,6 +494,10 @@ def select_run_logs(
         ] += 1
         selected_build_hashes[
             str(values["build_profile_settings_hash"]) or "missing"
+        ] += 1
+        selected_balance_versions[str(values["balance_version"])] += 1
+        selected_balance_hashes[
+            str(values["balance_config_hash"]) or "missing"
         ] += 1
 
     warning = ""
@@ -460,6 +517,8 @@ def select_run_logs(
         "discovered_file_count": len(log_paths),
         "readable_file_count": len(loaded),
         "invalid_file_count": invalid_file_count,
+        "duplicate_file_count": duplicate_file_count,
+        "unsupported_schema_count": unsupported_schema_count,
         "matched_file_count": len(selected),
         "excluded_file_count": len(loaded) - len(selected),
         "excluded_by_condition": dict(sorted(exclusion_counts.items())),
@@ -481,6 +540,12 @@ def select_run_logs(
         ),
         "selected_build_profile_settings_hashes": dict(
             sorted(selected_build_hashes.items())
+        ),
+        "selected_balance_versions": dict(
+            sorted(selected_balance_versions.items())
+        ),
+        "selected_balance_config_hashes": dict(
+            sorted(selected_balance_hashes.items())
         ),
         "warning": warning,
     }
@@ -1398,6 +1463,464 @@ def apply_boss_revaluation_gate(
     }
 
 
+def _optional_mean(values: list[float]) -> float | None:
+    if not values:
+        return None
+    return round(statistics.fmean(values), 4)
+
+
+def calculate_observed_metrics(
+    runs: list[LoadedRun],
+) -> dict[str, Any]:
+    """版比較用の実測値を作る。存在しない項目はゼロでなく null にする。"""
+
+    terminal_runs: list[dict[str, Any]] = []
+    clear_count = 0
+    run_shot_counts: list[float] = []
+    stage_turn_counts: list[float] = []
+    shot_damage: list[float] = []
+    total_shots = 0
+    finisher_counts: Counter[str] = Counter()
+    axis_observed: Counter[str] = Counter()
+    axis_gained: Counter[str] = Counter()
+    axis_consumed: Counter[str] = Counter()
+    reflected_shots = 0
+    successful_reflected_shots = 0
+    board_events_observed = False
+    swarm_nearby_samples: list[float] = []
+    swarm_stage_change_count = 0
+    swarm_attack_reduction = 0
+    brittle_activation_count = 0
+    brittle_prevented_damage = 0
+    protection_activation_count = 0
+    protection_removal_count = 0
+    protection_reduction_count = 0
+    protection_prevented_damage = 0
+    board_enemy_appearances: Counter[str] = Counter()
+    board_enemy_defeats: Counter[str] = Counter()
+    board_enemy_stage_shots: Counter[str] = Counter()
+
+    for _, run, _ in runs:
+        run_result = run.get("run_result", {})
+        if not isinstance(run_result, dict):
+            run_result = {}
+        result = str(run_result.get("result", ""))
+        if result in TERMINAL_RUN_RESULTS:
+            terminal_runs.append(run)
+            if result in {"clear", "completed", "victory"}:
+                clear_count += 1
+
+        # Board-control events can occur both during physics and during the
+        # enemy action that follows EndShot. The root event stream contains
+        # both, while shot_events intentionally stops at EndShot. Read the
+        # root stream once so post-shot brittle consumption/damage is not
+        # silently omitted and in-shot events are not double counted.
+        root_events = run.get("events", [])
+        if not isinstance(root_events, list):
+            root_events = []
+        for event in root_events:
+            if not isinstance(event, dict):
+                continue
+            event_type = str(event.get("event_type", ""))
+            details = event.get("details", {})
+            if not isinstance(details, dict):
+                details = {}
+            if event_type == "enemy_swarm_sample":
+                board_events_observed = True
+                nearby = details.get("nearby_living_allies")
+                if isinstance(nearby, (int, float)) and not isinstance(
+                    nearby, bool
+                ):
+                    swarm_nearby_samples.append(float(nearby))
+            elif event_type == "enemy_board_ability_state_changed":
+                board_events_observed = True
+                ability_id = str(details.get("ability_id", ""))
+                reason = str(details.get("reason", ""))
+                previous_attack = details.get("previous_attack", 0)
+                current_attack = details.get("current_attack", 0)
+                if ability_id == "swarm_amplifier":
+                    swarm_stage_change_count += 1
+                    if isinstance(previous_attack, (int, float)) and isinstance(
+                        current_attack, (int, float)
+                    ):
+                        swarm_attack_reduction += max(
+                            0, int(previous_attack) - int(current_attack)
+                        )
+                elif ability_id == "impact_brittle" and reason == (
+                    "qualifying_wall_impact"
+                ):
+                    brittle_activation_count += 1
+                elif ability_id == "protection_resonance":
+                    if reason == "protection_applied":
+                        protection_activation_count += 1
+                    elif reason == "protection_removed":
+                        protection_removal_count += 1
+            elif event_type == "enemy_brittle_player_damage_reduced":
+                board_events_observed = True
+                brittle_prevented_damage += int(
+                    details.get("prevented_damage", 0)
+                )
+            elif event_type == "enemy_protection_damage_reduced":
+                board_events_observed = True
+                protection_reduction_count += 1
+                protection_prevented_damage += int(
+                    details.get("prevented_damage", 0)
+                )
+            elif event_type == "enemy_defeated":
+                enemy_id = str(details.get("enemy_id", ""))
+                if enemy_id.startswith("enemy_swarm_") or enemy_id in {
+                    "enemy_impact_brittle",
+                    "enemy_protection_resonator",
+                }:
+                    board_enemy_defeats[enemy_id] += 1
+
+        run_shots = 0
+        for stage in run.get("stages", []):
+            if not isinstance(stage, dict):
+                continue
+            stage_result = stage.get("stage_result", {})
+            if isinstance(stage_result, dict):
+                turns = stage_result.get("turn_count")
+                if isinstance(turns, (int, float)) and not isinstance(
+                    turns, bool
+                ):
+                    stage_turn_counts.append(float(turns))
+            stage_enemy_ids: set[str] = set()
+            stage_start = stage.get("stage_start", {})
+            if isinstance(stage_start, dict):
+                for enemy in stage_start.get("enemies", []):
+                    if not isinstance(enemy, dict):
+                        continue
+                    enemy_id = str(enemy.get("id", ""))
+                    if enemy_id.startswith("enemy_swarm_") or enemy_id in {
+                        "enemy_impact_brittle",
+                        "enemy_protection_resonator",
+                    }:
+                        board_enemy_appearances[enemy_id] += 1
+                        stage_enemy_ids.add(enemy_id)
+            shots = stage.get("shots", [])
+            if not isinstance(shots, list):
+                continue
+            run_shots += len(shots)
+            total_shots += len(shots)
+            for enemy_id in stage_enemy_ids:
+                board_enemy_stage_shots[enemy_id] += len(shots)
+            for shot in shots:
+                if not isinstance(shot, dict):
+                    continue
+                damage = shot.get("total_enemy_damage")
+                if isinstance(damage, (int, float)) and not isinstance(
+                    damage, bool
+                ):
+                    shot_damage.append(float(damage))
+                for axis, prefix in (
+                    ("heavy", "heavy_stacks"),
+                    ("pierce", "pierce_stacks"),
+                    ("reflection", "reflection_stacks"),
+                ):
+                    generated = shot.get(f"{prefix}_generated")
+                    consumed = shot.get(f"{prefix}_consumed")
+                    if isinstance(generated, (int, float)):
+                        axis_gained[axis] += int(generated)
+                        axis_observed[axis] += 1
+                    if isinstance(consumed, (int, float)):
+                        axis_consumed[axis] += int(consumed)
+                        axis_observed[axis] += 1
+
+                bounce = shot.get("bounce_axis", {})
+                if isinstance(bounce, dict) and bounce.get(
+                    "player_physical_reflection_count", 0
+                ) > 0:
+                    reflected_shots += 1
+                    if bool(bounce.get(
+                        "post_reflection_effective_attack_succeeded",
+                        False,
+                    )):
+                        successful_reflected_shots += 1
+
+                events = shot.get("shot_events", [])
+                if not isinstance(events, list):
+                    continue
+                for event in events:
+                    if not isinstance(event, dict):
+                        continue
+                    event_type = str(event.get("event_type", ""))
+                    details = event.get("details", {})
+                    if not isinstance(details, dict):
+                        details = {}
+                    if event_type == "anchor_stacks_generated":
+                        axis_gained["anchor"] += int(
+                            details.get("enemy_amount", 0)
+                        )
+                        axis_observed["anchor"] += 1
+                    if event_type in {
+                        "stop_shield_granted",
+                        "anchor_finisher_triggered",
+                        "defeated_enemy_anchor_converted",
+                    }:
+                        axis_consumed["anchor"] += int(
+                            details.get("consumed", 0)
+                        )
+                        axis_gained["anchor"] += int(
+                            details.get("player_anchor_generated", 0)
+                        )
+                        axis_observed["anchor"] += 1
+                    if "finisher" in event_type and (
+                        event_type.endswith("triggered")
+                        or event_type.endswith("hit")
+                    ):
+                        if event_type.startswith("heavy_"):
+                            finisher_counts["heavy"] += 1
+                        elif event_type.startswith("pierce_"):
+                            finisher_counts["pierce"] += 1
+                        elif event_type.startswith("anchor_"):
+                            finisher_counts["anchor"] += 1
+                        elif "ricochet" in event_type:
+                            finisher_counts["reflection"] += 1
+        if result in TERMINAL_RUN_RESULTS:
+            run_shot_counts.append(float(run_shots))
+
+    axis_metrics: dict[str, Any] = {}
+    for axis in ("heavy", "pierce", "reflection", "anchor"):
+        observed = axis_observed[axis] > 0
+        axis_metrics[axis] = {
+            "stacks_gained": axis_gained[axis] if observed else None,
+            "stacks_consumed": axis_consumed[axis] if observed else None,
+            "finisher_activations": (
+                finisher_counts[axis] if total_shots else None
+            ),
+        }
+
+    terminal_count = len(terminal_runs)
+    return {
+        "run_count": len(runs),
+        "terminal_run_count": terminal_count,
+        "clear_rate": (
+            round(clear_count / terminal_count, 4)
+            if terminal_count
+            else None
+        ),
+        "average_damage_per_shot": _optional_mean(shot_damage),
+        "average_shots_per_terminal_run": _optional_mean(
+            run_shot_counts
+        ),
+        "average_battle_turns_per_stage": _optional_mean(
+            stage_turn_counts
+        ),
+        "total_shot_count": total_shots,
+        "reflection_success_rate": (
+            round(successful_reflected_shots / reflected_shots, 4)
+            if reflected_shots
+            else None
+        ),
+        "axes": axis_metrics,
+        "board_control_enemies": ({
+            "swarm_nearby_average": _optional_mean(swarm_nearby_samples),
+            "swarm_stage_change_count": swarm_stage_change_count,
+            "swarm_attack_reduction": swarm_attack_reduction,
+            "brittle_activation_count": brittle_activation_count,
+            "brittle_prevented_player_damage": brittle_prevented_damage,
+            "protection_activation_count": protection_activation_count,
+            "protection_removal_count": protection_removal_count,
+            "protection_reduction_count": protection_reduction_count,
+            "protection_prevented_damage": protection_prevented_damage,
+            "appearances": dict(board_enemy_appearances),
+            "defeats": dict(board_enemy_defeats),
+            "stage_shots": dict(board_enemy_stage_shots),
+        } if board_events_observed or board_enemy_appearances else None),
+    }
+
+
+def _condition_summary(runs: list[LoadedRun]) -> dict[str, Any]:
+    controllers: Counter[str] = Counter()
+    profiles: Counter[str] = Counter()
+    builds: Counter[str] = Counter()
+    experiments: Counter[str] = Counter()
+    variants: Counter[str] = Counter()
+    stage_compositions: Counter[str] = Counter()
+    seed_count = 0
+    for _, run, values in runs:
+        controllers[str(values["controller_type"]) or "missing"] += 1
+        profiles[str(values["controller_profile"]) or "missing"] += 1
+        builds[str(values["build_profile"]) or "missing"] += 1
+        experiments[str(values["experiment_id"]) or "missing"] += 1
+        variants[str(values["validation_variant"]) or "missing"] += 1
+        context = run.get("run_context", {})
+        if isinstance(context, dict) and isinstance(
+            context.get("randomness"), dict
+        ):
+            seed_count += 1
+        composition = [
+            str(stage.get("stage_id", "unknown"))
+            for stage in run.get("stages", [])
+            if isinstance(stage, dict)
+        ]
+        stage_compositions["|".join(composition) or "missing"] += 1
+    comparable = {
+        "controller_types": dict(sorted(controllers.items())),
+        "controller_profiles": dict(sorted(profiles.items())),
+        "build_profiles": dict(sorted(builds.items())),
+        "experiment_ids": dict(sorted(experiments.items())),
+        "validation_variants": dict(sorted(variants.items())),
+        "stage_compositions": dict(sorted(stage_compositions.items())),
+    }
+    signature = hashlib.sha256(json.dumps(
+        comparable,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    return {
+        **comparable,
+        "runs_with_recorded_seeds": seed_count,
+        "condition_signature": signature,
+    }
+
+
+def _version_number(version: str) -> int:
+    if version.startswith("B") and version[1:].isdigit():
+        return int(version[1:])
+    return -1
+
+
+def build_version_catalog(
+    log_directory: Path,
+    registry_path: Path,
+) -> tuple[list[dict[str, Any]], str, str, list[LoadedRun]]:
+    all_runs, _ = select_run_logs(log_directory)
+    grouped: dict[str, list[LoadedRun]] = defaultdict(list)
+    for run in all_runs:
+        grouped[str(run[2]["balance_version"])].append(run)
+
+    current_version = "Unknown"
+    current_hash = ""
+    history_entries: dict[str, dict[str, Any]] = {}
+    try:
+        registry = load_json(registry_path)
+        current_version = str(registry.get("current_version", "Unknown"))
+        current_hash = str(registry.get("current_config_hash", ""))
+        history_path = registry_path.parent.parent.parent / str(
+            registry.get(
+                "history_file",
+                "assets/data/balance_history.json",
+            )
+        )
+        history = load_json(history_path)
+        history_entries = {
+            str(entry.get("version", "")): entry
+            for entry in history.get("entries", [])
+            if isinstance(entry, dict)
+        }
+    except (OSError, json.JSONDecodeError, ValueError):
+        pass
+
+    catalog: list[dict[str, Any]] = []
+    for version, version_runs in grouped.items():
+        latest_fingerprint = ""
+        for _, _, values in sorted(
+            version_runs,
+            key=lambda item: str(item[1].get("run_id", item[0].stem)),
+        ):
+            fingerprint = str(values["configuration_fingerprint"])
+            if fingerprint:
+                latest_fingerprint = fingerprint
+        cohort = [
+            item for item in version_runs
+            if not latest_fingerprint
+            or item[2]["configuration_fingerprint"] == latest_fingerprint
+        ]
+        started_values = [
+            str(run.get("started_at", ""))
+            for _, run, _ in cohort
+            if run.get("started_at")
+        ]
+        balance_hashes = Counter(
+            str(values["balance_config_hash"]) or "missing"
+            for _, _, values in cohort
+        )
+        conditions = _condition_summary(cohort)
+        heterogeneous_conditions = any(
+            len(conditions[key]) > 1
+            for key in (
+                "controller_types",
+                "controller_profiles",
+                "build_profiles",
+                "experiment_ids",
+                "validation_variants",
+                "stage_compositions",
+            )
+        )
+        catalog.append({
+            "version": version,
+            "has_data": bool(cohort),
+            "is_current": version == current_version,
+            "last_measured_at": max(started_values, default=""),
+            "run_count": len(cohort),
+            "all_version_run_count": len(version_runs),
+            "configuration_fingerprint": latest_fingerprint,
+            "balance_config_hashes": dict(sorted(balance_hashes.items())),
+            "conditions": conditions,
+            "metrics": calculate_observed_metrics(cohort),
+            "small_sample_warning": len(cohort) < 30,
+            "mixed_configuration_warning": (
+                len(cohort) != len(version_runs)
+            ),
+            "heterogeneous_conditions_warning": heterogeneous_conditions,
+            "history": history_entries.get(version),
+        })
+
+    if current_version not in grouped:
+        catalog.append({
+            "version": current_version,
+            "has_data": False,
+            "is_current": True,
+            "last_measured_at": "",
+            "run_count": 0,
+            "all_version_run_count": 0,
+            "configuration_fingerprint": "",
+            "balance_config_hashes": (
+                {current_hash: 0} if current_hash else {}
+            ),
+            "conditions": None,
+            "metrics": None,
+            "small_sample_warning": True,
+            "mixed_configuration_warning": False,
+            "heterogeneous_conditions_warning": False,
+            "history": history_entries.get(current_version),
+        })
+    catalog.sort(
+        key=lambda entry: (
+            _version_number(str(entry["version"])),
+            str(entry["version"]) == LEGACY_BALANCE_VERSION,
+        ),
+        reverse=True,
+    )
+    measured = [entry for entry in catalog if entry["has_data"]]
+    latest_measured = max(
+        measured,
+        key=lambda entry: (
+            _version_number(str(entry["version"])),
+            str(entry["last_measured_at"]),
+        ),
+        default=None,
+    )
+    latest_version = (
+        str(latest_measured["version"])
+        if latest_measured is not None
+        else ""
+    )
+    latest_runs: list[LoadedRun] = []
+    if latest_measured is not None:
+        version = str(latest_measured["version"])
+        fingerprint = str(latest_measured["configuration_fingerprint"])
+        latest_runs = [
+            item for item in grouped[version]
+            if not fingerprint
+            or item[2]["configuration_fingerprint"] == fingerprint
+        ]
+    return catalog, current_version, latest_version, latest_runs
+
+
 def main() -> int:
     args = parse_arguments()
 
@@ -1412,6 +1935,15 @@ def main() -> int:
         dynamic_balance_enabled = True
     elif args.dynamic_balance == "disabled":
         dynamic_balance_enabled = False
+    (
+        version_catalog,
+        current_balance_version,
+        latest_measured_version,
+        _,
+    ) = build_version_catalog(args.logs, args.balance_registry)
+    requested_balance_versions = tuple(args.balance_version)
+    if not requested_balance_versions and latest_measured_version:
+        requested_balance_versions = (latest_measured_version,)
     filters = RunFilters(
         controller_types=tuple(args.controller_type),
         controller_profiles=tuple(args.controller_profile),
@@ -1423,12 +1955,17 @@ def main() -> int:
             fingerprint.lower()
             for fingerprint in args.configuration_fingerprint
         ),
+        balance_versions=requested_balance_versions,
+    )
+    select_latest_configuration = (
+        args.latest_configuration
+        or not args.configuration_fingerprint
     )
     grouped, analyzed_file_count, run_selection, selected_runs = (
         collect_filtered_stage_records(
             args.logs,
             filters=filters,
-            latest_configuration=args.latest_configuration,
+            latest_configuration=select_latest_configuration,
         )
     )
     stage_reports = [
@@ -1453,7 +1990,7 @@ def main() -> int:
     )
 
     report = {
-        "schema_version": 7,
+        "schema_version": 8,
         "generated_at": datetime.now(timezone.utc)
         .replace(microsecond=0)
         .isoformat()
@@ -1461,6 +1998,27 @@ def main() -> int:
         "analyzed_file_count": analyzed_file_count,
         "evaluated_stage_count": len(stage_reports),
         "targets_file": str(args.targets),
+        "current_balance_version": current_balance_version,
+        "selected_balance_version": (
+            requested_balance_versions[0]
+            if len(requested_balance_versions) == 1
+            else "multiple"
+        ),
+        "latest_measured_balance_version": latest_measured_version,
+        "current_version_has_data": any(
+            entry["version"] == current_balance_version
+            and entry["has_data"]
+            for entry in version_catalog
+        ),
+        "version_catalog": version_catalog,
+        "comparison_policy": {
+            "require_matching_condition_signature": True,
+            "minimum_recommended_run_count": 30,
+            "warning": (
+                "Different seeds, controllers, builds, validation variants "
+                "or stage compositions are not a controlled comparison."
+            ),
+        },
         "run_selection": run_selection,
         "run_balance": run_report,
         "system_metrics": system_metrics,

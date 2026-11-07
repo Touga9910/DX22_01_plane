@@ -37,6 +37,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <utility>
 
 using DirectX::SimpleMath::Matrix;
 using DirectX::SimpleMath::Vector3;
@@ -105,21 +106,25 @@ namespace
 		float damageHold)
 	{
 		ImGuiViewport* viewport = ImGui::GetMainViewport();
-		ImDrawList* drawList =
-			settings.ringDrawLayer == EnemyHpRingDrawLayer::Foreground
-				? ImGui::GetForegroundDrawList(viewport)
-				: ImGui::GetBackgroundDrawList(viewport);
+		// World-linked information stays below interactive windows. In particular,
+		// an expanded card must never be obscured by an enemy ring.
+		ImDrawList* drawList = ImGui::GetBackgroundDrawList(viewport);
+		(void)settings.ringDrawLayer;
+		const float visualScale = std::clamp(
+			projectedRadius / 28.0f,
+			0.55f,
+			2.25f);
 		const ImVec2 center(
-			projectedCenter.x + settings.ringOffsetX,
-			projectedCenter.y + settings.ringOffsetY);
+			projectedCenter.x + settings.ringOffsetX * visualScale,
+			projectedCenter.y + settings.ringOffsetY * visualScale);
 		const float radius = std::clamp(
 			projectedRadius * settings.ringDiameterScale,
-			11.0f,
-			46.0f);
+			9.0f,
+			64.0f);
 		const float thickness = std::clamp(
-			settings.ringThickness,
-			2.0f,
-			8.0f);
+			settings.ringThickness * std::sqrt(visualScale),
+			1.5f,
+			10.0f);
 		const float opacity = std::clamp(settings.ringOpacity, 0.35f, 1.0f);
 		constexpr float startAngle = -3.92699082f;
 		constexpr float sweepAngle = 4.71238898f;
@@ -290,14 +295,50 @@ namespace
 		drawList->AddRectFilled(
 			minimum, maximum, IM_COL32(12, 18, 28, 238), 5.0f);
 		drawList->AddRect(minimum, maximum, color, 5.0f, 0, 1.7f);
-		const char* label = EnemyActionBadgeLabel(action);
-		const ImVec2 textSize = ImGui::CalcTextSize(label);
-		drawList->AddText(
-			ImVec2(
-				minimum.x + (25.0f - textSize.x) * 0.5f,
-				minimum.y + (25.0f - textSize.y) * 0.5f),
-			color,
-			label);
+		if (action == EnemyActionType::NormalAttack ||
+			action == EnemyActionType::ChargeAttack)
+		{
+			// A font-independent sword keeps the attack intent readable even when
+			// Japanese glyphs or icon fonts are unavailable.
+			const ImVec2 bladeStart(minimum.x + 8.0f, minimum.y + 17.0f);
+			const ImVec2 bladeEnd(minimum.x + 17.0f, minimum.y + 8.0f);
+			drawList->AddLine(bladeStart, bladeEnd, color, 3.0f);
+			drawList->AddTriangleFilled(
+				ImVec2(minimum.x + 18.5f, minimum.y + 6.5f),
+				ImVec2(minimum.x + 16.0f, minimum.y + 10.5f),
+				ImVec2(minimum.x + 14.5f, minimum.y + 9.0f),
+				color);
+			drawList->AddLine(
+				ImVec2(minimum.x + 6.0f, minimum.y + 15.0f),
+				ImVec2(minimum.x + 10.0f, minimum.y + 19.0f),
+				color,
+				2.0f);
+			drawList->AddLine(
+				ImVec2(minimum.x + 6.0f, minimum.y + 19.0f),
+				ImVec2(minimum.x + 8.0f, minimum.y + 17.0f),
+				color,
+				2.0f);
+			if (action == EnemyActionType::ChargeAttack)
+			{
+				drawList->AddCircle(
+					ImVec2(minimum.x + 12.5f, minimum.y + 12.5f),
+					9.0f,
+					WithAlpha(color, 0.72f),
+					16,
+					1.2f);
+			}
+		}
+		else
+		{
+			const char* label = EnemyActionBadgeLabel(action);
+			const ImVec2 textSize = ImGui::CalcTextSize(label);
+			drawList->AddText(
+				ImVec2(
+					minimum.x + (25.0f - textSize.x) * 0.5f,
+					minimum.y + (25.0f - textSize.y) * 0.5f),
+				color,
+				label);
+		}
 	}
 
 	void DrawStatusArrow(ImDrawList* drawList, const ImVec2& minimum, StatusEffectType type)
@@ -740,8 +781,8 @@ bool GamePresentation::BeginDefeatReaction(
 	if (game != nullptr && game->IsMultiDefeatEffectsEnabled() &&
 		m_CurrentShotDefeatCount >= 2)
 	{
-		m_MultiDefeatDisplayTotalLifetime =
-			m_CurrentShotDefeatCount >= 3 ? 1.30f : 1.05f;
+		// Every additional defeat restarts the same readable pop/hold/fade cycle.
+		m_MultiDefeatDisplayTotalLifetime = 2.17f;
 		m_MultiDefeatDisplayLifetime = m_MultiDefeatDisplayTotalLifetime;
 		++m_CombatReactionDiagnostics.multiDefeatDisplays;
 	}
@@ -846,7 +887,6 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 		currentState != static_cast<int>(BattleState::BallsMoving))
 	{
 		ClearHitReactions();
-		m_MultiDefeatDisplayLifetime = 0.0f;
 	}
 	if (m_TutorialActive && IsBattleScene(game))
 	{
@@ -991,6 +1031,67 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoInputs;
 	std::vector<ImVec4> placedEnemyPanels;
+	std::vector<std::uintptr_t> liveEnemyInfoKeys;
+	std::vector<ImVec4> protectedEnemyUiRegions;
+	std::vector<std::pair<std::uintptr_t, ImVec4>> enemyBodyRegions;
+	const ImVec2 workPosition = viewport->WorkPos;
+	const ImVec2 workSize = viewport->WorkSize;
+	protectedEnemyUiRegions.emplace_back(
+		workPosition.x + 8.0f,
+		workPosition.y + 8.0f,
+		workPosition.x + 306.0f,
+		workPosition.y + 136.0f);
+	protectedEnemyUiRegions.emplace_back(
+		workPosition.x + workSize.x - 210.0f,
+		workPosition.y + 8.0f,
+		workPosition.x + workSize.x - 8.0f,
+		workPosition.y + 82.0f);
+	// Ball cards occupy the bottom center, while draw/discard piles use the
+	// corners. Treat the complete strip as protected so enemy intent never
+	// becomes part of the card silhouette.
+	protectedEnemyUiRegions.emplace_back(
+		workPosition.x + 8.0f,
+		workPosition.y + workSize.y - 184.0f,
+		workPosition.x + workSize.x - 8.0f,
+		workPosition.y + workSize.y - 4.0f);
+	if (m_HitSummaryLifetime > 0.0f)
+	{
+		protectedEnemyUiRegions.emplace_back(
+			viewport->Pos.x + viewport->Size.x - 408.0f,
+			viewport->Pos.y + 256.0f,
+			viewport->Pos.x + viewport->Size.x - 10.0f,
+			viewport->Pos.y + 368.0f);
+	}
+
+	int visibleEnemyCount = 0;
+	for (const EnemyBall* candidate :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (candidate != nullptr && !candidate->IsDefeated() &&
+			!candidate->IsPocketed())
+		{
+			++visibleEnemyCount;
+			ImVec2 bodyCenter;
+			ImVec2 bodyTop;
+			if (TryProjectToScreen(candidate->GetPosition(), bodyCenter) &&
+				TryProjectToScreen(
+					candidate->GetPosition() +
+						Vector3(0.0f, candidate->GetVisualRadius(), 0.0f),
+					bodyTop))
+			{
+				const float bodyRadius = (std::max)(
+					14.0f,
+					std::abs(bodyCenter.y - bodyTop.y));
+				enemyBodyRegions.emplace_back(
+					reinterpret_cast<std::uintptr_t>(candidate),
+					ImVec4(
+						bodyCenter.x - bodyRadius - 5.0f,
+						bodyCenter.y - bodyRadius - 5.0f,
+						bodyCenter.x + bodyRadius + 5.0f,
+						bodyCenter.y + bodyRadius + 5.0f));
+			}
+		}
+	}
 	int enemyIndex = 0;
 	for (const EnemyBall* enemy :
 		GameRuntime::World().GetComponents<EnemyBall>())
@@ -1002,20 +1103,75 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			? effects.GetActiveCount()
 			: 0;
 		const int anchorStacks = enemy->GetAnchorStacks();
+		const EnemyBoardAbilityType boardAbility =
+			enemy->GetBoardAbilityType();
+		const bool protectedByResonator =
+			enemy->IsProtectedByResonator();
+		const int boardStatusCount =
+			(boardAbility != EnemyBoardAbilityType::None ? 1 : 0) +
+			(protectedByResonator ? 1 : 0);
+		const EnemyActionType action = enemy->GetPlannedAction();
+		const bool actionIsAttack =
+			action == EnemyActionType::NormalAttack ||
+			action == EnemyActionType::ChargeAttack;
+		int expectedDamage = 0;
+		if (showActionPlan && actionIsAttack)
+		{
+			const GameObject* owner = enemy->GetGameObject();
+			const EnemyAttackComponent* attack = owner != nullptr
+				? owner->GetComponent<EnemyAttackComponent>()
+				: nullptr;
+			expectedDamage = attack != nullptr
+				? PlayerBall::CalculateIncomingDamage(
+					attack->CalculateDamage(
+						enemy->GetPlannedDamageMultiplier()))
+				: 0;
+		}
+		const std::string intentText = actionIsAttack
+			? "-" + std::to_string(expectedDamage)
+			: std::string{};
+		const float actionWidth = 25.0f;
+		const int shownEffectCount = visibleEnemyCount >= 10
+			? (std::min)(effectCount, 1)
+			: visibleEnemyCount >= 8
+				? (std::min)(effectCount, 2)
+				: effectCount;
+		const int suppressedEffectCount = effectCount - shownEffectCount;
 		const int actionCount = showActionPlan ? 1 : 0;
-		const int itemCount = actionCount + effectCount +
+		const int itemCount = actionCount + shownEffectCount + boardStatusCount +
 			(anchorStacks > 0 ? 1 : 0);
 
 		ImVec2 center;
 		ImVec2 top;
 		if (!TryProjectToScreen(enemy->GetPosition(), center) ||
-			!TryProjectToScreen(enemy->GetPosition() + Vector3(0.0f, enemy->GetRadius(), 0.0f), top))
+			!TryProjectToScreen(enemy->GetPosition() + Vector3(0.0f, enemy->GetVisualRadius(), 0.0f), top))
 		{
 			continue;
 		}
 		const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
+		if (GameUi::showDebugger && enemy->GetBoardAbilityRadius() > 0.0f)
+		{
+			ImVec2 rangeEdge;
+			if (TryProjectToScreen(
+				enemy->GetPosition() + Vector3(
+					enemy->GetBoardAbilityRadius(), 0.0f, 0.0f),
+				rangeEdge))
+			{
+				const float screenRadius = std::abs(rangeEdge.x - center.x);
+				ImGui::GetBackgroundDrawList(
+					ImGui::GetMainViewport())->AddCircle(
+					center,
+					screenRadius,
+					boardAbility == EnemyBoardAbilityType::ProtectionResonator
+						? IM_COL32(70, 220, 245, 105)
+						: IM_COL32(255, 92, 155, 105),
+					48,
+					1.5f);
+			}
+		}
 		const std::uintptr_t targetKey =
 			reinterpret_cast<std::uintptr_t>(enemy);
+		liveEnemyInfoKeys.push_back(targetKey);
 		const auto hpVisual = std::find_if(
 			m_EnemyHpVisuals.begin(),
 			m_EnemyHpVisuals.end(),
@@ -1057,8 +1213,8 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		{
 			continue;
 		}
-		constexpr float actionWidth = 76.0f;
-		const float rowWidth = actionCount * actionWidth + effectCount * 25.0f +
+		const float rowWidth = actionCount * actionWidth +
+			(shownEffectCount + boardStatusCount) * 25.0f +
 			(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
 			(std::max)(0, itemCount - 1) * 4.0f;
 		const float panelWidth = showOverheadHp
@@ -1067,19 +1223,27 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		const float panelHeight = showOverheadHp
 			? (itemCount > 0 ? 48.0f : 18.0f)
 			: (itemCount > 0 ? 26.0f : 0.0f);
-		const ImVec2 desiredPosition(
+		ImVec2 desiredPosition(
 			center.x - panelWidth * 0.5f,
 			center.y + projectedRadius + 6.0f);
+		desiredPosition.x = std::clamp(
+			desiredPosition.x,
+			viewport->Pos.x + 8.0f,
+			viewport->Pos.x + viewport->Size.x - panelWidth - 8.0f);
+		desiredPosition.y = std::clamp(
+			desiredPosition.y,
+			viewport->Pos.y + 30.0f,
+			viewport->Pos.y + viewport->Size.y - panelHeight - 12.0f);
 		const std::array<ImVec2, 9> layoutOffsets = {
 			ImVec2(0.0f, 0.0f),
-			ImVec2(0.0f, 52.0f),
-			ImVec2(0.0f, -52.0f - projectedRadius * 2.0f),
-			ImVec2(-58.0f, 26.0f), ImVec2(58.0f, 26.0f),
-			ImVec2(-76.0f, -34.0f), ImVec2(76.0f, -34.0f),
-			ImVec2(-112.0f, 58.0f), ImVec2(112.0f, 58.0f),
+			ImVec2(-28.0f, 0.0f), ImVec2(28.0f, 0.0f),
+			ImVec2(-46.0f, 12.0f), ImVec2(46.0f, 12.0f),
+			ImVec2(0.0f, 24.0f),
+			ImVec2(-32.0f, 24.0f), ImVec2(32.0f, 24.0f),
+			ImVec2(0.0f, -20.0f),
 		};
 		float bestScore = FLT_MAX;
-		ImVec2 panelPosition = desiredPosition;
+		ImVec2 targetPanelPosition = desiredPosition;
 		ImVec4 panelRectangle{};
 		for (const ImVec2& offset : layoutOffsets)
 		{
@@ -1111,17 +1275,107 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					(std::max)(rectangle.y, placed.y);
 				overlapArea += overlapWidth * overlapHeight;
 			}
+			float protectedOverlapArea = 0.0f;
+			for (const ImVec4& protectedRegion : protectedEnemyUiRegions)
+			{
+				if (!RectanglesOverlap(rectangle, protectedRegion)) continue;
+				const float overlapWidth =
+					(std::min)(rectangle.z, protectedRegion.z) -
+					(std::max)(rectangle.x, protectedRegion.x);
+				const float overlapHeight =
+					(std::min)(rectangle.w, protectedRegion.w) -
+					(std::max)(rectangle.y, protectedRegion.y);
+				protectedOverlapArea += overlapWidth * overlapHeight;
+			}
+			float otherEnemyOverlapArea = 0.0f;
+			for (const auto& [bodyKey, bodyRegion] : enemyBodyRegions)
+			{
+				if (bodyKey == targetKey ||
+					!RectanglesOverlap(rectangle, bodyRegion))
+				{
+					continue;
+				}
+				const float overlapWidth =
+					(std::min)(rectangle.z, bodyRegion.z) -
+					(std::max)(rectangle.x, bodyRegion.x);
+				const float overlapHeight =
+					(std::min)(rectangle.w, bodyRegion.w) -
+					(std::max)(rectangle.y, bodyRegion.y);
+				otherEnemyOverlapArea += overlapWidth * overlapHeight;
+			}
 			const float distancePenalty =
-				(offset.x * offset.x + offset.y * offset.y) * 0.015f;
-			const float score = overlapArea * 10.0f + distancePenalty;
+				(offset.x * offset.x + offset.y * offset.y) * 1.4f;
+			const float score = overlapArea * 3.0f +
+				otherEnemyOverlapArea * 12.0f +
+				protectedOverlapArea * 24.0f + distancePenalty;
 			if (score < bestScore)
 			{
 				bestScore = score;
-				panelPosition = candidate;
+				targetPanelPosition = candidate;
 				panelRectangle = rectangle;
-				if (overlapArea <= 0.0f && distancePenalty <= 0.0f) break;
+				if (overlapArea <= 0.0f && otherEnemyOverlapArea <= 0.0f &&
+					protectedOverlapArea <= 0.0f &&
+					distancePenalty <= 0.0f)
+				{
+					break;
+				}
 			}
 		}
+
+		auto layoutVisual = std::find_if(
+			m_EnemyInfoLayouts.begin(),
+			m_EnemyInfoLayouts.end(),
+			[targetKey](const EnemyInfoLayoutVisual& value)
+			{
+				return value.targetKey == targetKey;
+			});
+		if (layoutVisual == m_EnemyInfoLayouts.end())
+		{
+			m_EnemyInfoLayouts.push_back({
+				targetKey,
+				DirectX::SimpleMath::Vector2(
+					targetPanelPosition.x,
+					targetPanelPosition.y),
+				true,
+			});
+			layoutVisual = m_EnemyInfoLayouts.end() - 1;
+		}
+		const float deltaSeconds = (std::min)(ImGui::GetIO().DeltaTime, 0.05f);
+		const float follow = 1.0f - std::exp(-13.0f * deltaSeconds);
+		if (!layoutVisual->initialized)
+		{
+			layoutVisual->position = DirectX::SimpleMath::Vector2(
+				targetPanelPosition.x,
+				targetPanelPosition.y);
+			layoutVisual->initialized = true;
+		}
+		else
+		{
+			layoutVisual->position.x +=
+				(targetPanelPosition.x - layoutVisual->position.x) * follow;
+			layoutVisual->position.y +=
+				(targetPanelPosition.y - layoutVisual->position.y) * follow;
+		}
+		constexpr float maximumPanelOffset = 56.0f;
+		float offsetX = layoutVisual->position.x - desiredPosition.x;
+		float offsetY = layoutVisual->position.y - desiredPosition.y;
+		const float offsetLength = std::sqrt(offsetX * offsetX + offsetY * offsetY);
+		if (offsetLength > maximumPanelOffset)
+		{
+			const float scale = maximumPanelOffset / offsetLength;
+			offsetX *= scale;
+			offsetY *= scale;
+			layoutVisual->position.x = desiredPosition.x + offsetX;
+			layoutVisual->position.y = desiredPosition.y + offsetY;
+		}
+		const ImVec2 panelPosition(
+			layoutVisual->position.x,
+			layoutVisual->position.y);
+		panelRectangle = ImVec4(
+			panelPosition.x - 3.0f,
+			panelPosition.y - 3.0f,
+			panelPosition.x + panelWidth + 3.0f,
+			panelPosition.y + panelHeight + 3.0f);
 		if (panelPosition.x + panelWidth < viewport->Pos.x ||
 			panelPosition.x > viewport->Pos.x + viewport->Size.x ||
 			panelPosition.y + panelHeight < viewport->Pos.y ||
@@ -1130,6 +1384,31 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			continue;
 		}
 		placedEnemyPanels.push_back(panelRectangle);
+
+		const float finalOffsetX = panelPosition.x - desiredPosition.x;
+		const float finalOffsetY = panelPosition.y - desiredPosition.y;
+		const float finalOffset = std::sqrt(
+			finalOffsetX * finalOffsetX + finalOffsetY * finalOffsetY);
+		if (finalOffset >= 34.0f)
+		{
+			const ImVec2 enemyAnchor(
+				center.x,
+				center.y + projectedRadius + 2.0f);
+			const ImVec2 blockAnchor(
+				std::clamp(enemyAnchor.x, panelRectangle.x, panelRectangle.z),
+				std::clamp(enemyAnchor.y, panelRectangle.y, panelRectangle.w));
+			ImDrawList* connectorLayer = ImGui::GetBackgroundDrawList(
+				ImGui::GetMainViewport());
+			const ImU32 connectorColor = WithAlpha(
+				EnemyActionColor(action),
+				0.44f);
+			connectorLayer->AddLine(
+				enemyAnchor,
+				blockAnchor,
+				connectorColor,
+				1.1f);
+			connectorLayer->AddCircleFilled(enemyAnchor, 1.8f, connectorColor, 8);
+		}
 
 		char windowId[64]{};
 		sprintf_s(windowId, "##enemy_status_effects_%d", currentIndex);
@@ -1196,7 +1475,6 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			int drawn = 0;
 			if (showActionPlan)
 			{
-				const EnemyActionType action = enemy->GetPlannedAction();
 				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
 				const ImVec2 iconMaximum(
 					iconMinimum.x + actionWidth,
@@ -1206,31 +1484,31 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					drawList,
 					iconMinimum,
 					action);
-				int expectedDamage = 0;
-				if (action == EnemyActionType::NormalAttack ||
-					action == EnemyActionType::ChargeAttack)
+				if (actionIsAttack)
 				{
-					const GameObject* owner = enemy->GetGameObject();
-					const EnemyAttackComponent* attack = owner != nullptr
-						? owner->GetComponent<EnemyAttackComponent>()
-						: nullptr;
-					expectedDamage = attack != nullptr
-						? PlayerBall::CalculateIncomingDamage(
-							attack->CalculateDamage(
-								enemy->GetPlannedDamageMultiplier()))
-						: 0;
+					const float damageFontSize = ImGui::GetFontSize() * 0.76f;
+					const ImVec2 damageTextSize = ImGui::GetFont()->CalcTextSizeA(
+						damageFontSize,
+						FLT_MAX,
+						0.0f,
+						intentText.c_str());
+					const ImVec2 damagePosition(
+						iconMinimum.x + 1.0f,
+						iconMinimum.y + 25.0f - damageTextSize.y - 1.0f);
+					drawList->AddRectFilled(
+						ImVec2(damagePosition.x - 1.0f, damagePosition.y - 1.0f),
+						ImVec2(
+							damagePosition.x + damageTextSize.x + 2.0f,
+							damagePosition.y + damageTextSize.y + 1.0f),
+						IM_COL32(4, 7, 12, 235),
+						2.0f);
+					drawList->AddText(
+						ImGui::GetFont(),
+						damageFontSize,
+						damagePosition,
+						IM_COL32(255, 245, 218, 255),
+						intentText.c_str());
 				}
-				const std::string intentText =
-					action == EnemyActionType::NormalAttack ||
-					action == EnemyActionType::ChargeAttack
-						? "P -" + std::to_string(expectedDamage)
-						: action == EnemyActionType::ChargeStart
-							? PresentationUtf8(u8"準備")
-							: "---";
-				drawList->AddText(
-					ImVec2(iconMinimum.x + 30.0f, iconMinimum.y + 4.0f),
-					EnemyActionColor(action),
-					intentText.c_str());
 				++drawn;
 				if (IsMouseInside(iconMinimum, iconMaximum))
 				{
@@ -1259,16 +1537,114 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					ImGui::EndTooltip();
 				}
 			}
+			const auto drawBoardBadge = [&drawn, drawList](
+				const char* glyph,
+				ImU32 color,
+				const char* title,
+				const std::string& detail)
+			{
+				if (drawn++ > 0) ImGui::SameLine();
+				const ImVec2 minimum = ImGui::GetCursorScreenPos();
+				const ImVec2 maximum(minimum.x + 25.0f, minimum.y + 25.0f);
+				ImGui::Dummy(ImVec2(25.0f, 25.0f));
+				drawList->AddRectFilled(
+					minimum, maximum, IM_COL32(7, 12, 20, 235), 5.0f);
+				drawList->AddRect(minimum, maximum, color, 5.0f, 0, 1.5f);
+				const ImVec2 glyphSize = ImGui::CalcTextSize(glyph);
+				drawList->AddText(
+					ImVec2(
+						minimum.x + (25.0f - glyphSize.x) * 0.5f,
+						minimum.y + (25.0f - glyphSize.y) * 0.5f),
+					color,
+					glyph);
+				if (IsMouseInside(minimum, maximum))
+				{
+					ImGui::BeginTooltip();
+					ImGui::TextColored(
+						ImGui::ColorConvertU32ToFloat4(color), "%s", title);
+					ImGui::TextUnformatted(detail.c_str());
+					ImGui::EndTooltip();
+				}
+			};
+			if (boardAbility == EnemyBoardAbilityType::SwarmAmplifier)
+			{
+				drawBoardBadge(
+					PresentationUtf8(u8"群"),
+					IM_COL32(255, 86, 155, 255),
+					PresentationUtf8(u8"群体強化"),
+					std::string(PresentationUtf8(u8"周囲の生存中の味方 ")) +
+						std::to_string(enemy->GetNearbyLivingAllyCount()) +
+						PresentationUtf8(u8"体 / 強化段階 ") +
+						std::to_string(enemy->GetSwarmStage() + 1) +
+						PresentationUtf8(u8" / 現在攻撃力 ") +
+						std::to_string(enemy->GetAttack()));
+			}
+			else if (boardAbility == EnemyBoardAbilityType::ImpactBrittle)
+			{
+				drawBoardBadge(
+					PresentationUtf8(enemy->IsBrittle() ? u8"脆" : u8"衝"),
+					enemy->IsBrittle()
+						? IM_COL32(120, 220, 255, 255)
+						: IM_COL32(255, 158, 55, 255),
+					PresentationUtf8(enemy->IsBrittle()
+						? u8"衝撃脆化中"
+						: u8"衝撃脆化球"),
+					enemy->IsBrittle()
+						? PresentationUtf8(
+							u8"次の攻撃1回は攻撃力が低下します。")
+						: PresentationUtf8(
+							u8"強く壁へ衝突させると脆化します。"));
+			}
+			else if (boardAbility == EnemyBoardAbilityType::ProtectionResonator)
+			{
+				drawBoardBadge(
+					PresentationUtf8(u8"響"),
+					IM_COL32(64, 218, 238, 255),
+					PresentationUtf8(u8"防護共鳴球"),
+					PresentationUtf8(
+						u8"範囲内の他の味方が受けるダメージを1軽減します。"));
+			}
+			if (protectedByResonator)
+			{
+				drawBoardBadge(
+					PresentationUtf8(u8"護"),
+					IM_COL32(92, 232, 248, 255),
+					PresentationUtf8(u8"防護共鳴中"),
+					PresentationUtf8(
+						u8"受けるダメージが1軽減されます。効果は重複しません。"));
+			}
+			int drawnStatusEffects = 0;
 			for (const StatusEffectType effectType : AllStatusEffectTypes)
 			{
 				if (!showTimedStatusEffects) break;
 				const int magnitude = effects.GetMagnitude(effectType);
 				if (magnitude <= 0) continue;
+				if (drawnStatusEffects >= shownEffectCount) break;
 				if (drawn++ > 0) ImGui::SameLine();
+				++drawnStatusEffects;
 				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
 				const ImVec2 iconMaximum(iconMinimum.x + 25.0f, iconMinimum.y + 25.0f);
 				ImGui::Dummy(ImVec2(25.0f, 25.0f));
 				DrawStatusArrow(ImGui::GetWindowDrawList(), iconMinimum, effectType);
+				if (drawnStatusEffects == shownEffectCount &&
+					suppressedEffectCount > 0)
+				{
+					char hiddenCount[12]{};
+					sprintf_s(hiddenCount, "+%d", suppressedEffectCount);
+					const ImVec2 hiddenSize = ImGui::CalcTextSize(hiddenCount);
+					const ImVec2 hiddenMinimum(
+						iconMinimum.x + 24.0f - hiddenSize.x - 3.0f,
+						iconMinimum.y + 24.0f - hiddenSize.y - 1.0f);
+					drawList->AddRectFilled(
+						ImVec2(hiddenMinimum.x - 2.0f, hiddenMinimum.y - 1.0f),
+						ImVec2(iconMinimum.x + 25.0f, iconMinimum.y + 25.0f),
+						IM_COL32(5, 9, 14, 235),
+						3.0f);
+					drawList->AddText(
+						hiddenMinimum,
+						IM_COL32(240, 244, 250, 255),
+						hiddenCount);
+				}
 				const ImVec2 mouse = ImGui::GetIO().MousePos;
 				const bool hovered = mouse.x >= iconMinimum.x && mouse.x < iconMaximum.x &&
 					mouse.y >= iconMinimum.y && mouse.y < iconMaximum.y;
@@ -1313,10 +1689,59 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGui::End();
 		ImGui::PopStyleVar(2);
 	}
+	m_EnemyInfoLayouts.erase(
+		std::remove_if(
+			m_EnemyInfoLayouts.begin(),
+			m_EnemyInfoLayouts.end(),
+			[&liveEnemyInfoKeys](const EnemyInfoLayoutVisual& value)
+			{
+				return std::find(
+					liveEnemyInfoKeys.begin(),
+					liveEnemyInfoKeys.end(),
+					value.targetKey) == liveEnemyInfoKeys.end();
+			}),
+		m_EnemyInfoLayouts.end());
 
 	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
 	const PlayerBall* player = players.empty() ? nullptr : players.front();
 	if (player == nullptr || player->IsDefeated()) return;
+	ImVec2 center;
+	ImVec2 top;
+	if (!TryProjectToScreen(player->GetPosition(), center) ||
+		!TryProjectToScreen(player->GetPosition() + Vector3(
+			0.0f, player->GetBall()->GetRadius(), 0.0f), top))
+		return;
+	const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
+	if (player->IsPowerDragging())
+	{
+		ImDrawList* gaugeDrawList = ImGui::GetBackgroundDrawList(
+			ImGui::GetMainViewport());
+		const float powerRatio = player->GetShotPowerRatio();
+		const float gaugeRadius = projectedRadius + 8.0f;
+		constexpr float gaugeStart = -3.92699082f;
+		constexpr float gaugeSweep = 4.71238898f;
+		DrawArc(
+			gaugeDrawList,
+			center,
+			gaugeRadius,
+			gaugeStart,
+			gaugeStart + gaugeSweep,
+			IM_COL32(4, 10, 18, 205),
+			3.6f);
+		const ImU32 powerColor = powerRatio >= 0.72f
+			? IM_COL32(255, 119, 58, 245)
+			: powerRatio >= 0.38f
+				? IM_COL32(255, 215, 74, 245)
+				: IM_COL32(76, 218, 255, 245);
+		DrawArc(
+			gaugeDrawList,
+			center,
+			gaugeRadius,
+			gaugeStart,
+			gaugeStart + gaugeSweep * powerRatio,
+			powerColor,
+			2.4f);
+	}
 	std::vector<ResourceBadge> resources;
 	const int heavyStacks = game.GetHeavyCollisionCount();
 	if (heavyStacks > 0)
@@ -1339,13 +1764,6 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255) });
 	if (resources.empty()) return;
 
-	ImVec2 center;
-	ImVec2 top;
-	if (!TryProjectToScreen(player->GetPosition(), center) ||
-		!TryProjectToScreen(player->GetPosition() + Vector3(
-			0.0f, player->GetBall()->GetRadius(), 0.0f), top))
-		return;
-	const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
 	const float rowWidth = resources.size() * kResourceBadgeWidth +
 		(resources.size() - 1) * 4.0f;
 	const ImVec2 rowPosition(center.x - rowWidth * 0.5f, center.y + projectedRadius + 7.0f);
@@ -2147,6 +2565,52 @@ void GamePresentation::OnChargeInterrupted(
 	m_Feedback.push_back(std::move(feedback));
 }
 
+void GamePresentation::OnEnemyAbilityStateChanged(
+	const EnemyAbilityStateChangedEvent& event)
+{
+	FloatingFeedback feedback;
+	feedback.worldPosition = event.worldPosition;
+	feedback.totalLifetime = 1.35f;
+	feedback.lifetime = feedback.totalLifetime;
+	feedback.drawRing = true;
+	feedback.color = IM_COL32(92, 222, 246, 255);
+	if (event.abilityId == "swarm_amplifier")
+	{
+		feedback.text = event.currentAttack < event.previousAttack
+			? "SWARM DOWN  ATK -" +
+				std::to_string(event.previousAttack - event.currentAttack)
+			: "SWARM UP  ATK +" +
+				std::to_string(event.currentAttack - event.previousAttack);
+		feedback.color = IM_COL32(255, 92, 158, 255);
+	}
+	else if (event.abilityId == "impact_brittle")
+	{
+		feedback.text = event.currentStage > 0
+			? "WALL BREAK  ATK " + std::to_string(event.currentAttack)
+			: "BRITTLE END";
+		CollisionVfxSystem::SpawnRequest request;
+		request.worldPosition = event.worldPosition;
+		request.strength = CollisionPresentationRules::Strength::Strong;
+		request.priority = 2;
+		request.density = 8;
+		request.frame = m_PresentationFrame;
+		request.milestone = true;
+		request.enhanced = true;
+		m_CollisionVfx.Spawn(request);
+	}
+	else if (event.abilityId == "protection_resonance")
+	{
+		feedback.text = event.currentStage > 0
+			? "PROTECTED"
+			: "PROTECTION LOST";
+	}
+	else
+	{
+		return;
+	}
+	m_Feedback.push_back(std::move(feedback));
+}
+
 void GamePresentation::OnAxisResourceChanged(
 	const AxisResourceChangedEvent& event)
 {
@@ -2581,55 +3045,6 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 	}
 
-	if (game.IsCollisionImpactEffectsEnabled())
-	{
-		const auto players = GameRuntime::World().GetComponents<PlayerBall>();
-		const PlayerBall* player = players.empty() ? nullptr : players.front();
-		if (player != nullptr)
-		{
-			const auto& trail = player->GetTrailPoints();
-			const std::size_t first = trail.size() > 112
-				? trail.size() - 112
-				: 1;
-			for (std::size_t index = first; index < trail.size(); ++index)
-			{
-				const TrailPoint& previous = trail[index - 1];
-				const TrailPoint& current = trail[index];
-				ImVec2 start;
-				ImVec2 end;
-				const Vector3 height(0.0f, 0.32f, 0.0f);
-				if (!TryProjectToScreen(previous.position + height, start) ||
-					!TryProjectToScreen(current.position + height, end))
-					continue;
-				const float life = std::clamp(
-					(std::min)(previous.lifeRatio, current.lifeRatio),
-					0.0f,
-					1.0f);
-				const float intensity = std::clamp(
-					(std::max)(previous.intensity, current.intensity),
-					0.0f,
-					1.0f);
-				const float alpha = life * (0.35f + 0.65f * intensity);
-				if (alpha <= 0.01f) continue;
-				effects->AddLine(
-					start,
-					end,
-					IM_COL32(255, 92, 18, static_cast<int>(66.0f * alpha)),
-					8.0f + intensity * 5.0f);
-				effects->AddLine(
-					start,
-					end,
-					IM_COL32(255, 142, 30, static_cast<int>(184.0f * alpha)),
-					3.8f + intensity * 2.4f);
-				effects->AddLine(
-					start,
-					end,
-					IM_COL32(255, 232, 142, static_cast<int>(232.0f * alpha)),
-					1.1f + intensity * 0.9f);
-			}
-		}
-	}
-
 	m_CollisionVfx.Draw(
 		effects,
 		&TryProjectToScreen,
@@ -2797,18 +3212,28 @@ void GamePresentation::DrawFeedback(Game& game)
 		const float centerY = viewport->Pos.y +
 			(avoidDebugWindow ? 250.0f :
 				(m_HeavyChainDisplayLifetime > 0.0f ? 154.0f : 94.0f));
-		const float life = std::clamp(
-			m_MultiDefeatDisplayLifetime / m_MultiDefeatDisplayTotalLifetime,
+		const float elapsed = (std::max)(
 			0.0f,
-			1.0f);
-		const float intro = std::clamp(
-			(1.0f - life) / 0.18f,
-			0.0f,
-			1.0f);
-		const float alpha = std::clamp(
-			(std::min)(life * 4.5f, 0.72f + intro * 0.28f),
-			0.0f,
-			1.0f);
+			m_MultiDefeatDisplayTotalLifetime - m_MultiDefeatDisplayLifetime);
+		constexpr float popDuration = 0.12f;
+		constexpr float settleDuration = 0.25f;
+		constexpr float holdDuration = 0.80f;
+		constexpr float fadeDuration = 1.00f;
+		float popScale = 1.0f;
+		if (elapsed < popDuration)
+		{
+			popScale = 1.0f + 0.35f * (elapsed / popDuration);
+		}
+		else if (elapsed < popDuration + settleDuration)
+		{
+			const float settle =
+				(elapsed - popDuration) / settleDuration;
+			popScale = 1.35f - 0.35f * settle;
+		}
+		const float fadeStart = popDuration + settleDuration + holdDuration;
+		const float alpha = elapsed <= fadeStart
+			? 1.0f
+			: std::clamp(1.0f - (elapsed - fadeStart) / fadeDuration, 0.0f, 1.0f);
 		const int tier = CombatPresentationRules::MultiDefeatTier(
 			m_CurrentShotDefeatCount);
 		const ImU32 accent = tier >= 2
@@ -2818,17 +3243,17 @@ void GamePresentation::DrawFeedback(Game& game)
 			? "DOUBLE BREAK"
 			: "MULTI BREAK  x" + std::to_string(m_CurrentShotDefeatCount);
 		ImFont* multiFont = ImGui::GetFont();
-		const float pop = 0.94f + 0.16f * std::sin(intro * DirectX::XM_PI);
 		const float multiFontSize = ImGui::GetFontSize() *
-			(tier >= 2 ? 1.30f : 1.18f) * pop;
+			(tier >= 2 ? 1.30f : 1.18f) * popScale;
 		const ImVec2 textSize = multiFont->CalcTextSizeA(
 			multiFontSize,
 			FLT_MAX,
 			0.0f,
 			text.c_str());
 		const float width = (std::max)(252.0f, textSize.x + 82.0f);
-		const ImVec2 minimum(centerX - width * 0.5f, centerY - 23.0f);
-		const ImVec2 maximum(centerX + width * 0.5f, centerY + 23.0f);
+		const float halfHeight = 23.0f * popScale;
+		const ImVec2 minimum(centerX - width * 0.5f, centerY - halfHeight);
+		const ImVec2 maximum(centerX + width * 0.5f, centerY + halfHeight);
 		foreground->AddRectFilled(
 			minimum,
 			maximum,
@@ -2937,7 +3362,7 @@ void GamePresentation::DrawFeedback(Game& game)
 		ImVec2 top;
 		if (!TryProjectToScreen(enemy->GetPosition(), center) ||
 			!TryProjectToScreen(
-				enemy->GetPosition() + Vector3(0.0f, enemy->GetRadius(), 0.0f),
+				enemy->GetPosition() + Vector3(0.0f, enemy->GetVisualRadius(), 0.0f),
 				top))
 		{
 			continue;
@@ -3280,6 +3705,261 @@ void GamePresentation::DrawDashboard()
 		return;
 	}
 
+	ImGui::Text("現行バランス: %s", m_Dashboard.currentBalanceVersion.c_str());
+	ImGui::SameLine();
+	if (m_Dashboard.currentVersionHasData)
+	{
+		ImGui::TextColored(
+			ImVec4(0.35f, 0.9f, 0.52f, 1.0f),
+			"計測済み");
+	}
+	else
+	{
+		ImGui::TextColored(
+			ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+			"未計測");
+	}
+	if (!m_Dashboard.versions.empty())
+	{
+		m_Dashboard.selectedVersionIndex = std::clamp(
+			m_Dashboard.selectedVersionIndex,
+			0,
+			static_cast<int>(m_Dashboard.versions.size()) - 1);
+		const char* selectedLabel = m_Dashboard.versions[
+			m_Dashboard.selectedVersionIndex].version.c_str();
+		ImGui::SetNextItemWidth(230.0f);
+		if (ImGui::BeginCombo("表示バージョン", selectedLabel))
+		{
+			for (std::size_t index = 0;
+				index < m_Dashboard.versions.size();
+				++index)
+			{
+				const DashboardVersionData& item = m_Dashboard.versions[index];
+				std::string label = item.version;
+				if (item.current) label += " (現行)";
+				if (!item.hasData) label += " - 未計測";
+				const bool selected = static_cast<int>(index) ==
+					m_Dashboard.selectedVersionIndex;
+				if (ImGui::Selectable(label.c_str(), selected))
+				{
+					m_Dashboard.selectedVersionIndex = static_cast<int>(index);
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine();
+		const char* comparisonLabel = "比較なし";
+		if (m_Dashboard.comparisonVersionIndex >= 0 &&
+			m_Dashboard.comparisonVersionIndex <
+				static_cast<int>(m_Dashboard.versions.size()))
+		{
+			comparisonLabel = m_Dashboard.versions[
+				m_Dashboard.comparisonVersionIndex].version.c_str();
+		}
+		ImGui::SetNextItemWidth(230.0f);
+		if (ImGui::BeginCombo("比較対象", comparisonLabel))
+		{
+			if (ImGui::Selectable(
+				"比較なし",
+				m_Dashboard.comparisonVersionIndex < 0))
+			{
+				m_Dashboard.comparisonVersionIndex = -1;
+			}
+			for (std::size_t index = 0;
+				index < m_Dashboard.versions.size();
+				++index)
+			{
+				if (static_cast<int>(index) ==
+					m_Dashboard.selectedVersionIndex)
+				{
+					continue;
+				}
+				const DashboardVersionData& item = m_Dashboard.versions[index];
+				std::string label = item.version;
+				if (!item.hasData) label += " - 未計測";
+				if (ImGui::Selectable(
+					label.c_str(),
+					static_cast<int>(index) ==
+						m_Dashboard.comparisonVersionIndex))
+				{
+					m_Dashboard.comparisonVersionIndex = static_cast<int>(index);
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		const DashboardVersionData& selectedVersion =
+			m_Dashboard.versions[m_Dashboard.selectedVersionIndex];
+		const DashboardVersionData* comparisonVersion = nullptr;
+		if (m_Dashboard.comparisonVersionIndex >= 0 &&
+			m_Dashboard.comparisonVersionIndex <
+				static_cast<int>(m_Dashboard.versions.size()))
+		{
+			comparisonVersion = &m_Dashboard.versions[
+				m_Dashboard.comparisonVersionIndex];
+		}
+		ImGui::TextDisabled(
+			"最終計測: %s / ラン: %d / 完了ラン: %d / ショット: %d",
+			selectedVersion.lastMeasuredAt.empty()
+				? "未計測"
+				: selectedVersion.lastMeasuredAt.c_str(),
+			selectedVersion.runCount,
+			selectedVersion.terminalRunCount,
+			selectedVersion.totalShotCount);
+		if (!selectedVersion.conditionSummary.empty())
+		{
+			ImGui::TextWrapped(
+				"計測条件: %s",
+				selectedVersion.conditionSummary.c_str());
+		}
+		if (!selectedVersion.hasData)
+		{
+			ImGui::TextColored(
+				ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+				"このバージョンのログはありません。過去値や仮値は表示していません。");
+		}
+		if (selectedVersion.smallSampleWarning && selectedVersion.hasData)
+		{
+			ImGui::TextColored(
+				ImVec4(1.0f, 0.75f, 0.28f, 1.0f),
+				"注意: 30ラン未満のため傾向判断には追加計測が必要です。");
+		}
+		if (selectedVersion.mixedConfigurationWarning)
+		{
+			ImGui::TextColored(
+				ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
+				"同一版に複数設定があり、最新設定コホートだけを表示しています。");
+		}
+		if (selectedVersion.heterogeneousConditionsWarning)
+		{
+			ImGui::TextColored(
+				ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+				"計測条件が複数混在しています。版内の数値も記述統計として扱ってください。");
+		}
+		if (comparisonVersion != nullptr &&
+			selectedVersion.hasData && comparisonVersion->hasData &&
+			selectedVersion.conditionSignature !=
+				comparisonVersion->conditionSignature)
+		{
+			ImGui::TextColored(
+				ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
+				"比較条件が一致しません。シード・操作主体・ビルド・敵構成差を含むため、改善/悪化を断定できません。");
+		}
+
+		const auto drawMetric = [&comparisonVersion](
+			const char* label,
+			float value,
+			bool available,
+			float otherValue,
+			bool otherAvailable,
+			bool percentage)
+		{
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn(); ImGui::TextUnformatted(label);
+			ImGui::TableNextColumn();
+			if (available)
+				ImGui::Text(percentage ? "%.1f%%" : "%.2f",
+					percentage ? value * 100.0f : value);
+			else ImGui::TextDisabled("未計測");
+			ImGui::TableNextColumn();
+			if (comparisonVersion == nullptr) ImGui::TextDisabled("-");
+			else if (otherAvailable)
+				ImGui::Text(percentage ? "%.1f%%" : "%.2f",
+					percentage ? otherValue * 100.0f : otherValue);
+			else ImGui::TextDisabled("未計測");
+			ImGui::TableNextColumn();
+			if (comparisonVersion != nullptr && available && otherAvailable)
+				ImGui::Text(percentage ? "%+.1fpt" : "%+.2f",
+					percentage
+						? (value - otherValue) * 100.0f
+						: value - otherValue);
+			else ImGui::TextDisabled("-");
+		};
+		if (ImGui::BeginTable(
+			"version_metric_table",
+			4,
+			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+		{
+			ImGui::TableSetupColumn("指標");
+			ImGui::TableSetupColumn(selectedVersion.version.c_str());
+			ImGui::TableSetupColumn(
+				comparisonVersion != nullptr
+					? comparisonVersion->version.c_str()
+					: "比較対象");
+			ImGui::TableSetupColumn("差分");
+			ImGui::TableHeadersRow();
+			const DashboardVersionData empty{};
+			const DashboardVersionData& other = comparisonVersion != nullptr
+				? *comparisonVersion
+				: empty;
+			drawMetric("クリア率", selectedVersion.clearRate,
+				selectedVersion.hasClearRate, other.clearRate,
+				other.hasClearRate, true);
+			drawMetric("平均ダメージ/ショット", selectedVersion.averageDamage,
+				selectedVersion.hasAverageDamage, other.averageDamage,
+				other.hasAverageDamage, false);
+			drawMetric("平均ショット数/完了ラン", selectedVersion.averageShots,
+				selectedVersion.hasAverageShots, other.averageShots,
+				other.hasAverageShots, false);
+			drawMetric("平均戦闘ターン/ステージ",
+				selectedVersion.averageBattleTurns,
+				selectedVersion.hasAverageBattleTurns,
+				other.averageBattleTurns,
+				other.hasAverageBattleTurns, false);
+			drawMetric("反射後攻撃成功率",
+				selectedVersion.reflectionSuccessRate,
+				selectedVersion.hasReflectionSuccessRate,
+				other.reflectionSuccessRate,
+				other.hasReflectionSuccessRate, true);
+			ImGui::EndTable();
+		}
+		const char* axisLabels[] = { "重量", "貫通", "反射", "Anchor" };
+		if (ImGui::BeginTable(
+			"axis_metric_table",
+			4,
+			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+		{
+			ImGui::TableSetupColumn("軸");
+			ImGui::TableSetupColumn("獲得");
+			ImGui::TableSetupColumn("消費");
+			ImGui::TableSetupColumn("フィニッシャー");
+			ImGui::TableHeadersRow();
+			for (int axis = 0; axis < 4; ++axis)
+			{
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn(); ImGui::TextUnformatted(axisLabels[axis]);
+				ImGui::TableNextColumn();
+				if (selectedVersion.hasAxisGained[axis])
+					ImGui::Text("%d", selectedVersion.axisGained[axis]);
+				else ImGui::TextDisabled("未計測");
+				ImGui::TableNextColumn();
+				if (selectedVersion.hasAxisConsumed[axis])
+					ImGui::Text("%d", selectedVersion.axisConsumed[axis]);
+				else ImGui::TextDisabled("未計測");
+				ImGui::TableNextColumn();
+				if (selectedVersion.hasAxisFinishers[axis])
+					ImGui::Text("%d", selectedVersion.axisFinishers[axis]);
+				else ImGui::TextDisabled("未計測");
+			}
+			ImGui::EndTable();
+		}
+		if (!selectedVersion.historyReason.empty())
+		{
+			ImGui::TextWrapped(
+				"変更履歴 [%s]: %s",
+				selectedVersion.historyTarget.c_str(),
+				selectedVersion.historyReason.c_str());
+		}
+		ImGui::SeparatorText("生成時選択コホートの詳細");
+	}
+	if (m_Dashboard.analyzedRuns <= 0)
+	{
+		ImGui::TextDisabled(
+			"選択コホートの計測ログがないため、詳細指標は未計測です。");
+		ImGui::End();
+		return;
+	}
+
 	if (ImGui::BeginTable("summary_cards", 4, ImGuiTableFlags_SizingStretchSame))
 	{
 		ImGui::TableNextColumn();
@@ -3455,6 +4135,179 @@ void GamePresentation::LoadDashboard()
 		source >> report;
 		m_Dashboard.generatedAt = report.value("generated_at", "unknown");
 		m_Dashboard.analyzedRuns = report.value("analyzed_file_count", 0);
+		m_Dashboard.currentBalanceVersion = report.value(
+			"current_balance_version",
+			std::string("Unknown"));
+		m_Dashboard.selectedBalanceVersion = report.value(
+			"selected_balance_version",
+			std::string("Legacy/Unknown"));
+		m_Dashboard.latestMeasuredBalanceVersion = report.value(
+			"latest_measured_balance_version",
+			std::string());
+		m_Dashboard.currentVersionHasData = report.value(
+			"current_version_has_data",
+			false);
+		if (report.contains("version_catalog") &&
+			report["version_catalog"].is_array())
+		{
+			for (const json& item : report["version_catalog"])
+			{
+				if (!item.is_object())
+				{
+					continue;
+				}
+				DashboardVersionData version;
+				version.version = ReadString(item, "version");
+				version.lastMeasuredAt = ReadString(item, "last_measured_at");
+				version.configurationFingerprint = ReadString(
+					item,
+					"configuration_fingerprint");
+				version.hasData = item.value("has_data", false);
+				version.current = item.value("is_current", false);
+				version.smallSampleWarning = item.value(
+					"small_sample_warning",
+					false);
+				version.mixedConfigurationWarning = item.value(
+					"mixed_configuration_warning",
+					false);
+				version.heterogeneousConditionsWarning = item.value(
+					"heterogeneous_conditions_warning",
+					false);
+				version.runCount = item.value("run_count", 0);
+				const json& conditions = item.value(
+					"conditions",
+					json::object());
+				if (conditions.is_object())
+				{
+					version.conditionSignature = ReadString(
+						conditions,
+						"condition_signature");
+					const auto summarizeCounts = [](const json& counts)
+					{
+						std::ostringstream stream;
+						if (!counts.is_object()) return stream.str();
+						int displayed = 0;
+						for (auto iterator = counts.begin();
+							iterator != counts.end() && displayed < 3;
+							++iterator, ++displayed)
+						{
+							if (displayed > 0) stream << ", ";
+							stream << iterator.key() << ':';
+							if (iterator.value().is_number_integer())
+								stream << iterator.value().get<int>();
+							else stream << '?';
+						}
+						if (counts.size() > 3) stream << ", ...";
+						return stream.str();
+					};
+					const json& controllers = conditions.value(
+						"controller_types", json::object());
+					const json& profiles = conditions.value(
+						"controller_profiles", json::object());
+					const json& builds = conditions.value(
+						"build_profiles", json::object());
+					const json& compositions = conditions.value(
+						"stage_compositions", json::object());
+					std::ostringstream conditionStream;
+					conditionStream
+						<< "操作[" << summarizeCounts(controllers) << "] / "
+						<< "Profile[" << summarizeCounts(profiles) << "] / "
+						<< "Build[" << summarizeCounts(builds) << "] / "
+						<< "構成パターン " << compositions.size() << " / "
+						<< "Seed記録 " << conditions.value(
+							"runs_with_recorded_seeds", 0)
+						<< '/' << version.runCount;
+					version.conditionSummary = conditionStream.str();
+				}
+				const json& history = item.value(
+					"history",
+					json::object());
+				if (history.is_object())
+				{
+					version.historyReason = ReadString(history, "reason");
+					version.historyTarget = ReadString(history, "target");
+				}
+				const json& observed = item.value(
+					"metrics",
+					json::object());
+				const auto readOptional = [](
+					const json& object,
+					const char* key,
+					float& value,
+					bool& available)
+				{
+					available = object.is_object() &&
+						object.contains(key) &&
+						object[key].is_number();
+					if (available)
+					{
+						value = object[key].get<float>();
+					}
+				};
+				if (observed.is_object())
+				{
+					version.terminalRunCount = observed.value(
+						"terminal_run_count",
+						0);
+					version.totalShotCount = observed.value(
+						"total_shot_count",
+						0);
+					readOptional(observed, "clear_rate",
+						version.clearRate, version.hasClearRate);
+					readOptional(observed, "average_damage_per_shot",
+						version.averageDamage, version.hasAverageDamage);
+					readOptional(observed, "average_shots_per_terminal_run",
+						version.averageShots, version.hasAverageShots);
+					readOptional(observed, "average_battle_turns_per_stage",
+						version.averageBattleTurns,
+						version.hasAverageBattleTurns);
+					readOptional(observed, "reflection_success_rate",
+						version.reflectionSuccessRate,
+						version.hasReflectionSuccessRate);
+					const json& axes = observed.value("axes", json::object());
+					const char* axisNames[] = {
+						"heavy", "pierce", "reflection", "anchor" };
+					for (int axisIndex = 0; axisIndex < 4; ++axisIndex)
+					{
+						if (!axes.contains(axisNames[axisIndex]) ||
+							!axes[axisNames[axisIndex]].is_object())
+						{
+							continue;
+						}
+						const json& axis = axes[axisNames[axisIndex]];
+						const auto readAxisValue = [&axis](
+							const char* key,
+							int& value,
+							bool& available)
+						{
+							available = axis.contains(key) && axis[key].is_number_integer();
+							if (available) value = axis[key].get<int>();
+						};
+						readAxisValue("stacks_gained",
+							version.axisGained[axisIndex],
+							version.hasAxisGained[axisIndex]);
+						readAxisValue("stacks_consumed",
+							version.axisConsumed[axisIndex],
+							version.hasAxisConsumed[axisIndex]);
+						readAxisValue("finisher_activations",
+							version.axisFinishers[axisIndex],
+							version.hasAxisFinishers[axisIndex]);
+					}
+				}
+				m_Dashboard.versions.push_back(std::move(version));
+			}
+		}
+		for (std::size_t index = 0;
+			index < m_Dashboard.versions.size();
+			++index)
+		{
+			if (m_Dashboard.versions[index].version ==
+				m_Dashboard.selectedBalanceVersion)
+			{
+				m_Dashboard.selectedVersionIndex = static_cast<int>(index);
+				break;
+			}
+		}
 		const json& runSelection = report.value(
 			"run_selection",
 			json::object());

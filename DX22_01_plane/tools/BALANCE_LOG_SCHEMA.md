@@ -1,10 +1,21 @@
-# Balance log schema v3
+# Balance log schema v4
 
-`logs/balance/run_*.json` is written incrementally during a run. Version 3
-keeps the version 1/2 fields used by the existing analyzers and adds the MCP
-build policy as an independent comparison condition.
+`logs/balance/run_*.json` is written incrementally during a run. Version 4
+keeps the version 1/2/3 fields used by the existing analyzers and adds an
+explicit balance identity. Older logs are never rewritten or inferred to be
+the current balance version.
 
 ## Run fields
+
+- `balance_version`: Explicit balance release such as `B0001`. Missing values
+  are classified by analyzers as `Legacy/Unknown`.
+- `balance_config_hash`: SHA-256 of the managed balance data and dedicated
+  rule files registered for that version.
+- `data_schema_version`: Explicit alias for the run log schema version.
+- `measurement`: Measurement time, controller mode, known seeds, and fixed
+  validation condition at run start.
+- `build.git_commit`: Commit recorded when the balance version was registered.
+  Compile date/time remain available as a separate build identity.
 
 - `controller_type`: Compatibility field (`human`, `mcp`, or `autoplay`).
 - `controller`: Controller type, MCP player-skill profile, build profile, and
@@ -113,9 +124,23 @@ This is intentional; an unknown seed must not be reported as deterministic.
   gameplay storage cap; `reflection_stacks_discarded_by_max` is therefore
   zero.
 
-Older version 1/2 logs remain valid input for `tools/analyze_balance_logs.py`
+Older version 1/2/3 logs remain valid input for `tools/analyze_balance_logs.py`
 and `tools/adjust_balance_from_logs.py`; the added fields are optional to
 those tools.
+
+Board-control enemy telemetry is stored in the optional root `events` stream
+and, when it occurs before `EndShot`, is also mirrored to `shot_events` so
+older logs remain readable. The analyzer reads the root stream once because
+Brittle damage and consumption occur during the enemy action after
+`EndShot`. `enemy_swarm_sample` records nearby living allies, stage, and
+resolved attack at the shot boundary.
+`enemy_board_ability_state_changed` records Swarm stage changes, qualifying
+wall-impact Brittle activation/consumption, and protection application or
+removal. `enemy_brittle_player_damage_reduced` and
+`enemy_protection_damage_reduced` record prevented damage.
+`enemy_defeated` includes the enemy ID and board-ability ID. Analyzer reports
+these as optional `version_catalog[].metrics.board_control_enemies`; absent
+events produce `null`, not fabricated zero measurements.
 
 The analyzer derives a configuration-suite SHA-256 fingerprint from the
 sorted file paths and their logged FNV-1a values. This derived value is an
@@ -128,10 +153,10 @@ Use `--build-profile` to keep different collection strategies out of the same
 analysis cohort. Reports also list selected build IDs and settings hashes so a
 profile edit cannot silently masquerade as the old policy.
 
-Analysis report schema version 7 separates `stages` encounter evaluations
-from the top-level `run_balance` milestone evaluation. This is a report-schema
-version independent from balance run log schema version 3. Version 7 includes
-confidence intervals and sequential-sampling recommendations, descriptive
-`system_metrics`, telemetry-derived failure and difficulty diagnostics, and
-optional human playtest feedback. The human feedback remains a separate design
-signal and is not an automatic balance-adjustment input.
+Analysis report schema version 8 keeps the version 7 encounter, run milestone,
+confidence interval, `system_metrics`, diagnostics, and playtest-feedback
+sections. It adds `current_balance_version`, `version_catalog`, explicit
+unmeasured values, comparable-condition signatures, and two-version comparison
+metadata. The report schema is independent from balance run log schema version
+4. Human feedback remains a separate design signal and is not an automatic
+balance-adjustment input.

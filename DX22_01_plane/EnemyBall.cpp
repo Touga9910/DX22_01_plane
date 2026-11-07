@@ -57,6 +57,24 @@ void EnemyBall::Draw()
     Draw(&GameRuntime::MainCamera());
 }
 
+float EnemyBall::GetVisualRadius() const
+{
+	if (m_Ball == nullptr)
+	{
+		return 0.0f;
+	}
+	if (m_RenderComponent == nullptr)
+	{
+		return GetRadius();
+	}
+	const Vector3 scale = m_Ball->GetScale();
+	const float maximumScale = (std::max)({
+		std::abs(scale.x), std::abs(scale.y), std::abs(scale.z) });
+	const float visualRadius =
+		m_RenderComponent->GetModelBaseRadius() * maximumScale;
+	return visualRadius > 0.001f ? visualRadius : GetRadius();
+}
+
 void EnemyBall::OnDestroy()
 {
     m_NuisanceWarningVisible = false;
@@ -87,6 +105,10 @@ void EnemyBall::Init(const EnemyData& data)
     m_CollisionGraceByBall.clear();
     m_NuisanceBallObject = nullptr;
     m_StunTurnsRemaining = 0;
+    m_NearbyLivingAllies = -1;
+    m_SwarmStage = 0;
+    m_BrittleActionsRemaining = 0;
+    m_ProtectionState = -1;
     m_SkipNextGimmickAdvance = false;
     m_PlannedAction = EnemyActionType::Wait;
     m_PlannedActionCost = 0;
@@ -118,6 +140,21 @@ void EnemyBall::Init(const EnemyData& data)
     else if (m_EnemyData.id == "enemy_striker")
     {
         enemyTint = Color(1.0f, 0.58f, 0.08f, 1.0f);
+    }
+    else if (m_EnemyData.boardAbility.type ==
+        EnemyBoardAbilityType::SwarmAmplifier)
+    {
+        enemyTint = Color(0.98f, 0.30f, 0.58f, 1.0f);
+    }
+    else if (m_EnemyData.boardAbility.type ==
+        EnemyBoardAbilityType::ImpactBrittle)
+    {
+        enemyTint = Color(1.0f, 0.55f, 0.18f, 1.0f);
+    }
+    else if (m_EnemyData.boardAbility.type ==
+        EnemyBoardAbilityType::ProtectionResonator)
+    {
+        enemyTint = Color(0.20f, 0.82f, 0.92f, 1.0f);
     }
     else if (m_EnemyData.id == "enemy_boss_core")
     {
@@ -266,6 +303,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
     m_EnemyData.collisionDamageMultipliers = data.collisionDamageMultipliers;
     m_EnemyData.collisionCountGraceTicks = data.collisionCountGraceTicks;
     m_EnemyData.nuisanceBall = data.nuisanceBall;
+    m_EnemyData.boardAbility = data.boardAbility;
     m_EnemyData.rewardMoney = data.rewardMoney;
     m_EnemyData.rewardExp = data.rewardExp;
     m_EnemyData.scale = data.scale;
@@ -403,9 +441,25 @@ void EnemyBall::TakeDamage(
 		m_Ball->GetMutableVelocity();
 	const Vector3 collisionAcceleration =
 		m_Ball->GetMutableAcceleration();
-    if (IsArmorBoss()) damage = BossCombatRules::DirectDamage(damage, GetDefense(), m_BossState) + GetDefense();
-	m_Ball->TakeDamage(damage);
+	const int damageBeforeProtection =
+		CalculateDamageTakenWithoutProtection(damage);
+	const int resolvedDamage = CalculateDamageTaken(damage);
+	m_Ball->DamageAfterDefense(resolvedDamage);
 	const int appliedDamage = (std::max)(0, hpBefore - m_Ball->GetHP());
+	const int protectionPrevented = (std::max)(
+		0,
+		damageBeforeProtection - resolvedDamage);
+	if (protectionPrevented > 0)
+	{
+		BalanceLogger::GetInstance().RecordEvent(
+			"enemy_protection_damage_reduced",
+			{
+				{ "enemy_id", m_EnemyData.id },
+				{ "prevented_damage", protectionPrevented },
+				{ "damage_before_protection", damageBeforeProtection },
+				{ "damage_after_protection", resolvedDamage },
+			});
+	}
 	if (m_ChargeShotActive)
 	{
 		m_ChargeShotPierceDamage =
@@ -434,7 +488,16 @@ void EnemyBall::TakeDamage(
 
 int EnemyBall::CalculateDamageTaken(int damage) const
 {
-	if (m_Ball == nullptr || m_Ball->IsDefeated()) return 0;
+	const int damageAfterDefense = CalculateDamageTakenWithoutProtection(damage);
+	if (damageAfterDefense <= 0) return 0;
+	return EnemyBoardAbilityRules::ApplyProtectionReduction(
+		damageAfterDefense,
+		GetProtectionDamageReduction());
+}
+
+int EnemyBall::CalculateDamageTakenWithoutProtection(int damage) const
+{
+	if (m_Ball == nullptr || m_Ball->IsDefeated() || damage <= 0) return 0;
 	if (IsArmorBoss())
 	{
 		damage = BossCombatRules::DirectDamage(
@@ -443,6 +506,218 @@ int EnemyBall::CalculateDamageTaken(int damage) const
 			m_BossState) + GetDefense();
 	}
 	return m_Ball->CalculateDamageTaken(damage);
+}
+
+int EnemyBall::GetAttack() const
+{
+	if (m_Ball == nullptr) return 0;
+	const int statusModifier =
+		m_Ball->GetAttack() - m_EnemyData.status.attack;
+	int attack = m_EnemyData.status.attack;
+	if (m_EnemyData.boardAbility.type ==
+		EnemyBoardAbilityType::SwarmAmplifier)
+	{
+		attack = EnemyBoardAbilityRules::SwarmAttack(
+			GetNearbyLivingAllyCount(),
+			m_EnemyData.boardAbility.swarmAttackByStage,
+			m_EnemyData.boardAbility.maximumAttack);
+	}
+	else if (m_EnemyData.boardAbility.type ==
+			EnemyBoardAbilityType::ImpactBrittle &&
+		IsBrittle())
+	{
+		attack = m_EnemyData.boardAbility.brittleAttack;
+	}
+	return (std::max)(0, attack + statusModifier);
+}
+
+bool EnemyBall::IsProtectedByResonator() const
+{
+	if (m_Ball == nullptr || IsDefeated() || IsPocketed()) return false;
+	for (const EnemyBall* source :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (source == nullptr || source == this || source->IsDefeated() ||
+			source->IsPocketed() ||
+			source->GetBoardAbilityType() !=
+				EnemyBoardAbilityType::ProtectionResonator)
+		{
+			continue;
+		}
+		Vector3 delta = source->GetPosition() - GetPosition();
+		delta.y = 0.0f;
+		const float radius = source->GetBoardAbilityRadius();
+		if (radius > 0.0f && delta.LengthSquared() <= radius * radius)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+int EnemyBall::GetProtectionDamageReduction() const
+{
+	if (!IsProtectedByResonator()) return 0;
+	int reduction = 0;
+	for (const EnemyBall* source :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (source == nullptr || source == this || source->IsDefeated() ||
+			source->IsPocketed() ||
+			source->GetBoardAbilityType() !=
+				EnemyBoardAbilityType::ProtectionResonator)
+		{
+			continue;
+		}
+		Vector3 delta = source->GetPosition() - GetPosition();
+		delta.y = 0.0f;
+		const float radius = source->GetBoardAbilityRadius();
+		if (radius > 0.0f && delta.LengthSquared() <= radius * radius)
+		{
+			reduction = (std::max)(
+				reduction,
+				source->m_EnemyData.boardAbility.protectionDamageReduction);
+		}
+	}
+	return reduction;
+}
+
+void EnemyBall::RefreshBoardAbilityState(bool notifyChange)
+{
+	const bool protectedNow = IsProtectedByResonator();
+	const bool protectionInitialized = m_ProtectionState >= 0;
+	const bool protectedBefore = m_ProtectionState > 0;
+	m_ProtectionState = protectedNow ? 1 : 0;
+	if (notifyChange && protectionInitialized &&
+		protectedNow != protectedBefore)
+	{
+		GameBattleEvents::EnemyAbilityStateChanged({
+			GetPosition(),
+			reinterpret_cast<std::uintptr_t>(this),
+			m_EnemyData.id,
+			"protection_resonance",
+			protectedNow ? "protection_applied" : "protection_removed",
+			protectedBefore ? 1 : 0,
+			protectedNow ? 1 : 0,
+			GetAttack(),
+			GetAttack(),
+			0,
+			0.0f,
+		});
+	}
+	if (m_EnemyData.boardAbility.type !=
+		EnemyBoardAbilityType::SwarmAmplifier || IsDefeated() || IsPocketed())
+	{
+		return;
+	}
+	const int previousStage = m_SwarmStage;
+	const int previousAttack = GetAttack();
+	int nearby = 0;
+	const float radius = m_EnemyData.boardAbility.radius;
+	for (const EnemyBall* ally :
+		GameRuntime::World().GetComponents<EnemyBall>())
+	{
+		if (ally == nullptr || ally == this || ally->IsDefeated() ||
+			ally->IsPocketed())
+		{
+			continue;
+		}
+		Vector3 delta = ally->GetPosition() - GetPosition();
+		delta.y = 0.0f;
+		if (radius > 0.0f && delta.LengthSquared() <= radius * radius)
+		{
+			++nearby;
+		}
+	}
+	const bool initialized = m_NearbyLivingAllies >= 0;
+	m_NearbyLivingAllies = nearby;
+	m_SwarmStage = EnemyBoardAbilityRules::SwarmStage(nearby);
+	if (notifyChange)
+	{
+		BalanceLogger::GetInstance().RecordEvent(
+			"enemy_swarm_sample",
+			{
+				{ "enemy_id", m_EnemyData.id },
+				{ "nearby_living_allies", nearby },
+				{ "stage", m_SwarmStage },
+				{ "attack", GetAttack() },
+			});
+	}
+	if (notifyChange && initialized && m_SwarmStage != previousStage)
+	{
+		PublishBoardAbilityChange(
+			"nearby_allies_changed",
+			previousStage,
+			previousAttack);
+	}
+}
+
+void EnemyBall::RegisterWallImpact(float collisionSpeed)
+{
+	if (m_EnemyData.boardAbility.type !=
+			EnemyBoardAbilityType::ImpactBrittle ||
+		IsDefeated() || IsPocketed() ||
+		!EnemyBoardAbilityRules::QualifiesForBrittle(
+			collisionSpeed,
+			m_EnemyData.boardAbility.brittleCollisionSpeed))
+	{
+		return;
+	}
+	const int previousStage = IsBrittle() ? 1 : 0;
+	const int previousAttack = GetAttack();
+	// Repeated qualifying impacts refresh the same one-action state. They do
+	// not stack additional weak attacks.
+	m_BrittleActionsRemaining =
+		m_EnemyData.boardAbility.brittleActionCount;
+	if (previousStage == 0)
+	{
+		PublishBoardAbilityChange(
+			"qualifying_wall_impact",
+			previousStage,
+			previousAttack,
+			collisionSpeed);
+	}
+}
+
+void EnemyBall::ConsumeBoardAbilityAfterAttack()
+{
+	if (!IsBrittle()) return;
+	const int previousAttack = GetAttack();
+	const int previousStage = 1;
+	--m_BrittleActionsRemaining;
+	if (!IsBrittle())
+	{
+		PublishBoardAbilityChange(
+			"brittle_action_consumed",
+			previousStage,
+			previousAttack);
+	}
+}
+
+void EnemyBall::PublishBoardAbilityChange(
+	const char* reason,
+	int previousStage,
+	int previousAttack,
+	float collisionSpeed) const
+{
+	const int currentStage =
+		m_EnemyData.boardAbility.type ==
+			EnemyBoardAbilityType::SwarmAmplifier
+		? m_SwarmStage
+		: (IsBrittle() ? 1 : 0);
+	GameBattleEvents::EnemyAbilityStateChanged({
+		GetPosition(),
+		reinterpret_cast<std::uintptr_t>(this),
+		m_EnemyData.id,
+		ToString(m_EnemyData.boardAbility.type),
+		reason != nullptr ? reason : "unknown",
+		previousStage,
+		currentStage,
+		previousAttack,
+		GetAttack(),
+		GetNearbyLivingAllyCount(),
+		collisionSpeed,
+	});
 }
 
 void EnemyBall::SetPlannedAction(

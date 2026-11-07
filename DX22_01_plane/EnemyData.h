@@ -6,6 +6,7 @@
 #include "BallStatus.h"
 #include "StatusEffect.h"
 #include "MeshRenderer.h"
+#include "EnemyBoardAbilityRules.h"
 
 // 敵が生成するお邪魔ボールの設定を保持する。
 struct NuisanceBallData
@@ -20,6 +21,21 @@ struct NuisanceBallData
     float restitution = 0.8f;             // 衝突時の反発係数
     float friction = 0.025f;              // 移動時に使用する摩擦値
     StatusEffectCollection debuffs;       // お邪魔ボールによって付与するデバフ
+};
+
+// Position- and impact-dependent enemy ability parameters. Keeping these in
+// enemy data lets authored stages tune the tactical radius and thresholds
+// without spreading balance constants across rule and presentation code.
+struct EnemyBoardAbilityData
+{
+    EnemyBoardAbilityType type = EnemyBoardAbilityType::None;
+    float radius = 0.0f;
+    std::array<int, 3> swarmAttackByStage{ 1, 2, 3 };
+    int maximumAttack = 3;
+    float brittleCollisionSpeed = 6.0f;
+    int brittleAttack = 1;
+    int brittleActionCount = 1;
+    int protectionDamageReduction = 1;
 };
 
 // 敵1種類分の基本性能、表示モデル、報酬、固有ギミック設定を保持する。
@@ -42,6 +58,7 @@ struct EnemyData
     std::vector<float> collisionDamageMultipliers;
     int collisionCountGraceTicks = 6;       // 同一衝突を重複カウントしないための猶予tick数
     NuisanceBallData nuisanceBall;          // お邪魔ボール生成ギミックの設定
+    EnemyBoardAbilityData boardAbility;      // 盤面配置・壁衝撃で変化する能力
 
     DirectX::SimpleMath::Vector3 initPosition =
         DirectX::SimpleMath::Vector3(50.0f, 0.0f, 50.0f);   // 敵定義側で保持する初期位置

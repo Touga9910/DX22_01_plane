@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "version": "B0001",
+      "changed_at": "2026-11-07T02:00:00Z",
+      "target": "current_balance_baseline",
+      "before": null,
+      "after": "2026-11-07 current balance settings registered without numeric changes",
+      "reason": "Introduce reproducible balance versioning for future measurements.",
+      "expected_impact": "No gameplay change. Future logs can be separated and compared by balance version and configuration hash.",
+      "actual_result": null,
+      "balance_config_hash": "d2bb0f78f756efa01fb7d231a1a32daaa1f7d9416ba762b82b38a0698e12cbcc",
+      "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
+    },
+    {
+      "version": "B0002",
+      "changed_at": "2026-11-07T04:47:09Z",
+      "target": "board_control_enemy_archetypes",
+      "before": "No position-dependent enemy attack, wall-impact brittle state, or non-stacking protection resonance",
+      "after": "Added swarm_amplifier, impact_brittle, and protection_resonator with initial JSON-tunable parameters and authored validation stages; live validation set the reachable brittle wall-impact threshold to 6",
+      "reason": "Make moving, separating, and banking enemies into walls meaningful alternatives to direct damage.",
+      "expected_impact": "More shots choose displacement and target order; actual impact must be judged with fixed-condition telemetry and human playtests.",
+      "actual_result": null,
+      "balance_config_hash": "c47f919dc36d487e6f4414167f61307148148c90aef69aa110f424680634726b",
+      "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
+    }
+  ]
+}

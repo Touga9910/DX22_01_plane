@@ -186,6 +186,12 @@ void GameBattleEvents::WallImpact(
 		target);
 }
 
+void GameBattleEvents::EnemyAbilityStateChanged(
+	const EnemyAbilityStateChangedEvent& event)
+{
+	Game::GetInstance()->NotifyEnemyAbilityStateChanged(event);
+}
+
 void GameBattleEvents::PlayerPiercedEnemy(
     EnemyBall* enemy,
     const DirectX::SimpleMath::Vector3& playerPosition,

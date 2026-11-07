@@ -247,6 +247,25 @@ int main()
     assert(EnemyGimmickRules::ScaleCollisionDamage(4,
         EnemyGimmickRules::CollisionDamageMultiplier(collisionMultipliers, 99)) == 2);
     const auto enemyDefinitions = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
+	const auto findEnemy = [&enemyDefinitions](const char* id)
+	{
+		return std::find_if(
+			enemyDefinitions.begin(),
+			enemyDefinitions.end(),
+			[id](const EnemyData& enemy) { return enemy.id == id; });
+	};
+	const auto swarm = findEnemy("enemy_swarm_amplifier");
+	const auto brittle = findEnemy("enemy_impact_brittle");
+	const auto resonator = findEnemy("enemy_protection_resonator");
+	assert(swarm != enemyDefinitions.end());
+	assert(brittle != enemyDefinitions.end());
+	assert(resonator != enemyDefinitions.end());
+	assert(swarm->boardAbility.type == EnemyBoardAbilityType::SwarmAmplifier);
+	assert(std::abs(swarm->boardAbility.radius - 12.5f) < 0.001f);
+	assert(brittle->boardAbility.type == EnemyBoardAbilityType::ImpactBrittle);
+	assert(std::abs(brittle->boardAbility.brittleCollisionSpeed - 6.0f) < 0.001f);
+	assert(resonator->boardAbility.type == EnemyBoardAbilityType::ProtectionResonator);
+	assert(resonator->boardAbility.protectionDamageReduction == 1);
     const auto nuisanceDefinition = std::find_if(enemyDefinitions.begin(), enemyDefinitions.end(),
         [](const EnemyData& data) { return data.id == "enemy_nuisance_spawner"; });
     const auto shellDefinition = std::find_if(enemyDefinitions.begin(), enemyDefinitions.end(),
@@ -257,7 +276,7 @@ int main()
     assert(shellDefinition != enemyDefinitions.end());
     assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    assert(stages.size() == 8);
+    assert(stages.size() == 12);
     int guarded = 0, pocket = 0;
     for (const auto& stage : stages)
     {
@@ -276,5 +295,5 @@ int main()
         }
     }
     assert(guarded == 1 && pocket == 1);
-	std::cout << "PASS: HP independence, 18 ball definitions, four synergy resources, save round trips, collision order, pierce/refraction, directional guard, pocket damage and stage loading.\n";
+	std::cout << "PASS: HP independence, ball/enemy definitions, four synergy resources, save round trips, collision order, pierce/refraction, board-control enemies, directional guard, pocket damage and stage loading.\n";
 }

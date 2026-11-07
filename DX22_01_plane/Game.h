@@ -490,6 +490,8 @@ public:
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		float relativeApproachSpeed,
 		const void* target);
+	void NotifyEnemyAbilityStateChanged(
+		const EnemyAbilityStateChangedEvent& event);
 	void NotifyPocketFeedback(
 		const DirectX::SimpleMath::Vector3& worldPosition,
 		bool playerPocket,

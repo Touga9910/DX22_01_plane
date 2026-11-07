@@ -6,13 +6,94 @@ import unittest
 from pathlib import Path
 
 from analyze_balance_logs import (
+    LEGACY_BALANCE_VERSION,
     RunFilters,
     apply_boss_revaluation_gate,
+    calculate_observed_metrics,
     calculate_run_report,
     calculate_stage_report,
     configuration_fingerprint,
+    extract_run_filter_values,
     select_run_logs,
 )
+
+
+class BoardControlTelemetryTests(unittest.TestCase):
+    def test_root_events_include_post_shot_brittle_without_duplicates(self) -> None:
+        board_events = [
+            {
+                "event_type": "enemy_swarm_sample",
+                "details": {"nearby_living_allies": 1},
+            },
+            {
+                "event_type": "enemy_board_ability_state_changed",
+                "details": {
+                    "ability_id": "swarm_amplifier",
+                    "reason": "nearby_allies_changed",
+                    "previous_attack": 3,
+                    "current_attack": 1,
+                },
+            },
+            {
+                "event_type": "enemy_board_ability_state_changed",
+                "details": {
+                    "ability_id": "impact_brittle",
+                    "reason": "qualifying_wall_impact",
+                },
+            },
+            {
+                "event_type": "enemy_brittle_player_damage_reduced",
+                "details": {"prevented_damage": 3},
+            },
+            {
+                "event_type": "enemy_protection_damage_reduced",
+                "details": {"prevented_damage": 1},
+            },
+            {
+                "event_type": "enemy_board_ability_state_changed",
+                "details": {
+                    "ability_id": "protection_resonance",
+                    "reason": "protection_removed",
+                },
+            },
+            {
+                "event_type": "enemy_defeated",
+                "details": {"enemy_id": "enemy_impact_brittle"},
+            },
+        ]
+        run = {
+            "events": board_events,
+            "stages": [{
+                "stage_start": {"enemies": [
+                    {"id": "enemy_swarm_amplifier"},
+                    {"id": "enemy_impact_brittle"},
+                    {"id": "enemy_protection_resonator"},
+                ]},
+                "shots": [{
+                    "total_enemy_damage": 2,
+                    # Physics-time events are mirrored here, but root events
+                    # remain the single board-control analysis source.
+                    "shot_events": board_events[:3],
+                }],
+            }],
+        }
+
+        metrics = calculate_observed_metrics([
+            (Path("run.json"), run, {}),
+        ])["board_control_enemies"]
+
+        self.assertIsNotNone(metrics)
+        self.assertEqual(metrics["swarm_nearby_average"], 1.0)
+        self.assertEqual(metrics["swarm_stage_change_count"], 1)
+        self.assertEqual(metrics["swarm_attack_reduction"], 2)
+        self.assertEqual(metrics["brittle_activation_count"], 1)
+        self.assertEqual(metrics["brittle_prevented_player_damage"], 3)
+        self.assertEqual(metrics["protection_removal_count"], 1)
+        self.assertEqual(metrics["protection_reduction_count"], 1)
+        self.assertEqual(metrics["protection_prevented_damage"], 1)
+        self.assertEqual(
+            metrics["defeats"], {"enemy_impact_brittle": 1}
+        )
 
 
 class BalanceMetricGateTests(unittest.TestCase):
@@ -303,6 +384,73 @@ class RunSelectionTests(unittest.TestCase):
             configuration_fingerprint(run),
             configuration_fingerprint(reversed_run),
         )
+
+    def test_unversioned_run_is_legacy_not_current(self) -> None:
+        values = extract_run_filter_values(self.make_run("legacy"))
+        self.assertEqual(
+            values["balance_version"],
+            LEGACY_BALANCE_VERSION,
+        )
+        self.assertEqual(values["balance_config_hash"], "")
+
+    def test_balance_version_filter_never_relabels_legacy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_directory = Path(temporary_directory)
+            legacy = self.make_run("legacy")
+            current = self.make_run("current")
+            current["balance_version"] = "B0001"
+            current["balance_config_hash"] = "hash-current"
+            (log_directory / "run_001.json").write_text(
+                json.dumps(legacy), encoding="utf-8"
+            )
+            (log_directory / "run_002.json").write_text(
+                json.dumps(current), encoding="utf-8"
+            )
+
+            selected, summary = select_run_logs(
+                log_directory,
+                RunFilters(balance_versions=("B0001",)),
+            )
+
+            self.assertEqual(len(selected), 1)
+            self.assertEqual(
+                summary["selected_balance_versions"],
+                {"B0001": 1},
+            )
+            self.assertEqual(
+                summary["selected_balance_config_hashes"],
+                {"hash-current": 1},
+            )
+
+    def test_corrupt_duplicate_and_unsupported_logs_are_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            log_directory = Path(temporary_directory)
+            good = self.make_run("good")
+            good["run_id"] = "same-run"
+            good["schema_version"] = 3
+            duplicate = json.loads(json.dumps(good))
+            unsupported = self.make_run("future")
+            unsupported["run_id"] = "future-run"
+            unsupported["schema_version"] = 99
+            (log_directory / "run_001.json").write_text(
+                json.dumps(good), encoding="utf-8"
+            )
+            (log_directory / "run_002.json").write_text(
+                json.dumps(duplicate), encoding="utf-8"
+            )
+            (log_directory / "run_003.json").write_text(
+                "{broken", encoding="utf-8"
+            )
+            (log_directory / "run_004.json").write_text(
+                json.dumps(unsupported), encoding="utf-8"
+            )
+
+            selected, summary = select_run_logs(log_directory)
+
+            self.assertEqual(len(selected), 1)
+            self.assertEqual(summary["invalid_file_count"], 1)
+            self.assertEqual(summary["duplicate_file_count"], 1)
+            self.assertEqual(summary["unsupported_schema_count"], 1)
 
     def test_selects_requested_comparable_cohort(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

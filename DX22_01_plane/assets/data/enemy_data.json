@@ -253,6 +253,83 @@
         "collisionDamageMultipliers": [3.0, 2.0, 1.0, 0.75, 0.5],
         "collisionCountGraceTicks": 6
       }
+    },
+    {
+      "id": "enemy_swarm_amplifier",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 6,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.1,
+        "radius": 2.5,
+        "restitution": 0.82,
+        "friction": 0.02,
+        "abilities": { "split": false, "pierce": false }
+      },
+      "scale": { "x": 2.5, "y": 2.5, "z": 2.5 },
+      "rewardMoney": 12,
+      "rewardExp": 8,
+      "gimmick": {
+        "boardAbility": {
+          "type": "swarm_amplifier",
+          "radius": 12.5,
+          "attackByStage": [1, 2, 3],
+          "maximumAttack": 3
+        }
+      }
+    },
+    {
+      "id": "enemy_impact_brittle",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 8,
+        "attack": 3,
+        "defense": 0,
+        "mass": 1.25,
+        "radius": 2.5,
+        "restitution": 0.88,
+        "friction": 0.02,
+        "abilities": { "split": false, "pierce": false }
+      },
+      "scale": { "x": 2.5, "y": 2.5, "z": 2.5 },
+      "rewardMoney": 13,
+      "rewardExp": 9,
+      "gimmick": {
+        "boardAbility": {
+          "type": "impact_brittle",
+          "collisionSpeedThreshold": 6.0,
+          "brittleAttack": 1,
+          "brittleActionCount": 1
+        }
+      }
+    },
+    {
+      "id": "enemy_protection_resonator",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 7,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.35,
+        "radius": 2.6,
+        "restitution": 0.74,
+        "friction": 0.024,
+        "abilities": { "split": false, "pierce": false }
+      },
+      "scale": { "x": 2.6, "y": 2.6, "z": 2.6 },
+      "rewardMoney": 14,
+      "rewardExp": 10,
+      "gimmick": {
+        "boardAbility": {
+          "type": "protection_resonator",
+          "radius": 16.0,
+          "damageReduction": 1
+        }
+      }
     }
   ]
 }
