@@ -948,6 +948,10 @@ def plan_build_shot(
     if not candidates:
         raise UnreachableShotError("No reachable shot for this ball and target. Refresh shot_tactics or select another offered ball.")
     choice = candidates[0]
+    candidate_generation = state.get("build_shot_choices", {}).get(
+        "candidate_generation")
+    if isinstance(candidate_generation, dict):
+        choice["candidate_generation"] = dict(candidate_generation)
     player_position = _xz_position(state["player"]["position"], "player.position")
     ideal_aim = _xz_position(choice["aim_point"], "aim_point")
     aim_error, power_error = _human_error_limits(profile)

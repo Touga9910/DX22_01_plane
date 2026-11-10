@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "experiment_id": "fixed_baseline",
+  "random_seed": 20260807,
+  "random_seeds": [
+    20260807,
+    20260817,
+    20260827,
+    20260906,
+    20260916
+  ],
+  "seed_suites": {
+    "tuning": [
+      20260807,
+      20260817,
+      20260827,
+      20260906,
+      20260916
+    ],
+    "holdout": [
+      20261006,
+      20261016,
+      20261026,
+      20261105,
+      20261115
+    ]
+  },
+  "variants": [
+    {
+      "id": "fixed",
+      "adjusted_early_stages": false,
+      "adjusted_mid_stages": false,
+      "tactical_ai": true,
+      "tactical_ai_profile": "tactics_v1",
+      "early_attack_budget": -1,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "early_A_existing_stage_existing_ai",
+      "adjusted_early_stages": false,
+      "adjusted_mid_stages": false,
+      "tactical_ai": false,
+      "tactical_ai_profile": "legacy",
+      "early_attack_budget": -1,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "early_B_adjusted_stage_existing_ai",
+      "adjusted_early_stages": true,
+      "adjusted_mid_stages": false,
+      "tactical_ai": false,
+      "tactical_ai_profile": "legacy",
+      "early_attack_budget": 4,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "early_C_existing_stage_tactical_ai",
+      "adjusted_early_stages": false,
+      "adjusted_mid_stages": false,
+      "tactical_ai": true,
+      "tactical_ai_profile": "tactics_v1",
+      "early_attack_budget": -1,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "early_D_adjusted_stage_tactical_ai",
+      "adjusted_early_stages": true,
+      "adjusted_mid_stages": false,
+      "tactical_ai": true,
+      "tactical_ai_profile": "tactics_v1",
+      "early_attack_budget": 4,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "mid_stage_only_existing_ai",
+      "adjusted_early_stages": true,
+      "adjusted_mid_stages": false,
+      "tactical_ai": false,
+      "tactical_ai_profile": "legacy",
+      "early_attack_budget": -1,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "mid_budget_only_existing_ai",
+      "adjusted_early_stages": false,
+      "adjusted_mid_stages": false,
+      "tactical_ai": false,
+      "tactical_ai_profile": "legacy",
+      "early_attack_budget": 4,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "mid_ai_v2_adjusted_early",
+      "adjusted_early_stages": true,
+      "adjusted_mid_stages": false,
+      "tactical_ai": true,
+      "tactical_ai_profile": "survival_v2",
+      "early_attack_budget": 4,
+      "mid_attack_budget": -1
+    },
+    {
+      "id": "mid_tuned_stage_ai_v2",
+      "adjusted_early_stages": true,
+      "adjusted_mid_stages": true,
+      "tactical_ai": true,
+      "tactical_ai_profile": "survival_v2",
+      "early_attack_budget": 4,
+      "mid_attack_budget": -1
+    }
+  ],
+  "minimum_runs_per_variant": 5,
+  "minimum_paired_seeds": 0,
+  "maximum_cleared_stages_per_run": 30,
+  "endurance_mode": false,
+  "fixed_stage_schedule": false,
+  "baseline_profile": "normal",
+  "required_controller_profiles": [
+    "beginner",
+    "intermediate",
+    "advanced"
+  ],
+  "minimum_runs_per_profile": 30
+}

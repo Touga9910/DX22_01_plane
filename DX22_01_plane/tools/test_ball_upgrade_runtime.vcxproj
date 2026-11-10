@@ -26,6 +26,8 @@
     <ClCompile Include="test_ball_upgrade_runtime.cpp" />
     <ClCompile Include="..\PlayerBallDataLoader.cpp" />
     <ClCompile Include="..\StageDataLoader.cpp" />
+	<ClCompile Include="..\StageSelector.cpp" />
+	<ClCompile Include="..\GameEncounterBalance.cpp" />
 	<ClCompile Include="..\Collision.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

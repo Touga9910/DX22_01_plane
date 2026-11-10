@@ -125,6 +125,12 @@ inline const char* RelicUtf8(const char8_t* text) noexcept
 struct BalanceValidationVariant
 {
 	std::string id;	// 検証条件を識別するID
+	bool adjustedEarlyStages = false;
+	bool adjustedMidStages = false;
+	bool tacticalAi = true;
+	std::string tacticalAiProfile = "tactics_v1";
+	int earlyAttackBudget = -1;
+	int midAttackBudget = -1;
 };
 
 // RelicTypeごとの表示情報、価格、レア度、抽選重みをまとめた定義一覧。

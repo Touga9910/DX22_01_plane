@@ -60,6 +60,13 @@ public:
 		return m_MaximumClearedStages;
 	}
 	bool HasVariant(const std::string& id) const;
+	bool UsesAdjustedEarlyStages() const;
+	bool UsesAdjustedMidStages() const;
+	bool UsesTacticalAi() const;
+	const std::string& GetTacticalAiProfile() const;
+	int GetAttackBudget(int progress) const;
+	std::vector<std::string> GetAllowedNormalStageIds(int progress) const;
+	const BalanceValidationVariant* GetCurrentVariant() const;
 
 private:
 	bool m_Enabled = false;
@@ -73,7 +80,7 @@ private:
 	std::string m_ExperimentId = "fixed_baseline";
 	std::string m_CurrentVariantId = "fixed";
 	std::vector<BalanceValidationVariant> m_Variants{
-		{ "fixed" },
+		{ "fixed", false, false, true, "tactics_v1", -1, -1 },
 	};
 	int m_MaximumClearedStages = 30;
 };

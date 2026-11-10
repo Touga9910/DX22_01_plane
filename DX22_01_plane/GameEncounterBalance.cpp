@@ -70,7 +70,7 @@ EncounterThreatSnapshot GameEncounterBalance::Evaluate(
 	EncounterThreatSnapshot snapshot;
 	snapshot.layoutSource = input.usesMcpOverride
 		? "mcp_override"
-		: (input.enemyIds.size() >= 4
+		: (input.usesDenseAutoLayout
 			? "dense_auto_layout"
 			: "stage_data");
 

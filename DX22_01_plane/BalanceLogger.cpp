@@ -1101,6 +1101,34 @@ void BalanceLogger::EndShot(
 	int pinballActivationAttempts = 0;
 	int pinballActivations = 0;
 	int empoweredHitActivations = 0;
+	int chargeInterruptions = 0;
+	int protectionRemovals = 0;
+	int swarmAttackReduction = 0;
+	int brittleAttackReduction = 0;
+	int actualAttackPrevention = 0;
+	json actualNextTurnPreventionByTarget = json::object();
+	json actualFutureChargePreventionByTarget = json::object();
+	const auto creditPrevention = [](
+		json& byTarget,
+		const std::string& targetId,
+		int amount,
+		const std::string& reason)
+	{
+		if (targetId.empty() || amount <= 0)
+		{
+			return;
+		}
+		const int previous = byTarget.contains(targetId)
+			? byTarget[targetId].value("amount", 0)
+			: 0;
+		if (amount > previous)
+		{
+			byTarget[targetId] = {
+				{ "amount", amount },
+				{ "reason", reason },
+			};
+		}
+	};
 	int heavyStacksConsumed =
 		m_PendingShot["shot_context"].value(
 			"heavy_stacks_consumed_on_start",
@@ -1185,7 +1213,165 @@ void BalanceLogger::EndShot(
 		{
 			++empoweredHitActivations;
 		}
+		else if (eventType == "enemy_charge_interrupted")
+		{
+			++chargeInterruptions;
+			const int amount = (std::max)(
+				0, details.value("prevented_attack_damage", 0));
+			const std::string targetId = details.value(
+				"target_id", std::string());
+			if (details.value("planned_action", std::string()) ==
+				"charge_attack")
+			{
+				creditPrevention(
+					actualNextTurnPreventionByTarget,
+					targetId,
+					amount,
+					"charge_interruption");
+			}
+			else
+			{
+				creditPrevention(
+					actualFutureChargePreventionByTarget,
+					targetId,
+					amount,
+					"charge_interruption");
+			}
+		}
+		else if (eventType == "enemy_defeated")
+		{
+			const std::string targetId = details.value(
+				"target_id", std::string());
+			creditPrevention(
+				actualNextTurnPreventionByTarget,
+				targetId,
+				(std::max)(0, details.value(
+					"prevented_next_turn_damage_before_defense", 0)),
+				"defeat");
+			creditPrevention(
+				actualFutureChargePreventionByTarget,
+				targetId,
+				(std::max)(0, details.value(
+					"prevented_future_charge_damage_before_defense", 0)),
+				"defeat");
+		}
+		else if (eventType == "enemy_board_ability_state_changed")
+		{
+			const std::string abilityId =
+				details.value("ability_id", std::string());
+			const int attackReduction = (std::max)(
+				0,
+				details.value("previous_attack", 0) -
+				details.value("current_attack", 0));
+			if (abilityId == "protection_resonance" &&
+				details.value("reason", std::string()) ==
+					"protection_removed")
+			{
+				++protectionRemovals;
+			}
+			else if (abilityId == "swarm_amplifier")
+			{
+				swarmAttackReduction += attackReduction;
+				if (details.value("affects_next_turn", false))
+				{
+					creditPrevention(
+						actualNextTurnPreventionByTarget,
+						details.value("target_id", std::string()),
+						attackReduction,
+						"swarm_stage_reduction");
+				}
+			}
+			else if (abilityId == "impact_brittle")
+			{
+				brittleAttackReduction += attackReduction;
+				if (details.value("affects_next_turn", false))
+				{
+					creditPrevention(
+						actualNextTurnPreventionByTarget,
+						details.value("target_id", std::string()),
+						attackReduction,
+						"impact_brittle");
+				}
+			}
+		}
 	}
+	int actualNextTurnPrevention = 0;
+	for (const auto& entry : actualNextTurnPreventionByTarget.items())
+	{
+		actualNextTurnPrevention += entry.value().value("amount", 0);
+	}
+	int actualFutureChargePrevention = 0;
+	for (const auto& entry : actualFutureChargePreventionByTarget.items())
+	{
+		actualFutureChargePrevention += entry.value().value("amount", 0);
+	}
+	actualAttackPrevention =
+		actualNextTurnPrevention + actualFutureChargePrevention;
+	const json mcpTelemetry = m_PendingShot["shot_context"].value(
+		"mcp_telemetry", json::object());
+	const json buildEvaluation = mcpTelemetry.value(
+		"build_evaluation", json::object());
+	const json candidateGeneration = buildEvaluation.value(
+		"candidate_generation", json::object());
+	const json predictedTacticalOutcomes = buildEvaluation.value(
+		"tactical_outcomes", json::object());
+	const json predictedChargeInterruptions =
+		predictedTacticalOutcomes.value(
+			"charge_interruptions", json::array());
+	m_PendingShot["decision_log"] = {
+		{ "used_ball", m_PendingShot.value("ball_id", std::string()) },
+		{ "target_id", buildEvaluation.value("target_id", std::string()) },
+		{ "shot_path", buildEvaluation.value("shot_path", json::object()) },
+		{ "candidate_score", buildEvaluation.value("score", 0.0) },
+		{ "score_breakdown",
+			buildEvaluation.value("score_breakdown", json::object()) },
+		{ "decision_reasons",
+			buildEvaluation.value("decision_reasons", json::array()) },
+		{ "expected_damage",
+			buildEvaluation.value("metrics", json::object()).value(
+				"damage", 0.0) },
+		{ "actual_damage",
+			playerEnemyDamageKnown && enemyEnemyDamageKnown
+				? json(m_PlayerEnemyDamage + m_EnemyEnemyDamage)
+				: json(nullptr) },
+		{ "predicted_kills",
+			buildEvaluation.value("predicted_kill_count", 0) },
+		{ "actual_kills",
+			(std::max)(0, enemiesDefeatedTotal - m_DefeatedAtShotStart) },
+		{ "predicted_chain_count",
+			buildEvaluation.value("predicted_chain_count", 0) },
+		{ "actual_chain_count", m_EnemyEnemyHitCount },
+		{ "predicted_attack_prevention",
+			buildEvaluation.value("expected_attack_prevention", 0.0) },
+		{ "actual_attack_prevention", actualAttackPrevention },
+		{ "predicted_next_turn_prevention_before_defense",
+			buildEvaluation.value(
+				"expected_next_turn_prevention_before_defense", 0.0) },
+		{ "actual_next_turn_prevention_before_defense",
+			actualNextTurnPrevention },
+		{ "actual_next_turn_prevention_by_target",
+			actualNextTurnPreventionByTarget },
+		{ "predicted_future_charge_prevention",
+			buildEvaluation.value(
+				"expected_future_charge_prevention", 0.0) },
+		{ "actual_future_charge_prevention",
+			actualFutureChargePrevention },
+		{ "actual_future_charge_prevention_by_target",
+			actualFutureChargePreventionByTarget },
+		{ "charge_interruption_candidates_generated",
+			candidateGeneration.value(
+				"charge_interruption_candidates", 0) },
+		{ "charge_interruption_candidate_adopted",
+			predictedChargeInterruptions.is_array() &&
+			!predictedChargeInterruptions.empty() },
+		{ "charge_interruption_success", chargeInterruptions > 0 },
+		{ "actual_tactical_outcomes", {
+			{ "charge_interruptions", chargeInterruptions },
+			{ "protection_removals", protectionRemovals },
+			{ "swarm_attack_reduction", swarmAttackReduction },
+			{ "impact_brittle_attack_reduction", brittleAttackReduction },
+		} },
+	};
 	const int heavyStackGainLimitPerTurn = (std::max)(
 		0,
 		m_PendingShot["shot_context"].value(

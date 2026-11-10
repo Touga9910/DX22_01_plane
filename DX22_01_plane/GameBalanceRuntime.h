@@ -52,6 +52,12 @@ struct GameBalanceReadSnapshot final
 	std::size_t validationSeedCount = 0;
 	int validationMaximumClearedStages = 0;
 	bool validationEnduranceMode = false;
+	bool validationAdjustedEarlyStages = false;
+	bool validationAdjustedMidStages = false;
+	bool validationTacticalAi = true;
+	std::string validationTacticalAiProfile = "tactics_v1";
+	int validationEarlyAttackBudget = -1;
+	int validationAttackBudget = -1;
 	int clearedStageCount = 0;
 };
 

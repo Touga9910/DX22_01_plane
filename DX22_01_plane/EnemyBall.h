@@ -168,6 +168,30 @@ public:
         return (std::max)(0, m_NearbyLivingAllies);
     }
     int GetSwarmStage() const { return m_SwarmStage; }
+	const std::array<int, 3>& GetSwarmAttackByStage() const
+	{
+		return m_EnemyData.boardAbility.swarmAttackByStage;
+	}
+	int GetBoardAbilityMaximumAttack() const
+	{
+		return m_EnemyData.boardAbility.maximumAttack;
+	}
+	float GetBrittleCollisionSpeed() const
+	{
+		return m_EnemyData.boardAbility.brittleCollisionSpeed;
+	}
+	int GetBrittleAttack() const
+	{
+		return m_EnemyData.boardAbility.brittleAttack;
+	}
+	int GetBrittleActionCount() const
+	{
+		return m_EnemyData.boardAbility.brittleActionCount;
+	}
+	int GetResonatorDamageReduction() const
+	{
+		return m_EnemyData.boardAbility.protectionDamageReduction;
+	}
     bool IsBrittle() const { return m_BrittleActionsRemaining > 0; }
     int GetBrittleActionsRemaining() const
     {

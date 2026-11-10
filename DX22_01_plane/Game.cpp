@@ -70,6 +70,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
@@ -80,6 +81,27 @@
 #include <wrl/client.h>
 
 using DirectX::SimpleMath::Vector3;
+
+namespace
+{
+	double ValidationPhysicsTimeScale()
+	{
+		static const double scale = []
+		{
+			char value[32]{};
+			const DWORD length = GetEnvironmentVariableA(
+				"CAROMINO_VALIDATION_TIME_SCALE",
+				value,
+				static_cast<DWORD>(std::size(value)));
+			if (length == 0 || length >= std::size(value)) return 1.0;
+			char* end = nullptr;
+			const double parsed = std::strtod(value, &end);
+			if (end == value || !std::isfinite(parsed)) return 1.0;
+			return (std::clamp)(parsed, 1.0, 4.0);
+		}();
+		return scale;
+	}
+}
 
 Game* Game::m_Instance;//ゲームインスタンス
 
@@ -210,10 +232,10 @@ namespace
 			LoadTexture("assets/UI/Cards/frame_pierce.png", m_Frames[CategoryIndex(BallCategory::Pierce)]);
 			LoadTexture("assets/UI/Cards/frame_reflect.png", m_Frames[CategoryIndex(BallCategory::Bounce)]);
 			LoadTexture("assets/UI/Cards/frame_anchor.png", m_Frames[CategoryIndex(BallCategory::Anchor)]);
-			LoadTexture("assets/UI/Cards/icon_heavy.png", m_Icons[CategoryIndex(BallCategory::Heavy)]);
-			LoadTexture("assets/UI/Cards/icon_pierce.png", m_Icons[CategoryIndex(BallCategory::Pierce)]);
-			LoadTexture("assets/UI/Cards/icon_reflect.png", m_Icons[CategoryIndex(BallCategory::Bounce)]);
-			LoadTexture("assets/UI/Cards/icon_anchor.png", m_Icons[CategoryIndex(BallCategory::Anchor)]);
+			LoadTexture("assets/UI/Cards/card_heavy.png", m_Icons[CategoryIndex(BallCategory::Heavy)]);
+			LoadTexture("assets/UI/Cards/card_pierce.png", m_Icons[CategoryIndex(BallCategory::Pierce)]);
+			LoadTexture("assets/UI/Cards/card_reflect.png", m_Icons[CategoryIndex(BallCategory::Bounce)]);
+			LoadTexture("assets/UI/Cards/card_anchor_green.png", m_Icons[CategoryIndex(BallCategory::Anchor)]);
 		}
 
 		void Reset()
@@ -428,35 +450,6 @@ namespace
 		return PlayerBallText::GetTrait(ball);
 	}
 
-	const char* GetPlayerBallAimHint(const std::string& definitionId)
-	{
-		if (definitionId == "player_heavy")
-			return PlayerBallText::Utf8(u8"狙い：敵同士を押し込んで連鎖させる");
-		if (definitionId == "player_pierce")
-			return PlayerBallText::Utf8(u8"狙い：複数の敵を一直線に通す");
-		if (definitionId == "player_bounce")
-			return PlayerBallText::Utf8(u8"狙い：壁反射で敵の裏側へ回り込む");
-		if (definitionId == "player_anchor")
-			return PlayerBallText::Utf8(u8"狙い：接触位置で止め、次の配置を作る");
-		if (definitionId == "player_cushion_charge")
-			return PlayerBallText::Utf8(u8"狙い：クッションを経由して次の球へつなぐ");
-		if (definitionId == "player_chain_impact")
-			return PlayerBallText::Utf8(u8"狙い：敵の密集地点に当てて周囲を巻き込む");
-		if (definitionId == "player_refractive_pierce")
-			return PlayerBallText::Utf8(u8"狙い：衝突後の屈折先まで読む");
-		if (definitionId == "player_stop_shield")
-			return PlayerBallText::Utf8(u8"狙い：早めに止めて次の被弾を防ぐ");
-		if (definitionId == "player_trace_driver")
-			return PlayerBallText::Utf8(u8"狙い：既存の貫通痕をなぞり、その先で壁反射する");
-		if (definitionId == "player_pierce_finisher")
-			return PlayerBallText::Utf8(u8"狙い：貫通痕を再利用し、異なる敵を連続で貫く");
-		if (definitionId == "player_ricochet_finisher")
-			return PlayerBallText::Utf8(u8"狙い：育てた壁を複数経由してから敵へ当てる");
-		if (definitionId == "player_anchor_finisher")
-			return PlayerBallText::Utf8(u8"狙い：印を持つ敵へ一撃を集中して回収する");
-		return PlayerBallText::Utf8(u8"狙い：配置に合わせて確実に連鎖を始める");
-	}
-
 	struct BallCardInteraction
 	{
 		bool select = false;
@@ -471,10 +464,8 @@ namespace
 		float titleBottom = 0.158f;
 		float nameY = 0.052f;
 		float categoryY = 0.108f;
-		float metadataTop = 0.158f;
-		float metadataBottom = 0.205f;
 		float descriptionSideInset = 0.09f;
-		float descriptionTop = 0.635f;
+		float descriptionTop = 0.535f;
 	};
 
 	BallCardTextLayout GetBallCardTextLayout(BallCategory category)
@@ -509,8 +500,7 @@ namespace
 		const ImVec2& position,
 		const ImVec2& size,
 		bool selected,
-		bool held,
-		float expansion)
+		bool held)
 	{
 		BallCardInteraction interaction;
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -523,14 +513,10 @@ namespace
 			? IM_COL32(255, 221, 118, 255)
 			: (held ? IM_COL32(91, 222, 205, 255) : IM_COL32(92, 105, 126, 210));
 		const ImVec2 cardMax(position.x + size.x, position.y + size.y);
-		// 従来の2段階展開を維持し、十分な高さになってから
-		// 詳細レイアウトとホールド操作を有効にする。
-		const bool detailsVisible = expansion >= 0.82f;
 		const float layoutScale = size.x / 252.0f;
 		const float readableScale = (std::max)(0.78f, layoutScale);
 		const float cornerRadius = 12.0f * layoutScale;
-		const float footerHeight =
-			(detailsVisible ? 38.0f : 28.0f) * layoutScale;
+		const float footerHeight = 30.0f * readableScale;
 		const BallCardTextLayout textLayout =
 			GetBallCardTextLayout(ball.category);
 
@@ -561,10 +547,10 @@ namespace
 				*icon,
 				ImVec2(
 					position.x + size.x * 0.18f,
-					position.y + size.y * 0.20f),
+					position.y + size.y * 0.18f),
 				ImVec2(
 					cardMax.x - size.x * 0.18f,
-					position.y + size.y * 0.60f));
+					position.y + size.y * 0.53f));
 		}
 
 		if (const BallCardTexture* frame = art.Frame(ball.category))
@@ -584,7 +570,7 @@ namespace
 				borderColor,
 				cornerRadius,
 				0,
-				selected ? 3.0f : 2.0f);
+				selected ? 3.0f : 5.0f);
 		}
 		drawList->PopClipRect();
 
@@ -592,7 +578,7 @@ namespace
 		ImGui::SetCursorScreenPos(position);
 		ImGui::InvisibleButton(
 			"ball_card_select",
-			ImVec2(size.x, detailsVisible ? size.y - footerHeight : size.y));
+			ImVec2(size.x, size.y));
 		const bool cardHovered = ImGui::IsItemHovered();
 		interaction.select = ImGui::IsItemClicked(ImGuiMouseButton_Left);
 		interaction.openDetails = interaction.select && selected;
@@ -600,28 +586,29 @@ namespace
 			!selected && cardHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
 
 		const ImVec2 footerPosition(position.x, cardMax.y - footerHeight);
-		bool footerHovered = false;
-		if (detailsVisible)
-		{
-			ImGui::SetCursorScreenPos(footerPosition);
-			ImGui::InvisibleButton(
-				"ball_card_hold",
-				ImVec2(size.x, footerHeight));
-			footerHovered = ImGui::IsItemHovered();
-			if (!selected && ImGui::IsItemClicked(ImGuiMouseButton_Left))
-			{
-				interaction.toggleHold = true;
-			}
-			if (!selected && footerHovered &&
-				ImGui::IsMouseClicked(ImGuiMouseButton_Right))
-			{
-				interaction.toggleHold = true;
-			}
-		}
-
-		if (cardHovered || footerHovered)
+		if (cardHovered)
 		{
 			ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+			if (!selected)
+			{
+				drawList->AddRect(
+					ImVec2(position.x + 2.0f, position.y + 2.0f),
+					ImVec2(cardMax.x - 2.0f, cardMax.y - 2.0f),
+					held ? IM_COL32(126, 255, 236, 255) : IM_COL32(224, 239, 255, 245),
+					cornerRadius,
+					0,
+					held ? 3.0f : 2.0f);
+			}
+		}
+		if (selected)
+		{
+			drawList->AddRect(
+				ImVec2(position.x + 1.0f, position.y + 1.0f),
+				ImVec2(cardMax.x - 1.0f, cardMax.y - 1.0f),
+				IM_COL32(255, 231, 145, 255),
+				cornerRadius,
+				0,
+				4.0f);
 		}
 
 		ImFont* font = ImGui::GetFont();
@@ -691,6 +678,41 @@ namespace
 				color,
 				value);
 		};
+		const auto addWrappedTextFitted = [&addText, font](
+			float requestedTextSize,
+			float minimumTextSize,
+			const ImVec2& regionMinimum,
+			const ImVec2& regionMaximum,
+			ImU32 color,
+			const std::string& value)
+		{
+			const float availableWidth = (std::max)(
+				1.0f,
+				regionMaximum.x - regionMinimum.x);
+			const float availableHeight = (std::max)(
+				1.0f,
+				regionMaximum.y - regionMinimum.y);
+			float textSize = requestedTextSize;
+			while (textSize > minimumTextSize)
+			{
+				const ImVec2 measured = font->CalcTextSizeA(
+					textSize,
+					(std::numeric_limits<float>::max)(),
+					availableWidth,
+					value.c_str());
+				if (measured.y <= availableHeight)
+				{
+					break;
+				}
+				textSize = (std::max)(minimumTextSize, textSize - 0.5f);
+			}
+			addText(
+				textSize,
+				regionMinimum,
+				color,
+				value.c_str(),
+				availableWidth);
+		};
 
 		drawList->PushClipRect(position, cardMax, true);
 
@@ -722,33 +744,6 @@ namespace
 			text);
 		drawList->PopClipRect();
 
-		if (detailsVisible)
-		{
-			sprintf_s(
-				text,
-				"Lv.%d / No.%llu",
-				ball.upgradeLevel,
-				static_cast<unsigned long long>(ball.instanceId));
-			const ImVec2 metadataMinimum(
-				position.x + size.x * 0.22f,
-				position.y + size.y * textLayout.metadataTop);
-			const ImVec2 metadataMaximum(
-				cardMax.x - size.x * 0.22f,
-				position.y + size.y * textLayout.metadataBottom);
-			drawList->PushClipRect(
-				metadataMinimum,
-				metadataMaximum,
-				true);
-			addCenteredTextInRegion(
-				fontSize * 0.58f * readableScale,
-				metadataMinimum,
-				metadataMaximum,
-				position.y + size.y * 0.165f,
-				IM_COL32(174, 188, 207, 255),
-				text);
-			drawList->PopClipRect();
-		}
-
 		const ImVec2 descriptionMinimum(
 			position.x + size.x * textLayout.descriptionSideInset,
 			position.y + size.y * textLayout.descriptionTop);
@@ -760,9 +755,6 @@ namespace
 			descriptionMinimum.x + descriptionPadding;
 		const float descriptionTextRight =
 			descriptionMaximum.x - descriptionPadding;
-		const float descriptionTextWidth = (std::max)(
-			1.0f,
-			descriptionTextRight - descriptionTextLeft);
 		drawList->AddRectFilled(
 			descriptionMinimum,
 			descriptionMaximum,
@@ -770,49 +762,35 @@ namespace
 			7.0f * layoutScale);
 		drawList->PushClipRect(descriptionMinimum, descriptionMaximum, true);
 
+		const float attackTextY = descriptionMinimum.y + descriptionPadding;
 		sprintf_s(text, PlayerBallText::Utf8(u8"攻撃力：%d"), attack);
 		addText(
 			fontSize * 0.76f * readableScale,
-			ImVec2(descriptionTextLeft, position.y + size.y * 0.655f),
+			ImVec2(descriptionTextLeft, attackTextY),
 			IM_COL32(247, 229, 163, 255),
 			text);
+		const float dividerY = attackTextY + fontSize * 0.86f * readableScale;
 		drawList->AddLine(
-			ImVec2(descriptionTextLeft, position.y + size.y * 0.710f),
-			ImVec2(descriptionTextRight, position.y + size.y * 0.710f),
+			ImVec2(descriptionTextLeft, dividerY),
+			ImVec2(descriptionTextRight, dividerY),
 			IM_COL32(92, 111, 121, 190),
 			1.0f * layoutScale);
-
-		if (detailsVisible)
-		{
-			addText(
-				fontSize * 0.62f * readableScale,
-				ImVec2(descriptionTextLeft, position.y + size.y * 0.725f),
-				IM_COL32(255, 225, 132, 255),
-				GetPlayerBallAimHint(ball.definitionId),
-				descriptionTextWidth);
-			addText(
-				fontSize * 0.58f * readableScale,
-				ImVec2(descriptionTextLeft, position.y + size.y * 0.815f),
-				IM_COL32(210, 222, 230, 255),
-				PlayerBallText::GetShortDescription(ball.definitionId),
-				descriptionTextWidth);
-		}
-		else
-		{
-			addText(
-				fontSize * 0.62f * readableScale,
-				ImVec2(descriptionTextLeft, position.y + size.y * 0.735f),
-				IM_COL32(216, 228, 235, 255),
-				PlayerBallText::GetShortDescription(ball.definitionId),
-				descriptionTextWidth);
-		}
+		const std::string shortDescription =
+			PlayerBallText::GetShortDescription(ball);
+		addWrappedTextFitted(
+			fontSize * 0.57f * readableScale,
+			fontSize * 0.40f * readableScale,
+			ImVec2(descriptionTextLeft, dividerY + 4.0f * readableScale),
+			ImVec2(descriptionTextRight, descriptionMaximum.y - descriptionPadding),
+			IM_COL32(216, 228, 235, 255),
+			shortDescription);
 		drawList->PopClipRect();
 
 		const ImU32 footerBackground = selected
 			? IM_COL32(184, 137, 38, 235)
 			: (held
 				? IM_COL32(23, 122, 116, 245)
-				: (footerHovered
+				: (cardHovered
 					? IM_COL32(58, 74, 96, 245)
 					: IM_COL32(12, 31, 39, 232)));
 		drawList->AddRectFilled(
@@ -821,15 +799,9 @@ namespace
 			footerBackground,
 			cornerRadius,
 			ImDrawFlags_RoundCornersBottom);
-		const char* footerText = detailsVisible
-			? (selected
-				? PlayerBallText::Utf8(u8"今回使用")
-				: (held
-					? PlayerBallText::Utf8(u8"ホールド解除")
-					: PlayerBallText::Utf8(u8"ホールド")))
-			: (selected
-				? PlayerBallText::Utf8(u8"選択中")
-				: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札")));
+		const char* footerText = selected
+			? PlayerBallText::Utf8(u8"選択中")
+			: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
 		const float footerFontSize = fontSize * 0.78f * readableScale;
 		const ImVec2 footerTextSize = font->CalcTextSizeA(
 			footerFontSize,
@@ -1639,8 +1611,25 @@ void Game::Update(double elapsedSeconds)
 
 	// カメラを更新
 	const auto cameraStarted = startSection();
+
+	constexpr float kBattleStageOffsetZ = -15.0f;
+
+	if (dynamic_cast<BattleScene*>(
+		m_Instance->GetCurrentScene()) != nullptr)
+	{
+		// GamePresentation側が設定したカメラシェイクを維持
+		Vector3 target = m_Instance->m_Camera.GetTarget();
+
+		// 戦闘画面だけ上方向にずらす
+		target.z += kBattleStageOffsetZ;
+
+		m_Instance->m_Camera.SetTarget(target);
+	}
+
 	m_Instance->m_Camera.Update();
-	updateTiming.cameraMilliseconds = finishSection(cameraStarted);
+
+	updateTiming.cameraMilliseconds =
+		finishSection(cameraStarted);
 
 	// オブジェクトを更新
 	const auto worldUpdateStarted = startSection();
@@ -1650,7 +1639,11 @@ void Game::Update(double elapsedSeconds)
 
 	// Input/AI/MCP have run once. Only physical motion may catch up here.
 	const auto fixedPhysicsStarted = startSection();
-	m_Instance->UpdateFixedPhysics(elapsedSeconds);
+	// Validation may advance more fixed 1/60 s ticks per rendered frame. This
+	// reduces wall-clock collection time without changing the physics step,
+	// random seeds, input accuracy, or production behavior (default scale 1).
+	m_Instance->UpdateFixedPhysics(
+		elapsedSeconds * ValidationPhysicsTimeScale());
 	updateTiming.fixedPhysicsMilliseconds =
 		finishSection(fixedPhysicsStarted);
 
@@ -3503,7 +3496,9 @@ void Game::StartNextBattle(StageType stageType)
 		stages,
 		stageType,
 		m_RunController->Status().progress,
-		previousStageId);
+		previousStageId,
+		m_BalanceRuntime->validation.GetAllowedNormalStageIds(
+			m_RunController->Status().progress));
 	if (selectedStage == nullptr)
 	{
 		m_RunController->Progress().CancelActiveNode();
@@ -3779,92 +3774,31 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		132.0f);
 	const float gap = 14.0f;
 	constexpr float cardAspectRatio = 3.0f / 4.0f;
-	constexpr float collapsedCardScale = 0.72f;
-	const float expandedCardHeightLimit = std::clamp(
-		viewport->WorkSize.y * 0.43f,
-		270.0f,
-		330.0f);
+	const float fixedCardHeightLimit = std::clamp(
+		viewport->WorkSize.y * 0.31f,
+		228.0f,
+		280.0f);
 	const float cardBottom =
 		viewport->WorkPos.y + viewport->WorkSize.y - 12.0f;
 	const float availableCardWidth =
 		(viewport->WorkSize.x - horizontalPadding * 2.0f -
 			gap * static_cast<float>((std::max)(0, offerCount - 1))) /
 		static_cast<float>(offerCount);
-	const float expandedCardWidth = (std::min)(
-		(std::min)(252.0f, availableCardWidth),
-		expandedCardHeightLimit * cardAspectRatio);
-	const ImVec2 expandedCardSize(
-		expandedCardWidth,
-		expandedCardWidth / cardAspectRatio);
-	const ImVec2 collapsedCardSize(
-		expandedCardSize.x * collapsedCardScale,
-		expandedCardSize.y * collapsedCardScale);
-	const float cardsWidth = expandedCardSize.x * static_cast<float>(offerCount) +
+	const float fixedCardWidth = (std::min)(
+		(std::min)(210.0f, availableCardWidth),
+		fixedCardHeightLimit * cardAspectRatio);
+	const ImVec2 fixedCardSize(
+		fixedCardWidth,
+		fixedCardWidth / cardAspectRatio);
+	const float cardsWidth = fixedCardSize.x * static_cast<float>(offerCount) +
 		gap * static_cast<float>((std::max)(0, offerCount - 1));
 	const float cardsStartX = viewport->WorkPos.x +
 		(viewport->WorkSize.x - cardsWidth) * 0.5f;
 
-	const auto easedExpansion = [](float value)
-	{
-		value = std::clamp(value, 0.0f, 1.0f);
-		return value * value * (3.0f - 2.0f * value);
-	};
-	const auto cardScaleFor = [&](float expansion)
-	{
-		return collapsedCardScale +
-			(1.0f - collapsedCardScale) * easedExpansion(expansion);
-	};
-	const auto cardSizeFor = [&](float expansion)
-	{
-		const float scale = cardScaleFor(expansion);
-		return ImVec2(
-			expandedCardSize.x * scale,
-			expandedCardSize.y * scale);
-	};
-
-	const ImVec2 mousePosition = ImGui::GetIO().MousePos;
-	const float animationStep =
-		(std::min)(ImGui::GetIO().DeltaTime, 0.05f) * 8.5f;
-	float tallestCardHeight = collapsedCardSize.y;
-	int frontCardIndex = -1;
-	for (int index = 0;
-		index < offerCount && index < static_cast<int>(m_BallCardExpansion.size());
-		index++)
-	{
-		float& expansion = m_BallCardExpansion[static_cast<std::size_t>(index)];
-		const ImVec2 currentSize = cardSizeFor(expansion);
-		const float slotLeft = cardsStartX +
-			static_cast<float>(index) * (expandedCardSize.x + gap);
-		const float cardLeft = slotLeft +
-			(expandedCardSize.x - currentSize.x) * 0.5f;
-		const bool hovered =
-			mousePosition.x >= cardLeft &&
-			mousePosition.x <= cardLeft + currentSize.x &&
-			mousePosition.y >= cardBottom - currentSize.y &&
-			mousePosition.y <= cardBottom;
-		if (hovered)
-		{
-			frontCardIndex = index;
-		}
-		expansion = std::clamp(
-			expansion + (hovered ? animationStep : -animationStep),
-			0.0f,
-			1.0f);
-		tallestCardHeight = (std::max)(
-			tallestCardHeight,
-			cardSizeFor(expansion).y);
-	}
-	for (std::size_t index = static_cast<std::size_t>((std::min)(offerCount, 4));
-		index < m_BallCardExpansion.size();
-		index++)
-	{
-		m_BallCardExpansion[index] = 0.0f;
-	}
-
-	const float panelHeight = tallestCardHeight + 24.0f;
+	const float panelHeight = fixedCardSize.y + 24.0f;
 	const ImVec2 panelPosition(
 		viewport->WorkPos.x,
-		cardBottom - tallestCardHeight - 12.0f);
+		cardBottom - fixedCardSize.y - 12.0f);
 
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(panelPosition, ImGuiCond_Always);
@@ -3887,7 +3821,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	drawList->AddRectFilledMultiColor(
-		ImVec2(panelPosition.x, cardBottom - collapsedCardSize.y - 16.0f),
+		ImVec2(panelPosition.x, cardBottom - fixedCardSize.y - 16.0f),
 		ImVec2(panelPosition.x + viewport->WorkSize.x, cardBottom + 12.0f),
 		IM_COL32(5, 9, 15, 0),
 		IM_COL32(5, 9, 15, 0),
@@ -3904,24 +3838,19 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 
 		const bool selected = intent.selectedOfferIndex == index;
 		const bool held = intent.selectedHoldIndex == index;
-		const float expansion = index < static_cast<int>(m_BallCardExpansion.size())
-			? m_BallCardExpansion[static_cast<std::size_t>(index)]
-			: 0.0f;
-		const ImVec2 cardSize = cardSizeFor(expansion);
 		const float slotLeft = cardsStartX +
-			static_cast<float>(index) * (expandedCardSize.x + gap);
+			static_cast<float>(index) * (fixedCardSize.x + gap);
 		const ImVec2 cardPosition(
-			slotLeft + (expandedCardSize.x - cardSize.x) * 0.5f,
-			cardBottom - cardSize.y);
+			slotLeft,
+			cardBottom - fixedCardSize.y);
 		const BallCardInteraction interaction = DrawBallSelectionCard(
 			*ball,
 			index,
 			model.effectiveAttacks[static_cast<std::size_t>(index)],
 			cardPosition,
-			cardSize,
+			fixedCardSize,
 			selected,
-			held,
-			expansion);
+			held);
 
 		if (interaction.openDetails)
 		{
@@ -3944,17 +3873,9 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		}
 	};
 
-	// ホバー中のカードを最後にsubmitし、常に手前へ描画する。
 	for (int index = 0; index < offerCount; ++index)
 	{
-		if (index != frontCardIndex)
-		{
-			drawCard(index);
-		}
-	}
-	if (frontCardIndex >= 0 && frontCardIndex < offerCount)
-	{
-		drawCard(frontCardIndex);
+		drawCard(index);
 	}
 
 	ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_Appearing);

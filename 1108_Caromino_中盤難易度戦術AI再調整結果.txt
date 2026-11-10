@@ -1,0 +1,242 @@
+2026年11月9日
+
+# Caromino：中盤難易度・戦術AI再調整結果
+
+## 1. 完了範囲
+
+2026年11月8日に開始した中盤以降の難易度分析と戦術AI再調整を、11月9日時点の実装・検証結果で終了した。
+
+- 既存A/B/C/Dの128ランを再集計した。
+- 中盤ステージ候補、攻撃予算、戦術AIを独立して切り替えられる検証バリアントを追加した。
+- 戦術AI v2（survival_v2）を実装した。
+- 撃破・Charge妨害・群体弱体化・衝撃脆化の攻撃阻止計測をtarget_id単位に改善した。
+- Charge専用固定シナリオを実MCPで検証した。
+- 既存32 seedによる追加比較を開始したが、ユーザー指示により途中で停止した。停止時点の正式サンプルだけを参考値として記録する。
+- 本番設定への自動昇格は行っていない。
+
+詳細な敗北分布と原因は「1108_Caromino_中盤以降難易度と戦術AI分析.txt」を参照すること。
+
+## 2. 実装した変更
+
+### 2.1 検証バリアント
+
+balance_validation.jsonに次の独立設定を追加した。
+
+- adjustedEarlyStages：序盤ステージ候補調整
+- adjustedMidStages：中盤ステージ候補調整
+- earlyAttackBudget：序盤攻撃予算
+- midAttackBudget：中盤攻撃予算
+- tacticalAi：戦術AI有効化
+- tacticalAiProfile：評価プロファイル選択
+
+追加した主な比較条件：
+
+- stage-only：ステージ候補だけ調整
+- budget-only：攻撃予算だけ調整
+- AI v2：既存ステージ＋survival_v2
+- mid tuned + AI v2：中盤候補調整＋survival_v2
+
+通常ステージJSONは上書きしていない。検証バリアントは既定で無効であり、本番設定には影響しない。
+
+中盤候補調整では、進行度7〜11で単能力または比較的少数の盤面操作ステージを優先し、normal_dual_threatとnormal_triple_encirclementの出現を進行度13以降へ遅らせた。敵HP・攻撃力の一律低下は行っていない。
+
+### 2.2 戦術AI v2
+
+評価モデルをbuild_tactics_v3へ更新し、tacticalAiProfile=survival_v2で次を行う。
+
+- 即時ダメージ、撃破、次ターン攻撃阻止を将来準備より優先する。
+- 高攻撃力、Charge、周囲への能力影響から敵危険度を加点する。
+- 低HPほど安全性と攻撃阻止を重視する。
+- 防護解除などの将来価値に上限を設け、倒せる敵を放置しにくくする。
+- 連鎖回数そのものの加点を下げ、ダメージ・撃破・妨害に結び付く連鎖を優先する。
+- 不確実な反射、押し出し、連鎖、将来準備へ追加減点する。
+- 重量・貫通・反射・アンカー固有の候補生成と評価は維持する。
+- 実行不能な候補を推薦しない既存制約を維持する。
+
+将来準備スコア上限：
+
+0.75 + 0.5 × 即時ダメージ + 1.5 × 撃破数
+
+さらに現在HP比に応じて30〜100%へ縮小する。
+
+### 2.3 評価係数の変更前後
+
+build profileによる上書き前の既定係数を示す。
+
+| 評価項目 | tactics_v1 | survival_v2 |
+|---|---:|---:|
+| ダメージ | 1.00 | 1.15 |
+| 撃破 | 4.00 | 5.00 |
+| 攻撃阻止 | 2.00 | 2.50 |
+| 連鎖衝突 | 0.50 | 0.275 |
+| 防護解除・将来準備 | 1.25 | 0.60＋上限 |
+| 危険敵優先 | なし | 1.00 |
+| 不確実性減点 | 1.00 | 1.40 |
+| 安全性 | 2.00 | 2.40 |
+
+重量ビルドは固有の二次衝突ダメージと押し出し候補を引き続き評価するため、連鎖軸全体を無効化していない。
+
+### 2.4 攻撃阻止計測
+
+- enemy_action_planへtarget_idと予測ダメージを追加した。
+- 敵撃破直前のplanned_action、planned_damageを記録するようにした。
+- target_idごとに阻止量の最大値を採用し、撃破、Charge妨害、群体弱体化、衝撃脆化の二重加算を防いだ。
+- next_turn_attack_preventionとfuture_charge_preventionを分離した。
+- Charge候補の生成数、採用有無、成功有無をdecision_logへ追加した。
+- 予測値と実績値を同じ時間範囲で比較できるようにした。
+- fire_shot時は直前に提示した候補集計をstate sequence単位でキャッシュし、推薦と実行ログの不一致を減らした。
+
+### 2.5 検証用高速化
+
+CAROMINO_VALIDATION_TIME_SCALEを追加した。1〜4の範囲で検証時の経過時間だけを倍率化し、固定物理刻み1/60秒は変更しない。環境変数未指定時は1であり、本番の正規物理挙動は変わらない。
+
+## 3. 変更ファイル
+
+今回の主要変更：
+
+- DX22_01_plane/BalanceLogger.cpp
+- DX22_01_plane/BalanceValidationController.cpp
+- DX22_01_plane/BalanceValidationController.h
+- DX22_01_plane/Game.cpp
+- DX22_01_plane/GameAutoPlay.cpp
+- DX22_01_plane/GameBalanceConfig.cpp
+- DX22_01_plane/GameBalanceRuntime.h
+- DX22_01_plane/GameBattleBridge.cpp
+- DX22_01_plane/GameMcpBridge.cpp
+- DX22_01_plane/GameMcpState.h
+- DX22_01_plane/GameProgression.cpp
+- DX22_01_plane/GameTypes.h
+- DX22_01_plane/assets/data/balance_validation.json
+- DX22_01_plane/tools/game_mcp/build_shot_evaluator.py
+- DX22_01_plane/tools/game_mcp/server.py
+- DX22_01_plane/tools/game_mcp/shot_planner.py
+- DX22_01_plane/tools/game_mcp/test_build_shot_evaluator.py
+- DX22_01_plane/tools/game_mcp/analyze_midgame_tactics.py
+- 1108_Caromino_中盤以降難易度と戦術AI分析.txt
+- 1108_Caromino_中盤難易度戦術AI再調整結果.txt
+
+作業開始前から存在した未コミット変更は保持した。最終ボス専用evaluate_boss_shots/fire_boss_shotは変更していない。
+
+## 4. A/B比較結果
+
+### 4.1 完了済み32ラン
+
+| 条件 | ラン数 | 勝利 | 勝率 | 備考 |
+|---|---:|---:|---:|---|
+| A：既存ステージ＋既存AI＋予算5 | 32 | 2 | 6.25% | 既存結果 |
+| B：調整ステージ＋既存AI＋序盤予算4 | 32 | 8 | 25.00% | 既存結果 |
+| C：既存ステージ＋改善AI v1＋予算5 | 32 | 1 | 3.12% | 既存結果 |
+| D：調整ステージ＋改善AI v1＋序盤予算4 | 32 | 8 | 25.00% | 既存結果 |
+| stage-only | 32 | 8 | 25.00% | Ascension 3、最大HP45 |
+
+stage-onlyはBと同じ8勝だった。この32 seedでは序盤改善の主効果がステージ候補側にある可能性を示すが、Bとの差がないため攻撃予算の効果が常にゼロとは断定しない。
+
+### 4.2 停止時点の正式追加比較
+
+すべてAscension 3、最大HP45、既存seed列、同一操作精度・build profileで実行した。32ラン未完了のため参考値であり、勝率改善の結論には使用しない。
+
+| 条件 | 完了数 | 勝利 | 暫定勝率 | ボス到達率 | ショット成功率 | 実連鎖/shot | 実ダメージ/shot | 次ターン阻止MAE |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| budget-only | 12 | 1 | 8.33% | 8.33% | 98.96% | 0.514 | 4.371 | 1.154 |
+| AI v2 | 9 | 1 | 11.11% | 22.22% | 97.60% | 0.518 | 4.548 | 1.141 |
+| mid tuned + AI v2 | 9 | 2 | 22.22% | 22.22% | 98.54% | 0.665 | 4.945 | 0.994 |
+
+比較参考：
+
+- B：ショット成功率98.82%、実連鎖/shot 0.551、実ダメージ/shot 4.900
+- D：ショット成功率98.51%、実連鎖/shot 0.593、実ダメージ/shot 4.948
+
+mid tuned + AI v2は停止時点で連鎖、ダメージ、阻止予測誤差に良い傾向があるが、n=9のため統計的な結論ではない。
+
+最大HP50で実行された初回並列ログは、既存A/B/C/DのAscension 3・最大HP45と条件が一致しないため正式比較から除外した。
+
+## 5. 進行度別の生存率
+
+完了済みDの主要結果：
+
+- P7：16/22突破、72.7%
+- P9：16/19突破、84.2%
+- P10：18/21突破、85.7%
+- P11：4/10突破、40.0%
+- P13：12/12突破、100.0%
+- P15：16/20突破、80.0%
+
+停止時点の参考値：
+
+- AI v2：P7 3/5、P9 5/5、P10 5/6、P11 1/3、P15 3/5
+- mid tuned + AI v2：P7 5/5、P9 7/7、P10 8/8、P11 3/5、P13 5/6、P15 4/7
+- budget-only：P3 6/9、P5 5/7、P6 2/3、P7 2/3、P9 3/4、P11 0/2
+
+中盤候補調整はP7〜10の急上昇を抑える方向に見えるが、P11以降を含む32ラン完走と未使用seed検証が必要である。
+
+## 6. 連鎖・能力妨害への影響
+
+既存DはBに対して勝率は同じだったが、実連鎖と能力妨害を増やした。AI v2では連鎖回数の直接加点を下げつつ、停止時点のmid tuned + AI v2で実連鎖/shot 0.665、実ダメージ/shot 4.945を記録した。盤面操作を捨てず、勝利へ接続する方向の変更になっている。
+
+通常ステージプールにはenemy_strikerが存在しないため、通常32 seedではCharge候補が発生しなかった。これはAIだけの失敗ではなく、検証機会がないことが原因である。
+
+Charge専用固定シナリオcharge_interrupt_validation_wide、seed 2026110899の実MCP結果：
+
+- 到達可能候補：222
+- Charge妨害候補：25
+- AI採用：重量球、offer 2、enemy 0
+- 予測攻撃阻止：8
+- 実妨害：成功
+- ログ：generated=25、adopted=true、success=true、actual prevention=8
+
+妨害不能な候補は成功扱いしていない。Charge割り込み後に敵が行動状態を消去する順序も考慮し、ログ上のplanned_actionをcharge_attackとして確定する修正を入れた。
+
+## 7. ビルドとテスト結果
+
+- C++ Releaseビルド：成功、警告0、エラー0
+- 通常の/Ziで発生する既知のC1902に対し、検証時のみ/Z7へ一時変更してビルドし、プロジェクト設定は復元済み
+- Python構文チェック：成功
+- 戦術評価テスト（Charge一重計上、将来価値上限、候補生成・採用）：成功
+- 重量二次衝突テスト：成功
+- 貫通後続命中テスト：成功
+- 比較ジョブ管理テスト：5件成功
+- 比較集計・整合性テスト：3件成功
+- Charge専用実MCP検証：成功
+- MCP推薦と実行候補の統合テスト：最終確認では3分を超えたため中断。失敗判定ではない
+- git diff --check：空白エラーなし
+
+Windowsサンドボックスでは標準Tempへの書き込みが拒否されたため、比較系単体テストだけワークスペース内の一時ディレクトリを使用した。製品コードの動作条件は変更していない。
+
+## 8. ログ保存先
+
+基準比較：
+
+- logs/balance/mcp_comparisons/comparison_20261108_140903_ce2fb443（B）
+- logs/balance/mcp_comparisons/comparison_20261108_155030_e64279e3（D）
+- logs/balance/mcp_comparisons/comparison_20261108_183746_2f2a5a0d（stage-only、32ラン）
+
+停止時点の正式追加比較：
+
+- logs/balance/mcp_comparisons/comparison_20261109_asc3_budget_only
+- logs/balance/mcp_comparisons/comparison_20261109_asc3_ai_v2
+- logs/balance/mcp_comparisons/comparison_20261109_asc3_mid_ai_v2
+
+並列ワーカーの生ログ：
+
+- .validation_workers/worker*/logs/balance
+
+再集計例（DX22_01_planeディレクトリから実行）：
+
+DX22_01_plane\tools\game_mcp\.venv\Scripts\python.exe DX22_01_plane\tools\game_mcp\analyze_midgame_tactics.py B=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261108_140903_ce2fb443 D=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261108_155030_e64279e3 stage_only=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261108_183746_2f2a5a0d budget_partial=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261109_asc3_budget_only ai_v2_partial=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261109_asc3_ai_v2 mid_ai_v2_partial=DX22_01_plane\logs\balance\mcp_comparisons\comparison_20261109_asc3_mid_ai_v2
+
+## 9. 残る問題
+
+1. budget-onlyは残り20ラン、AI v2とmid tuned + AI v2は各残り23ランが未実行である。
+2. 評価調整に使用していない別32 seedのholdout検証は未実行である。
+3. 通常ステージにenemy_strikerがいないため、通常ランのCharge妨害発生率を評価できない。
+4. 次ターン攻撃阻止の予測誤差は約1.0残っており、押し出し後の複数衝突予測に改善余地がある。
+5. Chargeのnext-turn/future意味修正後は単体テストとビルドを通したが、同じ実MCP固定シナリオの再実行までは行っていない。
+6. MCP推薦・実行統合テストの長時間化を分離・短縮する余地がある。
+
+## 10. 本番反映の推奨可否
+
+現時点では本番反映を推奨しない。
+
+理由は、設計上の問題に対する実装、単体テスト、Charge専用検証は成立している一方、AI v2と中盤調整の正式比較が各9〜12ランで停止しており、32ラン完走と未使用32 seedの再検証がないためである。
+
+balance_validation.jsonの検証バリアントとして保持し、本番設定は変更しない。再開する場合は同じAscension 3・最大HP45のprofileを各workerへコピーし、残りseedだけresumeしてから、未使用32 seedで過適合を確認することを推奨する。

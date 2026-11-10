@@ -149,6 +149,7 @@ public:
     {
         return m_EnemyActionPlanner.Config();
     }
+	void SetEnemyActionMaximumBudget(int maximumBudget);
 
 private:
     static constexpr int kRequiredStoppedTicks = 11;
@@ -168,6 +169,7 @@ private:
     std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
     std::deque<EnemyBall*> m_PocketedEnemyQueue;
     EnemyActionPlanner m_EnemyActionPlanner;
+	EnemyActionConfig m_DefaultEnemyActionConfig{};
 
 private:
     void CompleteShot();

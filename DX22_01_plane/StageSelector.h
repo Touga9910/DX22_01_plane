@@ -29,7 +29,8 @@ public:
         const std::vector<StageData>& stages,
         StageType stageType,
         int progress,
-        const std::string& lastStageId);
+        const std::string& lastStageId,
+        const std::vector<std::string>& allowedStageIds = {});
 
     StageSelectorSnapshot CaptureSnapshot() const;
     void RestoreSnapshot(const StageSelectorSnapshot& snapshot);

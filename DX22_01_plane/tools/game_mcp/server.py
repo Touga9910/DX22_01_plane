@@ -856,6 +856,7 @@ def create_server(
         initial_build_profile,
     )
     deterministic_shot_random: random.Random | None = None
+    last_candidate_generation: dict[str, Any] = {}
 
     # Older running game binaries omit enemy physical properties. Use the
     # matching local data only for missing fields; live fields always win.
@@ -1019,6 +1020,14 @@ def create_server(
             state["shot_tactics"] = build_tactical_shot_context(state, profile)
             state["build_shot_choices"] = build_joint_shot_context(state, profile)
         geometric = state["build_shot_choices"]
+        last_candidate_generation.clear()
+        if not state.get("boss_state"):
+            last_candidate_generation.update({
+                "sequence": state.get("sequence"),
+                "candidate_generation": dict(
+                    geometric.get("candidate_generation", {})
+                ),
+            })
         if geometric["recommended"] is not None:
             # Combat selection uses achievable shots. Keep long-term build
             # recommendations for acquisition and upgrades separately.
@@ -1563,6 +1572,24 @@ def create_server(
             "pocket_index": pocket_index, "power_mode": power_mode,
         }
         if current_ball and current_ball.get("status"):
+            # Preserve the same whole-offer candidate-generation counts exposed by
+            # get_game_state in the telemetry of the shot that is actually fired.
+            # plan_build_shot otherwise receives the raw bridge state, which does
+            # not contain the derived build_shot_choices snapshot.
+            candidate_generation = {}
+            if last_candidate_generation.get("sequence") == state.get("sequence"):
+                candidate_generation = dict(
+                    last_candidate_generation.get("candidate_generation", {})
+                )
+            if not candidate_generation:
+                joint_context = build_joint_shot_context(state, profile)
+                candidate_generation = dict(
+                    joint_context.get("candidate_generation", {})
+                )
+            state = dict(state)
+            state["build_shot_choices"] = {
+                "candidate_generation": candidate_generation
+            }
             if power_mode == "manual" and (
                 power is None or not math.isfinite(power) or not 1 <= power <= 8
             ):

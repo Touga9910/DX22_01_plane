@@ -2172,9 +2172,36 @@ void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
 	if (enemy == nullptr) return;
 	const std::string enemyId = enemy->GetEnemyId();
+	const auto enemies = m_RuntimeState->World().GetComponents<EnemyBall>();
+	const auto found = std::find(enemies.begin(), enemies.end(), enemy);
+	const std::string targetId = found != enemies.end()
+		? "enemy:" + std::to_string(
+			static_cast<std::size_t>(std::distance(enemies.begin(), found)))
+		: std::string();
+	const EnemyActionType plannedAction = enemy->GetPlannedAction();
+	const bool attacksNextTurn =
+		plannedAction == EnemyActionType::NormalAttack ||
+		plannedAction == EnemyActionType::ChargeAttack;
+	const int plannedDamage = attacksNextTurn
+		? PlayerBall::CalculateIncomingDamage(
+			static_cast<int>(std::lround(
+				enemy->GetAttack() * enemy->GetPlannedDamageMultiplier())))
+		: 0;
+	const int futureChargeDamage =
+		!attacksNextTurn &&
+		(plannedAction == EnemyActionType::ChargeStart || enemy->IsCharging())
+			? PlayerBall::CalculateIncomingDamage(
+				static_cast<int>(std::lround(
+					enemy->GetAttack() *
+					GetEnemyActionConfig().chargeDamageMultiplier)))
+			: 0;
 	RecordBalanceEvent("enemy_defeated", {
 		{ "enemy_id", enemyId },
+		{ "target_id", targetId },
 		{ "board_ability", ToString(enemy->GetBoardAbilityType()) },
+		{ "planned_action", ToString(plannedAction) },
+		{ "prevented_next_turn_damage_before_defense", plannedDamage },
+		{ "prevented_future_charge_damage_before_defense", futureChargeDamage },
 	});
 	const int enemyAnchorBefore = enemy->GetAnchorStacks();
 	const int playerAnchorBefore =
@@ -2399,8 +2426,24 @@ void Game::NotifyChargeInterrupted(
 			? enemy.GetPocketEntryPosition()
 			: enemy.GetPosition();
 	InvalidateDebugCombatForecast("Charge妨害");
+	const auto enemies = m_RuntimeState->World().GetComponents<EnemyBall>();
+	const auto found = std::find(enemies.begin(), enemies.end(), &enemy);
+	const std::string targetId = found != enemies.end()
+		? "enemy:" + std::to_string(
+			static_cast<std::size_t>(std::distance(enemies.begin(), found)))
+		: std::string();
 	RecordBalanceEvent("enemy_charge_interrupted", {
 		{ "enemy_id", enemy.GetEnemyId() },
+		{ "target_id", targetId },
+		// This callback is emitted only after a currently charging enemy has
+		// been interrupted. The EnemyBall has already cleared its internal
+		// planned action by this point, so reading it here incorrectly reports
+		// Wait and classifies an immediate prevented Charge as a future benefit.
+		{ "planned_action", ToString(EnemyActionType::ChargeAttack) },
+		{ "prevented_attack_damage",
+			static_cast<int>(std::ceil(
+				enemy.GetAttack() *
+				GetEnemyActionConfig().chargeDamageMultiplier)) },
 		{ "reason", ToString(result.reason) },
 		{ "movement_distance", result.movementDistance },
 		{ "movement_threshold", result.movementThreshold },
@@ -2625,10 +2668,23 @@ void Game::PublishGameEvent(const GameEvent& event)
 void Game::NotifyEnemyAbilityStateChanged(
 	const EnemyAbilityStateChangedEvent& event)
 {
+	const auto enemies = m_RuntimeState->World().GetComponents<EnemyBall>();
+	const EnemyBall* changedEnemy = reinterpret_cast<const EnemyBall*>(
+		event.targetKey);
+	const auto found = std::find(
+		enemies.begin(), enemies.end(), changedEnemy);
+	const std::string targetId = found != enemies.end()
+		? "enemy:" + std::to_string(
+			static_cast<std::size_t>(std::distance(enemies.begin(), found)))
+		: std::string();
+	const EnemyActionType plannedAction = changedEnemy != nullptr
+		? changedEnemy->GetPlannedAction()
+		: EnemyActionType::Wait;
 	BalanceLogger::GetInstance().RecordEvent(
 		"enemy_board_ability_state_changed",
 		{
 			{ "enemy_id", event.targetEnemyId },
+			{ "target_id", targetId },
 			{ "ability_id", event.abilityId },
 			{ "reason", event.reason },
 			{ "previous_stage", event.previousStage },
@@ -2637,6 +2693,10 @@ void Game::NotifyEnemyAbilityStateChanged(
 			{ "current_attack", event.currentAttack },
 			{ "nearby_living_allies", event.nearbyLivingAllies },
 			{ "collision_speed", event.collisionSpeed },
+			{ "planned_action", ToString(plannedAction) },
+			{ "affects_next_turn",
+				plannedAction == EnemyActionType::NormalAttack ||
+				plannedAction == EnemyActionType::ChargeAttack },
 		});
 	PublishGameEvent(event);
 }

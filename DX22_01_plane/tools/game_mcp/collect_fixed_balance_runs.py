@@ -1486,6 +1486,7 @@ def validate_comparison_record(
     expected_build: str,
     expected_hash: str,
     expected_configuration_signature: str | None,
+    expected_validation_variant: str = "fixed",
 ) -> list[str]:
     failures = []
     checks = (
@@ -1497,7 +1498,10 @@ def validate_comparison_record(
         ),
         (record.get("player_level") == "intermediate", "player_level"),
         (bool(record.get("normal_end")), "normal_end"),
-        (record.get("validation_variant") == "fixed", "validation_variant"),
+        (
+            record.get("validation_variant") == expected_validation_variant,
+            "validation_variant",
+        ),
         (
             record.get("dynamic_balance_enabled_at_start") is False,
             "dynamic_balance_enabled_at_start",
@@ -1820,6 +1824,7 @@ def write_comparison_outputs(
     exclusions: list[dict[str, Any]],
     seeds: tuple[int, ...] = COMPARISON_SEEDS,
     builds: tuple[str, ...] = COMPARISON_BUILDS,
+    validation_variant: str = "fixed",
 ) -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
     (output_directory / "all_runs.jsonl").touch(exist_ok=True)
@@ -1832,7 +1837,7 @@ def write_comparison_outputs(
         "generated_at": _utc_now(),
         "player_level": "intermediate",
         "dynamic_balance": "off",
-        "validation_variant": "fixed",
+        "validation_variant": validation_variant,
         "comparison_method_reference": COMPARISON_REFERENCE_COHORT,
         "seeds": list(seeds),
         "builds": list(builds),
@@ -2121,13 +2126,14 @@ def validate_resume_inputs(
     seeds: tuple[int, ...],
     builds: tuple[str, ...],
     hashes: dict[str, str],
+    validation_variant: str = "fixed",
 ) -> str | None:
     """Validate saved conditions and return their balance signature."""
     expected_request = {
         "seeds": list(seeds),
         "build_profiles": list(builds),
         "player_level_requested": "intermediate",
-        "validation_variant": "fixed",
+        "validation_variant": validation_variant,
         "valid_runs_per_build": len(seeds),
         "dynamic_balance": False,
     }
@@ -2165,6 +2171,7 @@ def validate_resume_inputs(
             build,
             hashes[build],
             expected_signature,
+            validation_variant,
         )
         if failures:
             raise RuntimeError(
@@ -2230,9 +2237,9 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
         raise RuntimeError("--comparison-suite requires --profile intermediate")
     if args.resume_current:
         raise RuntimeError("--comparison-suite cannot use --resume-current")
-    if args.validation_variant not in {"", "fixed"}:
+    if not args.validation_variant:
         raise RuntimeError(
-            "--comparison-suite requires --validation-variant fixed"
+            "--comparison-suite requires a validation variant"
         )
     seeds = tuple(args.comparison_seed or COMPARISON_SEEDS)
     builds = tuple(args.comparison_build or COMPARISON_BUILDS)
@@ -2268,7 +2275,8 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
                 "Cannot resume comparison without comparison_request.json"
             )
         expected_signature = validate_resume_inputs(
-            existing_request, records, seeds, builds, hashes
+            existing_request, records, seeds, builds, hashes,
+            args.validation_variant,
         )
 
     accepted_pairs = {
@@ -2293,7 +2301,7 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
         "player_level_confirmed": existing_request.get(
             "player_level_confirmed", ""
         ),
-        "validation_variant": "fixed",
+        "validation_variant": args.validation_variant,
         "valid_runs_per_build": args.valid_runs_per_build,
         "dynamic_balance": False,
         "python_executable": str(Path(sys.executable).resolve()),
@@ -2565,6 +2573,7 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
                     build,
                     hashes[build],
                     expected_signature,
+                    args.validation_variant,
                 )
                 if "configuration_signature_changed" in failures:
                     raise RuntimeError(
@@ -2593,7 +2602,8 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
                 accepted_pairs.add((seed, build))
                 _append_jsonl(runs_path, record)
                 write_comparison_outputs(
-                    output_directory, records, exclusions, seeds, builds
+                    output_directory, records, exclusions, seeds, builds,
+                    args.validation_variant,
                 )
                 write_status()
                 print(
@@ -2613,7 +2623,10 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
     runtime["current_build"] = ""
     runtime["current_seed"] = None
     runtime["retry_count"] = 0
-    write_comparison_outputs(output_directory, records, exclusions, seeds, builds)
+    write_comparison_outputs(
+        output_directory, records, exclusions, seeds, builds,
+        args.validation_variant,
+    )
     _write_comparison_status(
         output_directory,
         "completed",

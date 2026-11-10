@@ -4,10 +4,16 @@
 #include "../BallStatusComponent.h"
 #include "../CushionChargeRules.h"
 #include "../StageDataLoader.h"
+#include "../StageSelector.h"
+#include "../GameEncounterBalance.h"
 #include "../EnemyGimmickRules.h"
 #include "../PocketReturnRules.h"
+#include <array>
 #include <cassert>
+#include <cmath>
 #include <iostream>
+#include <unordered_map>
+#include <unordered_set>
 
 using nlohmann::json;
 using PlayerBallSaveData::BallToJson;
@@ -276,7 +282,207 @@ int main()
     assert(shellDefinition != enemyDefinitions.end());
     assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    assert(stages.size() == 12);
+    assert(stages.size() == 18);
+    std::unordered_set<std::string> stageIds;
+    for (const auto& stage : stages)
+    {
+        assert(stageIds.insert(stage.id).second);
+    }
+    for (const char* existingId : {
+        "normal_001", "normal_002", "normal_003", "normal_004",
+        "midboss_001", "midboss_002", "boss_001", "boss_002" })
+    {
+        assert(stageIds.contains(existingId));
+    }
+
+    struct BoardStageExpectation
+    {
+        const char* id;
+        int difficulty;
+        std::size_t enemyCount;
+        std::unordered_map<std::string, int> composition;
+    };
+    const std::array<BoardStageExpectation, 6> boardStageExpectations{{
+        { "normal_swarm_center", 1, 6,
+            {{"enemy_swarm_amplifier", 1}, {"enemy_normal", 2},
+             {"enemy_strong", 2}, {"enemy_tank", 1}} },
+        { "normal_brittle_wall", 1, 6,
+            {{"enemy_impact_brittle", 1}, {"enemy_normal", 2},
+             {"enemy_strong", 2}, {"enemy_tank", 1}} },
+        { "normal_resonance_guard", 2, 8,
+            {{"enemy_protection_resonator", 1}, {"enemy_normal", 3},
+             {"enemy_strong", 3}, {"enemy_tank", 1}} },
+        { "normal_dual_threat", 2, 8,
+            {{"enemy_swarm_amplifier", 1}, {"enemy_impact_brittle", 1},
+             {"enemy_normal", 2}, {"enemy_strong", 3},
+             {"enemy_tank", 1}} },
+        { "normal_resonant_swarm", 3, 10,
+            {{"enemy_swarm_amplifier", 1},
+             {"enemy_protection_resonator", 1}, {"enemy_normal", 3},
+             {"enemy_strong", 4}, {"enemy_tank", 1}} },
+        { "normal_triple_encirclement", 3, 10,
+            {{"enemy_swarm_amplifier", 1}, {"enemy_impact_brittle", 1},
+             {"enemy_protection_resonator", 1}, {"enemy_normal", 3},
+             {"enemy_strong", 3}, {"enemy_tank", 1}} },
+    }};
+    std::vector<StageData> boardStages;
+    const float fieldHalfWidth = TableConfig::GetFieldWidth() * 0.5f;
+    const float fieldHalfDepth = TableConfig::GetFieldDepth() * 0.5f;
+    const float playerRadius = 2.4f;
+    const std::array<Vector3, 6> pockets{{
+        {-fieldHalfWidth, 1.0f, -fieldHalfDepth},
+        {0.0f, 1.0f, -fieldHalfDepth},
+        {fieldHalfWidth, 1.0f, -fieldHalfDepth},
+        {-fieldHalfWidth, 1.0f, fieldHalfDepth},
+        {0.0f, 1.0f, fieldHalfDepth},
+        {fieldHalfWidth, 1.0f, fieldHalfDepth},
+    }};
+    const auto planarDistance = [](const Vector3& left, const Vector3& right)
+    {
+        const float x = left.x - right.x;
+        const float z = left.z - right.z;
+        return std::sqrt(x * x + z * z);
+    };
+    constexpr float pocketSafetyMargin = 6.0f;
+    for (const StageData& stage : stages)
+    {
+        for (std::size_t index = 0; index < stage.enemies.size(); ++index)
+        {
+            const auto& spawn = stage.enemies[index];
+            const float radius = spawn.enemyData.status.radius;
+            assert(std::abs(spawn.position.x) + radius < fieldHalfWidth);
+            assert(std::abs(spawn.position.z) + radius < fieldHalfDepth);
+            assert(planarDistance(spawn.position, Vector3::Zero) >
+                radius + playerRadius);
+            for (const Vector3& pocketPosition : pockets)
+            {
+                assert(planarDistance(spawn.position, pocketPosition) >
+                    radius + TableConfig::POCKET_RADIUS + pocketSafetyMargin);
+            }
+            for (std::size_t other = 0; other < index; ++other)
+            {
+                const auto& otherSpawn = stage.enemies[other];
+                assert(planarDistance(spawn.position, otherSpawn.position) >
+                    radius + otherSpawn.enemyData.status.radius);
+            }
+        }
+    }
+    for (const auto& expected : boardStageExpectations)
+    {
+        const auto found = std::find_if(
+            stages.begin(), stages.end(),
+            [&expected](const StageData& stage) { return stage.id == expected.id; });
+        assert(found != stages.end());
+        assert(found->stageType == StageType::Normal);
+        assert(found->difficulty == expected.difficulty);
+        assert(found->preserveLayout);
+        assert(found->enemies.size() == expected.enemyCount);
+        std::unordered_map<std::string, int> composition;
+        for (std::size_t index = 0; index < found->enemies.size(); ++index)
+        {
+            const auto& spawn = found->enemies[index];
+            ++composition[spawn.enemyId];
+            const float radius = spawn.enemyData.status.radius;
+            assert(std::abs(spawn.position.y - TableConfig::FIELD_HEIGHT) < 0.001f);
+            assert(std::abs(spawn.position.x) + radius < fieldHalfWidth);
+            assert(std::abs(spawn.position.z) + radius < fieldHalfDepth);
+            assert(planarDistance(spawn.position, Vector3::Zero) >
+                radius + playerRadius);
+            for (const Vector3& pocketPosition : pockets)
+            {
+                assert(planarDistance(spawn.position, pocketPosition) >
+                    radius + TableConfig::POCKET_RADIUS);
+            }
+            for (std::size_t other = 0; other < index; ++other)
+            {
+                const auto& otherSpawn = found->enemies[other];
+                assert(planarDistance(spawn.position, otherSpawn.position) >
+                    radius + otherSpawn.enemyData.status.radius);
+            }
+        }
+        assert(composition == expected.composition);
+
+        for (const auto& source : found->enemies)
+        {
+            if (source.enemyData.boardAbility.type ==
+                EnemyBoardAbilityType::SwarmAmplifier)
+            {
+                int nearby = 0;
+                for (const auto& ally : found->enemies)
+                    if (&ally != &source && planarDistance(
+                        source.position, ally.position) <=
+                        source.enemyData.boardAbility.radius)
+                        ++nearby;
+                assert(nearby >= 2 && nearby <= 3);
+                assert(EnemyBoardAbilityRules::SwarmStage(nearby) == 1);
+            }
+            else if (source.enemyData.boardAbility.type ==
+                EnemyBoardAbilityType::ProtectionResonator)
+            {
+                int protectedCount = 0;
+                for (const auto& ally : found->enemies)
+                    if (&ally != &source && planarDistance(
+                        source.position, ally.position) <=
+                        source.enemyData.boardAbility.radius)
+                        ++protectedCount;
+                assert(protectedCount >= 2);
+                assert(protectedCount < static_cast<int>(found->enemies.size()) - 1);
+            }
+            else if (source.enemyData.boardAbility.type ==
+                EnemyBoardAbilityType::ImpactBrittle)
+            {
+                const float rightWallClearance = fieldHalfWidth -
+                    source.position.x - source.enemyData.status.radius;
+                assert(rightWallClearance >= 5.0f && rightWallClearance <= 15.0f);
+            }
+        }
+        boardStages.push_back(*found);
+    }
+
+    const std::array<std::pair<int, std::unordered_set<std::string>>, 3>
+        selectionExpectations{{
+            {1, {"normal_swarm_center", "normal_brittle_wall"}},
+            {3, {"normal_swarm_center", "normal_brittle_wall",
+                 "normal_resonance_guard", "normal_dual_threat"}},
+            {5, {"normal_resonance_guard", "normal_dual_threat",
+                 "normal_resonant_swarm", "normal_triple_encirclement"}},
+        }};
+    for (const auto& [progress, eligibleIds] : selectionExpectations)
+    {
+        StageSelector firstSelector;
+        StageSelector secondSelector;
+        firstSelector.Seed(20261107u + static_cast<unsigned int>(progress));
+        secondSelector.Seed(20261107u + static_cast<unsigned int>(progress));
+        std::string lastStageId;
+        for (int selection = 0; selection < 8; ++selection)
+        {
+            const StageData* first = firstSelector.SelectStage(
+                boardStages, StageType::Normal, progress, lastStageId);
+            const StageData* second = secondSelector.SelectStage(
+                boardStages, StageType::Normal, progress, lastStageId);
+            assert(first != nullptr && second != nullptr);
+            assert(first->id == second->id);
+            assert(eligibleIds.contains(first->id));
+            if (!lastStageId.empty()) assert(first->id != lastStageId);
+            lastStageId = first->id;
+        }
+    }
+    GameEncounterBalance encounterBalance;
+    encounterBalance.Load("assets/data/encounter_balance.json");
+    EncounterThreatInput authoredThreat;
+    authoredThreat.stageId = "normal_swarm_center";
+    authoredThreat.enemyIds.assign(6, "enemy_normal");
+    const auto authoredSnapshot = encounterBalance.Evaluate(authoredThreat);
+    assert(authoredSnapshot.layoutSource == "stage_data");
+    assert(std::abs(authoredSnapshot.layoutMultiplier - 1.0f) < 0.001f);
+    authoredThreat.usesDenseAutoLayout = true;
+    const auto denseSnapshot = encounterBalance.Evaluate(authoredThreat);
+    assert(denseSnapshot.layoutSource == "dense_auto_layout");
+    assert(std::abs(denseSnapshot.layoutMultiplier - 1.25f) < 0.001f);
+    authoredThreat.usesMcpOverride = true;
+    const auto mcpSnapshot = encounterBalance.Evaluate(authoredThreat);
+    assert(mcpSnapshot.layoutSource == "mcp_override");
+    assert(std::abs(mcpSnapshot.layoutMultiplier - 1.0f) < 0.001f);
     int guarded = 0, pocket = 0;
     for (const auto& stage : stages)
     {
@@ -295,5 +501,5 @@ int main()
         }
     }
     assert(guarded == 1 && pocket == 1);
-	std::cout << "PASS: HP independence, ball/enemy definitions, four synergy resources, save round trips, collision order, pierce/refraction, board-control enemies, directional guard, pocket damage and stage loading.\n";
+	std::cout << "PASS: HP independence, ball/enemy definitions, four synergy resources, save round trips, collision order, pierce/refraction, board-control enemies, six authored normal stages, deterministic stage gating, overlap safety, authored-layout telemetry, directional guard, pocket damage and stage loading.\n";
 }

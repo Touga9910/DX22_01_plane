@@ -151,7 +151,18 @@ void BattleController::Initialize(
     m_Hooks = std::move(hooks);
     m_EnemyActionPlanner.LoadConfig(
         "assets/data/enemy_action_rules.json");
+	m_DefaultEnemyActionConfig = m_EnemyActionPlanner.Config();
     Reset();
+}
+
+void BattleController::SetEnemyActionMaximumBudget(int maximumBudget)
+{
+	EnemyActionConfig config = m_DefaultEnemyActionConfig;
+	if (maximumBudget >= 0)
+	{
+		config.maximumBudget = maximumBudget;
+	}
+	m_EnemyActionPlanner.SetConfigForTesting(config);
 }
 
 void BattleController::StartBattle()

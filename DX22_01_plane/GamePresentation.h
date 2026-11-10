@@ -357,7 +357,6 @@ private:
 	std::array<int, 4> m_CurrentShotResourceGained{};
 	std::array<int, 4> m_CurrentShotResourceConsumed{};
 	unsigned int m_CurrentShotFinisherMask = 0;
-	std::array<float, 4> m_BallCardExpansion{};
 	int m_BallDetailOfferIndex = -1;
 	bool m_DeckListOpen = false;
 	bool m_RelicListOpen = false;

@@ -535,6 +535,18 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 		balance.validationMaximumClearedStages;
 	snapshot.balanceValidation.enduranceMode =
 		balance.validationEnduranceMode;
+	snapshot.balanceValidation.adjustedEarlyStages =
+		balance.validationAdjustedEarlyStages;
+	snapshot.balanceValidation.adjustedMidStages =
+		balance.validationAdjustedMidStages;
+	snapshot.balanceValidation.tacticalAi =
+		balance.validationTacticalAi;
+	snapshot.balanceValidation.tacticalAiProfile =
+		balance.validationTacticalAiProfile;
+	snapshot.balanceValidation.earlyAttackBudget =
+		balance.validationEarlyAttackBudget;
+	snapshot.balanceValidation.attackBudget =
+		balance.validationAttackBudget;
 	snapshot.balanceValidation.clearedStageCount =
 		balance.clearedStageCount;
 
@@ -1322,6 +1334,150 @@ nlohmann::json GameMcpBridge::BuildState(
 		{
 			continue;
 		}
+		const std::string enemyTargetId =
+			"enemy:" + std::to_string(enemyIndex);
+		const bool attacksThisTurn =
+			!enemy->IsDefeated() && !enemy->IsPocketed() &&
+			(enemy->GetPlannedAction() == EnemyActionType::NormalAttack ||
+			 enemy->GetPlannedAction() == EnemyActionType::ChargeAttack);
+		const int plannedAttackDamage = attacksThisTurn
+			? static_cast<int>(std::ceil(
+				static_cast<float>(enemy->GetAttack()) *
+				enemy->GetPlannedDamageMultiplier()))
+			: 0;
+		const int chargedAttackDamage = static_cast<int>(std::ceil(
+			static_cast<float>(enemy->GetAttack()) *
+			enemyActionConfig.chargeDamageMultiplier));
+		nlohmann::json affectedAllies = nlohmann::json::array();
+		nlohmann::json protectionSources = nlohmann::json::array();
+		for (std::size_t otherIndex = 0;
+			otherIndex < enemies.size();
+			++otherIndex)
+		{
+			EnemyBall* other = enemies[otherIndex];
+			if (other == nullptr || other == enemy || other->IsDefeated() ||
+				other->IsPocketed())
+			{
+				continue;
+			}
+			DirectX::SimpleMath::Vector3 delta =
+				other->GetPosition() - enemy->GetPosition();
+			delta.y = 0.0f;
+			const float radius = enemy->GetBoardAbilityRadius();
+			if (radius > 0.0f && delta.LengthSquared() <= radius * radius)
+			{
+				affectedAllies.push_back(
+					"enemy:" + std::to_string(otherIndex));
+			}
+			DirectX::SimpleMath::Vector3 sourceDelta =
+				other->GetPosition() - enemy->GetPosition();
+			sourceDelta.y = 0.0f;
+			if (other->GetBoardAbilityType() ==
+					EnemyBoardAbilityType::ProtectionResonator &&
+				other->GetBoardAbilityRadius() > 0.0f &&
+				sourceDelta.LengthSquared() <=
+					other->GetBoardAbilityRadius() *
+					other->GetBoardAbilityRadius())
+			{
+				protectionSources.push_back(
+					"enemy:" + std::to_string(otherIndex));
+			}
+		}
+
+		nlohmann::json chargeInterruptBalls = nlohmann::json::array();
+		for (int offerIndex = 0;
+			offerIndex < game.GetBallOfferCount();
+			++offerIndex)
+		{
+			const PlayerBallData* offer = game.GetBallOffer(offerIndex);
+			if (offer == nullptr ||
+				(offer->category != BallCategory::Heavy &&
+				 offer->category != BallCategory::Pierce))
+			{
+				continue;
+			}
+			chargeInterruptBalls.push_back({
+				{ "offer_index", offerIndex },
+				{ "definition_id", offer->definitionId },
+				{ "method", offer->category == BallCategory::Heavy
+					? "move_enemy_by_heavy_collision"
+					: "deal_pierce_damage" },
+			});
+		}
+
+		const int nearbyAfterOneRemoved =
+			(std::max)(0, enemy->GetNearbyLivingAllyCount() - 1);
+		const int swarmStageAfterOneRemoved =
+			EnemyBoardAbilityRules::SwarmStage(nearbyAfterOneRemoved);
+		const int swarmAttackAfterOneRemoved =
+			EnemyBoardAbilityRules::SwarmAttack(
+				nearbyAfterOneRemoved,
+				enemy->GetSwarmAttackByStage(),
+				enemy->GetBoardAbilityMaximumAttack());
+		nlohmann::json tactics = {
+			{ "next_action_prediction", {
+				{ "action", ToString(enemy->GetPlannedAction()) },
+				{ "budget_cost", enemy->GetPlannedActionCost() },
+				{ "executes_this_turn", attacksThisTurn },
+				{ "predicted_player_damage_before_defense", plannedAttackDamage },
+			} },
+			{ "defeat_prevention", {
+				{ "immediate_attack_damage", plannedAttackDamage },
+				{ "future_charged_attack_damage",
+					enemy->GetPlannedAction() == EnemyActionType::ChargeStart
+						? chargedAttackDamage : 0 },
+				{ "counted_once_in_shot_score", true },
+			} },
+			{ "charge", {
+				{ "state", ToString(enemy->GetChargeState()) },
+				{ "interruptible_now", enemy->IsCharging() },
+				{ "interruptible_offered_balls", chargeInterruptBalls },
+				{ "heavy_required_enemy_movement",
+					2.0f * enemy->GetRadius() *
+					enemyActionConfig.heavyInterruptDiameterMultiplier },
+				{ "pierce_required_damage",
+					static_cast<int>(std::ceil(
+						enemy->GetMaxHP() *
+						enemyActionConfig.pierceInterruptMaxHpRatio)) },
+				{ "attack_damage_prevented_if_interrupted",
+					enemy->IsCharging() ? chargedAttackDamage : 0 },
+			} },
+			{ "board_ability", {
+				{ "type", ToString(enemy->GetBoardAbilityType()) },
+				{ "radius", enemy->GetBoardAbilityRadius() },
+				{ "affected_ally_target_ids", affectedAllies },
+				{ "protection_source_target_ids", protectionSources },
+				{ "is_protected", enemy->IsProtectedByResonator() },
+				{ "protection_damage_reduction",
+					enemy->GetProtectionDamageReduction() },
+				{ "resonator_damage_reduction",
+					enemy->GetResonatorDamageReduction() },
+				{ "resonator_protected_target_count",
+					enemy->GetBoardAbilityType() ==
+						EnemyBoardAbilityType::ProtectionResonator
+						? affectedAllies.size() : 0 },
+				{ "resonator_removal_effect",
+					"defeat, pocket, or move source/ally outside radius removes protection" },
+				{ "nearby_living_allies", enemy->GetNearbyLivingAllyCount() },
+				{ "swarm_stage", enemy->GetSwarmStage() },
+				{ "swarm_attack", enemy->GetAttack() },
+				{ "swarm_stage_after_one_ally_removed",
+					swarmStageAfterOneRemoved },
+				{ "swarm_attack_after_one_ally_removed",
+					swarmAttackAfterOneRemoved },
+				{ "swarm_drop_condition",
+					"defeat, pocket, or move an ally outside radius" },
+				{ "brittle_active", enemy->IsBrittle() },
+				{ "brittle_actions_remaining",
+					enemy->GetBrittleActionsRemaining() },
+				{ "brittle_wall_speed_threshold",
+					enemy->GetBrittleCollisionSpeed() },
+				{ "attack_before_brittle",
+					enemy->GetAttackBeforeBoardAbility() },
+				{ "attack_while_brittle", enemy->GetBrittleAttack() },
+				{ "brittle_action_count", enemy->GetBrittleActionCount() },
+			} },
+		};
         if (enemy->IsArmorBoss())
         {
             const auto& boss = enemy->GetBossState();
@@ -1337,7 +1493,7 @@ nlohmann::json GameMcpBridge::BuildState(
         }
 		state["enemies"].push_back({
 			{ "target_id",
-				"enemy:" + std::to_string(enemyIndex) },
+				enemyTargetId },
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "can_charge", enemy->CanUseCharge() },
 			{ "charge_state", ToString(enemy->GetChargeState()) },
@@ -1355,10 +1511,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "defeated", enemy->IsDefeated() },
 			{ "pocketed", enemy->IsPocketed() },
             { "pocket_immune", enemy->IsArmorBoss() },
-			{ "can_attack_this_turn",
-				!enemy->IsDefeated() && !enemy->IsPocketed() &&
-				(enemy->GetPlannedAction() == EnemyActionType::NormalAttack ||
-				 enemy->GetPlannedAction() == EnemyActionType::ChargeAttack) },
+			{ "can_attack_this_turn", attacksThisTurn },
+			{ "tactics", std::move(tactics) },
 			{ "pocket_queue_index",
 				game.GetPocketQueueIndex(enemy) },
 			{ "hp_ratio",
@@ -1586,6 +1740,17 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "maximum_cleared_stages",
 			snapshot.balanceValidation.maximumClearedStages },
 		{ "endurance_mode", snapshot.balanceValidation.enduranceMode },
+		{ "adjusted_early_stages",
+			snapshot.balanceValidation.adjustedEarlyStages },
+		{ "adjusted_mid_stages",
+			snapshot.balanceValidation.adjustedMidStages },
+		{ "tactical_ai", snapshot.balanceValidation.tacticalAi },
+		{ "tactical_ai_profile",
+			snapshot.balanceValidation.tacticalAiProfile },
+		{ "early_attack_budget",
+			snapshot.balanceValidation.earlyAttackBudget },
+		{ "attack_budget",
+			snapshot.balanceValidation.attackBudget },
 		{ "cleared_stage_count", snapshot.balanceValidation.clearedStageCount },
 		{
 			"dynamic_balance_forced_off",

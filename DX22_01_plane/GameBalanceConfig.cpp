@@ -103,6 +103,17 @@ GameBalanceReadSnapshot GameBalanceRuntime::CaptureReadSnapshot(
 	snapshot.validationMaximumClearedStages =
 		validation.GetMaximumClearedStages();
 	snapshot.validationEnduranceMode = validation.IsEnduranceMode();
+	snapshot.validationAdjustedEarlyStages =
+		validation.UsesAdjustedEarlyStages();
+	snapshot.validationAdjustedMidStages =
+		validation.UsesAdjustedMidStages();
+	snapshot.validationTacticalAi = validation.UsesTacticalAi();
+	snapshot.validationTacticalAiProfile =
+		validation.GetTacticalAiProfile();
+	snapshot.validationEarlyAttackBudget =
+		validation.GetAttackBudget(progress);
+	snapshot.validationAttackBudget =
+		validation.GetAttackBudget(progress);
 	snapshot.clearedStageCount = clearedStageCountValue;
 	return snapshot;
 }
@@ -339,6 +350,20 @@ void Game::StartNewRun(
 				},
 				{ "fixed_stage_schedule", m_BalanceRuntime->validation.UsesFixedStageSchedule() },
 				{ "endurance_mode", m_BalanceRuntime->validation.IsEnduranceMode() },
+				{ "adjusted_early_stages",
+					m_BalanceRuntime->validation.UsesAdjustedEarlyStages() },
+				{ "adjusted_mid_stages",
+					m_BalanceRuntime->validation.UsesAdjustedMidStages() },
+				{ "tactical_ai",
+					m_BalanceRuntime->validation.UsesTacticalAi() },
+				{ "tactical_ai_profile",
+					m_BalanceRuntime->validation.GetTacticalAiProfile() },
+				{ "early_attack_budget",
+					m_BalanceRuntime->validation.GetAttackBudget(
+						m_RunController->Status().progress) },
+				{ "attack_budget",
+					m_BalanceRuntime->validation.GetAttackBudget(
+						m_RunController->Status().progress) },
 				{ "seed_suite_index", m_BalanceRuntime->validation.GetSeedIndex() },
 				{ "seed_suite_size", m_BalanceRuntime->validation.GetSeedCount() },
 			}

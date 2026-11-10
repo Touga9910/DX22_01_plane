@@ -23,6 +23,8 @@
 #include "PlayerBall.h"
 #include "TableFrame.h"
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 
@@ -650,12 +652,30 @@ void Game::InitializeBattleController()
 			{
 				const EnemyBall* enemy =
 					reinterpret_cast<const EnemyBall*>(assignment.id);
+			const auto enemies =
+				m_RuntimeState->World().GetComponents<EnemyBall>();
+			const auto found = std::find(enemies.begin(), enemies.end(), enemy);
+			const std::string targetId = found != enemies.end()
+				? "enemy:" + std::to_string(
+					static_cast<std::size_t>(
+						std::distance(enemies.begin(), found)))
+				: std::string();
 				actions.push_back({
 					{ "enemy_id", enemy != nullptr
 						? enemy->GetEnemyId()
 						: "unknown" },
+				{ "target_id", targetId },
 					{ "action", ToString(assignment.action) },
 					{ "cost", assignment.cost },
+				{ "predicted_damage_before_defense",
+					enemy != nullptr &&
+						(assignment.action == EnemyActionType::NormalAttack ||
+						 assignment.action == EnemyActionType::ChargeAttack)
+						? PlayerBall::CalculateIncomingDamage(
+							static_cast<int>(std::lround(
+								enemy->GetAttack() *
+								enemy->GetPlannedDamageMultiplier())))
+						: 0 },
 				});
 				if (assignment.action == EnemyActionType::NormalAttack)
 					++normalCount;

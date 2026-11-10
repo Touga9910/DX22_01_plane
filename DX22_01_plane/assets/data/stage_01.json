@@ -245,12 +245,12 @@
       "preserveLayout": true,
       "stageType": "normal",
       "enemies": [
-        { "enemyId": "enemy_swarm_amplifier", "position": [0.0, 1.0, 18.0] },
-        { "position": [-8.0, 1.0, 18.0] },
-        { "position": [8.0, 1.0, 18.0] },
-        { "position": [-5.0, 1.0, 26.0] },
-        { "position": [5.0, 1.0, 26.0] },
-        { "position": [0.0, 1.0, 34.0] }
+        { "enemyId": "enemy_swarm_amplifier", "position": [0.0, 1.0, 12.6] },
+        { "position": [-7.2, 1.0, 12.6] },
+        { "position": [7.2, 1.0, 12.6] },
+        { "position": [-4.5, 1.0, 18.2] },
+        { "position": [4.5, 1.0, 18.2] },
+        { "position": [0.0, 1.0, 23.8] }
       ]
     },
     {
@@ -260,9 +260,9 @@
       "preserveLayout": true,
       "stageType": "normal",
       "enemies": [
-        { "enemyId": "enemy_impact_brittle", "position": [46.0, 1.0, 14.0] },
-        { "position": [25.0, 1.0, 5.0] },
-        { "position": [25.0, 1.0, 25.0] }
+        { "enemyId": "enemy_impact_brittle", "position": [46.0, 1.0, 9.8] },
+        { "position": [22.5, 1.0, 3.5] },
+        { "position": [22.5, 1.0, 17.5] }
       ]
     },
     {
@@ -272,10 +272,10 @@
       "preserveLayout": true,
       "stageType": "normal",
       "enemies": [
-        { "enemyId": "enemy_protection_resonator", "position": [0.0, 1.0, 22.0] },
-        { "enemyId": "enemy_strong", "position": [-10.0, 1.0, 22.0] },
-        { "enemyId": "enemy_strong", "position": [10.0, 1.0, 22.0] },
-        { "position": [0.0, 1.0, 34.0] }
+        { "enemyId": "enemy_protection_resonator", "position": [0.0, 1.0, 15.4] },
+        { "enemyId": "enemy_strong", "position": [-9.0, 1.0, 15.4] },
+        { "enemyId": "enemy_strong", "position": [9.0, 1.0, 15.4] },
+        { "position": [0.0, 1.0, 23.8] }
       ]
     },
     {
@@ -285,12 +285,114 @@
       "preserveLayout": true,
       "stageType": "normal",
       "enemies": [
-        { "enemyId": "enemy_swarm_amplifier", "position": [-7.0, 1.0, 22.0] },
-        { "enemyId": "enemy_protection_resonator", "position": [7.0, 1.0, 22.0] },
-        { "enemyId": "enemy_impact_brittle", "position": [38.0, 1.0, 12.0] },
-        { "position": [-14.0, 1.0, 18.0] },
-        { "position": [0.0, 1.0, 31.0] },
-        { "position": [14.0, 1.0, 18.0] }
+        { "enemyId": "enemy_swarm_amplifier", "position": [-6.3, 1.0, 15.4] },
+        { "enemyId": "enemy_protection_resonator", "position": [6.3, 1.0, 15.4] },
+        { "enemyId": "enemy_impact_brittle", "position": [38.0, 1.0, 8.4] },
+        { "position": [-12.6, 1.0, 12.6] },
+        { "position": [0.0, 1.0, 21.7] },
+        { "position": [12.6, 1.0, 12.6] }
+      ]
+    },
+    {
+      "difficulty": 1,
+      "id": "normal_swarm_center",
+      "par": 6,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_swarm_amplifier", "position": [-7.2, 1.0, 12.6] },
+        { "enemyId": "enemy_normal", "position": [-13.5, 1.0, 12.6] },
+        { "enemyId": "enemy_strong", "position": [-7.2, 1.0, 18.2] },
+        { "enemyId": "enemy_normal", "position": [19.8, 1.0, 9.8] },
+        { "enemyId": "enemy_strong", "position": [27.0, 1.0, 15.4] },
+        { "enemyId": "enemy_tank", "position": [36.0, 1.0, 8.4] }
+      ]
+    },
+    {
+      "difficulty": 1,
+      "id": "normal_brittle_wall",
+      "par": 6,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_impact_brittle", "position": [58.0, 1.0, 0.0] },
+        { "enemyId": "enemy_normal", "position": [-19.8, 1.0, 12.6] },
+        { "enemyId": "enemy_normal", "position": [-30.6, 1.0, -8.4] },
+        { "enemyId": "enemy_strong", "position": [9.0, 1.0, 16.8] },
+        { "enemyId": "enemy_strong", "position": [25.2, 1.0, -12.6] },
+        { "enemyId": "enemy_tank", "position": [-45.0, 1.0, 5.6] }
+      ]
+    },
+    {
+      "difficulty": 2,
+      "id": "normal_resonance_guard",
+      "par": 7,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_protection_resonator", "position": [-9.0, 1.0, 14.0] },
+        { "enemyId": "enemy_normal", "position": [-15.3, 1.0, 14.0] },
+        { "enemyId": "enemy_strong", "position": [-9.0, 1.0, 19.6] },
+        { "enemyId": "enemy_normal", "position": [-1.8, 1.0, 14.0] },
+        { "enemyId": "enemy_normal", "position": [22.5, 1.0, 15.4] },
+        { "enemyId": "enemy_strong", "position": [31.5, 1.0, 9.8] },
+        { "enemyId": "enemy_strong", "position": [25.2, 1.0, -9.8] },
+        { "enemyId": "enemy_tank", "position": [-37.8, 1.0, -8.4] }
+      ]
+    },
+    {
+      "difficulty": 2,
+      "id": "normal_dual_threat",
+      "par": 7,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_swarm_amplifier", "position": [-27.0, 1.0, 12.6] },
+        { "enemyId": "enemy_normal", "position": [-34.2, 1.0, 12.6] },
+        { "enemyId": "enemy_strong", "position": [-27.0, 1.0, 18.9] },
+        { "enemyId": "enemy_strong", "position": [-19.8, 1.0, 12.6] },
+        { "enemyId": "enemy_impact_brittle", "position": [58.0, 1.0, 0.0] },
+        { "enemyId": "enemy_normal", "position": [22.5, 1.0, -12.6] },
+        { "enemyId": "enemy_strong", "position": [34.2, 1.0, -12.6] },
+        { "enemyId": "enemy_tank", "position": [0.0, 1.0, 18.2] }
+      ]
+    },
+    {
+      "difficulty": 3,
+      "id": "normal_resonant_swarm",
+      "par": 8,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_swarm_amplifier", "position": [-16.2, 1.0, 12.6] },
+        { "enemyId": "enemy_normal", "position": [-23.4, 1.0, 12.6] },
+        { "enemyId": "enemy_strong", "position": [-16.2, 1.0, 18.9] },
+        { "enemyId": "enemy_normal", "position": [-9.0, 1.0, 12.6] },
+        { "enemyId": "enemy_protection_resonator", "position": [1.8, 1.0, 15.4] },
+        { "enemyId": "enemy_strong", "position": [9.0, 1.0, 15.4] },
+        { "enemyId": "enemy_normal", "position": [1.8, 1.0, 21.0] },
+        { "enemyId": "enemy_strong", "position": [23.4, 1.0, 11.2] },
+        { "enemyId": "enemy_strong", "position": [32.4, 1.0, 17.5] },
+        { "enemyId": "enemy_tank", "position": [37.8, 1.0, -8.4] }
+      ]
+    },
+    {
+      "difficulty": 3,
+      "id": "normal_triple_encirclement",
+      "par": 8,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_swarm_amplifier", "position": [-30.6, 1.0, 12.6] },
+        { "enemyId": "enemy_normal", "position": [-37.8, 1.0, 12.6] },
+        { "enemyId": "enemy_strong", "position": [-30.6, 1.0, 18.9] },
+        { "enemyId": "enemy_normal", "position": [-23.4, 1.0, 12.6] },
+        { "enemyId": "enemy_impact_brittle", "position": [58.0, 1.0, -5.6] },
+        { "enemyId": "enemy_protection_resonator", "position": [7.2, 1.0, 15.4] },
+        { "enemyId": "enemy_normal", "position": [14.4, 1.0, 15.4] },
+        { "enemyId": "enemy_strong", "position": [7.2, 1.0, 21.0] },
+        { "enemyId": "enemy_strong", "position": [25.2, 1.0, 9.8] },
+        { "enemyId": "enemy_tank", "position": [32.4, 1.0, -11.2] }
       ]
     }
   ]

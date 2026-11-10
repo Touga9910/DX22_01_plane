@@ -129,25 +129,120 @@ namespace PlayerBallText
 		return Utf8(u8"[汎用]");
 	}
 
-	inline const char* GetShortDescription(const std::string& definitionId)
+	inline std::string GetShortDescription(const PlayerBallData& ball)
 	{
-		if (definitionId == "player_heavy") return Utf8(u8"敵を強く吹き飛ばし、移動距離で重量スタックを生成。");
-		if (definitionId == "player_chain_impact") return Utf8(u8"重量スタックを部分消費して範囲ダメージへ変換。");
-		if (definitionId == "player_pierce" || definitionId == "player_refractive_pierce") return Utf8(u8"敵を貫通し、通った軌道に貫通痕を生成。");
-		if (definitionId == "player_trace_driver") return Utf8(u8"貫通スタックをミニオンへ変換。");
-		if (definitionId == "player_pierce_finisher") return Utf8(u8"同一ショットの複数貫通を決着ダメージへ変換。");
-		if (definitionId == "player_cushion_charge") return Utf8(u8"有効な壁反射で共有の反射スタックを生成。");
-		if (definitionId == "player_bounce") return Utf8(u8"クッションスタックを強利用して加速。");
-		if (definitionId == "player_ricochet_finisher") return Utf8(u8"反射スタック6以上で、最初の敵をピンボール化。");
-		if (definitionId == "player_anchor") return Utf8(u8"接触した敵へEnemy Anchorを付与。");
-		if (definitionId == "player_stop_shield") return Utf8(u8"接触した敵のEnemy AnchorをShieldへ変換。");
-		if (definitionId == "player_anchor_finisher") return Utf8(u8"回収した錨スタックを決着ダメージへ変換。");
-		if (definitionId == "player_collision_boost") return Utf8(u8"次球の敵同士衝突ダメージを強化。");
-		if (definitionId == "player_lightweight") return Utf8(u8"次のノックバックを強化し、敵ごとに重量+1。");
-		if (definitionId == "player_minion_finisher") return Utf8(u8"全貫通スタックを最大3体のミニオンへ変換。");
-		if (definitionId == "player_reflection_setup") return Utf8(u8"次球の最初の反射で反射スタックを獲得。");
-		if (definitionId == "player_origin_anchor") return Utf8(u8"次ターンに始点へ戻り、敵へ少量の印を付与。");
-		return Utf8(u8"扱いやすく、攻撃力に優れる基本球。");
+		const BallStatus& status = ball.status;
+		std::ostringstream text;
+		const auto appendMultiplier = [&text](float value)
+		{
+			text << std::fixed << std::setprecision(2) << value;
+		};
+
+		if (ball.definitionId == "player_collision_boost")
+		{
+			text << Utf8(u8"重量スタックを") << status.heavySetupStackConsume
+				<< Utf8(u8"消費。\n次のショット中、敵同士の衝突ダメージ×");
+			appendMultiplier(status.heavyEnemyCollisionMultiplier);
+			text << Utf8(u8"。");
+		}
+		else if (ball.definitionId == "player_heavy")
+		{
+			text << Utf8(u8"敵を強く吹き飛ばす。\n敵の移動距離に応じて重量スタックを生成。");
+		}
+		else if (ball.definitionId == "player_lightweight")
+		{
+			text << Utf8(u8"接触した敵を軽量化。\n次のノックバック×");
+			appendMultiplier(status.lightweightKnockbackMultiplier);
+			text << Utf8(u8"。\n敵ごとに重量スタックを1生成。");
+			if (status.lightweightSpeedLossReduction > 0.0f)
+			{
+				text << Utf8(u8"\n接触時、自球の速度低下を")
+					<< static_cast<int>(std::lround(status.lightweightSpeedLossReduction * 100.0f))
+					<< Utf8(u8"%軽減。");
+			}
+		}
+		else if (ball.definitionId == "player_chain_impact")
+		{
+			text << Utf8(u8"重量スタックを最大") << status.heavyCollisionConsumeAmount
+				<< Utf8(u8"消費。\n周囲の敵に追加ダメージ。");
+		}
+		else if (ball.definitionId == "player_cushion_charge")
+		{
+			text << Utf8(u8"壁反射時、反射スタックを") << status.cushionStackGenerateAmount
+				<< Utf8(u8"生成。\n1ショット最大") << status.cushionReflectionLimit
+				<< Utf8(u8"回まで生成。");
+		}
+		else if (ball.definitionId == "player_bounce")
+		{
+			text << Utf8(u8"壁反射時、反射スタックを消費。\n加速倍率×");
+			appendMultiplier(status.cushionReflectionSpeedMultiplier);
+			text << Utf8(u8"。\n次の敵への攻撃力+") << status.cushionBounceAttackBonus
+				<< Utf8(u8"。\n1ショット最大") << status.cushionConsumptionLimit
+				<< Utf8(u8"回まで利用。");
+		}
+		else if (ball.definitionId == "player_reflection_setup")
+		{
+			text << Utf8(u8"次のショットの初回壁反射で反射スタックを")
+				<< status.reflectionSetupAmount << Utf8(u8"生成。");
+		}
+		else if (ball.definitionId == "player_ricochet_finisher")
+		{
+			text << Utf8(u8"反射スタックを") << status.ricochetStackConsume
+				<< Utf8(u8"消費。\n最初に接触した敵をピンボール化。\n衝突")
+				<< status.pinballCollisionsPerStage
+				<< Utf8(u8"回ごとに追加ダメージが増加。\n速度低下を軽減。");
+		}
+		else if (ball.definitionId == "player_stop_shield")
+		{
+			text << Utf8(u8"接触した敵のアンカースタックを最大")
+				<< status.anchorEnemyConsumeLimit
+				<< Utf8(u8"消費。\n消費数に応じて最大") << status.stopShieldAmount
+				<< Utf8(u8"シールド獲得。");
+		}
+		else if (ball.definitionId == "player_anchor")
+		{
+			text << Utf8(u8"敵との接触で停止。\n接触した敵にアンカースタックを付与。");
+		}
+		else if (ball.definitionId == "player_origin_anchor")
+		{
+			text << Utf8(u8"接触した敵にアンカースタックを付与。\n次ターン開始時、ショット開始位置に戻る。");
+		}
+		else if (ball.definitionId == "player_anchor_finisher")
+		{
+			text << Utf8(u8"接触した敵のアンカースタックを全消費。\n消費数に応じて追加ダメージ。\n")
+				<< status.anchorFinisherAoeThreshold
+				<< Utf8(u8"以上消費すると周囲にもダメージ。");
+		}
+		else if (ball.definitionId == "player_pierce")
+		{
+			text << Utf8(u8"敵を貫通する。\n貫通時、貫通スタックと貫通痕を生成。");
+		}
+		else if (ball.definitionId == "player_refractive_pierce")
+		{
+			text << Utf8(u8"敵を貫通する。\n貫通時、貫通スタックと貫通痕を生成。\n貫通後、通常衝突の反射方向へ進む。");
+		}
+		else if (ball.definitionId == "player_pierce_finisher")
+		{
+			const int first = status.pierceFinisherBaseBonus;
+			const int second = first + status.pierceFinisherMultiTargetBonus;
+			const int third = second + status.pierceFinisherMultiTargetBonus;
+			text << Utf8(u8"敵を貫通する。\n貫通した敵の数に応じて追加ダメージ。\n1/2/3体目：+")
+				<< first << "/+" << second << "/+" << third << Utf8(u8"。");
+		}
+		else if (ball.definitionId == "player_trace_driver")
+		{
+			text << Utf8(u8"貫通スタックを最大") << status.pierceStackConsumeLimit
+				<< Utf8(u8"消費。\n貫通痕からミニオンを発射。");
+		}
+		else if (ball.definitionId == "player_minion_finisher")
+		{
+			text << Utf8(u8"全貫通スタックを消費。\n貫通痕から最大3体のミニオンを発射。");
+		}
+		else
+		{
+			text << Utf8(u8"扱いやすい基本球。\n強化で攻撃力上昇。");
+		}
+		return text.str();
 	}
 	inline std::string GetStats(const PlayerBallData& ball, const BallStatus& status)
 	{

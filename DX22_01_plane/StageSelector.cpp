@@ -26,7 +26,8 @@ const StageData* StageSelector::SelectStage(
     const std::vector<StageData>& stages,
     StageType stageType,
     int progress,
-    const std::string& lastStageId)
+    const std::string& lastStageId,
+    const std::vector<std::string>& allowedStageIds)
 {
     std::vector<const StageData*> candidates;
     const DifficultyRange range = GetDifficultyRange(progress);
@@ -43,6 +44,13 @@ const StageData* StageSelector::SelectStage(
         {
             continue;
         }
+
+		if (stageType == StageType::Normal && !allowedStageIds.empty() &&
+			std::find(allowedStageIds.begin(), allowedStageIds.end(), stage.id) ==
+				allowedStageIds.end())
+		{
+			continue;
+		}
 
         candidates.push_back(&stage);
     }

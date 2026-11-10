@@ -1,0 +1,18 @@
+{
+  "retired": true,
+  "progression_scaling": {
+    "enabled": true,
+    "hp_start_progress": 10,
+    "hp_interval": 5,
+    "hp_step": 1,
+    "maximum_hp_delta": 4,
+    "attack_start_progress": 20,
+    "attack_interval": 5,
+    "attack_step": 1,
+    "maximum_attack_delta": 8
+  },
+  "minimum_enemy_hp": 1,
+  "maximum_enemy_hp": 100,
+  "minimum_enemy_attack": 0,
+  "maximum_enemy_attack": 50
+}

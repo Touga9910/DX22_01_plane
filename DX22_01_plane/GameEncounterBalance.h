@@ -10,6 +10,7 @@ struct EncounterThreatInput
 	std::string stageId;
 	std::vector<std::string> enemyIds;
 	bool usesMcpOverride = false;
+	bool usesDenseAutoLayout = false;
 };
 
 struct EncounterThreatSnapshot

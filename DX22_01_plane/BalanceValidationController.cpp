@@ -68,7 +68,17 @@ void BalanceValidationController::LoadConfig(
 				const std::string id = variant.value("id", std::string());
 				if (!id.empty())
 				{
-					m_Variants.push_back({ id });
+					m_Variants.push_back({
+						id,
+						variant.value("adjusted_early_stages", false),
+						variant.value("adjusted_mid_stages", false),
+						variant.value("tactical_ai", true),
+						variant.value(
+							"tactical_ai_profile",
+							std::string("tactics_v1")),
+						variant.value("early_attack_budget", -1),
+						variant.value("mid_attack_budget", -1),
+					});
 				}
 			}
 		}
@@ -113,6 +123,22 @@ BalanceValidationRun BalanceValidationController::OnRunStarted(
 {
 	BalanceValidationRun result;
 	result.enabled = m_Enabled;
+	if (!forcedVariant.empty())
+	{
+		const auto found = std::find_if(
+			m_Variants.begin(),
+			m_Variants.end(),
+			[&forcedVariant](const BalanceValidationVariant& variant)
+			{
+				return variant.id == forcedVariant;
+			});
+		if (found != m_Variants.end())
+		{
+			m_VariantIndex = static_cast<std::uint32_t>(
+				std::distance(m_Variants.begin(), found));
+			m_CurrentVariantId = found->id;
+		}
+	}
 	if (m_Enabled)
 	{
 		const std::uint32_t seedCount = static_cast<std::uint32_t>(
@@ -171,4 +197,110 @@ bool BalanceValidationController::HasVariant(const std::string& id) const
 		{
 			return variant.id == id;
 		});
+}
+
+const BalanceValidationVariant*
+BalanceValidationController::GetCurrentVariant() const
+{
+	const auto found = std::find_if(
+		m_Variants.begin(),
+		m_Variants.end(),
+		[this](const BalanceValidationVariant& variant)
+		{
+			return variant.id == m_CurrentVariantId;
+		});
+	return found != m_Variants.end() ? &*found : nullptr;
+}
+
+bool BalanceValidationController::UsesAdjustedEarlyStages() const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	return variant != nullptr && variant->adjustedEarlyStages;
+}
+
+bool BalanceValidationController::UsesAdjustedMidStages() const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	return variant != nullptr && variant->adjustedMidStages;
+}
+
+bool BalanceValidationController::UsesTacticalAi() const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	return variant == nullptr || variant->tacticalAi;
+}
+
+const std::string& BalanceValidationController::GetTacticalAiProfile() const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	static const std::string fallback = "tactics_v1";
+	return variant != nullptr ? variant->tacticalAiProfile : fallback;
+}
+
+int BalanceValidationController::GetAttackBudget(int progress) const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	if (variant == nullptr)
+	{
+		return -1;
+	}
+	if (progress >= 1 && progress <= 6)
+	{
+		return variant->earlyAttackBudget;
+	}
+	if (progress >= 7 && progress <= 11)
+	{
+		return variant->midAttackBudget;
+	}
+	return -1;
+}
+
+std::vector<std::string>
+BalanceValidationController::GetAllowedNormalStageIds(int progress) const
+{
+	if (UsesAdjustedEarlyStages() && progress >= 1 && progress <= 6)
+	{
+		if (progress <= 2)
+		{
+			return { "normal_001", "normal_002" };
+		}
+		if (progress <= 4)
+		{
+			return { "normal_003", "board_impact_brittle_wall" };
+		}
+		if (progress == 5)
+		{
+			return { "board_swarm_dense6", "board_impact_brittle_wall" };
+		}
+		return {
+			"board_swarm_dense6",
+			"board_impact_brittle_wall",
+			"board_resonance_cluster",
+		};
+	}
+
+	if (!UsesAdjustedMidStages() || progress < 7 || progress > 11)
+	{
+		return {};
+	}
+	std::vector<std::string> allowed{
+		"normal_003",
+		"normal_004",
+		"board_swarm_dense6",
+		"board_impact_brittle_wall",
+		"board_resonance_cluster",
+	};
+	if (progress >= 9)
+	{
+		allowed.push_back("board_control_composite");
+	}
+	if (progress >= 10)
+	{
+		allowed.push_back("normal_resonance_guard");
+	}
+	if (progress >= 11)
+	{
+		allowed.push_back("normal_resonant_swarm");
+	}
+	return allowed;
 }

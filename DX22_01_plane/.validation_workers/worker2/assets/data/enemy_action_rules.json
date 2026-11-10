@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "attack_budget": {
+    "maximum_per_turn": 5,
+    "normal_attack_cost": 2,
+    "charge_start_cost": 1,
+    "charge_attack_cost": 3,
+    "maximum_charge_starts_per_turn": 1
+  },
+  "charge": {
+    "damage_multiplier": 2.0,
+    "heavy_interrupt_diameter_multiplier": 1.0,
+    "pierce_interrupt_max_hp_ratio": 0.25
+  }
+}

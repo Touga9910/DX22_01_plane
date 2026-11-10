@@ -8,13 +8,31 @@ from __future__ import annotations
 import math
 from typing import Any
 
-MODEL_VERSION = "build_geometry_v1"
+MODEL_VERSION = "build_tactics_v3"
 DEFAULT_WEIGHTS = {
     "damage": 1.0, "kills": 4.0, "prevented_attack": 2.0,
     "pierce_followups": 0.5, "chain_collisions": 0.5,
     "bank_damage_gain": 0.5, "pocket_control": 1.0,
     "safety": 2.0, "stable_stop": 0.5, "precision": 1.0,
+    "protection_release": 1.25, "uncertainty": 1.0,
 }
+
+
+def tactical_ai_enabled(state):
+    return bool(state.get("balance_validation", {}).get("tactical_ai", True))
+
+
+def tactical_ai_profile(state):
+    return str(state.get("balance_validation", {}).get(
+        "tactical_ai_profile", "tactics_v1"))
+
+
+def tactics(enemy):
+    return enemy.get("tactics", {})
+
+
+def board_ability(enemy):
+    return tactics(enemy).get("board_ability", {})
 
 
 def pos(value):
@@ -264,6 +282,10 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     pierce_followups = 0
     chain_collisions = 0
     followup_hits = 0
+    brittle_triggered = False
+    brittle_wall_speed = 0.0
+    pushed_distance = 0.0
+    predicted_target_position = pos(target["position"])
     controlled = set()
     enemy_mass = max(0.1, float(target.get("mass", 1)))
     player_mass = max(0.1, float(stats.get("mass", 2)))
@@ -316,10 +338,24 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         # each enemy's attack. Never credit an unlimited cascade.
         target_stats = {"friction": target.get("friction", 0.02)}
         push_reach = stopping_distance(push_speed, target_stats)
+        pushed_distance = push_reach
         center = pos(target["position"])
         push_wall = wall_contact(center, normal, walls)
         if push_wall:
+            if push_wall[0] <= push_reach:
+                brittle_wall_speed = remaining_speed(
+                    push_speed, push_wall[0], target_stats)
+                ability = board_ability(target)
+                brittle_triggered = (
+                    tactical_ai_enabled(state)
+                    and ability.get("type") == "impact_brittle"
+                    and not ability.get("brittle_active", False)
+                    and brittle_wall_speed >= float(
+                        ability.get("brittle_wall_speed_threshold", math.inf))
+                )
             push_reach = min(push_reach, push_wall[0])
+            pushed_distance = push_reach
+        predicted_target_position = add(center, mul(normal, pushed_distance))
         secondary = first_contact(center, normal, push_reach, enemies, float(target.get("radius", 2.4)), hit_ids)
         if secondary:
             distance, other = secondary
@@ -381,10 +417,152 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     risk = max(pre_risk, path_risk(post_origin, stop, radius, pockets))
     defense = float(stats.get("defense", 0))
     killed = {key for key in hp if hp[key] > 0 and damage_by_id[key] >= hp[key] - 1e-6}
-    prevented = sum(max(1, float(e.get("attack", 1)) - defense) for e in enemies
-                    if e["target_id"] in killed | controlled and e.get("can_attack_this_turn", True))
-    incoming_damage = sum(max(1, float(e.get("attack", 1)) - defense) for e in enemies
-                          if e["target_id"] not in killed | controlled and e.get("can_attack_this_turn", True))
+    prevented_by_target = {}
+    prevention_reasons = {}
+    for enemy in enemies:
+        key = enemy["target_id"]
+        if key in killed | controlled and enemy.get("can_attack_this_turn", True):
+            prevented_by_target[key] = max(1, float(enemy.get("attack", 1)) - defense)
+            prevention_reasons[key] = "defeat_or_pocket_control"
+
+    tactical = tactical_ai_enabled(state)
+    charge_interruptions = []
+    swarm_reductions = []
+    brittle_reductions = []
+    protection_releases = []
+    protection_release_value = 0.0
+    if tactical:
+        for enemy in enemies:
+            key = enemy["target_id"]
+            if key in killed | controlled:
+                continue
+            info = tactics(enemy)
+            charge = info.get("charge", {})
+            interrupted = False
+            if charge.get("interruptible_now"):
+                if definition == "player_heavy" and key == target["target_id"]:
+                    interrupted = pushed_distance >= float(
+                        charge.get("heavy_required_enemy_movement", math.inf))
+                elif stats.get("pierce"):
+                    interrupted = damage_by_id.get(key, 0) >= float(
+                        charge.get("pierce_required_damage", math.inf))
+            if interrupted:
+                amount = max(0.0, float(
+                    charge.get("attack_damage_prevented_if_interrupted", 0)) - defense)
+                if amount > 0:
+                    prevented_by_target[key] = max(
+                        prevented_by_target.get(key, 0), amount)
+                    prevention_reasons[key] = "charge_interruption"
+                    charge_interruptions.append(key)
+
+            ability = info.get("board_ability", {})
+            if key == target["target_id"] and brittle_triggered:
+                before = float(ability.get("attack_before_brittle", enemy.get("attack", 1)))
+                after = float(ability.get("attack_while_brittle", before))
+                amount = max(0.0, max(1, before - defense) - max(1, after - defense))
+                if amount > 0 and enemy.get("can_attack_this_turn", True):
+                    prevented_by_target[key] = max(
+                        prevented_by_target.get(key, 0), amount)
+                    prevention_reasons[key] = "impact_brittle"
+                    brittle_reductions.append(key)
+
+        removed = killed | controlled
+        for enemy in enemies:
+            key = enemy["target_id"]
+            ability = board_ability(enemy)
+            if ability.get("type") == "protection_resonator" and key in removed:
+                count = int(ability.get("resonator_protected_target_count", 0))
+                reduction = float(ability.get("resonator_damage_reduction", 0))
+                if count > 0:
+                    protection_releases.append(key)
+                    protection_release_value += count * max(1.0, reduction)
+            elif (ability.get("type") == "protection_resonator"
+                  and target["target_id"] not in removed
+                  and pushed_distance > 0):
+                radius = float(ability.get("radius", 0))
+                affected = set(ability.get("affected_ally_target_ids", []))
+                released = 0
+                if key == target["target_id"]:
+                    for ally in enemies:
+                        if (ally["target_id"] in affected
+                                and length(sub(pos(ally["position"]),
+                                               predicted_target_position)) > radius):
+                            released += 1
+                elif target["target_id"] in affected:
+                    if length(sub(predicted_target_position,
+                                  pos(enemy["position"]))) > radius:
+                        released = 1
+                if released > 0:
+                    protection_releases.append(target["target_id"])
+                    reduction = float(
+                        ability.get("resonator_damage_reduction", 0))
+                    protection_release_value += released * max(1.0, reduction)
+            if (ability.get("type") == "swarm_amplifier"
+                    and key not in removed
+                    and (removed.intersection(
+                            ability.get("affected_ally_target_ids", []))
+                         or (target["target_id"] not in removed
+                             and pushed_distance > 0
+                             and target["target_id"] in ability.get(
+                                 "affected_ally_target_ids", [])
+                             and length(sub(predicted_target_position,
+                                            pos(enemy["position"]))) > float(
+                                 ability.get("radius", 0))))):
+                before = float(ability.get("swarm_attack", enemy.get("attack", 1)))
+                after = float(ability.get("swarm_attack_after_one_ally_removed", before))
+                amount = max(0.0, max(1, before - defense) - max(1, after - defense))
+                if amount > 0 and enemy.get("can_attack_this_turn", True):
+                    prevented_by_target[key] = max(
+                        prevented_by_target.get(key, 0), amount)
+                    prevention_reasons[key] = "swarm_stage_reduction"
+                    swarm_reductions.append(key)
+
+    prevented = sum(prevented_by_target.values())
+    next_prevention_before_defense = {}
+    next_prevention_reasons = {}
+    future_charge_prevention = {}
+    for enemy in enemies:
+        key = enemy["target_id"]
+        info = tactics(enemy)
+        defeat = info.get("defeat_prevention", {})
+        if key in killed | controlled:
+            immediate = max(0.0, float(defeat.get(
+                "immediate_attack_damage", 0)))
+            if immediate <= 0 and enemy.get("can_attack_this_turn", True):
+                immediate = max(1.0, float(enemy.get("attack", 1)))
+            if immediate > 0:
+                next_prevention_before_defense[key] = immediate
+                next_prevention_reasons[key] = "defeat_or_pocket_control"
+            future = max(0.0, float(defeat.get(
+                "future_charged_attack_damage", 0)))
+            if future > 0 and immediate <= 0:
+                future_charge_prevention[key] = future
+        if key in charge_interruptions:
+            charge_amount = max(0.0, float(info.get("charge", {}).get(
+                "attack_damage_prevented_if_interrupted", 0)))
+            if charge_amount > next_prevention_before_defense.get(key, 0):
+                next_prevention_before_defense[key] = charge_amount
+                next_prevention_reasons[key] = "charge_interruption"
+        ability = board_ability(enemy)
+        if key in brittle_reductions:
+            reduction = max(0.0, float(ability.get(
+                "attack_before_brittle", enemy.get("attack", 1))) - float(
+                    ability.get("attack_while_brittle", enemy.get("attack", 1))))
+            if reduction > next_prevention_before_defense.get(key, 0):
+                next_prevention_before_defense[key] = reduction
+                next_prevention_reasons[key] = "impact_brittle"
+        if key in swarm_reductions:
+            reduction = max(0.0, float(ability.get(
+                "swarm_attack", enemy.get("attack", 1))) - float(
+                    ability.get("swarm_attack_after_one_ally_removed",
+                                enemy.get("attack", 1))))
+            if reduction > next_prevention_before_defense.get(key, 0):
+                next_prevention_before_defense[key] = reduction
+                next_prevention_reasons[key] = "swarm_stage_reduction"
+    incoming_before_prevention = sum(
+        max(1, float(e.get("attack", 1)) - defense) for e in enemies
+        if e.get("can_attack_this_turn", True))
+    incoming_damage = max(0.0, incoming_before_prevention - prevented)
     incoming_damage = max(
         0.0,
         incoming_damage - max(0.0, float(stats.get("stopShieldAmount", 0.0))),
@@ -397,18 +575,93 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     net_loss = incoming_damage + risk * pocket_cost - repair
     urgency = 1 + max(0, 0.5 - current_hp / max_hp) * 4
     stable = max(0, 1 - min(1, post_distance / 35)) * (1 - risk) if stats.get("anchor") else 0
+    uncertainty = 0.0
+    if path["kind"] in ("offset", "chain_contact"):
+        uncertainty += 0.15
+    if path["mode"] == "bank":
+        uncertainty += 0.12
+    uncertainty += 0.10 * followup_hits + 0.12 * chain_collisions
+    uncertainty += 0.08 * pierce_followups
+    ai_profile = tactical_ai_profile(state)
+    future_setup_raw = protection_release_value if tactical else 0.0
+    future_setup = future_setup_raw
+    danger_priority = 0.0
+    if tactical and ai_profile == "survival_v2":
+        # Future board setup remains useful, but cannot outrank a reliable
+        # immediate hit by scaling only with the number of protected allies.
+        future_cap = 0.75 + 0.5 * sum(damage_by_id.values()) + 1.5 * len(killed)
+        future_setup = min(future_setup_raw, future_cap)
+        hp_ratio = current_hp / max_hp
+        future_setup *= max(0.30, min(1.0, hp_ratio * 1.5))
+        for enemy in enemies:
+            key = enemy["target_id"]
+            if key not in killed | controlled:
+                continue
+            info = tactics(enemy)
+            future_charge = float(info.get("defeat_prevention", {}).get(
+                "future_charged_attack_damage", 0))
+            affected = len(info.get("board_ability", {}).get(
+                "affected_ally_target_ids", []))
+            danger_priority += (
+                max(0.0, float(enemy.get("attack", 1)) - 1.0) * 0.25
+                + future_charge * 0.35
+                + affected * 0.20
+            ) * urgency
+
     metrics = {
         "damage": sum(damage_by_id.values()), "kills": len(killed),
         "prevented_attack": prevented, "pierce_followups": pierce_followups,
         "chain_collisions": chain_collisions, "bank_damage_gain": min(bank_gain, damage_by_id[target["target_id"]]),
         "pocket_control": len(controlled - killed), "safety": -net_loss * urgency,
         "stable_stop": stable, "precision": quality,
+        "protection_release": future_setup,
+        "danger_priority": danger_priority,
+        "uncertainty": -uncertainty * (
+            1.0 + (future_setup_raw / max(1.0, sum(damage_by_id.values())))
+            if ai_profile == "survival_v2" else 1.0
+        ) if tactical else 0.0,
     }
     metrics["chain_collisions"] += chain_impact_hits
     weights = {**DEFAULT_WEIGHTS, **profile.get("build_policy", {}).get("shot_evaluation", {})}
+    if tactical and ai_profile == "survival_v2":
+        weights.update({
+            "damage": float(weights.get("damage", 1.0)) * 1.15,
+            "kills": float(weights.get("kills", 4.0)) * 1.25,
+            "prevented_attack": float(weights.get("prevented_attack", 2.0)) * 1.25,
+            "chain_collisions": float(weights.get("chain_collisions", 0.5)) * 0.55,
+            "protection_release": 0.60,
+            "danger_priority": 1.0,
+            "uncertainty": 1.40,
+            "safety": float(weights.get("safety", 2.0)) * 1.20,
+        })
     breakdown = {key: round(value * float(weights.get(key, 0)), 4) for key, value in metrics.items()}
     breakdown["power_cost"] = round(-0.12 * power, 4)
     breakdown["lethal_risk"] = -150.0 if net_loss >= current_hp else 0.0
+    decision_reasons = []
+    if killed:
+        if float(target.get("attack", 0)) >= 2:
+            decision_reasons.append("高攻撃力の敵を先に倒す")
+        else:
+            decision_reasons.append("敵を撃破して次の攻撃を減らす")
+    if charge_interruptions:
+        decision_reasons.append("Chargeを妨害して攻撃を阻止する")
+    if protection_releases:
+        decision_reasons.append("防護共鳴を解除して後続攻撃を通しやすくする")
+    if swarm_reductions:
+        decision_reasons.append("味方を範囲外にして群体の攻撃段階を下げる")
+    if brittle_reductions:
+        decision_reasons.append("敵を壁へぶつけて攻撃3から1へ脆化させる")
+    if chain_collisions or chain_impact_hits:
+        decision_reasons.append("複数の敵への連鎖衝突を狙う")
+    if pierce_followups:
+        decision_reasons.append("貫通後の後続敵への命中を狙う")
+    if path["mode"] == "bank":
+        decision_reasons.append("壁反射で直射では届かない経路と反射効果を使う")
+    if stats.get("anchor") and stable > 0:
+        decision_reasons.append("アンカー停止と防御で次ターンの被害を抑える")
+    if not decision_reasons:
+        decision_reasons.append("到達可能な候補の中でダメージと安全性が高い")
+
     return {
         "model": MODEL_VERSION, "estimate_only": True,
         "offer_index": ball.get("index", -1), "instance_id": ball.get("instance_id"),
@@ -422,9 +675,48 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         "metrics": {k: round(v, 4) for k, v in metrics.items()},
         "expected_damage_by_target": {k: round(v, 3) for k, v in damage_by_id.items() if v > 0},
         "expected_incoming_damage": round(incoming_damage, 3),
+        "expected_attack_prevention": round(prevented, 3),
+        "expected_attack_prevention_by_target": {
+            key: {"amount": round(value, 3), "reason": prevention_reasons[key]}
+            for key, value in prevented_by_target.items()
+        },
+        "expected_next_turn_prevention_before_defense": round(
+            sum(next_prevention_before_defense.values()), 3),
+        "expected_next_turn_prevention_by_target": {
+            key: {
+                "amount": round(value, 3),
+                "reason": next_prevention_reasons[key],
+            }
+            for key, value in next_prevention_before_defense.items()
+        },
+        "expected_future_charge_prevention": round(
+            sum(future_charge_prevention.values()), 3),
+        "expected_future_charge_prevention_by_target": {
+            key: round(value, 3)
+            for key, value in future_charge_prevention.items()
+        },
         "self_pocket_risk": round(risk, 3), "expected_repair": repair,
         "estimated_stop_position": point(stop), "followup_hits": followup_hits,
-        "reason": f"{definition}:{path['kind']}:damage={metrics['damage']:.1f},pierce={pierce_followups},chain={chain_collisions},incoming={incoming_damage:.1f},pocket_risk={risk:.2f}",
+        "predicted_chain_count": chain_collisions + chain_impact_hits,
+        "predicted_kill_count": len(killed),
+        "prediction_uncertainty": round(uncertainty, 3),
+        "tactical_ai_profile": ai_profile,
+        "future_setup_raw": round(future_setup_raw, 3),
+        "future_setup_scored": round(future_setup, 3),
+        "tactical_outcomes": {
+            "charge_interruptions": charge_interruptions,
+            "protection_releases": protection_releases,
+            "swarm_stage_reductions": swarm_reductions,
+            "impact_brittle_reductions": brittle_reductions,
+            "brittle_wall_speed": round(brittle_wall_speed, 3),
+        },
+        "shot_path": {
+            "route": path["mode"], "contact": path["kind"],
+            "wall_index": path.get("wall_index", -1),
+            "aim_point": point(path["aim"]),
+        },
+        "decision_reasons": decision_reasons,
+        "reason": " / ".join(decision_reasons),
     }
 
 
@@ -460,12 +752,28 @@ def evaluate_build_shots(state: dict[str, Any], profile: dict[str, Any], *,
 
 def build_joint_shot_context(state, profile):
     choices = []
+    reachable_candidates = 0
+    charge_candidates = 0
+    charge_targets = set()
     offers = state.get("offered_balls", [])
     for ball in offers:
         candidates = evaluate_build_shots(state, profile, ball=ball)
+        reachable_candidates += len(candidates)
+        for candidate in candidates:
+            targets = candidate.get("tactical_outcomes", {}).get(
+                "charge_interruptions", [])
+            if targets:
+                charge_candidates += 1
+                charge_targets.update(targets)
         if candidates:
             choices.append(candidates[0])
     choices.sort(key=lambda c: c["score"], reverse=True)
+    candidate_generation = {
+        "reachable_candidates": reachable_candidates,
+        "charge_interruption_candidates": charge_candidates,
+        "charge_interruption_target_ids": sorted(charge_targets),
+    }
     return {"model": MODEL_VERSION, "estimate_only": True,
             "recommended": choices[0] if choices else None, "choices": choices,
+            "candidate_generation": candidate_generation,
             "limitations": "Geometry estimates: at most one pushed-enemy collision and one residual hit; moving chains and multi-wall paths are not fully simulated."}

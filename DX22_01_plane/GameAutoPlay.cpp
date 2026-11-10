@@ -1336,6 +1336,9 @@ void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 // On Battle Stage Started の処理を実行
 void Game::OnBattleStageStarted(const StageData& stage)
 {
+	m_BattleState->controller.SetEnemyActionMaximumBudget(
+		m_BalanceRuntime->validation.GetAttackBudget(
+			m_RunController->Status().progress));
 	m_BattleState->controller.BeginStage(stage.stageType);
 	m_BattleState->cushionCharges = {};
 	m_BattleState->cushionBoostConsumedThisShot = false;
@@ -1423,6 +1426,10 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	encounterInput.stageId = stage.id;
 	encounterInput.usesMcpOverride =
 		m_StageOverrideState->HasCurrent();
+	encounterInput.usesDenseAutoLayout =
+		!encounterInput.usesMcpOverride &&
+		!stage.preserveLayout &&
+		stage.enemies.size() >= 4;
 	encounterInput.enemyIds.reserve(stage.enemies.size());
 	for (const EnemySpawnData& spawn : stage.enemies)
 	{

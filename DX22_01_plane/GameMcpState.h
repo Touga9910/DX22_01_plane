@@ -83,6 +83,12 @@ struct GameMcpReadSnapshot
 		std::size_t seedSuiteSize = 0;
 		int maximumClearedStages = 0;
 		bool enduranceMode = false;
+		bool adjustedEarlyStages = false;
+		bool adjustedMidStages = false;
+		bool tacticalAi = true;
+		std::string tacticalAiProfile = "tactics_v1";
+		int earlyAttackBudget = -1;
+		int attackBudget = -1;
 		int clearedStageCount = 0;
 	} balanceValidation{};
 

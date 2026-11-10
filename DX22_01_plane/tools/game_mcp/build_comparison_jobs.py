@@ -100,8 +100,8 @@ class BuildComparisonJobManager:
             raise ValueError(f"unsupported build_profiles: {unsupported}")
         if player_level != "intermediate":
             raise ValueError("build comparison currently requires intermediate")
-        if validation_variant != "fixed":
-            raise ValueError("build comparison requires validation_variant=fixed")
+        if not validation_variant:
+            raise ValueError("validation_variant must not be empty")
         if dynamic_balance:
             raise ValueError("build comparison requires dynamic_balance=false")
         if valid_runs_per_build != len(seeds):

@@ -159,6 +159,152 @@ class BuildShotTests(unittest.TestCase):
         with self.assertRaises(GameBridgeError):
             plan_build_shot(s, "enemy:missing", p)
 
+    def test_tactical_ai_values_charge_interruption_once(self):
+        charging = enemy(0, 0, 15, hp=8, attack=3, can_attack_this_turn=True)
+        charging["tactics"] = {
+            "charge": {
+                "interruptible_now": True,
+                "pierce_required_damage": 1,
+                "heavy_required_enemy_movement": 4.8,
+                "attack_damage_prevented_if_interrupted": 6,
+            },
+            "board_ability": {"type": "none"},
+        }
+        s = state(ball("pierce"), [charging])
+        c = evaluate_build_shots(
+            s, self.profile("pierce"), target_id="enemy:0",
+            shot_type="direct", fixed_power=3)[0]
+        self.assertEqual(
+            c["tactical_outcomes"]["charge_interruptions"], ["enemy:0"])
+        self.assertEqual(c["expected_attack_prevention"], 6)
+        self.assertEqual(
+            c["expected_attack_prevention_by_target"]["enemy:0"]["reason"],
+            "charge_interruption")
+
+    def test_tactical_ai_values_resonator_release_and_swarm_drop(self):
+        resonator = enemy(0, 0, 15, hp=1, attack=1, can_attack_this_turn=True)
+        resonator["tactics"] = {"board_ability": {
+            "type": "protection_resonator",
+            "resonator_protected_target_count": 2,
+            "resonator_damage_reduction": 1,
+        }}
+        swarm = enemy(1, 10, 20, hp=8, attack=3, can_attack_this_turn=True)
+        swarm["tactics"] = {"board_ability": {
+            "type": "swarm_amplifier",
+            "affected_ally_target_ids": ["enemy:0"],
+            "swarm_attack": 3,
+            "swarm_attack_after_one_ally_removed": 1,
+        }}
+        s = state(ball(attack=2), [resonator, swarm])
+        c = evaluate_build_shots(
+            s, self.profile("standard"), target_id="enemy:0",
+            shot_type="direct", fixed_power=3)[0]
+        self.assertEqual(c["metrics"]["protection_release"], 2)
+        self.assertEqual(
+            c["tactical_outcomes"]["swarm_stage_reductions"], ["enemy:1"])
+        self.assertIn("防護共鳴を解除", c["reason"])
+
+    def test_existing_ai_variant_disables_new_tactical_bonus(self):
+        resonator = enemy(0, 0, 15, hp=1)
+        resonator["tactics"] = {"board_ability": {
+            "type": "protection_resonator",
+            "resonator_protected_target_count": 3,
+            "resonator_damage_reduction": 1,
+        }}
+        s = state(ball(), [resonator])
+        s["balance_validation"] = {"tactical_ai": False}
+        c = evaluate_build_shots(s, self.profile("standard"))[0]
+        self.assertEqual(c["metrics"]["protection_release"], 0)
+        self.assertEqual(c["tactical_outcomes"]["protection_releases"], [])
+
+    def test_survival_v2_caps_future_setup_below_reliable_kill(self):
+        resonator = enemy(0, -12, 18, hp=20, attack=1)
+        resonator["tactics"] = {"board_ability": {
+            "type": "protection_resonator",
+            "resonator_protected_target_count": 8,
+            "resonator_damage_reduction": 1,
+        }}
+        dangerous = enemy(1, 12, 18, hp=2, attack=3,
+                          can_attack_this_turn=True)
+        dangerous["tactics"] = {
+            "defeat_prevention": {
+                "immediate_attack_damage": 3,
+                "future_charged_attack_damage": 0,
+            },
+            "board_ability": {"type": "none"},
+        }
+        s = state(ball(attack=2), [resonator, dangerous])
+        s["balance_validation"] = {
+            "tactical_ai": True,
+            "tactical_ai_profile": "survival_v2",
+        }
+        candidates = evaluate_build_shots(
+            s, self.profile("standard"), shot_type="direct", fixed_power=3)
+        self.assertEqual(candidates[0]["target_id"], "enemy:1")
+        setup = next(c for c in candidates if c["target_id"] == "enemy:0")
+        self.assertLessEqual(
+            setup["future_setup_scored"], setup["future_setup_raw"])
+
+    def test_charge_candidate_generation_and_adoption_are_counted(self):
+        charging = enemy(0, 0, 15, hp=8, attack=3,
+                         can_attack_this_turn=True)
+        charging["tactics"] = {
+            "charge": {
+                "interruptible_now": True,
+                "pierce_required_damage": 1,
+                "heavy_required_enemy_movement": 1,
+                "attack_damage_prevented_if_interrupted": 6,
+            },
+            "defeat_prevention": {
+                "immediate_attack_damage": 6,
+                "future_charged_attack_damage": 0,
+            },
+            "board_ability": {"type": "none"},
+        }
+        s = state(ball("heavy"), [charging])
+        s["offered_balls"] = [ball(), ball("heavy")]
+        s["balance_validation"] = {
+            "tactical_ai": True,
+            "tactical_ai_profile": "survival_v2",
+        }
+        context = build_joint_shot_context(s, self.profile("standard"))
+        self.assertGreater(
+            context["candidate_generation"]["charge_interruption_candidates"], 0)
+        self.assertIn(
+            "enemy:0",
+            context["candidate_generation"]["charge_interruption_target_ids"])
+        self.assertTrue(
+            context["recommended"]["tactical_outcomes"]["charge_interruptions"])
+        self.assertEqual(
+            context["recommended"][
+                "expected_next_turn_prevention_before_defense"], 6)
+
+    def test_tactical_ai_values_moving_ally_out_of_ability_radius(self):
+        target = enemy(0, 0, 15, hp=20, attack=1)
+        resonator = enemy(1, 10, 15, hp=8, attack=1)
+        resonator["tactics"] = {"board_ability": {
+            "type": "protection_resonator",
+            "radius": 12,
+            "affected_ally_target_ids": ["enemy:0"],
+            "resonator_damage_reduction": 1,
+        }}
+        swarm = enemy(2, -10, 15, hp=8, attack=3, can_attack_this_turn=True)
+        swarm["tactics"] = {"board_ability": {
+            "type": "swarm_amplifier",
+            "radius": 12,
+            "affected_ally_target_ids": ["enemy:0"],
+            "swarm_attack": 3,
+            "swarm_attack_after_one_ally_removed": 1,
+        }}
+        s = state(ball("heavy", attack=2), [target, resonator, swarm])
+        candidates = evaluate_build_shots(
+            s, self.profile("heavy"), target_id="enemy:0",
+            shot_type="direct", fixed_power=6)
+        moved = next(c for c in candidates
+                     if c["tactical_outcomes"]["protection_releases"])
+        self.assertIn("enemy:0", moved["tactical_outcomes"]["protection_releases"])
+        self.assertIn("enemy:2", moved["tactical_outcomes"]["swarm_stage_reductions"])
+
     def test_standard_values_scope_low_power_and_avoids_overkill_bank_credit(self):
         s = state(ball(), [enemy(0, 0, 15, hp=3)])
         s["relics"] = [{"index": 5, "owned": True}]

@@ -24,6 +24,30 @@
       "actual_result": null,
       "balance_config_hash": "c47f919dc36d487e6f4414167f61307148148c90aef69aa110f424680634726b",
       "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
+    },
+    {
+      "version": "B0003",
+      "changed_at": "2026-11-07T09:30:59Z",
+      "target": "normal_stage_composition",
+      "before": "Board-control enemies were available in definitions and four validation-oriented stages, but the requested 6/8/10-enemy authored progression set was absent.",
+      "after": "Added six authored Normal stages: two difficulty-1 six-enemy introductions, two difficulty-2 eight-enemy applications, and two difficulty-3 ten-enemy combinations.",
+      "reason": "Introduce separating, wall-impact and protection-breaking decisions into the normal run without changing enemy abilities or the existing stage selector.",
+      "expected_impact": "Board-control decisions appear from early to late progress while legacy Normal, MidBoss and Boss stages remain eligible; clear rate and shot count require fixed-condition measurement.",
+      "actual_result": null,
+      "balance_config_hash": "694ffb25cf8bdba6a00ba698b7e4f95d25413a91c583b5b3445471501a85c958",
+      "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
+    },
+    {
+      "version": "B0004",
+      "changed_at": "2026-11-07T23:03:41Z",
+      "target": "board_control_stage_spawn_positions",
+      "before": "Several board-control stage enemies used edge-biased positions, including two normal enemies extending 0.4 units beyond the field and three stages with less than the requested pocket safety margin.",
+      "after": "Moved board-control stage enemies toward the table center, preserved wall-side X positions for impact-brittle enemies, and guaranteed more than 6.0 units of clearance beyond enemy and pocket radii across all stages.",
+      "reason": "Prevent enemy balls from appearing outside the playable surface or too close to pocket mouths while retaining each stage's board-control decision.",
+      "expected_impact": "Cleaner initial presentation and safer shot access; dense groups are slightly more central, while impact-brittle wall routes remain available.",
+      "actual_result": null,
+      "balance_config_hash": "8dd9f465b5e4fb5c6c030e653a7c75b69422e22dda514887ddde177c7195bfd2",
+      "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
     }
   ]
 }
