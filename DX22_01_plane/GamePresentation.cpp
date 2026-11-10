@@ -99,13 +99,13 @@ namespace
 
 	class CombatIconResources final
 	{
-	  public:
+	public:
 		void Load()
 		{
 			if (m_LoadAttempted)
 				return;
 			m_LoadAttempted = true;
-			static constexpr std::array<const char *, static_cast<std::size_t>(CombatIconKind::Count)> paths = {
+			static constexpr std::array<const char*, static_cast<std::size_t>(CombatIconKind::Count)> paths = {
 				"assets/UI/Combat/buff_attack_sword.png",
 				"assets/UI/Combat/buff_defense_shield.png",
 				"assets/UI/Combat/intent_attack_sword.png",
@@ -126,17 +126,17 @@ namespace
 			}
 		}
 
-		const CombatIconTexture *Get(CombatIconKind kind) const noexcept
+		const CombatIconTexture* Get(CombatIconKind kind) const noexcept
 		{
-			const CombatIconTexture &texture = m_Textures[static_cast<std::size_t>(kind)];
+			const CombatIconTexture& texture = m_Textures[static_cast<std::size_t>(kind)];
 			return texture.IsValid() ? &texture : nullptr;
 		}
 
-	  private:
-		static bool LoadTexture(const char *path, CombatIconTexture &destination)
+	private:
+		static bool LoadTexture(const char* path, CombatIconTexture& destination)
 		{
 			int channels = 0;
-			unsigned char *pixels = stbi_load(path, &destination.width, &destination.height, &channels, STBI_rgb_alpha);
+			unsigned char* pixels = stbi_load(path, &destination.width, &destination.height, &channels, STBI_rgb_alpha);
 			if (pixels == nullptr)
 			{
 				std::cerr << "Combat UI icon load failed: " << path << '\n';
@@ -144,7 +144,7 @@ namespace
 				return false;
 			}
 
-			ID3D11Device *device = Renderer::GetDevice();
+			ID3D11Device* device = Renderer::GetDevice();
 			if (device == nullptr)
 			{
 				stbi_image_free(pixels);
@@ -185,51 +185,51 @@ namespace
 		std::array<CombatIconTexture, static_cast<std::size_t>(CombatIconKind::Count)> m_Textures{};
 	};
 
-	CombatIconResources &GetCombatIconResources()
+	CombatIconResources& GetCombatIconResources()
 	{
 		static CombatIconResources resources;
 		return resources;
 	}
 
-	ImTextureRef MakeCombatTextureReference(const CombatIconTexture &texture)
+	ImTextureRef MakeCombatTextureReference(const CombatIconTexture& texture)
 	{
 		return ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<std::uintptr_t>(texture.view.Get())));
 	}
 
-	void DrawCombatIcon(ImDrawList *drawList, const CombatIconTexture *texture, const ImVec2 &minimum,
-						const ImVec2 &maximum, ImU32 tint = IM_COL32_WHITE)
+	void DrawCombatIcon(ImDrawList* drawList, const CombatIconTexture* texture, const ImVec2& minimum,
+		const ImVec2& maximum, ImU32 tint = IM_COL32_WHITE)
 	{
 		if (drawList == nullptr || texture == nullptr || !texture->IsValid())
 			return;
 		const float areaWidth = (std::max)(1.0f, maximum.x - minimum.x);
 		const float areaHeight = (std::max)(1.0f, maximum.y - minimum.y);
 		const float scale = (std::min)(areaWidth / static_cast<float>(texture->width),
-									   areaHeight / static_cast<float>(texture->height));
+			areaHeight / static_cast<float>(texture->height));
 		const ImVec2 size(static_cast<float>(texture->width) * scale, static_cast<float>(texture->height) * scale);
 		const ImVec2 offset((areaWidth - size.x) * 0.5f, (areaHeight - size.y) * 0.5f);
 		drawList->AddImage(MakeCombatTextureReference(*texture), ImVec2(minimum.x + offset.x, minimum.y + offset.y),
-						   ImVec2(minimum.x + offset.x + size.x, minimum.y + offset.y + size.y), ImVec2(0.0f, 0.0f),
-						   ImVec2(1.0f, 1.0f), tint);
+			ImVec2(minimum.x + offset.x + size.x, minimum.y + offset.y + size.y), ImVec2(0.0f, 0.0f),
+			ImVec2(1.0f, 1.0f), tint);
 	}
 
-	void DrawOutlinedValue(ImDrawList *drawList, const ImVec2 &position, const char *value,
-						   ImU32 color = IM_COL32(255, 255, 255, 255), float fontScale = 0.76f)
+	void DrawOutlinedValue(ImDrawList* drawList, const ImVec2& position, const char* value,
+		ImU32 color = IM_COL32(255, 255, 255, 255), float fontScale = 0.76f)
 	{
 		if (drawList == nullptr || value == nullptr || value[0] == '\0')
 			return;
-		ImFont *font = ImGui::GetFont();
+		ImFont* font = ImGui::GetFont();
 		const float size = ImGui::GetFontSize() * fontScale;
 		drawList->AddText(font, size, ImVec2(position.x + 2.0f, position.y + 2.0f), IM_COL32(0, 0, 0, 190), value);
 		for (const ImVec2 offset : {ImVec2(-1.0f, 0.0f), ImVec2(1.0f, 0.0f), ImVec2(0.0f, -1.0f), ImVec2(0.0f, 1.0f)})
 		{
 			drawList->AddText(font, size, ImVec2(position.x + offset.x, position.y + offset.y), IM_COL32(0, 0, 0, 255),
-							  value);
+				value);
 		}
 		drawList->AddText(font, size, position, color, value);
 	}
 
-	constexpr float kCombatIconSize = 30.0f;
-	constexpr float kCombatIconSpacing = 4.0f;
+	constexpr float kCombatIconSize = 26.0f;
+	constexpr float kCombatIconSpacing = 3.0f;
 
 	ImU32 EnemyHpColor(float hpRatio, float opacity)
 	{
@@ -454,10 +454,10 @@ namespace
 			first.y < second.w && first.w > second.y;
 	}
 
-	void DrawEnemyActionBadge(ImDrawList *drawList, const ImVec2 &minimum, EnemyActionType action)
+	void DrawEnemyActionBadge(ImDrawList* drawList, const ImVec2& minimum, EnemyActionType action)
 	{
 		const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
-		const CombatIconTexture *texture = nullptr;
+		const CombatIconTexture* texture = nullptr;
 		switch (action)
 		{
 		case EnemyActionType::NormalAttack:
@@ -477,17 +477,17 @@ namespace
 			DrawCombatIcon(drawList, texture, minimum, maximum);
 		}
 		else if (action != EnemyActionType::NormalAttack && action != EnemyActionType::ChargeStart &&
-				 action != EnemyActionType::ChargeAttack)
+			action != EnemyActionType::ChargeAttack)
 		{
-			const char *label = PresentationUtf8(u8"…");
+			const char* label = PresentationUtf8(u8"…");
 			const ImVec2 textSize = ImGui::CalcTextSize(label);
 			drawList->AddText(ImVec2(minimum.x + (kCombatIconSize - textSize.x) * 0.5f,
-									 minimum.y + (kCombatIconSize - textSize.y) * 0.5f),
-							  IM_COL32(145, 155, 170, 255), label);
+				minimum.y + (kCombatIconSize - textSize.y) * 0.5f),
+				IM_COL32(145, 155, 170, 255), label);
 		}
 	}
 
-	void DrawStatusIcon(ImDrawList *drawList, const ImVec2 &minimum, StatusEffectType type, int magnitude)
+	void DrawStatusIcon(ImDrawList* drawList, const ImVec2& minimum, StatusEffectType type, int magnitude)
 	{
 		const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
 		const CombatIconKind icon =
@@ -504,8 +504,8 @@ namespace
 	struct ResourceBadge
 	{
 		CombatIconKind icon = CombatIconKind::ResourceHeavy;
-		const char *title = "";
-		const char *description = "";
+		const char* title = "";
+		const char* description = "";
 		int value = 0;
 		ImU32 color = IM_COL32_WHITE;
 	};
@@ -513,7 +513,7 @@ namespace
 	constexpr float kResourceBadgeWidth = kCombatIconSize;
 	constexpr float kResourceBadgeHeight = kCombatIconSize;
 
-	void DrawResourceBadge(ImDrawList *drawList, const ImVec2 &minimum, const ResourceBadge &badge)
+	void DrawResourceBadge(ImDrawList* drawList, const ImVec2& minimum, const ResourceBadge& badge)
 	{
 		const ImVec2 maximum(minimum.x + kResourceBadgeWidth, minimum.y + kResourceBadgeHeight);
 		DrawCombatIcon(drawList, GetCombatIconResources().Get(badge.icon), minimum, maximum);
@@ -522,7 +522,7 @@ namespace
 		const float fontSize = ImGui::GetFontSize() * 0.72f;
 		const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
 		DrawOutlinedValue(drawList, ImVec2(maximum.x - textSize.x, maximum.y - textSize.y), text,
-						  IM_COL32(255, 255, 255, 255));
+			IM_COL32(255, 255, 255, 255));
 	}
 
 	bool IsMouseInside(const ImVec2& minimum, const ImVec2& maximum)
@@ -658,7 +658,7 @@ namespace
 	}
 }
 
-void GamePresentation::Initialize(Game &game)
+void GamePresentation::Initialize(Game& game)
 {
 	// Upload every combat HUD icon once after the renderer is available. Draw
 	// calls only reuse the cached shader-resource views.
@@ -831,7 +831,7 @@ void GamePresentation::UpdateEnemyHpVisuals(float deltaSeconds)
 				maximumHp,
 				static_cast<float>(hp),
 				0.0f,
-			});
+				});
 			continue;
 		}
 		if (hp < visual->currentHp)
@@ -1008,7 +1008,7 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 			std::sin(m_CameraShakePhase) * m_CameraShakeStrength * fade,
 			0.0f,
 			std::cos(m_CameraShakePhase * 1.31f) *
-				m_CameraShakeStrength * fade));
+			m_CameraShakeStrength * fade));
 	}
 	else
 	{
@@ -1096,26 +1096,26 @@ void GamePresentation::Draw(Game& game)
 				GameRuntime::World().GetComponents<EnemyBall>())
 			{
 				if (enemy == nullptr || enemy->IsDefeated()) continue;
-                if (enemy->IsArmorBoss())
-                {
-                    const auto& boss = enemy->GetBossState();
-                    ImGui::Separator();
-                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.6f, 1.0f), "最終ボス  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
-                    ImGui::Text("Armor %d / %d", boss.armor, BossCombatRules::MaxArmor);
-                    if (boss.IsBroken())
-                    {
-                        ImGui::TextColored(ImVec4(1, 0.85f, 0.2f, 1), "BREAK！ 通常ダメージ100%% / 残り%dショット", boss.shotsRemaining);
-                        if (boss.startedThisShot && game.GetBattleState() == BattleState::BallsMoving)
-                            ImGui::TextUnformatted("このショットの残り ＋ 次の2ショットが有効");
-                    }
-                    else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");
-                    ImGui::TextUnformatted("黄色の球をボスへ押し込もう：Armor -1 / HP -4");
-                    ImGui::TextUnformatted("黄色の球は命中・落下後、ショット終了時に再配置");
-                    for (auto* neutral :
-                        GameRuntime::World().GetComponents<BreakBall>())
-                        ImGui::Text("ブレイク球%d：%s", neutral->GetIndex() + 1,
-                            neutral->GetGameObject()->IsActive() ? "使用可能" : "再配置待ち");
-                }
+				if (enemy->IsArmorBoss())
+				{
+					const auto& boss = enemy->GetBossState();
+					ImGui::Separator();
+					ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.6f, 1.0f), "最終ボス  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::Text("Armor %d / %d", boss.armor, BossCombatRules::MaxArmor);
+					if (boss.IsBroken())
+					{
+						ImGui::TextColored(ImVec4(1, 0.85f, 0.2f, 1), "BREAK！ 通常ダメージ100%% / 残り%dショット", boss.shotsRemaining);
+						if (boss.startedThisShot && game.GetBattleState() == BattleState::BallsMoving)
+							ImGui::TextUnformatted("このショットの残り ＋ 次の2ショットが有効");
+					}
+					else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");
+					ImGui::TextUnformatted("黄色の球をボスへ押し込もう：Armor -1 / HP -4");
+					ImGui::TextUnformatted("黄色の球は命中・落下後、ショット終了時に再配置");
+					for (auto* neutral :
+						GameRuntime::World().GetComponents<BreakBall>())
+						ImGui::Text("ブレイク球%d：%s", neutral->GetIndex() + 1,
+							neutral->GetGameObject()->IsActive() ? "使用可能" : "再配置待ち");
+				}
 				if (enemy->GetFrontalDamageMultiplier() < 1.0f)
 				{
 					ImGui::Separator();
@@ -1164,10 +1164,518 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
 		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoInputs;
+
+	// 背景・枠線で使用している余白と同じ値にする
+	constexpr float kEnemyFramePadding = 4.0f;
+
+	// 枠同士の最低間隔
+	constexpr float kEnemyFrameGap = 2.0f;
+
+	// このフレームで配置済みのウィンドウ領域
+	std::vector<ImVec4> occupiedEnemyFrames;
+	// 全敵の画面上の当たり判定領域
+	std::vector<std::pair<std::uintptr_t, ImVec4>> enemyBodyRegions;
+
+	// ウィンドウの外枠領域を計算
+	const auto makeEnemyFrameRect =
+		[&](const ImVec2& pos, float width, float height) -> ImVec4
+		{
+			return ImVec4(
+				pos.x - kEnemyFramePadding,
+				pos.y - kEnemyFramePadding,
+				pos.x + width + kEnemyFramePadding,
+				pos.y + height + kEnemyFramePadding
+			);
+		};
+
+	// ホバー中は本来の上下位置に戻す。ただし画面外だけはみ出さないようにする。
+	const auto clampEnemyHoverPosition =
+		[&](const ImVec2& base, float width, float height) -> ImVec2
+		{
+			const float left = viewport->Pos.x + kEnemyFramePadding + 2.0f;
+			const float top = viewport->Pos.y + kEnemyFramePadding + 2.0f;
+			const float right = viewport->Pos.x + viewport->Size.x -
+				kEnemyFramePadding - width - 2.0f;
+			const float bottom = viewport->Pos.y + viewport->Size.y -
+				kEnemyFramePadding - height - 2.0f;
+			return ImVec2(
+				std::clamp(base.x, left, (std::max)(left, right)),
+				std::clamp(base.y, top, (std::max)(top, bottom))
+			);
+		};
+
+	// ============================================================
+// Enemy UI: vertical-first, horizontal-fallback placement
+// ============================================================
+	constexpr float kEnemyVerticalLimit = 56.0f;
+	constexpr float kEnemyHorizontalLimit = 30.0f;
+	constexpr float kEnemyVerticalStep = 4.0f;
+	constexpr float kEnemyHorizontalStep = 6.0f;
+
+	struct EnemyUiLink
+	{
+		ImVec2 start;
+		ImVec2 end;
+	};
+
+	struct EnemyUiPlacement
+	{
+		ImVec2 position;
+		EnemyUiLink link{};
+		bool moved = false;
+		bool hidden = false;
+	};
+
+	std::vector<EnemyUiLink> occupiedEnemyLinks;
+
+	// 敵ボールとウィンドウを結ぶ線の両端を計算
+	const auto makeEnemyUiLink =
+		[&](const ImVec2& pos, float width, float height,
+			bool upper, const ImVec2& ball, float radius) -> EnemyUiLink
+		{
+			const ImVec4 frame = makeEnemyFrameRect(pos, width, height);
+			const ImVec2 destination(
+				pos.x + width * 0.5f,
+				pos.y + height * 0.5f
+			);
+
+			const float dx = destination.x - ball.x;
+			const float dy = destination.y - ball.y;
+			const float length =
+				(std::max)(1.0f, std::sqrt(dx * dx + dy * dy));
+
+			const ImVec2 start(
+				ball.x + dx / length * (radius + 2.0f),
+				ball.y + dy / length * (radius + 2.0f)
+			);
+
+			const ImVec2 end(
+				std::clamp(start.x, frame.x, frame.z),
+				upper ? frame.w : frame.y
+			);
+
+			return { start, end };
+		};
+
+	// 点と線分の最短距離（二乗）
+	const auto pointSegmentDistanceSquared =
+		[](const ImVec2& point,
+			const ImVec2& a,
+			const ImVec2& b) -> float
+		{
+			const float dx = b.x - a.x;
+			const float dy = b.y - a.y;
+			const float denom = dx * dx + dy * dy;
+
+			const float t = denom > 0.0001f
+				? std::clamp(
+					((point.x - a.x) * dx + (point.y - a.y) * dy) / denom,
+					0.0f, 1.0f)
+				: 0.0f;
+
+			const float ex = point.x - (a.x + dx * t);
+			const float ey = point.y - (a.y + dy * t);
+
+			return ex * ex + ey * ey;
+		};
+
+	// ============================================================
+	// ウィンドウ配置の決定
+	// ============================================================
+	const auto resolveEnemyInfoPosition =
+		[&](const ImVec2& base,
+			float width,
+			float height,
+			bool upper,
+			std::uintptr_t owner,
+			const ImVec2& ball,
+			float radius) -> EnemyUiPlacement
+		{
+			EnemyUiPlacement result{};
+			result.position = base;
+
+			float fallbackScore = FLT_MAX;
+			ImVec2 fallbackPosition = base;
+			bool found = false;
+
+			// 指定位置にウィンドウを置けるか評価
+			const auto examine =
+				[&](const ImVec2& pos, bool& valid, float& score)
+				{
+					const ImVec4 frame =
+						makeEnemyFrameRect(pos, width, height);
+
+					valid = true;
+					score = 0.0f;
+
+					// 画面外判定
+					if (frame.x < viewport->Pos.x + 2.0f ||
+						frame.y < viewport->Pos.y + 2.0f ||
+						frame.z > viewport->Pos.x + viewport->Size.x - 2.0f ||
+						frame.w > viewport->Pos.y + viewport->Size.y - 2.0f)
+					{
+						valid = false;
+						score += 100000.0f;
+					}
+
+					// 1. 他の上部・下部ウィンドウとの重なり
+					for (const ImVec4& used : occupiedEnemyFrames)
+					{
+						const float w = (std::max)(
+							0.0f,
+							(std::min)(frame.z, used.z + kEnemyFrameGap) -
+							(std::max)(frame.x, used.x - kEnemyFrameGap)
+							);
+
+						const float h = (std::max)(
+							0.0f,
+							(std::min)(frame.w, used.w + kEnemyFrameGap) -
+							(std::max)(frame.y, used.y - kEnemyFrameGap)
+							);
+
+						if (w > 0.0f && h > 0.0f)
+						{
+							valid = false;
+							score += w * h * 20.0f;
+						}
+					}
+
+					// 2. ウィンドウが既存の点線に重ならないか
+					for (const EnemyUiLink& previous : occupiedEnemyLinks)
+					{
+						const float dx = previous.end.x - previous.start.x;
+						const float dy = previous.end.y - previous.start.y;
+						const float length = std::sqrt(dx * dx + dy * dy);
+
+						const int samples = (std::max)(
+							1,
+							static_cast<int>(std::ceil(length / 3.0f))
+							);
+
+						for (int i = 0; i <= samples; ++i)
+						{
+							const float t = static_cast<float>(i) / samples;
+
+							const ImVec2 p(
+								previous.start.x + dx * t,
+								previous.start.y + dy * t
+							);
+
+							if (p.x >= frame.x - 2.0f &&
+								p.x <= frame.z + 2.0f &&
+								p.y >= frame.y - 2.0f &&
+								p.y <= frame.w + 2.0f)
+							{
+								valid = false;
+								score += 400.0f;
+							}
+						}
+					}
+
+					// 3. 他の敵ボールとの重なり
+					for (const auto& [key, body] : enemyBodyRegions)
+					{
+						if (key == owner)
+							continue;
+
+						const float bx = (body.x + body.z) * 0.5f;
+						const float by = (body.y + body.w) * 0.5f;
+						const float br = (body.z - body.x) * 0.5f;
+
+						const float nx = std::clamp(bx, frame.x, frame.z);
+						const float ny = std::clamp(by, frame.y, frame.w);
+
+						const float dx = bx - nx;
+						const float dy = by - ny;
+
+						const float penetration =
+							br - std::sqrt(dx * dx + dy * dy);
+
+						if (penetration > 0.0f)
+						{
+							valid = false;
+							score += penetration * penetration * 30.0f;
+						}
+					}
+
+					// 4. 移動した場合の点線経路を確認
+					if (std::abs(pos.x - base.x) +
+						std::abs(pos.y - base.y) > 0.01f)
+					{
+						const EnemyUiLink link = makeEnemyUiLink(
+							pos, width, height, upper, ball, radius
+						);
+
+						const float dx = link.end.x - link.start.x;
+						const float dy = link.end.y - link.start.y;
+						const float length = std::sqrt(dx * dx + dy * dy);
+
+						const int samples = (std::max)(
+							1,
+							static_cast<int>(std::ceil(length / 3.0f))
+							);
+
+						for (int i = 0; i <= samples; ++i)
+						{
+							const float t = static_cast<float>(i) / samples;
+
+							const ImVec2 p(
+								link.start.x + dx * t,
+								link.start.y + dy * t
+							);
+
+							// 点線が他の敵ボールを横切らないか
+							for (const auto& [key, body] : enemyBodyRegions)
+							{
+								if (key == owner)
+									continue;
+
+								const float bx = (body.x + body.z) * 0.5f;
+								const float by = (body.y + body.w) * 0.5f;
+								const float br =
+									(body.z - body.x) * 0.5f + 2.0f;
+
+								const float ex = p.x - bx;
+								const float ey = p.y - by;
+
+								if (ex * ex + ey * ey < br * br)
+								{
+									valid = false;
+									score += 500.0f;
+								}
+							}
+
+							// 点線が他のウィンドウを横切らないか
+							for (const ImVec4& used : occupiedEnemyFrames)
+							{
+								if (p.x >= used.x - 2.0f &&
+									p.x <= used.z + 2.0f &&
+									p.y >= used.y - 2.0f &&
+									p.y <= used.w + 2.0f)
+								{
+									valid = false;
+									score += 400.0f;
+								}
+							}
+
+							// 点線同士が接近・交差しないか
+							for (const EnemyUiLink& previous : occupiedEnemyLinks)
+							{
+								if (pointSegmentDistanceSquared(
+									p, previous.start, previous.end) < 16.0f)
+								{
+									valid = false;
+									score += 200.0f;
+								}
+							}
+						}
+					}
+				};
+
+			// 上下方向の候補を評価
+			const auto consider = [&](const ImVec2& candidate) -> bool
+				{
+					bool valid = false;
+					float score = 0.0f;
+
+					examine(candidate, valid, score);
+
+					score += std::abs(candidate.x - base.x) * 0.5f +
+						std::abs(candidate.y - base.y) * 0.1f;
+
+					if (score < fallbackScore)
+					{
+						fallbackScore = score;
+						fallbackPosition = candidate;
+					}
+
+					if (valid)
+					{
+						result.position = candidate;
+						found = true;
+					}
+
+					return valid;
+				};
+
+			// 第1段階：上下方向のみ探索
+			for (float y = 0.0f;
+				y <= kEnemyVerticalLimit && !found;
+				y += kEnemyVerticalStep)
+			{
+				consider(ImVec2(
+					base.x,
+					base.y + (upper ? -y : y)
+				));
+			}
+
+			// 第2段階：上下で解決しなければ左右移動も許可
+			if (!found)
+			{
+				float bestTravel = FLT_MAX;
+
+				for (float x = kEnemyHorizontalStep;
+					x <= kEnemyHorizontalLimit;
+					x += kEnemyHorizontalStep)
+				{
+					for (float sign : { -1.0f, 1.0f })
+					{
+						for (float y = 0.0f;
+							y <= kEnemyVerticalLimit;
+							y += kEnemyVerticalStep)
+						{
+							const ImVec2 candidate(
+								base.x + sign * x,
+								base.y + (upper ? -y : y)
+							);
+
+							bool valid = false;
+							float score = 0.0f;
+							examine(candidate, valid, score);
+
+							// 左右移動には少し大きいコストを設定
+							const float travel = x * 2.0f + y;
+
+							if (valid && travel < bestTravel)
+							{
+								bestTravel = travel;
+								result.position = candidate;
+								found = true;
+							}
+
+							score += travel * 0.1f;
+
+							if (score < fallbackScore)
+							{
+								fallbackScore = score;
+								fallbackPosition = candidate;
+							}
+						}
+					}
+				}
+			}
+
+			// どの候補も解決できない場合
+			if (!found)
+			{
+				result.hidden = true;
+				result.position = fallbackPosition;
+			}
+
+			result.moved =
+				std::abs(result.position.x - base.x) +
+				std::abs(result.position.y - base.y) > 0.01f;
+
+			if (result.moved)
+			{
+				result.link = makeEnemyUiLink(
+					result.position, width, height,
+					upper, ball, radius
+				);
+			}
+
+			// ホバー状態では配置予約を増やさない。通常配置だけを占有領域へ記録する。
+			if (!result.hidden)
+			{
+				occupiedEnemyFrames.push_back(
+					makeEnemyFrameRect(
+						result.position, width, height
+					)
+				);
+
+				if (result.moved)
+				{
+					occupiedEnemyLinks.push_back(result.link);
+				}
+			}
+
+			return result;
+		};
+
+	// ============================================================
+	// 点線描画：ホバー中は色を強調
+	// ============================================================
+	const auto drawEnemyInfoDottedLine =
+		[&](const EnemyUiLink& link, bool highlight)
+		{
+			const float dx = link.end.x - link.start.x;
+			const float dy = link.end.y - link.start.y;
+			const float length = std::sqrt(dx * dx + dy * dy);
+
+			if (length < 0.01f)
+				return;
+
+			ImDrawList* layer = highlight
+				? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
+				: ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+
+			const ImU32 color = highlight
+				? IM_COL32(255, 238, 164, 245)
+				: IM_COL32(190, 215, 230, 185);
+
+			for (float distance = 0.0f;
+				distance <= length;
+				distance += 5.0f)
+			{
+				const ImVec2 dot(
+					link.start.x + dx * distance / length,
+					link.start.y + dy * distance / length
+				);
+
+				layer->AddCircleFilled(
+					dot,
+					highlight ? 1.5f : 1.1f,
+					color,
+					6
+				);
+			}
+		};
+
+	// 重なり回避に失敗して隠れた情報がある敵に「i」を表示する。
+	const auto drawHiddenEnemyInfoMarker =
+		[&](const ImVec2& ballCenter, float ballRadius)
+		{
+			constexpr float markerRadius = 6.0f;
+			const ImVec2 markerCenter(
+				ballCenter.x + ballRadius * 0.78f,
+				ballCenter.y + ballRadius * 0.78f
+			);
+			if (markerCenter.x - markerRadius < viewport->Pos.x ||
+				markerCenter.y - markerRadius < viewport->Pos.y ||
+				markerCenter.x + markerRadius > viewport->Pos.x + viewport->Size.x ||
+				markerCenter.y + markerRadius > viewport->Pos.y + viewport->Size.y)
+			{
+				return;
+			}
+
+			ImDrawList* layer = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
+			layer->AddCircleFilled(markerCenter, markerRadius, IM_COL32(15, 25, 31, 240), 16);
+			layer->AddCircle(markerCenter, markerRadius, IM_COL32(180, 224, 239, 235), 16, 1.2f);
+
+			const char* label = "i";
+			ImFont* font = ImGui::GetFont();
+			const float fontSize = 11.0f;
+			const ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, label);
+			layer->AddText(
+				font, fontSize,
+				ImVec2(markerCenter.x - textSize.x * 0.5f,
+					markerCenter.y - textSize.y * 0.5f),
+				IM_COL32(235, 248, 255, 255), label);
+
+			const float mx = ImGui::GetIO().MousePos.x - markerCenter.x;
+			const float my = ImGui::GetIO().MousePos.y - markerCenter.y;
+			if (mx * mx + my * my <= markerRadius * markerRadius)
+			{
+				ImGui::BeginTooltip();
+				ImGui::TextUnformatted(PresentationUtf8(u8"この敵には非表示の情報があります。"));
+				ImGui::TextUnformatted(PresentationUtf8(u8"敵ボールにマウスを合わせて確認できます。"));
+				ImGui::EndTooltip();
+			}
+		};
+
 	std::vector<ImVec4> placedEnemyPanels;
 	std::vector<std::uintptr_t> liveEnemyInfoKeys;
 	std::vector<ImVec4> protectedEnemyUiRegions;
-	std::vector<std::pair<std::uintptr_t, ImVec4>> enemyBodyRegions;
 	const ImVec2 workPosition = viewport->WorkPos;
 	const ImVec2 workSize = viewport->WorkSize;
 	protectedEnemyUiRegions.emplace_back(
@@ -1210,7 +1718,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			if (TryProjectToScreen(candidate->GetPosition(), bodyCenter) &&
 				TryProjectToScreen(
 					candidate->GetPosition() +
-						Vector3(0.0f, candidate->GetVisualRadius(), 0.0f),
+					Vector3(0.0f, candidate->GetVisualRadius(), 0.0f),
 					bodyTop))
 			{
 				const float bodyRadius = (std::max)(
@@ -1226,564 +1734,564 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			}
 		}
 	}
-	int enemyIndex = 0;
-	for (const EnemyBall* enemy :
-		GameRuntime::World().GetComponents<EnemyBall>())
+
+	// 敵ボールへのマウスオーバー判定
+	std::uintptr_t hoveredEnemyKey = 0;
+	float nearestHoverScore = FLT_MAX;
+
+	const ImVec2 mousePos = ImGui::GetIO().MousePos;
+
+	for (const auto& [key, body] : enemyBodyRegions)
 	{
-		const int currentIndex = enemyIndex++;
-		if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
-		const auto& effects = enemy->GetStatusEffects();
-		const int effectCount = showTimedStatusEffects
-			? effects.GetActiveCount()
-			: 0;
-		const int anchorStacks = enemy->GetAnchorStacks();
-		const EnemyBoardAbilityType boardAbility =
-			enemy->GetBoardAbilityType();
-		const bool protectedByResonator =
-			enemy->IsProtectedByResonator();
-		const int boardStatusCount =
-			(boardAbility != EnemyBoardAbilityType::None ? 1 : 0) +
-			(protectedByResonator ? 1 : 0);
-		const EnemyActionType action = enemy->GetPlannedAction();
-		const bool actionIsAttack =
-			action == EnemyActionType::NormalAttack ||
-			action == EnemyActionType::ChargeAttack;
-		int expectedDamage = 0;
-		if (showActionPlan && actionIsAttack)
+		const float cx = (body.x + body.z) * 0.5f;
+		const float cy = (body.y + body.w) * 0.5f;
+
+		// enemyBodyRegionsは5px拡張されているため補正
+		const float radius = (std::max)(
+			1.0f,
+			(body.z - body.x) * 0.5f - 5.0f
+			);
+
+		const float dx = mousePos.x - cx;
+		const float dy = mousePos.y - cy;
+
+		const float score =
+			(dx * dx + dy * dy) / (radius * radius);
+
+		if (score <= 1.0f && score < nearestHoverScore)
 		{
-			const GameObject* owner = enemy->GetGameObject();
-			const EnemyAttackComponent* attack = owner != nullptr
-				? owner->GetComponent<EnemyAttackComponent>()
-				: nullptr;
-			expectedDamage = attack != nullptr
-				? PlayerBall::CalculateIncomingDamage(
-					attack->CalculateDamage(
-						enemy->GetPlannedDamageMultiplier()))
+			nearestHoverScore = score;
+			hoveredEnemyKey = key;
+		}
+	}
+
+	// Pass 0: 通常配置の計算・描画。ホバー対象も配置だけは予約しておく。
+	// Pass 1: 対象の上下UIを基準位置へ戻し、最後に最前面へ重ね描画する。
+	for (int uiPass = 0; uiPass < 2; ++uiPass)
+	{
+		const bool hoverOverlayPass = uiPass == 1;
+		if (hoverOverlayPass && hoveredEnemyKey == 0)
+			break;
+		int enemyIndex = 0;
+		for (const EnemyBall* enemy :
+			GameRuntime::World().GetComponents<EnemyBall>())
+		{
+			const int currentIndex = enemyIndex++;
+			if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed()) continue;
+			if (hoverOverlayPass &&
+				reinterpret_cast<std::uintptr_t>(enemy) != hoveredEnemyKey)
+				continue;
+			const auto& effects = enemy->GetStatusEffects();
+			const int effectCount = showTimedStatusEffects
+				? effects.GetActiveCount()
 				: 0;
-		}
-		const std::string intentText = actionIsAttack ? "-" + std::to_string(expectedDamage) : std::string{};
-		const int shownEffectCount = visibleEnemyCount >= 10  ? (std::min)(effectCount, 1)
-									 : visibleEnemyCount >= 8 ? (std::min)(effectCount, 2)
-															  : effectCount;
-		const int suppressedEffectCount = effectCount - shownEffectCount;
-		const int itemCount = shownEffectCount + boardStatusCount + (anchorStacks > 0 ? 1 : 0);
-
-		ImVec2 center;
-		ImVec2 top;
-		if (!TryProjectToScreen(enemy->GetPosition(), center) ||
-			!TryProjectToScreen(enemy->GetPosition() + Vector3(0.0f, enemy->GetVisualRadius(), 0.0f), top))
-		{
-			continue;
-		}
-		const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
-		if (GameUi::showDebugger && enemy->GetBoardAbilityRadius() > 0.0f)
-		{
-			ImVec2 rangeEdge;
-			if (TryProjectToScreen(enemy->GetPosition() + Vector3(enemy->GetBoardAbilityRadius(), 0.0f, 0.0f),
-								   rangeEdge))
+			const int anchorStacks = enemy->GetAnchorStacks();
+			const EnemyBoardAbilityType boardAbility =
+				enemy->GetBoardAbilityType();
+			const bool protectedByResonator =
+				enemy->IsProtectedByResonator();
+			const int boardStatusCount =
+				(boardAbility != EnemyBoardAbilityType::None ? 1 : 0) +
+				(protectedByResonator ? 1 : 0);
+			const EnemyActionType action = enemy->GetPlannedAction();
+			const bool actionIsAttack =
+				action == EnemyActionType::NormalAttack ||
+				action == EnemyActionType::ChargeAttack;
+			int expectedDamage = 0;
+			if (showActionPlan && actionIsAttack)
 			{
-				const float screenRadius = std::abs(rangeEdge.x - center.x);
-				ImGui::GetBackgroundDrawList(ImGui::GetMainViewport())
-					->AddCircle(center, screenRadius,
-								boardAbility == EnemyBoardAbilityType::ProtectionResonator
-									? IM_COL32(70, 220, 245, 105)
-									: IM_COL32(255, 92, 155, 105),
-								48, 1.5f);
+				const GameObject* owner = enemy->GetGameObject();
+				const EnemyAttackComponent* attack = owner != nullptr
+					? owner->GetComponent<EnemyAttackComponent>()
+					: nullptr;
+				expectedDamage = attack != nullptr
+					? PlayerBall::CalculateIncomingDamage(
+						attack->CalculateDamage(
+							enemy->GetPlannedDamageMultiplier()))
+					: 0;
 			}
-		}
-		const std::uintptr_t targetKey = reinterpret_cast<std::uintptr_t>(enemy);
-		liveEnemyInfoKeys.push_back(targetKey);
-		const auto hpVisual =
-			std::find_if(m_EnemyHpVisuals.begin(), m_EnemyHpVisuals.end(),
-						 [targetKey](const EnemyHpVisual &value) { return value.targetKey == targetKey; });
-		const int currentHp = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->currentHp : (std::max)(0, enemy->GetHP());
-		const int maximumHp =
-			hpVisual != m_EnemyHpVisuals.end() ? hpVisual->maximumHp : (std::max)(1, enemy->GetMaxHP());
-		const float trailingHp =
-			hpVisual != m_EnemyHpVisuals.end() ? hpVisual->trailingHp : static_cast<float>(currentHp);
-		const float damageHold = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->damageHold : 0.0f;
-		const float hpRatio = std::clamp(static_cast<float>(currentHp) / static_cast<float>(maximumHp), 0.0f, 1.0f);
-		const float trailingRatio = std::clamp(trailingHp / static_cast<float>(maximumHp), 0.0f, 1.0f);
-		if (showCircularHp && currentHp > 0)
-		{
-			DrawEnemyHpRing(hpDisplay, center, projectedRadius, hpRatio, trailingRatio, damageHold);
-		}
+			const std::string intentText = actionIsAttack ? "-" + std::to_string(expectedDamage) : std::string{};
+			const int shownEffectCount = visibleEnemyCount >= 10 ? (std::min)(effectCount, 1)
+				: visibleEnemyCount >= 8 ? (std::min)(effectCount, 2)
+				: effectCount;
+			const int suppressedEffectCount = effectCount - shownEffectCount;
+			const int itemCount = shownEffectCount + boardStatusCount + (anchorStacks > 0 ? 1 : 0);
 
-		// Intent lives above the enemy. It participates in the same occupancy
-		// set as lower status strips so dense 6/8/10-enemy layouts avoid both
-		// enemy bodies and other HUD icons.
-		if (showActionPlan)
-		{
-			ImVec2 actionPosition(center.x - kCombatIconSize * 0.5f,
-								  center.y - projectedRadius - kCombatIconSize - 7.0f);
-			const ImVec2 actionDesiredPosition = actionPosition;
-			const std::array<ImVec2, 9> actionOffsets = {
-				ImVec2(0.0f, 0.0f),		ImVec2(-24.0f, -4.0f), ImVec2(24.0f, -4.0f),
-				ImVec2(-40.0f, -16.0f), ImVec2(40.0f, -16.0f), ImVec2(0.0f, -24.0f),
-				ImVec2(-24.0f, -28.0f), ImVec2(24.0f, -28.0f), ImVec2(0.0f, 18.0f),
-			};
-			float bestActionScore = FLT_MAX;
-			ImVec4 actionRectangle{};
-			for (const ImVec2 &offset : actionOffsets)
+			ImVec2 center;
+			ImVec2 top;
+			if (!TryProjectToScreen(enemy->GetPosition(), center) ||
+				!TryProjectToScreen(enemy->GetPosition() + Vector3(0.0f, enemy->GetVisualRadius(), 0.0f), top))
 			{
-				ImVec2 candidate(actionDesiredPosition.x + offset.x, actionDesiredPosition.y + offset.y);
-				candidate.x = std::clamp(candidate.x, viewport->Pos.x + 8.0f,
-										 viewport->Pos.x + viewport->Size.x - kCombatIconSize - 8.0f);
-				candidate.y = std::clamp(candidate.y, viewport->Pos.y + 30.0f,
-										 viewport->Pos.y + viewport->Size.y - kCombatIconSize - 12.0f);
-				const ImVec4 rectangle(candidate.x - 3.0f, candidate.y - 3.0f, candidate.x + kCombatIconSize + 3.0f,
-									   candidate.y + kCombatIconSize + 3.0f);
-				float overlapArea = 0.0f;
-				for (const ImVec4 &placed : placedEnemyPanels)
+				continue;
+			}
+			const float projectedRadius = (std::max)(14.0f, std::abs(center.y - top.y));
+			if (!hoverOverlayPass && GameUi::showDebugger && enemy->GetBoardAbilityRadius() > 0.0f)
+			{
+				ImVec2 rangeEdge;
+				if (TryProjectToScreen(enemy->GetPosition() + Vector3(enemy->GetBoardAbilityRadius(), 0.0f, 0.0f),
+					rangeEdge))
 				{
-					if (!RectanglesOverlap(rectangle, placed))
-						continue;
-					overlapArea += ((std::min)(rectangle.z, placed.z) - (std::max)(rectangle.x, placed.x)) *
-								   ((std::min)(rectangle.w, placed.w) - (std::max)(rectangle.y, placed.y));
-				}
-				float protectedArea = 0.0f;
-				for (const ImVec4 &protectedRegion : protectedEnemyUiRegions)
-				{
-					if (!RectanglesOverlap(rectangle, protectedRegion))
-						continue;
-					protectedArea +=
-						((std::min)(rectangle.z, protectedRegion.z) - (std::max)(rectangle.x, protectedRegion.x)) *
-						((std::min)(rectangle.w, protectedRegion.w) - (std::max)(rectangle.y, protectedRegion.y));
-				}
-				float enemyArea = 0.0f;
-				for (const auto &[bodyKey, bodyRegion] : enemyBodyRegions)
-				{
-					if (bodyKey == targetKey || !RectanglesOverlap(rectangle, bodyRegion))
-						continue;
-					enemyArea += ((std::min)(rectangle.z, bodyRegion.z) - (std::max)(rectangle.x, bodyRegion.x)) *
-								 ((std::min)(rectangle.w, bodyRegion.w) - (std::max)(rectangle.y, bodyRegion.y));
-				}
-				const float distancePenalty = offset.x * offset.x + offset.y * offset.y;
-				const float score = overlapArea * 3.0f + enemyArea * 12.0f + protectedArea * 24.0f + distancePenalty;
-				if (score < bestActionScore)
-				{
-					bestActionScore = score;
-					actionPosition = candidate;
-					actionRectangle = rectangle;
+					const float screenRadius = std::abs(rangeEdge.x - center.x);
+					ImGui::GetBackgroundDrawList(ImGui::GetMainViewport())
+						->AddCircle(center, screenRadius,
+							boardAbility == EnemyBoardAbilityType::ProtectionResonator
+							? IM_COL32(70, 220, 245, 105)
+							: IM_COL32(255, 92, 155, 105),
+							48, 1.5f);
 				}
 			}
-			placedEnemyPanels.push_back(actionRectangle);
+			const std::uintptr_t targetKey =
+				reinterpret_cast<std::uintptr_t>(enemy);
 
-			char actionWindowId[64]{};
-			sprintf_s(actionWindowId, "##enemy_action_intent_%d", currentIndex);
+			const bool isEnemyHovered =
+				targetKey == hoveredEnemyKey;
+			// 他の敵をホバーしている間は、重なった通常アイコンのツールチップを抑止する。
+			const bool allowEnemyIconTooltip =
+				hoveredEnemyKey == 0 || isEnemyHovered;
+
+			if (!hoverOverlayPass)
+				liveEnemyInfoKeys.push_back(targetKey);
+
+			// ホバー中の敵を最後のパスでリング強調
+			if (hoverOverlayPass && isEnemyHovered)
+			{
+				ImGui::GetForegroundDrawList(ImGui::GetMainViewport())->AddCircle(
+					center,
+					projectedRadius + 3.0f,
+					IM_COL32(255, 238, 164, 220),
+					32,
+					1.6f
+				);
+			}
+			const auto hpVisual =
+				std::find_if(m_EnemyHpVisuals.begin(), m_EnemyHpVisuals.end(),
+					[targetKey](const EnemyHpVisual& value) { return value.targetKey == targetKey; });
+			const int currentHp = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->currentHp : (std::max)(0, enemy->GetHP());
+			const int maximumHp =
+				hpVisual != m_EnemyHpVisuals.end() ? hpVisual->maximumHp : (std::max)(1, enemy->GetMaxHP());
+			const float trailingHp =
+				hpVisual != m_EnemyHpVisuals.end() ? hpVisual->trailingHp : static_cast<float>(currentHp);
+			const float damageHold = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->damageHold : 0.0f;
+			const float hpRatio = std::clamp(static_cast<float>(currentHp) / static_cast<float>(maximumHp), 0.0f, 1.0f);
+			const float trailingRatio = std::clamp(trailingHp / static_cast<float>(maximumHp), 0.0f, 1.0f);
+			if (!hoverOverlayPass && showCircularHp && currentHp > 0)
+			{
+				DrawEnemyHpRing(hpDisplay, center, projectedRadius, hpRatio, trailingRatio, damageHold);
+			}
+
+			// 上部の行動予告：通常は回避位置、ホバー中のみ敵の真上へ戻す。
+			bool upperInfoHidden = false;
+			if (showActionPlan)
+			{
+				const ImVec2 actionBasePosition(
+					center.x - kCombatIconSize * 0.5f,
+					center.y - projectedRadius - kCombatIconSize - 7.0f
+				);
+
+				EnemyUiPlacement actionPlacement{};
+				if (!hoverOverlayPass)
+				{
+					actionPlacement = resolveEnemyInfoPosition(
+						actionBasePosition, kCombatIconSize, kCombatIconSize,
+						true, targetKey, center, projectedRadius);
+					upperInfoHidden = actionPlacement.hidden;
+				}
+				else
+				{
+					// 配置処理へ再登録せず、ホバー対象だけ元の真上に重ねる。
+					actionPlacement.position = clampEnemyHoverPosition(
+						actionBasePosition, kCombatIconSize, kCombatIconSize);
+					actionPlacement.moved =
+						std::abs(actionPlacement.position.x - actionBasePosition.x) +
+						std::abs(actionPlacement.position.y - actionBasePosition.y) > 0.01f;
+					if (actionPlacement.moved)
+						actionPlacement.link = makeEnemyUiLink(actionPlacement.position,
+							kCombatIconSize, kCombatIconSize, true, center, projectedRadius);
+				}
+
+				const ImVec2 actionPosition = actionPlacement.position;
+				const bool drawActionWindow = hoverOverlayPass
+					? isEnemyHovered
+					: (!isEnemyHovered && !actionPlacement.hidden);
+
+				if (drawActionWindow && actionPlacement.moved)
+					drawEnemyInfoDottedLine(actionPlacement.link, hoverOverlayPass);
+
+				if (drawActionWindow)
+				{
+					char actionWindowId[64]{};
+					sprintf_s(actionWindowId, "##enemy_action_intent_%d", currentIndex);
+					ImGui::SetNextWindowViewport(viewport->ID);
+					ImGui::SetNextWindowPos(actionPosition);
+					ImGui::SetNextWindowSize(ImVec2(kCombatIconSize, kCombatIconSize));
+
+					// 行動予告アイコンの背景・枠線
+					{
+						constexpr float framePadding = 4.0f;
+						constexpr float frameRounding = 5.0f;
+
+						const ImVec2 frameMin(
+							actionPosition.x - framePadding,
+							actionPosition.y - framePadding
+						);
+
+						const ImVec2 frameMax(
+							actionPosition.x + kCombatIconSize + framePadding,
+							actionPosition.y + kCombatIconSize + framePadding
+						);
+
+						ImDrawList* frameDrawList = isEnemyHovered
+							? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
+							: ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+
+						// 半透明の暗い背景
+						frameDrawList->AddRectFilled(
+							frameMin,
+							frameMax,
+							IM_COL32(12, 20, 27, isEnemyHovered ? 245 : 109),
+							frameRounding
+						);
+
+						// 灰色の細い枠線
+						frameDrawList->AddRect(
+							frameMin,
+							frameMax,
+							isEnemyHovered
+							? IM_COL32(255, 225, 120, 255)
+							: IM_COL32(105, 128, 147, 220),
+							frameRounding,
+							0,
+							isEnemyHovered ? 2.4f : 1.2f
+						);
+					}
+
+					ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+					if (ImGui::Begin(actionWindowId, nullptr, flags))
+					{
+						const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+						const ImVec2 iconMaximum(iconMinimum.x + kCombatIconSize, iconMinimum.y + kCombatIconSize);
+						ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
+						ImDrawList* actionDrawList = isEnemyHovered
+							? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
+							: ImGui::GetWindowDrawList();
+						DrawEnemyActionBadge(actionDrawList, iconMinimum, action);
+						if (actionIsAttack)
+						{
+							const float damageFontSize = ImGui::GetFontSize() * 0.72f;
+							const ImVec2 damageSize =
+								ImGui::GetFont()->CalcTextSizeA(damageFontSize, FLT_MAX, 0.0f, intentText.c_str());
+							DrawOutlinedValue(actionDrawList,
+								ImVec2(iconMaximum.x - damageSize.x, iconMaximum.y - damageSize.y),
+								intentText.c_str(), IM_COL32(255, 245, 218, 255));
+						}
+						if (allowEnemyIconTooltip && IsMouseInside(iconMinimum, iconMaximum))
+						{
+							ImGui::BeginTooltip();
+							ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(EnemyActionColor(action)), "%s",
+								EnemyActionDisplayName(action));
+							ImGui::Text("%s: %d", PresentationUtf8(u8"行動コスト"), enemy->GetPlannedActionCost());
+							ImGui::Text("Charge: %s", enemy->IsCharging() ? "Charging" : "Normal");
+							if (actionIsAttack)
+							{
+								ImGui::Text(PresentationUtf8(u8"予測ダメージ: %d（シールド適用前）"), expectedDamage);
+							}
+							else if (action == EnemyActionType::ChargeStart)
+							{
+								ImGui::TextUnformatted(PresentationUtf8(u8"このターンは攻撃せずChargeを開始"));
+							}
+							else
+							{
+								ImGui::TextUnformatted(PresentationUtf8(u8"このターンは行動しません。"));
+							}
+							ImGui::EndTooltip();
+						}
+					}
+					ImGui::End();
+					ImGui::PopStyleVar();
+				}
+			}
+			if (!showOverheadHp && itemCount <= 0)
+			{
+				if (!hoverOverlayPass && !isEnemyHovered && upperInfoHidden)
+					drawHiddenEnemyInfoMarker(center, projectedRadius);
+				continue;
+			}
+			const float rowWidth = (shownEffectCount + boardStatusCount) * kCombatIconSize +
+				(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
+				(std::max)(0, itemCount - 1) * kCombatIconSpacing;
+			const float panelWidth = showOverheadHp ? (std::max)(104.0f, rowWidth) : (std::max)(1.0f, rowWidth);
+			const float panelHeight =
+				showOverheadHp ? (itemCount > 0 ? 53.0f : 18.0f) : (itemCount > 0 ? kCombatIconSize : 0.0f);
+			// 敵の真下を基準位置とする
+			const ImVec2 panelBasePosition(
+				center.x - panelWidth * 0.5f,
+				center.y + projectedRadius + 6.0f
+			);
+
+			EnemyUiPlacement panelPlacement{};
+			if (!hoverOverlayPass)
+			{
+				panelPlacement = resolveEnemyInfoPosition(
+					panelBasePosition, panelWidth, panelHeight,
+					false, targetKey, center, projectedRadius);
+			}
+			else
+			{
+				// ホバー表示では通常配置を変えず、真下の基準位置に戻す。
+				panelPlacement.position = clampEnemyHoverPosition(
+					panelBasePosition, panelWidth, panelHeight);
+				panelPlacement.moved =
+					std::abs(panelPlacement.position.x - panelBasePosition.x) +
+					std::abs(panelPlacement.position.y - panelBasePosition.y) > 0.01f;
+				if (panelPlacement.moved)
+					panelPlacement.link = makeEnemyUiLink(panelPlacement.position,
+						panelWidth, panelHeight, false, center, projectedRadius);
+			}
+
+			// 省略されたウィンドウがある敵だけ、通常描画時に小さな i を付ける。
+			if (!hoverOverlayPass && !isEnemyHovered &&
+				(upperInfoHidden || panelPlacement.hidden))
+				drawHiddenEnemyInfoMarker(center, projectedRadius);
+
+			const bool drawLowerWindow = hoverOverlayPass
+				? isEnemyHovered
+				: (!isEnemyHovered && !panelPlacement.hidden);
+			if (!drawLowerWindow)
+				continue;
+
+			const ImVec2 panelPosition = panelPlacement.position;
+
+			if (panelPlacement.moved)
+				drawEnemyInfoDottedLine(panelPlacement.link, hoverOverlayPass);
+			// パネル全体が画面外の場合のみ描画をスキップする。
+			// 画面内では位置をずらさない。
+			if (panelPosition.x + panelWidth < viewport->Pos.x ||
+				panelPosition.x > viewport->Pos.x + viewport->Size.x ||
+				panelPosition.y + panelHeight < viewport->Pos.y ||
+				panelPosition.y > viewport->Pos.y + viewport->Size.y)
+			{
+				continue;
+			}
+
+			char windowId[64]{};
+			sprintf_s(windowId, "##enemy_status_effects_%d", currentIndex);
 			ImGui::SetNextWindowViewport(viewport->ID);
-			ImGui::SetNextWindowPos(actionPosition);
-			ImGui::SetNextWindowSize(ImVec2(kCombatIconSize, kCombatIconSize));
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-			if (ImGui::Begin(actionWindowId, nullptr, flags))
+			ImGui::SetNextWindowPos(panelPosition);
+			ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight));
+
+			// バフ・デバフ一覧の背景・枠線
 			{
-				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
-				const ImVec2 iconMaximum(iconMinimum.x + kCombatIconSize, iconMinimum.y + kCombatIconSize);
-				ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
-				ImDrawList *actionDrawList = ImGui::GetWindowDrawList();
-				DrawEnemyActionBadge(actionDrawList, iconMinimum, action);
-				if (actionIsAttack)
+				constexpr float framePadding = 4.0f;
+				constexpr float frameRounding = 5.0f;
+
+				const ImVec2 frameMin(
+					panelPosition.x - framePadding,
+					panelPosition.y - framePadding
+				);
+
+				const ImVec2 frameMax(
+					panelPosition.x + panelWidth + framePadding,
+					panelPosition.y + panelHeight + framePadding
+				);
+
+				ImDrawList* frameDrawList = isEnemyHovered
+					? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
+					: ImGui::GetBackgroundDrawList(ImGui::GetMainViewport());
+
+				// 半透明の暗い背景
+				frameDrawList->AddRectFilled(
+					frameMin,
+					frameMax,
+					IM_COL32(12, 20, 27, isEnemyHovered ? 245 : 109),
+					frameRounding
+				);
+
+				// 灰色の細い枠線
+				frameDrawList->AddRect(
+					frameMin,
+					frameMax,
+					isEnemyHovered
+					? IM_COL32(255, 225, 120, 255)
+					: IM_COL32(105, 128, 147, 220),
+					frameRounding,
+					0,
+					isEnemyHovered ? 2.4f : 1.2f
+				);
+			}
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+			if (ImGui::Begin(windowId, nullptr, flags))
+			{
+				ImDrawList* drawList = isEnemyHovered
+					? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
+					: ImGui::GetWindowDrawList();
+				if (showOverheadHp)
 				{
-					const float damageFontSize = ImGui::GetFontSize() * 0.72f;
-					const ImVec2 damageSize =
-						ImGui::GetFont()->CalcTextSizeA(damageFontSize, FLT_MAX, 0.0f, intentText.c_str());
-					DrawOutlinedValue(actionDrawList,
-									  ImVec2(iconMaximum.x - damageSize.x, iconMaximum.y - damageSize.y),
-									  intentText.c_str(), IM_COL32(255, 245, 218, 255));
+					const ImVec2 hpMinimum(
+						panelPosition.x,
+						panelPosition.y);
+					const ImVec2 hpMaximum(
+						panelPosition.x + panelWidth,
+						panelPosition.y + 16.0f);
+					drawList->AddRectFilled(
+						hpMinimum,
+						hpMaximum,
+						IM_COL32(8, 12, 18, 235),
+						4.0f);
+					drawList->AddRectFilled(
+						hpMinimum,
+						ImVec2(
+							hpMinimum.x + panelWidth * trailingRatio,
+							hpMaximum.y),
+						IM_COL32(255, 154, 54, 225),
+						4.0f);
+					const ImU32 hpColor = EnemyHpColor(hpRatio, 1.0f);
+					drawList->AddRectFilled(
+						hpMinimum,
+						ImVec2(
+							hpMinimum.x + panelWidth * hpRatio,
+							hpMaximum.y),
+						hpColor,
+						4.0f);
+					drawList->AddRect(
+						hpMinimum,
+						hpMaximum,
+						IM_COL32(232, 240, 250, 230),
+						4.0f,
+						0,
+						1.2f);
+					char hpText[48]{};
+					sprintf_s(hpText, "HP %d / %d", currentHp, maximumHp);
+					const ImVec2 hpTextSize = ImGui::CalcTextSize(hpText);
+					drawList->AddText(
+						ImVec2(
+							hpMinimum.x + (panelWidth - hpTextSize.x) * 0.5f,
+							hpMinimum.y + (16.0f - hpTextSize.y) * 0.5f),
+						IM_COL32(255, 255, 255, 255),
+						hpText);
+					ImGui::Dummy(ImVec2(panelWidth, 16.0f));
 				}
-				if (IsMouseInside(iconMinimum, iconMaximum))
+				if (itemCount > 0)
 				{
-					ImGui::BeginTooltip();
-					ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(EnemyActionColor(action)), "%s",
-									   EnemyActionDisplayName(action));
-					ImGui::Text("%s: %d", PresentationUtf8(u8"行動コスト"), enemy->GetPlannedActionCost());
-					ImGui::Text("Charge: %s", enemy->IsCharging() ? "Charging" : "Normal");
-					if (actionIsAttack)
+					ImGui::SetCursorScreenPos(ImVec2(
+						panelPosition.x + (panelWidth - rowWidth) * 0.5f,
+						panelPosition.y + (showOverheadHp ? 22.0f : 0.0f)));
+				}
+				int drawn = 0;
+				const auto drawBoardBadge =
+					[&drawn, drawList, allowEnemyIconTooltip](CombatIconKind icon, ImU32 color, const char* title, const std::string& detail)
 					{
-						ImGui::Text(PresentationUtf8(u8"予測ダメージ: %d（シールド適用前）"), expectedDamage);
-					}
-					else if (action == EnemyActionType::ChargeStart)
+						if (drawn++ > 0)
+							ImGui::SameLine();
+						const ImVec2 minimum = ImGui::GetCursorScreenPos();
+						const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
+						ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
+						DrawCombatIcon(drawList, GetCombatIconResources().Get(icon), minimum, maximum);
+						if (allowEnemyIconTooltip && IsMouseInside(minimum, maximum))
+						{
+							ImGui::BeginTooltip();
+							ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(color), "%s", title);
+							ImGui::TextUnformatted(detail.c_str());
+							ImGui::EndTooltip();
+						}
+					};
+				if (boardAbility == EnemyBoardAbilityType::SwarmAmplifier)
+				{
+					drawBoardBadge(CombatIconKind::EnemySwarm, IM_COL32(255, 86, 155, 255), PresentationUtf8(u8"群体強化"),
+						std::string(PresentationUtf8(u8"周囲の生存中の味方 ")) +
+						std::to_string(enemy->GetNearbyLivingAllyCount()) +
+						PresentationUtf8(u8"体 / 強化段階 ") + std::to_string(enemy->GetSwarmStage() + 1) +
+						PresentationUtf8(u8" / 現在攻撃力 ") + std::to_string(enemy->GetAttack()));
+				}
+				else if (boardAbility == EnemyBoardAbilityType::ImpactBrittle)
+				{
+					drawBoardBadge(CombatIconKind::EnemyBrittle,
+						enemy->IsBrittle() ? IM_COL32(120, 220, 255, 255) : IM_COL32(255, 158, 55, 255),
+						PresentationUtf8(enemy->IsBrittle() ? u8"衝撃脆化中" : u8"衝撃脆化球"),
+						enemy->IsBrittle() ? PresentationUtf8(u8"次の攻撃1回は攻撃力が低下します。")
+						: PresentationUtf8(u8"強く壁へ衝突させると脆化します。"));
+				}
+				else if (boardAbility == EnemyBoardAbilityType::ProtectionResonator)
+				{
+					drawBoardBadge(CombatIconKind::EnemyResonance, IM_COL32(64, 218, 238, 255),
+						PresentationUtf8(u8"防護共鳴球"),
+						PresentationUtf8(u8"範囲内の他の味方が受けるダメージを1軽減します。"));
+				}
+				if (protectedByResonator)
+				{
+					drawBoardBadge(CombatIconKind::EnemyResonance, IM_COL32(92, 232, 248, 255),
+						PresentationUtf8(u8"防護共鳴中"),
+						PresentationUtf8(u8"受けるダメージが1軽減されます。効果は重複しません。"));
+				}
+				int drawnStatusEffects = 0;
+				for (const StatusEffectType effectType : AllStatusEffectTypes)
+				{
+					if (!showTimedStatusEffects)
+						break;
+					const int magnitude = effects.GetMagnitude(effectType);
+					if (magnitude <= 0)
+						continue;
+					if (drawnStatusEffects >= shownEffectCount)
+						break;
+					if (drawn++ > 0)
+						ImGui::SameLine();
+					++drawnStatusEffects;
+					const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+					const ImVec2 iconMaximum(iconMinimum.x + kCombatIconSize, iconMinimum.y + kCombatIconSize);
+					ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
+					DrawStatusIcon(drawList, iconMinimum, effectType, magnitude);
+					if (drawnStatusEffects == shownEffectCount && suppressedEffectCount > 0)
 					{
-						ImGui::TextUnformatted(PresentationUtf8(u8"このターンは攻撃せずChargeを開始"));
+						char hiddenCount[12]{};
+						sprintf_s(hiddenCount, "+%d", suppressedEffectCount);
+						const float hiddenFontSize = ImGui::GetFontSize() * 0.68f;
+						const ImVec2 hiddenSize =
+							ImGui::GetFont()->CalcTextSizeA(hiddenFontSize, FLT_MAX, 0.0f, hiddenCount);
+						const ImVec2 hiddenMinimum(iconMaximum.x - hiddenSize.x, iconMaximum.y - hiddenSize.y);
+						DrawOutlinedValue(drawList, hiddenMinimum, hiddenCount, IM_COL32(240, 244, 250, 255), 0.68f);
 					}
-					else
+					const ImVec2 mouse = ImGui::GetIO().MousePos;
+					const bool hovered = mouse.x >= iconMinimum.x && mouse.x < iconMaximum.x && mouse.y >= iconMinimum.y &&
+						mouse.y < iconMaximum.y;
+					if (hovered && allowEnemyIconTooltip)
 					{
-						ImGui::TextUnformatted(PresentationUtf8(u8"このターンは行動しません。"));
+						const bool attack = IsAttackStatusEffect(effectType);
+						const int signedMagnitude = IsPositiveStatusEffect(effectType) ? magnitude : -magnitude;
+						const int baseValue = attack ? enemy->GetStatus().attack : enemy->GetStatus().defense;
+						const int currentValue = attack ? enemy->GetAttack() : enemy->GetDefense();
+						ImGui::BeginTooltip();
+						ImGui::TextColored(attack ? ImVec4(1.0f, 0.35f, 0.31f, 1.0f) : ImVec4(0.32f, 0.62f, 1.0f, 1.0f),
+							"%s", StatusEffectName(effectType));
+						ImGui::Text("現在の効果：%s %+d", attack ? "攻撃力" : "防御力", signedMagnitude);
+						ImGui::Text("基礎値 %d  →  現在値 %d", baseValue, currentValue);
+						ImGui::EndTooltip();
 					}
-					ImGui::EndTooltip();
+				}
+				if (anchorStacks > 0)
+				{
+					if (drawn++ > 0)
+						ImGui::SameLine();
+					const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
+					const ImVec2 iconMaximum(iconMinimum.x + kResourceBadgeWidth, iconMinimum.y + kResourceBadgeHeight);
+					ImGui::Dummy(ImVec2(kResourceBadgeWidth, kResourceBadgeHeight));
+					DrawResourceBadge(drawList, iconMinimum,
+						{ CombatIconKind::ResourceEnemyAnchor, PresentationUtf8(u8"敵の錨スタック"),
+						 PresentationUtf8(u8"この敵が個別に保持する資源です。"), anchorStacks,
+						 IM_COL32(75, 225, 183, 255) });
+					if (allowEnemyIconTooltip && IsMouseInside(iconMinimum, iconMaximum))
+					{
+						ImGui::BeginTooltip();
+						ImGui::TextColored(ImVec4(0.29f, 0.88f, 0.72f, 1.0f), "%s", PresentationUtf8(u8"敵の錨スタック"));
+						ImGui::Text(PresentationUtf8(u8"現在値: %d"), anchorStacks);
+						ImGui::TextUnformatted(PresentationUtf8(u8"この敵が個別に保持する資源です。"));
+						ImGui::EndTooltip();
+					}
 				}
 			}
 			ImGui::End();
-			ImGui::PopStyleVar();
+			ImGui::PopStyleVar(2);
 		}
-		if (!showOverheadHp && itemCount <= 0)
-		{
-			continue;
-		}
-		const float rowWidth = (shownEffectCount + boardStatusCount) * kCombatIconSize +
-							   (anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
-							   (std::max)(0, itemCount - 1) * kCombatIconSpacing;
-		const float panelWidth = showOverheadHp ? (std::max)(104.0f, rowWidth) : (std::max)(1.0f, rowWidth);
-		const float panelHeight =
-			showOverheadHp ? (itemCount > 0 ? 53.0f : 18.0f) : (itemCount > 0 ? kCombatIconSize : 0.0f);
-		ImVec2 desiredPosition(center.x - panelWidth * 0.5f, center.y + projectedRadius + 6.0f);
-		desiredPosition.x = std::clamp(desiredPosition.x, viewport->Pos.x + 8.0f,
-									   viewport->Pos.x + viewport->Size.x - panelWidth - 8.0f);
-		desiredPosition.y = std::clamp(
-			desiredPosition.y,
-			viewport->Pos.y + 30.0f,
-			viewport->Pos.y + viewport->Size.y - panelHeight - 12.0f);
-		const std::array<ImVec2, 9> layoutOffsets = {
-			ImVec2(0.0f, 0.0f),
-			ImVec2(-28.0f, 0.0f), ImVec2(28.0f, 0.0f),
-			ImVec2(-46.0f, 12.0f), ImVec2(46.0f, 12.0f),
-			ImVec2(0.0f, 24.0f),
-			ImVec2(-32.0f, 24.0f), ImVec2(32.0f, 24.0f),
-			ImVec2(0.0f, -20.0f),
-		};
-		float bestScore = FLT_MAX;
-		ImVec2 targetPanelPosition = desiredPosition;
-		ImVec4 panelRectangle{};
-		for (const ImVec2& offset : layoutOffsets)
-		{
-			ImVec2 candidate(
-				desiredPosition.x + offset.x,
-				desiredPosition.y + offset.y);
-			candidate.x = std::clamp(
-				candidate.x,
-				viewport->Pos.x + 8.0f,
-				viewport->Pos.x + viewport->Size.x - panelWidth - 8.0f);
-			candidate.y = std::clamp(
-				candidate.y,
-				viewport->Pos.y + 30.0f,
-				viewport->Pos.y + viewport->Size.y - panelHeight - 12.0f);
-			const ImVec4 rectangle(
-				candidate.x - 3.0f,
-				candidate.y - 3.0f,
-				candidate.x + panelWidth + 3.0f,
-				candidate.y + panelHeight + 3.0f);
-			float overlapArea = 0.0f;
-			for (const ImVec4& placed : placedEnemyPanels)
-			{
-				if (!RectanglesOverlap(rectangle, placed)) continue;
-				const float overlapWidth =
-					(std::min)(rectangle.z, placed.z) -
-					(std::max)(rectangle.x, placed.x);
-				const float overlapHeight =
-					(std::min)(rectangle.w, placed.w) -
-					(std::max)(rectangle.y, placed.y);
-				overlapArea += overlapWidth * overlapHeight;
-			}
-			float protectedOverlapArea = 0.0f;
-			for (const ImVec4& protectedRegion : protectedEnemyUiRegions)
-			{
-				if (!RectanglesOverlap(rectangle, protectedRegion)) continue;
-				const float overlapWidth =
-					(std::min)(rectangle.z, protectedRegion.z) -
-					(std::max)(rectangle.x, protectedRegion.x);
-				const float overlapHeight =
-					(std::min)(rectangle.w, protectedRegion.w) -
-					(std::max)(rectangle.y, protectedRegion.y);
-				protectedOverlapArea += overlapWidth * overlapHeight;
-			}
-			float otherEnemyOverlapArea = 0.0f;
-			for (const auto& [bodyKey, bodyRegion] : enemyBodyRegions)
-			{
-				if (bodyKey == targetKey ||
-					!RectanglesOverlap(rectangle, bodyRegion))
-				{
-					continue;
-				}
-				const float overlapWidth =
-					(std::min)(rectangle.z, bodyRegion.z) -
-					(std::max)(rectangle.x, bodyRegion.x);
-				const float overlapHeight =
-					(std::min)(rectangle.w, bodyRegion.w) -
-					(std::max)(rectangle.y, bodyRegion.y);
-				otherEnemyOverlapArea += overlapWidth * overlapHeight;
-			}
-			const float distancePenalty =
-				(offset.x * offset.x + offset.y * offset.y) * 1.4f;
-			const float score = overlapArea * 3.0f +
-				otherEnemyOverlapArea * 12.0f +
-				protectedOverlapArea * 24.0f + distancePenalty;
-			if (score < bestScore)
-			{
-				bestScore = score;
-				targetPanelPosition = candidate;
-				panelRectangle = rectangle;
-				if (overlapArea <= 0.0f && otherEnemyOverlapArea <= 0.0f &&
-					protectedOverlapArea <= 0.0f &&
-					distancePenalty <= 0.0f)
-				{
-					break;
-				}
-			}
-		}
-
-		auto layoutVisual = std::find_if(
-			m_EnemyInfoLayouts.begin(),
-			m_EnemyInfoLayouts.end(),
-			[targetKey](const EnemyInfoLayoutVisual& value)
-			{
-				return value.targetKey == targetKey;
-			});
-		if (layoutVisual == m_EnemyInfoLayouts.end())
-		{
-			m_EnemyInfoLayouts.push_back({
-				targetKey,
-				DirectX::SimpleMath::Vector2(
-					targetPanelPosition.x,
-					targetPanelPosition.y),
-				true,
-			});
-			layoutVisual = m_EnemyInfoLayouts.end() - 1;
-		}
-		const float deltaSeconds = (std::min)(ImGui::GetIO().DeltaTime, 0.05f);
-		const float follow = 1.0f - std::exp(-13.0f * deltaSeconds);
-		if (!layoutVisual->initialized)
-		{
-			layoutVisual->position = DirectX::SimpleMath::Vector2(
-				targetPanelPosition.x,
-				targetPanelPosition.y);
-			layoutVisual->initialized = true;
-		}
-		else
-		{
-			layoutVisual->position.x +=
-				(targetPanelPosition.x - layoutVisual->position.x) * follow;
-			layoutVisual->position.y +=
-				(targetPanelPosition.y - layoutVisual->position.y) * follow;
-		}
-		constexpr float maximumPanelOffset = 56.0f;
-		float offsetX = layoutVisual->position.x - desiredPosition.x;
-		float offsetY = layoutVisual->position.y - desiredPosition.y;
-		const float offsetLength = std::sqrt(offsetX * offsetX + offsetY * offsetY);
-		if (offsetLength > maximumPanelOffset)
-		{
-			const float scale = maximumPanelOffset / offsetLength;
-			offsetX *= scale;
-			offsetY *= scale;
-			layoutVisual->position.x = desiredPosition.x + offsetX;
-			layoutVisual->position.y = desiredPosition.y + offsetY;
-		}
-		const ImVec2 panelPosition(
-			layoutVisual->position.x,
-			layoutVisual->position.y);
-		panelRectangle = ImVec4(
-			panelPosition.x - 3.0f,
-			panelPosition.y - 3.0f,
-			panelPosition.x + panelWidth + 3.0f,
-			panelPosition.y + panelHeight + 3.0f);
-		if (panelPosition.x + panelWidth < viewport->Pos.x ||
-			panelPosition.x > viewport->Pos.x + viewport->Size.x ||
-			panelPosition.y + panelHeight < viewport->Pos.y ||
-			panelPosition.y > viewport->Pos.y + viewport->Size.y)
-		{
-			continue;
-		}
-		placedEnemyPanels.push_back(panelRectangle);
-
-		const float finalOffsetX = panelPosition.x - desiredPosition.x;
-		const float finalOffsetY = panelPosition.y - desiredPosition.y;
-		const float finalOffset = std::sqrt(
-			finalOffsetX * finalOffsetX + finalOffsetY * finalOffsetY);
-		if (finalOffset >= 34.0f)
-		{
-			const ImVec2 enemyAnchor(
-				center.x,
-				center.y + projectedRadius + 2.0f);
-			const ImVec2 blockAnchor(
-				std::clamp(enemyAnchor.x, panelRectangle.x, panelRectangle.z),
-				std::clamp(enemyAnchor.y, panelRectangle.y, panelRectangle.w));
-			ImDrawList* connectorLayer = ImGui::GetBackgroundDrawList(
-				ImGui::GetMainViewport());
-			const ImU32 connectorColor = WithAlpha(
-				EnemyActionColor(action),
-				0.44f);
-			connectorLayer->AddLine(
-				enemyAnchor,
-				blockAnchor,
-				connectorColor,
-				1.1f);
-			connectorLayer->AddCircleFilled(enemyAnchor, 1.8f, connectorColor, 8);
-		}
-
-		char windowId[64]{};
-		sprintf_s(windowId, "##enemy_status_effects_%d", currentIndex);
-		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::SetNextWindowPos(panelPosition);
-		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight));
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
-		if (ImGui::Begin(windowId, nullptr, flags))
-		{
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			if (showOverheadHp)
-			{
-				const ImVec2 hpMinimum(
-					panelPosition.x,
-					panelPosition.y);
-				const ImVec2 hpMaximum(
-					panelPosition.x + panelWidth,
-					panelPosition.y + 16.0f);
-				drawList->AddRectFilled(
-					hpMinimum,
-					hpMaximum,
-					IM_COL32(8, 12, 18, 235),
-					4.0f);
-				drawList->AddRectFilled(
-					hpMinimum,
-					ImVec2(
-						hpMinimum.x + panelWidth * trailingRatio,
-						hpMaximum.y),
-					IM_COL32(255, 154, 54, 225),
-					4.0f);
-				const ImU32 hpColor = EnemyHpColor(hpRatio, 1.0f);
-				drawList->AddRectFilled(
-					hpMinimum,
-					ImVec2(
-						hpMinimum.x + panelWidth * hpRatio,
-						hpMaximum.y),
-					hpColor,
-					4.0f);
-				drawList->AddRect(
-					hpMinimum,
-					hpMaximum,
-					IM_COL32(232, 240, 250, 230),
-					4.0f,
-					0,
-					1.2f);
-				char hpText[48]{};
-				sprintf_s(hpText, "HP %d / %d", currentHp, maximumHp);
-				const ImVec2 hpTextSize = ImGui::CalcTextSize(hpText);
-				drawList->AddText(
-					ImVec2(
-						hpMinimum.x + (panelWidth - hpTextSize.x) * 0.5f,
-						hpMinimum.y + (16.0f - hpTextSize.y) * 0.5f),
-					IM_COL32(255, 255, 255, 255),
-					hpText);
-				ImGui::Dummy(ImVec2(panelWidth, 16.0f));
-			}
-			if (itemCount > 0)
-			{
-				ImGui::SetCursorScreenPos(ImVec2(
-					panelPosition.x + (panelWidth - rowWidth) * 0.5f,
-					panelPosition.y + (showOverheadHp ? 22.0f : 0.0f)));
-			}
-			int drawn = 0;
-			const auto drawBoardBadge =
-				[&drawn, drawList](CombatIconKind icon, ImU32 color, const char *title, const std::string &detail)
-			{
-				if (drawn++ > 0)
-					ImGui::SameLine();
-				const ImVec2 minimum = ImGui::GetCursorScreenPos();
-				const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
-				ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
-				DrawCombatIcon(drawList, GetCombatIconResources().Get(icon), minimum, maximum);
-				if (IsMouseInside(minimum, maximum))
-				{
-					ImGui::BeginTooltip();
-					ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(color), "%s", title);
-					ImGui::TextUnformatted(detail.c_str());
-					ImGui::EndTooltip();
-				}
-			};
-			if (boardAbility == EnemyBoardAbilityType::SwarmAmplifier)
-			{
-				drawBoardBadge(CombatIconKind::EnemySwarm, IM_COL32(255, 86, 155, 255), PresentationUtf8(u8"群体強化"),
-							   std::string(PresentationUtf8(u8"周囲の生存中の味方 ")) +
-								   std::to_string(enemy->GetNearbyLivingAllyCount()) +
-								   PresentationUtf8(u8"体 / 強化段階 ") + std::to_string(enemy->GetSwarmStage() + 1) +
-								   PresentationUtf8(u8" / 現在攻撃力 ") + std::to_string(enemy->GetAttack()));
-			}
-			else if (boardAbility == EnemyBoardAbilityType::ImpactBrittle)
-			{
-				drawBoardBadge(CombatIconKind::EnemyBrittle,
-							   enemy->IsBrittle() ? IM_COL32(120, 220, 255, 255) : IM_COL32(255, 158, 55, 255),
-							   PresentationUtf8(enemy->IsBrittle() ? u8"衝撃脆化中" : u8"衝撃脆化球"),
-							   enemy->IsBrittle() ? PresentationUtf8(u8"次の攻撃1回は攻撃力が低下します。")
-												  : PresentationUtf8(u8"強く壁へ衝突させると脆化します。"));
-			}
-			else if (boardAbility == EnemyBoardAbilityType::ProtectionResonator)
-			{
-				drawBoardBadge(CombatIconKind::EnemyResonance, IM_COL32(64, 218, 238, 255),
-							   PresentationUtf8(u8"防護共鳴球"),
-							   PresentationUtf8(u8"範囲内の他の味方が受けるダメージを1軽減します。"));
-			}
-			if (protectedByResonator)
-			{
-				drawBoardBadge(CombatIconKind::EnemyResonance, IM_COL32(92, 232, 248, 255),
-							   PresentationUtf8(u8"防護共鳴中"),
-							   PresentationUtf8(u8"受けるダメージが1軽減されます。効果は重複しません。"));
-			}
-			int drawnStatusEffects = 0;
-			for (const StatusEffectType effectType : AllStatusEffectTypes)
-			{
-				if (!showTimedStatusEffects)
-					break;
-				const int magnitude = effects.GetMagnitude(effectType);
-				if (magnitude <= 0)
-					continue;
-				if (drawnStatusEffects >= shownEffectCount)
-					break;
-				if (drawn++ > 0)
-					ImGui::SameLine();
-				++drawnStatusEffects;
-				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
-				const ImVec2 iconMaximum(iconMinimum.x + kCombatIconSize, iconMinimum.y + kCombatIconSize);
-				ImGui::Dummy(ImVec2(kCombatIconSize, kCombatIconSize));
-				DrawStatusIcon(ImGui::GetWindowDrawList(), iconMinimum, effectType, magnitude);
-				if (drawnStatusEffects == shownEffectCount && suppressedEffectCount > 0)
-				{
-					char hiddenCount[12]{};
-					sprintf_s(hiddenCount, "+%d", suppressedEffectCount);
-					const float hiddenFontSize = ImGui::GetFontSize() * 0.68f;
-					const ImVec2 hiddenSize =
-						ImGui::GetFont()->CalcTextSizeA(hiddenFontSize, FLT_MAX, 0.0f, hiddenCount);
-					const ImVec2 hiddenMinimum(iconMaximum.x - hiddenSize.x, iconMaximum.y - hiddenSize.y);
-					DrawOutlinedValue(drawList, hiddenMinimum, hiddenCount, IM_COL32(240, 244, 250, 255), 0.68f);
-				}
-				const ImVec2 mouse = ImGui::GetIO().MousePos;
-				const bool hovered = mouse.x >= iconMinimum.x && mouse.x < iconMaximum.x && mouse.y >= iconMinimum.y &&
-									 mouse.y < iconMaximum.y;
-				if (hovered)
-				{
-					const bool attack = IsAttackStatusEffect(effectType);
-					const int signedMagnitude = IsPositiveStatusEffect(effectType) ? magnitude : -magnitude;
-					const int baseValue = attack ? enemy->GetStatus().attack : enemy->GetStatus().defense;
-					const int currentValue = attack ? enemy->GetAttack() : enemy->GetDefense();
-					ImGui::BeginTooltip();
-					ImGui::TextColored(attack ? ImVec4(1.0f, 0.35f, 0.31f, 1.0f) : ImVec4(0.32f, 0.62f, 1.0f, 1.0f),
-									   "%s", StatusEffectName(effectType));
-					ImGui::Text("現在の効果：%s %+d", attack ? "攻撃力" : "防御力", signedMagnitude);
-					ImGui::Text("基礎値 %d  →  現在値 %d", baseValue, currentValue);
-					ImGui::EndTooltip();
-				}
-			}
-			if (anchorStacks > 0)
-			{
-				if (drawn++ > 0)
-					ImGui::SameLine();
-				const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
-				const ImVec2 iconMaximum(iconMinimum.x + kResourceBadgeWidth, iconMinimum.y + kResourceBadgeHeight);
-				ImGui::Dummy(ImVec2(kResourceBadgeWidth, kResourceBadgeHeight));
-				DrawResourceBadge(ImGui::GetWindowDrawList(), iconMinimum,
-								  {CombatIconKind::ResourceEnemyAnchor, PresentationUtf8(u8"敵の錨スタック"),
-								   PresentationUtf8(u8"この敵が個別に保持する資源です。"), anchorStacks,
-								   IM_COL32(75, 225, 183, 255)});
-				if (IsMouseInside(iconMinimum, iconMaximum))
-				{
-					ImGui::BeginTooltip();
-					ImGui::TextColored(ImVec4(0.29f, 0.88f, 0.72f, 1.0f), "%s", PresentationUtf8(u8"敵の錨スタック"));
-					ImGui::Text(PresentationUtf8(u8"現在値: %d"), anchorStacks);
-					ImGui::TextUnformatted(PresentationUtf8(u8"この敵が個別に保持する資源です。"));
-					ImGui::EndTooltip();
-				}
-			}
-		}
-		ImGui::End();
-		ImGui::PopStyleVar(2);
 	}
 	m_EnemyInfoLayouts.erase(
 		std::remove_if(
@@ -1827,8 +2335,8 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		const ImU32 powerColor = powerRatio >= 0.72f
 			? IM_COL32(255, 119, 58, 245)
 			: powerRatio >= 0.38f
-				? IM_COL32(255, 215, 74, 245)
-				: IM_COL32(76, 218, 255, 245);
+			? IM_COL32(255, 215, 74, 245)
+			: IM_COL32(76, 218, 255, 245);
 		DrawArc(
 			gaugeDrawList,
 			center,
@@ -1841,31 +2349,31 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 	std::vector<ResourceBadge> resources;
 	const int heavyStacks = game.GetHeavyCollisionCount();
 	if (heavyStacks > 0)
-		resources.push_back({CombatIconKind::ResourceHeavy, PresentationUtf8(u8"重量スタック"),
+		resources.push_back({ CombatIconKind::ResourceHeavy, PresentationUtf8(u8"重量スタック"),
 							 PresentationUtf8(u8"重量軸の能力発動に使う蓄積値です。"), heavyStacks,
-							 IM_COL32(255, 146, 61, 255)});
+							 IM_COL32(255, 146, 61, 255) });
 	const int pierceStacks = game.GetPierceTraceState().stackCount;
 	const int traceCount = static_cast<int>(game.GetPierceTraceState().traces.size());
 	if (pierceStacks > 0 || traceCount > 0)
-		resources.push_back({CombatIconKind::ResourcePierce, PresentationUtf8(u8"貫通"),
+		resources.push_back({ CombatIconKind::ResourcePierce, PresentationUtf8(u8"貫通"),
 							 PresentationUtf8(u8"左が貫通痕数、右が貫通スタック数です。"), pierceStacks,
-							 IM_COL32(184, 92, 255, 255)});
+							 IM_COL32(184, 92, 255, 255) });
 	const int cushionStacks = CushionChargeRules::TotalStacks(game.GetCushionCharges());
 	if (cushionStacks > 0)
-		resources.push_back({CombatIconKind::ResourceReflect, PresentationUtf8(u8"反射スタック"),
+		resources.push_back({ CombatIconKind::ResourceReflect, PresentationUtf8(u8"反射スタック"),
 							 PresentationUtf8(u8"壁反射で獲得し、反射軸の能力発動に使う蓄積値です。"), cushionStacks,
-							 IM_COL32(255, 221, 58, 255)});
+							 IM_COL32(255, 221, 58, 255) });
 	if (game.GetPlayerAnchorStacks() > 0)
-		resources.push_back({CombatIconKind::ResourceAnchor, PresentationUtf8(u8"プレイヤー錨スタック"),
+		resources.push_back({ CombatIconKind::ResourceAnchor, PresentationUtf8(u8"プレイヤー錨スタック"),
 							 PresentationUtf8(u8"錨軸の変換・防御能力に使う共有資源です。"),
-							 game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255)});
+							 game.GetPlayerAnchorStacks(), IM_COL32(75, 225, 183, 255) });
 	if (resources.empty())
 		return;
 
 	constexpr float pierceSideWidth = 12.0f;
 	constexpr float pierceGroupWidth = kCombatIconSize + pierceSideWidth * 2.0f;
 	float rowWidth = (resources.size() - 1) * kCombatIconSpacing;
-	for (const ResourceBadge &resource : resources)
+	for (const ResourceBadge& resource : resources)
 	{
 		rowWidth += resource.icon == CombatIconKind::ResourcePierce ? pierceGroupWidth : kResourceBadgeWidth;
 	}
@@ -1885,7 +2393,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		{
 			if (index > 0)
 				ImGui::SameLine();
-			const ResourceBadge &resource = resources[index];
+			const ResourceBadge& resource = resources[index];
 			const ImVec2 iconMinimum = ImGui::GetCursorScreenPos();
 			if (resource.icon == CombatIconKind::ResourcePierce)
 			{
@@ -1893,9 +2401,9 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 				const ImVec2 imageMinimum(iconMinimum.x + pierceSideWidth, iconMinimum.y);
 				const ImVec2 imageMaximum(imageMinimum.x + kCombatIconSize, imageMinimum.y + kCombatIconSize);
 				ImGui::Dummy(ImVec2(pierceGroupWidth, kResourceBadgeHeight));
-				ImDrawList *resourceDrawList = ImGui::GetWindowDrawList();
+				ImDrawList* resourceDrawList = ImGui::GetWindowDrawList();
 				DrawCombatIcon(resourceDrawList, GetCombatIconResources().Get(CombatIconKind::ResourcePierce),
-							   imageMinimum, imageMaximum);
+					imageMinimum, imageMaximum);
 				char traceText[12]{};
 				char stackText[12]{};
 				sprintf_s(traceText, "%d", traceCount);
@@ -1904,13 +2412,13 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 				const ImVec2 traceSize = ImGui::GetFont()->CalcTextSizeA(valueFontSize, FLT_MAX, 0.0f, traceText);
 				const ImVec2 stackSize = ImGui::GetFont()->CalcTextSizeA(valueFontSize, FLT_MAX, 0.0f, stackText);
 				DrawOutlinedValue(resourceDrawList,
-								  ImVec2(iconMinimum.x + (pierceSideWidth - traceSize.x) * 0.5f,
-										 iconMinimum.y + (kCombatIconSize - traceSize.y) * 0.5f),
-								  traceText, IM_COL32(230, 204, 255, 255), 0.67f);
+					ImVec2(iconMinimum.x + (pierceSideWidth - traceSize.x) * 0.5f,
+						iconMinimum.y + (kCombatIconSize - traceSize.y) * 0.5f),
+					traceText, IM_COL32(230, 204, 255, 255), 0.67f);
 				DrawOutlinedValue(resourceDrawList,
-								  ImVec2(imageMaximum.x + (pierceSideWidth - stackSize.x) * 0.5f,
-										 iconMinimum.y + (kCombatIconSize - stackSize.y) * 0.5f),
-								  stackText, IM_COL32(230, 204, 255, 255), 0.67f);
+					ImVec2(imageMaximum.x + (pierceSideWidth - stackSize.x) * 0.5f,
+						iconMinimum.y + (kCombatIconSize - stackSize.y) * 0.5f),
+					stackText, IM_COL32(230, 204, 255, 255), 0.67f);
 
 				const ImVec2 mouse = ImGui::GetIO().MousePos;
 				if (mouse.x >= iconMinimum.x && mouse.x < imageMinimum.x && mouse.y >= iconMinimum.y &&
@@ -1922,7 +2430,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					ImGui::EndTooltip();
 				}
 				else if (mouse.x >= imageMinimum.x && mouse.x < imageMaximum.x && mouse.y >= imageMinimum.y &&
-						 mouse.y < imageMaximum.y)
+					mouse.y < imageMaximum.y)
 				{
 					ImGui::BeginTooltip();
 					ImGui::TextColored(ImVec4(0.78f, 0.46f, 1.0f, 1.0f), "%s", resource.title);
@@ -1930,11 +2438,11 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 					ImGui::EndTooltip();
 				}
 				else if (mouse.x >= imageMaximum.x && mouse.x < groupMaximum.x && mouse.y >= iconMinimum.y &&
-						 mouse.y < groupMaximum.y)
+					mouse.y < groupMaximum.y)
 				{
 					ImGui::BeginTooltip();
 					ImGui::TextColored(ImVec4(0.78f, 0.46f, 1.0f, 1.0f), PresentationUtf8(u8"貫通スタック: %d"),
-									   pierceStacks);
+						pierceStacks);
 					ImGui::TextUnformatted(PresentationUtf8(u8"次の貫通能力に使う蓄積値です。"));
 					ImGui::EndTooltip();
 				}
@@ -1947,7 +2455,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			{
 				ImGui::BeginTooltip();
 				ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(resource.color), "%s: %d", resource.title,
-								   resource.value);
+					resource.value);
 				ImGui::TextUnformatted(resource.description);
 				ImGui::EndTooltip();
 			}
@@ -2168,17 +2676,17 @@ void GamePresentation::DrawDeckList(Game& game)
 
 		int count = 0;
 		auto ballAt = [&](int index) -> const PlayerBallData*
-		{
-			switch (m_DeckListView)
 			{
-			case DeckListView::DrawPile:
-				return game.GetDrawPileBall(index);
-			case DeckListView::DiscardPile:
-				return game.GetDiscardPileBall(index);
-			default:
-				return game.GetDeckBall(index);
-			}
-		};
+				switch (m_DeckListView)
+				{
+				case DeckListView::DrawPile:
+					return game.GetDrawPileBall(index);
+				case DeckListView::DiscardPile:
+					return game.GetDiscardPileBall(index);
+				default:
+					return game.GetDeckBall(index);
+				}
+			};
 		switch (m_DeckListView)
 		{
 		case DeckListView::DrawPile: count = game.GetPlayerDeckCount(); break;
@@ -2348,7 +2856,7 @@ void GamePresentation::OnCombatFeedback(
 	feedback.lifetime = feedback.totalLifetime;
 	feedback.fontScale = defeated
 		? m_CurrentShotDefeatCount >= 3 ? 1.38f
-			: m_CurrentShotDefeatCount == 2 ? 1.28f : 1.20f
+		: m_CurrentShotDefeatCount == 2 ? 1.28f : 1.20f
 		: 0.86f;
 	const bool enhancedImpact =
 		Game::GetInstance()->IsCollisionImpactEffectsEnabled();
@@ -2360,8 +2868,8 @@ void GamePresentation::OnCombatFeedback(
 	feedback.color = defeated
 		? IM_COL32(255, 205, 70, 255)
 		: enemyEnemyCollision
-			? IM_COL32(110, 220, 255, 255)
-			: IM_COL32(255, 118, 80, 255);
+		? IM_COL32(110, 220, 255, 255)
+		: IM_COL32(255, 118, 80, 255);
 	if (defeated)
 	{
 		feedback.text = m_CurrentShotDefeatCount >= 3
@@ -2431,7 +2939,7 @@ void GamePresentation::OnCombatFeedback(
 		}
 		if (defeated || damage <= 0 ||
 			visibleDamageNumbers <
-				CombatPresentationRules::MaximumFloatingDamageNumbers)
+			CombatPresentationRules::MaximumFloatingDamageNumbers)
 		{
 			m_Feedback.push_back(std::move(feedback));
 		}
@@ -2470,8 +2978,8 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 	const float feedbackScale = strength == CollisionPresentationRules::Strength::Strong
 		? 1.10f
 		: strength == CollisionPresentationRules::Strength::Medium
-			? 0.98f
-			: 0.86f;
+		? 0.98f
+		: 0.86f;
 	for (FloatingFeedback& feedback : m_Feedback)
 	{
 		if (feedback.createdFrame != m_PresentationFrame ||
@@ -2531,8 +3039,8 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 			const float milestoneStrength = m_HeavyPhysicsChainCount >= 15
 				? 1.35f
 				: m_HeavyPhysicsChainCount >= 10
-					? 1.05f
-					: m_HeavyPhysicsChainCount >= 6 ? 0.82f : 0.62f;
+				? 1.05f
+				: m_HeavyPhysicsChainCount >= 6 ? 0.82f : 0.62f;
 			m_CameraShakeLifetime = (std::max)(m_CameraShakeLifetime, 0.18f);
 			m_CameraShakeStrength = (std::max)(
 				m_CameraShakeStrength,
@@ -2557,8 +3065,8 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 	vfx.priority = event.defeated || showMilestone
 		? 3
 		: strength == CollisionPresentationRules::Strength::Strong
-			? 2
-			: strength == CollisionPresentationRules::Strength::Medium ? 1 : 0;
+		? 2
+		: strength == CollisionPresentationRules::Strength::Medium ? 1 : 0;
 	vfx.density = game->GetDecorativeRingAmount();
 	vfx.frame = m_PresentationFrame;
 	vfx.secondaryCollision = secondary;
@@ -2577,13 +3085,13 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 	{
 		const float requestedStrength =
 			strength == CollisionPresentationRules::Strength::Strong
-				? (secondary ? 0.72f : 0.88f)
-				: (secondary ? 0.30f : 0.42f);
+			? (secondary ? 0.72f : 0.88f)
+			: (secondary ? 0.30f : 0.42f);
 		m_CameraShakeLifetime = (std::max)(
 			m_CameraShakeLifetime,
 			strength == CollisionPresentationRules::Strength::Strong
-				? 0.16f
-				: 0.10f);
+			? 0.16f
+			: 0.10f);
 		m_CameraShakeStrength = std::clamp(
 			(std::max)(m_CameraShakeStrength, requestedStrength),
 			0.0f,
@@ -2731,9 +3239,9 @@ void GamePresentation::OnEnemyAbilityStateChanged(
 	{
 		feedback.text = event.currentAttack < event.previousAttack
 			? "SWARM DOWN  ATK -" +
-				std::to_string(event.previousAttack - event.currentAttack)
+			std::to_string(event.previousAttack - event.currentAttack)
 			: "SWARM UP  ATK +" +
-				std::to_string(event.currentAttack - event.previousAttack);
+			std::to_string(event.currentAttack - event.previousAttack);
 		feedback.color = IM_COL32(255, 92, 158, 255);
 	}
 	else if (event.abilityId == "impact_brittle")
@@ -2775,34 +3283,34 @@ void GamePresentation::OnAxisResourceChanged(
 	const int axis = static_cast<int>(event.axis);
 	const int owner = static_cast<int>(event.owner);
 	auto updateText = [](FloatingFeedback& feedback)
-	{
-		const auto resourceAxis = static_cast<AxisResourceKind>(
-			feedback.resourceAxis);
-		std::string label = AxisResourceLabel(resourceAxis);
-		if (resourceAxis == AxisResourceKind::Anchor &&
-			feedback.resourceOwner == static_cast<int>(AxisResourceOwner::Enemy))
 		{
-			label = PresentationUtf8(u8"敵Anchor");
-		}
-		const int change = feedback.resourceAfter - feedback.resourceBefore;
-		feedback.text = label;
-		if (change != 0)
-		{
-			feedback.text += change > 0 ? " +" : " ";
-			feedback.text += std::to_string(change);
-		}
-		if (feedback.finisher)
-		{
-			feedback.text += "  FINISHER";
-		}
-		else
-		{
-			feedback.text += "  [";
-			feedback.text += AxisResourceReasonLabel(
-				static_cast<AxisResourceChangeReason>(feedback.resourceReason));
-			feedback.text += "]";
-		}
-	};
+			const auto resourceAxis = static_cast<AxisResourceKind>(
+				feedback.resourceAxis);
+			std::string label = AxisResourceLabel(resourceAxis);
+			if (resourceAxis == AxisResourceKind::Anchor &&
+				feedback.resourceOwner == static_cast<int>(AxisResourceOwner::Enemy))
+			{
+				label = PresentationUtf8(u8"敵Anchor");
+			}
+			const int change = feedback.resourceAfter - feedback.resourceBefore;
+			feedback.text = label;
+			if (change != 0)
+			{
+				feedback.text += change > 0 ? " +" : " ";
+				feedback.text += std::to_string(change);
+			}
+			if (feedback.finisher)
+			{
+				feedback.text += "  FINISHER";
+			}
+			else
+			{
+				feedback.text += "  [";
+				feedback.text += AxisResourceReasonLabel(
+					static_cast<AxisResourceChangeReason>(feedback.resourceReason));
+				feedback.text += "]";
+			}
+		};
 
 	for (auto iterator = m_Feedback.rbegin();
 		iterator != m_Feedback.rend();
@@ -2891,8 +3399,8 @@ void GamePresentation::OnAxisAbilityResolved(
 		burst.strength = event.finisher
 			? CollisionPresentationRules::Strength::Strong
 			: event.enhanced
-				? CollisionPresentationRules::Strength::Medium
-				: CollisionPresentationRules::Strength::Weak;
+			? CollisionPresentationRules::Strength::Medium
+			: CollisionPresentationRules::Strength::Weak;
 		burst.chainTier = std::clamp(event.tier, 0, 5);
 		burst.priority = event.finisher ? 4 : event.enhanced ? 3 : 2;
 		burst.density = game->GetDecorativeRingAmount();
@@ -2915,8 +3423,8 @@ void GamePresentation::OnAxisAbilityResolved(
 		label = event.finisher && event.enhanced
 			? "PIERCE OVERCHARGE"
 			: event.enhanced
-				? PresentationUtf8(u8"強化ミニオン 発進")
-				: PresentationUtf8(u8"ミニオン 発進");
+			? PresentationUtf8(u8"強化ミニオン 発進")
+			: PresentationUtf8(u8"ミニオン 発進");
 		break;
 	case AxisAbilityAction::PierceFinisherHit:
 		label = "PIERCE FINISHER";
@@ -3316,7 +3824,7 @@ void GamePresentation::DrawFeedback(Game& game)
 		const ImU32 outline = IM_COL32(92, 18, 4, static_cast<int>(245.0f * alpha));
 		for (const ImVec2 offset : {
 			ImVec2(-3.0f, 0.0f), ImVec2(3.0f, 0.0f),
-			ImVec2(0.0f, -3.0f), ImVec2(0.0f, 3.0f) })
+				ImVec2(0.0f, -3.0f), ImVec2(0.0f, 3.0f) })
 		{
 			foreground->AddText(
 				font,
@@ -3343,13 +3851,13 @@ void GamePresentation::DrawFeedback(Game& game)
 		foreground->AddText(
 			ImVec2(
 				centerX - meaningSize.x * 0.5f,
-					centerY + bannerHeight * 0.5f + 9.0f),
+				centerY + bannerHeight * 0.5f + 9.0f),
 			IM_COL32(0, 0, 0, static_cast<int>(220.0f * alpha)),
 			meaning);
 		foreground->AddText(
 			ImVec2(
 				centerX - meaningSize.x * 0.5f,
-					centerY + bannerHeight * 0.5f + 7.0f),
+				centerY + bannerHeight * 0.5f + 7.0f),
 			IM_COL32(238, 242, 248, static_cast<int>(190.0f * alpha)),
 			meaning);
 	}
@@ -3428,7 +3936,7 @@ void GamePresentation::DrawFeedback(Game& game)
 			centerY - textSize.y * 0.5f);
 		for (const ImVec2 offset : {
 			ImVec2(-2.0f, 0.0f), ImVec2(2.0f, 0.0f),
-			ImVec2(0.0f, -2.0f), ImVec2(0.0f, 2.0f) })
+				ImVec2(0.0f, -2.0f), ImVec2(0.0f, 2.0f) })
 		{
 			foreground->AddText(
 				multiFont,
@@ -3457,13 +3965,13 @@ void GamePresentation::DrawFeedback(Game& game)
 		[&](std::size_t first, std::size_t second)
 		{
 			const auto priority = [](const FloatingFeedback& feedback)
-			{
-				if (feedback.text.find("撃破") != std::string::npos) return 10000;
-				int damage = 0;
-				return sscanf_s(feedback.text.c_str(), "-%d HP", &damage) == 1
-					? 100 + damage
-					: 0;
-			};
+				{
+					if (feedback.text.find("撃破") != std::string::npos) return 10000;
+					int damage = 0;
+					return sscanf_s(feedback.text.c_str(), "-%d HP", &damage) == 1
+						? 100 + damage
+						: 0;
+				};
 			return priority(m_Feedback[first]) > priority(m_Feedback[second]);
 		});
 	std::vector<ImVec4> placedFeedbackRectangles;
@@ -3554,7 +4062,7 @@ void GamePresentation::DrawFeedback(Game& game)
 			position = ImVec2(
 				viewport->Pos.x + viewport->Size.x * 0.5f,
 				viewport->Pos.y +
-					(m_HeavyChainDisplayLifetime > 0.0f ? 278.0f : 105.0f));
+				(m_HeavyChainDisplayLifetime > 0.0f ? 278.0f : 105.0f));
 			worldAnchor = position;
 		}
 		else if (!TryProjectToScreen(feedback.worldPosition, worldAnchor))
@@ -3657,7 +4165,7 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 		for (const ImVec2 outlineOffset : {
 			ImVec2(-1.8f, 0.0f), ImVec2(1.8f, 0.0f),
-			ImVec2(0.0f, -1.8f), ImVec2(0.0f, 1.8f) })
+				ImVec2(0.0f, -1.8f), ImVec2(0.0f, 1.8f) })
 		{
 			foreground->AddText(
 				font,
@@ -3710,7 +4218,7 @@ void GamePresentation::DrawFeedback(Game& game)
 			m_CombatReactionDiagnostics.duplicateDefeatsSuppressed,
 			vfx.sparksGenerated + vfx.burstsGenerated + vfx.trailsGenerated,
 			vfx.sparksSkipped + vfx.wavesSkipped + vfx.burstsSkipped +
-				vfx.trailsSkipped,
+			vfx.trailsSkipped,
 			vfx.wavesMerged,
 			vfx.primitiveSubmissionsLastFrame,
 			vfx.maximumPrimitiveSubmissions);
@@ -3822,8 +4330,8 @@ void GamePresentation::DrawFeedback(Game& game)
 			foreground->AddText(
 				ImVec2(minimum.x + 17.0f, minimum.y + 10.0f + index * 22.0f),
 				index == 0
-					? IM_COL32(255, 224, 100, static_cast<int>(255.0f * alpha))
-					: IM_COL32(224, 235, 246, static_cast<int>(240.0f * alpha)),
+				? IM_COL32(255, 224, 100, static_cast<int>(255.0f * alpha))
+				: IM_COL32(224, 235, 246, static_cast<int>(240.0f * alpha)),
 				lines[index].c_str());
 		}
 	}
@@ -3880,230 +4388,230 @@ void GamePresentation::DrawDashboard()
 			static_cast<int>(m_Dashboard.versions.size()) - 1);
 		const char* selectedLabel = m_Dashboard.versions[
 			m_Dashboard.selectedVersionIndex].version.c_str();
-		ImGui::SetNextItemWidth(230.0f);
-		if (ImGui::BeginCombo("表示バージョン", selectedLabel))
-		{
-			for (std::size_t index = 0;
-				index < m_Dashboard.versions.size();
-				++index)
+			ImGui::SetNextItemWidth(230.0f);
+			if (ImGui::BeginCombo("表示バージョン", selectedLabel))
 			{
-				const DashboardVersionData& item = m_Dashboard.versions[index];
-				std::string label = item.version;
-				if (item.current) label += " (現行)";
-				if (!item.hasData) label += " - 未計測";
-				const bool selected = static_cast<int>(index) ==
-					m_Dashboard.selectedVersionIndex;
-				if (ImGui::Selectable(label.c_str(), selected))
+				for (std::size_t index = 0;
+					index < m_Dashboard.versions.size();
+					++index)
 				{
-					m_Dashboard.selectedVersionIndex = static_cast<int>(index);
+					const DashboardVersionData& item = m_Dashboard.versions[index];
+					std::string label = item.version;
+					if (item.current) label += " (現行)";
+					if (!item.hasData) label += " - 未計測";
+					const bool selected = static_cast<int>(index) ==
+						m_Dashboard.selectedVersionIndex;
+					if (ImGui::Selectable(label.c_str(), selected))
+					{
+						m_Dashboard.selectedVersionIndex = static_cast<int>(index);
+					}
 				}
+				ImGui::EndCombo();
 			}
-			ImGui::EndCombo();
-		}
-		ImGui::SameLine();
-		const char* comparisonLabel = "比較なし";
-		if (m_Dashboard.comparisonVersionIndex >= 0 &&
-			m_Dashboard.comparisonVersionIndex <
+			ImGui::SameLine();
+			const char* comparisonLabel = "比較なし";
+			if (m_Dashboard.comparisonVersionIndex >= 0 &&
+				m_Dashboard.comparisonVersionIndex <
 				static_cast<int>(m_Dashboard.versions.size()))
-		{
-			comparisonLabel = m_Dashboard.versions[
-				m_Dashboard.comparisonVersionIndex].version.c_str();
-		}
-		ImGui::SetNextItemWidth(230.0f);
-		if (ImGui::BeginCombo("比較対象", comparisonLabel))
-		{
-			if (ImGui::Selectable(
-				"比較なし",
-				m_Dashboard.comparisonVersionIndex < 0))
 			{
-				m_Dashboard.comparisonVersionIndex = -1;
+				comparisonLabel = m_Dashboard.versions[
+					m_Dashboard.comparisonVersionIndex].version.c_str();
 			}
-			for (std::size_t index = 0;
-				index < m_Dashboard.versions.size();
-				++index)
+			ImGui::SetNextItemWidth(230.0f);
+			if (ImGui::BeginCombo("比較対象", comparisonLabel))
 			{
-				if (static_cast<int>(index) ==
-					m_Dashboard.selectedVersionIndex)
-				{
-					continue;
-				}
-				const DashboardVersionData& item = m_Dashboard.versions[index];
-				std::string label = item.version;
-				if (!item.hasData) label += " - 未計測";
 				if (ImGui::Selectable(
-					label.c_str(),
-					static_cast<int>(index) ==
-						m_Dashboard.comparisonVersionIndex))
+					"比較なし",
+					m_Dashboard.comparisonVersionIndex < 0))
 				{
-					m_Dashboard.comparisonVersionIndex = static_cast<int>(index);
+					m_Dashboard.comparisonVersionIndex = -1;
 				}
+				for (std::size_t index = 0;
+					index < m_Dashboard.versions.size();
+					++index)
+				{
+					if (static_cast<int>(index) ==
+						m_Dashboard.selectedVersionIndex)
+					{
+						continue;
+					}
+					const DashboardVersionData& item = m_Dashboard.versions[index];
+					std::string label = item.version;
+					if (!item.hasData) label += " - 未計測";
+					if (ImGui::Selectable(
+						label.c_str(),
+						static_cast<int>(index) ==
+						m_Dashboard.comparisonVersionIndex))
+					{
+						m_Dashboard.comparisonVersionIndex = static_cast<int>(index);
+					}
+				}
+				ImGui::EndCombo();
 			}
-			ImGui::EndCombo();
-		}
 
-		const DashboardVersionData& selectedVersion =
-			m_Dashboard.versions[m_Dashboard.selectedVersionIndex];
-		const DashboardVersionData* comparisonVersion = nullptr;
-		if (m_Dashboard.comparisonVersionIndex >= 0 &&
-			m_Dashboard.comparisonVersionIndex <
+			const DashboardVersionData& selectedVersion =
+				m_Dashboard.versions[m_Dashboard.selectedVersionIndex];
+			const DashboardVersionData* comparisonVersion = nullptr;
+			if (m_Dashboard.comparisonVersionIndex >= 0 &&
+				m_Dashboard.comparisonVersionIndex <
 				static_cast<int>(m_Dashboard.versions.size()))
-		{
-			comparisonVersion = &m_Dashboard.versions[
-				m_Dashboard.comparisonVersionIndex];
-		}
-		ImGui::TextDisabled(
-			"最終計測: %s / ラン: %d / 完了ラン: %d / ショット: %d",
-			selectedVersion.lastMeasuredAt.empty()
+			{
+				comparisonVersion = &m_Dashboard.versions[
+					m_Dashboard.comparisonVersionIndex];
+			}
+			ImGui::TextDisabled(
+				"最終計測: %s / ラン: %d / 完了ラン: %d / ショット: %d",
+				selectedVersion.lastMeasuredAt.empty()
 				? "未計測"
 				: selectedVersion.lastMeasuredAt.c_str(),
-			selectedVersion.runCount,
-			selectedVersion.terminalRunCount,
-			selectedVersion.totalShotCount);
-		if (!selectedVersion.conditionSummary.empty())
-		{
-			ImGui::TextWrapped(
-				"計測条件: %s",
-				selectedVersion.conditionSummary.c_str());
-		}
-		if (!selectedVersion.hasData)
-		{
-			ImGui::TextColored(
-				ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
-				"このバージョンのログはありません。過去値や仮値は表示していません。");
-		}
-		if (selectedVersion.smallSampleWarning && selectedVersion.hasData)
-		{
-			ImGui::TextColored(
-				ImVec4(1.0f, 0.75f, 0.28f, 1.0f),
-				"注意: 30ラン未満のため傾向判断には追加計測が必要です。");
-		}
-		if (selectedVersion.mixedConfigurationWarning)
-		{
-			ImGui::TextColored(
-				ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
-				"同一版に複数設定があり、最新設定コホートだけを表示しています。");
-		}
-		if (selectedVersion.heterogeneousConditionsWarning)
-		{
-			ImGui::TextColored(
-				ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
-				"計測条件が複数混在しています。版内の数値も記述統計として扱ってください。");
-		}
-		if (comparisonVersion != nullptr &&
-			selectedVersion.hasData && comparisonVersion->hasData &&
-			selectedVersion.conditionSignature !=
+				selectedVersion.runCount,
+				selectedVersion.terminalRunCount,
+				selectedVersion.totalShotCount);
+			if (!selectedVersion.conditionSummary.empty())
+			{
+				ImGui::TextWrapped(
+					"計測条件: %s",
+					selectedVersion.conditionSummary.c_str());
+			}
+			if (!selectedVersion.hasData)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+					"このバージョンのログはありません。過去値や仮値は表示していません。");
+			}
+			if (selectedVersion.smallSampleWarning && selectedVersion.hasData)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.75f, 0.28f, 1.0f),
+					"注意: 30ラン未満のため傾向判断には追加計測が必要です。");
+			}
+			if (selectedVersion.mixedConfigurationWarning)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
+					"同一版に複数設定があり、最新設定コホートだけを表示しています。");
+			}
+			if (selectedVersion.heterogeneousConditionsWarning)
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.65f, 0.25f, 1.0f),
+					"計測条件が複数混在しています。版内の数値も記述統計として扱ってください。");
+			}
+			if (comparisonVersion != nullptr &&
+				selectedVersion.hasData && comparisonVersion->hasData &&
+				selectedVersion.conditionSignature !=
 				comparisonVersion->conditionSignature)
-		{
-			ImGui::TextColored(
-				ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
-				"比較条件が一致しません。シード・操作主体・ビルド・敵構成差を含むため、改善/悪化を断定できません。");
-		}
+			{
+				ImGui::TextColored(
+					ImVec4(1.0f, 0.55f, 0.25f, 1.0f),
+					"比較条件が一致しません。シード・操作主体・ビルド・敵構成差を含むため、改善/悪化を断定できません。");
+			}
 
-		const auto drawMetric = [&comparisonVersion](
-			const char* label,
-			float value,
-			bool available,
-			float otherValue,
-			bool otherAvailable,
-			bool percentage)
-		{
-			ImGui::TableNextRow();
-			ImGui::TableNextColumn(); ImGui::TextUnformatted(label);
-			ImGui::TableNextColumn();
-			if (available)
-				ImGui::Text(percentage ? "%.1f%%" : "%.2f",
-					percentage ? value * 100.0f : value);
-			else ImGui::TextDisabled("未計測");
-			ImGui::TableNextColumn();
-			if (comparisonVersion == nullptr) ImGui::TextDisabled("-");
-			else if (otherAvailable)
-				ImGui::Text(percentage ? "%.1f%%" : "%.2f",
-					percentage ? otherValue * 100.0f : otherValue);
-			else ImGui::TextDisabled("未計測");
-			ImGui::TableNextColumn();
-			if (comparisonVersion != nullptr && available && otherAvailable)
-				ImGui::Text(percentage ? "%+.1fpt" : "%+.2f",
-					percentage
-						? (value - otherValue) * 100.0f
-						: value - otherValue);
-			else ImGui::TextDisabled("-");
-		};
-		if (ImGui::BeginTable(
-			"version_metric_table",
-			4,
-			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-		{
-			ImGui::TableSetupColumn("指標");
-			ImGui::TableSetupColumn(selectedVersion.version.c_str());
-			ImGui::TableSetupColumn(
-				comparisonVersion != nullptr
+			const auto drawMetric = [&comparisonVersion](
+				const char* label,
+				float value,
+				bool available,
+				float otherValue,
+				bool otherAvailable,
+				bool percentage)
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::TextUnformatted(label);
+					ImGui::TableNextColumn();
+					if (available)
+						ImGui::Text(percentage ? "%.1f%%" : "%.2f",
+							percentage ? value * 100.0f : value);
+					else ImGui::TextDisabled("未計測");
+					ImGui::TableNextColumn();
+					if (comparisonVersion == nullptr) ImGui::TextDisabled("-");
+					else if (otherAvailable)
+						ImGui::Text(percentage ? "%.1f%%" : "%.2f",
+							percentage ? otherValue * 100.0f : otherValue);
+					else ImGui::TextDisabled("未計測");
+					ImGui::TableNextColumn();
+					if (comparisonVersion != nullptr && available && otherAvailable)
+						ImGui::Text(percentage ? "%+.1fpt" : "%+.2f",
+							percentage
+							? (value - otherValue) * 100.0f
+							: value - otherValue);
+					else ImGui::TextDisabled("-");
+				};
+			if (ImGui::BeginTable(
+				"version_metric_table",
+				4,
+				ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+			{
+				ImGui::TableSetupColumn("指標");
+				ImGui::TableSetupColumn(selectedVersion.version.c_str());
+				ImGui::TableSetupColumn(
+					comparisonVersion != nullptr
 					? comparisonVersion->version.c_str()
 					: "比較対象");
-			ImGui::TableSetupColumn("差分");
-			ImGui::TableHeadersRow();
-			const DashboardVersionData empty{};
-			const DashboardVersionData& other = comparisonVersion != nullptr
-				? *comparisonVersion
-				: empty;
-			drawMetric("クリア率", selectedVersion.clearRate,
-				selectedVersion.hasClearRate, other.clearRate,
-				other.hasClearRate, true);
-			drawMetric("平均ダメージ/ショット", selectedVersion.averageDamage,
-				selectedVersion.hasAverageDamage, other.averageDamage,
-				other.hasAverageDamage, false);
-			drawMetric("平均ショット数/完了ラン", selectedVersion.averageShots,
-				selectedVersion.hasAverageShots, other.averageShots,
-				other.hasAverageShots, false);
-			drawMetric("平均戦闘ターン/ステージ",
-				selectedVersion.averageBattleTurns,
-				selectedVersion.hasAverageBattleTurns,
-				other.averageBattleTurns,
-				other.hasAverageBattleTurns, false);
-			drawMetric("反射後攻撃成功率",
-				selectedVersion.reflectionSuccessRate,
-				selectedVersion.hasReflectionSuccessRate,
-				other.reflectionSuccessRate,
-				other.hasReflectionSuccessRate, true);
-			ImGui::EndTable();
-		}
-		const char* axisLabels[] = { "重量", "貫通", "反射", "Anchor" };
-		if (ImGui::BeginTable(
-			"axis_metric_table",
-			4,
-			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
-		{
-			ImGui::TableSetupColumn("軸");
-			ImGui::TableSetupColumn("獲得");
-			ImGui::TableSetupColumn("消費");
-			ImGui::TableSetupColumn("フィニッシャー");
-			ImGui::TableHeadersRow();
-			for (int axis = 0; axis < 4; ++axis)
-			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn(); ImGui::TextUnformatted(axisLabels[axis]);
-				ImGui::TableNextColumn();
-				if (selectedVersion.hasAxisGained[axis])
-					ImGui::Text("%d", selectedVersion.axisGained[axis]);
-				else ImGui::TextDisabled("未計測");
-				ImGui::TableNextColumn();
-				if (selectedVersion.hasAxisConsumed[axis])
-					ImGui::Text("%d", selectedVersion.axisConsumed[axis]);
-				else ImGui::TextDisabled("未計測");
-				ImGui::TableNextColumn();
-				if (selectedVersion.hasAxisFinishers[axis])
-					ImGui::Text("%d", selectedVersion.axisFinishers[axis]);
-				else ImGui::TextDisabled("未計測");
+				ImGui::TableSetupColumn("差分");
+				ImGui::TableHeadersRow();
+				const DashboardVersionData empty{};
+				const DashboardVersionData& other = comparisonVersion != nullptr
+					? *comparisonVersion
+					: empty;
+				drawMetric("クリア率", selectedVersion.clearRate,
+					selectedVersion.hasClearRate, other.clearRate,
+					other.hasClearRate, true);
+				drawMetric("平均ダメージ/ショット", selectedVersion.averageDamage,
+					selectedVersion.hasAverageDamage, other.averageDamage,
+					other.hasAverageDamage, false);
+				drawMetric("平均ショット数/完了ラン", selectedVersion.averageShots,
+					selectedVersion.hasAverageShots, other.averageShots,
+					other.hasAverageShots, false);
+				drawMetric("平均戦闘ターン/ステージ",
+					selectedVersion.averageBattleTurns,
+					selectedVersion.hasAverageBattleTurns,
+					other.averageBattleTurns,
+					other.hasAverageBattleTurns, false);
+				drawMetric("反射後攻撃成功率",
+					selectedVersion.reflectionSuccessRate,
+					selectedVersion.hasReflectionSuccessRate,
+					other.reflectionSuccessRate,
+					other.hasReflectionSuccessRate, true);
+				ImGui::EndTable();
 			}
-			ImGui::EndTable();
-		}
-		if (!selectedVersion.historyReason.empty())
-		{
-			ImGui::TextWrapped(
-				"変更履歴 [%s]: %s",
-				selectedVersion.historyTarget.c_str(),
-				selectedVersion.historyReason.c_str());
-		}
-		ImGui::SeparatorText("生成時選択コホートの詳細");
+			const char* axisLabels[] = { "重量", "貫通", "反射", "Anchor" };
+			if (ImGui::BeginTable(
+				"axis_metric_table",
+				4,
+				ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+			{
+				ImGui::TableSetupColumn("軸");
+				ImGui::TableSetupColumn("獲得");
+				ImGui::TableSetupColumn("消費");
+				ImGui::TableSetupColumn("フィニッシャー");
+				ImGui::TableHeadersRow();
+				for (int axis = 0; axis < 4; ++axis)
+				{
+					ImGui::TableNextRow();
+					ImGui::TableNextColumn(); ImGui::TextUnformatted(axisLabels[axis]);
+					ImGui::TableNextColumn();
+					if (selectedVersion.hasAxisGained[axis])
+						ImGui::Text("%d", selectedVersion.axisGained[axis]);
+					else ImGui::TextDisabled("未計測");
+					ImGui::TableNextColumn();
+					if (selectedVersion.hasAxisConsumed[axis])
+						ImGui::Text("%d", selectedVersion.axisConsumed[axis]);
+					else ImGui::TextDisabled("未計測");
+					ImGui::TableNextColumn();
+					if (selectedVersion.hasAxisFinishers[axis])
+						ImGui::Text("%d", selectedVersion.axisFinishers[axis]);
+					else ImGui::TextDisabled("未計測");
+				}
+				ImGui::EndTable();
+			}
+			if (!selectedVersion.historyReason.empty())
+			{
+				ImGui::TextWrapped(
+					"変更履歴 [%s]: %s",
+					selectedVersion.historyTarget.c_str(),
+					selectedVersion.historyReason.c_str());
+			}
+			ImGui::SeparatorText("生成時選択コホートの詳細");
 	}
 	if (m_Dashboard.analyzedRuns <= 0)
 	{
@@ -4159,8 +4667,8 @@ void GamePresentation::DrawDashboard()
 					: metric.targetMax;
 				ImGui::TextColored(
 					metric.inRange
-						? ImVec4(0.35f, 0.9f, 0.52f, 1.0f)
-						: ImVec4(1.0f, 0.48f, 0.32f, 1.0f),
+					? ImVec4(0.35f, 0.9f, 0.52f, 1.0f)
+					: ImVec4(1.0f, 0.48f, 0.32f, 1.0f),
 					"%s",
 					metric.inRange ? "OK" : "要確認");
 				ImGui::SameLine(86.0f);
@@ -4191,8 +4699,8 @@ void GamePresentation::DrawDashboard()
 				ImGui::PushStyleColor(
 					ImGuiCol_PlotHistogram,
 					metric.inRange
-						? ImVec4(0.25f, 0.78f, 0.45f, 1.0f)
-						: ImVec4(0.92f, 0.35f, 0.25f, 1.0f));
+					? ImVec4(0.25f, 0.78f, 0.45f, 1.0f)
+					: ImVec4(0.92f, 0.35f, 0.25f, 1.0f));
 				ImGui::ProgressBar(fraction, ImVec2(-1.0f, 12.0f), "");
 				ImGui::PopStyleColor();
 				ImGui::PopID();
@@ -4336,23 +4844,23 @@ void GamePresentation::LoadDashboard()
 						conditions,
 						"condition_signature");
 					const auto summarizeCounts = [](const json& counts)
-					{
-						std::ostringstream stream;
-						if (!counts.is_object()) return stream.str();
-						int displayed = 0;
-						for (auto iterator = counts.begin();
-							iterator != counts.end() && displayed < 3;
-							++iterator, ++displayed)
 						{
-							if (displayed > 0) stream << ", ";
-							stream << iterator.key() << ':';
-							if (iterator.value().is_number_integer())
-								stream << iterator.value().get<int>();
-							else stream << '?';
-						}
-						if (counts.size() > 3) stream << ", ...";
-						return stream.str();
-					};
+							std::ostringstream stream;
+							if (!counts.is_object()) return stream.str();
+							int displayed = 0;
+							for (auto iterator = counts.begin();
+								iterator != counts.end() && displayed < 3;
+								++iterator, ++displayed)
+							{
+								if (displayed > 0) stream << ", ";
+								stream << iterator.key() << ':';
+								if (iterator.value().is_number_integer())
+									stream << iterator.value().get<int>();
+								else stream << '?';
+							}
+							if (counts.size() > 3) stream << ", ...";
+							return stream.str();
+						};
 					const json& controllers = conditions.value(
 						"controller_types", json::object());
 					const json& profiles = conditions.value(
@@ -4388,15 +4896,15 @@ void GamePresentation::LoadDashboard()
 					const char* key,
 					float& value,
 					bool& available)
-				{
-					available = object.is_object() &&
-						object.contains(key) &&
-						object[key].is_number();
-					if (available)
 					{
-						value = object[key].get<float>();
-					}
-				};
+						available = object.is_object() &&
+							object.contains(key) &&
+							object[key].is_number();
+						if (available)
+						{
+							value = object[key].get<float>();
+						}
+					};
 				if (observed.is_object())
 				{
 					version.terminalRunCount = observed.value(
@@ -4432,10 +4940,10 @@ void GamePresentation::LoadDashboard()
 							const char* key,
 							int& value,
 							bool& available)
-						{
-							available = axis.contains(key) && axis[key].is_number_integer();
-							if (available) value = axis[key].get<int>();
-						};
+							{
+								available = axis.contains(key) && axis[key].is_number_integer();
+								if (available) value = axis[key].get<int>();
+							};
 						readAxisValue("stacks_gained",
 							version.axisGained[axisIndex],
 							version.hasAxisGained[axisIndex]);
@@ -4476,20 +4984,20 @@ void GamePresentation::LoadDashboard()
 			const char* id,
 			const char* label,
 			bool percentage)
-		{
-			DashboardMetric metric;
-			metric.id = id;
-			metric.label = label;
-			metric.value = ReadNumber(metrics, id);
-			if (statuses.contains(id) && statuses[id].is_object())
 			{
-				metric.targetMin = ReadNumber(statuses[id], "target_min");
-				metric.targetMax = ReadNumber(statuses[id], "target_max", 1.0f);
-				metric.inRange = statuses[id].value("in_range", false);
-			}
-			metric.percentage = percentage;
-			m_Dashboard.metrics.push_back(std::move(metric));
-		};
+				DashboardMetric metric;
+				metric.id = id;
+				metric.label = label;
+				metric.value = ReadNumber(metrics, id);
+				if (statuses.contains(id) && statuses[id].is_object())
+				{
+					metric.targetMin = ReadNumber(statuses[id], "target_min");
+					metric.targetMax = ReadNumber(statuses[id], "target_max", 1.0f);
+					metric.inRange = statuses[id].value("in_range", false);
+				}
+				metric.percentage = percentage;
+				m_Dashboard.metrics.push_back(std::move(metric));
+			};
 		addMetric("first_boss_reach_rate", "第1ボス到達率", true);
 		addMetric("first_boss_clear_rate", "第1ボス撃破率", true);
 		addMetric("second_boss_reach_rate", "第2ボス到達率", true);
@@ -4672,7 +5180,7 @@ void Game::DrawClearRewardUI()
 		model.upgradeTargets.push_back({
 			GetDeckBall(index),
 			GetClearRewardUpgradeCost(index),
-		});
+			});
 	}
 
 	const ClearRewardPresentationIntent intent =
