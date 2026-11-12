@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 class Camera;
@@ -23,6 +24,11 @@ public:
         double presentMilliseconds);
     static bool IsFrameTimingMeasurementActive();
     static void RecordShotPredictionTiming(double milliseconds);
+	static void RecordTrajectoryPreviewPrediction(
+		double milliseconds,
+		std::size_t copiedBalls);
+	static void RecordTrajectoryPreviewWorldKey(double milliseconds);
+	static void RecordTrajectoryPreviewCacheReuse();
     static void Draw();
     static void Shutdown();
 

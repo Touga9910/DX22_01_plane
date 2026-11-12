@@ -127,6 +127,12 @@ void GameRuntime::RecordFrameTiming(
 	double presentMilliseconds)
 {
 	Game& game = CurrentGame();
+	const BattleState state = game.GetBattleState();
+	game.m_RuntimeState->RecordAimingFrameTiming(
+		frameMilliseconds,
+		updateMilliseconds,
+		state == BattleState::AimingDirection ||
+		state == BattleState::AimingPower);
 	if (!game.IsFrameTimeMeasurementEnabled() ||
 		!game.m_RuntimeState->IsFrameTimingMeasurementActive())
 	{
@@ -139,6 +145,26 @@ void GameRuntime::RecordFrameTiming(
 		presentMilliseconds,
 		game.m_RuntimeState->CapturePhysicsTiming().stepsLastFrame,
 		game.GetBattleState() == BattleState::BallsMoving);
+}
+
+void GameRuntime::RecordTrajectoryPreviewPrediction(
+	double milliseconds,
+	std::size_t copiedBalls)
+{
+	CurrentGame().m_RuntimeState->RecordTrajectoryPreviewPrediction(
+		milliseconds,
+		copiedBalls);
+}
+
+void GameRuntime::RecordTrajectoryPreviewWorldKey(double milliseconds)
+{
+	CurrentGame().m_RuntimeState->RecordTrajectoryPreviewWorldKey(
+		milliseconds);
+}
+
+void GameRuntime::RecordTrajectoryPreviewCacheReuse()
+{
+	CurrentGame().m_RuntimeState->RecordTrajectoryPreviewCacheReuse();
 }
 
 bool GameRuntime::IsFrameTimingMeasurementActive()
@@ -2653,6 +2679,11 @@ const FrameTimingSnapshot& Game::GetFrameTimingSnapshot() const
 	return m_RuntimeState->CaptureFrameTiming();
 }
 
+AimingPerformanceSnapshot Game::GetAimingPerformanceSnapshot() const
+{
+	return m_RuntimeState->CaptureAimingPerformance();
+}
+
 const std::string& Game::GetSaveLoadMessage() const
 {
 	return m_PersistenceRuntime->SaveLoadMessage();
@@ -2858,10 +2889,6 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 			hpBefore,
 			enemy);
 		enemy->Defeat();
-		if (!wasAlreadyDefeated && pocketDamage < hpBefore)
-		{
-			NotifyEnemyDefeated(enemy);
-		}
 		enemy->RemoveFromFieldAfterPocket();
 		RecordBalanceEvent(
 			"enemy_pocket_finisher",

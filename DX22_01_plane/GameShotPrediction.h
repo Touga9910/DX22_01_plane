@@ -1,5 +1,7 @@
 #pragma once
 
+#include "BallTrajectoryPreview.h"
+
 #include <cstdint>
 
 class PlayerBall;
@@ -20,6 +22,11 @@ namespace BallShotPrediction
 class GameShotPrediction final
 {
 public:
+	static BallTrajectoryPreview::Result Preview(
+		const PlayerBall& player,
+		const DirectX::SimpleMath::Vector3& velocity,
+		bool skipFirstPlayerFriction);
+	static std::uint64_t PreviewWorldKey();
     static BallShotPrediction::Result Predict(
         const PlayerBall& player,
         const DirectX::SimpleMath::Vector3& velocity,

@@ -51,7 +51,8 @@ json BossShotPlanner::Evaluate(Game& game)
     const auto players = GameRuntime::World().GetComponents<PlayerBall>();
     EnemyBall* boss = nullptr;
     for (auto* enemy : GameRuntime::World().GetComponents<EnemyBall>())
-        if (enemy->IsArmorBoss() && !enemy->IsDefeated()) { boss = enemy; break; }
+        if (enemy != nullptr && enemy->IsArmorBoss() &&
+            enemy->CanParticipateInCombat()) { boss = enemy; break; }
     if (!boss || players.empty() || !players[0]->IsIdle() || game.GetBattleState() != BattleState::AimingDirection || !game.AreAllBallsStopped()) return {};
     auto* player = players[0];
     std::string key = std::to_string(GameShotPrediction::WorldKey()) + ":" + std::to_string(game.GetTotalShotCount());

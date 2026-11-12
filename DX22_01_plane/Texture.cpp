@@ -55,24 +55,24 @@ bool Texture::Load(const std::string& filename)
 	// ピクセルイメージ解放
 	stbi_image_free(pixels);
 
-	// テクスチャ解放
-	pTexture->Release();
+	// 修正: ComPtrが自動的にReleaseするため、明示的なpTexture->Release()は不要。
+	// 元コードは同一COM参照を二重解放する可能性があった。
 
 	return true;
 }
 
 // テクスチャをメモリからロード
-bool Texture::LoadFromFemory(const unsigned char* Data,int len) {
+bool Texture::LoadFromFemory(const unsigned char* Data, int len) {
 
 	bool sts = true;
 	unsigned char* pixels;
 
 	// 画像読み込み
-	pixels = stbi_load_from_memory(Data, 
-		len, 
-		&m_width, 
-		&m_height, 
-		&m_bpp, 
+	pixels = stbi_load_from_memory(Data,
+		len,
+		&m_width,
+		&m_height,
+		&m_bpp,
 		STBI_rgb_alpha);
 
 	// テクスチャ2Dリソース生成

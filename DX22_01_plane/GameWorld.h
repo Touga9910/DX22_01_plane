@@ -63,6 +63,33 @@ public:
 		return result;
 	}
 
+	// Visits matching components without allocating an intermediate vector.
+	// Use this for read-only per-frame signatures and diagnostics.
+	template<typename T, typename Visitor>
+	void ForEachComponent(Visitor&& visitor) const
+	{
+		static_assert(
+			std::is_base_of_v<Component, T>,
+			"T must inherit from Component");
+		using VisitorType = std::remove_reference_t<Visitor>;
+		struct Context final
+		{
+			VisitorType* callback = nullptr;
+		};
+		Context context{ &visitor };
+		VisitComponents(
+			[](Component* component, void* rawContext)
+			{
+				if (T* typed = dynamic_cast<T*>(component))
+				{
+					Context& typedContext =
+						*static_cast<Context*>(rawContext);
+					(*typedContext.callback)(typed);
+				}
+			},
+			&context);
+	}
+
 	// 指定した型のComponentを持つGameObjectをゲーム空間全体から取得
 	template<typename T>
 	std::vector<GameObject*> GetObjectsWith() const

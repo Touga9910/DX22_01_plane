@@ -29,6 +29,7 @@
 #include "StageSelectScene.h"
 #include "TitleScene.h"
 #include "BallPhysicsWorld.h"
+#include "BallPhysicsComponent.h"
 #include "CollisionVfxSystem.h"
 #include "GamePresentation.h"
 #include "AudioFeedback.h"
@@ -811,6 +812,70 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "max_steps_per_frame", FixedStepClock::MaxStepsPerFrame },
 		{ "dropped_seconds", snapshot.physics.droppedSeconds },
 	};
+	if (const BattleController* controller =
+		game.GetBattleControllerDiagnostics())
+	{
+		nlohmann::json stateHistory = nlohmann::json::array();
+		for (BattleState entry : controller->GetStateHistory())
+		{
+			stateHistory.push_back(ToString(entry));
+		}
+
+		nlohmann::json nonStopped = nlohmann::json::array();
+		int activePhysicsCount = 0;
+		const auto physicsObjects =
+			GameRuntime::World().GetObjectsWith<BallPhysicsComponent>();
+		for (GameObject* object : physicsObjects)
+		{
+			if (object == nullptr)
+			{
+				continue;
+			}
+			if (object->IsActive())
+			{
+				++activePhysicsCount;
+			}
+			const auto* physics = object->GetComponent<BallPhysicsComponent>();
+			if (physics == nullptr || physics->IsStopped())
+			{
+				continue;
+			}
+
+			nlohmann::json ball = {
+				{ "object_id", reinterpret_cast<std::uintptr_t>(object) },
+				{ "name", object->GetName() },
+				{ "active", object->IsActive() },
+				{ "velocity", VectorToJson(physics->GetVelocity()) },
+			};
+			if (const auto* enemy = object->GetComponent<EnemyBall>())
+			{
+				ball["enemy_id"] = enemy->GetEnemyId();
+				ball["defeated"] = enemy->IsDefeated();
+			}
+			nonStopped.push_back(std::move(ball));
+		}
+
+		const auto enemies = GameRuntime::World().GetComponents<EnemyBall>();
+		const int livingEnemyCount = static_cast<int>(std::count_if(
+			enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
+			{
+				return enemy != nullptr && enemy->CanParticipateInCombat();
+			}));
+		state["battle_progress_diagnostics"] = {
+			{ "turn", controller->GetTurnNumber() },
+			{ "living_enemies", livingEnemyCount },
+			{ "defeated_enemies",
+				static_cast<int>(enemies.size()) - livingEnemyCount },
+			{ "physics_component_count", physicsObjects.size() },
+			{ "active_physics_component_count", activePhysicsCount },
+			{ "non_stopped_balls", std::move(nonStopped) },
+			{ "continuous_stopped_tick_count",
+				controller->GetStoppedTickCount() },
+			{ "fixed_step_count", controller->GetFixedStepCount() },
+			{ "shot_fixed_step_count", controller->GetShotFixedStepCount() },
+			{ "state_history", std::move(stateHistory) },
+		};
+	}
 	const FrameTimingSnapshot& frameTiming = game.GetFrameTimingSnapshot();
 	const auto timingAggregateJson = [](const TimingAggregate& aggregate)
 	{
@@ -895,6 +960,28 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "clock", "cpu_steady_clock" },
 		{ "gpu_time_measured", false },
 		{ "includes_vsync_wait", true },
+	};
+	const AimingPerformanceSnapshot aimingTiming =
+		game.GetAimingPerformanceSnapshot();
+	state["aiming_performance"] = {
+		{ "active", aimingTiming.active },
+		{ "sample_count", aimingTiming.sampleCount },
+		{ "duration_seconds", aimingTiming.durationSeconds },
+		{ "average_fps", aimingTiming.averageFps },
+		{ "average_frame_ms", aimingTiming.averageFrameMilliseconds },
+		{ "maximum_frame_ms", aimingTiming.maximumFrameMilliseconds },
+		{ "p95_frame_ms", aimingTiming.p95FrameMilliseconds },
+		{ "average_update_ms", aimingTiming.averageUpdateMilliseconds },
+		{ "preview_prediction", timingAggregateJson(
+			aimingTiming.previewPrediction) },
+		{ "preview_world_key", timingAggregateJson(
+			aimingTiming.previewWorldKey) },
+		{ "prediction_calls_per_second", aimingTiming.durationSeconds > 0.0
+			? static_cast<double>(aimingTiming.previewPrediction.callCount) /
+				aimingTiming.durationSeconds
+			: 0.0 },
+		{ "cache_reuse_frames", aimingTiming.previewCacheReuseFrames },
+		{ "ball_state_copies", aimingTiming.previewBallCopies },
 	};
 	const CollisionVfxDiagnostics& collisionVfx =
 		game.GetCollisionVfxDiagnostics();
@@ -1336,8 +1423,9 @@ nlohmann::json GameMcpBridge::BuildState(
 		}
 		const std::string enemyTargetId =
 			"enemy:" + std::to_string(enemyIndex);
+		const bool combatActive = enemy->CanParticipateInCombat();
 		const bool attacksThisTurn =
-			!enemy->IsDefeated() && !enemy->IsPocketed() &&
+			combatActive &&
 			(enemy->GetPlannedAction() == EnemyActionType::NormalAttack ||
 			 enemy->GetPlannedAction() == EnemyActionType::ChargeAttack);
 		const int plannedAttackDamage = attacksThisTurn
@@ -1345,9 +1433,11 @@ nlohmann::json GameMcpBridge::BuildState(
 				static_cast<float>(enemy->GetAttack()) *
 				enemy->GetPlannedDamageMultiplier()))
 			: 0;
-		const int chargedAttackDamage = static_cast<int>(std::ceil(
-			static_cast<float>(enemy->GetAttack()) *
-			enemyActionConfig.chargeDamageMultiplier));
+		const int chargedAttackDamage = combatActive
+			? static_cast<int>(std::ceil(
+				static_cast<float>(enemy->GetAttack()) *
+				enemyActionConfig.chargeDamageMultiplier))
+			: 0;
 		nlohmann::json affectedAllies = nlohmann::json::array();
 		nlohmann::json protectionSources = nlohmann::json::array();
 		for (std::size_t otherIndex = 0;
@@ -1355,8 +1445,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			++otherIndex)
 		{
 			EnemyBall* other = enemies[otherIndex];
-			if (other == nullptr || other == enemy || other->IsDefeated() ||
-				other->IsPocketed())
+			if (!combatActive || other == nullptr || other == enemy ||
+				!other->CanParticipateInCombat())
 			{
 				continue;
 			}
@@ -1510,6 +1600,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "pocket_damage_ratio", enemy->GetPocketDamageRatio() },
 			{ "defeated", enemy->IsDefeated() },
 			{ "pocketed", enemy->IsPocketed() },
+			{ "combat_active", combatActive },
             { "pocket_immune", enemy->IsArmorBoss() },
 			{ "can_attack_this_turn", attacksThisTurn },
 			{ "tactics", std::move(tactics) },
@@ -1971,7 +2062,7 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 	for (EnemyBall* enemy : GameRuntime::World().GetComponents<EnemyBall>())
 	{
-		if (enemy == nullptr) continue;
+		if (enemy == nullptr || !enemy->CanParticipateInCombat()) continue;
 		state["ball_synergies"]["enemy_anchor_stacks"].push_back({
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "stacks", enemy->GetAnchorStacks() },

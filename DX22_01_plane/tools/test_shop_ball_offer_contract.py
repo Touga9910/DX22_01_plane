@@ -14,7 +14,7 @@ def source(name: str) -> str:
 class ShopBallOfferContractTests(unittest.TestCase):
     def test_shop_rolls_and_displays_three_ball_offers(self) -> None:
         game_header = source("Game.h")
-        progression = source("GameProgression.cpp")
+        progression = source("GameShopOperations.cpp")
         scene = source("ShopScene.cpp")
 
         self.assertIn("kShopBallOfferSize = 3", game_header)
@@ -27,7 +27,7 @@ class ShopBallOfferContractTests(unittest.TestCase):
         self.assertIn("GameView::ShopBallOffer(index)", scene)
 
     def test_purchase_maps_offer_index_to_catalog_index(self) -> None:
-        progression = source("GameProgression.cpp")
+        progression = source("GameShopOperations.cpp")
         scene = source("ShopScene.cpp")
 
         self.assertIn(

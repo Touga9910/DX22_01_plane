@@ -185,6 +185,8 @@ private:
 		unsigned long long createdFrame = 0;
 		float createdTimeSeconds = 0.0f;
 		std::uintptr_t targetKey = 0;
+		float targetFollowLifetime = 0.0f;
+		bool followsDamageTarget = false;
 		int resourceAxis = -1;
 		int resourceOwner = 0;
 		int resourceBefore = 0;

@@ -171,6 +171,107 @@ void GameRuntimeState::RecordShotPredictionTiming(double milliseconds)
 	AddTiming(m_FrameTiming.shotPrediction, milliseconds);
 }
 
+void GameRuntimeState::RecordAimingFrameTiming(
+	double frameMilliseconds,
+	double updateMilliseconds,
+	bool aiming)
+{
+	if (!aiming)
+	{
+		m_AimingTimingActive = false;
+		return;
+	}
+	if (!m_AimingTimingActive)
+	{
+		m_AimingTimingSamples.fill({});
+		m_AimingTimingWriteIndex = 0;
+		m_AimingTimingSampleCount = 0;
+		m_AimingPreviewPrediction = {};
+		m_AimingPreviewWorldKey = {};
+		m_AimingPreviewCacheReuseFrames = 0;
+		m_AimingPreviewBallCopies = 0;
+		m_AimingElapsedMilliseconds = 0.0;
+		m_AimingTimingActive = true;
+	}
+	AimingFrameSample& sample =
+		m_AimingTimingSamples[m_AimingTimingWriteIndex];
+	sample.frameMilliseconds = (std::max)(0.0, frameMilliseconds);
+	sample.updateMilliseconds = (std::max)(0.0, updateMilliseconds);
+	m_AimingElapsedMilliseconds += sample.frameMilliseconds;
+	m_AimingTimingWriteIndex =
+		(m_AimingTimingWriteIndex + 1) % AimingTimingCapacity;
+	m_AimingTimingSampleCount = (std::min)(
+		m_AimingTimingSampleCount + 1,
+		AimingTimingCapacity);
+}
+
+void GameRuntimeState::RecordTrajectoryPreviewPrediction(
+	double milliseconds,
+	std::size_t copiedBalls)
+{
+	if (!m_AimingTimingActive) return;
+	AddTiming(m_AimingPreviewPrediction, milliseconds);
+	m_AimingPreviewBallCopies += copiedBalls;
+}
+
+void GameRuntimeState::RecordTrajectoryPreviewWorldKey(
+	double milliseconds)
+{
+	if (!m_AimingTimingActive) return;
+	AddTiming(m_AimingPreviewWorldKey, milliseconds);
+}
+
+void GameRuntimeState::RecordTrajectoryPreviewCacheReuse()
+{
+	if (m_AimingTimingActive)
+	{
+		++m_AimingPreviewCacheReuseFrames;
+	}
+}
+
+AimingPerformanceSnapshot
+GameRuntimeState::CaptureAimingPerformance() const
+{
+	AimingPerformanceSnapshot snapshot;
+	snapshot.active = m_AimingTimingActive;
+	snapshot.sampleCount =
+		static_cast<int>(m_AimingTimingSampleCount);
+	snapshot.previewPrediction = m_AimingPreviewPrediction;
+	snapshot.previewWorldKey = m_AimingPreviewWorldKey;
+	snapshot.previewCacheReuseFrames =
+		m_AimingPreviewCacheReuseFrames;
+	snapshot.previewBallCopies = m_AimingPreviewBallCopies;
+	if (m_AimingTimingSampleCount == 0) return snapshot;
+
+	std::vector<double> frameTimes;
+	frameTimes.reserve(m_AimingTimingSampleCount);
+	double frameTotal = 0.0;
+	double updateTotal = 0.0;
+	for (std::size_t index = 0;
+		index < m_AimingTimingSampleCount;
+		++index)
+	{
+		const AimingFrameSample& sample = m_AimingTimingSamples[index];
+		frameTimes.push_back(sample.frameMilliseconds);
+		frameTotal += sample.frameMilliseconds;
+		updateTotal += sample.updateMilliseconds;
+	}
+	std::sort(frameTimes.begin(), frameTimes.end());
+	const double count = static_cast<double>(frameTimes.size());
+	const std::size_t p95Index = (std::min)(
+		frameTimes.size() - 1,
+		static_cast<std::size_t>(std::ceil(0.95 * count)) - 1);
+	snapshot.durationSeconds = m_AimingElapsedMilliseconds / 1000.0;
+	snapshot.averageFrameMilliseconds = frameTotal / count;
+	snapshot.maximumFrameMilliseconds = frameTimes.back();
+	snapshot.p95FrameMilliseconds = frameTimes[p95Index];
+	snapshot.averageFps = snapshot.averageFrameMilliseconds > 0.0
+		? 1000.0 / snapshot.averageFrameMilliseconds
+		: 0.0;
+	snapshot.averageUpdateMilliseconds = updateTotal / count;
+	return snapshot;
+}
+
 void GameRuntimeState::RecordFrameTiming(
 	double frameMilliseconds,
 	double updateMilliseconds,

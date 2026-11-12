@@ -3,6 +3,7 @@
 #include "EnemyChargeRules.h"
 #include "BallMechanics.h"
 #include "EnemyGimmickRules.h"
+#include "FixedStepClock.h"
 
 #include "Camera.h"
 #include "BallRenderComponent.h"
@@ -22,6 +23,11 @@
 #include <cmath>
 
 using namespace DirectX::SimpleMath;
+
+namespace
+{
+    constexpr float kDefeatVisualTransitionSeconds = 0.3f;
+}
 
 void EnemyBall::Awake()
 {
@@ -96,6 +102,7 @@ void EnemyBall::Init()
 void EnemyBall::Init(const EnemyData& data)
 {
 	m_AnchorStacks = 0;
+	m_DefeatProcessed = false;
 	m_NextKnockbackMultiplier = 1.0f;
 	m_PendingKnockbackMultiplier = 1.0f;
     m_BossState = {};
@@ -117,8 +124,10 @@ void EnemyBall::Init(const EnemyData& data)
     ResetChargeShotTracking();
     m_PendingChargeInterruption.reset();
 	m_PresentationHitFlash = 0.0f;
+    m_DefeatVisualProgress = 0.0f;
     m_EnemyData = data;                        // 読み込んだ敵データを保持
 
+	m_Ball->ResetDefeated();
     m_Ball->SetMaxHP(m_EnemyData.maxHp);
     SetStatus(m_EnemyData.status);             // ステータスを反映
     SetStatusEffects(m_EnemyData.initialStatusEffects);
@@ -185,8 +194,6 @@ void EnemyBall::Init(const EnemyData& data)
     m_Ball->GetMutableAcceleration() = Vector3::Zero;             // 加速度を初期化
     m_CurrentFrame = 0;                         // フレームカウントを初期化
 
-    m_Ball->ResetDefeated();                            // 撃破状態を解除
-
     m_NuisanceSpawnPosition = m_EnemyData.initPosition +
         m_EnemyData.nuisanceBall.spawnOffset;
     m_NuisanceSpawnPosition.y = TableConfig::FIELD_HEIGHT;
@@ -214,6 +221,19 @@ void EnemyBall::FixedUpdate()
 
     m_CurrentFrame++;
 
+    if (IsDefeated())
+    {
+        const float step = static_cast<float>(FixedStepClock::StepSeconds) /
+            kDefeatVisualTransitionSeconds;
+        m_DefeatVisualProgress = (std::min)(
+            1.0f,
+            m_DefeatVisualProgress + step);
+    }
+    else
+    {
+        m_DefeatVisualProgress = 0.0f;
+    }
+
     for (auto it = m_CollisionGraceByBall.begin();
         it != m_CollisionGraceByBall.end();)
     {
@@ -228,13 +248,17 @@ void EnemyBall::FixedUpdate()
 
 void EnemyBall::Draw(Camera* cam)
 {
-    if (cam == nullptr || m_Ball == nullptr || m_IsPocketed)
+	if (m_RenderComponent == nullptr && GetGameObject() != nullptr)
+		m_RenderComponent = GetGameObject()->GetComponent<BallRenderComponent>();
+	if (cam == nullptr || m_Ball == nullptr || m_RenderComponent == nullptr ||
+		m_IsPocketed)
     {
         return;
     }
 
     cam->SetCamera();
 
+    m_RenderComponent->SetDefeatVisualProgress(m_DefeatVisualProgress);
     m_RenderComponent->BeginDraw();
 
     // 行列の作成（BallComponentが計算した m_Ball->GetMutableRollingRotation() を適用）
@@ -265,10 +289,57 @@ void EnemyBall::Defeat()
         return;
     }
 
-    CancelCharge(ChargeInterruptReason::Defeated);
+    const Vector3 velocity = m_Ball->GetMutableVelocity();
+    const Vector3 acceleration = m_Ball->GetMutableAcceleration();
     m_Ball->Defeat();
+    // BallComponent has a generic defeat stop for actors that leave play.
+    // Enemy corpses stay on the table, so preserve the exact physical state.
+    m_Ball->GetMutableVelocity() = velocity;
+    m_Ball->GetMutableAcceleration() = acceleration;
+    CompleteDefeatTransition();
+}
+
+void EnemyBall::CompleteDefeatTransition()
+{
+    if (m_Ball == nullptr || !m_Ball->IsDefeated() || m_DefeatProcessed)
+    {
+        return;
+    }
+
+    m_DefeatProcessed = true;
+    m_DefeatVisualProgress = 0.0f;
+    CancelCharge(ChargeInterruptReason::Defeated);
+    m_PendingChargeInterruption.reset();
+    m_PlannedAction = EnemyActionType::Wait;
+    m_PlannedActionCost = 0;
+    m_ChargeState = EnemyChargeState::Normal;
+    ResetChargeShotTracking();
+    m_StunTurnsRemaining = 0;
+    m_BrittleActionsRemaining = 0;
+    m_NearbyLivingAllies = 0;
+    m_SwarmStage = 0;
+    m_ProtectionState = 0;
+    m_CollisionStage = 0;
+    m_CollisionGraceByBall.clear();
+    m_NextKnockbackMultiplier = 1.0f;
+    m_PendingKnockbackMultiplier = 1.0f;
+    m_Ball->SetStatusEffects({});
+    m_Ball->SetAuraStatusEffects({});
+    UpdateCollisionStageTint();
     m_NuisanceWarningVisible = false;
     DestroyNuisanceBall();
+
+    GameBattleEvents::EnemyDefeated(this);
+
+    // Remove this ball as a protection/swarm source immediately. The ball
+    // itself remains in the physics world and is still refreshed by rendering.
+    for (EnemyBall* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+    {
+        if (enemy != nullptr && enemy != this && enemy->CanParticipateInCombat())
+        {
+            enemy->RefreshBoardAbilityState(true);
+        }
+    }
 }
 
 void EnemyBall::RemoveFromFieldAfterPocket()
@@ -289,7 +360,7 @@ void EnemyBall::RemoveFromFieldAfterPocket()
 void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 {
     // 別の敵IDのデータを誤って適用しない
-    if (m_EnemyData.id != data.id)
+    if (m_EnemyData.id != data.id || !CanParticipateInCombat())
     {
         return;
     }
@@ -328,13 +399,7 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 
 void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
 {
-    if (m_Ball->IsDefeated())
-    {
-        // 撃破済みの場合はHP割合を計算せず、ステータス値だけ更新する
-        m_Ball->SetMaxHP(m_EnemyData.maxHp);
-        ApplyStatusValuesOnly(status);
-        return;
-    }
+    if (!CanParticipateInCombat()) return;
 
     float hpRate = 1.0f;                       // 現在HPの割合
 
@@ -363,6 +428,7 @@ void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
 
 void EnemyBall::ApplyStatusValuesOnly(const BallStatus& status)
 {
+    if (!CanParticipateInCombat()) return;
     // HPや撃破状態を初期化せず、ステータス構造体だけを差し替える
     m_Ball->ApplyStatusValuesOnly(status);
 }
@@ -431,7 +497,7 @@ void EnemyBall::TakeDamage(
     int damage,
     EnemyDamageKind damageKind)
 {
-	if (m_Ball == nullptr)
+	if (!CanParticipateInCombat())
 	{
 		return;
 	}
@@ -473,12 +539,9 @@ void EnemyBall::TakeDamage(
 	// ポケットによる除外は別処理とし、即座に反映する。
 	if (!wasDefeated && m_Ball->IsDefeated())
 	{
-		CancelCharge(ChargeInterruptReason::Defeated);
 		m_Ball->GetMutableVelocity() = collisionVelocity;
 		m_Ball->GetMutableAcceleration() = collisionAcceleration;
-		m_NuisanceWarningVisible = false;
-		DestroyNuisanceBall();
-		GameBattleEvents::EnemyDefeated(this);
+		CompleteDefeatTransition();
 	}
 
 	BalanceLogger::GetInstance().RecordEnemyDamage(
@@ -510,7 +573,7 @@ int EnemyBall::CalculateDamageTakenWithoutProtection(int damage) const
 
 int EnemyBall::GetAttack() const
 {
-	if (m_Ball == nullptr) return 0;
+	if (!CanParticipateInCombat()) return 0;
 	const int statusModifier =
 		m_Ball->GetAttack() - m_EnemyData.status.attack;
 	int attack = m_EnemyData.status.attack;
@@ -681,7 +744,7 @@ void EnemyBall::RegisterWallImpact(float collisionSpeed)
 
 void EnemyBall::ConsumeBoardAbilityAfterAttack()
 {
-	if (!IsBrittle()) return;
+	if (!CanParticipateInCombat() || !IsBrittle()) return;
 	const int previousAttack = GetAttack();
 	const int previousStage = 1;
 	--m_BrittleActionsRemaining;
@@ -725,6 +788,12 @@ void EnemyBall::SetPlannedAction(
     int budgetCost,
     float chargeDamageMultiplier)
 {
+    if (!CanParticipateInCombat())
+    {
+        m_PlannedAction = EnemyActionType::Wait;
+        m_PlannedActionCost = 0;
+        return;
+    }
     m_PlannedAction = action;
     m_PlannedActionCost = (std::max)(0, budgetCost);
     m_PlannedChargeDamageMultiplier =
@@ -770,6 +839,12 @@ EnemyBall::EndChargeShotTracking(
     float heavyInterruptDiameterMultiplier,
     float pierceInterruptMaxHpRatio)
 {
+    if (!CanParticipateInCombat())
+    {
+        ResetChargeShotTracking();
+        m_PendingChargeInterruption.reset();
+        return std::nullopt;
+    }
     if (!m_PendingChargeInterruption.has_value() &&
         m_ChargeState == EnemyChargeState::Charging &&
         !IsPocketed())
@@ -835,6 +910,7 @@ void EnemyBall::ResetChargeShotTracking()
 
 int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
 {
+    if (!CanParticipateInCombat()) return 0;
     damage = BallPhysicsRules::DirectionalDamage(
         damage,
         GetPosition(),
@@ -952,6 +1028,7 @@ void EnemyBall::SpawnNuisanceBall()
 
 void EnemyBall::AdvanceTurnGimmicks()
 {
+    if (!CanParticipateInCombat()) return;
     if (m_SkipNextGimmickAdvance)
     {
         m_SkipNextGimmickAdvance = false;
@@ -1025,7 +1102,6 @@ int EnemyBall::ApplyPocketDamage()
     if (GetHP() == 0)
     {
         Defeat();
-        GameBattleEvents::EnemyDefeated(this);
     }
     const int applied = hpBefore - GetHP();
     BalanceLogger::GetInstance().RecordEnemyDamage(GetEnemyId(), applied);
@@ -1048,7 +1124,6 @@ void EnemyBall::HitBreakBall(int ballId)
     {
         Defeat();
         m_Ball->GetMutableVelocity() = velocity;
-        GameBattleEvents::EnemyDefeated(this);
     }
     const int damage = hpBefore - GetHP();
     auto& logger = BalanceLogger::GetInstance();

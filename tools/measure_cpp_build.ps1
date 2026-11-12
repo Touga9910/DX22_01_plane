@@ -1,9 +1,11 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('before', 'after', 'game_header_split_after', 'game_scene_split_after', 'game_scene_boundary_headers', 'game_route_split_after', 'battle_scene_split_after', 'game_battle_state_after', 'game_battle_access_after', 'game_collision_boundary_after', 'game_enemy_boundary_after', 'game_player_boundary_after', 'game_physics_context_after', 'game_prediction_input_after', 'game_save_context_after', 'game_mcp_read_snapshot_after', 'game_mcp_commands_after', 'game_debug_host_after', 'game_balance_runtime_after', 'game_balance_owner_after', 'game_runtime_state_before', 'game_runtime_state_after', 'game_settings_runtime_after', 'game_persistence_runtime_after', 'game_shot_relic_forward_after', 'game_run_defaults_after', 'game_run_session_after', 'game_reward_state_after', 'game_encounter_balance_after', 'game_ball_selection_after', 'game_pause_state_after', 'game_run_controller_pimpl_after', 'game_stage_override_state_after', 'run_controller_impl_after', 'game_world_runtime_state_after', 'game_deck_read_boundary_before', 'game_deck_read_boundary_after')]
+    [ValidateSet('before', 'after', 'game_progression_split_before', 'game_progression_split_after', 'game_header_split_after', 'game_scene_split_after', 'game_scene_boundary_headers', 'game_route_split_after', 'battle_scene_split_after', 'game_battle_state_after', 'game_battle_access_after', 'game_collision_boundary_after', 'game_enemy_boundary_after', 'game_player_boundary_after', 'game_physics_context_after', 'game_prediction_input_after', 'game_save_context_after', 'game_mcp_read_snapshot_after', 'game_mcp_commands_after', 'game_debug_host_after', 'game_balance_runtime_after', 'game_balance_owner_after', 'game_runtime_state_before', 'game_runtime_state_after', 'game_settings_runtime_after', 'game_persistence_runtime_after', 'game_shot_relic_forward_after', 'game_run_defaults_after', 'game_run_session_after', 'game_reward_state_after', 'game_encounter_balance_after', 'game_ball_selection_after', 'game_pause_state_after', 'game_run_controller_pimpl_after', 'game_stage_override_state_after', 'run_controller_impl_after', 'game_world_runtime_state_after', 'game_deck_read_boundary_before', 'game_deck_read_boundary_after')]
     [string]$Phase,
 
     [int]$Runs = 3,
+
+    [int]$IncrementalRuns = 0,
 
     [string[]]$Headers = @('Game.h', 'GameObject.h', 'TableConfig.h'),
 
@@ -11,6 +13,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$effectiveIncrementalRuns = if ($IncrementalRuns -gt 0) { $IncrementalRuns } else { $Runs }
 if ($Headers.Count -eq 1 -and $Headers[0].Contains(',')) {
     $Headers = @($Headers[0].Split(',') | ForEach-Object { $_.Trim() })
 }
@@ -149,7 +152,7 @@ for ($run = 1; $run -le $Runs; ++$run) {
 
 foreach ($header in $Headers) {
     $scenario = 'touch_' + [IO.Path]::GetFileNameWithoutExtension($header).ToLowerInvariant()
-    for ($run = 1; $run -le $Runs; ++$run) {
+    for ($run = 1; $run -le $effectiveIncrementalRuns; ++$run) {
         Invoke-StabilizingBuild
         Touch-ProjectFile -RelativePath $header
         $buildLog = Join-Path $logRoot ("{0}-{1}.log" -f $scenario, $run)
@@ -159,7 +162,7 @@ foreach ($header in $Headers) {
     }
 }
 
-for ($run = 1; $run -le $Runs; ++$run) {
+for ($run = 1; $run -le $effectiveIncrementalRuns; ++$run) {
     Invoke-StabilizingBuild
     Touch-ProjectFile -RelativePath $RepresentativeSource
     $buildLog = Join-Path $logRoot ("touch_cpp-{0}.log" -f $run)
@@ -206,5 +209,16 @@ $result = [ordered]@{
 
 $summaryPath = Join-Path $outputRoot 'summary.json'
 $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding utf8
+$measurementCsvPath = Join-Path $outputRoot 'measurements.csv'
+$measurements |
+    Select-Object scenario, run, seconds, compiled_cpp_count,
+        compiled_authored_cpp_count, compiled_embedded_third_party_cpp_count,
+        @{ Name = 'compiled_cpp'; Expression = { $_.compiled_cpp -join ';' } }, log |
+    Export-Csv -LiteralPath $measurementCsvPath -NoTypeInformation -Encoding utf8
+$summaryCsvPath = Join-Path $outputRoot 'summary.csv'
+$summaries | ForEach-Object { [pscustomobject]$_ } |
+    Export-Csv -LiteralPath $summaryCsvPath -NoTypeInformation -Encoding utf8
 $summaries | Format-Table -AutoSize
 Write-Output "Saved $summaryPath"
+Write-Output "Saved $measurementCsvPath"
+Write-Output "Saved $summaryCsvPath"

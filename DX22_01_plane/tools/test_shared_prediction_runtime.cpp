@@ -1,6 +1,7 @@
 #include "../BallPhysicsRules.h"
 #include "../ShotRelicRules.h"
 #include "../BallShotPrediction.h"
+#include "../BallTrajectoryPreview.h"
 #include "../TableFrameCollisionComponent.h"
 #include <cassert>
 #include <cmath>
@@ -11,6 +12,61 @@ bool Near(float a, float b) { return std::abs(a-b) < 0.00001f; }
 
 int main()
 {
+	{
+		BallTrajectoryPreview::Input input;
+		BallTrajectoryPreview::BallSnapshot playerPreview;
+		playerPreview.physics.id = 101;
+		playerPreview.physics.player = true;
+		playerPreview.physics.status.radius = 2.0f;
+		playerPreview.physics.status.mass = 2.0f;
+		playerPreview.physics.status.restitution = 0.8f;
+		playerPreview.physics.status.friction = 0.02f;
+		BallTrajectoryPreview::BallSnapshot enemyPreview;
+		enemyPreview.physics.id = 102;
+		enemyPreview.physics.enemy = true;
+		enemyPreview.physics.position = Vector3(10.0f, 0.0f, 0.0f);
+		enemyPreview.physics.status.radius = 2.0f;
+		enemyPreview.physics.status.mass = 1.0f;
+		enemyPreview.physics.status.restitution = 0.8f;
+		enemyPreview.guideEnemy = true;
+		enemyPreview.guideChainCenter = true;
+		input.playerId = playerPreview.physics.id;
+		input.balls = { playerPreview, enemyPreview };
+		const auto directPreview = BallTrajectoryPreview::Predict(
+			input, Vector3(4.0f, 0.0f, 0.0f), true);
+		assert(directPreview.complete);
+		assert(directPreview.reachedBlockingContact);
+		assert(directPreview.initialContactGuide.hitBall);
+		assert(directPreview.initialContactGuide.hitEnemy);
+		assert(Near(directPreview.initialContactGuide.playerPosition.x, 6.0f));
+		assert(directPreview.initialContactGuide.ballDirection.x > 0.99f);
+
+		input.balls[1].physics.position = Vector3(1000.0f, 0.0f, 0.0f);
+		const auto stoppedPreview = BallTrajectoryPreview::Predict(
+			input, Vector3(1.0f, 0.0f, 0.0f), true);
+		assert(stoppedPreview.complete);
+		assert(!stoppedPreview.reachedBlockingContact);
+		assert(!stoppedPreview.initialContactGuide.hitBall);
+
+		input.balls = { playerPreview, enemyPreview };
+		input.balls[0].physics.status.abilities.pierce = true;
+		input.balls[0].physics.pierceLimit = 1;
+		input.balls[0].physics.pierceRetention = 1.0f;
+		input.balls[1].physics.position = Vector3(8.0f, 0.0f, 0.0f);
+		BallTrajectoryPreview::BallSnapshot corpsePreview = enemyPreview;
+		corpsePreview.physics.id = 103;
+		corpsePreview.physics.enemy = false;
+		corpsePreview.physics.position = Vector3(16.0f, 0.0f, 0.0f);
+		corpsePreview.guideEnemy = false;
+		corpsePreview.guideChainCenter = false;
+		input.balls.push_back(corpsePreview);
+		const auto piercePreview = BallTrajectoryPreview::Predict(
+			input, Vector3(5.0f, 0.0f, 0.0f), true);
+		assert(piercePreview.reachedBlockingContact);
+		assert(piercePreview.initialContactGuide.hitBall);
+		assert(!piercePreview.initialContactGuide.hitEnemy);
+		assert(piercePreview.initialContactGuide.ballPosition.x > 15.9f);
+	}
     {
         Body piercer, target;
         piercer.id = 1; piercer.player = true;
@@ -48,6 +104,46 @@ int main()
         assert(!PierceExitDirection(piercer,target,exit)); // No new overlap bypass.
         piercer.pierced = {target.id}; target.enemy = false;
         assert(!PierceExitDirection(piercer,target,exit)); // Neutrals are not pierced.
+
+        // Reproduce the old retained-corpse classification: treating it as a
+        // combat enemy starts pierce bypass, then forced-exit friction holds
+        // the player at 0.2 (> sqrt(0.03)) while the overlap remains.
+        Body corpse;
+        piercer = Body{};
+        piercer.id = 3; corpse.id = 4;
+        piercer.player = true;
+        piercer.status.radius = corpse.status.radius = 2.4f;
+        piercer.status.abilities.pierce = true;
+        piercer.pierceLimit = 3;
+        piercer.velocity = Vector3(2.0f, 0, 0);
+        corpse.position = Vector3(4.8f, 0, 0);
+        corpse.enemy = true;
+        assert(Pair(piercer, corpse));
+        Vector3 exitDirection = Vector3::Zero;
+        assert(PierceExitDirection(piercer, corpse, exitDirection));
+        Vector3 acceleration = Vector3::Zero;
+        int stopCount = 0;
+        for (int step = 0; step < 100; ++step)
+            assert(!PlayerFriction(piercer.velocity, acceleration,
+                piercer.status, 0.02f, stopCount, &exitDirection));
+        assert(Near(piercer.velocity.LengthSquared(), 0.04f));
+        assert(stopCount == 0);
+
+        // The corrected corpse keeps the same physical body but clears the
+        // combat-enemy flag, so the ordinary impulse resolves the overlap.
+        piercer = Body{};
+        corpse = Body{};
+        piercer.id = 3; corpse.id = 4;
+        piercer.player = true;
+        piercer.status.radius = corpse.status.radius = 2.4f;
+        piercer.status.abilities.pierce = true;
+        piercer.pierceLimit = 3;
+        piercer.velocity = Vector3(2.0f, 0, 0);
+        corpse.position = Vector3(4.8f, 0, 0);
+        corpse.enemy = false;
+        assert(Pair(piercer, corpse));
+        assert(piercer.pierced.empty() && piercer.pierceUses == 0);
+        assert(corpse.velocity.LengthSquared() > 0.03f);
     }
     // One reflection shows the incoming segment and one outgoing segment,
     // ending at the second contact. AI keeps the complete path.
@@ -235,5 +331,9 @@ int main()
     assert(shot.ConsumePlayerEnemyRelicDamageBonus() == 0);
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,-10), 0.5f) == 5);
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,10), 0.5f) == 10);
+	std::cout << "Detailed prediction ball bytes="
+		<< sizeof(BallShotPrediction::Ball)
+		<< " lightweight preview ball bytes="
+		<< sizeof(BallTrajectoryPreview::BallSnapshot) << '\n';
 	std::cout << "Shared friction, power, pierce/refraction, anchor lock, table, pocket and relic rules PASS\n";
 }

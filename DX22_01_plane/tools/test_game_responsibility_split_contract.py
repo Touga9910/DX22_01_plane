@@ -627,7 +627,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
 
     def test_game_header_forward_declares_shot_relic_snapshot(self) -> None:
         game = source("Game.h")
-        progression = source("GameProgression.cpp")
+        progression = source("GameRelicOperations.cpp")
         battle_bridge = source("GameBattleBridge.cpp")
 
         self.assertIn("struct ShotRelicRules;", game)

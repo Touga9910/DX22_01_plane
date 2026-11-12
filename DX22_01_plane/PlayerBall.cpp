@@ -156,7 +156,10 @@ void PlayerBall::FixedUpdate()
 
 void PlayerBall::Draw(Camera* cam)
 {
-	if (IsDefeated())
+	if (m_RenderComponent == nullptr && GetGameObject() != nullptr)
+		m_RenderComponent = GetGameObject()->GetComponent<BallRenderComponent>();
+	if (IsDefeated() || cam == nullptr || m_Ball == nullptr ||
+		m_RenderComponent == nullptr)
 	{
 		return;
 	}
@@ -492,11 +495,17 @@ void PlayerBall::UpdateAim()
 		}
 	}
 
+	const auto worldKeyStarted = std::chrono::steady_clock::now();
+	const std::uint64_t currentPreviewWorldKey =
+		GameShotPrediction::PreviewWorldKey();
+	GameRuntime::RecordTrajectoryPreviewWorldKey(
+		std::chrono::duration<double, std::milli>(
+			std::chrono::steady_clock::now() - worldKeyStarted).count());
 	bool previewChanged =
 		fabs(m_AimAngle - m_LastPreviewAimAngle) > 0.001f ||
 		fabs(m_ShotPower - m_LastPreviewShotPower) > 0.001f ||
 		(m_Ball->GetPosition() - m_LastPreviewPosition).LengthSquared() > 0.01f ||
-		m_LastPreviewWorldKey != GameShotPrediction::WorldKey();
+		m_LastPreviewWorldKey != currentPreviewWorldKey;
 
 	constexpr int kPreviewRefreshCooldownFrames = 1;
 	const bool immediateRefresh =
@@ -505,7 +514,8 @@ void PlayerBall::UpdateAim()
 		previewChanged && m_PreviewRefreshFramesRemaining <= 0;
 	if (immediateRefresh || delayedRefresh)
 	{
-		GeneratePreTrajectory(GetShotVector());
+		GeneratePreTrajectory(
+			GetShotVector(), currentPreviewWorldKey);
 
 		m_LastPreviewAimAngle = m_AimAngle;
 		m_LastPreviewShotPower = m_ShotPower;
@@ -521,6 +531,7 @@ void PlayerBall::UpdateAim()
 	else
 	{
 		m_PreviewRefreshFramesRemaining = 0;
+		GameRuntime::RecordTrajectoryPreviewCacheReuse();
 	}
 }
 
@@ -763,26 +774,24 @@ Vector3 PlayerBall::GetShotVector() const
 	return Vector3(sin(m_AimAngle), 0.0f, cos(m_AimAngle)) * m_ShotPower;
 }
 
-void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity)
+void PlayerBall::GeneratePreTrajectory(
+	const DirectX::SimpleMath::Vector3& initialVelocity,
+	std::uint64_t worldKey)
 {
-	const bool measurePrediction =
-		GameRuntime::IsFrameTimingMeasurementActive();
-	const auto predictionStarted = measurePrediction
-		? std::chrono::steady_clock::now()
-		: std::chrono::steady_clock::time_point{};
+	const auto predictionStarted = std::chrono::steady_clock::now();
 	const auto prediction =
-		GameShotPrediction::Predict(*this, initialVelocity, true);
-	if (measurePrediction)
-	{
-		GameRuntime::RecordShotPredictionTiming(
-			std::chrono::duration<double, std::milli>(
-				std::chrono::steady_clock::now() - predictionStarted).count());
-	}
+		GameShotPrediction::Preview(*this, initialVelocity, true);
+	const double predictionMilliseconds =
+		std::chrono::duration<double, std::milli>(
+			std::chrono::steady_clock::now() - predictionStarted).count();
+	GameRuntime::RecordTrajectoryPreviewPrediction(
+		predictionMilliseconds,
+		prediction.copiedBalls);
+	if (GameRuntime::IsFrameTimingMeasurementActive())
+		GameRuntime::RecordShotPredictionTiming(predictionMilliseconds);
 	m_PrePositions.clear();
-	constexpr std::size_t previewReflections = 0u;
-	const auto previewPoints = prediction.PreviewPointCount(previewReflections);
 	const bool currentPowerReachesContact =
-		prediction.PreviewReachesLimit(previewReflections);
+		prediction.reachedBlockingContact;
 	auto pathDistance = [](const auto& path, std::size_t pointCount)
 	{
 		float distance = 0.0f;
@@ -792,25 +801,33 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
 		}
 		return distance;
 	};
-	m_PreviewReachableDistance = pathDistance(prediction.path, previewPoints);
+	m_PreviewReachableDistance = pathDistance(
+		prediction.path, prediction.path.size());
 
-	const BallShotPrediction::Result* displayedPrediction = &prediction;
-	std::size_t displayedPoints = previewPoints;
-	BallShotPrediction::Result maximumPowerPrediction;
+	const BallTrajectoryPreview::Result* displayedPrediction = &prediction;
+	std::size_t displayedPoints = prediction.path.size();
+	BallTrajectoryPreview::Result maximumPowerPrediction;
 	if (!currentPowerReachesContact && initialVelocity.LengthSquared() > 0.0001f)
 	{
 		Vector3 direction = initialVelocity;
 		direction.Normalize();
-		maximumPowerPrediction = GameShotPrediction::Predict(
+		const auto maximumPredictionStarted =
+			std::chrono::steady_clock::now();
+		maximumPowerPrediction = GameShotPrediction::Preview(
 			*this,
 			direction * m_MaxShotPower,
 			true);
+		GameRuntime::RecordTrajectoryPreviewPrediction(
+			std::chrono::duration<double, std::milli>(
+				std::chrono::steady_clock::now() -
+				maximumPredictionStarted).count(),
+			maximumPowerPrediction.copiedBalls);
 		const std::size_t maximumPoints =
-			maximumPowerPrediction.PreviewPointCount(previewReflections);
+			maximumPowerPrediction.path.size();
 		const float maximumDistance = pathDistance(
 			maximumPowerPrediction.path,
 			maximumPoints);
-		if (maximumPowerPrediction.PreviewReachesLimit(previewReflections) ||
+		if (maximumPowerPrediction.reachedBlockingContact ||
 			maximumDistance > m_PreviewReachableDistance)
 		{
 			displayedPrediction = &maximumPowerPrediction;
@@ -829,7 +846,7 @@ void PlayerBall::GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initi
     m_PreviewHitBallPosition = prediction.initialContactGuide.ballPosition;
     m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
 	m_PreviewComplete = currentPowerReachesContact;
-	m_LastPreviewWorldKey = GameShotPrediction::WorldKey();
+	m_LastPreviewWorldKey = worldKey;
 }
 
 void PlayerBall::InitTrajectoryVisualModel()

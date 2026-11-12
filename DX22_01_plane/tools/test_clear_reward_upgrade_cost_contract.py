@@ -13,7 +13,7 @@ def source(name: str) -> str:
 
 class ClearRewardUpgradeCostContractTests(unittest.TestCase):
     def test_level_zero_and_one_have_the_requested_costs(self) -> None:
-        progression = source("GameProgression.cpp")
+        progression = source("GameRewardOperations.cpp")
 
         self.assertIn("kClearRewardFirstUpgradeCost = 15", progression)
         self.assertIn("kClearRewardSecondUpgradeCost = 30", progression)
@@ -21,10 +21,10 @@ class ClearRewardUpgradeCostContractTests(unittest.TestCase):
         self.assertIn("ball->upgradeLevel == 1", progression)
 
     def test_paid_upgrade_is_limited_to_clear_reward(self) -> None:
-        progression = source("GameProgression.cpp")
+        progression = source("GameRewardOperations.cpp")
         paid = progression[
             progression.index("bool Game::ApplyClearRewardUpgrade") :
-            progression.index("bool Game::RestUpgradeBall")
+            progression.index("int Game::CalculateStageRewardMoney")
         ]
 
         self.assertIn("!IsClearRewardActive()", paid)

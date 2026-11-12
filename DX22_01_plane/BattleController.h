@@ -7,6 +7,7 @@
 #include "StageData.h"
 
 #include <deque>
+#include <cstdint>
 #include <functional>
 #include <random>
 #include <string>
@@ -123,6 +124,14 @@ public:
         return m_AllBallsStoppedTickCount;
     }
 
+    int GetTurnNumber() const { return m_TurnNumber; }
+    std::uint64_t GetFixedStepCount() const { return m_FixedStepCount; }
+    std::uint64_t GetShotFixedStepCount() const { return m_ShotFixedStepCount; }
+    const std::deque<BattleState>& GetStateHistory() const
+    {
+        return m_StateHistory;
+    }
+
     // Gameが結果を1回だけ処理するために取得
     BattleResult ConsumeResult();
 
@@ -162,6 +171,10 @@ private:
     bool m_Active = false;
 
     int m_AllBallsStoppedTickCount = 0;
+    int m_TurnNumber = 0;
+    std::uint64_t m_FixedStepCount = 0;
+    std::uint64_t m_ShotFixedStepCount = 0;
+    std::deque<BattleState> m_StateHistory;
     ShotRelicRules m_ShotRelicRules{};
     bool m_BountyRewardClaimed = false;
     StageType m_StageType = StageType::Normal;
@@ -177,6 +190,9 @@ private:
     void ProcessTurnEnd();
     void PlanNextTurn();
     void ResolveChargeInterruptions();
+
+    void SetState(BattleState state, const char* reason);
+    void LogProgressDiagnostic(const char* reason) const;
 
     bool TryRecoverClearedBattle(const char* source);
 

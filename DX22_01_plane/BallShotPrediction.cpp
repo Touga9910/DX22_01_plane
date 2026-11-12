@@ -71,7 +71,10 @@ namespace
             }
             if (const auto* enemy = owner->GetComponent<EnemyBall>())
             {
-                ball.physics.enemy = true;
+                // Match the runtime solver: defeated balls remain active
+                // colliders, but do not participate in enemy-only abilities
+                // such as pierce bypass and its forced exit motion.
+                ball.physics.enemy = enemy->CanParticipateInCombat();
                 ball.physics.boss = enemy->IsArmorBoss();
                 ball.bossState = enemy->GetBossState();
                 ball.enemyId = enemy->GetEnemyId();
@@ -125,6 +128,7 @@ namespace
 
         int Attack(const Ball& ball) const
         {
+            if (ball.physics.enemy && ball.defeated) return 0;
             return ball.attack + (ball.physics.player ? result.shot.collisionBonus : 0);
         }
 
@@ -155,7 +159,7 @@ namespace
 			Ball& ball = At(i);
 			const Vector3 from = ball.physics.position;
 			ball.physics.position += Velocity(i) * interval;
-			if (!ball.physics.enemy) return;
+			if (!ball.physics.enemy || ball.defeated) return;
 			Vector3 movement = ball.physics.position - from;
 			movement.y = 0.0f;
 			HeavyCollisionRules::RecordEnemyMovement(
@@ -189,6 +193,15 @@ namespace
         bool CheckPocket(Ball& ball, const Vector3& start)
         {
             if (ball.physics.boss) return false;
+            if (ball.defeated)
+            {
+                bool retained = false;
+                for (const auto& pocket : pockets)
+                    retained = BallPhysicsRules::RetainOutsidePocket(
+                        ball.physics, start, pocket) || retained;
+                if (retained) AddPoint(ball, true);
+                return false;
+            }
             for (const auto& pocket : pockets)
             {
                 if (!BallPhysicsRules::PocketHit(start, ball.physics.position, ball.physics.status.radius, pocket)) continue;
@@ -358,6 +371,7 @@ namespace
 		void ChainImpact(const Ball& playerBall, const Vector3& center,
 			std::uintptr_t excludedTargetId, int attackDamage, bool suppressed)
 		{
+			if (suppressed) return;
 			if (result.shot.ballId == "player_chain_impact" &&
 				!result.heavyFinisherConsumed)
 			{
@@ -370,7 +384,7 @@ namespace
 				attackDamage += finisher.bonusDamage;
 			}
 			const float radius = playerBall.physics.status.chainImpactRadius;
-			if (suppressed || radius <= 0.0f || attackDamage <= 0) return;
+			if (radius <= 0.0f || attackDamage <= 0) return;
 			struct Target
 			{
 				Ball* ball = nullptr;
@@ -457,6 +471,7 @@ namespace
 				Ball* playerBall = a.physics.player ? &a : (b.physics.player ? &b : nullptr);
 				auto recordPierce = [&](const Ball& playerBall, const Ball& enemyBall)
 				{
+					if (enemyBall.defeated || enemyBall.pocketed) return;
 					result.uniquePiercedEnemies.insert(enemyBall.physics.id);
 					PierceTraceRules::RecordPierce(
 						result.pierceTraces, enemyBall.physics.id);
@@ -474,7 +489,13 @@ namespace
 					recordPierce(a, b);
 				if (b.physics.player && b.physics.pierceUses > bPierceUses && a.physics.enemy)
 					recordPierce(b, a);
-				if (playerEnemy && targetEnemy != nullptr &&
+				const bool playerHitCombatEnemy =
+					playerEnemy && targetEnemy != nullptr &&
+					!targetEnemy->defeated && !targetEnemy->pocketed;
+				const bool combatEnemyPair = enemyEnemy &&
+					!a.defeated && !a.pocketed &&
+					!b.defeated && !b.pocketed;
+				if (playerHitCombatEnemy &&
 					result.shotStatus.abilities.lightweight)
 				{
 					HeavyCollisionRules::GenerateOncePerEnemy(
@@ -483,7 +504,7 @@ namespace
 				auto damage = BallPhysicsRules::ContactDamage(a.physics, b.physics, Attack(a), Attack(b),
                     a.defeated, b.defeated, result.shot);
 				int pinballDamageStage = 0;
-				if (enemyEnemy)
+				if (combatEnemyPair)
 				{
 					Ball* pinballTarget = nullptr;
 					const Vector3* velocityBefore = nullptr;
@@ -518,7 +539,7 @@ namespace
 					damage.first += pinballDamageStage;
 					damage.second += pinballDamageStage;
 				}
-				if (playerEnemy)
+				if (playerHitCombatEnemy)
 				{
 					int bonus = result.synergyDamageBonus;
 					if (result.shot.ballId == "player_bounce" && targetEnemy != nullptr &&
@@ -632,10 +653,15 @@ namespace
 					ChainImpact(b, a.physics.position, a.physics.id, damage.first, aWasDefeated);
                 if (playerEnemy)
                 {
-                    if (BallPhysicsRules::StopAnchor(a.physics, a.acceleration)) result.shot.Anchor();
-                    if (BallPhysicsRules::StopAnchor(b.physics, b.acceleration)) result.shot.Anchor();
+                    const bool stoppedA = BallPhysicsRules::StopAnchor(
+                        a.physics, a.acceleration);
+                    const bool stoppedB = BallPhysicsRules::StopAnchor(
+                        b.physics, b.acceleration);
+                    if (playerHitCombatEnemy && (stoppedA || stoppedB))
+                        result.shot.Anchor();
                 }
-                if (playerEnemy || enemyEnemy) result.shot.Contact(playerEnemy);
+                if (playerHitCombatEnemy || combatEnemyPair)
+                    result.shot.Contact(playerHitCombatEnemy);
                 }
                 AddPoint(a, true);
                 AddPoint(b, true);

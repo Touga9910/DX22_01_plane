@@ -323,7 +323,9 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	int impactDamage = 0;
 	bool impactDefeated = false;
 	int pinballCollisionBonus = 0;
-	if (isEnemyEnemyCollision)
+	if (isEnemyEnemyCollision &&
+		myEnemy->CanParticipateInCombat() &&
+		otherEnemy->CanParticipateInCombat())
 	{
 		pinballCollisionBonus = GameBattleEvents::EnemyEnemySynergyCollision(
 			myEnemy, otherEnemy, firstVelocityBefore, secondVelocityBefore);
@@ -334,7 +336,8 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 		const bool playerPierced =
 			(myPlayer != nullptr && first.pierceUses > firstPierceUsesBefore) ||
 			(otherPlayer != nullptr && second.pierceUses > secondPierceUsesBefore);
-		if (playerPierced)
+		if (playerPierced && target != nullptr &&
+			target->CanParticipateInCombat())
 		{
 			const BallPhysicsRules::Body& playerBody = myPlayer != nullptr ? first : second;
 			GameBattleEvents::PlayerPiercedEnemy(
@@ -357,13 +360,18 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	if (isPlayerEnemyCollision)
 	{
 		EnemyBall* target = myEnemy != nullptr ? myEnemy : otherEnemy;
+		if (target == nullptr || !target->CanParticipateInCombat())
+		{
+			target = nullptr;
+		}
 		const Vector3& enemyVelocityBefore = myEnemy != nullptr
 			? firstVelocityBefore
 			: secondVelocityBefore;
-		const PlayerEnemySynergyResult synergy =
-			GameBattleEvents::PlayerEnemySynergyCollision(
+		const PlayerEnemySynergyResult synergy = target != nullptr
+			? GameBattleEvents::PlayerEnemySynergyCollision(
 				target,
-				enemyVelocityBefore);
+				enemyVelocityBefore)
+			: PlayerEnemySynergyResult{};
 		if (myEnemy != nullptr) damageToThis += synergy.damageBonus;
 		else damageToOther += synergy.damageBonus;
 		if (synergy.stopPlayer)
@@ -484,7 +492,11 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				{
 					GameBattleEvents::BalanceAutoFullHpEnemySurvived();
 				}
-				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
+				const bool countsForMyEnemyCombatState =
+					(isPlayerEnemyCollision && !myEnemyWasDefeated) ||
+					(isEnemyEnemyCollision &&
+					 !myEnemyWasDefeated && !otherEnemyWasDefeated);
+				if (countsForMyEnemyCombatState)
 				{
 					myEnemy->RegisterCollisionForStage(
 						reinterpret_cast<std::uintptr_t>(other));
@@ -561,7 +573,11 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 				{
 					GameBattleEvents::BalanceAutoFullHpEnemySurvived();
 				}
-				if (isPlayerEnemyCollision || isEnemyEnemyCollision)
+				const bool countsForOtherEnemyCombatState =
+					(isPlayerEnemyCollision && !otherEnemyWasDefeated) ||
+					(isEnemyEnemyCollision &&
+					 !myEnemyWasDefeated && !otherEnemyWasDefeated);
+				if (countsForOtherEnemyCombatState)
 				{
 					otherEnemy->RegisterCollisionForStage(
 						reinterpret_cast<std::uintptr_t>(m_BallComponent));
@@ -571,6 +587,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			if (myEnemy != nullptr && otherPlayer != nullptr && !myEnemyWasDefeated)
 			{
 				GameBattleEvents::PlayerChainImpact(
+					myEnemyFeedbackPosition,
 					myEnemy,
 					damageToThis,
 					otherPlayer->GetStatus().chainImpactRadius);
@@ -578,6 +595,7 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			else if (otherEnemy != nullptr && myPlayer != nullptr && !otherEnemyWasDefeated)
 			{
 				GameBattleEvents::PlayerChainImpact(
+					otherEnemyFeedbackPosition,
 					otherEnemy,
 					damageToOther,
 					myPlayer->GetStatus().chainImpactRadius);
@@ -606,19 +624,38 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
         first = CapturePhysicsBody();
         second = otherContact.CapturePhysicsBody();
         if (BallPhysicsRules::StopAnchor(first, m_PhysicsComponent->Acceleration()))
-			GameBattleEvents::AnchorStopped(otherEnemy);
+		{
+			if (otherEnemy != nullptr && !otherEnemyWasDefeated)
+			{
+				GameBattleEvents::AnchorStopped(
+					otherEnemy->CanParticipateInCombat() ? otherEnemy : nullptr);
+			}
+		}
         if (BallPhysicsRules::StopAnchor(second, otherCollision->m_PhysicsComponent->Acceleration()))
-			GameBattleEvents::AnchorStopped(myEnemy);
+		{
+			if (myEnemy != nullptr && !myEnemyWasDefeated)
+			{
+				GameBattleEvents::AnchorStopped(
+					myEnemy->CanParticipateInCombat() ? myEnemy : nullptr);
+			}
+		}
         CommitPhysicsBody(first);
         otherContact.CommitPhysicsBody(second);
     }
 
-			if (isPlayerEnemyCollision)
+			const bool playerHitCombatEnemy =
+				isPlayerEnemyCollision &&
+				((myEnemy != nullptr && !myEnemyWasDefeated) ||
+				 (otherEnemy != nullptr && !otherEnemyWasDefeated));
+			const bool combatEnemyPair =
+				isEnemyEnemyCollision &&
+				!myEnemyWasDefeated && !otherEnemyWasDefeated;
+			if (playerHitCombatEnemy)
 			{
 				GameBattleEvents::DamageBallCollision(
 						DamageBallCollisionType::PlayerEnemy);
 			}
-			else if (isEnemyEnemyCollision)
+			else if (combatEnemyPair)
 			{
 				GameBattleEvents::DamageBallCollision(
 						DamageBallCollisionType::EnemyEnemy);
@@ -656,6 +693,12 @@ Collision::Sphere BallCollisionComponent::GetSphere() const
 
 int BallCollisionComponent::GetAttack() const
 {
+	if (const EnemyBall* enemy =
+		GetGameObject()->GetComponent<EnemyBall>();
+		enemy != nullptr && !enemy->CanParticipateInCombat())
+	{
+		return 0;
+	}
 	return m_BallComponent->GetAttack();
 }
 
@@ -673,11 +716,27 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 	{
 		return false;
 	}
-	// 通常ダメージで倒れた敵はショット停止まで物理判定が残り、
-	// その間にポケットへ落ちる可能性がある。敗北したプレイヤーにはポケット処理を行わない。
-	if (m_BallComponent->IsDefeated() &&
-		GetGameObject()->GetComponent<EnemyBall>() == nullptr)
+	// Defeated enemies are retained as physical balls. Resolve the pocket rim
+	// physically instead of leaving the body inside an ignored trigger: an
+	// unresolved overlap would otherwise schedule TOI=0 up to 256 times/tick.
+	if (m_BallComponent->IsDefeated())
 	{
+		auto body = CapturePhysicsBody();
+		bool retained = false;
+		for (Pocket* pocket : pockets)
+		{
+			if (pocket == nullptr || pocket->GetGameObject() == nullptr ||
+				!pocket->GetGameObject()->IsActive())
+			{
+				continue;
+			}
+			retained = BallPhysicsRules::RetainOutsidePocket(
+				body, movementStart, pocket->GetSphere()) || retained;
+		}
+		if (retained)
+		{
+			CommitPhysicsBody(body);
+		}
 		return false;
 	}
 
@@ -713,7 +772,11 @@ BallPhysicsRules::Body BallCollisionComponent::CapturePhysicsBody() const
     body.player = GetGameObject()->GetComponent<PlayerBall>() != nullptr;
 	body.minion = GetGameObject()->GetComponent<PierceMinion>() != nullptr;
     const auto* enemy = GetGameObject()->GetComponent<EnemyBall>();
-    body.enemy = enemy != nullptr;
+    // A defeated enemy remains an active physical sphere, but it is no longer
+    // an enemy interaction target. Keeping this flag set made piercing balls
+    // enter the overlap-bypass/forced-exit path against retained corpses and
+    // could keep their speed above the shot-stop threshold indefinitely.
+    body.enemy = enemy != nullptr && enemy->CanParticipateInCombat();
     body.boss = enemy && enemy->IsArmorBoss();
 	if (enemy != nullptr)
 		body.nextKnockbackMultiplier = enemy->GetNextKnockbackMultiplier();

@@ -145,9 +145,9 @@
     <ClInclude Include="BallFactory.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
     </ClInclude>
-	<ClInclude Include="PierceMinion.h">
-	  <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
-	</ClInclude>
+    <ClInclude Include="PierceMinion.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
+    </ClInclude>
     <ClInclude Include="BallStatusComponent.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Ball</Filter>
     </ClInclude>
@@ -202,6 +202,9 @@
     <ClInclude Include="GameEvent.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Event</Filter>
     </ClInclude>
+    <ClInclude Include="GameSceneDebugName.h">
+      <Filter>ヘッダー ファイル\00_Application</Filter>
+    </ClInclude>
     <ClInclude Include="Collision.h">
       <Filter>ヘッダー ファイル\03_Physics\Collision</Filter>
     </ClInclude>
@@ -223,15 +226,15 @@
     <ClInclude Include="CollisionPresentationRules.h">
       <Filter>ヘッダー ファイル\05_UI</Filter>
     </ClInclude>
-	<ClInclude Include="CombatPresentationRules.h">
-	  <Filter>ヘッダー ファイル\05_UI</Filter>
-	</ClInclude>
-	<ClInclude Include="CombatAudioRules.h">
-	  <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
-	</ClInclude>
-	<ClInclude Include="AudioFeedback.h">
-	  <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
-	</ClInclude>
+    <ClInclude Include="CombatPresentationRules.h">
+      <Filter>ヘッダー ファイル\05_UI</Filter>
+    </ClInclude>
+    <ClInclude Include="CombatAudioRules.h">
+      <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioFeedback.h">
+      <Filter>ヘッダー ファイル\00_Application\Audio</Filter>
+    </ClInclude>
     <ClInclude Include="CollisionVfxSystem.h">
       <Filter>ヘッダー ファイル\05_UI</Filter>
     </ClInclude>
@@ -242,6 +245,9 @@
       <Filter>ヘッダー ファイル\03_Physics\Ball</Filter>
     </ClInclude>
     <ClInclude Include="BallShotPrediction.h">
+      <Filter>ヘッダー ファイル\03_Physics\Simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="BallTrajectoryPreview.h">
       <Filter>ヘッダー ファイル\03_Physics\Simulation</Filter>
     </ClInclude>
     <ClInclude Include="ContinuousBallStepper.h">
@@ -504,6 +510,9 @@
     </ClInclude>
     <ClInclude Include="GameDebugController.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="EnemyBoardAbilityRules.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -956,9 +965,9 @@
     <ClCompile Include="BallFactory.cpp">
       <Filter>ソース ファイル\02_Gameplay\Ball</Filter>
     </ClCompile>
-	<ClCompile Include="PierceMinion.cpp">
-	  <Filter>ソース ファイル\02_Gameplay\Ball</Filter>
-	</ClCompile>
+    <ClCompile Include="PierceMinion.cpp">
+      <Filter>ソース ファイル\02_Gameplay\Ball</Filter>
+    </ClCompile>
     <ClCompile Include="GameBossAI.cpp">
       <Filter>ソース ファイル\02_Gameplay\Boss</Filter>
     </ClCompile>
@@ -999,6 +1008,9 @@
       <Filter>ソース ファイル\03_Physics\Ball</Filter>
     </ClCompile>
     <ClCompile Include="BallShotPrediction.cpp">
+      <Filter>ソース ファイル\03_Physics\Simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="BallTrajectoryPreview.cpp">
       <Filter>ソース ファイル\03_Physics\Simulation</Filter>
     </ClCompile>
     <ClCompile Include="Renderer.cpp">
@@ -1052,8 +1064,47 @@
     <ClCompile Include="ProgressionProfile.cpp">
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
     </ClCompile>
-    <ClCompile Include="GameProgression.cpp">
+    <ClCompile Include="GameRestActions.cpp">
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRewardOperations.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameShopOperations.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRelicOperations.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePlayerBallLifecycle.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameShotStart.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameShotEnd.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameReflectionSynergy.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GamePierceSynergy.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameCollisionSynergy.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameDamageAndDefeat.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameCombatEventBridge.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameDebugSnapshot.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneDebugName.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
     <ClCompile Include="PlayerDeck.cpp">
       <Filter>ソース ファイル\07_RunSystem\Deck</Filter>
@@ -1127,9 +1178,9 @@
     <ClCompile Include="GamePresentation.cpp">
       <Filter>ソース ファイル\05_UI</Filter>
     </ClCompile>
-	<ClCompile Include="AudioFeedback.cpp">
-	  <Filter>ソース ファイル\00_Application\Audio</Filter>
-	</ClCompile>
+    <ClCompile Include="AudioFeedback.cpp">
+      <Filter>ソース ファイル\00_Application\Audio</Filter>
+    </ClCompile>
     <ClCompile Include="CollisionVfxSystem.cpp">
       <Filter>ソース ファイル\05_UI</Filter>
     </ClCompile>
@@ -1160,6 +1211,12 @@
       <Filter>リソース ファイル\Shader</Filter>
     </FxCompile>
     <FxCompile Include="shader\unlitTextureVS.hlsl">
+      <Filter>リソース ファイル\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="shader\billiardBallPS.hlsl">
+      <Filter>リソース ファイル\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="shader\billiardBallVS.hlsl">
       <Filter>リソース ファイル\Shader</Filter>
     </FxCompile>
   </ItemGroup>

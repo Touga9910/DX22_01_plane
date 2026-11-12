@@ -6,15 +6,17 @@
 using Microsoft::WRL::ComPtr;
 
 //-----------------------------------------------------------------------------
-//Shaderクラス
+// Shader wrapper
 //-----------------------------------------------------------------------------
 class Shader{
 public:
+	// Keep the original ABI for existing render components and incremental builds.
 	void Create(std::string vs, std::string ps);
+	bool CreateChecked(const std::string& vs, const std::string& ps);
 	void SetGPU();
 private:
-	ComPtr<ID3D11VertexShader> m_pVertexShader;		// 頂点シェーダー
-	ComPtr<ID3D11PixelShader>  m_pPixelShader;		// ピクセルシェーダー
-	ComPtr<ID3D11InputLayout>  m_pVertexLayout;		// 頂点レイアウト
+	ComPtr<ID3D11VertexShader> m_pVertexShader;
+	ComPtr<ID3D11PixelShader>  m_pPixelShader;
+	ComPtr<ID3D11InputLayout>  m_pVertexLayout;
 };
 

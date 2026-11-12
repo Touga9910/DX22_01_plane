@@ -171,9 +171,9 @@
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
     <ClInclude Include="CollisionPresentationRules.h" />
-	<ClInclude Include="CombatPresentationRules.h" />
-	<ClInclude Include="CombatAudioRules.h" />
-	<ClInclude Include="AudioFeedback.h" />
+    <ClInclude Include="CombatPresentationRules.h" />
+    <ClInclude Include="CombatAudioRules.h" />
+    <ClInclude Include="AudioFeedback.h" />
     <ClInclude Include="CollisionVfxSystem.h" />
     <ClInclude Include="CushionChargeRules.h" />
     <ClInclude Include="HeavyCollisionRules.h" />
@@ -183,24 +183,26 @@
     <ClInclude Include="AnchorStackRules.h" />
     <ClInclude Include="ShotRelicRules.h" />
     <ClInclude Include="BallShotPrediction.h" />
+    <ClInclude Include="BallTrajectoryPreview.h" />
     <ClInclude Include="BossCombatRules.h" />
     <ClInclude Include="EnemyGimmickRules.h" />
     <ClInclude Include="EnemyBoardAbilityRules.h" />
     <ClInclude Include="PocketReturnRules.h" />
     <ClInclude Include="BreakBall.h" />
     <ClInclude Include="NuisanceBall.h" />
-	<ClInclude Include="PierceMinion.h" />
+    <ClInclude Include="PierceMinion.h" />
     <ClCompile Include="BattleController.cpp" />
     <ClCompile Include="EnemyActionPlanner.cpp" />
     <ClCompile Include="EnemyValidationLayout.cpp" />
     <ClCompile Include="BreakBall.cpp" />
     <ClCompile Include="NuisanceBall.cpp" />
-	<ClCompile Include="PierceMinion.cpp" />
+    <ClCompile Include="PierceMinion.cpp" />
     <ClCompile Include="BallShotPrediction.cpp">
       <Optimization>MaxSpeed</Optimization>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
+    <ClCompile Include="BallTrajectoryPreview.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
@@ -249,10 +251,23 @@
     <ClCompile Include="StageLayoutEditor.cpp" />
     <ClCompile Include="GameMcpBridge.cpp" />
     <ClCompile Include="GameObject.cpp" />
-    <ClCompile Include="GameProgression.cpp" />
+    <ClCompile Include="GameRestActions.cpp" />
+    <ClCompile Include="GameRewardOperations.cpp" />
+    <ClCompile Include="GameShopOperations.cpp" />
+    <ClCompile Include="GameRelicOperations.cpp" />
+    <ClCompile Include="GamePlayerBallLifecycle.cpp" />
+    <ClCompile Include="GameShotStart.cpp" />
+    <ClCompile Include="GameShotEnd.cpp" />
+    <ClCompile Include="GameReflectionSynergy.cpp" />
+    <ClCompile Include="GamePierceSynergy.cpp" />
+    <ClCompile Include="GameCollisionSynergy.cpp" />
+    <ClCompile Include="GameDamageAndDefeat.cpp" />
+    <ClCompile Include="GameCombatEventBridge.cpp" />
+    <ClCompile Include="GameDebugSnapshot.cpp" />
+    <ClCompile Include="GameSceneDebugName.cpp" />
     <ClCompile Include="ProgressionProfile.cpp" />
     <ClCompile Include="GamePresentation.cpp" />
-	<ClCompile Include="AudioFeedback.cpp" />
+    <ClCompile Include="AudioFeedback.cpp" />
     <ClCompile Include="CollisionVfxSystem.cpp" />
     <ClCompile Include="GameSaveManager.cpp" />
     <ClCompile Include="GameSaveSystem.cpp" />
@@ -338,9 +353,10 @@
     <ClInclude Include="GameTypes.h" />
     <ClInclude Include="ProgressionProfile.h" />
     <ClInclude Include="GameEvent.h" />
+    <ClInclude Include="GameSceneDebugName.h" />
     <ClInclude Include="GameMcpBridge.h" />
-	<ClInclude Include="GameMcpCommands.h" />
-	<ClInclude Include="GameMcpState.h" />
+    <ClInclude Include="GameMcpCommands.h" />
+    <ClInclude Include="GameMcpState.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GameObjectTag.h" />
     <ClInclude Include="GameRuntime.h" />
@@ -431,6 +447,20 @@
     <ClInclude Include="VertexBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="shader\billiardBallPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="shader\billiardBallVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="shader\common.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

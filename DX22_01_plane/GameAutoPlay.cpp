@@ -606,8 +606,7 @@ bool BalanceAutoPlayer::FireShot(Game& game)
 
 	for (EnemyBall* target : enemies)
 	{
-		if (target == nullptr || target->IsDefeated() ||
-			target->IsPocketed())
+		if (target == nullptr || !target->CanParticipateInCombat())
 		{
 			continue;
 		}
@@ -627,8 +626,7 @@ bool BalanceAutoPlayer::FireShot(Game& game)
 		{
 			if (other == nullptr ||
 				other == target ||
-				other->IsDefeated() ||
-				other->IsPocketed())
+				!other->CanParticipateInCombat())
 			{
 				continue;
 			}

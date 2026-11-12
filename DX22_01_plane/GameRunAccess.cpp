@@ -1,9 +1,10 @@
-#include "Game.h"
+﻿#include "Game.h"
 
 #include "PlayerDeck.h"
 #include "PlayerRunStatus.h"
 #include "RunController.h"
 #include "RunProgressConstants.h"
+#include "RunProgressController.h"
 
 int Game::GetPlayerDeckCount() const
 {
@@ -150,4 +151,34 @@ int Game::GetMidBossRelicOfferCatalogIndex(int offerIndex) const
 const RelicDefinition* Game::GetMidBossRelicOffer(int offerIndex) const
 {
 	return GetRelic(GetMidBossRelicOfferCatalogIndex(offerIndex));
+}
+
+int Game::GetAreaProgress() const
+{
+	return m_RunController->Progress().GetAreaProgress();
+}
+
+const RunMap& Game::GetRunMap() const
+{
+	return m_RunController->Progress().GetMap();
+}
+
+bool Game::ChooseMapNode(int nodeId)
+{
+	return m_RunController->Progress().ChooseNode(nodeId);
+}
+
+RunPhase Game::GetRunPhase() const
+{
+	return m_RunController->Progress().GetPhase();
+}
+
+bool Game::IsBossPreparation() const
+{
+	return m_RunController->Progress().IsBossPreparation();
+}
+
+bool Game::IsFinalBossRoute() const
+{
+	return m_RunController->Progress().IsFinalBossReady();
 }

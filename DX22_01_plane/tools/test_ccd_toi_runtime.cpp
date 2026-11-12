@@ -15,7 +15,7 @@ struct World
     std::vector<bool> active;
     Vector3 interior = Vector3::Zero;
     int hits = 0, wallHits = 0, pocketHits = 0;
-    bool abort = false, abortOnPocket = false;
+    bool abort = false, abortOnPocket = false, ignorePockets = false;
     std::size_t Count() const { return balls.size(); }
     bool IsActive(std::size_t i) const { return active[i]; }
     bool ShouldContinue() const { return !abort; }
@@ -26,6 +26,12 @@ struct World
     void Move(std::size_t i, float time) { balls[i].position += balls[i].velocity * time; }
     bool Pocket(std::size_t i, const Vector3& start)
     {
+        if (ignorePockets)
+        {
+            for (const auto& p : pockets)
+                BallPhysicsRules::RetainOutsidePocket(balls[i], start, p);
+            return false;
+        }
         for (const auto& p : pockets)
             if (PocketHit(start, balls[i].position, balls[i].status.radius, p))
             {
@@ -170,6 +176,17 @@ int main()
     pocket.abortOnPocket=true;
     const auto retired=ContinuousBallStepper::Step(pocket);
     assert(!retired.limitReached && retired.advancedFraction<1 && pocket.hits==0 && !pocket.active[0]);
+
+    // A retained defeated ball ignores pocket gameplay, so CCD must also skip
+    // that trigger. Otherwise an overlap reports TOI=0 for all 256 iterations.
+    World retainedPocketBall;
+    retainedPocketBall.Add(Vector3::Zero, Vector3(2,0,0));
+    retainedPocketBall.ignorePockets = true;
+    retainedPocketBall.pockets.push_back({Vector3::Zero,1});
+    const auto retained = ContinuousBallStepper::Step(retainedPocketBall);
+    Complete(retained);
+    assert(retained.substeps == 1 && retainedPocketBall.active[0]);
+    assert(retainedPocketBall.pocketHits == 0);
 
     World capped;
     capped.Add(Vector3::Zero,Vector3(10000,0,0),true);

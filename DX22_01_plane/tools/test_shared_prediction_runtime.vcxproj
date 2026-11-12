@@ -17,13 +17,13 @@
       <LanguageStandard>stdcpp20</LanguageStandard><RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalIncludeDirectories>$(ProjectDir)..;C:\directxtk\include;C:\assimp\5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FunctionLevelLinking>true</FunctionLevelLinking><Optimization>MaxSpeed</Optimization><BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;BALL_TRAJECTORY_PREVIEW_PHYSICS_ONLY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link><SubSystem>Console</SubSystem><AdditionalDependencies>DirectXTK.lib;%(AdditionalDependencies)</AdditionalDependencies><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding><AdditionalLibraryDirectories>C:\directxtk\lib\x64\Debug;C:\assimp\5.2.5\lib;$(ProjectDir)..;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="test_shared_prediction_runtime.cpp" /><ClCompile Include="../Collision.cpp" /><ClCompile Include="../TableFrameCollisionComponent.cpp" />
+    <ClCompile Include="test_shared_prediction_runtime.cpp" /><ClCompile Include="../BallTrajectoryPreview.cpp" /><ClCompile Include="../Collision.cpp" /><ClCompile Include="../TableFrameCollisionComponent.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

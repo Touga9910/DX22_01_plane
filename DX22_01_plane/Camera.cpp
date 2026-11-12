@@ -42,27 +42,6 @@ void Camera::Init()
 //=======================================
 void Camera::Update()
 {
-	if (ImGui::GetCurrentContext() != nullptr && !ImGui::GetIO().WantCaptureMouse &&
-		GetForegroundWindow() == Application::GetWindow())
-	{
-		m_TargetDistanceY -= ImGui::GetIO().MouseWheel * 10.0f;
-	}
-
-	if (Input::GetKeyPress(VK_O)) // Oキーでズームイン（カメラを下げる）
-	{
-		m_TargetDistanceY -= ZOOM_SPEED;
-	}
-	if (Input::GetKeyPress(VK_P)) // Pキーでズームアウト（カメラを上げる）
-	{
-		m_TargetDistanceY += ZOOM_SPEED;
-	}
-
-	if (m_TargetDistanceY < MIN_DISTANCE) m_TargetDistanceY = MIN_DISTANCE;
-	if (m_TargetDistanceY > MAX_DISTANCE) m_TargetDistanceY = MAX_DISTANCE;
-
-	// 現在の高さ から 目標の高さ へ、指定した割合だけ毎フレーム近づける
-	m_CameraDistanceY = m_CameraDistanceY + (m_TargetDistanceY - m_CameraDistanceY) * ZOOM_INTERPOLATION_SPEED;
-
 	//オブジェクトとカメラの編集を同時に行わない ＝ どちらかを編集するときはもう片方は触らない
 	RefreshPosition();	// カメラの位置を更新
 	UpdateViewMatrix(); // ビュー行列の更新

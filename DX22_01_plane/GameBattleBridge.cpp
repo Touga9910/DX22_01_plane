@@ -339,6 +339,19 @@ int GamePlayerState::AbsorbShieldDamage(int damage)
 
 namespace
 {
+BallTrajectoryPreview::Input MakeTrajectoryPreviewInput(
+	const PlayerBall& player)
+{
+	Game& game = *Game::GetInstance();
+	return BallTrajectoryPreview::Capture(
+		GameRuntime::World().GetComponents<BallComponent>(),
+		GameRuntime::World().GetComponents<TableFrame>(),
+		GameRuntime::World().GetComponents<Pocket>(),
+		*player.GetBall(),
+		game.GetPierceMaximumUses(),
+		game.GetPierceSpeedRetention());
+}
+
 BallShotPrediction::Input MakeShotPredictionInput(float launchPower)
 {
     Game& game = *Game::GetInstance();
@@ -371,6 +384,26 @@ BallShotPrediction::Input MakeShotPredictionInput(float launchPower)
         game.GetCurrentShotEnemyEnemyCollisionCount();
     return input;
 }
+}
+
+BallTrajectoryPreview::Result GameShotPrediction::Preview(
+	const PlayerBall& player,
+	const DirectX::SimpleMath::Vector3& velocity,
+	bool skipFirstPlayerFriction)
+{
+	return BallTrajectoryPreview::Predict(
+		MakeTrajectoryPreviewInput(player),
+		velocity,
+		skipFirstPlayerFriction);
+}
+
+std::uint64_t GameShotPrediction::PreviewWorldKey()
+{
+	Game& game = *Game::GetInstance();
+	return BallTrajectoryPreview::WorldKey(
+		GameRuntime::World(),
+		game.GetPierceMaximumUses(),
+		game.GetPierceSpeedRetention());
 }
 
 BallShotPrediction::Result GameShotPrediction::Predict(
@@ -413,6 +446,11 @@ BattleState Game::GetBattleState() const
 bool Game::AreAllBallsStopped() const
 {
     return m_BattleState->controller.AreAllBallsStopped();
+}
+
+const BattleController* Game::GetBattleControllerDiagnostics() const
+{
+    return m_BattleState != nullptr ? &m_BattleState->controller : nullptr;
 }
 
 const CushionChargeRules::State& Game::GetCushionCharges() const

@@ -2,11 +2,20 @@
 #include	"renderer.h"
 
 //=======================================
-//Shader作成
+// Shader creation
 //=======================================
 void Shader::Create(std::string vs, std::string ps)
 {
-	// 頂点データの定義
+	CreateChecked(vs, ps);
+}
+
+bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
+{
+	m_pVertexShader.Reset();
+	m_pPixelShader.Reset();
+	m_pVertexLayout.Reset();
+
+	// Vertex input layout. Keep this synchronized with VERTEX_3D and HLSL input.
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -17,9 +26,7 @@ void Shader::Create(std::string vs, std::string ps)
 
 	unsigned int numElements = ARRAYSIZE(layout);
 
-	ID3D11Device* device = Renderer::GetDevice();
-
-	// 頂点シェーダーオブジェクトを生成、同時に頂点レイアウトも生成
+	// Create the vertex shader and its input layout from the same bytecode.
 	HRESULT hr = Renderer::CreateVertexShader(
 		&m_pVertexShader,
 		&m_pVertexLayout,
@@ -28,33 +35,45 @@ void Shader::Create(std::string vs, std::string ps)
 		vs.c_str()
 		);
 	if (FAILED(hr)) {
-		MessageBox(nullptr, "CreateVertexShader error", "error", MB_OK);
-		return;
+		char message[1024]{};
+		sprintf_s(message, "CreateVertexShader/CreateInputLayout failed.\nFile: %s\nHRESULT: 0x%08X",
+			vs.c_str(), static_cast<unsigned int>(hr));
+		OutputDebugStringA(message);
+		OutputDebugStringA("\n");
+		MessageBoxA(nullptr, message, "Shader creation error", MB_OK | MB_ICONERROR);
+		return false;
 	}
 
-	// ピクセルシェーダーを生成
+	// Create the pixel shader.
 
-	hr = Renderer::CreatePixelShader(			// ピクセルシェーダーオブジェクトを生成
+	hr = Renderer::CreatePixelShader(
 		&m_pPixelShader,
 		ps.c_str()
 		);
 	if (FAILED(hr)) {
-		MessageBox(nullptr, "CreatePixelShader error", "error", MB_OK);
-		return;
+		char message[1024]{};
+		sprintf_s(message, "CreatePixelShader failed.\nFile: %s\nHRESULT: 0x%08X",
+			ps.c_str(), static_cast<unsigned int>(hr));
+		OutputDebugStringA(message);
+		OutputDebugStringA("\n");
+		MessageBoxA(nullptr, message, "Shader creation error", MB_OK | MB_ICONERROR);
+		m_pVertexShader.Reset();
+		m_pVertexLayout.Reset();
+		return false;
 	}
 
-	return;
+	return true;
 }
 
 //=======================================
-//GPUにデータを送る
+// Bind shader objects to the GPU pipeline.
 //=======================================
 void Shader::SetGPU()
 {
 	ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();
 
-	devicecontext->VSSetShader(m_pVertexShader.Get(), nullptr, 0);		// 頂点シェーダーをセット
-	devicecontext->PSSetShader(m_pPixelShader.Get(), nullptr, 0);		// ピクセルシェーダーをセット
-	devicecontext->IASetInputLayout(m_pVertexLayout.Get());				// 頂点レイアウトセット
+	devicecontext->VSSetShader(m_pVertexShader.Get(), nullptr, 0);
+	devicecontext->PSSetShader(m_pPixelShader.Get(), nullptr, 0);
+	devicecontext->IASetInputLayout(m_pVertexLayout.Get());
 }
 

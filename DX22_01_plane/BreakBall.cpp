@@ -46,6 +46,7 @@ void BreakBall::Draw()
     if (!camera || !m_Ball) return;
     camera->SetCamera();
     auto* render = GetGameObject()->GetComponent<BallRenderComponent>();
+    if (render == nullptr) return;
     render->BeginDraw();
     const Matrix world = Matrix::CreateScale(m_Ball->GetScale()) *
         Matrix::CreateFromQuaternion(m_Ball->GetMutableRollingRotation()) *

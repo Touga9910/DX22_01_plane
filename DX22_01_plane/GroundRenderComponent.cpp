@@ -62,7 +62,13 @@ void GroundRenderComponent::Awake()
 
     m_Material = std::make_unique<Material>();
     MATERIAL material{};
-    material.Diffuse = Color(1.0f, 1.0f, 1.0f, 1.0f);
+    // Dark billiard green (#176C4B). Applying it as a material tint keeps the
+    // existing felt texture and its weave while leaving balls and rails alone.
+    material.Diffuse = Color(
+        23.0f / 255.0f,
+        108.0f / 255.0f,
+        75.0f / 255.0f,
+        1.0f);
     material.TextureEnable = true;
     m_Material->Create(material);
 }

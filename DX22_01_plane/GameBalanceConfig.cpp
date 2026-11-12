@@ -516,3 +516,33 @@ void Game::LoadPocketRulesConfig(const std::string& filePath)
 			<< error.what() << std::endl;
 	}
 }
+
+void Game::RecordBalanceEvent(
+	const std::string& eventType,
+	const nlohmann::json& details)
+{
+	BalanceLogger::GetInstance().RecordEvent(eventType, details);
+}
+
+// Enemy Dataへ基準難易度と進行度の固定補正を適用する。
+
+void Game::ApplyEnemyDifficultyScaling(
+	EnemyData& enemyData) const
+{
+	m_BalanceRuntime->scaling.ApplyToEnemyData(
+		enemyData,
+		m_BalanceRuntime->baselineEnemyHpMultiplier,
+		m_BalanceRuntime->baselineEnemyAttackDelta,
+		m_RunController->Status().progress,
+		m_PersistenceRuntime->ActiveAscension(),
+		IsDebugMode());
+}
+
+// Balance Auto Full Hp Enemy Survivedを通知する。
+
+void Game::NotifyBalanceAutoFullHpEnemySurvived()
+{
+	const PlayerBallData* currentBall =
+		m_RunController->Deck().GetCurrent();
+	m_BalanceRuntime->autoPlayer.NotifyFullHpEnemySurvived(currentBall);
+}

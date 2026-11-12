@@ -126,7 +126,9 @@ public:
 	//=======================================
 	// 弾道予測系
 	//=======================================
-	void GeneratePreTrajectory(const DirectX::SimpleMath::Vector3& initialVelocity);
+	void GeneratePreTrajectory(
+		const DirectX::SimpleMath::Vector3& initialVelocity,
+		std::uint64_t worldKey);
 
 
 	//=======================================
@@ -141,6 +143,7 @@ private:
 
 	void LoadModel(const char* modelFilePath, const char* textureDirectory)
 	{
+		if (m_RenderComponent == nullptr || m_Ball == nullptr) return;
 		m_RenderComponent->LoadModel(modelFilePath, textureDirectory);
 		m_Ball->UpdateRadius();
 	}
@@ -151,7 +154,8 @@ private:
 	void UpdateRadius() { m_Ball->UpdateRadius(); }
 	void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix)
 	{
-		m_RenderComponent->DrawMesh(worldMatrix);
+		if (m_RenderComponent != nullptr)
+			m_RenderComponent->DrawMesh(worldMatrix);
 	}
 	void Damage(int damage) { m_Ball->Damage(damage); }
 

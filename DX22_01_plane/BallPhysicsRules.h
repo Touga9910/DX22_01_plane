@@ -41,8 +41,8 @@ namespace BallPhysicsRules
         }};
     }
 
-    // Only contacts already traversed by piercing bypass ordinary separation.
-    // Include exhausted pierce charges and defeated enemies still on the table.
+    // Only living-enemy contacts already traversed by piercing bypass ordinary
+    // separation. Exhausted pierce charges still need an exit direction.
     inline bool PierceExitDirection(const Body& player, const Body& enemy, Vector3& direction)
     {
         if (!player.player || !player.status.abilities.pierce || !enemy.enemy ||
@@ -106,6 +106,49 @@ namespace BallPhysicsRules
         start.y = end.y = pocket.center.y;
         const float trigger = radius + pocket.radius + BallCcdGeometry::ContactSlop;
         return Collision::DistanceSquaredPointToSegment(pocket.center, { start, end }) <= trigger * trigger;
+    }
+
+    // Defeated enemies remain on the table, so a pocket trigger cannot retire
+    // them. Move the retained body back to the trigger rim and reflect only an
+    // inward velocity; leaving it inside would make CCD rediscover TOI=0 for
+    // every iteration of every fixed tick.
+    inline bool RetainOutsidePocket(Body& body, Vector3 movementStart,
+        const Collision::Sphere& pocket)
+    {
+        if (!PocketHit(movementStart, body.position, body.status.radius, pocket))
+        {
+            return false;
+        }
+
+        Vector3 normal = body.position - pocket.center;
+        normal.y = 0.0f;
+        if (normal.LengthSquared() <= 0.000001f)
+        {
+            normal = movementStart - pocket.center;
+            normal.y = 0.0f;
+        }
+        if (normal.LengthSquared() <= 0.000001f)
+        {
+            normal = -body.velocity;
+            normal.y = 0.0f;
+        }
+        if (normal.LengthSquared() <= 0.000001f)
+        {
+            normal = Vector3::UnitZ;
+        }
+        normal.Normalize();
+
+        const float triggerRadius = body.status.radius + pocket.radius +
+            BallCcdGeometry::ReleaseSlop;
+        body.position = pocket.center + normal * triggerRadius;
+        body.position.y = movementStart.y;
+        const float inwardSpeed = body.velocity.Dot(normal);
+        if (inwardSpeed < -BallCcdGeometry::ApproachEpsilon)
+        {
+            body.velocity = (body.velocity - normal * (2.0f * inwardSpeed)) *
+                body.status.restitution;
+        }
+        return true;
     }
 
     inline bool Wall(Body& body, const Collision::Segment& wall, const Vector3& interior,

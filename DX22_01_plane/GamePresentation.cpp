@@ -228,8 +228,8 @@ namespace
 		drawList->AddText(font, size, position, color, value);
 	}
 
-	constexpr float kCombatIconSize = 26.0f;
-	constexpr float kCombatIconSpacing = 3.0f;
+	constexpr float kCombatIconSize = 20.8f;
+	constexpr float kCombatIconSpacing = 2.4f;
 
 	ImU32 EnemyHpColor(float hpRatio, float opacity)
 	{
@@ -475,15 +475,6 @@ namespace
 		if (texture != nullptr)
 		{
 			DrawCombatIcon(drawList, texture, minimum, maximum);
-		}
-		else if (action != EnemyActionType::NormalAttack && action != EnemyActionType::ChargeStart &&
-			action != EnemyActionType::ChargeAttack)
-		{
-			const char* label = PresentationUtf8(u8"…");
-			const ImVec2 textSize = ImGui::CalcTextSize(label);
-			drawList->AddText(ImVec2(minimum.x + (kCombatIconSize - textSize.x) * 0.5f,
-				minimum.y + (kCombatIconSize - textSize.y) * 0.5f),
-				IM_COL32(145, 155, 170, 255), label);
 		}
 	}
 
@@ -947,8 +938,31 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 		}
 	}
 
+	const auto liveEnemies = GameRuntime::World().GetComponents<EnemyBall>();
 	for (FloatingFeedback& feedback : m_Feedback)
 	{
+		if (feedback.followsDamageTarget &&
+			feedback.targetFollowLifetime > 0.0f &&
+			feedback.targetKey != 0)
+		{
+			// targetKey is only compared with keys produced by the current enemy
+			// list. It is never converted back into a pointer and dereferenced.
+			const auto target = std::find_if(
+				liveEnemies.begin(),
+				liveEnemies.end(),
+				[&feedback](const EnemyBall* enemy)
+				{
+					return enemy != nullptr &&
+						reinterpret_cast<std::uintptr_t>(enemy) == feedback.targetKey;
+				});
+			if (target != liveEnemies.end())
+			{
+				feedback.worldPosition = (*target)->GetPosition();
+			}
+			feedback.targetFollowLifetime = (std::max)(
+				0.0f,
+				feedback.targetFollowLifetime - presentationDelta);
+		}
 		feedback.lifetime -= presentationDelta;
 	}
 	UpdateHitReactions(game, presentationDelta);
@@ -1794,11 +1808,15 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 				(boardAbility != EnemyBoardAbilityType::None ? 1 : 0) +
 				(protectedByResonator ? 1 : 0);
 			const EnemyActionType action = enemy->GetPlannedAction();
+			const bool hasActionIntent = showActionPlan &&
+				(action == EnemyActionType::NormalAttack ||
+				 action == EnemyActionType::ChargeStart ||
+				 action == EnemyActionType::ChargeAttack);
 			const bool actionIsAttack =
 				action == EnemyActionType::NormalAttack ||
 				action == EnemyActionType::ChargeAttack;
 			int expectedDamage = 0;
-			if (showActionPlan && actionIsAttack)
+			if (hasActionIntent && actionIsAttack)
 			{
 				const GameObject* owner = enemy->GetGameObject();
 				const EnemyAttackComponent* attack = owner != nullptr
@@ -1881,7 +1899,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 			// 上部の行動予告：通常は回避位置、ホバー中のみ敵の真上へ戻す。
 			bool upperInfoHidden = false;
-			if (showActionPlan)
+			if (hasActionIntent)
 			{
 				const ImVec2 actionBasePosition(
 					center.x - kCombatIconSize * 0.5f,
@@ -1927,8 +1945,8 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 					// 行動予告アイコンの背景・枠線
 					{
-						constexpr float framePadding = 4.0f;
-						constexpr float frameRounding = 5.0f;
+						constexpr float framePadding = 3.2f;
+						constexpr float frameRounding = 4.0f;
 
 						const ImVec2 frameMin(
 							actionPosition.x - framePadding,
@@ -2019,9 +2037,9 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			const float rowWidth = (shownEffectCount + boardStatusCount) * kCombatIconSize +
 				(anchorStacks > 0 ? kResourceBadgeWidth : 0.0f) +
 				(std::max)(0, itemCount - 1) * kCombatIconSpacing;
-			const float panelWidth = showOverheadHp ? (std::max)(104.0f, rowWidth) : (std::max)(1.0f, rowWidth);
+			const float panelWidth = showOverheadHp ? (std::max)(92.0f, rowWidth) : (std::max)(1.0f, rowWidth);
 			const float panelHeight =
-				showOverheadHp ? (itemCount > 0 ? 53.0f : 18.0f) : (itemCount > 0 ? kCombatIconSize : 0.0f);
+				showOverheadHp ? (itemCount > 0 ? 45.0f : 18.0f) : (itemCount > 0 ? kCombatIconSize : 0.0f);
 			// 敵の真下を基準位置とする
 			const ImVec2 panelBasePosition(
 				center.x - panelWidth * 0.5f,
@@ -2081,8 +2099,8 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 			// バフ・デバフ一覧の背景・枠線
 			{
-				constexpr float framePadding = 4.0f;
-				constexpr float frameRounding = 5.0f;
+				constexpr float framePadding = 3.2f;
+				constexpr float frameRounding = 4.0f;
 
 				const ImVec2 frameMin(
 					panelPosition.x - framePadding,
@@ -2120,7 +2138,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			}
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(kCombatIconSpacing, 0.0f));
 			if (ImGui::Begin(windowId, nullptr, flags))
 			{
 				ImDrawList* drawList = isEnemyHovered
@@ -2852,7 +2870,9 @@ void GamePresentation::OnCombatFeedback(
 	}
 	FloatingFeedback feedback;
 	feedback.worldPosition = worldPosition;
-	feedback.totalLifetime = defeated ? 1.35f : 0.82f;
+	feedback.totalLifetime = defeated
+		? 1.35f
+		: CombatPresentationRules::DamageFeedbackLifetimeSeconds;
 	feedback.lifetime = feedback.totalLifetime;
 	feedback.fontScale = defeated
 		? m_CurrentShotDefeatCount >= 3 ? 1.38f
@@ -2865,6 +2885,10 @@ void GamePresentation::OnCombatFeedback(
 	feedback.createdFrame = m_PresentationFrame;
 	feedback.createdTimeSeconds = m_PresentationTimeSeconds;
 	feedback.targetKey = targetKey;
+	feedback.followsDamageTarget = !defeated && damage > 0 && targetKey != 0;
+	feedback.targetFollowLifetime = feedback.followsDamageTarget
+		? CombatPresentationRules::DamageTargetFollowSeconds
+		: 0.0f;
 	feedback.color = defeated
 		? IM_COL32(255, 205, 70, 255)
 		: enemyEnemyCollision
@@ -2913,6 +2937,8 @@ void GamePresentation::OnCombatFeedback(
 				existing.worldPosition = worldPosition;
 				existing.createdFrame = m_PresentationFrame;
 				existing.createdTimeSeconds = m_PresentationTimeSeconds;
+				existing.followsDamageTarget = feedback.followsDamageTarget;
+				existing.targetFollowLifetime = feedback.targetFollowLifetime;
 				existing.totalLifetime = (std::max)(
 					existing.totalLifetime,
 					feedback.totalLifetime);
@@ -3788,7 +3814,8 @@ void GamePresentation::DrawFeedback(Game& game)
 			foreground->AddRectFilled(
 				bannerMinimum,
 				bannerMaximum,
-				IM_COL32(24, 10, 5, static_cast<int>(176.0f * alpha)),
+				IM_COL32(24, 10, 5, static_cast<int>(
+					CombatPresentationRules::ChainBackgroundAlpha * alpha)),
 				18.0f);
 			foreground->AddRect(
 				bannerMinimum,
@@ -3821,7 +3848,7 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 
 		const ImVec2 at(centerX - size.x * 0.5f, centerY - size.y * 0.58f);
-		const ImU32 outline = IM_COL32(92, 18, 4, static_cast<int>(245.0f * alpha));
+		const ImU32 outline = IM_COL32(0, 0, 0, static_cast<int>(178.0f * alpha));
 		for (const ImVec2 offset : {
 			ImVec2(-3.0f, 0.0f), ImVec2(3.0f, 0.0f),
 				ImVec2(0.0f, -3.0f), ImVec2(0.0f, 3.0f) })
@@ -3837,13 +3864,13 @@ void GamePresentation::DrawFeedback(Game& game)
 			font,
 			fontSize,
 			at,
-			WithAlpha(colors[tier], alpha),
+			WithAlpha(colors[tier], alpha * 0.80f),
 			chainText.c_str());
 		foreground->AddText(
 			font,
 			fontSize,
 			ImVec2(at.x, at.y - 1.5f),
-			IM_COL32(255, 250, 220, static_cast<int>(105.0f * alpha)),
+			IM_COL32(255, 250, 220, static_cast<int>(31.0f * alpha)),
 			chainText.c_str());
 		const char* meaning = PresentationUtf8(
 			u8"採用された敵同士の接触回数");
@@ -3918,7 +3945,8 @@ void GamePresentation::DrawFeedback(Game& game)
 		foreground->AddRectFilled(
 			minimum,
 			maximum,
-			IM_COL32(12, 6, 5, static_cast<int>(238.0f * alpha)),
+			IM_COL32(12, 6, 5, static_cast<int>(
+				CombatPresentationRules::MultiBreakBackgroundAlpha * alpha)),
 			13.0f);
 		foreground->AddRect(minimum, maximum, accent, 13.0f, 0, 2.5f);
 		foreground->AddLine(
@@ -3942,7 +3970,7 @@ void GamePresentation::DrawFeedback(Game& game)
 				multiFont,
 				multiFontSize,
 				ImVec2(textAt.x + offset.x, textAt.y + offset.y),
-				IM_COL32(0, 0, 0, static_cast<int>(250.0f * alpha)),
+				IM_COL32(0, 0, 0, static_cast<int>(190.0f * alpha)),
 				text.c_str());
 		}
 		foreground->AddText(
@@ -3951,7 +3979,7 @@ void GamePresentation::DrawFeedback(Game& game)
 			textAt,
 			WithAlpha(
 				IM_COL32(255, 238, 188, 255),
-				alpha),
+				alpha * 0.95f),
 			text.c_str());
 	}
 
@@ -4051,6 +4079,12 @@ void GamePresentation::DrawFeedback(Game& game)
 		ImVec2(0.0f, 112.0f),
 		ImVec2(-105.0f, 96.0f), ImVec2(105.0f, 96.0f),
 	};
+	const std::array<ImVec2, 7> targetFeedbackOffsets = {
+		ImVec2(0.0f, 0.0f),
+		ImVec2(-18.0f, -12.0f), ImVec2(18.0f, -12.0f),
+		ImVec2(-28.0f, 8.0f), ImVec2(28.0f, 8.0f),
+		ImVec2(0.0f, -22.0f), ImVec2(0.0f, 20.0f),
+	};
 	for (const std::size_t feedbackIndex : feedbackOrder)
 	{
 		const FloatingFeedback& feedback = m_Feedback[feedbackIndex];
@@ -4076,7 +4110,31 @@ void GamePresentation::DrawFeedback(Game& game)
 
 		const float progress = 1.0f -
 			feedback.lifetime / feedback.totalLifetime;
-		position.y -= 20.0f + progress * 58.0f;
+		if (feedback.followsDamageTarget)
+		{
+			const float age = (std::max)(
+				0.0f,
+				feedback.totalLifetime - feedback.lifetime);
+			const float postFollowAge = (std::max)(
+				0.0f,
+				age - CombatPresentationRules::DamageTargetFollowSeconds);
+			const float postFollowDuration = (std::max)(
+				0.001f,
+				feedback.totalLifetime -
+					CombatPresentationRules::DamageTargetFollowSeconds);
+			const float postFollowProgress = std::clamp(
+				postFollowAge / postFollowDuration,
+				0.0f,
+				1.0f);
+			// Keep the label diagonally above the ball while following, then rise
+			// from the exact release position without a transition jump.
+			position.x += 18.0f;
+			position.y -= 24.0f + postFollowProgress * 34.0f;
+		}
+		else
+		{
+			position.y -= 20.0f + progress * 58.0f;
+		}
 		const float fadeIn = std::clamp(progress * 8.0f, 0.0f, 1.0f);
 		const float fadeOut = std::clamp(
 			feedback.lifetime / 0.28f,
@@ -4098,8 +4156,17 @@ void GamePresentation::DrawFeedback(Game& game)
 			float bestScore = FLT_MAX;
 			ImVec2 bestPosition = textPosition;
 			ImVec4 bestRectangle{};
-			for (const ImVec2& offset : feedbackOffsets)
+			const ImVec2* candidateOffsets = feedback.followsDamageTarget
+				? targetFeedbackOffsets.data()
+				: feedbackOffsets.data();
+			const std::size_t candidateCount = feedback.followsDamageTarget
+				? targetFeedbackOffsets.size()
+				: feedbackOffsets.size();
+			for (std::size_t candidateIndex = 0;
+				candidateIndex < candidateCount;
+				++candidateIndex)
 			{
+				const ImVec2& offset = candidateOffsets[candidateIndex];
 				ImVec2 candidate(
 					textPosition.x + offset.x,
 					textPosition.y + offset.y);
@@ -4130,7 +4197,8 @@ void GamePresentation::DrawFeedback(Game& game)
 					overlapArea += width * height;
 				}
 				const float distancePenalty =
-					(offset.x * offset.x + offset.y * offset.y) * 0.012f;
+					(offset.x * offset.x + offset.y * offset.y) *
+					(feedback.followsDamageTarget ? 0.08f : 0.012f);
 				const float score = overlapArea * 12.0f + distancePenalty;
 				if (score < bestScore)
 				{
@@ -4145,13 +4213,17 @@ void GamePresentation::DrawFeedback(Game& game)
 		}
 		const bool defeated =
 			feedback.text.find("撃破") != std::string::npos;
+		int damageValue = 0;
+		const bool normalDamage =
+			sscanf_s(feedback.text.c_str(), "-%d HP", &damageValue) == 1;
 		if (defeated)
 		{
 			foreground->AddRectFilled(
 				ImVec2(textPosition.x - 7.0f, textPosition.y - 4.0f),
 				ImVec2(textPosition.x + textSize.x + 7.0f,
 					textPosition.y + textSize.y + 4.0f),
-				IM_COL32(38, 18, 2, static_cast<int>(156.0f * alpha)),
+				IM_COL32(38, 18, 2, static_cast<int>(
+					CombatPresentationRules::DefeatBackgroundAlpha * alpha)),
 				7.0f);
 		}
 		else if (!playerHudMessage)
@@ -4160,12 +4232,17 @@ void GamePresentation::DrawFeedback(Game& game)
 				ImVec2(textPosition.x - 5.0f, textPosition.y - 2.0f),
 				ImVec2(textPosition.x + textSize.x + 5.0f,
 					textPosition.y + textSize.y + 2.0f),
-				IM_COL32(6, 12, 18, static_cast<int>(92.0f * alpha)),
+				IM_COL32(6, 12, 18, static_cast<int>(
+					(normalDamage
+						? CombatPresentationRules::NormalDamageBackgroundAlpha
+						: CombatPresentationRules::AbilityBackgroundAlpha) * alpha)),
 				5.0f);
 		}
+		const float textAlpha = alpha * (defeated ? 0.95f : 0.85f);
+		const float outlineAlpha = alpha * (defeated ? 0.78f : 0.65f);
 		for (const ImVec2 outlineOffset : {
-			ImVec2(-1.8f, 0.0f), ImVec2(1.8f, 0.0f),
-				ImVec2(0.0f, -1.8f), ImVec2(0.0f, 1.8f) })
+			ImVec2(-1.2f, 0.0f), ImVec2(1.2f, 0.0f),
+				ImVec2(0.0f, -1.2f), ImVec2(0.0f, 1.2f) })
 		{
 			foreground->AddText(
 				font,
@@ -4173,14 +4250,14 @@ void GamePresentation::DrawFeedback(Game& game)
 				ImVec2(
 					textPosition.x + outlineOffset.x,
 					textPosition.y + outlineOffset.y),
-				IM_COL32(0, 0, 0, static_cast<int>(225.0f * alpha)),
+				IM_COL32(0, 0, 0, static_cast<int>(255.0f * outlineAlpha)),
 				feedback.text.c_str());
 		}
 		foreground->AddText(
 			font,
 			fontSize,
 			textPosition,
-			WithAlpha(feedback.color, alpha),
+			WithAlpha(feedback.color, textAlpha),
 			feedback.text.c_str());
 		if (feedback.drawRing)
 		{
@@ -4316,7 +4393,8 @@ void GamePresentation::DrawFeedback(Game& game)
 		foreground->AddRectFilled(
 			minimum,
 			maximum,
-			IM_COL32(8, 13, 22, static_cast<int>(226.0f * alpha)),
+			IM_COL32(8, 13, 22, static_cast<int>(
+				CombatPresentationRules::ShotResultBackgroundAlpha * alpha)),
 			9.0f);
 		foreground->AddRect(
 			minimum,
@@ -4330,8 +4408,8 @@ void GamePresentation::DrawFeedback(Game& game)
 			foreground->AddText(
 				ImVec2(minimum.x + 17.0f, minimum.y + 10.0f + index * 22.0f),
 				index == 0
-				? IM_COL32(255, 224, 100, static_cast<int>(255.0f * alpha))
-				: IM_COL32(224, 235, 246, static_cast<int>(240.0f * alpha)),
+				? IM_COL32(255, 224, 100, static_cast<int>(242.0f * alpha))
+				: IM_COL32(224, 235, 246, static_cast<int>(217.0f * alpha)),
 				lines[index].c_str());
 		}
 	}

@@ -154,6 +154,14 @@ int main()
 		1.0f,
 		false));
 	assert(CombatPresentationRules::MaximumFloatingDamageNumbers == 8);
+	assert(std::abs(CombatPresentationRules::DamageFeedbackLifetimeSeconds - 0.70f) < 0.0001f);
+	assert(std::abs(CombatPresentationRules::DamageTargetFollowSeconds - 0.25f) < 0.0001f);
+	assert(CombatPresentationRules::NormalDamageBackgroundAlpha == 20);
+	assert(CombatPresentationRules::DefeatBackgroundAlpha == 38);
+	assert(CombatPresentationRules::AbilityBackgroundAlpha == 26);
+	assert(CombatPresentationRules::ChainBackgroundAlpha == 64);
+	assert(CombatPresentationRules::MultiBreakBackgroundAlpha == 64);
+	assert(CombatPresentationRules::ShotResultBackgroundAlpha == 77);
 	assert(!CombatPresentationRules::CanMergeDamage(
 		101,
 		101,

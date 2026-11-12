@@ -28,7 +28,17 @@ class DebugCombatForecastContractTests(unittest.TestCase):
         )
 
     def test_damage_changes_invalidate_the_cached_forecast(self) -> None:
-        progression = source("GameProgression.cpp")
+        progression = "\n".join(
+            source(name)
+            for name in (
+                "GameRestActions.cpp",
+                "GamePlayerBallLifecycle.cpp",
+                "GameShotEnd.cpp",
+                "GameCollisionSynergy.cpp",
+                "GameDamageAndDefeat.cpp",
+                "GameCombatEventBridge.cpp",
+            )
+        )
         battle = source("BattleDebugHotReload.cpp")
         autoplay = source("GameAutoPlay.cpp")
 

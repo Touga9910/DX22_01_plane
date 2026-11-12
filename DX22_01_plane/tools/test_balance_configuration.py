@@ -8,6 +8,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+PROGRESSION_SOURCES = (
+    "GameRestActions.cpp",
+    "GameRewardOperations.cpp",
+    "GameShopOperations.cpp",
+    "GameRelicOperations.cpp",
+    "GamePlayerBallLifecycle.cpp",
+    "GameShotStart.cpp",
+    "GameShotEnd.cpp",
+    "GameReflectionSynergy.cpp",
+    "GamePierceSynergy.cpp",
+    "GameCollisionSynergy.cpp",
+    "GameDamageAndDefeat.cpp",
+    "GameCombatEventBridge.cpp",
+    "GameDebugSnapshot.cpp",
+)
+
 
 def load(path: str) -> dict:
     with (ROOT / path).open("r", encoding="utf-8") as source:
@@ -21,7 +37,7 @@ def load_game_sources() -> str:
             "Game.cpp",
             "GameAutoPlay.cpp",
             "GameBalanceConfig.cpp",
-            "GameProgression.cpp",
+            *PROGRESSION_SOURCES,
             "DynamicBalanceController.cpp",
             "BalanceValidationController.cpp",
         )
@@ -221,7 +237,7 @@ class BalanceConfigurationTests(unittest.TestCase):
                 "Game.h",
                 "Game.cpp",
                 "GameBalanceConfig.cpp",
-                "GameProgression.cpp",
+                *PROGRESSION_SOURCES,
                 "GameMcpBridge.cpp",
                 "GameSaveManager.cpp",
                 "PlayerBallDataLoader.h",

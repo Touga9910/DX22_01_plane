@@ -73,6 +73,22 @@ struct FrameTimingSnapshot final
 	TimingAggregate shotPrediction;
 };
 
+struct AimingPerformanceSnapshot final
+{
+	bool active = false;
+	int sampleCount = 0;
+	double durationSeconds = 0.0;
+	double averageFrameMilliseconds = 0.0;
+	double maximumFrameMilliseconds = 0.0;
+	double p95FrameMilliseconds = 0.0;
+	double averageFps = 0.0;
+	double averageUpdateMilliseconds = 0.0;
+	TimingAggregate previewPrediction;
+	TimingAggregate previewWorldKey;
+	std::uint64_t previewCacheReuseFrames = 0;
+	std::uint64_t previewBallCopies = 0;
+};
+
 // Game's mutable loop infrastructure. Game keeps orchestration decisions while
 // this type owns scene lifetime and fixed-step bookkeeping details.
 class GameRuntimeState final
@@ -108,6 +124,16 @@ public:
 		double ballPhysicsMilliseconds,
 		double battleControllerMilliseconds);
 	void RecordShotPredictionTiming(double milliseconds);
+	void RecordAimingFrameTiming(
+		double frameMilliseconds,
+		double updateMilliseconds,
+		bool aiming);
+	void RecordTrajectoryPreviewPrediction(
+		double milliseconds,
+		std::size_t copiedBalls);
+	void RecordTrajectoryPreviewWorldKey(double milliseconds);
+	void RecordTrajectoryPreviewCacheReuse();
+	AimingPerformanceSnapshot CaptureAimingPerformance() const;
 	void RecordFrameTiming(
 		double frameMilliseconds,
 		double updateMilliseconds,
@@ -153,4 +179,20 @@ private:
 	std::size_t m_FrameTimingSampleCount = 0;
 	bool m_FrameTimingSawMoving = false;
 	FrameTimingSnapshot m_FrameTiming{};
+	struct AimingFrameSample final
+	{
+		double frameMilliseconds = 0.0;
+		double updateMilliseconds = 0.0;
+	};
+	static constexpr std::size_t AimingTimingCapacity = 300;
+	std::array<AimingFrameSample, AimingTimingCapacity>
+		m_AimingTimingSamples{};
+	std::size_t m_AimingTimingWriteIndex = 0;
+	std::size_t m_AimingTimingSampleCount = 0;
+	bool m_AimingTimingActive = false;
+	double m_AimingElapsedMilliseconds = 0.0;
+	TimingAggregate m_AimingPreviewPrediction{};
+	TimingAggregate m_AimingPreviewWorldKey{};
+	std::uint64_t m_AimingPreviewCacheReuseFrames = 0;
+	std::uint64_t m_AimingPreviewBallCopies = 0;
 };

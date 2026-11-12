@@ -2,6 +2,10 @@
 #include "Renderer.h"
 #include "Application.h"
 
+#include <array>
+#include <cerrno>
+#include <filesystem>
+#include <memory>
 
 using namespace DirectX::SimpleMath;
 
@@ -197,8 +201,9 @@ HRESULT Renderer::Init()
 
 	bufferDesc.ByteWidth = sizeof( LIGHT );
 	hr = m_pDevice->CreateBuffer(&bufferDesc, NULL, &m_pLightBuffer);
-	m_pDeviceContext->VSSetConstantBuffers(3, 1, &m_pLightBuffer);
 	if (FAILED(hr)) return hr;
+	m_pDeviceContext->VSSetConstantBuffers(3, 1, &m_pLightBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(3, 1, &m_pLightBuffer);
 
 	// ライト初期化
 	LIGHT light{};
@@ -524,33 +529,78 @@ HRESULT Renderer::ResizeWindow(int width, int height)
 //--------------------------------------------------------------------------------------
 HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, void** ppShaderObject, int* pShaderObjectSize)
 {
-	//拡張子csoのファイル名を作成
-	char csoFileName[256];
-	const char* dot = strrchr(szFileName, '.');  // 最後の '.' を探す
-	if (dot) {
-		int basenameLen = (int)(dot - szFileName);
-		strncpy(csoFileName, szFileName, basenameLen); // 拡張子がある場合は拡張子を除いたファイル名をコピー
-		csoFileName[basenameLen] = '\0';   // 終端文字を追加
-	}
-	else {
-		strcpy(csoFileName, szFileName);   // 拡張子がない場合はそのままコピー
-	}
-	strcat(csoFileName, ".cso");// ".cso" 拡張子を付加
+	if (!szFileName || !szEntryPoint || !szShaderModel ||
+		!ppShaderObject || !pShaderObjectSize)
+		return E_INVALIDARG;
+	*ppShaderObject = nullptr;
+	*pShaderObjectSize = 0;
 
-	//csoファイルがあれば開く
-	FILE* fp;
-	int ret = fopen_s(&fp, csoFileName, "rb");
+	const std::filesystem::path requestedPath(szFileName);
+	std::error_code fileError;
+	const std::array<std::filesystem::path, 6> sourceCandidates = {
+		requestedPath,
+		std::filesystem::path("DX22_01_plane") / requestedPath,
+		std::filesystem::path("..") / requestedPath,
+		std::filesystem::path("../DX22_01_plane") / requestedPath,
+		std::filesystem::path("../..") / requestedPath,
+		std::filesystem::path("../../DX22_01_plane") / requestedPath
+	};
+	std::filesystem::path hlslPath;
+	for (const auto& candidate : sourceCandidates)
+	{
+		if (std::filesystem::is_regular_file(candidate, fileError))
+		{
+			hlslPath = candidate;
+			break;
+		}
+	}
+
+	auto requestedCso = requestedPath;
+	requestedCso.replace_extension(".cso");
+	const std::array<std::filesystem::path, 7> csoCandidates = {
+		requestedCso,
+		requestedCso.filename(),
+		std::filesystem::path("DX22_01_plane") / requestedCso,
+		std::filesystem::path("..") / requestedCso,
+		std::filesystem::path("../DX22_01_plane") / requestedCso,
+		std::filesystem::path("../..") / requestedCso,
+		std::filesystem::path("../../DX22_01_plane") / requestedCso
+	};
+	std::filesystem::path csoPath = requestedCso;
+	for (const auto& candidate : csoCandidates)
+	{
+		if (std::filesystem::is_regular_file(candidate, fileError))
+		{
+			csoPath = candidate;
+			break;
+		}
+	}
+
+	FILE* fp = nullptr;
+	// HLSL is authoritative while present. Use CSO only in packaged builds
+	// without source, so a stale CSO cannot override a changed input signature.
+	int ret = !hlslPath.empty() ? ENOENT : fopen_s(&fp, csoPath.string().c_str(), "rb");
 	if (ret == 0)
 	{
 		// ファイルサイズを取得
 		fseek(fp, 0, SEEK_END);
 		int size = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
+		if (size <= 0)
+		{
+			fclose(fp);
+			return E_FAIL;
+		}
 
 		// バイナリデータを読み込み用にメモリ確保
 		unsigned char* byteArray = new unsigned char[size];
-		fread(byteArray, size, 1, fp);
+		const size_t bytesRead = fread(byteArray, 1, size, fp);
 		fclose(fp);
+		if (bytesRead != static_cast<size_t>(size))
+		{
+			delete[] byteArray;
+			return E_FAIL;
+		}
 
 		// 呼び出し元にポインタとサイズを渡す
 		*ppShaderObject = byteArray;
@@ -566,7 +616,10 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 
 		// 文字コードを Shift-JIS → UTF-16 に変換
 		setlocale(LC_ALL, "japanese");  // ロケールを設定（Windows特有）
-		err = mbstowcs_s(&wLen, filename, 512, szFileName, _TRUNCATE);
+		const std::string sourceName = hlslPath.empty()
+			? requestedPath.string() : hlslPath.string();
+		err = mbstowcs_s(&wLen, filename, 512, sourceName.c_str(), _TRUNCATE);
+		if (err != 0) return E_INVALIDARG;
 
 		// シェーダーコンパイルオプションを設定
 		DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -594,6 +647,7 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 		if (FAILED(hr))
 		{
 			if (pErrorBlob != nullptr) {
+				OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
 				MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error", MB_OK);
 			}
 			
@@ -602,7 +656,7 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 			SAFE_RELEASE(pErrorBlob);
 			SAFE_RELEASE(pBlob);
 
-			return E_FAIL;
+			return hr;
 		}
 
 		// エラーブロブがあれば解放
@@ -625,20 +679,35 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 //--------------------------------------------------------------------------------------
 HRESULT Renderer::CreateVertexShader(ID3D11VertexShader** ppVertexShader, ID3D11InputLayout** ppVertexLayout, D3D11_INPUT_ELEMENT_DESC* pLayout, unsigned int numElements, const char* szFileName)
 {
-	void* ShaderObject;
-	int	ShaderObjectSize;
+	if (!m_pDevice || !ppVertexShader || !ppVertexLayout ||
+		!pLayout || numElements == 0)
+		return E_INVALIDARG;
+	void* ShaderObject = nullptr;
+	int	ShaderObjectSize = 0;
 
 	// ファイルの拡張子に合わせてコンパイル
 	HRESULT hr = CompileShader(szFileName, "main", "vs_5_0", &ShaderObject, &ShaderObjectSize);
-	if (FAILED(hr)) return E_FAIL;
+	if (FAILED(hr)) return hr;
+	std::unique_ptr<unsigned char[]> shaderBytes(static_cast<unsigned char*>(ShaderObject));
 
 	// デバイスを使って頂点シェーダーを作成
 	hr = m_pDevice->CreateVertexShader(ShaderObject, ShaderObjectSize, NULL, ppVertexShader);
+	if (FAILED(hr)) return hr;
 
 	// デバイスを使って頂点レイアウトを作成
-	m_pDevice->CreateInputLayout(pLayout, numElements, ShaderObject, ShaderObjectSize, ppVertexLayout);
+	hr = m_pDevice->CreateInputLayout(
+		pLayout, numElements, ShaderObject, ShaderObjectSize, ppVertexLayout);
+	if (FAILED(hr))
+	{
+		if (*ppVertexShader)
+		{
+			(*ppVertexShader)->Release();
+			*ppVertexShader = nullptr;
+		}
+		return hr;
+	}
 
-	return S_OK;
+	return hr;
 }
 
 //--------------------------------------------------------------------------------------
@@ -646,18 +715,20 @@ HRESULT Renderer::CreateVertexShader(ID3D11VertexShader** ppVertexShader, ID3D11
 //--------------------------------------------------------------------------------------
 HRESULT Renderer::CreatePixelShader(ID3D11PixelShader** ppPixelShader, const char* szFileName)
 {
-	void* ShaderObject;
-	int	ShaderObjectSize;
+	if (!m_pDevice || !ppPixelShader) return E_INVALIDARG;
+	void* ShaderObject = nullptr;
+	int	ShaderObjectSize = 0;
 
 	// ファイルの拡張子に合わせてコンパイル
 	HRESULT hr = CompileShader(szFileName, "main", "ps_5_0", &ShaderObject, &ShaderObjectSize);
 	if (FAILED(hr)) return hr;
+	std::unique_ptr<unsigned char[]> shaderBytes(static_cast<unsigned char*>(ShaderObject));
 
 	// ピクセルシェーダーを生成
 	hr = m_pDevice->CreatePixelShader(ShaderObject, ShaderObjectSize, nullptr, ppPixelShader);
 	if (FAILED(hr)) return hr;
 
-	return S_OK;
+	return hr;
 }
 
 //--------------------------------------------------------------------------------------
@@ -691,7 +762,6 @@ bool Renderer::CreateVertexBufferWrite(
 
 	return true;
 }
-
 //--------------------------------------------------------------------------------------
 //コンスタントバッファを作成
 //--------------------------------------------------------------------------------------
@@ -716,7 +786,6 @@ bool Renderer::CreateConstantBuffer(
 
 	return true;
 }
-
 //--------------------------------------------------------------------------------------
 //コンスタントバッファを作成(CPU書き込み可能)
 //--------------------------------------------------------------------------------------

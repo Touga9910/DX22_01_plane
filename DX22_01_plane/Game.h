@@ -13,6 +13,7 @@
 #include "json/json_fwd.hpp"
 
 class EnemyBall;
+class BattleController;
 struct EnemyActionConfig;
 class BallComponent;
 class Camera;
@@ -32,6 +33,7 @@ struct AudioFeedbackDiagnostics;
 struct CollisionVfxDiagnostics;
 struct CombatReactionDiagnostics;
 struct FrameTimingSnapshot;
+struct AimingPerformanceSnapshot;
 struct EnemyHpDisplaySettings;
 class GameObject;
 class GameRuntime;
@@ -300,6 +302,7 @@ public:
 	// 現在の戦闘フェーズ・結果・稼働状態と、報酬UIやボール停止状態を返す。
 	// BattleStateを取得する
 	BattleState GetBattleState() const;
+	const BattleController* GetBattleControllerDiagnostics() const;
 	EnemyActionConfig GetEnemyActionConfig() const;
 
 	BattleResult GetLastBattleResult() const
@@ -405,6 +408,7 @@ public:
 	const AudioFeedbackDiagnostics& GetAudioFeedbackDiagnostics() const;
 	float GetSeVolume() const;
 	const FrameTimingSnapshot& GetFrameTimingSnapshot() const;
+	AimingPerformanceSnapshot GetAimingPerformanceSnapshot() const;
 
 	// ===== プレイヤー状態とステージ遷移 =====
 	// ボールとランのステータスを同期し、戦闘・ショップ・休憩・報酬間の遷移を進める。

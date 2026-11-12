@@ -15,7 +15,7 @@ void EnemyAttackComponent::Awake()
 
 int EnemyAttackComponent::CalculateDamage(float damageMultiplier) const
 {
-    if (m_Enemy == nullptr || m_Enemy->IsDefeated())
+    if (m_Enemy == nullptr || !m_Enemy->CanParticipateInCombat())
     {
         return 0;
     }
@@ -33,7 +33,7 @@ void EnemyAttackComponent::Attack(
         return;
     }
 
-    if (m_Enemy->IsDefeated() || player->IsDefeated())
+    if (!m_Enemy->CanParticipateInCombat() || player->IsDefeated())
     {
         return;
     }

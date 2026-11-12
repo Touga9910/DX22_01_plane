@@ -30,6 +30,17 @@ namespace CombatPresentationRules
 	}
 
 	inline constexpr float DamageMergeWindowSeconds = 0.16f;
+	inline constexpr float DamageFeedbackLifetimeSeconds = 0.70f;
+	inline constexpr float DamageTargetFollowSeconds = 0.25f;
+
+	// Maximum background alpha values. The animation fade is multiplied into
+	// these caps by GamePresentation; they never affect combat simulation.
+	inline constexpr unsigned char NormalDamageBackgroundAlpha = 20; // 8%
+	inline constexpr unsigned char DefeatBackgroundAlpha = 38;       // 15%
+	inline constexpr unsigned char AbilityBackgroundAlpha = 26;      // 10%
+	inline constexpr unsigned char ChainBackgroundAlpha = 64;        // 25%
+	inline constexpr unsigned char MultiBreakBackgroundAlpha = 64;   // 25%
+	inline constexpr unsigned char ShotResultBackgroundAlpha = 77;   // 30%
 	inline bool CanMergeDamage(
 		std::uintptr_t existingTarget,
 		std::uintptr_t incomingTarget,

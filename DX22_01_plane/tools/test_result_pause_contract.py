@@ -146,7 +146,7 @@ class ResultPauseContractTests(unittest.TestCase):
     def test_common_menu_and_game_events_are_reused(self) -> None:
         menu = source("MenuSelection.cpp")
         events = source("GameEvent.h")
-        progression = source("GameProgression.cpp")
+        progression = source("GameCombatEventBridge.cpp")
 
         self.assertIn("UpdateVertical", menu)
         self.assertIn("XINPUT_UP", menu)

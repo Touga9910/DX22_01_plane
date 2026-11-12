@@ -115,8 +115,12 @@ ContinuousBallStepper::Result BallPhysicsWorld::Step(
     for (auto& body : world.bodies)
     {
         const auto* enemy = body.ball->GetGameObject()->GetComponent<EnemyBall>();
+		const int combatAttack = enemy != nullptr &&
+			!enemy->CanParticipateInCombat()
+			? 0
+			: body.ball->GetAttack();
         body.sortKey = BallPhysicsRules::OrderingKey(body.collision->CapturePhysicsBody(), body.ball->GetHP(),
-            body.ball->GetAttack(), enemy != nullptr ? enemy->GetEnemyId() : std::string());
+			combatAttack, enemy != nullptr ? enemy->GetEnemyId() : std::string());
     }
     std::stable_sort(world.bodies.begin(), world.bodies.end(),
         [](const Body& a, const Body& b) { return a.sortKey < b.sortKey; });

@@ -9,6 +9,9 @@
 #include "PlayerBall.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -167,7 +170,11 @@ void BattleController::SetEnemyActionMaximumBudget(int maximumBudget)
 
 void BattleController::StartBattle()
 {
-    m_State = BattleState::AimingDirection;
+    m_TurnNumber = 0;
+    m_FixedStepCount = 0;
+    m_ShotFixedStepCount = 0;
+    m_StateHistory.clear();
+    SetState(BattleState::AimingDirection, "start_battle");
     m_Result = BattleResult::None;
     m_AllBallsStoppedTickCount = 0;
     m_Active = true;
@@ -176,9 +183,13 @@ void BattleController::StartBattle()
 
 void BattleController::Reset()
 {
-    m_State = BattleState::Inactive;
+    m_StateHistory.clear();
+    SetState(BattleState::Inactive, "reset");
     m_Result = BattleResult::None;
     m_AllBallsStoppedTickCount = 0;
+    m_TurnNumber = 0;
+    m_FixedStepCount = 0;
+    m_ShotFixedStepCount = 0;
     m_Active = false;
     m_EnemyActionPlanner.Reset();
 }
@@ -221,6 +232,7 @@ void BattleController::Update()
 
 bool BattleController::OnFixedStepCompleted()
 {
+    ++m_FixedStepCount;
     if (IsFinished())
     {
         return true;
@@ -232,12 +244,26 @@ bool BattleController::OnFixedStepCompleted()
         return false;
     }
 
+    ++m_ShotFixedStepCount;
+    if (m_ShotFixedStepCount % 300 == 0)
+    {
+        LogProgressDiagnostic("moving_interval");
+    }
+
     if (AreAllBallsStopped())
     {
         ++m_AllBallsStoppedTickCount;
+        if (m_AllBallsStoppedTickCount == 1)
+        {
+            LogProgressDiagnostic("all_stopped_started");
+        }
     }
     else
     {
+        if (m_AllBallsStoppedTickCount > 0)
+        {
+            LogProgressDiagnostic("all_stopped_interrupted");
+        }
         m_AllBallsStoppedTickCount = 0;
     }
 
@@ -252,7 +278,7 @@ void BattleController::BeginAimingDirection()
         return;
     }
 
-    m_State = BattleState::AimingDirection;
+    SetState(BattleState::AimingDirection, "begin_aiming_direction");
 }
 
 void BattleController::BeginAimingPower()
@@ -262,7 +288,7 @@ void BattleController::BeginAimingPower()
         return;
     }
 
-    m_State = BattleState::AimingPower;
+    SetState(BattleState::AimingPower, "begin_aiming_power");
 }
 
 void BattleController::NotifyShotFired(bool heavyShot)
@@ -273,6 +299,8 @@ void BattleController::NotifyShotFired(bool heavyShot)
     }
 
     m_AllBallsStoppedTickCount = 0;
+    ++m_TurnNumber;
+    m_ShotFixedStepCount = 0;
     if (m_World != nullptr)
     {
         for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
@@ -283,7 +311,7 @@ void BattleController::NotifyShotFired(bool heavyShot)
             }
         }
     }
-    m_State = BattleState::BallsMoving;
+    SetState(BattleState::BallsMoving, "shot_fired");
 }
 
 void BattleController::NotifyPlayerDefeated()
@@ -477,7 +505,7 @@ void BattleController::CompleteShot()
         return;
     }
 
-    m_State = BattleState::EnemyAttack;
+    SetState(BattleState::EnemyAttack, "shot_completed");
 }
 
 void BattleController::ProcessEnemyAttack()
@@ -500,26 +528,6 @@ void BattleController::ProcessEnemyAttack()
         return;
     }
 
-    // 撃破済みの敵はショット中の反射物として残し、
-    // 敵攻撃開始直前にのみ削除要求を出す。
-    for (EnemyBall* enemy : enemies)
-    {
-        if (enemy == nullptr ||
-            !enemy->IsDefeated())
-        {
-            continue;
-        }
-
-        GameObject* owner = enemy->GetGameObject();
-        if (owner != nullptr)
-        {
-            m_World->RequestDestroy(owner);
-        }
-    }
-
-    // Destroy要求済みオブジェクトはGameWorld検索から除外される。
-    enemies = m_World->GetComponents<EnemyBall>();
-
     PlayerBall* player = players.front();
     player->RefreshNuisanceDebuffs();
 
@@ -536,8 +544,7 @@ void BattleController::ProcessEnemyAttack()
     for (EnemyBall* enemy : enemies)
     {
         if (enemy == nullptr ||
-            enemy->IsDefeated() ||
-            enemy->IsPocketed() ||
+            !enemy->CanParticipateInCombat() ||
             enemy->IsStunned())
         {
             continue;
@@ -645,7 +652,7 @@ void BattleController::ProcessEnemyAttack()
         m_Hooks.restoreNextPocketedEnemy();
     }
 
-    m_State = BattleState::TurnEnd;
+    SetState(BattleState::TurnEnd, "enemy_attack_completed");
 }
 
 void BattleController::ProcessTurnEnd()
@@ -671,7 +678,7 @@ void BattleController::ProcessTurnEnd()
     }
 
     PlanNextTurn();
-    m_State = BattleState::AimingDirection;
+    SetState(BattleState::AimingDirection, "turn_completed");
 }
 
 void BattleController::PlanNextTurn()
@@ -683,37 +690,44 @@ void BattleController::PlanNextTurn()
 
     const std::vector<EnemyBall*> enemies =
         m_World->GetComponents<EnemyBall>();
+    std::vector<EnemyBall*> participatingEnemies;
     std::vector<EnemyActionCandidate> candidates;
     candidates.reserve(enemies.size());
     for (EnemyBall* enemy : enemies)
     {
+        if (enemy == nullptr || !enemy->CanParticipateInCombat())
+        {
+            if (enemy != nullptr)
+            {
+                enemy->SetPlannedAction(
+                    EnemyActionType::Wait,
+                    0,
+                    m_EnemyActionPlanner.Config().chargeDamageMultiplier);
+            }
+            continue;
+        }
+
         bool canAct = false;
-        if (enemy != nullptr &&
-            !enemy->IsDefeated() &&
-            !enemy->IsPocketed() &&
-            !enemy->IsStunned())
+        if (!enemy->IsStunned())
         {
             GameObject* owner = enemy->GetGameObject();
             canAct = owner != nullptr &&
                 owner->GetComponent<EnemyAttackComponent>() != nullptr;
         }
+        participatingEnemies.push_back(enemy);
         candidates.push_back({
             reinterpret_cast<std::uintptr_t>(enemy),
             canAct,
-            enemy != nullptr && enemy->IsCharging(),
-            enemy != nullptr && enemy->CanUseCharge(),
+            enemy->IsCharging(),
+            enemy->CanUseCharge(),
         });
     }
 
     const EnemyActionTurnPlan plan =
         m_EnemyActionPlanner.PlanTurn(candidates);
-    for (std::size_t index = 0; index < enemies.size(); ++index)
+    for (std::size_t index = 0; index < participatingEnemies.size(); ++index)
     {
-        EnemyBall* enemy = enemies[index];
-        if (enemy == nullptr)
-        {
-            continue;
-        }
+        EnemyBall* enemy = participatingEnemies[index];
         const PlannedEnemyAction& assignment = plan.actions[index];
         enemy->SetPlannedAction(
             assignment.action,
@@ -787,7 +801,109 @@ void BattleController::FinishBattle(
     }
 
     m_Result = result;
-    m_State = BattleState::Finished;
+    SetState(BattleState::Finished, ToString(result));
     m_AllBallsStoppedTickCount = 0;
     m_Active = false;
+}
+
+void BattleController::SetState(BattleState state, const char* reason)
+{
+    if (m_State == state && !m_StateHistory.empty())
+    {
+        return;
+    }
+
+    const BattleState previous = m_State;
+    m_State = state;
+    m_StateHistory.push_back(state);
+    constexpr std::size_t kMaximumStateHistory = 12;
+    while (m_StateHistory.size() > kMaximumStateHistory)
+    {
+        m_StateHistory.pop_front();
+    }
+
+    std::clog << "[BattleProgress] state " << ToString(previous)
+        << " -> " << ToString(state)
+        << " reason=" << (reason != nullptr ? reason : "unknown")
+        << " turn=" << m_TurnNumber
+        << " fixed_steps=" << m_FixedStepCount << '\n';
+    LogProgressDiagnostic("state_transition");
+}
+
+void BattleController::LogProgressDiagnostic(const char* reason) const
+{
+    if (m_World == nullptr)
+    {
+        return;
+    }
+
+    const std::vector<EnemyBall*> enemies =
+        m_World->GetComponents<EnemyBall>();
+    const std::vector<GameObject*> physicsObjects =
+        m_World->GetObjectsWith<BallPhysicsComponent>();
+    std::ostringstream moving;
+    moving << std::fixed << std::setprecision(4);
+    int movingCount = 0;
+    int activePhysicsCount = 0;
+    for (GameObject* object : physicsObjects)
+    {
+        if (object == nullptr)
+        {
+            continue;
+        }
+        if (object->IsActive())
+        {
+            ++activePhysicsCount;
+        }
+        const BallPhysicsComponent* physics =
+            object->GetComponent<BallPhysicsComponent>();
+        if (physics == nullptr || physics->IsStopped())
+        {
+            continue;
+        }
+
+        const auto& velocity = physics->GetVelocity();
+        if (movingCount++ > 0)
+        {
+            moving << ';';
+        }
+        moving << object->GetName();
+        if (const EnemyBall* enemy = object->GetComponent<EnemyBall>())
+        {
+            moving << '(' << enemy->GetEnemyId()
+                << (enemy->IsDefeated() ? ",defeated" : ",alive") << ')';
+        }
+        moving << "@" << static_cast<const void*>(object)
+            << " v=(" << velocity.x << ',' << velocity.y << ','
+            << velocity.z << ')';
+    }
+
+    std::ostringstream history;
+    for (std::size_t index = 0; index < m_StateHistory.size(); ++index)
+    {
+        if (index > 0)
+        {
+            history << '>';
+        }
+        history << ToString(m_StateHistory[index]);
+    }
+
+    std::clog << "[BattleProgress] reason="
+        << (reason != nullptr ? reason : "unknown")
+        << " state=" << ToString(m_State)
+        << " turn=" << m_TurnNumber
+        << " alive=" << CountAliveEnemies(enemies)
+        << " defeated=" << CountDefeatedEnemies(enemies)
+        << " physics=" << physicsObjects.size()
+        << " active_physics=" << activePhysicsCount
+        << " moving=" << movingCount
+        << " stopped_ticks=" << m_AllBallsStoppedTickCount
+        << " fixed_steps=" << m_FixedStepCount
+        << " shot_fixed_steps=" << m_ShotFixedStepCount
+        << " history=" << history.str();
+    if (movingCount > 0)
+    {
+        std::clog << " non_stopped=[" << moving.str() << ']';
+    }
+    std::clog << '\n';
 }

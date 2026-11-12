@@ -1,0 +1,5 @@
+"scenario","median_seconds","minimum_seconds","maximum_seconds","spread_seconds","median_authored_cpp_count","runs"
+"clean_build","39.862","39.658","40.826","1.168","94","3"
+"no_change","39.263","38.966","39.428","0.462","94","3"
+"touch_cpp","39.147","38.892","39.906","1.014","94","5"
+"touch_game","39.143","38.923","39.786","0.863","94","5"

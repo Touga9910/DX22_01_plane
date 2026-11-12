@@ -37,6 +37,12 @@ public:
     // -------------------------
     void Defeat();
     void RemoveFromFieldAfterPocket();
+    // Defeated and pocketed balls remain physical objects, but no longer
+    // participate in any combat-facing system.
+    bool CanParticipateInCombat() const
+    {
+        return m_Ball != nullptr && !IsDefeated() && !IsPocketed();
+    }
     void TakeDamage(
         int damage,
         EnemyDamageKind damageKind = EnemyDamageKind::Other);
@@ -56,7 +62,10 @@ public:
             ? m_PlannedChargeDamageMultiplier
             : 1.0f;
     }
-    bool CanUseCharge() const { return m_EnemyData.canCharge; }
+    bool CanUseCharge() const
+    {
+        return CanParticipateInCombat() && m_EnemyData.canCharge;
+    }
     EnemyChargeState GetChargeState() const { return m_ChargeState; }
     bool IsCharging() const { return m_ChargeState == EnemyChargeState::Charging; }
     void BeginCharge();
@@ -70,26 +79,34 @@ public:
 	int& MutableAnchorStacks() { return m_AnchorStacks; }
 	void ApplyLightweight(float multiplier)
 	{
+		if (!CanParticipateInCombat()) return;
 		if (m_PendingKnockbackMultiplier <= 1.0f)
 			m_PendingKnockbackMultiplier = (std::max)(1.0f, multiplier);
 	}
 	void BeginLightweightWindow()
 	{
+		if (!CanParticipateInCombat()) return;
 		m_NextKnockbackMultiplier = m_PendingKnockbackMultiplier;
 		m_PendingKnockbackMultiplier = 1.0f;
 	}
 	float GetNextKnockbackMultiplier() const { return m_NextKnockbackMultiplier; }
-	void ConsumeLightweight() { m_NextKnockbackMultiplier = 1.0f; }
+	void ConsumeLightweight()
+	{
+		if (CanParticipateInCombat()) m_NextKnockbackMultiplier = 1.0f;
+	}
     bool IsArmorBoss() const { return m_EnemyData.id == "enemy_boss_core"; }
     const BossCombatRules::State& GetBossState() const { return m_BossState; }
     void SetDebugBossState(int armor, int breakShots)
     {
-        if (!IsArmorBoss()) return;
+        if (!IsArmorBoss() || !CanParticipateInCombat()) return;
         m_BossState = {};
         m_BossState.shotsRemaining = std::clamp(breakShots, 0, BossCombatRules::BreakShots);
         m_BossState.armor = m_BossState.IsBroken() ? 0 : std::clamp(armor, 1, BossCombatRules::MaxArmor);
     }
-    void BeginBossShot() { if (IsArmorBoss()) m_BossState.BeginShot(); }
+    void BeginBossShot()
+    {
+        if (IsArmorBoss() && CanParticipateInCombat()) m_BossState.BeginShot();
+    }
     void EndBossShot();
     void HitBreakBall(int ballId);
     int AdjustCollisionDamage(int damage, const DirectX::SimpleMath::Vector3& sourcePosition) const;
@@ -111,23 +128,33 @@ public:
     void ReturnFromPocket(
         const DirectX::SimpleMath::Vector3& position);
     void AdvanceTurnGimmicks();
-    void ApplyStun(int turns) { m_StunTurnsRemaining = (std::max)(m_StunTurnsRemaining, turns); }
+    void ApplyStun(int turns)
+    {
+        if (CanParticipateInCombat())
+            m_StunTurnsRemaining = (std::max)(m_StunTurnsRemaining, turns);
+    }
     bool IsStunned() const { return m_StunTurnsRemaining > 0; }
 
-    void SetStatus(const BallStatus& status) { m_Ball->SetStatus(status); }
+    void SetStatus(const BallStatus& status)
+    {
+        if (CanParticipateInCombat()) m_Ball->SetStatus(status);
+    }
     const BallStatus& GetStatus() const { return m_Ball->GetStatus(); }
-    void SetHP(int hp) { m_Ball->SetHP(hp); }
+    void SetHP(int hp)
+    {
+        if (CanParticipateInCombat()) m_Ball->SetHP(hp);
+    }
     int GetHP() const { return m_Ball->GetHP(); }
     int GetMaxHP() const { return m_Ball->GetMaxHP(); }
     int GetAttack() const;
     int GetAttackBeforeBoardAbility() const
     {
-        return m_Ball != nullptr ? m_Ball->GetAttack() : 0;
+        return CanParticipateInCombat() ? m_Ball->GetAttack() : 0;
     }
     int GetDefense() const { return m_Ball->GetDefense(); }
     void SetStatusEffects(const StatusEffectCollection& effects)
     {
-        m_Ball->SetStatusEffects(effects);
+        if (CanParticipateInCombat()) m_Ball->SetStatusEffects(effects);
     }
     const StatusEffectCollection& GetStatusEffects() const
     {
@@ -223,6 +250,7 @@ private:
 	void ApplyPresentationTint();
     void DrawNuisanceWarning();
     void DestroyNuisanceBall();
+    void CompleteDefeatTransition();
     bool HasLiveNuisanceBall() const;
     void SpawnNuisanceBall();
     int CalculateDamageTakenWithoutProtection(int damage) const;
@@ -246,6 +274,7 @@ private:
     DirectX::SimpleMath::Color m_BaseTint =
         DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f);
 	float m_PresentationHitFlash = 0.0f;
+    float m_DefeatVisualProgress = 0.0f;
     int m_CollisionStage = 0;
     std::unordered_map<std::uintptr_t, int> m_CollisionGraceByBall;
 	int m_AnchorStacks = 0;
@@ -261,6 +290,7 @@ private:
     int m_BrittleActionsRemaining = 0;
     int m_ProtectionState = -1;
     bool m_SkipNextGimmickAdvance = false;
+    bool m_DefeatProcessed = false;
     EnemyActionType m_PlannedAction = EnemyActionType::Wait;
     int m_PlannedActionCost = 0;
     float m_PlannedChargeDamageMultiplier = 2.0f;
