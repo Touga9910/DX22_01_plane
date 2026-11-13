@@ -117,21 +117,37 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	std::vector<PierceTraceRules::MinionLaunch> pierceMinionLaunches;
 	if (currentBall != nullptr &&
 		currentBall->definitionId == "player_collision_boost" &&
-		currentBall->status.heavySetupStackConsume > 0 &&
-		m_BattleState->heavyCollisions.stackCount >=
-			currentBall->status.heavySetupStackConsume)
+		currentBall->status.heavySetupStackConsume > 0)
 	{
-		heavyStacksConsumedOnStart = HeavyCollisionRules::Consume(
-			m_BattleState->heavyCollisions,
-			currentBall->status.heavySetupStackConsume);
-		HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
-			m_BattleState->heavyCollisions,
-			currentBall->status.heavyEnemyCollisionMultiplier);
-		RecordBalanceEvent("heavy_collision_boost_armed", {
-			{ "consumed", heavyStacksConsumedOnStart },
-			{ "remaining", m_BattleState->heavyCollisions.stackCount },
-			{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
-		});
+		if (m_BattleState->heavyCollisions.stackCount >=
+			currentBall->status.heavySetupStackConsume)
+		{
+			heavyStacksConsumedOnStart = HeavyCollisionRules::Consume(
+				m_BattleState->heavyCollisions,
+				currentBall->status.heavySetupStackConsume);
+			HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
+				m_BattleState->heavyCollisions,
+				currentBall->status.heavyEnemyCollisionMultiplier);
+			RecordBalanceEvent("heavy_collision_boost_armed", {
+				{ "consumed", heavyStacksConsumedOnStart },
+				{ "remaining", m_BattleState->heavyCollisions.stackCount },
+				{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
+			});
+		}
+		else
+		{
+			// Weaker baseline effect when this support ball has no stacks.
+			// Like the original boost, it is applied to the next shot.
+			constexpr float kBaselineEnemyCollisionMultiplier = 1.10f;
+			HeavyCollisionRules::ArmNextEnemyCollisionMultiplier(
+				m_BattleState->heavyCollisions,
+				kBaselineEnemyCollisionMultiplier);
+			RecordBalanceEvent("heavy_collision_boost_baseline_armed", {
+				{ "consumed", 0 },
+				{ "remaining", m_BattleState->heavyCollisions.stackCount },
+				{ "multiplier", kBaselineEnemyCollisionMultiplier },
+			});
+		}
 	}
 	if (currentBall != nullptr &&
 		(currentBall->definitionId == "player_trace_driver" ||
@@ -143,9 +159,19 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		const int consumeLimit = pierceMinionFinisher
 			? PierceTraceRules::MaxStackCount
 			: currentBall->status.pierceStackConsumeLimit;
-		pierceStacksConsumedOnStart = PierceTraceRules::ConsumeStacks(
-			m_BattleState->pierceTraces,
-			consumeLimit);
+		const int effectiveConsume =
+			PierceTraceRules::CalculateEffectiveMinionStackConsume(
+				m_BattleState->pierceTraces,
+				consumeLimit,
+				pierceMinionFinisher);
+		// ConsumeStacks(state, 0) consumes all stacks in the existing API.
+		// Never call it if no trace/upgrade can use the resource.
+		if (effectiveConsume > 0)
+		{
+			pierceStacksConsumedOnStart = PierceTraceRules::ConsumeStacks(
+				m_BattleState->pierceTraces,
+				effectiveConsume);
+		}
 		pierceMinionLaunches = PierceTraceRules::BuildMinionLaunches(
 			m_BattleState->pierceTraces,
 			pierceStacksConsumedOnStart,
@@ -340,4 +366,3 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		currentBall != nullptr &&
 		currentBall->category == BallCategory::Heavy);
 }
-

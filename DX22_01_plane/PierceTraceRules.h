@@ -70,6 +70,41 @@ namespace PierceTraceRules
 		return consumed;
 	}
 
+	// Return only the stack count that can actually contribute to a minion.
+	// The finisher's 10-15 stack overcharge thresholds are intentionally kept.
+	// IMPORTANT: ConsumeStacks(state, 0) means consume ALL, so callers must
+	// skip consumption when this function returns 0.
+	inline int CalculateEffectiveMinionStackConsume(
+		const State& state,
+		int consumeLimit,
+		bool finisher)
+	{
+		if (consumeLimit <= 0 || state.stackCount <= 0) return 0;
+		const int traceCount = (std::min)(
+			static_cast<int>(state.traces.size()),
+			static_cast<int>(MaxTraceCount));
+		if (traceCount <= 0) return 0;
+
+		const int available = (std::min)({
+			state.stackCount, consumeLimit, MaxStackCount });
+		int useful = (std::min)(available, traceCount * 3);
+
+		if (finisher)
+		{
+			// Follow the exact upgrade thresholds in BuildMinionLaunches.
+			// A single trace can benefit from thresholds 10 and 11,
+			// two traces from 12 and 13, and three from 14 and 15.
+			for (int index = 0; index < traceCount; ++index)
+			{
+				const int attackThreshold = 10 + index * 2;
+				const int knockbackThreshold = attackThreshold + 1;
+				if (available >= attackThreshold) useful = attackThreshold;
+				if (available >= knockbackThreshold) useful = knockbackThreshold;
+			}
+		}
+		return useful;
+	}
+
 	inline std::vector<MinionLaunch> BuildMinionLaunches(
 		const State& state,
 		int consumedStacks,

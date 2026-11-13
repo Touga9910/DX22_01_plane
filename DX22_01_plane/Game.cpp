@@ -804,8 +804,8 @@ namespace
 		const std::string shortDescription =
 			PlayerBallText::GetShortDescription(ball);
 		addWrappedTextFitted(
-			fontSize * 0.57f * readableScale,
-			fontSize * 0.40f * readableScale,
+			fontSize * 0.76f * readableScale,
+			fontSize * 0.54f * readableScale,
 			ImVec2(descriptionTextLeft, dividerY + 4.0f * readableScale),
 			ImVec2(descriptionTextRight, descriptionMaximum.y - descriptionPadding),
 			IM_COL32(216, 228, 235, 255),

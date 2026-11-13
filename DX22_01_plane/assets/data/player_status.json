@@ -33,8 +33,8 @@
       "id": "player_bounce", "category": "bounce",
       "status": { "attack": 1, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02, "cushionBounceAttackBonus": 1, "cushionConsumptionLimit": 1, "cushionReflectionSpeedMultiplier": 1.10 },
       "upgrades": [
-        { "cushionBounceAttackBonus": 2, "cushionConsumptionLimit": 2, "cushionReflectionSpeedMultiplier": 1.15 },
-        { "cushionBounceAttackBonus": 3, "cushionConsumptionLimit": 3, "cushionReflectionSpeedMultiplier": 1.20 }
+        { "attack": 2, "cushionBounceAttackBonus": 2, "cushionConsumptionLimit": 2, "cushionReflectionSpeedMultiplier": 1.15 },
+        { "attack": 3, "cushionBounceAttackBonus": 3, "cushionConsumptionLimit": 3, "cushionReflectionSpeedMultiplier": 1.20 }
       ]
     },
     {
@@ -46,8 +46,8 @@
         "abilities": { "anchor": true }
       },
       "upgrades": [
-        { "anchorPlayerStacksPerBonus": 3 },
-        { "anchorPlayerStacksPerBonus": 2 }
+        { "attack": 3, "anchorPlayerStacksPerBonus": 3 },
+        { "attack": 4, "anchorPlayerStacksPerBonus": 2 }
       ]
     },
     {
@@ -69,8 +69,8 @@
         "heavyFinisherDamagePerCollision": 1.0, "heavyCollisionConsumeAmount": 5
       },
       "upgrades": [
-        { "chainImpactRadius": 15.0 },
-        { "chainImpactRadius": 18.0 }
+        { "attack": 2, "chainImpactRadius": 15.0 },
+        { "attack": 3, "chainImpactRadius": 18.0 }
       ]
     },
     {
@@ -100,6 +100,7 @@
       "id": "player_trace_driver", "category": "pierce",
       "status": {
         "attack": 1, "mass": 2.0, "radius": 2.4, "restitution": 0.8, "friction": 0.02,
+        "knockbackTransfer": 1.15,
         "pierceStackConsumeLimit": 3, "abilities": { "pierce": false }
       },
       "upgrades": [
@@ -116,8 +117,8 @@
         "abilities": { "pierce": true }
       },
       "upgrades": [
-        { "pierceMaxUses": 3, "pierceSpeedRetention": 0.8, "pierceFinisherBaseBonus": 2, "pierceFinisherMultiTargetBonus": 1 },
-        { "pierceMaxUses": 3, "pierceSpeedRetention": 0.88, "pierceFinisherBaseBonus": 2, "pierceFinisherMultiTargetBonus": 2 }
+        { "attack": 2, "pierceMaxUses": 3, "pierceSpeedRetention": 0.8, "pierceFinisherBaseBonus": 2, "pierceFinisherMultiTargetBonus": 1 },
+        { "attack": 3, "pierceMaxUses": 3, "pierceSpeedRetention": 0.88, "pierceFinisherBaseBonus": 2, "pierceFinisherMultiTargetBonus": 2 }
       ]
     },
     {
@@ -128,8 +129,8 @@
         "pinballCollisionsPerStage": 3, "pinballSpeedRetention": 0.9
       },
       "upgrades": [
-        { "pinballCollisionsPerStage": 3 },
-        { "pinballCollisionsPerStage": 2 }
+        { "attack": 2, "pinballCollisionsPerStage": 3 },
+        { "attack": 3, "pinballCollisionsPerStage": 2 }
       ]
     },
     {
@@ -141,8 +142,8 @@
         "abilities": { "anchor": false }
       },
       "upgrades": [
-        { "anchorFinisherDamagePerStack": 2, "anchorFinisherAoeRadius": 10.0 },
-        { "anchorFinisherDamagePerStack": 2, "anchorFinisherAoeThreshold": 4, "anchorFinisherAoeRadius": 12.0 }
+        { "attack": 2, "anchorFinisherDamagePerStack": 2, "anchorFinisherAoeRadius": 10.0 },
+        { "attack": 3, "anchorFinisherDamagePerStack": 2, "anchorFinisherAoeThreshold": 4, "anchorFinisherAoeRadius": 12.0 }
       ]
     },
     {
@@ -158,7 +159,7 @@
     {
       "id": "player_minion_finisher", "category": "pierce",
       "status": { "attack": 1, "pierceMaxUses": 3, "pierceSpeedRetention": 0.72, "abilities": { "pierce": true } },
-      "upgrades": [ { "pierceSpeedRetention": 0.80 }, { "pierceSpeedRetention": 0.88 } ]
+      "upgrades": [ { "attack": 2, "pierceSpeedRetention": 0.80 }, { "attack": 3, "pierceSpeedRetention": 0.88 } ]
     },
     {
       "id": "player_reflection_setup", "category": "bounce",
@@ -168,7 +169,7 @@
     {
       "id": "player_origin_anchor", "category": "anchor",
       "status": { "attack": 1, "knockbackTransfer": 0.0, "anchorEnemyStackGenerate": 1, "abilities": { "returnToShotStart": true } },
-      "upgrades": [ { "anchorEnemyStackGenerate": 1 }, { "nextAnchorGrantBonus": 1 } ]
+      "upgrades": [ { "anchorEnemyStackGenerate": 1, "nextAnchorGrantBonus": 1 }, { "nextAnchorGrantBonus": 2 } ]
     }
   ],
   "currentHp": 50,
