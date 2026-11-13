@@ -1,5 +1,10 @@
 #include "GameRunDefaults.h"
 
+GameRunDefaults::GameRunDefaults()
+{
+	m_PlayerStatus.money = InitialMoney;
+}
+
 BallStatus& GameRunDefaults::PlayerBallStatus()
 {
 	return m_PlayerBallStatus;

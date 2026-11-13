@@ -321,8 +321,12 @@ namespace
 				return false;
 			}
 
-			if (std::string(path).find("frame_") != std::string::npos)
+			// Trim only empty/flat outer rows and columns.  This removes exported
+			// transparent padding and opaque black gutters without looking inside
+			// the artwork, so frame ornaments and antialiased edges stay intact.
 			{
+				const bool frameTexture =
+					std::string(path).find("frame_") != std::string::npos;
 				int left = destination.width;
 				int top = destination.height;
 				int right = -1;
@@ -333,7 +337,10 @@ namespace
 					{
 						const std::size_t offset =
 							(static_cast<std::size_t>(y) * destination.width + x) * 4u;
-						if (pixels[offset + 3u] < 32u)
+						const bool visible = pixels[offset + 3u] >= 32u;
+						const bool nearBlack = pixels[offset] <= 3u &&
+							pixels[offset + 1u] <= 3u && pixels[offset + 2u] <= 3u;
+						if (!visible || (!frameTexture && nearBlack))
 							continue;
 						left = (std::min)(left, x);
 						top = (std::min)(top, y);
@@ -478,12 +485,16 @@ namespace
 
 		const float areaWidth = (std::max)(1.0f, maximum.x - minimum.x);
 		const float areaHeight = (std::max)(1.0f, maximum.y - minimum.y);
+		const float sampleWidth = (std::max)(1.0f,
+			texture.width * (texture.uvMax.x - texture.uvMin.x));
+		const float sampleHeight = (std::max)(1.0f,
+			texture.height * (texture.uvMax.y - texture.uvMin.y));
 		const float scale = (std::min)(
-			areaWidth / static_cast<float>(texture.width),
-			areaHeight / static_cast<float>(texture.height));
+			areaWidth / sampleWidth,
+			areaHeight / sampleHeight);
 		const ImVec2 drawnSize(
-			static_cast<float>(texture.width) * scale,
-			static_cast<float>(texture.height) * scale);
+			sampleWidth * scale,
+			sampleHeight * scale);
 		const ImVec2 offset(
 			(areaWidth - drawnSize.x) * 0.5f,
 			(areaHeight - drawnSize.y) * 0.5f);
@@ -491,8 +502,8 @@ namespace
 			MakeTextureReference(texture),
 			ImVec2(minimum.x + offset.x, minimum.y + offset.y),
 			ImVec2(minimum.x + offset.x + drawnSize.x, minimum.y + offset.y + drawnSize.y),
-			ImVec2(0.0f, 0.0f),
-			ImVec2(1.0f, 1.0f),
+			texture.uvMin,
+			texture.uvMax,
 			tint);
 	}
 
@@ -526,41 +537,22 @@ namespace
 		bool openDetails = false;
 	};
 
-	struct BallCardTextLayout
+	struct BallCardLayout
 	{
-		float titleSideInset = 0.12f;
-		float titleTop = 0.045f;
-		float titleBottom = 0.158f;
-		float nameY = 0.052f;
-		float categoryY = 0.108f;
-		float descriptionSideInset = 0.09f;
-		float descriptionTop = 0.535f;
+		static constexpr float AspectWidth = 3.0f;
+		static constexpr float AspectHeight = 4.0f;
+		static constexpr float NameLeft = 0.12f;
+		static constexpr float NameTop = 0.066f;
+		static constexpr float NameRight = 0.88f;
+		static constexpr float NameBottom = 0.160f;
+		static constexpr float RoleLeft = 0.265f;
+		static constexpr float RoleTop = 0.170f;
+		static constexpr float RoleRight = 0.735f;
+		static constexpr float RoleBottom = 0.280f;
+		static constexpr float DescriptionLeft = 0.09f;
+		static constexpr float DescriptionTop = 0.535f;
+		static constexpr float DescriptionRight = 0.91f;
 	};
-
-	BallCardTextLayout GetBallCardTextLayout(BallCategory category)
-	{
-		BallCardTextLayout layout;
-		// 軸別フレームは上部の角飾りだけ幅が異なる。
-		// 縦位置は共通にし、タイトルの左右安全域だけ素材に合わせる。
-		switch (category)
-		{
-		case BallCategory::Heavy:
-			layout.titleSideInset = 0.18f;
-			break;
-		case BallCategory::Bounce:
-			layout.titleSideInset = 0.19f;
-			break;
-		case BallCategory::Pierce:
-			layout.titleSideInset = 0.16f;
-			break;
-		case BallCategory::Anchor:
-			layout.titleSideInset = 0.20f;
-			break;
-		default:
-			break;
-		}
-		return layout;
-	}
 
 	BallCardInteraction DrawBallSelectionCard(
 		const PlayerBallData& ball,
@@ -586,8 +578,6 @@ namespace
 		const float readableScale = (std::max)(0.78f, layoutScale);
 		const float cornerRadius = 12.0f * layoutScale;
 		const float footerHeight = 30.0f * readableScale;
-		const BallCardTextLayout textLayout =
-			GetBallCardTextLayout(ball.category);
 
 		drawList->AddRectFilled(
 			ImVec2(position.x + 5.0f, position.y + 7.0f),
@@ -624,7 +614,11 @@ namespace
 
 		if (const BallCardTexture* frame = art.Frame(ball.category))
 		{
-			DrawTextureCover(drawList, *frame, position, cardMax);
+			// Map the complete trimmed frame to the canonical 3:4 card.  A cover
+			// crop here used to cut category-specific corner decorations.
+			drawList->AddImage(
+				MakeTextureReference(*frame), position, cardMax,
+				frame->uvMin, frame->uvMax, IM_COL32_WHITE);
 		}
 		else
 		{
@@ -786,11 +780,11 @@ namespace
 		// 大きな上部プレートにはボール名だけ、下の小さなプレートには主な役割だけ。
 		// 座標をカードの縦横比3:4に対する比率で定義し、全軸共通にする。
 		const ImVec2 nameMinimum(
-			position.x + size.x * 0.12f,
-			position.y + size.y * 0.066f);
+			position.x + size.x * BallCardLayout::NameLeft,
+			position.y + size.y * BallCardLayout::NameTop);
 		const ImVec2 nameMaximum(
-			cardMax.x - size.x * 0.12f,
-			position.y + size.y * 0.160f);
+			position.x + size.x * BallCardLayout::NameRight,
+			position.y + size.y * BallCardLayout::NameBottom);
 		drawList->PushClipRect(nameMinimum, nameMaximum, true);
 		addCenteredTextInRegion(
 			fontSize * 1.02f * readableScale,
@@ -809,11 +803,11 @@ namespace
 			primaryRole.resize(roleEnd + 1);
 
 		const ImVec2 roleMinimum(
-			position.x + size.x * 0.265f,
-			position.y + size.y * 0.170f);
+			position.x + size.x * BallCardLayout::RoleLeft,
+			position.y + size.y * BallCardLayout::RoleTop);
 		const ImVec2 roleMaximum(
-			cardMax.x - size.x * 0.265f,
-			position.y + size.y * 0.280f);
+			position.x + size.x * BallCardLayout::RoleRight,
+			position.y + size.y * BallCardLayout::RoleBottom);
 		drawList->PushClipRect(roleMinimum, roleMaximum, true);
 		addCenteredTextInRegion(
 			fontSize * 0.82f * readableScale,
@@ -825,10 +819,10 @@ namespace
 		drawList->PopClipRect();
 
 		const ImVec2 descriptionMinimum(
-			position.x + size.x * textLayout.descriptionSideInset,
-			position.y + size.y * textLayout.descriptionTop);
+			position.x + size.x * BallCardLayout::DescriptionLeft,
+			position.y + size.y * BallCardLayout::DescriptionTop);
 		const ImVec2 descriptionMaximum(
-			cardMax.x - size.x * textLayout.descriptionSideInset,
+			position.x + size.x * BallCardLayout::DescriptionRight,
 			footerPosition.y - 3.0f * layoutScale);
 		const float descriptionPadding = size.x * 0.025f;
 		const float descriptionTextLeft =
@@ -4036,7 +4030,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 	const ImGuiViewport* detailViewport = ImGui::GetMainViewport();
 	ImGui::SetNextWindowSize(ImVec2(
 		(std::min)(780.0f, detailViewport->WorkSize.x - 32.0f),
-		(std::min)(468.0f, detailViewport->WorkSize.y - 32.0f)),
+			(std::min)(452.0f, detailViewport->WorkSize.y - 32.0f)),
 		ImGuiCond_Appearing);
 	if (ImGui::BeginPopupModal("ボール詳細", nullptr, ImGuiWindowFlags_NoResize))
 	{

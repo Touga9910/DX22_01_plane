@@ -31,6 +31,11 @@ struct GameBattleState final
     EnemyBall* anchorContactTarget = nullptr;
     std::unordered_set<const EnemyBall*> piercedEnemiesThisShot;
     int playerShield = 0;
+	// Support balls may bridge into another axis, but never replace that
+	// axis's dedicated generator.  Reset at shot start; all bridge sites share it.
+	int crossAxisSupportGeneratedThisTurn = 0;
+	static constexpr int CrossAxisSupportLimitPerTurn = 2;
+	bool originAnchorCrossAxisBridgePending = false;
 
 	// Values collected only for the end-of-shot presentation snapshot.
 	// Physics, damage, and rule decisions never read these fields.

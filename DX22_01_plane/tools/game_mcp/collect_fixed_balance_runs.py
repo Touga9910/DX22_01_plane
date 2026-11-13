@@ -22,8 +22,10 @@ from build_decision import (
     build_decision_snapshot,
     build_progress_snapshot,
     evaluate_relic_choices,
+    evaluate_shop_actions,
 )
 from build_profiles import load_build_profiles, profile_settings_hash
+from route_decision import evaluate_rest_site_action, evaluate_route_options
 
 
 DEFAULT_BUILD_PROFILES_PATH = (
@@ -392,7 +394,9 @@ def shot_debug(event: str, **details: Any) -> None:
 def select_route(
     state: dict[str, Any],
     build_policy: dict[str, Any],
-) -> tuple[int, list[str]]:
+    build_profiles: dict[str, dict[str, Any]],
+    build_profile_id: str,
+) -> tuple[int, list[str], dict[str, Any]]:
     stage_choice = state.get("stage_choice", {})
     configured = build_policy.get("reward_priority", [])
     wanted = list(
@@ -409,15 +413,10 @@ def select_route(
             ],
         )
     )
-    route_options = state.get("route_options", [])
-    route_index = int(route_options[0].get("route_index", 0))
-    matches = stage_choice.get("reward_route_matches", {})
-    for reward in wanted:
-        indices = matches.get(reward, [])
-        if indices:
-            route_index = int(indices[0])
-            break
-    return route_index, wanted
+    evaluation = evaluate_route_options(
+        state, build_profiles, build_profile_id, wanted,
+    )
+    return int(evaluation["selected_route_index"]), wanted, evaluation
 
 
 def offered_ball_score(
@@ -591,7 +590,12 @@ async def play_current_run(
     last_cleared = -1
     last_active_build_id = build_profile_id
     initial_deck_state: list[dict[str, Any]] | None = None
+    initial_money: int | None = None
     reward_selection_history: list[dict[str, Any]] = []
+    deck_compression_history: list[dict[str, Any]] = []
+    route_selection_history: list[dict[str, Any]] = []
+    shop_action_history: list[dict[str, Any]] = []
+    shop_attempted_actions: set[str] = set()
 
     for _ in range(maximum_steps):
         state = await get_state(session)
@@ -605,8 +609,11 @@ async def play_current_run(
             initial_deck_state = _normalized_deck(
                 state.get("deck_balls", [])
             )
+            initial_money = int(state.get("player", {}).get("money", 0))
         actions = set(state.get("available_actions", []))
         scene = str(state.get("scene", ""))
+        if scene != "shop":
+            shop_attempted_actions.clear()
         decision = state.get("build_decision")
         if not isinstance(decision, dict):
             decision = build_decision_snapshot(
@@ -663,19 +670,25 @@ async def play_current_run(
                 "actions": actions_taken,
                 "transient_errors": transient_errors,
                 "initial_deck_state": initial_deck_state or [],
+                "initial_money": initial_money,
                 "final_deck_state": _normalized_deck(
                     state.get("deck_balls", [])
                 ),
                 "reward_selection_history": reward_selection_history,
+                "deck_compression_history": deck_compression_history,
+                "route_selection_history": route_selection_history,
+                "shop_action_history": shop_action_history,
             }
 
         try:
             if "choose_destination" in actions:
-                route_index, wanted = select_route(
+                route_index, wanted, route_evaluation = select_route(
                     state,
                     active_build_policy,
+                    build_profiles,
+                    active_build_id,
                 )
-                await call(
+                route_result = await call(
                     session,
                     "choose_destination",
                     {
@@ -683,6 +696,13 @@ async def play_current_run(
                         "wanted_rewards": wanted,
                     },
                 )
+                route_selection_history.append({
+                    "current_hp": state.get("player", {}).get("current_hp"),
+                    "money": state.get("player", {}).get("money"),
+                    "evaluation": route_evaluation,
+                    "selected_route_index": route_index,
+                    "result": route_result,
+                })
                 actions_taken += 1
                 continue
 
@@ -891,17 +911,19 @@ async def play_current_run(
                 continue
 
             if scene == "rest_site":
-                player = state.get("player", {})
-                hp_ratio = float(player.get("current_hp", 0)) / max(
-                    float(player.get("max_hp", 1)),
-                    1.0,
+                rest_decision = evaluate_rest_site_action(
+                    state, build_profiles, active_build_id,
                 )
-                if "heal" in actions and hp_ratio < 0.4:
+                if (
+                    rest_decision.get("recommended_action") == "heal"
+                    and "heal" in actions
+                ):
                     await call(session, "heal")
                     actions_taken += 1
                     continue
                 candidate = (
-                    decision.get("upgrade_choices", {})
+                    rest_decision.get("upgrade_candidate")
+                    or decision.get("upgrade_choices", {})
                     .get("recommended")
                 )
                 if not isinstance(candidate, dict):
@@ -909,7 +931,10 @@ async def play_current_run(
                         state,
                         active_build_policy,
                     )
-                if "upgrade_ball" in actions and candidate:
+                if (
+                    rest_decision.get("recommended_action") == "upgrade_ball"
+                    and "upgrade_ball" in actions and candidate
+                ):
                     await call(
                         session,
                         "upgrade_ball",
@@ -934,19 +959,72 @@ async def play_current_run(
                     continue
 
             if scene == "shop":
-                if "buy_relic" in actions:
-                    choice = (
-                        decision.get("relic_choices", {})
-                        .get("recommended")
+                shop_plan = evaluate_shop_actions(
+                    state, build_profiles, active_build_id,
+                )
+                if "remove_ball" not in shop_attempted_actions and not any(
+                    item.get("action") == "remove_ball"
+                    for item in shop_plan["ranked_actions"]
+                ):
+                    shop_attempted_actions.add("remove_ball")
+                    skipped = dict(shop_plan["removal_decision"])
+                    skipped["accepted"] = False
+                    deck_compression_history.append(skipped)
+
+                next_shop_action = next(
+                    (
+                        item for item in shop_plan["ranked_actions"]
+                        if str(item.get("action")) not in shop_attempted_actions
+                        and str(item.get("action")) in actions
+                    ),
+                    None,
+                )
+                if isinstance(next_shop_action, dict):
+                    action_name = str(next_shop_action["action"])
+                    shop_attempted_actions.add(action_name)
+                    arguments: dict[str, Any]
+                    if action_name == "remove_ball":
+                        arguments = {
+                            "instance_id": int(next_shop_action["instance_id"])
+                        }
+                    elif action_name == "buy_ball":
+                        arguments = {
+                            "offer_index": int(next_shop_action["offer_index"])
+                        }
+                    else:
+                        arguments = {
+                            "relic_index": int(next_shop_action["relic_index"])
+                        }
+                    action_result = await call(
+                        session, action_name, arguments,
                     )
-                    if isinstance(choice, dict):
-                        await call(
-                            session,
-                            "buy_relic",
-                            {"relic_index": int(choice["index"])},
-                        )
+                    action_entry = {
+                        "plan": shop_plan,
+                        "selected": next_shop_action,
+                        "result": action_result,
+                        "money_before": state.get("player", {}).get("money"),
+                        "deck_before": _normalized_deck(state.get("deck_balls", [])),
+                    }
+                    if action_result.get("ok", False):
                         actions_taken += 1
-                        continue
+                        state_after_action = await get_state(session)
+                        action_entry["money_after"] = state_after_action.get(
+                            "player", {}
+                        ).get("money")
+                        action_entry["deck_after"] = _normalized_deck(
+                            state_after_action.get("deck_balls", [])
+                        )
+                    else:
+                        transient_errors += 1
+                    shop_action_history.append(action_entry)
+                    if action_name == "remove_ball":
+                        removal_entry = dict(shop_plan["removal_decision"])
+                        removal_entry.update(action_entry)
+                        removal_entry["accepted"] = bool(
+                            action_result.get("ok", False)
+                        )
+                        deck_compression_history.append(removal_entry)
+                    continue
                 if "continue_to_battle" in actions:
                     await call(session, "continue_to_battle")
                     actions_taken += 1
@@ -978,8 +1056,12 @@ async def play_current_run(
         "actions": actions_taken,
         "transient_errors": transient_errors,
         "initial_deck_state": initial_deck_state or [],
+        "initial_money": initial_money,
         "final_deck_state": _normalized_deck(state.get("deck_balls", [])),
         "reward_selection_history": reward_selection_history,
+        "deck_compression_history": deck_compression_history,
+        "route_selection_history": route_selection_history,
+        "shop_action_history": shop_action_history,
     }
 
 

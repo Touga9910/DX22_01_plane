@@ -126,6 +126,19 @@ bool Game::PrepareNextPlayerBall()
 		{
 			players.front()->GetBall()->ResetAtPosition(returnPosition);
 		}
+		if (m_BattleState->originAnchorCrossAxisBridgePending &&
+			m_BattleState->crossAxisSupportGeneratedThisTurn <
+				GameBattleState::CrossAxisSupportLimitPerTurn &&
+			m_BattleState->pierceTraces.stackCount < PierceTraceRules::MaxStackCount)
+		{
+			++m_BattleState->pierceTraces.stackCount;
+			++m_BattleState->crossAxisSupportGeneratedThisTurn;
+			RecordBalanceEvent("support_cross_axis_generated", {
+				{ "source", "player_origin_anchor" },
+				{ "target_axis", "pierce" }, { "amount", 1 },
+			});
+		}
+		m_BattleState->originAnchorCrossAxisBridgePending = false;
 	}
 
 	if (m_RunController->Deck().HasCurrent())

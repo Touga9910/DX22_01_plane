@@ -1,6 +1,18 @@
 {
   "schema_version": 1,
   "default_profile": "standard",
+  "route_value_weights": {
+    "recovery_value": 1.0,
+    "free_upgrade_value": 1.0,
+    "deck_compression_value": 1.0,
+    "generator_acquisition_value": 0.8,
+    "finisher_acquisition_value": 0.7,
+    "support_acquisition_value": 0.6,
+    "relic_value": 0.5,
+    "future_shop_access_value": 0.8,
+    "expected_hp_risk": 1.0,
+    "money_cost": 0.5
+  },
   "profiles": {
     "standard": {
       "label": "標準型",

@@ -4,12 +4,14 @@ import unittest
 from pathlib import Path
 
 from build_decision import (
+    BALL_ROLES,
     build_decision_snapshot,
     evaluate_ball_choices,
     evaluate_build_hypotheses,
     evaluate_clear_reward,
     evaluate_relic_choices,
     evaluate_risk_tradeoff,
+    evaluate_shop_ball_removal,
 )
 from build_profiles import load_build_profiles
 
@@ -26,13 +28,14 @@ def ball(
     anchor: bool = False,
     instance_id: int = 0,
     can_upgrade: bool = True,
+    upgrade_level: int = 0,
 ) -> dict:
     return {
         "index": index,
         "definition_id": definition_id,
         "instance_id": instance_id,
         "can_upgrade": can_upgrade,
-        "upgrade_level": 0,
+        "upgrade_level": upgrade_level,
         "status": {
             "attack": attack,
             "defense": defense,
@@ -71,6 +74,145 @@ class BuildDecisionTests(unittest.TestCase):
             result["recommended"]["breakdown"]["flexibility"],
             0.0,
         )
+
+    def test_all_runtime_balls_have_explicit_roles(self) -> None:
+        catalog_path = Path(__file__).resolve().parents[2] / "assets/data/player_status.json"
+        import json
+        runtime_ids = {
+            entry["id"]
+            for entry in json.loads(catalog_path.read_text(encoding="utf-8"))["balls"]
+        }
+        self.assertEqual(runtime_ids, set(BALL_ROLES))
+
+    def test_generator_then_finisher_then_support_priority_is_dynamic(self) -> None:
+        offers = [
+            ball(0, "player_pierce"),
+            ball(1, "player_trace_driver"),
+            ball(2, "player_refractive_pierce"),
+        ]
+        state = {
+            "player": {"current_hp": 50, "max_hp": 50, "money": 50},
+            "deck_balls": [ball(0, "player_standard", instance_id=10)],
+            "offered_balls": offers,
+        }
+        first = evaluate_ball_choices(state, self.profiles, "pierce")
+        self.assertEqual(first["recommended"]["definition_id"], "player_pierce")
+        self.assertGreater(
+            first["recommended"]["breakdown"]["missing_role_bonus"], 0,
+        )
+
+        state["deck_balls"].append(ball(1, "player_pierce", instance_id=11))
+        second = evaluate_ball_choices(state, self.profiles, "pierce")
+        self.assertEqual(second["recommended"]["definition_id"], "player_trace_driver")
+        generator = next(
+            choice for choice in second["choices"]
+            if choice["definition_id"] == "player_pierce"
+        )
+        self.assertLess(
+            generator["breakdown"]["duplicate_generator_penalty"], 0,
+        )
+
+    def test_cross_axis_generator_is_not_undervalued(self) -> None:
+        state = {
+            "player": {"current_hp": 50, "max_hp": 50, "money": 50},
+            "deck_balls": [ball(0, "player_standard", instance_id=1)],
+            "offered_balls": [
+                ball(0, "player_origin_anchor"),
+                ball(1, "player_standard"),
+            ],
+        }
+        result = evaluate_ball_choices(state, self.profiles, "pierce")
+        cross_axis = next(
+            choice for choice in result["choices"]
+            if choice["definition_id"] == "player_origin_anchor"
+        )
+        self.assertGreater(
+            cross_axis["breakdown"]["missing_role_bonus"], 0,
+        )
+
+    def test_shop_removal_prefers_unupgraded_standard_and_preserves_synergy(self) -> None:
+        deck = [
+            ball(0, "player_standard", instance_id=1, upgrade_level=2),
+            ball(1, "player_standard", instance_id=2),
+            ball(2, "player_standard", instance_id=3),
+            ball(3, "player_standard", instance_id=4),
+            ball(4, "player_pierce", instance_id=5),
+            ball(5, "player_trace_driver", instance_id=6),
+        ]
+        state = {
+            "scene": "shop",
+            "available_actions": ["remove_ball", "continue_to_battle"],
+            "player": {"current_hp": 50, "max_hp": 50, "money": 50},
+            "deck_balls": deck,
+            "relics": [],
+        }
+        result = evaluate_shop_ball_removal(state, self.profiles, "pierce")
+        self.assertEqual(result["recommended"]["definition_id"], "player_standard")
+        self.assertNotEqual(result["recommended"]["instance_id"], 1)
+        protected = {
+            candidate["definition_id"]: candidate["protected"]
+            for candidate in result["candidates"]
+            if candidate["definition_id"] in {"player_pierce", "player_trace_driver"}
+        }
+        self.assertEqual(protected, {"player_pierce": True, "player_trace_driver": True})
+
+    def test_shop_removal_obeys_money_and_minimum_deck(self) -> None:
+        state = {
+            "scene": "shop",
+            "available_actions": ["continue_to_battle"],
+            "player": {"current_hp": 50, "max_hp": 50, "money": 14},
+            "deck_balls": [
+                ball(index, "player_standard", instance_id=index + 1)
+                for index in range(6)
+            ],
+            "relics": [],
+        }
+        result = evaluate_shop_ball_removal(state, self.profiles, "standard")
+        self.assertIsNone(result["recommended"])
+        self.assertEqual(result["skip_reason"], "insufficient_money_or_action_unavailable")
+        state["player"]["money"] = 50
+        state["deck_balls"] = state["deck_balls"][:5]
+        result = evaluate_shop_ball_removal(state, self.profiles, "standard")
+        self.assertEqual(result["skip_reason"], "minimum_deck_size")
+
+    def test_shop_removal_runs_for_all_five_build_profiles(self) -> None:
+        protected_pairs = {
+            "standard": (),
+            "heavy": ("player_heavy", "player_chain_impact"),
+            "pierce": ("player_pierce", "player_trace_driver"),
+            "bounce": ("player_cushion_charge", "player_bounce"),
+            "anchor": ("player_anchor", "player_anchor_finisher"),
+        }
+        for profile_id, pair in protected_pairs.items():
+            with self.subTest(profile_id=profile_id):
+                deck = [
+                    ball(index, "player_standard", instance_id=index + 1)
+                    for index in range(6)
+                ]
+                deck.extend(
+                    ball(6 + offset, definition_id, instance_id=20 + offset)
+                    for offset, definition_id in enumerate(pair)
+                )
+                state = {
+                    "scene": "shop",
+                    "available_actions": ["remove_ball", "continue_to_battle"],
+                    "player": {"current_hp": 50, "max_hp": 50, "money": 50},
+                    "deck_balls": deck,
+                    "relics": [],
+                }
+                result = evaluate_shop_ball_removal(
+                    state, self.profiles, profile_id,
+                )
+                self.assertEqual(
+                    result["recommended"]["definition_id"],
+                    "player_standard",
+                )
+                protected_ids = {
+                    candidate["definition_id"]
+                    for candidate in result["candidates"]
+                    if candidate["protected"]
+                }
+                self.assertTrue(set(pair).issubset(protected_ids))
 
     def test_requested_build_does_not_switch_to_existing_heavy_stack(self) -> None:
         heavy_a = ball(

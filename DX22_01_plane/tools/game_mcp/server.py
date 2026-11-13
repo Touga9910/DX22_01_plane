@@ -26,6 +26,7 @@ from build_profiles import (
     compose_control_profile,
     load_build_profiles,
 )
+from route_decision import evaluate_route_options
 from shot_planner import (
     PlayerProfileController,
     build_tactical_shot_context,
@@ -620,7 +621,48 @@ def resolve_mcp_stage_choice(
     wanted_rewards: list[str] | None,
     profile: dict[str, Any],
     requested_route_index: int = -1,
+    build_profiles: dict[str, dict[str, Any]] | None = None,
+    build_profile_id: str = "",
 ) -> dict[str, Any]:
+    if not build_profiles:
+        embedded_policy = profile.get("build_policy")
+        embedded_identity = profile.get("build_profile", {})
+        if isinstance(embedded_policy, dict) and isinstance(embedded_identity, dict):
+            embedded_id = str(embedded_identity.get("id", "standard"))
+            build_profiles = {embedded_id: embedded_policy}
+            build_profile_id = embedded_id
+        elif isinstance(profile.get("core_parts"), list):
+            embedded_id = str(profile.get("id", "standard"))
+            build_profiles = {embedded_id: profile}
+            build_profile_id = embedded_id
+    if build_profiles and build_profile_id in build_profiles:
+        route_evaluation = evaluate_route_options(
+            state,
+            build_profiles,
+            build_profile_id,
+            wanted_rewards,
+            requested_route_index,
+        )
+        selected = route_evaluation.get("selected")
+        if not isinstance(selected, dict):
+            raise GameBridgeError(
+                "現在選択できるroute_optionsがありません。"
+            )
+        effective_index = int(selected["route_index"])
+        return {
+            "requested_route_index": requested_route_index,
+            "effective_route_index": effective_index,
+            "effective_destination": selected.get("destination", "unknown"),
+            "node_id": selected.get("node_id"),
+            "overridden": (
+                requested_route_index >= 0
+                and effective_index != requested_route_index
+            ),
+            "reason": route_evaluation["selection_reason"],
+            "ai_requested_route_index": requested_route_index,
+            "wanted_rewards": list(wanted_rewards or []),
+            "route_evaluation": route_evaluation,
+        }
     # A map index identifies a particular future path, even when two nodes have
     # the same destination. Never silently replace an explicit path with a heal.
     if isinstance(state.get("run_map"), dict) and requested_route_index >= 0:
@@ -1060,6 +1102,12 @@ def create_server(
             state,
             profile,
         )
+        state["route_evaluation"] = evaluate_route_options(
+            state,
+            build_profiles,
+            build_profile_controller.profile_id,
+            state["stage_choice"].get("recommended_wanted_rewards", []),
+        )
         return GameToolResult(result=state)
 
     @mcp.tool(
@@ -1373,8 +1421,8 @@ def create_server(
             "またはそこで希望報酬を得られない場合は次順位へ"
             "フォールバックします。マップ式ではrun_map.nodesのnext_node_idsで先の経路を確認し、"
             "route_optionsのroute_indexで行き先を明示してください。"
-            "明示したマップ経路はHPや報酬の優先ルールで変更しません。"
-            "route_indexを省略した場合のみ次の自動選択ルールを適用します。"
+            "route_indexを明示した場合もその経路を希望値として評価し、"
+            "安全性と2～3ステージ先の統合価値が上回る場合は補正します。"
             "受け取った順位は現在のneed_signalsで再評価し、"
             "必要な項目をHP回復、レリック、ボール強化、"
             "新ボール、Moneyの優先度で前へ移動します。"
@@ -1404,6 +1452,8 @@ def create_server(
             wanted_rewards,
             control_profile(),
             route_index,
+            build_profiles,
+            build_profile_controller.profile_id,
         )
         result = store.submit_command(
             "choose_destination",
@@ -1746,6 +1796,28 @@ def create_server(
                         ),
                     },
                 },
+            )
+        )
+
+    @mcp.tool(
+        title="ショップのボールを購入",
+        description=(
+            "ショップでshop_ball_offersのoffer_indexを指定し、"
+            "手動ショップと同じ20 Moneyで購入します。"
+            "現在入荷中の球だけが対象です。"
+        ),
+        annotations=local_write,
+        structured_output=True,
+    )
+    def buy_ball(offer_index: int) -> GameToolResult:
+        if offer_index < 0:
+            raise GameBridgeError(
+                "offer_indexは0以上で指定してください。"
+            )
+        return GameToolResult(
+            result=store.submit_command(
+                "buy_ball",
+                {"offer_index": offer_index},
             )
         )
 

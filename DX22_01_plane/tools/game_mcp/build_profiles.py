@@ -35,6 +35,11 @@ VALID_BALL_IDS = {
 	"player_pierce_finisher",
 	"player_ricochet_finisher",
 	"player_anchor_finisher",
+	"player_collision_boost",
+	"player_lightweight",
+	"player_minion_finisher",
+	"player_reflection_setup",
+	"player_origin_anchor",
 }
 VALID_REWARD_PRIORITIES = {
     "money",
@@ -42,6 +47,18 @@ VALID_REWARD_PRIORITIES = {
     "ball_upgrade",
     "hp_recovery",
     "relic",
+}
+VALID_ROUTE_VALUE_WEIGHTS = {
+    "recovery_value",
+    "free_upgrade_value",
+    "deck_compression_value",
+    "generator_acquisition_value",
+    "finisher_acquisition_value",
+    "support_acquisition_value",
+    "relic_value",
+    "future_shop_access_value",
+    "expected_hp_risk",
+    "money_cost",
 }
 
 
@@ -72,6 +89,19 @@ def load_build_profiles(
             "ビルド方針設定にprofilesオブジェクトが必要です。"
         )
     default_profile = str(document.get("default_profile", "standard"))
+    shared_route_weights = document.get("route_value_weights", {})
+    if (
+        not isinstance(shared_route_weights, dict)
+        or set(shared_route_weights) != VALID_ROUTE_VALUE_WEIGHTS
+        or any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0
+        for value in shared_route_weights.values()
+        )
+    ):
+        raise RuntimeError("route_value_weightsは0以上の有限数値で指定してください。")
 
     profiles: dict[str, dict[str, Any]] = {}
     for profile_id in VALID_BUILD_PROFILES:
@@ -170,7 +200,14 @@ def load_build_profiles(
             for key, value in weights.items()
         ):
             raise RuntimeError(f"{profile_id}.shot_evaluation must contain known axes and finite nonnegative weights.")
-        profiles[profile_id] = copy.deepcopy(profile)
+        normalized_profile = copy.deepcopy(profile)
+        normalized_stage_policy = normalized_profile.setdefault(
+            "stage_choice_policy", {}
+        )
+        normalized_stage_policy["route_value_weights"] = copy.deepcopy(
+            shared_route_weights
+        )
+        profiles[profile_id] = normalized_profile
 
     if default_profile not in profiles:
         raise RuntimeError(

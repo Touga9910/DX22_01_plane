@@ -53,6 +53,24 @@ class BuildShotTests(unittest.TestCase):
         build = dict(self.profiles[kind], id=kind, settings_hash=profile_settings_hash(self.profiles[kind]))
         return compose_control_profile(self.players["intermediate"], build)
 
+    def test_minion_stack_cost_respects_trace_count(self):
+        driver = ball()
+        driver["definition_id"] = "player_trace_driver"
+        driver["status"].update(pierceStackConsumeLimit=9, attack=1)
+        s = state(driver, [enemy(0, 0, 15)])
+        s["ball_synergies"] = {"pierce_stacks": 9, "pierce_traces": []}
+        without_trace = evaluate_build_shots(
+            s, self.profile("pierce"), shot_type="direct")[0]
+        self.assertEqual(
+            without_trace["special_ability_estimates"]["pierce_stacks_consumed"], 0)
+
+        s["ball_synergies"]["pierce_traces"] = [{
+            "start": [0, 0, 0], "direction": [0, 0, 1]}]
+        with_one_trace = evaluate_build_shots(
+            s, self.profile("pierce"), shot_type="direct")[0]
+        self.assertEqual(
+            with_one_trace["special_ability_estimates"]["pierce_stacks_consumed"], 3)
+
     def test_pierce_selects_front_of_line_and_counts_followups(self):
         s = state(ball("pierce"), [enemy(0, 0, 15), enemy(1, 0, 30), enemy(2, 0, 45), enemy(3, 25, 15)])
         c = evaluate_build_shots(s, self.profile("pierce"), shot_type="direct")[0]

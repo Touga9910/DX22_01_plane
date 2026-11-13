@@ -87,6 +87,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 	m_BattleState->anchorFinisherTriggeredThisShot = false;
 	m_BattleState->anchorContactTarget = nullptr;
 	m_BattleState->playerShield = 0;
+	m_BattleState->crossAxisSupportGeneratedThisTurn = 0;
 	m_BattleState->presentationHitCount = 0;
 	m_BattleState->presentationDamage = 0;
 	m_BattleState->presentationDefeatCount = 0;
@@ -133,6 +134,32 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 				{ "remaining", m_BattleState->heavyCollisions.stackCount },
 				{ "multiplier", currentBall->status.heavyEnemyCollisionMultiplier },
 			});
+			// A successful heavy setup bridges to reflection only when that axis is
+			// actually represented in the deck. Dedicated reflection generators
+			// remain much faster than this once-per-condition grant.
+			const auto deckHasReflection = [&]()
+			{
+				for (int index = 0;
+					index < m_RunController->Deck().GetRewardTargetCount(); ++index)
+				{
+					const PlayerBallData* ball =
+						m_RunController->Deck().GetRewardTarget(index);
+					if (ball != nullptr && ball->category == BallCategory::Bounce)
+						return true;
+				}
+				return false;
+			};
+			if (deckHasReflection() &&
+				m_BattleState->crossAxisSupportGeneratedThisTurn <
+					GameBattleState::CrossAxisSupportLimitPerTurn)
+			{
+				++m_BattleState->cushionCharges.stackCount;
+				++m_BattleState->crossAxisSupportGeneratedThisTurn;
+				RecordBalanceEvent("support_cross_axis_generated", {
+					{ "source", currentBall->definitionId },
+					{ "target_axis", "reflection" }, { "amount", 1 },
+				});
+			}
 		}
 		else
 		{
@@ -189,6 +216,18 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 					player->GetPosition().x,
 					player->GetPosition().z } },
 			});
+			m_BattleState->originAnchorCrossAxisBridgePending = false;
+			for (int index = 0;
+				index < m_RunController->Deck().GetRewardTargetCount(); ++index)
+			{
+				const PlayerBallData* deckBall =
+					m_RunController->Deck().GetRewardTarget(index);
+				if (deckBall != nullptr && deckBall->category == BallCategory::Pierce)
+				{
+					m_BattleState->originAnchorCrossAxisBridgePending = true;
+					break;
+				}
+			}
 		}
 		auto shotRules = m_BattleState->controller.GetShotRelicRules();
 		shotRules.launchPower = player->GetVelocity().Length();

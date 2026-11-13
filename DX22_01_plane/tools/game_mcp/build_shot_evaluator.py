@@ -308,6 +308,25 @@ def _minion_expectation(state, count_consumed, finisher, enemies):
     return expected, predicted_hits
 
 
+def _effective_minion_stack_consume(state, stack_count, consume_limit, finisher):
+    """Mirror PierceTraceRules::CalculateEffectiveMinionStackConsume."""
+    traces = _resource_state(state).get("pierce_traces", [])
+    trace_count = min(3, len(traces) if isinstance(traces, list) else 0)
+    available = min(15, max(0, _whole(stack_count)), max(0, _whole(consume_limit)))
+    if trace_count <= 0 or available <= 0:
+        return 0
+    useful = min(available, trace_count * 3)
+    if finisher:
+        for index in range(trace_count):
+            attack_threshold = 10 + index * 2
+            knockback_threshold = attack_threshold + 1
+            if available >= attack_threshold:
+                useful = attack_threshold
+            if available >= knockback_threshold:
+                useful = knockback_threshold
+    return useful
+
+
 def _future_discount(current_hp, max_hp, incoming_damage):
     # Setup only matters if the player is likely to survive this enemy turn.
     hp = max(1.0, current_hp)
@@ -542,10 +561,13 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
             if count > 1: reasons.append("複数貫通でスタックと射線記録を増やす")
 
     if definition in {"player_trace_driver", "player_minion_finisher"}:
-        consume = min(pierce, (15 if definition == "player_minion_finisher"
-                               else _whole(stats.get("pierceStackConsumeLimit", 3), 3)))
+        finisher_ball = definition == "player_minion_finisher"
+        consume_limit = (15 if finisher_ball else
+                         _whole(stats.get("pierceStackConsumeLimit", 3), 3))
+        consume = _effective_minion_stack_consume(
+            state, pierce, consume_limit, finisher_ball)
         predicted, launched = _minion_expectation(state, consume,
-                                                  definition == "player_minion_finisher", enemies)
+                                                  finisher_ball, enemies)
         facts["pierce_stacks_consumed"] = consume
         facts["minion_predicted_hits"] = launched
         finisher += predicted

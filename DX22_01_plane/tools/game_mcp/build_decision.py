@@ -60,6 +60,58 @@ BALL_METADATA: dict[str, dict[str, Any]] = {
 	},
 }
 
+# Roles are based on the runtime effect, not the visual category.  Generated
+# resources include the cross-axis gains implemented by the support balls.
+BALL_ROLES: dict[str, dict[str, tuple[str, ...]]] = {
+    "player_standard": {"roles": ("Support",), "supports": ("standard",)},
+    "player_heavy": {"roles": ("Generator",), "generates": ("heavy",)},
+    "player_chain_impact": {"roles": ("Finisher",), "consumes": ("heavy",)},
+    "player_collision_boost": {
+        "roles": ("Support",), "generates": ("bounce",), "consumes": ("heavy",),
+    },
+    "player_lightweight": {
+        "roles": ("Generator", "Support"), "generates": ("heavy", "pierce"),
+    },
+    "player_pierce": {"roles": ("Generator",), "generates": ("pierce",)},
+    "player_refractive_pierce": {
+        "roles": ("Generator", "Support"), "generates": ("pierce",),
+    },
+    "player_trace_driver": {"roles": ("Finisher",), "consumes": ("pierce",)},
+    "player_pierce_finisher": {
+        "roles": ("Generator", "Finisher"),
+        "generates": ("pierce",), "consumes": ("pierce",),
+    },
+    "player_minion_finisher": {
+        "roles": ("Generator", "Finisher"),
+        "generates": ("pierce",), "consumes": ("pierce",),
+    },
+    "player_bounce": {"roles": ("Finisher",), "consumes": ("bounce",)},
+    "player_cushion_charge": {
+        "roles": ("Generator",), "generates": ("bounce",),
+    },
+    "player_ricochet_finisher": {
+        "roles": ("Finisher",), "consumes": ("bounce",),
+    },
+    "player_reflection_setup": {
+        "roles": ("Generator", "Support"), "generates": ("bounce", "heavy"),
+    },
+    "player_anchor": {"roles": ("Generator",), "generates": ("anchor",)},
+    "player_stop_shield": {
+        "roles": ("Support",), "generates": ("bounce",), "consumes": ("anchor",),
+    },
+    "player_anchor_finisher": {
+        "roles": ("Finisher",), "consumes": ("anchor",),
+    },
+    "player_origin_anchor": {
+        "roles": ("Generator", "Support"), "generates": ("anchor", "pierce"),
+    },
+}
+
+PROFILE_RESOURCE = {
+    "standard": "standard", "heavy": "heavy", "pierce": "pierce",
+    "bounce": "bounce", "anchor": "anchor",
+}
+
 CORE_RELICS: dict[str, tuple[str, ...]] = {
     "standard": ("Power Core",),
     "heavy": ("Impact Accelerator",),
@@ -361,6 +413,113 @@ def _immediate_ball_value(
     return immediate, survival
 
 
+def _role_data(definition_id: str) -> dict[str, tuple[str, ...]]:
+    return BALL_ROLES.get(
+        definition_id,
+        {"roles": ("Support",), "supports": ()},
+    )
+
+
+def _role_composition(
+    state: dict[str, Any], profile_id: str,
+) -> dict[str, Any]:
+    resource = PROFILE_RESOURCE.get(profile_id, profile_id)
+    generators: list[str] = []
+    finishers: list[str] = []
+    supports: list[str] = []
+    for ball in _as_list(state.get("deck_balls")):
+        if not isinstance(ball, dict):
+            continue
+        definition_id = str(ball.get("definition_id", ""))
+        data = _role_data(definition_id)
+        roles = set(data.get("roles", ()))
+        if resource in data.get("generates", ()):
+            generators.append(definition_id)
+        if "Finisher" in roles and resource in data.get("consumes", ()):
+            finishers.append(definition_id)
+        if (
+            "Support" in roles
+            and (
+                resource in data.get("supports", ())
+                or resource in data.get("generates", ())
+                or resource in data.get("consumes", ())
+            )
+        ):
+            supports.append(definition_id)
+    return {
+        "resource": resource,
+        "Generator": generators,
+        "Finisher": finishers,
+        "Support": supports,
+        "counts": {
+            "Generator": len(generators),
+            "Finisher": len(finishers),
+            "Support": len(supports),
+        },
+    }
+
+
+def role_composition_snapshot(
+    state: dict[str, Any], profile_id: str,
+) -> dict[str, Any]:
+    return _role_composition(state, profile_id)
+
+
+def _dynamic_role_adjustment(
+    definition_id: str,
+    profile_id: str,
+    composition: dict[str, Any],
+) -> tuple[float, float, float, list[str]]:
+    """Return missing-role bonus, duplicate-generator penalty and role labels."""
+    data = _role_data(definition_id)
+    resource = PROFILE_RESOURCE.get(profile_id, profile_id)
+    roles = list(data.get("roles", ()))
+    generates_target = resource in data.get("generates", ())
+    finishes_target = (
+        "Finisher" in roles and resource in data.get("consumes", ())
+    )
+    supports_target = (
+        "Support" in roles and (
+            resource in data.get("supports", ())
+            or generates_target
+            or resource in data.get("consumes", ())
+        )
+    )
+    counts = _as_dict(composition.get("counts"))
+    generator_count = int(counts.get("Generator", 0))
+    finisher_count = int(counts.get("Finisher", 0))
+    support_count = int(counts.get("Support", 0))
+    bonus = 0.0
+    penalty = 0.0
+
+    # Standard remains an attack-stability profile instead of pretending that
+    # ordinary balls generate a specialist resource.
+    if profile_id == "standard":
+        if definition_id == "player_standard":
+            bonus = 55.0 if support_count == 0 else 12.0
+        return bonus, penalty, roles
+
+    if generator_count == 0:
+        if generates_target:
+            bonus += 115.0
+        elif finishes_target:
+            bonus += 42.0
+        elif supports_target:
+            bonus += 32.0
+    else:
+        if finisher_count == 0 and finishes_target:
+            bonus += 92.0
+        if support_count == 0 and supports_target:
+            bonus += 68.0 if finisher_count > 0 else 50.0
+        if generates_target:
+            penalty = 30.0
+            # A lone generator is not enough for two expensive consumers.
+            if finisher_count > generator_count:
+                penalty = 0.0
+                bonus += 45.0
+    return bonus, penalty, roles
+
+
 def evaluate_ball_choices(
     state: dict[str, Any],
     profiles: dict[str, dict[str, Any]],
@@ -411,6 +570,7 @@ def evaluate_ball_choices(
         if isinstance(enemy, dict)
     )
     counts = _ball_counts(state)
+    role_composition = _role_composition(state, preferred_build_id)
     choices: list[dict[str, Any]] = []
 
     for ball in _as_list(state.get(source)):
@@ -516,6 +676,13 @@ def evaluate_ball_choices(
             generic_value *= 0.55
         same_count = counts.get(definition_id, 0)
         redundancy = max(0, same_count - 2) * 9.0
+        missing_role_bonus, duplicate_generator_penalty, roles = (
+            _dynamic_role_adjustment(
+                definition_id,
+                preferred_build_id,
+                role_composition,
+            )
+        )
         total = (
             immediate
             + survival
@@ -528,7 +695,9 @@ def evaluate_ball_choices(
             + preferred_bonus
             + definition_bonus
             + alternative_synergy
+            + missing_role_bonus
             - redundancy
+            - duplicate_generator_penalty
         )
         chosen_build_id = (
             preferred_build_id
@@ -544,6 +713,8 @@ def evaluate_ball_choices(
                 "construction_phase": progress["phase"],
                 "build_completion": progress["completion_rate"],
                 "missing_key_parts": progress["missing_key_parts"],
+                "roles": roles,
+                "role_composition": role_composition["counts"],
                 "breakdown": {
                     "immediate_power": round(immediate, 3),
                     "survival": round(survival, 3),
@@ -556,6 +727,10 @@ def evaluate_ball_choices(
                     "preferred_build": round(preferred_bonus, 3),
                     "definition_bonus": round(definition_bonus, 3),
                     "alternative_synergy": round(alternative_synergy, 3),
+                    "missing_role_bonus": round(missing_role_bonus, 3),
+                    "duplicate_generator_penalty": round(
+                        -duplicate_generator_penalty, 3
+                    ),
                     "redundancy": round(-redundancy, 3),
                 },
             }
@@ -570,6 +745,7 @@ def evaluate_ball_choices(
         "source": source,
         "preferred_build_id": preferred_build_id,
         "build_progress": progress,
+        "role_composition": role_composition,
         "recommended": choices[0] if choices else None,
         "choices": choices,
     }
@@ -1021,6 +1197,333 @@ def evaluate_clear_reward(
     }
 
 
+def evaluate_shop_ball_removal(
+    state: dict[str, Any],
+    profiles: dict[str, dict[str, Any]],
+    preferred_profile_id: str = "",
+) -> dict[str, Any]:
+    """Evaluate one explainable MCP-only deck compression at a shop."""
+    profile_id = (
+        preferred_profile_id
+        if preferred_profile_id in profiles
+        else str(next(iter(profiles), preferred_profile_id))
+    )
+    profile = profiles.get(profile_id, {})
+    resource = PROFILE_RESOURCE.get(profile_id, profile_id)
+    deck = [
+        ball for ball in _as_list(state.get("deck_balls"))
+        if isinstance(ball, dict)
+    ]
+    deck_before = [
+        {
+            "definition_id": str(ball.get("definition_id", "")),
+            "instance_id": ball.get("instance_id", 0),
+            "upgrade_level": int(ball.get("upgrade_level", 0)),
+        }
+        for ball in deck
+    ]
+    money = max(0, int(_as_dict(state.get("player")).get("money", 0)))
+    removal_cost = 15
+    minimum_deck_size = 5
+    core_parts, support_parts = _build_parts(profile)
+    counts = _ball_counts(state)
+    composition = _role_composition(state, profile_id)
+
+    desired_relics = set(CORE_RELICS.get(profile_id, ()))
+    relic_policy = _as_dict(profile.get("relic_policy"))
+    desired_relics.update(
+        str(value)
+        for key in ("attack_priority", "low_hp_priority")
+        for value in _as_list(relic_policy.get(key))
+    )
+    offered_prices = [
+        max(0, int(relic.get("price", 0)))
+        for relic in _as_list(state.get("relics"))
+        if isinstance(relic, dict)
+        and bool(relic.get("shop_offered", False))
+        and not bool(relic.get("owned", False))
+        and _canonical_relic_name(relic.get("name")) in desired_relics
+        and max(0, int(relic.get("price", 0))) <= money
+    ]
+    money_reserve = min(offered_prices) if offered_prices else 0
+
+    result: dict[str, Any] = {
+        "build_profile": profile_id,
+        "role_composition": composition,
+        "deck_before": deck_before,
+        "money_before": money,
+        "removal_cost": removal_cost,
+        "money_reserve": money_reserve,
+        "candidates": [],
+        "recommended": None,
+        "skip_reason": "",
+    }
+    actions = set(_as_list(state.get("available_actions")))
+    if state.get("scene") != "shop":
+        result["skip_reason"] = "not_in_shop"
+        return result
+    if "remove_ball" not in actions:
+        result["skip_reason"] = (
+            "minimum_deck_size" if len(deck) <= minimum_deck_size
+            else "insufficient_money_or_action_unavailable"
+        )
+        return result
+    if len(deck) <= minimum_deck_size:
+        result["skip_reason"] = "minimum_deck_size"
+        return result
+    if money < removal_cost + money_reserve:
+        result["skip_reason"] = "money_reserved_for_relic"
+        return result
+
+    for ball in deck:
+        definition_id = str(ball.get("definition_id", ""))
+        instance_id = ball.get("instance_id", 0)
+        level = max(0, int(ball.get("upgrade_level", 0)))
+        data = _role_data(definition_id)
+        roles = list(data.get("roles", ()))
+        generates_target = resource in data.get("generates", ())
+        consumes_target = resource in data.get("consumes", ())
+        supports_target = (
+            definition_id in support_parts
+            or (
+                "Support" in roles
+                and (generates_target or consumes_target)
+            )
+        )
+        is_core = definition_id in core_parts
+        reasons: list[str] = []
+        protected = False
+
+        if profile_id == "standard" and definition_id == "player_standard":
+            protected = counts.get(definition_id, 0) <= minimum_deck_size
+            if protected:
+                reasons.append("minimum_stable_attack_core")
+        elif (is_core or supports_target) and counts.get(definition_id, 0) <= 1:
+            protected = True
+            reasons.append("last_core_or_required_support")
+        if generates_target and len(composition["Generator"]) <= 1:
+            protected = True
+            reasons.append("last_main_or_cross_axis_generator")
+        if consumes_target and len(composition["Finisher"]) <= 1:
+            protected = True
+            reasons.append("last_finisher_in_active_synergy")
+
+        remaining = [candidate for candidate in deck if candidate is not ball]
+        remaining_attacks = [
+            max(0, int(_as_dict(candidate.get("status")).get("attack", 0)))
+            for candidate in remaining
+        ]
+        if (
+            sum(attack > 0 for attack in remaining_attacks) < 3
+            or sum(remaining_attacks) < minimum_deck_size
+        ):
+            protected = True
+            reasons.append("minimum_attack_capacity")
+
+        score = 0.0
+        if definition_id == "player_standard":
+            score += 70.0 if profile_id != "standard" else 48.0
+            reasons.append("redundant_standard_ball")
+        if not (is_core or supports_target or generates_target or consumes_target):
+            score += 38.0
+            reasons.append("outside_active_build_flow")
+        if counts.get(definition_id, 0) > 1:
+            score += 18.0
+            reasons.append("duplicate_definition")
+        score += 18.0 if level == 0 else -22.0 * level
+        reasons.append("unupgraded_priority" if level == 0 else "upgrade_investment_preserved")
+        score -= max(
+            0.0,
+            float(_as_dict(ball.get("status")).get("attack", 0)) * 2.0,
+        )
+        if protected:
+            score = min(score, -100.0)
+
+        result["candidates"].append({
+            "definition_id": definition_id,
+            "instance_id": instance_id,
+            "upgrade_level": level,
+            "roles": roles,
+            "removal_score": round(score, 3),
+            "protected": protected,
+            "reasons": reasons,
+        })
+
+    result["candidates"].sort(
+        key=lambda candidate: (
+            float(candidate["removal_score"]),
+            -int(candidate["upgrade_level"]),
+        ),
+        reverse=True,
+    )
+    best = result["candidates"][0] if result["candidates"] else None
+    if best is None or bool(best["protected"]):
+        result["skip_reason"] = "all_candidates_protected"
+    elif float(best["removal_score"]) < 40.0:
+        result["skip_reason"] = "removal_value_too_low"
+    else:
+        result["recommended"] = dict(best)
+        result["recommended"]["reason"] = ";".join(best["reasons"])
+    return result
+
+
+def _future_shop_reachable(state: dict[str, Any], horizon: int = 3) -> bool:
+    run_map = _as_dict(state.get("run_map"))
+    nodes = {
+        int(node.get("node_id")): node
+        for node in _as_list(run_map.get("nodes"))
+        if isinstance(node, dict) and isinstance(node.get("node_id"), int)
+    }
+    starts = [
+        node_id for node_id, node in nodes.items()
+        if bool(node.get("active", False))
+    ]
+    if not starts:
+        path = _as_list(run_map.get("path"))
+        starts = [int(path[-1])] if path else []
+    frontier = starts
+    seen = set(starts)
+    for _ in range(max(0, horizon)):
+        next_frontier: list[int] = []
+        for node_id in frontier:
+            for raw_next in _as_list(nodes.get(node_id, {}).get("next_node_ids")):
+                next_id = int(raw_next)
+                node = nodes.get(next_id)
+                if node is None or next_id in seen or bool(node.get("visited", False)):
+                    continue
+                if node.get("reachable") is False:
+                    continue
+                if node.get("destination") == "shop":
+                    return True
+                seen.add(next_id)
+                next_frontier.append(next_id)
+        frontier = next_frontier
+    return False
+
+
+def evaluate_shop_actions(
+    state: dict[str, Any],
+    profiles: dict[str, dict[str, Any]],
+    preferred_profile_id: str,
+) -> dict[str, Any]:
+    """Rank removal, one useful ball purchase and a critical relic purchase."""
+    profile = profiles.get(preferred_profile_id, {})
+    money = max(0, int(_as_dict(state.get("player")).get("money", 0)))
+    if state.get("scene") != "shop":
+        return {
+            "build_profile": preferred_profile_id,
+            "money": money,
+            "future_shop_reachable": False,
+            "role_composition": _role_composition(state, preferred_profile_id),
+            "removal_decision": {"recommended": None, "skip_reason": "not_in_shop"},
+            "ball_purchase_decision": {"recommended": None, "choices": []},
+            "relic_decision": {"recommended": None},
+            "ranked_actions": [],
+            "recommended": None,
+            "skip_reason": "not_in_shop",
+        }
+    removal = evaluate_shop_ball_removal(
+        state, profiles, preferred_profile_id,
+    )
+    ball_choices = evaluate_ball_choices(
+        state, profiles, preferred_profile_id, source="shop_ball_offers",
+    )
+    progress = build_progress_snapshot(state, profiles, preferred_profile_id)
+    counts = _ball_counts(state)
+    future_shop = _future_shop_reachable(state)
+    actions: list[dict[str, Any]] = []
+
+    selected_ball = ball_choices.get("recommended")
+    if isinstance(selected_ball, dict):
+        definition_id = str(selected_ball.get("definition_id", ""))
+        breakdown = _as_dict(selected_ball.get("breakdown"))
+        missing_bonus = float(breakdown.get("missing_role_bonus", 0.0))
+        missing_part = definition_id in set(progress["missing_key_parts"])
+        duplicate = counts.get(definition_id, 0) > 0
+        price = 20
+        affordable = money >= price and "buy_ball" in set(
+            _as_list(state.get("available_actions"))
+        )
+        useful = (
+            missing_part
+            or (
+                missing_bonus > 0.0
+                and not (preferred_profile_id == "standard" and duplicate)
+            )
+            or not duplicate
+        )
+        if affordable and useful:
+            generator_missing = (
+                int(ball_choices["role_composition"]["counts"].get("Generator", 0)) == 0
+                and "Generator" in set(selected_ball.get("roles", []))
+            )
+            value = 70.0 + missing_bonus + (35.0 if missing_part else 0.0)
+            if duplicate:
+                value -= 35.0
+            if (
+                generator_missing and future_shop and money < price + 15
+            ):
+                value += 150.0
+            actions.append({
+                "action": "buy_ball",
+                "action_value": round(value, 3),
+                "definition_id": definition_id,
+                "offer_index": int(selected_ball.get("offer_index", selected_ball.get("index", -1))),
+                "price": price,
+                "roles": selected_ball.get("roles", []),
+                "reason": (
+                    "missing_generator_with_future_compression"
+                    if generator_missing and future_shop and money < price + 15
+                    else "missing_build_role" if missing_bonus > 0.0
+                    else "useful_nonduplicate_offer"
+                ),
+                "score_breakdown": breakdown,
+            })
+
+    recommended_removal = removal.get("recommended")
+    if isinstance(recommended_removal, dict):
+        value = 210.0 + float(recommended_removal.get("removal_score", 0.0))
+        if money >= 35:
+            value += 45.0
+        actions.append({
+            "action": "remove_ball",
+            "action_value": round(value, 3),
+            "definition_id": recommended_removal.get("definition_id"),
+            "instance_id": recommended_removal.get("instance_id"),
+            "price": 15,
+            "reason": recommended_removal.get("reason", "deck_compression"),
+        })
+
+    relic_choices = evaluate_relic_choices(
+        state, profiles, preferred_profile_id,
+    )
+    relic = relic_choices.get("recommended")
+    if isinstance(relic, dict):
+        canonical = str(relic.get("canonical_name", ""))
+        critical = canonical in CORE_RELICS.get(preferred_profile_id, ())
+        actions.append({
+            "action": "buy_relic",
+            "action_value": 430.0 if critical else 55.0,
+            "relic_index": int(relic.get("index", -1)),
+            "price": int(relic.get("price", 0)),
+            "reason": "critical_core_relic" if critical else "relic_after_deck_actions",
+        })
+
+    actions.sort(key=lambda item: float(item["action_value"]), reverse=True)
+    return {
+        "build_profile": preferred_profile_id,
+        "money": money,
+        "future_shop_reachable": future_shop,
+        "role_composition": ball_choices.get("role_composition", {}),
+        "removal_decision": removal,
+        "ball_purchase_decision": ball_choices,
+        "relic_decision": relic_choices,
+        "ranked_actions": actions,
+        "recommended": actions[0] if actions else None,
+        "skip_reason": "no_valuable_affordable_action" if not actions else "",
+    }
+
+
 def build_decision_snapshot(
     state: dict[str, Any],
     profiles: dict[str, dict[str, Any]],
@@ -1073,6 +1576,16 @@ def build_decision_snapshot(
             preferred_profile_id,
         ),
         "clear_reward": evaluate_clear_reward(
+            state,
+            profiles,
+            preferred_profile_id,
+        ),
+        "shop_ball_removal": evaluate_shop_ball_removal(
+            state,
+            profiles,
+            preferred_profile_id,
+        ),
+        "shop_actions": evaluate_shop_actions(
             state,
             profiles,
             preferred_profile_id,

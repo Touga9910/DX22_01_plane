@@ -104,8 +104,8 @@
         "pierceStackConsumeLimit": 3, "abilities": { "pierce": false }
       },
       "upgrades": [
-        { "pierceStackConsumeLimit": 6 },
-        { "pierceStackConsumeLimit": 9 }
+        { "attack": 2, "knockbackTransfer": 1.25, "pierceStackConsumeLimit": 6 },
+        { "attack": 3, "knockbackTransfer": 1.35, "pierceStackConsumeLimit": 9 }
       ]
     },
     {

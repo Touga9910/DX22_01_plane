@@ -66,6 +66,33 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			false,
 			enemy->GetPosition(),
 			enemy);
+		if (heavyGain.granted > 0 &&
+			m_BattleState->crossAxisSupportGeneratedThisTurn <
+				GameBattleState::CrossAxisSupportLimitPerTurn)
+		{
+			bool deckHasPierce = false;
+			for (int index = 0;
+				index < m_RunController->Deck().GetRewardTargetCount(); ++index)
+			{
+				const PlayerBallData* ball =
+					m_RunController->Deck().GetRewardTarget(index);
+				if (ball != nullptr && ball->category == BallCategory::Pierce)
+				{
+					deckHasPierce = true;
+					break;
+				}
+			}
+			if (deckHasPierce &&
+				m_BattleState->pierceTraces.stackCount < PierceTraceRules::MaxStackCount)
+			{
+				++m_BattleState->pierceTraces.stackCount;
+				++m_BattleState->crossAxisSupportGeneratedThisTurn;
+				RecordBalanceEvent("support_cross_axis_generated", {
+					{ "source", currentBall->definitionId },
+					{ "target_axis", "pierce" }, { "amount", 1 },
+				});
+			}
+		}
 	}
 
 	if (currentBall->definitionId == "player_bounce" &&
@@ -221,6 +248,32 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 		m_BattleState->playerShield = (std::min)(
 			status.stopShieldAmount,
 			m_BattleState->playerShield + shieldGain);
+		if (shieldGain > 0 &&
+			m_BattleState->crossAxisSupportGeneratedThisTurn <
+				GameBattleState::CrossAxisSupportLimitPerTurn)
+		{
+			bool deckHasReflection = false;
+			for (int index = 0;
+				index < m_RunController->Deck().GetRewardTargetCount(); ++index)
+			{
+				const PlayerBallData* ball =
+					m_RunController->Deck().GetRewardTarget(index);
+				if (ball != nullptr && ball->category == BallCategory::Bounce)
+				{
+					deckHasReflection = true;
+					break;
+				}
+			}
+			if (deckHasReflection)
+			{
+				++m_BattleState->cushionCharges.stackCount;
+				++m_BattleState->crossAxisSupportGeneratedThisTurn;
+				RecordBalanceEvent("support_cross_axis_generated", {
+					{ "source", currentBall->definitionId },
+					{ "target_axis", "reflection" }, { "amount", 1 },
+				});
+			}
+		}
 		RecordBalanceEvent("stop_shield_granted", {
 			{ "consumed", consumed.consumed },
 			{ "shield_gain", shieldGain },

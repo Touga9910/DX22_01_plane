@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
 
 from bridge_store import GameBridgeError
+from build_profiles import load_build_profiles
 from server import resolve_mcp_stage_choice
 
 
@@ -31,6 +33,24 @@ class RunMapPolicyTests(unittest.TestCase):
     def test_invalid_map_index_is_rejected(self):
         with self.assertRaises(GameBridgeError):
             resolve_mcp_stage_choice(self.state(), None, {}, 99)
+
+    def test_explicit_route_is_still_checked_by_integrated_ai(self):
+        profiles, _ = load_build_profiles(
+            Path(__file__).resolve().parent / "build_profiles.json"
+        )
+        state = self.state()
+        state["deck_balls"] = []
+        result = resolve_mcp_stage_choice(
+            state,
+            None,
+            profiles["standard"],
+            0,
+            profiles,
+            "standard",
+        )
+        self.assertEqual(result["effective_route_index"], 2)
+        self.assertTrue(result["overridden"])
+        self.assertIn("route_evaluation", result)
 
 
 if __name__ == "__main__":

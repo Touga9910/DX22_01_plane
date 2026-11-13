@@ -8,6 +8,9 @@
 class GameRunDefaults final
 {
 public:
+	static constexpr int InitialMoney = 50;
+
+	GameRunDefaults();
 	BallStatus& PlayerBallStatus();
 	const BallStatus& PlayerBallStatus() const;
 	PlayerRunStatus& PlayerStatus();

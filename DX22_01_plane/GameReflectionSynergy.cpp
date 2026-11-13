@@ -96,6 +96,36 @@ void Game::NotifyPlayerWallCollision(
 			currentBall->definitionId,
 			false,
 			playerPosition);
+		if (result.setupTriggered &&
+			m_BattleState->crossAxisSupportGeneratedThisTurn <
+				GameBattleState::CrossAxisSupportLimitPerTurn)
+		{
+			bool deckHasHeavy = false;
+			for (int index = 0;
+				index < m_RunController->Deck().GetRewardTargetCount(); ++index)
+			{
+				const PlayerBallData* ball =
+					m_RunController->Deck().GetRewardTarget(index);
+				if (ball != nullptr && ball->category == BallCategory::Heavy)
+				{
+					deckHasHeavy = true;
+					break;
+				}
+			}
+			if (deckHasHeavy)
+			{
+				const auto gain = HeavyCollisionRules::ApplyGain(
+					m_BattleState->heavyCollisions, 1);
+				if (gain.granted > 0)
+				{
+					++m_BattleState->crossAxisSupportGeneratedThisTurn;
+					RecordBalanceEvent("support_cross_axis_generated", {
+						{ "source", "player_reflection_setup" },
+						{ "target_axis", "heavy" }, { "amount", gain.granted },
+					});
+				}
+			}
+		}
 	}
 	if (result.consumed > 0)
 	{

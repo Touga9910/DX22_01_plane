@@ -673,8 +673,15 @@ class ServerSchemaTests(unittest.TestCase):
         remove_ball = next(
             tool for tool in tools if tool.name == "remove_ball"
         )
+        buy_ball = next(
+            tool for tool in tools if tool.name == "buy_ball"
+        )
         self.assertIn("can_upgrade", upgrade_ball.description)
         self.assertIn("最低5個", remove_ball.description)
+        self.assertIn("20 Money", buy_ball.description)
+        self.assertIn(
+            "offer_index", buy_ball.inputSchema["properties"]
+        )
 
         choose_reward = next(
             tool for tool in tools if tool.name == "choose_reward"

@@ -71,16 +71,16 @@ namespace PlayerBallText
         if (id == "player_cushion_charge") return Utf8(u8"有効な壁反射で共有の反射スタックを生成する。強化で生成可能回数や1回あたりの生成量が増える。");
         if (id == "player_chain_impact") return Utf8(u8"重量スタックを最大5個消費。命中した敵の周囲から近い最大2体に衝撃波ダメージを与える。消費1個につき衝撃波ダメージが+1。強化で攻撃力と範囲が上昇する。");
         if (id == "player_refractive_pierce") return Utf8(u8"敵を貫通した後、通常衝突時に敵が飛ぶ方向へ進行方向を変える。貫通痕とスタックも生成し、強化で攻撃力と速度維持率が上がる。");
-        if (id == "player_stop_shield") return Utf8(u8"アンカースタックを持つ敵への接触時、その敵のスタックを最大5個消費してシールドに変換する。強化でシールドの最大量が増える。スタックがなければ変換しない。");
-        if (id == "player_trace_driver") return Utf8(u8"ショット開始時、貫通痕を利用してミニオンを発射する。強化でスタック消費上限3→6→9となり、最大発射数が増える。貫通痕の数に見合う量だけ消費する。自球の押し出し倍率は1.15。");
+        if (id == "player_stop_shield") return Utf8(u8"アンカースタックを持つ敵への接触時、その敵のスタックを最大5個消費してシールドに変換する。反射軸の球がデッキにあれば、変換成功時に反射スタック1も生成する。");
+        if (id == "player_trace_driver") return Utf8(u8"ショット開始時、貫通痕からミニオンを発射する。強化で攻撃力、押し出し倍率、消費上限3→6→9が上がる。貫通痕の数と実効強化に見合う量だけ消費する。");
         if (id == "player_pierce_finisher") return Utf8(u8"同じショットで貫通した異なる敵の数に応じ、接触ダメージに追加ボーナスを得る。強化で基本攻撃力と追加ダメージ・速度維持率が上昇する。");
         if (id == "player_ricochet_finisher") return Utf8(u8"反射スタック6個を消費して、最初に触れた敵をピンボール状態にする。対象が衝突を重ねるほど追加ダメージが増える。強化で基本攻撃力が上がり、+2では成長に必要な衝突回数が減る。");
         if (id == "player_anchor_finisher") return Utf8(u8"最初に接触したアンカースタック保有敵から、スタックを全消費して直接追加ダメージに変換する。一定数以上の消費で周囲にもダメージを与える。強化で攻撃力・範囲・発動条件が改善する。");
-        if (id == "player_collision_boost") return Utf8(u8"重量スタックを3個消費できると次ショットの敵同士の衝突ダメージを強化する。不足していても消費なしで次ショットの衝突ダメージが1.10倍になる。強化で消費時の倍率が上昇する。");
-        if (id == "player_lightweight") return Utf8(u8"接触した敵の次のノックバックを強化し、敵ごとに重量スタックを少量生成する。+1では自球の速度損失を軽減し、+2ではノックバック倍率が上がる。");
+        if (id == "player_collision_boost") return Utf8(u8"重量スタック3個で次ショットの敵同士衝突を強化し、不足時も1.10倍を準備する。消費成功時に反射軸がデッキにあれば反射スタック1も生成する。");
+        if (id == "player_lightweight") return Utf8(u8"接触した敵の次のノックバックを強化し、敵ごとに重量スタック1を生成する。貫通軸がデッキにあれば貫通スタック1も生成する。");
         if (id == "player_minion_finisher") return Utf8(u8"ショット開始時、貫通痕から最大3体のミニオンを発射する。効果のない過剰なスタックは消費せず、10～15スタックの有効消費でミニオンをさらに強化する。自身も敵を貫通でき、強化で基本攻撃力と速度維持率が上昇する。");
-        if (id == "player_reflection_setup") return Utf8(u8"次のショットで最初の有効な壁反射が発生した際、反射スタックを追加する準備球。強化で追加スタック数が1→2→3に上がる。");
-        if (id == "player_origin_anchor") return Utf8(u8"敵を吹き飛ばさずにアンカースタックを付与し、次ターン開始時にショットの始点へ戻る。強化後は次のアンカー球の付与量をさらに+1/+2する準備効果を得る。");
+        if (id == "player_reflection_setup") return Utf8(u8"次のショットの最初の有効反射で反射スタックを追加する。重量軸がデッキにあれば、発動成功時に重量スタック1も生成する。");
+        if (id == "player_origin_anchor") return Utf8(u8"敵を吹き飛ばさずに錨を付与し、次ターンに始点へ戻る。貫通軸がデッキにあれば復帰成功時に貫通スタック1を生成。強化で次の錨付与も増やす。");
         return Utf8(u8"ボールの説明は未登録です。");
     }
 
@@ -146,10 +146,15 @@ namespace PlayerBallText
             text << Utf8(u8"敵を貫通し進行方向を変える。\n貫通スタックと貫通痕を生成。");
         else if (id == "player_stop_shield")
             text << Utf8(u8"接触敵の錨を最大") << s.anchorEnemyConsumeLimit
-                 << Utf8(u8"消費。\n消費量に応じシールド最大") << s.stopShieldAmount << Utf8(u8"。");
+                 << Utf8(u8"消費。\n最大") << s.stopShieldAmount << Utf8(u8"シールド")
+                 << Utf8(u8"。\n反射軸併用で反射+1。");
         else if (id == "player_trace_driver")
+        {
             text << Utf8(u8"貫通痕からミニオンを発射。\nスタック最大") << s.pierceStackConsumeLimit
-                 << Utf8(u8"消費（痕数で制限）。\n自球の押し出し×1.15。");
+                 << Utf8(u8"消費（痕数で制限）。\n自球の押し出し×");
+            putRatio(s.knockbackTransfer);
+            text << Utf8(u8"。");
+        }
         else if (id == "player_pierce_finisher")
         {
             const int first = s.pierceFinisherBaseBonus;
@@ -162,30 +167,31 @@ namespace PlayerBallText
                  << Utf8(u8"消費で跳弾状態。\n衝突") << s.pinballCollisionsPerStage << Utf8(u8"回ごとに追加ダメージ増加。");
         else if (id == "player_anchor_finisher")
             text << Utf8(u8"接触敵の錨を全消費し追撃。\n") << s.anchorFinisherAoeThreshold
-                 << Utf8(u8"個以上消費で周囲にもダメージ。");
+                 << Utf8(u8"以上消費で周囲にもダメージ。");
         else if (id == "player_collision_boost")
         {
             text << Utf8(u8"重量") << s.heavySetupStackConsume << Utf8(u8"消費で次球の敵同士衝突×");
             putRatio(s.heavyEnemyCollisionMultiplier);
-            text << Utf8(u8"。\n不足時も次球×1.10（消費なし）。");
+            text << Utf8(u8"。\n不足時×1.10。\n成功+反射軸併用で反射+1。");
         }
         else if (id == "player_lightweight")
         {
             text << Utf8(u8"次の敵ノックバック×");
             putRatio(s.lightweightKnockbackMultiplier);
-            text << Utf8(u8"。\n敵ごとに重量+1。");
+            text << Utf8(u8"。\n敵ごとに重量+1、貫通軸併用で貫通+1。");
             if (s.lightweightSpeedLossReduction > 0.0f)
-                text << Utf8(u8" 自球減速軽減")
+                text << Utf8(u8"\n自球減速軽減")
                      << static_cast<int>(std::lround(s.lightweightSpeedLossReduction * 100.0f))
                      << Utf8(u8"%。");
         }
         else if (id == "player_minion_finisher")
             text << Utf8(u8"貫通痕から最大3体のミニオン。\n有効分だけ消費（最大15）。\n高消費でミニオン追加強化。");
         else if (id == "player_reflection_setup")
-            text << Utf8(u8"次球の最初の壁反射で\n反射スタック+") << s.reflectionSetupAmount << Utf8(u8"。");
+            text << Utf8(u8"次球の最初の壁反射で\n反射スタック") << s.reflectionSetupAmount << Utf8(u8"生成")
+                 << Utf8(u8"。\n重量軸併用で重量+1。");
         else if (id == "player_origin_anchor")
         {
-            text << Utf8(u8"敵に錨を付与、次ターン始点へ復帰。");
+            text << Utf8(u8"敵に錨を付与、次ターン始点へ復帰。\n貫通軸併用で貫通+1。");
             if (s.nextAnchorGrantBonus > 0)
                 text << Utf8(u8"\n次のアンカー付与+") << s.nextAnchorGrantBonus << Utf8(u8"。");
         }

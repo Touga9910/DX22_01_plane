@@ -394,6 +394,21 @@
         { "enemyId": "enemy_strong", "position": [25.2, 1.0, 9.8] },
         { "enemyId": "enemy_tank", "position": [32.4, 1.0, -11.2] }
       ]
+    },
+    {
+      "difficulty": 2,
+      "id": "validation_break_rack6",
+      "par": 6,
+      "preserveLayout": true,
+      "stageType": "normal",
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [0.0, 1.0, 12.0] },
+        { "enemyId": "enemy_normal", "position": [-2.7, 1.0, 17.0] },
+        { "enemyId": "enemy_normal", "position": [2.7, 1.0, 17.0] },
+        { "enemyId": "enemy_normal", "position": [-5.4, 1.0, 22.0] },
+        { "enemyId": "enemy_strong", "position": [0.0, 1.0, 22.0] },
+        { "enemyId": "enemy_normal", "position": [5.4, 1.0, 22.0] }
+      ]
     }
   ]
 }

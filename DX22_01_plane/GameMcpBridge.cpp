@@ -60,6 +60,7 @@
 namespace
 {
 	constexpr int kShopRemoveCost = 15;
+	constexpr int kShopBallCost = 20;
 	constexpr int kExtraRewardMoney = 10;
 	constexpr std::size_t kMaximumMcpStageEnemyCount = 12;
 
@@ -1690,6 +1691,8 @@ nlohmann::json GameMcpBridge::BuildState(
 		nlohmann::json offer = BallDataToJson(*ball, offerIndex);
 		offer["offer_index"] = offerIndex;
 		offer["catalog_index"] = catalogIndex;
+		offer["price"] = kShopBallCost;
+		offer["affordable"] = game.GetPlayerMoney() >= kShopBallCost;
 		state["shop_ball_offers"].push_back(std::move(offer));
 	}
 	state["clear_reward_ball_offers"] = nlohmann::json::array();
@@ -1948,6 +1951,11 @@ nlohmann::json GameMcpBridge::BuildState(
 	}
 	else if (scene == "shop")
 	{
+		if (game.GetShopBallOfferCount() > 0 &&
+			game.GetPlayerMoney() >= kShopBallCost)
+		{
+			state["available_actions"].push_back("buy_ball");
+		}
 		for (int offerIndex = 0;
 			offerIndex < game.GetShopRelicOfferCount(); offerIndex++)
 		{
@@ -2747,6 +2755,27 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"The ball cannot be removed. Keep at least 5 balls and check money.");
 		}
 		return CommandResult(true, "Removed the requested ball.");
+	}
+
+	if (action == "buy_ball")
+	{
+		if (scene != "shop")
+		{
+			return CommandResult(
+				false,
+				"Balls can only be purchased at the shop.");
+		}
+		const int offerIndex = arguments.value("offer_index", -1);
+		if (offerIndex < 0 ||
+			offerIndex >= game.GetShopBallOfferCount() ||
+			!game.BuyShopBallOffer(offerIndex, kShopBallCost))
+		{
+			return CommandResult(
+				false,
+				"The offered ball could not be purchased. Check the offer and Money.");
+		}
+		recordBuildDecision();
+		return CommandResult(true, "Purchased the requested shop ball.");
 	}
 
 	if (action == "buy_relic")
