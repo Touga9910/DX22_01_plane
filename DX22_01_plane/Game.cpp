@@ -234,6 +234,9 @@ namespace
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
 		int width = 0;
 		int height = 0;
+		// 枠ごとの透明余白を除いた表示領域。通常画像は全体を使う。
+		ImVec2 uvMin = ImVec2(0.0f, 0.0f);
+		ImVec2 uvMax = ImVec2(1.0f, 1.0f);
 
 		bool IsValid() const noexcept
 		{
@@ -318,6 +321,42 @@ namespace
 				return false;
 			}
 
+			if (std::string(path).find("frame_") != std::string::npos)
+			{
+				int left = destination.width;
+				int top = destination.height;
+				int right = -1;
+				int bottom = -1;
+				for (int y = 0; y < destination.height; ++y)
+				{
+					for (int x = 0; x < destination.width; ++x)
+					{
+						const std::size_t offset =
+							(static_cast<std::size_t>(y) * destination.width + x) * 4u;
+						if (pixels[offset + 3u] < 32u)
+							continue;
+						left = (std::min)(left, x);
+						top = (std::min)(top, y);
+						right = (std::max)(right, x);
+						bottom = (std::max)(bottom, y);
+					}
+				}
+				if (right >= left && bottom >= top)
+				{
+					// 縁のアンチエイリアスを切り落とさないように2px残す。
+					left = (std::max)(0, left - 2);
+					top = (std::max)(0, top - 2);
+					right = (std::min)(destination.width - 1, right + 2);
+					bottom = (std::min)(destination.height - 1, bottom + 2);
+					destination.uvMin = ImVec2(
+						static_cast<float>(left) / destination.width,
+						static_cast<float>(top) / destination.height);
+					destination.uvMax = ImVec2(
+						static_cast<float>(right + 1) / destination.width,
+						static_cast<float>(bottom + 1) / destination.height);
+				}
+			}
+
 			ID3D11Device* device = Renderer::GetDevice();
 			if (device == nullptr)
 			{
@@ -388,28 +427,32 @@ namespace
 		ImU32 tint = IM_COL32_WHITE)
 	{
 		if (drawList == nullptr || !texture.IsValid())
-		{
 			return;
-		}
 
 		const float targetWidth = (std::max)(1.0f, maximum.x - minimum.x);
 		const float targetHeight = (std::max)(1.0f, maximum.y - minimum.y);
-		const float sourceAspect = static_cast<float>(texture.width) /
-			static_cast<float>(texture.height);
+		const float uvWidth = texture.uvMax.x - texture.uvMin.x;
+		const float uvHeight = texture.uvMax.y - texture.uvMin.y;
+		const float sampleWidth = (std::max)(1.0f, texture.width * uvWidth);
+		const float sampleHeight = (std::max)(1.0f, texture.height * uvHeight);
+		const float sourceAspect = sampleWidth / sampleHeight;
 		const float targetAspect = targetWidth / targetHeight;
-		ImVec2 uvMinimum(0.0f, 0.0f);
-		ImVec2 uvMaximum(1.0f, 1.0f);
+		ImVec2 uvMinimum = texture.uvMin;
+		ImVec2 uvMaximum = texture.uvMax;
+
 		if (targetAspect > sourceAspect)
 		{
 			const float visibleHeight = sourceAspect / targetAspect;
-			uvMinimum.y = (1.0f - visibleHeight) * 0.5f;
-			uvMaximum.y = uvMinimum.y + visibleHeight;
+			const float cropped = uvHeight * (1.0f - visibleHeight) * 0.5f;
+			uvMinimum.y += cropped;
+			uvMaximum.y -= cropped;
 		}
 		else
 		{
 			const float visibleWidth = targetAspect / sourceAspect;
-			uvMinimum.x = (1.0f - visibleWidth) * 0.5f;
-			uvMaximum.x = uvMinimum.x + visibleWidth;
+			const float cropped = uvWidth * (1.0f - visibleWidth) * 0.5f;
+			uvMinimum.x += cropped;
+			uvMaximum.x -= cropped;
 		}
 
 		drawList->AddImage(
@@ -687,9 +730,7 @@ namespace
 			float textSize = requestedTextSize;
 			if (measured.x > availableWidth)
 			{
-				textSize = (std::max)(
-					requestedTextSize * 0.82f,
-					requestedTextSize * availableWidth / measured.x);
+				textSize = requestedTextSize * availableWidth / measured.x;
 				measured = font->CalcTextSizeA(
 					textSize,
 					(std::numeric_limits<float>::max)(),
@@ -742,32 +783,45 @@ namespace
 
 		drawList->PushClipRect(position, cardMax, true);
 
-		const ImVec2 titleMinimum(
-			position.x + size.x * textLayout.titleSideInset,
-			position.y + size.y * textLayout.titleTop);
-		const ImVec2 titleMaximum(
-			cardMax.x - size.x * textLayout.titleSideInset,
-			position.y + size.y * textLayout.titleBottom);
-		drawList->PushClipRect(titleMinimum, titleMaximum, true);
+		// 大きな上部プレートにはボール名だけ、下の小さなプレートには主な役割だけ。
+		// 座標をカードの縦横比3:4に対する比率で定義し、全軸共通にする。
+		const ImVec2 nameMinimum(
+			position.x + size.x * 0.12f,
+			position.y + size.y * 0.066f);
+		const ImVec2 nameMaximum(
+			cardMax.x - size.x * 0.12f,
+			position.y + size.y * 0.160f);
+		drawList->PushClipRect(nameMinimum, nameMaximum, true);
 		addCenteredTextInRegion(
-			fontSize * 0.92f * readableScale,
-			titleMinimum,
-			titleMaximum,
-			position.y + size.y * textLayout.nameY,
+			fontSize * 1.02f * readableScale,
+			nameMinimum,
+			nameMaximum,
+			position.y + size.y * 0.088f,
 			IM_COL32(255, 255, 255, 255),
 			PlayerBallText::GetName(ball.definitionId));
-		sprintf_s(
-			text,
-			"[%s] %s",
-			GetPlayerBallAbilityName(ball),
-			PlayerBallText::GetRoles(ball.definitionId));
+		drawList->PopClipRect();
+
+		// 役割が「[利用] [決着]」のように複数あっても、小枠には先頭だけ出す。
+		// 詳細画面側では従来どおりすべての役割を見られる。
+		std::string primaryRole = PlayerBallText::GetRoles(ball.definitionId);
+		const std::size_t roleEnd = primaryRole.find(']');
+		if (roleEnd != std::string::npos)
+			primaryRole.resize(roleEnd + 1);
+
+		const ImVec2 roleMinimum(
+			position.x + size.x * 0.265f,
+			position.y + size.y * 0.170f);
+		const ImVec2 roleMaximum(
+			cardMax.x - size.x * 0.265f,
+			position.y + size.y * 0.280f);
+		drawList->PushClipRect(roleMinimum, roleMaximum, true);
 		addCenteredTextInRegion(
-			fontSize * 0.66f * readableScale,
-			titleMinimum,
-			titleMaximum,
-			position.y + size.y * textLayout.categoryY,
-			IM_COL32(220, 230, 243, 255),
-			text);
+			fontSize * 0.82f * readableScale,
+			roleMinimum,
+			roleMaximum,
+			position.y + size.y * 0.209f,
+			IM_COL32(235, 246, 255, 255),
+			primaryRole.c_str());
 		drawList->PopClipRect();
 
 		const ImVec2 descriptionMinimum(
@@ -848,10 +902,21 @@ namespace
 	}
 	void DrawTermTooltip(const char* term, const char* explanation)
 	{
-		ImGui::TextColored(ImVec4(0.72f, 0.84f, 1.0f, 1.0f), "%s (?)", term);
+		// 水色＋下線：ホバーできる文字であることを常時示す。
+		ImGui::TextColored(ImVec4(0.28f, 0.91f, 1.0f, 1.0f), "%s  [?]", term);
+		const ImVec2 minimum = ImGui::GetItemRectMin();
+		const ImVec2 maximum = ImGui::GetItemRectMax();
+		ImGui::GetWindowDrawList()->AddLine(
+			ImVec2(minimum.x, maximum.y - 1.0f),
+			ImVec2(maximum.x, maximum.y - 1.0f),
+			IM_COL32(75, 221, 255, 215),
+			1.3f);
 		if (!ImGui::IsItemHovered()) return;
+		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 		ImGui::BeginTooltip();
-		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 30.0f);
+		ImGui::TextColored(ImVec4(0.28f, 0.91f, 1.0f, 1.0f), "%s", term);
+		ImGui::Separator();
 		ImGui::TextWrapped("%s", explanation);
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
@@ -860,70 +925,132 @@ namespace
 	void DrawBallDetailPopup(const PlayerBallData& ball, int effectiveAttack)
 	{
 		const BallStatus& status = ball.status;
-		ImGui::Text("%s  Lv.%d", PlayerBallText::GetName(ball.definitionId), ball.upgradeLevel);
-		ImGui::Text("[%s]  %s", PlayerBallText::GetTrait(ball), PlayerBallText::GetRoles(ball.definitionId));
-		ImGui::Text("攻撃力：%d", effectiveAttack);
-		ImGui::Separator();
-		ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball.definitionId));
+		const std::string& id = ball.definitionId;
+		const ImVec2 start = ImGui::GetCursorScreenPos();
+		const ImVec2 available = ImGui::GetContentRegionAvail();
 
-		ImGui::Spacing();
-		ImGui::TextUnformatted("主要能力値");
-		ImGui::BulletText("質量 %.1f / 反発 %.0f%% / 摩擦 %.3f",
-			status.mass, status.restitution * 100.0f, status.friction);
-		if (ball.category == BallCategory::Heavy)
+		// 既存の戦闘中カード描画をそのまま使い、同じ縦横比3:4で拡大表示する。
+		// 下部の「閉じる」ボタンのために約52px残す。
+		float cardHeight = (std::min)(400.0f, (std::max)(300.0f, available.y - 52.0f));
+		float cardWidth = cardHeight * (3.0f / 4.0f);
+		const float gap = 16.0f;
+		if (available.x - cardWidth - gap < 170.0f)
 		{
-			ImGui::BulletText("押し出し倍率 %.2f", status.knockbackTransfer);
-			if (status.heavyFinisherDamagePerCollision > 0.0f)
-				ImGui::BulletText("重量スタック1個ごとの追加攻撃 %.1f", status.heavyFinisherDamagePerCollision);
+			cardWidth = (std::max)(160.0f, available.x - gap - 170.0f);
+			cardHeight = cardWidth * (4.0f / 3.0f);
 		}
-		else if (ball.category == BallCategory::Pierce)
+		const float termPanelWidth = (std::max)(170.0f, available.x - cardWidth - gap);
+
+		// 画像素材は従来のDrawBallSelectionCardがそのまま描画する。
+		// 詳細画面内のクリックは選択へ反映しない。
+		(void)DrawBallSelectionCard(
+			ball, -10000, effectiveAttack, start,
+			ImVec2(cardWidth, cardHeight), false, false);
+
+		// 元のカードの右側に用語パネルを出す。
+		ImGui::SetCursorScreenPos(ImVec2(start.x + cardWidth + gap, start.y));
+		if (ImGui::BeginChild("##detail_card_terms",
+			ImVec2(termPanelWidth, cardHeight), ImGuiChildFlags_Borders))
 		{
-			ImGui::BulletText("貫通回数 %d / 貫通時速度維持率 %.0f%%",
-				status.pierceMaxUses, status.pierceSpeedRetention * 100.0f);
-			if (status.pierceFinisherBaseBonus > 0)
-				ImGui::BulletText("決着基本 +%d / 追加対象ごと +%d",
-					status.pierceFinisherBaseBonus, status.pierceFinisherMultiTargetBonus);
-		}
-		else if (ball.category == BallCategory::Bounce)
-		{
-			if (status.cushionStackGenerateAmount > 0)
+			ImGui::TextUnformatted("専門用語・仕様");
+			ImGui::TextDisabled("水色の文字をマウスオーバー");
+			ImGui::Separator();
+
+			int termCount = 0;
+			auto term = [&](const char* label, const char* explanation)
+				{
+					DrawTermTooltip(label, explanation);
+					++termCount;
+				};
+
+			// 共通の表示用語
+			term("攻撃力", "敵への通常攻撃で使用する基本攻撃力。強化や一部の追加効果で増加します。");
+
+			// 重量軸
+			if (ball.category == BallCategory::Heavy)
 			{
-				ImGui::BulletText("有効反射1回のスタック生成 %d / 最大回数 %d",
-					status.cushionStackGenerateAmount, status.cushionReflectionLimit);
+				term("重量スタック", "敵の移動距離や軽量化球の接触などによって獲得する共有資源。連鎖衝撃や衝突強化に使用します。獲得にはショット単位の上限があります。");
 			}
-			if (status.cushionConsumptionLimit > 0)
-				ImGui::BulletText("1ショットの最大消費 %d / 反射速度 %.0f%% / 攻撃 +%d",
-					status.cushionConsumptionLimit,
-					status.cushionReflectionSpeedMultiplier * 100.0f,
-					status.cushionBounceAttackBonus);
-			if (status.ricochetStackConsume > 0)
-				ImGui::BulletText("反射スタック消費 %d / %d衝突ごとに追加ダメージ +1",
-					status.ricochetStackConsume,
-					status.pinballCollisionsPerStage);
-		}
-		else if (ball.category == BallCategory::Anchor)
-		{
-			ImGui::BulletText("対象へのEnemy Anchor付与 %d",
-				status.anchorEnemyStackGenerate);
-			if (status.anchorPlayerStacksPerBonus > 0)
-				ImGui::BulletText("Player Anchor %d個ごとに付与 +1",
-					status.anchorPlayerStacksPerBonus);
-		}
+			if (id == "player_heavy")
+				term("重量による押し出し", "質量と押し出し倍率を利用して敵を動かします。重量球は敵の移動距離から重量スタックを生成します。");
+			if (id == "player_chain_impact")
+				term("衝撃波", "命中した敵以外の周囲の敵に追加ダメージ。最も近い敵を最大2体対象にします。最初の発動では重量スタックを最大5消費し、1個ごとに衝撃波ダメージが1増えます。");
+			if (id == "player_collision_boost")
+				term("衝突強化", "次のショット中の敵同士の衝突ダメージを強化します。重量スタックを3消費できる場合は強い倍率を使い、不足時は弱い1.10倍の効果を使います。");
+			if (id == "player_lightweight")
+				term("軽量化", "当てた敵の次のノックバックを強める効果。敵への接触により重量スタックも少量獲得します。");
 
-		ImGui::Spacing();
-		ImGui::TextUnformatted("次回強化");
-		ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(ball).c_str());
+			// 貫通軸
+			if (ball.category == BallCategory::Pierce)
+				term("貫通スタック", "異なる敵への貫通で獲得する共有資源。ミニオン召喚時に消費します。所持上限は15です。");
+			if (id == "player_pierce" || id == "player_refractive_pierce" ||
+				id == "player_pierce_finisher" || id == "player_minion_finisher")
+				term("貫通", "敵に当たっても通常衝突のように押し返さず、球が通り抜けます。貫通回数と貫通後の速度維持率に制限があります。");
+			if (id == "player_pierce" || id == "player_refractive_pierce" ||
+				id == "player_trace_driver" || id == "player_minion_finisher")
+				term("貫通痕", "貫通した位置と方向を記録した軌跡です。最大3本保持し、ミニオンを発射する位置・方向として使います。");
+			if (id == "player_refractive_pierce")
+				term("屈折", "貫通後に、本来の衝突なら敵が飛んでいく方向へ、自球の進行方向を変化させる効果です。");
+			if (id == "player_pierce_finisher")
+				term("貫通決着", "そのショットで異なる敵を貫通した数に応じ、以降の命中時の追加ダメージを増加させます。");
+			if (id == "player_trace_driver" || id == "player_minion_finisher")
+				term("ミニオン", "過去の貫通痕からショット開始時に発射する攻撃球。1体につき基本3スタックまで攻撃力・ノックバックが強化されます。");
+			if (id == "player_trace_driver")
+				term("消費上限", "強化段階で3／6／9と増加。貫通痕が足りない場合、その本数で使えるスタックだけを消費し、残りを温存します。");
+			if (id == "player_minion_finisher")
+				term("過充填", "10～15スタック消費でミニオンをさらに強化します。実際に存在する貫通痕の本数に応じて、効果がない余分な消費は防止します。");
 
-		ImGui::Separator();
-		ImGui::TextUnformatted("用語（マウスオーバーで説明）");
-		DrawTermTooltip("重量スタック",
-			"重量球で動かした敵の距離から、敵ごとに生成される資源。");
-		DrawTermTooltip("貫通痕",
-			"敵を貫通した始点と方向を保存する発射軌道。最大3本保持する。");
-		DrawTermTooltip("クッションスタック",
-			"クッション蓄積球の有効反射でプレイヤー側に生成される共有資源。");
-		DrawTermTooltip("錨スタック",
-			"敵ごとに保持するEnemy Anchorと、5消費ごとに増えるPlayer Anchorの2種類。");
+			// 反射軸
+			if (ball.category == BallCategory::Bounce)
+				term("反射スタック", "有効な壁反射などで蓄積する共有資源。バウンド球の強化反射や連続跳弾球に使用します。");
+			if (id == "player_bounce" || id == "player_cushion_charge" ||
+				id == "player_reflection_setup")
+				term("有効反射", "壁に当たって進行方向が変わった反射。蓄積球による生成や、セットアップ効果の発動条件になります。");
+			if (id == "player_ricochet_finisher")
+				term("ピンボール", "反射スタック6を消費すると最初に当てた敵を対象にする特殊状態。敵の衝突回数に応じて追加ダメージ段階が進みます。");
+			if (id == "player_reflection_setup")
+				term("セットアップ", "このボールのショット終了時に準備し、次のショットの最初の有効な壁反射で反射スタックを追加します。");
+
+			// アンカー軸
+			if (ball.category == BallCategory::Anchor)
+				term("Enemy Anchor", "敵ごとに蓄積するアンカースタック。シールドへの変換や錨回収球の追加ダメージに使用します。");
+			if (id == "player_anchor" || id == "player_anchor_finisher" ||
+				id == "player_stop_shield")
+				term("Player Anchor", "敵のアンカースタックを消費すると、5個分ごとに1個得られるプレイヤー側の資源。アンカーの付与量や回収ダメージを強化します。");
+			if (id == "player_stop_shield")
+				term("シールド", "接触した敵のEnemy Anchorを消費して獲得します。次の敵攻撃によるダメージを吸収します。");
+			if (id == "player_anchor_finisher")
+				term("錨回収", "接触した敵のEnemy Anchorをすべて消費し、直接ダメージに変換。一定個数以上消費すると周囲にも範囲攻撃が発生します。");
+			if (id == "player_origin_anchor")
+				term("始点復帰", "ショット開始時の位置を記憶し、次のターン開始時に元の場所へ戻る能力です。");
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::TextUnformatted("現在の数値");
+			ImGui::Text("攻撃力：%d", effectiveAttack);
+			ImGui::Text("質量：%.1f", status.mass);
+			if (id == "player_chain_impact")
+				ImGui::Text("衝撃波範囲：%.0f", status.chainImpactRadius);
+			if (id == "player_trace_driver")
+				ImGui::Text("消費上限：%d", status.pierceStackConsumeLimit);
+			if (id == "player_minion_finisher")
+				ImGui::TextUnformatted("消費上限：15（貫通痕に応じ制限）");
+			if (id == "player_collision_boost")
+				ImGui::Text("衝突倍率：x%.2f", status.heavyEnemyCollisionMultiplier);
+			if (id == "player_ricochet_finisher")
+				ImGui::Text("ダメージ段階：%d衝突ごと", status.pinballCollisionsPerStage);
+			if (id == "player_stop_shield")
+				ImGui::Text("シールド上限：%d", status.stopShieldAmount);
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::TextUnformatted("次回強化");
+			const std::string preview = PlayerBallText::GetUpgradePreview(ball);
+			ImGui::TextWrapped("%s", preview.c_str());
+		}
+		ImGui::EndChild();
+
+		// 呼び出し側の「閉じる」ボタンをカードの下へ配置する。
+		ImGui::SetCursorScreenPos(ImVec2(start.x, start.y + cardHeight + 12.0f));
 	}
 
 	int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
@@ -3906,7 +4033,11 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		drawCard(index);
 	}
 
-	ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_Appearing);
+	const ImGuiViewport* detailViewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowSize(ImVec2(
+		(std::min)(780.0f, detailViewport->WorkSize.x - 32.0f),
+		(std::min)(468.0f, detailViewport->WorkSize.y - 32.0f)),
+		ImGuiCond_Appearing);
 	if (ImGui::BeginPopupModal("ボール詳細", nullptr, ImGuiWindowFlags_NoResize))
 	{
 		const PlayerBallData* detailBall =
