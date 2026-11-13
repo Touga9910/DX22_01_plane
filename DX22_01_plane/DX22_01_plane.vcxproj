@@ -164,6 +164,7 @@
     <ClInclude Include="GameShotTraceView.h" />
     <ClInclude Include="BalanceAutoPlayer.h" />
     <ClInclude Include="BalanceValidationController.h" />
+    <ClInclude Include="NormalPlayBalance.h" />
     <ClInclude Include="BossShotPlanner.h" />
     <ClInclude Include="DynamicBalanceController.h" />
     <ClInclude Include="GameDebugController.h" />
@@ -239,6 +240,7 @@
     <ClCompile Include="RunProgressController.cpp" />
     <ClCompile Include="RunController.cpp" />
     <ClCompile Include="BalanceValidationController.cpp" />
+    <ClCompile Include="NormalPlayBalance.cpp" />
     <ClCompile Include="DynamicBalanceController.cpp" />
     <ClCompile Include="GameAutoPlay.cpp" />
     <ClCompile Include="GameBossAI.cpp">

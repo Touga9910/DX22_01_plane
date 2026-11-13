@@ -1487,6 +1487,7 @@ void Game::Init()
 	m_Instance->m_BalanceRuntime->autoPlayer.LoadConfig();
 	m_Instance->LoadDifficultyProfileConfig();
 	m_Instance->m_BalanceRuntime->scaling.LoadConfig();
+	m_Instance->m_BalanceRuntime->normalPlay.Load();
 	m_Instance->m_BalanceRuntime->validation.LoadConfig(
 		"assets/data/balance_validation.json",
 		m_Instance->m_BalanceRuntime->baselineDifficultyProfile);
@@ -3524,7 +3525,7 @@ void Game::StartNextBattle(StageType stageType)
 		stageType,
 		m_RunController->Status().progress,
 		previousStageId,
-		m_BalanceRuntime->validation.GetAllowedNormalStageIds(
+		m_BalanceRuntime->GetAllowedNormalStageIds(
 			m_RunController->Status().progress));
 	if (selectedStage == nullptr)
 	{

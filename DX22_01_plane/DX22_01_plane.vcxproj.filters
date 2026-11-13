@@ -502,6 +502,9 @@
     <ClInclude Include="BalanceValidationController.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
     </ClInclude>
+    <ClInclude Include="NormalPlayBalance.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
     <ClInclude Include="BossShotPlanner.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
     </ClInclude>
@@ -909,6 +912,9 @@
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
     <ClCompile Include="BalanceValidationController.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="NormalPlayBalance.cpp">
       <Filter>ソース ファイル\08_Tools\Balance</Filter>
     </ClCompile>
     <ClCompile Include="DynamicBalanceController.cpp">

@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "enemy_action_budgets": [
+    {
+      "min_progress": 1,
+      "max_progress": 6,
+      "maximum_budget": 4
+    },
+    {
+      "min_progress": 7,
+      "max_progress": 999,
+      "maximum_budget": 5
+    }
+  ],
+  "normal_stage_pools": [
+    {
+      "id": "opening",
+      "min_progress": 1,
+      "max_progress": 2,
+      "stage_ids": [
+        "normal_001",
+        "normal_002"
+      ]
+    },
+    {
+      "id": "early_setup",
+      "min_progress": 3,
+      "max_progress": 4,
+      "stage_ids": [
+        "normal_003",
+        "board_impact_brittle_wall"
+      ]
+    },
+    {
+      "id": "early_synergy",
+      "min_progress": 5,
+      "max_progress": 6,
+      "stage_ids": [
+        "board_swarm_dense6",
+        "board_impact_brittle_wall",
+        "board_resonance_cluster"
+      ]
+    },
+    {
+      "id": "mid_foundation",
+      "min_progress": 7,
+      "max_progress": 8,
+      "stage_ids": [
+        "normal_003",
+        "normal_004",
+        "board_swarm_dense6",
+        "board_impact_brittle_wall",
+        "board_resonance_cluster"
+      ]
+    },
+    {
+      "id": "mid_six_enemy",
+      "min_progress": 9,
+      "max_progress": 9,
+      "stage_ids": [
+        "normal_004",
+        "board_swarm_dense6",
+        "board_resonance_cluster",
+        "normal_swarm_center",
+        "normal_brittle_wall"
+      ]
+    },
+    {
+      "id": "mid_control",
+      "min_progress": 10,
+      "max_progress": 10,
+      "stage_ids": [
+        "board_resonance_cluster",
+        "normal_swarm_center",
+        "normal_brittle_wall",
+        "board_control_composite"
+      ]
+    },
+    {
+      "id": "late_eight_enemy",
+      "min_progress": 11,
+      "max_progress": 11,
+      "stage_ids": [
+        "normal_swarm_center",
+        "normal_brittle_wall",
+        "board_control_composite",
+        "normal_dual_threat"
+      ]
+    },
+    {
+      "id": "late_resonance",
+      "min_progress": 12,
+      "max_progress": 12,
+      "stage_ids": [
+        "board_control_composite",
+        "normal_dual_threat",
+        "normal_resonance_guard"
+      ]
+    },
+    {
+      "id": "late_ten_enemy",
+      "min_progress": 13,
+      "max_progress": 13,
+      "stage_ids": [
+        "board_control_composite",
+        "normal_dual_threat",
+        "normal_resonance_guard",
+        "normal_resonant_swarm"
+      ]
+    },
+    {
+      "id": "final_approach",
+      "min_progress": 14,
+      "max_progress": 999,
+      "stage_ids": [
+        "normal_dual_threat",
+        "normal_resonance_guard",
+        "normal_resonant_swarm",
+        "normal_triple_encirclement"
+      ]
+    }
+  ]
+}

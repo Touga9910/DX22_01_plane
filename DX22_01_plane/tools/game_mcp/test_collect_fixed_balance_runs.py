@@ -12,12 +12,16 @@ from unittest.mock import ANY, AsyncMock, patch
 
 from build_profiles import load_build_profiles
 from collect_fixed_balance_runs import (
+    BALL_ABILITY_EVENTS,
+    BUILD_MECHANIC_EVENTS,
+    BUILD_TARGET_BALLS,
     aggregate_build_records,
     call,
     catalog_candidate,
     choose_shot_type,
     collect_comparison_suite,
     extract_run_record,
+    ensure_comparison_run_started,
     midboss_relic_candidate,
     offered_ball_score,
     is_terminal_summary,
@@ -26,6 +30,7 @@ from collect_fixed_balance_runs import (
     response_player_level,
     run_mcp_operation_with_retries,
     set_and_confirm_player_level,
+    tool_result,
     upgrade_candidate,
     validate_comparison_record,
     validate_resume_inputs,
@@ -36,6 +41,106 @@ from collect_fixed_balance_runs import (
 
 
 class BuildCollectorDecisionTests(unittest.TestCase):
+    def test_all_runtime_balls_have_usage_and_ability_measurement_contracts(self) -> None:
+        catalog_path = Path(__file__).resolve().parents[2] / "assets/data/player_status.json"
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        runtime_ids = {ball["id"] for ball in catalog["balls"]}
+        tracked_ids = {
+            definition_id
+            for definition_ids in BUILD_TARGET_BALLS.values()
+            for definition_id in definition_ids
+        }
+        self.assertEqual(runtime_ids, tracked_ids)
+        self.assertEqual(runtime_ids, set(BALL_ABILITY_EVENTS))
+
+    def test_mechanic_event_names_match_runtime_contract(self) -> None:
+        all_events = {
+            event_name
+            for event_names in BUILD_MECHANIC_EVENTS.values()
+            for event_name in event_names
+        }
+        self.assertNotIn("heavy_collision_recorded", all_events)
+        self.assertNotIn("pierce_trace_used", all_events)
+        self.assertNotIn("ricochet_finisher_triggered", all_events)
+        self.assertNotIn("anchor_enemy_transfer", all_events)
+        self.assertIn("pinball_activated", all_events)
+        self.assertIn("reflection_setup_armed", all_events)
+        self.assertIn("origin_anchor_return_armed", all_events)
+        runtime_source = "\n".join(
+            path.read_bytes().decode("utf-8", errors="ignore")
+            for path in Path(__file__).resolve().parents[2].glob("*.cpp")
+        )
+        ability_events = {
+            event_name
+            for event_names in BALL_ABILITY_EVENTS.values()
+            for event_name in event_names
+        }
+        for event_name in all_events | ability_events:
+            self.assertIn(f'"{event_name}"', runtime_source)
+
+    def test_zero_minion_launch_attempt_is_not_an_activation(self) -> None:
+        from collect_fixed_balance_runs import _ball_ability_activation_counts
+
+        counts = _ball_ability_activation_counts([{
+            "ball_id": "player_trace_driver",
+            "shot_events": [{
+                "event_type": "pierce_minions_launched",
+                "details": {"consumed": 0, "minion_count": 0},
+            }],
+        }])
+        self.assertEqual(counts["player_trace_driver"], 0)
+
+    def test_tool_result_accepts_single_and_double_result_envelopes(self) -> None:
+        state = {"scene": "title", "available_actions": ["start_new_run"]}
+        single = SimpleNamespace(
+            isError=False,
+            structuredContent={"result": state},
+        )
+        double = SimpleNamespace(
+            isError=False,
+            structuredContent={"result": {"result": state}},
+        )
+        double_with_metadata = SimpleNamespace(
+            isError=False,
+            structuredContent={
+                "result": {"result": state},
+                "structuredContentVersion": 1,
+            },
+        )
+        self.assertEqual(tool_result(single), state)
+        self.assertEqual(tool_result(double), state)
+        self.assertEqual(tool_result(double_with_metadata), state)
+
+    def test_start_resume_accepts_run_that_appears_between_state_reads(self) -> None:
+        old_result = {
+            "scene": "result",
+            "balance_validation": {"run_seed": 1002},
+            "mcp_control": {"build_profile": {
+                "id": "standard", "settings_hash": "hash",
+            }},
+        }
+        requested_run = {
+            "scene": "battle",
+            "balance_validation": {"run_seed": 1003},
+            "mcp_control": {"build_profile": {
+                "id": "standard", "settings_hash": "hash",
+            }},
+        }
+        with patch(
+            "collect_fixed_balance_runs.get_state",
+            new_callable=AsyncMock,
+        ) as read:
+            with patch(
+                "collect_fixed_balance_runs.call",
+                new_callable=AsyncMock,
+            ) as send:
+                read.side_effect = [old_result, requested_run, requested_run]
+                result = asyncio.run(ensure_comparison_run_started(
+                    object(), 1003, "standard", "hash", "fixed",
+                ))
+        self.assertTrue(result["resumed"])
+        send.assert_not_awaited()
+
     def test_collection_continues_after_a_normal_loss(self) -> None:
         self.assertTrue(is_terminal_summary({"completed": False, "reason": "run_ended_before_boss_defeat"}))
         self.assertTrue(is_terminal_summary({"completed": True, "reason": "final_boss_defeated"}))
@@ -425,7 +530,7 @@ class ComparisonCollectionTests(unittest.TestCase):
                  ], "upgrade_candidates": []}},
                 {"event_type": "clear_reward_choice", "stage_index": 3,
                  "details": {"reward": "new_ball", "selected_index": 0}},
-                {"event_type": "heavy_collision_recorded", "details": {"count": 1}},
+                {"event_type": "heavy_distance_stacks_generated", "details": {"amount": 1}},
                 {"event_type": "chain_impact_triggered", "details": {"hits": 2}},
                 {"event_type": "rest_heal", "details": {"heal_amount": 5}},
                 {"event_type": "relic_purchased", "details": {"relic_name": "Impact Accelerator"}},
@@ -444,6 +549,10 @@ class ComparisonCollectionTests(unittest.TestCase):
                     "ball_id": "player_heavy", "total_enemy_damage": 6,
                     "total_damage_collision_count": 3, "enemy_enemy_hit_count": 2,
                     "player_enemy_damage": 4,
+                    "shot_events": [{
+                        "event_type": "heavy_distance_stacks_generated",
+                        "details": {"amount": 1},
+                    }],
                 }],
             }],
             "run_result": {
@@ -473,6 +582,22 @@ class ComparisonCollectionTests(unittest.TestCase):
         self.assertEqual(record["build_reward_offer_not_taken_count"], 0)
         self.assertEqual(record["build_mechanic_activation_counts"]["chain_impact_triggered"], 1)
         self.assertEqual(
+            record["build_mechanic_activation_counts"]
+            ["heavy_distance_stacks_generated"],
+            1,
+        )
+        self.assertEqual(record["ball_ability_activation_counts"]["player_heavy"], 1)
+        self.assertEqual(
+            record["build_mechanic_measurement_status"]
+            ["heavy_collision_recorded"]["status"],
+            "unsupported",
+        )
+        self.assertEqual(
+            record["build_mechanic_measurement_status"]
+            ["enemy_enemy_collision_count"]["count"],
+            2,
+        )
+        self.assertEqual(
             validate_comparison_record(
                 record, 1001, "heavy", "hash-heavy", record["configuration_signature"]
             ),
@@ -488,6 +613,17 @@ class ComparisonCollectionTests(unittest.TestCase):
         )
         self.assertIn("dynamic_balance_enabled_at_start", failures)
         self.assertIn("configuration_signature_changed", failures)
+
+    def test_extract_treats_null_shot_counters_as_zero(self) -> None:
+        run, summary = self.heavy_run()
+        shot = run["stages"][0]["shots"][0]
+        shot["total_enemy_damage"] = None
+        shot["total_damage_collision_count"] = None
+        shot["enemy_enemy_hit_count"] = None
+        record = extract_run_record(run, summary, "run.json")
+        self.assertEqual(record["damage_total"], 0)
+        self.assertEqual(record["collision_count"], 0)
+        self.assertEqual(record["chain_count"], 0)
 
     def test_resume_reuses_only_condition_and_integrity_matching_records(self) -> None:
         run, summary = self.heavy_run()

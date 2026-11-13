@@ -59,6 +59,7 @@ class Scene;
 class RunMap;
 class RunController;
 struct ShotRelicRules;
+namespace AnchorStackRules { struct State; }
 namespace HeavyCollisionRules { struct State; }
 
 class Game
@@ -598,6 +599,7 @@ public:
 	const HeavyCollisionRules::State& GetHeavyCollisionState() const;
 	int GetPlayerAnchorStacks() const;
 	int GetAnchorConversionProgress() const;
+	const AnchorStackRules::State& GetAnchorStackState() const;
 	
 	int GetCushionStrongUsesThisShot() const;
 	int GetPlayerShield() const;

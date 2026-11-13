@@ -85,10 +85,15 @@ struct GameMcpReadSnapshot
 		bool enduranceMode = false;
 		bool adjustedEarlyStages = false;
 		bool adjustedMidStages = false;
+		bool normalPlayBalance = false;
+		bool balanceOverrideActive = false;
 		bool tacticalAi = true;
 		std::string tacticalAiProfile = "tactics_v1";
 		int earlyAttackBudget = -1;
 		int attackBudget = -1;
+		std::string effectiveBalanceSource = "normal_play";
+		std::string effectiveNormalStagePoolId{};
+		int effectiveAttackBudget = -1;
 		int clearedStageCount = 0;
 	} balanceValidation{};
 

@@ -1335,7 +1335,7 @@ void BalanceAutoPlayer::PrunePendingBalls(const Game& game)
 void Game::OnBattleStageStarted(const StageData& stage)
 {
 	m_BattleState->controller.SetEnemyActionMaximumBudget(
-		m_BalanceRuntime->validation.GetAttackBudget(
+		m_BalanceRuntime->GetEnemyActionMaximumBudget(
 			m_RunController->Status().progress));
 	m_BattleState->controller.BeginStage(stage.stageType);
 	m_BattleState->cushionCharges = {};

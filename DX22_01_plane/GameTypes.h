@@ -127,6 +127,7 @@ struct BalanceValidationVariant
 	std::string id;	// 検証条件を識別するID
 	bool adjustedEarlyStages = false;
 	bool adjustedMidStages = false;
+	bool normalPlayBalance = false;
 	bool tacticalAi = true;
 	std::string tacticalAiProfile = "tactics_v1";
 	int earlyAttackBudget = -1;

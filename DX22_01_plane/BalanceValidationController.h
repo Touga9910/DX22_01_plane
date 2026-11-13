@@ -62,6 +62,11 @@ public:
 	bool HasVariant(const std::string& id) const;
 	bool UsesAdjustedEarlyStages() const;
 	bool UsesAdjustedMidStages() const;
+	bool UsesNormalPlayBalance() const;
+	bool HasActiveBalanceOverride() const
+	{
+		return m_Enabled || m_ForcedVariantForCurrentRun;
+	}
 	bool UsesTacticalAi() const;
 	const std::string& GetTacticalAiProfile() const;
 	int GetAttackBudget(int progress) const;
@@ -80,7 +85,8 @@ private:
 	std::string m_ExperimentId = "fixed_baseline";
 	std::string m_CurrentVariantId = "fixed";
 	std::vector<BalanceValidationVariant> m_Variants{
-		{ "fixed", false, false, true, "tactics_v1", -1, -1 },
+		{ "fixed", false, false, false, true, "tactics_v1", -1, -1 },
 	};
+	bool m_ForcedVariantForCurrentRun = false;
 	int m_MaximumClearedStages = 30;
 };

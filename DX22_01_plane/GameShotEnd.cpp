@@ -135,6 +135,11 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 		CushionChargeRules::ArmSetupForNextShot(
 			m_BattleState->cushionCharges,
 			currentBall->status.reflectionSetupAmount);
+		RecordBalanceEvent("reflection_setup_armed", {
+			{ "amount", currentBall->status.reflectionSetupAmount },
+			{ "pending",
+				m_BattleState->cushionCharges.pendingSetupBonus },
+		});
 	}
 	CushionChargeRules::EndPlayerShot(m_BattleState->cushionCharges);
 	m_BattleState->cushionBoostConsumedThisShot = false;

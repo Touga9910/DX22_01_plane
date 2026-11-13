@@ -107,6 +107,10 @@ GameBalanceReadSnapshot GameBalanceRuntime::CaptureReadSnapshot(
 		validation.UsesAdjustedEarlyStages();
 	snapshot.validationAdjustedMidStages =
 		validation.UsesAdjustedMidStages();
+	snapshot.validationNormalPlayBalance =
+		validation.UsesNormalPlayBalance();
+	snapshot.validationBalanceOverrideActive =
+		validation.HasActiveBalanceOverride();
 	snapshot.validationTacticalAi = validation.UsesTacticalAi();
 	snapshot.validationTacticalAiProfile =
 		validation.GetTacticalAiProfile();
@@ -114,6 +118,10 @@ GameBalanceReadSnapshot GameBalanceRuntime::CaptureReadSnapshot(
 		validation.GetAttackBudget(progress);
 	snapshot.validationAttackBudget =
 		validation.GetAttackBudget(progress);
+	snapshot.effectiveBalanceSource = GetEffectiveBalanceSource();
+	snapshot.effectiveNormalStagePoolId = normalPlay.GetStagePoolId(progress);
+	snapshot.effectiveAttackBudget =
+		GetEnemyActionMaximumBudget(progress);
 	snapshot.clearedStageCount = clearedStageCountValue;
 	return snapshot;
 }
@@ -147,6 +155,38 @@ bool GameBalanceRuntime::HasValidationVariant(
 	const std::string& variantId) const
 {
 	return validation.HasVariant(variantId);
+}
+
+std::vector<std::string>
+GameBalanceRuntime::GetAllowedNormalStageIds(int progress) const
+{
+	if (validation.HasActiveBalanceOverride() &&
+		!validation.UsesNormalPlayBalance())
+	{
+		return validation.GetAllowedNormalStageIds(progress);
+	}
+	return normalPlay.GetAllowedNormalStageIds(progress);
+}
+
+int GameBalanceRuntime::GetEnemyActionMaximumBudget(int progress) const
+{
+	if (validation.HasActiveBalanceOverride() &&
+		!validation.UsesNormalPlayBalance())
+	{
+		return validation.GetAttackBudget(progress);
+	}
+	return normalPlay.GetEnemyActionMaximumBudget(progress);
+}
+
+std::string GameBalanceRuntime::GetEffectiveBalanceSource() const
+{
+	if (!validation.HasActiveBalanceOverride())
+	{
+		return "normal_play";
+	}
+	return validation.UsesNormalPlayBalance()
+		? "validation_normal_play"
+		: "validation_variant";
 }
 
 bool Game::IsEnduranceMode() const
@@ -235,7 +275,8 @@ void Game::StartNewRun(
 		effectiveControllerType == "human" && !IsDebugMode() &&
 		!m_BalanceRuntime->autoPlayer.IsEnabled() &&
 		!m_BalanceRuntime->validation.IsEnabled();
-	m_PersistenceRuntime->ActiveAscension() = (!IsDebugMode() &&
+	m_PersistenceRuntime->ActiveAscension() = (effectiveControllerType == "human" &&
+		!IsDebugMode() &&
 		!m_BalanceRuntime->autoPlayer.IsEnabled() &&
 		!m_BalanceRuntime->validation.IsEnabled())
 		? m_PersistenceRuntime->Profile().selectedAscension : 0;
@@ -354,6 +395,10 @@ void Game::StartNewRun(
 					m_BalanceRuntime->validation.UsesAdjustedEarlyStages() },
 				{ "adjusted_mid_stages",
 					m_BalanceRuntime->validation.UsesAdjustedMidStages() },
+				{ "normal_play_balance",
+					m_BalanceRuntime->validation.UsesNormalPlayBalance() },
+				{ "balance_override_active",
+					m_BalanceRuntime->validation.HasActiveBalanceOverride() },
 				{ "tactical_ai",
 					m_BalanceRuntime->validation.UsesTacticalAi() },
 				{ "tactical_ai_profile",
@@ -366,6 +411,23 @@ void Game::StartNewRun(
 						m_RunController->Status().progress) },
 				{ "seed_suite_index", m_BalanceRuntime->validation.GetSeedIndex() },
 				{ "seed_suite_size", m_BalanceRuntime->validation.GetSeedCount() },
+			}
+		},
+		{
+			"effective_balance",
+			{
+				{ "source", m_BalanceRuntime->GetEffectiveBalanceSource() },
+				{ "normal_play_config_loaded",
+					m_BalanceRuntime->normalPlay.IsLoadedFromData() },
+				{ "normal_stage_pool_id",
+					m_BalanceRuntime->normalPlay.GetStagePoolId(
+						m_RunController->Status().progress) },
+				{ "allowed_normal_stage_ids",
+					m_BalanceRuntime->GetAllowedNormalStageIds(
+						m_RunController->Status().progress) },
+				{ "enemy_action_maximum_budget",
+					m_BalanceRuntime->GetEnemyActionMaximumBudget(
+						m_RunController->Status().progress) },
 			}
 		},
 		{

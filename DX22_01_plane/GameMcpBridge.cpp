@@ -125,7 +125,7 @@ namespace
 		constexpr DWORD replaceFlags =
 			MOVEFILE_REPLACE_EXISTING |
 			MOVEFILE_WRITE_THROUGH;
-		for (int attempt = 0; attempt < 5; attempt++)
+		for (int attempt = 0; attempt < 8; attempt++)
 		{
 			if (MoveFileExW(
 				temporaryPath.c_str(),
@@ -143,7 +143,7 @@ namespace
 				break;
 			}
 			std::this_thread::sleep_for(
-				std::chrono::milliseconds(1 << attempt));
+				std::chrono::milliseconds((std::min)(16, 1 << attempt)));
 		}
 #else
 		std::filesystem::rename(
@@ -299,6 +299,22 @@ namespace
 			});
 	}
 
+	nlohmann::json PlayerBallStatusToMcpJson(const BallStatus& status)
+	{
+		// Keep the historical flat ability aliases used by MCP clients while
+		// reusing the canonical serializer for every current status value.
+		nlohmann::json value = WritePlayerBallStatus(status);
+		value["split"] = status.abilities.split;
+		value["pierce"] = status.abilities.pierce;
+		value["anchor"] = status.abilities.anchor;
+		value["refractAfterPierce"] = status.abilities.refractAfterPierce;
+		value["heavyDistanceStacks"] = status.abilities.heavyDistanceStacks;
+		value["lightweight"] = status.abilities.lightweight;
+		value["reflectionSetup"] = status.abilities.reflectionSetup;
+		value["returnToShotStart"] = status.abilities.returnToShotStart;
+		return value;
+	}
+
 	nlohmann::json BallDataToJson(
 		const PlayerBallData& ball,
 		int index)
@@ -311,43 +327,7 @@ namespace
 			{ "upgrade_level", ball.upgradeLevel },
 			{ "can_upgrade", ball.CanUpgrade() },
 			{ "next_upgrade", ball.CanUpgrade() ? WritePlayerBallStatus(ball.upgradeTable[ball.upgradeLevel]) : nlohmann::json(nullptr) },
-			{ "status", {
-				{ "attack", ball.status.attack },
-				{ "mass", ball.status.mass },
-				{ "radius", ball.status.radius },
-				{ "restitution", ball.status.restitution },
-				{ "friction", ball.status.friction },
-				{ "knockbackTransfer", ball.status.knockbackTransfer },
-				{ "pierceMaxUses", ball.status.pierceMaxUses },
-				{ "pierceSpeedRetention", ball.status.pierceSpeedRetention },
-				{ "anchorBrakeMultiplier", ball.status.anchorBrakeMultiplier },
-				{ "anchorStopSpeedSquared", ball.status.anchorStopSpeedSquared },
-				{ "anchorKnockbackImmune", ball.status.anchorKnockbackImmune },
-				{ "heavySetupStackConsume", ball.status.heavySetupStackConsume },
-				{ "heavyEnemyCollisionMultiplier", ball.status.heavyEnemyCollisionMultiplier },
-				{ "lightweightKnockbackMultiplier", ball.status.lightweightKnockbackMultiplier },
-				{ "pierceStackConsumeLimit", ball.status.pierceStackConsumeLimit },
-				{ "cushionReflectionLimit", ball.status.cushionReflectionLimit },
-				{ "cushionConsumptionLimit", ball.status.cushionConsumptionLimit },
-				{ "cushionReflectionSpeedMultiplier", ball.status.cushionReflectionSpeedMultiplier },
-				{ "reflectionSetupAmount", ball.status.reflectionSetupAmount },
-				{ "ricochetStackConsume", ball.status.ricochetStackConsume },
-				{ "pinballCollisionsPerStage", ball.status.pinballCollisionsPerStage },
-				{ "pinballSpeedRetention", ball.status.pinballSpeedRetention },
-				{ "anchorPlayerStacksPerBonus", ball.status.anchorPlayerStacksPerBonus },
-				{ "anchorEnemyConsumeLimit", ball.status.anchorEnemyConsumeLimit },
-				{ "nextAnchorGrantBonus", ball.status.nextAnchorGrantBonus },
-				{ "stopShieldAmount", ball.status.stopShieldAmount },
-				{ "chainImpactRadius", ball.status.chainImpactRadius },
-				{ "pierce", ball.status.abilities.pierce },
-				{ "refractAfterPierce", ball.status.abilities.refractAfterPierce },
-				{ "split", ball.status.abilities.split },
-				{ "anchor", ball.status.abilities.anchor },
-				{ "heavyDistanceStacks", ball.status.abilities.heavyDistanceStacks },
-				{ "lightweight", ball.status.abilities.lightweight },
-				{ "reflectionSetup", ball.status.abilities.reflectionSetup },
-				{ "returnToShotStart", ball.status.abilities.returnToShotStart },
-			} },
+			{ "status", PlayerBallStatusToMcpJson(ball.status) },
 		};
 	}
 
@@ -540,6 +520,10 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 		balance.validationAdjustedEarlyStages;
 	snapshot.balanceValidation.adjustedMidStages =
 		balance.validationAdjustedMidStages;
+	snapshot.balanceValidation.normalPlayBalance =
+		balance.validationNormalPlayBalance;
+	snapshot.balanceValidation.balanceOverrideActive =
+		balance.validationBalanceOverrideActive;
 	snapshot.balanceValidation.tacticalAi =
 		balance.validationTacticalAi;
 	snapshot.balanceValidation.tacticalAiProfile =
@@ -548,6 +532,12 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 		balance.validationEarlyAttackBudget;
 	snapshot.balanceValidation.attackBudget =
 		balance.validationAttackBudget;
+	snapshot.balanceValidation.effectiveBalanceSource =
+		balance.effectiveBalanceSource;
+	snapshot.balanceValidation.effectiveNormalStagePoolId =
+		balance.effectiveNormalStagePoolId;
+	snapshot.balanceValidation.effectiveAttackBudget =
+		balance.effectiveAttackBudget;
 	snapshot.balanceValidation.clearedStageCount =
 		balance.clearedStageCount;
 
@@ -1596,6 +1586,11 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "mass", enemy->GetStatus().mass },
 			{ "friction", enemy->GetStatus().friction },
 			{ "restitution", enemy->GetStatus().restitution },
+			{ "anchor_stacks", enemy->GetAnchorStacks() },
+			{ "pending_lightweight_knockback_multiplier",
+				enemy->GetPendingKnockbackMultiplier() },
+			{ "current_lightweight_knockback_multiplier",
+				enemy->GetNextKnockbackMultiplier() },
 			{ "frontal_damage_multiplier", enemy->GetFrontalDamageMultiplier() },
 			{ "pocket_damage_ratio", enemy->GetPocketDamageRatio() },
 			{ "defeated", enemy->IsDefeated() },
@@ -1835,6 +1830,10 @@ nlohmann::json GameMcpBridge::BuildState(
 			snapshot.balanceValidation.adjustedEarlyStages },
 		{ "adjusted_mid_stages",
 			snapshot.balanceValidation.adjustedMidStages },
+		{ "normal_play_balance",
+			snapshot.balanceValidation.normalPlayBalance },
+		{ "balance_override_active",
+			snapshot.balanceValidation.balanceOverrideActive },
 		{ "tactical_ai", snapshot.balanceValidation.tacticalAi },
 		{ "tactical_ai_profile",
 			snapshot.balanceValidation.tacticalAiProfile },
@@ -1842,6 +1841,12 @@ nlohmann::json GameMcpBridge::BuildState(
 			snapshot.balanceValidation.earlyAttackBudget },
 		{ "attack_budget",
 			snapshot.balanceValidation.attackBudget },
+		{ "effective_balance_source",
+			snapshot.balanceValidation.effectiveBalanceSource },
+		{ "effective_normal_stage_pool_id",
+			snapshot.balanceValidation.effectiveNormalStagePoolId },
+		{ "effective_attack_budget",
+			snapshot.balanceValidation.effectiveAttackBudget },
 		{ "cleared_stage_count", snapshot.balanceValidation.clearedStageCount },
 		{
 			"dynamic_balance_forced_off",
@@ -2024,14 +2029,21 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["table"]["cushions"] = nlohmann::json::array();
 	state["table"]["cushion_boost_consumed_this_shot"] =
 		game.WasCushionBoostConsumedThisShot();
+	const auto& heavyState = game.GetHeavyCollisionState();
+	const auto& anchorState = game.GetAnchorStackState();
+	const auto& cushionCharges = game.GetCushionCharges();
 	state["ball_synergies"] = {
 		{ "heavy_stacks", game.GetHeavyCollisionCount() },
 		{ "heavy_stack_distance_per_stack",
-			game.GetHeavyCollisionState().distancePerStack },
+			heavyState.distancePerStack },
 		{ "heavy_stack_gain_limit_per_turn",
-			game.GetHeavyCollisionState().gainLimitPerTurn },
+			heavyState.gainLimitPerTurn },
 		{ "heavy_stacks_gained_this_turn",
-			game.GetHeavyCollisionState().gainedThisTurn },
+			heavyState.gainedThisTurn },
+		{ "heavy_pending_enemy_collision_multiplier",
+			heavyState.pendingEnemyCollisionMultiplier },
+		{ "heavy_active_enemy_collision_multiplier",
+			heavyState.activeEnemyCollisionMultiplier },
 		{ "pierce_stacks", game.GetPierceTraceState().stackCount },
 		{ "pierce_stack_max", PierceTraceRules::MaxStackCount },
 		{ "pierce_trace_count",
@@ -2039,9 +2051,41 @@ nlohmann::json GameMcpBridge::BuildState(
 		{ "pierce_trace_max",
 			static_cast<int>(PierceTraceRules::MaxTraceCount) },
 		{ "player_anchor_stacks", game.GetPlayerAnchorStacks() },
+		{ "anchor_conversion_progress", game.GetAnchorConversionProgress() },
+		{ "anchor_next_grant_bonus", anchorState.nextAnchorGrantBonus },
+		{ "origin_return_pending", anchorState.returnPositionPending },
+		{ "origin_return_position", VectorToJson(anchorState.returnPosition) },
 		{ "cushion_strong_uses_this_shot", game.GetCushionStrongUsesThisShot() },
 		{ "pierce_traces", nlohmann::json::array() },
 		{ "enemy_anchor_stacks", nlohmann::json::array() },
+		{ "reflection", {
+			{ "shared_stack_count", cushionCharges.stackCount },
+			{ "pending_setup_bonus", cushionCharges.pendingSetupBonus },
+			{ "active_setup_bonus", cushionCharges.activeSetupBonus },
+			{ "setup_triggered_this_shot", cushionCharges.setupTriggeredThisShot },
+			{ "valid_reflections_this_shot", cushionCharges.validReflectionsThisShot },
+			{ "generated_this_shot", cushionCharges.generatedThisShot },
+			{ "consumed_this_shot", cushionCharges.consumedThisShot },
+			{ "empowered_hits_remaining", cushionCharges.empoweredHitsRemaining },
+			{ "pinball_target_id", nullptr },
+			{ "pinball_collision_count", cushionCharges.pinballCollisionCount },
+			{ "pinball_collisions_per_stage", cushionCharges.pinballCollisionsPerStage },
+			{ "pinball_speed_retention", cushionCharges.pinballSpeedRetention },
+		} },
+		{ "current_shot_effects", {
+			{ "heavy_enemy_collision_multiplier",
+				heavyState.activeEnemyCollisionMultiplier },
+			{ "reflection_setup_bonus", cushionCharges.activeSetupBonus },
+			{ "lightweight_targets", nlohmann::json::array() },
+		} },
+		{ "next_shot_effects", {
+			{ "heavy_enemy_collision_multiplier",
+				heavyState.pendingEnemyCollisionMultiplier },
+			{ "reflection_setup_bonus", cushionCharges.pendingSetupBonus },
+			{ "anchor_grant_bonus", anchorState.nextAnchorGrantBonus },
+			{ "origin_return_pending", anchorState.returnPositionPending },
+			{ "lightweight_targets", nlohmann::json::array() },
+		} },
 	};
 	state["latest_shot_physics_chain"] =
 		BalanceLogger::GetInstance().GetLatestShotPhysicsTelemetry();
@@ -2060,15 +2104,47 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "direction", { trace.direction.x, trace.direction.y, trace.direction.z } },
 		});
 	}
-	for (EnemyBall* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+	for (std::size_t enemyIndex = 0;
+		enemyIndex < enemies.size();
+		++enemyIndex)
 	{
+		EnemyBall* enemy = enemies[enemyIndex];
 		if (enemy == nullptr || !enemy->CanParticipateInCombat()) continue;
+		const std::string targetId =
+			"enemy:" + std::to_string(enemyIndex);
 		state["ball_synergies"]["enemy_anchor_stacks"].push_back({
+			{ "target_id", targetId },
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "stacks", enemy->GetAnchorStacks() },
 		});
+		if (enemy->GetPendingKnockbackMultiplier() > 1.0f)
+		{
+			state["ball_synergies"]["next_shot_effects"]
+				["lightweight_targets"].push_back({
+					{ "target_id", targetId },
+					{ "enemy_id", enemy->GetEnemyId() },
+					{ "knockback_multiplier",
+						enemy->GetPendingKnockbackMultiplier() },
+				});
+		}
+		if (enemy->GetNextKnockbackMultiplier() > 1.0f)
+		{
+			state["ball_synergies"]["current_shot_effects"]
+				["lightweight_targets"].push_back({
+					{ "target_id", targetId },
+					{ "enemy_id", enemy->GetEnemyId() },
+					{ "knockback_multiplier",
+						enemy->GetNextKnockbackMultiplier() },
+				});
+		}
+		if (cushionCharges.pinballTargetId ==
+			reinterpret_cast<std::uintptr_t>(enemy))
+		{
+			state["ball_synergies"]["reflection"]
+				["pinball_target_id"] = targetId;
+		}
 	}
-	const auto& cushionCharges = game.GetCushionCharges();
+	// Preserve the original table aliases for existing MCP clients.
 	state["table"]["reflection_stacks"] = cushionCharges.stackCount;
 	state["table"]["reflection_setup_pending"] =
 		cushionCharges.pendingSetupBonus;

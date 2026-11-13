@@ -262,6 +262,13 @@ class BalanceConfigurationTests(unittest.TestCase):
         for ball in player["balls"]:
             self.assertNotIn("maxHp", ball["status"])
 
+    def test_mcp_balance_runs_do_not_inherit_selected_ascension(self) -> None:
+        source = (ROOT / "GameBalanceConfig.cpp").read_text(encoding="utf-8")
+        self.assertIn(
+            'm_PersistenceRuntime->ActiveAscension() = (effectiveControllerType == "human" &&',
+            source,
+        )
+
     def test_late_progression_and_validation_run_cap(self) -> None:
         dynamic = load("assets/data/dynamic_balance.json")
         validation = load("assets/data/balance_validation.json")
@@ -423,10 +430,14 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertFalse(validation["enabled"])
         self.assertGreaterEqual(len(set(validation["random_seeds"])), 3)
         self.assertEqual(len(validation["random_seeds"]), 5)
-        self.assertEqual(
-            [variant["id"] for variant in validation["variants"]],
-            ["fixed"],
+        variant_ids = [variant["id"] for variant in validation["variants"]]
+        self.assertIn("fixed", variant_ids)
+        self.assertIn("normal_play_1112", variant_ids)
+        production = next(
+            variant for variant in validation["variants"]
+            if variant["id"] == "normal_play_1112"
         )
+        self.assertTrue(production["normal_play_balance"])
         self.assertEqual(validation["minimum_paired_seeds"], 0)
         self.assertEqual(
             set(validation["seed_suites"]),
@@ -436,6 +447,49 @@ class BalanceConfigurationTests(unittest.TestCase):
             set(validation["seed_suites"]["tuning"])
             & set(validation["seed_suites"]["holdout"])
         )
+
+    def test_normal_play_stage_pools_cover_the_route_without_unlocking_early(self) -> None:
+        normal_play = load("assets/data/normal_play_balance.json")
+        stages = load("assets/data/stage_01.json")["stages"]
+        normal_ids = {
+            stage["id"] for stage in stages
+            if stage.get("stageType", "normal") == "normal"
+        }
+        pools = normal_play["normal_stage_pools"]
+        for progress in range(1, 16):
+            matches = [
+                pool for pool in pools
+                if pool["min_progress"] <= progress <= pool["max_progress"]
+            ]
+            self.assertEqual(len(matches), 1)
+            self.assertTrue(matches[0]["stage_ids"])
+            self.assertTrue(set(matches[0]["stage_ids"]).issubset(normal_ids))
+
+        opening = next(pool for pool in pools if pool["id"] == "opening")
+        self.assertEqual(opening["stage_ids"], ["normal_001", "normal_002"])
+        first_progress = {
+            stage_id: min(
+                pool["min_progress"] for pool in pools
+                if stage_id in pool["stage_ids"]
+            )
+            for stage_id in normal_ids
+            if any(stage_id in pool["stage_ids"] for pool in pools)
+        }
+        self.assertGreaterEqual(first_progress["normal_swarm_center"], 9)
+        self.assertGreaterEqual(first_progress["normal_brittle_wall"], 9)
+        self.assertGreaterEqual(first_progress["normal_resonant_swarm"], 13)
+        self.assertGreaterEqual(first_progress["normal_triple_encirclement"], 14)
+
+        budgets = normal_play["enemy_action_budgets"]
+        budget_by_progress = {
+            progress: next(
+                item["maximum_budget"] for item in budgets
+                if item["min_progress"] <= progress <= item["max_progress"]
+            )
+            for progress in range(1, 16)
+        }
+        self.assertTrue(all(budget_by_progress[p] == 4 for p in range(1, 7)))
+        self.assertTrue(all(budget_by_progress[p] == 5 for p in range(7, 16)))
 
     def test_stage_and_run_balance_targets_are_separated(self) -> None:
         targets = load("assets/data/balance_targets.json")

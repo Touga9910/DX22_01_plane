@@ -37,22 +37,28 @@ MCP_CONNECTION_MAX_ATTEMPTS = 5
 MCP_CONNECTION_RETRY_BASE_SECONDS = 0.25
 BUILD_TARGET_BALLS = {
     "standard": ("player_standard",),
-    "heavy": ("player_heavy", "player_chain_impact"),
+    "heavy": (
+        "player_heavy", "player_chain_impact", "player_collision_boost",
+        "player_lightweight",
+    ),
     "pierce": (
         "player_pierce",
         "player_trace_driver",
         "player_pierce_finisher",
         "player_refractive_pierce",
+        "player_minion_finisher",
     ),
     "bounce": (
         "player_bounce",
         "player_cushion_charge",
         "player_ricochet_finisher",
+        "player_reflection_setup",
     ),
     "anchor": (
         "player_anchor",
         "player_stop_shield",
         "player_anchor_finisher",
+        "player_origin_anchor",
     ),
 }
 BUILD_CORE_BALLS = {
@@ -77,28 +83,84 @@ BUILD_CORE_BALLS = {
 BUILD_MECHANIC_EVENTS = {
     "standard": (),
     "heavy": (
-        "heavy_collision_recorded",
+        "heavy_distance_stacks_generated",
+        "heavy_micro_stack_generated",
+        "heavy_collision_boost_armed",
         "heavy_finisher_triggered",
         "chain_impact_triggered",
     ),
     "pierce": (
         "pierce_trace_generated",
-        "pierce_trace_used",
+        "pierce_minions_launched",
         "pierce_finisher_hit",
     ),
     "bounce": (
         "cushion_stacks_generated",
         "cushion_stacks_consumed",
-        "ricochet_finisher_triggered",
+        "pinball_activated",
+        "reflection_setup_armed",
         "bank_shot_triggered",
     ),
     "anchor": (
         "anchor_stacks_generated",
-        "anchor_enemy_transfer",
         "stop_shield_granted",
         "stop_shield_absorbed",
         "anchor_finisher_triggered",
+        "origin_anchor_return_armed",
     ),
+}
+
+# Shot events are attributed to their concrete ball through shots[].ball_id.
+# Counts represent actual ability resolutions, so zero means measured but not
+# activated rather than "the collector did not know how to measure it".
+BALL_ABILITY_EVENTS = {
+    "player_standard": (),
+    "player_heavy": ("heavy_distance_stacks_generated",),
+    "player_chain_impact": ("chain_impact_triggered",),
+    "player_collision_boost": ("heavy_collision_boost_armed",),
+    "player_lightweight": ("heavy_micro_stack_generated",),
+    "player_pierce": ("pierce_trace_generated",),
+    "player_refractive_pierce": ("pierce_trace_generated",),
+    "player_trace_driver": ("pierce_minions_launched",),
+    "player_pierce_finisher": ("pierce_finisher_hit",),
+    "player_minion_finisher": ("pierce_minions_launched",),
+    "player_cushion_charge": ("cushion_stacks_generated",),
+    "player_bounce": ("cushion_empowered_hit",),
+    "player_ricochet_finisher": ("pinball_activated",),
+    "player_reflection_setup": ("reflection_setup_armed",),
+    "player_anchor": ("anchor_stacks_generated",),
+    "player_stop_shield": ("stop_shield_granted",),
+    "player_anchor_finisher": ("anchor_finisher_triggered",),
+    "player_origin_anchor": ("origin_anchor_return_armed",),
+}
+
+# These historical metric names cannot truthfully be reported as zero.  They
+# either name a feature that does not exist or were aliases for another source.
+UNSUPPORTED_MECHANIC_MEASUREMENTS = {
+    "heavy": {
+        "heavy_collision_recorded": {
+            "reason": "no runtime event; use shots[].enemy_enemy_hit_count",
+            "replacement": "enemy_enemy_collision_count",
+        },
+    },
+    "pierce": {
+        "pierce_trace_used": {
+            "reason": "trace-following/trace-use is not implemented",
+            "replacement": "pierce_minions_launched",
+        },
+    },
+    "bounce": {
+        "ricochet_finisher_triggered": {
+            "reason": "historical collector name has no runtime event",
+            "replacement": "pinball_activated",
+        },
+    },
+    "anchor": {
+        "anchor_enemy_transfer": {
+            "reason": "historical collector name has no runtime event",
+            "replacement": "stop_shield_granted or anchor_finisher_triggered",
+        },
+    },
 }
 
 
@@ -210,7 +272,20 @@ def tool_result(result: Any) -> dict[str, Any]:
     structured = getattr(result, "structuredContent", None)
     if not isinstance(structured, dict):
         return {}
-    value = structured.get("result", structured)
+    value = structured
+    # FastMCP 1.28 may wrap a Pydantic structured-output model in an
+    # additional {"result": ...} envelope.  Accept both the historical
+    # single envelope and the current double envelope without changing the
+    # public tool schema.
+    domain_keys = {
+        "scene", "game_state", "battle_state", "available_actions",
+        "mcp_control", "ok", "reason", "message", "state",
+    }
+    for _ in range(3):
+        nested = value.get("result")
+        if domain_keys.intersection(value) or not isinstance(nested, dict):
+            break
+        value = nested
     return value if isinstance(value, dict) else {}
 
 
@@ -1048,6 +1123,62 @@ def _rate(numerator: int | float, denominator: int | float) -> float:
     return round(numerator / denominator, 4) if denominator else 0.0
 
 
+def _int_or_zero(value: Any) -> int:
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
+def _ball_ability_activation_counts(
+    shots: list[dict[str, Any]],
+) -> dict[str, int]:
+    counts = {definition_id: 0 for definition_id in BALL_ABILITY_EVENTS}
+    for shot in shots:
+        definition_id = str(shot.get("ball_id", ""))
+        supported_events = set(BALL_ABILITY_EVENTS.get(definition_id, ()))
+        if not supported_events:
+            continue
+        for raw_event in _as_list(shot.get("shot_events")):
+            event = _as_dict(raw_event)
+            if (
+                str(event.get("event_type", "")) in supported_events
+                and _is_activation_event(event)
+            ):
+                counts[definition_id] += 1
+    return counts
+
+
+def _mechanic_measurement_status(
+    build_profile: str,
+    mechanic_counts: dict[str, int],
+    enemy_enemy_collision_count: int,
+) -> dict[str, dict[str, Any]]:
+    status = {
+        name: {
+            "status": "measured",
+            "source": "event",
+            "event_name": name,
+            "count": count,
+        }
+        for name, count in mechanic_counts.items()
+    }
+    if build_profile == "heavy":
+        status["enemy_enemy_collision_count"] = {
+            "status": "measured",
+            "source": "shot_field",
+            "field": "enemy_enemy_hit_count",
+            "count": enemy_enemy_collision_count,
+        }
+    for name, details in UNSUPPORTED_MECHANIC_MEASUREMENTS.get(
+        build_profile, {}
+    ).items():
+        status[name] = {
+            "status": "unsupported",
+            "source": None,
+            "count": None,
+            **details,
+        }
+    return status
+
+
 def configuration_signature(run: dict[str, Any]) -> str:
     """Hash build identity and the logger's normalized configuration manifest."""
     files = []
@@ -1073,6 +1204,15 @@ def configuration_signature(run: dict[str, Any]) -> str:
 
 def _event_details(event: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(event).get("details"))
+
+
+def _is_activation_event(event: Any) -> bool:
+    value = _as_dict(event)
+    event_type = str(value.get("event_type", ""))
+    details = _event_details(value)
+    if event_type == "pierce_minions_launched":
+        return _int_or_zero(details.get("minion_count")) > 0
+    return True
 
 
 def _event_progress(event: Any) -> int | None:
@@ -1223,11 +1363,15 @@ def extract_run_record(
         for shot in _as_list(stage.get("shots"))
     ]
     ball_usage = Counter(str(shot.get("ball_id", "unknown")) for shot in shots)
-    damage_total = sum(int(shot.get("total_enemy_damage", 0)) for shot in shots)
-    collision_count = sum(
-        int(shot.get("total_damage_collision_count", 0)) for shot in shots
+    damage_total = sum(
+        _int_or_zero(shot.get("total_enemy_damage")) for shot in shots
     )
-    chain_count = sum(int(shot.get("enemy_enemy_hit_count", 0)) for shot in shots)
+    collision_count = sum(
+        _int_or_zero(shot.get("total_damage_collision_count")) for shot in shots
+    )
+    chain_count = sum(
+        _int_or_zero(shot.get("enemy_enemy_hit_count")) for shot in shots
+    )
 
     enemy_move_values = [
         int(shot["enemy_move_count"])
@@ -1241,7 +1385,9 @@ def extract_run_record(
     ]
 
     event_counts = Counter(
-        str(_as_dict(event).get("event_type", "unknown")) for event in events
+        str(_as_dict(event).get("event_type", "unknown"))
+        for event in events
+        if _is_activation_event(event)
     )
     mechanic_counts = {
         name: event_counts[name]
@@ -1252,8 +1398,20 @@ def extract_run_record(
             1
             for shot in shots
             if shot.get("ball_id") == "player_standard"
-            and int(shot.get("player_enemy_damage", 0)) > 0
+            and _int_or_zero(shot.get("player_enemy_damage")) > 0
         )
+    ball_ability_counts = _ball_ability_activation_counts(shots)
+    ball_ability_counts["player_standard"] = sum(
+        1
+        for shot in shots
+        if shot.get("ball_id") == "player_standard"
+        and _int_or_zero(shot.get("player_enemy_damage")) > 0
+    )
+    measurement_status = _mechanic_measurement_status(
+        build_profile,
+        mechanic_counts,
+        chain_count,
+    )
 
     choices, acquired, targeted_offers, targeted_not_taken, acquired_progress = (
         _reward_metrics(events, build_profile)
@@ -1449,6 +1607,8 @@ def extract_run_record(
         ),
         "chain_count": chain_count,
         "build_mechanic_activation_counts": mechanic_counts,
+        "build_mechanic_measurement_status": measurement_status,
+        "ball_ability_activation_counts": ball_ability_counts,
         "build_complete": build_complete,
         "build_completion": {
             "build_complete": build_complete,
@@ -1545,6 +1705,8 @@ def aggregate_build_records(
                         int(item["hp_consumed"])
                     )
         mechanic_totals: Counter[str] = Counter()
+        ability_activations: Counter[str] = Counter()
+        ability_activation_runs: Counter[str] = Counter()
         reward_choices: Counter[str] = Counter()
         ball_usage: Counter[str] = Counter()
         target_acquisitions: Counter[str] = Counter()
@@ -1555,6 +1717,15 @@ def aggregate_build_records(
         deck_presence: Counter[str] = Counter()
         for record in selected:
             mechanic_totals.update(_as_dict(record.get("build_mechanic_activation_counts")))
+            record_abilities = _as_dict(
+                record.get("ball_ability_activation_counts")
+            )
+            ability_activations.update(record_abilities)
+            ability_activation_runs.update(
+                definition_id
+                for definition_id, value in record_abilities.items()
+                if _int_or_zero(value) > 0
+            )
             reward_choices.update(_as_dict(record.get("reward_choices")))
             ball_usage.update(_as_dict(record.get("ball_usage_by_definition")))
             acquired_targets = _as_dict(
@@ -1633,6 +1804,11 @@ def aggregate_build_records(
                 if isinstance(record.get("build_completion_progress"), (int, float))
             ]),
             "mechanic_activation_totals": dict(sorted(mechanic_totals.items())),
+            "mechanic_measurement_status": _mechanic_measurement_status(
+                build,
+                dict(mechanic_totals),
+                sum(int(record.get("chain_count", 0)) for record in selected),
+            ),
             "mechanic_activations_per_run": {
                 name: _rate(value, count)
                 for name, value in sorted(mechanic_totals.items())
@@ -1640,6 +1816,23 @@ def aggregate_build_records(
             "mechanic_activations_per_shot": {
                 name: _rate(value, total_shots)
                 for name, value in sorted(mechanic_totals.items())
+            },
+            "ball_ability_activation_totals": {
+                definition_id: ability_activations[definition_id]
+                for definition_id in sorted(BALL_ABILITY_EVENTS)
+            },
+            "ball_ability_activations_per_ball_shot": {
+                definition_id: _rate(
+                    ability_activations[definition_id],
+                    ball_usage[definition_id],
+                )
+                for definition_id in sorted(BALL_ABILITY_EVENTS)
+            },
+            "ball_ability_activation_run_rate": {
+                definition_id: _rate(
+                    ability_activation_runs[definition_id], count
+                )
+                for definition_id in sorted(BALL_ABILITY_EVENTS)
             },
             "target_ball_shot_share_average": _mean([
                 float(record.get("build_target_shot_share", 0.0))
@@ -1671,10 +1864,18 @@ def aggregate_build_records(
                 sorted(target_acquisitions.items())
             ),
             "target_build_ball_acquisition_run_rate_by_definition": {
-                definition_id: _rate(run_count, count)
-                for definition_id, run_count in sorted(
-                    target_acquisition_runs.items()
+                definition_id: _rate(
+                    target_acquisition_runs[definition_id], count
                 )
+                for definition_id in sorted(BUILD_TARGET_BALLS[build])
+            },
+            "target_build_ball_acquisition_count_by_definition": {
+                definition_id: target_acquisitions[definition_id]
+                for definition_id in sorted(BUILD_TARGET_BALLS[build])
+            },
+            "target_build_ball_shot_share_by_definition": {
+                definition_id: _rate(ball_usage[definition_id], total_shots)
+                for definition_id in sorted(BUILD_TARGET_BALLS[build])
             },
             "average_final_deck": {
                 definition_id: {
@@ -2090,6 +2291,17 @@ async def _select_build_before_run(
     expected_hash: str,
 ) -> None:
     state = await get_state(session)
+    active = _as_dict(
+        _as_dict(state.get("mcp_control")).get("build_profile")
+    )
+    if (
+        active.get("id") == build_profile
+        and active.get("settings_hash") == expected_hash
+    ):
+        # A preceding command may have advanced from result to battle between
+        # authoritative reads. Re-selecting the already-active build is both
+        # unnecessary and rejected by the game during a run.
+        return
     if state.get("scene") not in {"title", "result"}:
         raise RuntimeError(
             "build_profile can only change before a run; "
@@ -2201,12 +2413,41 @@ async def ensure_comparison_run_started(
     ):
         return {"resumed": True, "state": state}
     if scene not in {"title", "result"}:
-        raise RuntimeError(
-            "Cannot start requested comparison pair while a different run is active: "
-            f"requested={build}/{seed}, observed={state_diagnostic_snapshot(state)}"
-        )
+        # The bridge publishes once per interval. Immediately after a terminal
+        # log is finalized, the server can briefly expose the preceding battle
+        # snapshot. Give that snapshot time to converge before treating it as
+        # a genuinely different active run.
+        for _ in range(100):
+            await asyncio.sleep(0.05)
+            state = await get_state(session)
+            if state_observer is not None:
+                state_observer(state)
+            scene = str(state.get("scene", ""))
+            if state_matches_comparison_run(state, seed, build):
+                return {"resumed": True, "state": state}
+            if scene in {"title", "result"}:
+                break
+        if scene not in {"title", "result"}:
+            raise RuntimeError(
+                "Cannot start requested comparison pair while a different run is active: "
+                f"requested={build}/{seed}, "
+                f"observed={state_diagnostic_snapshot(state)}"
+            )
 
     await _select_build_before_run(session, build, expected_hash)
+    state_after_build = await get_state(session)
+    if state_observer is not None:
+        state_observer(state_after_build)
+    if state_matches_comparison_run(state_after_build, seed, build) and (
+        state_after_build.get("scene") != "result"
+    ):
+        return {"resumed": True, "state": state_after_build}
+    if state_after_build.get("scene") not in {"title", "result"}:
+        raise RuntimeError(
+            "Run state changed before start_new_run: "
+            f"requested={build}/{seed}, "
+            f"observed={state_diagnostic_snapshot(state_after_build)}"
+        )
     operation_state["start_requested"] = True
     result = await call(
         session,
@@ -2221,9 +2462,17 @@ async def ensure_comparison_run_started(
             return {"resumed": True, "state": state_after}
         raise RuntimeError(f"start_new_run failed: {result}")
 
-    confirmed = await get_state(session)
-    if state_observer is not None:
-        state_observer(confirmed)
+    confirmed: dict[str, Any] = {}
+    # The JSON bridge acknowledges start_new_run before the next full game
+    # snapshot is guaranteed to be published.  Poll the authoritative read
+    # briefly instead of treating that normal hand-off window as corruption.
+    for _ in range(100):
+        confirmed = await get_state(session)
+        if state_observer is not None:
+            state_observer(confirmed)
+        if state_matches_comparison_run(confirmed, seed, build):
+            break
+        await asyncio.sleep(0.05)
     if not state_matches_comparison_run(confirmed, seed, build):
         raise RuntimeError(
             "MCP server did not confirm requested comparison run: "

@@ -488,6 +488,11 @@ int Game::GetAnchorConversionProgress() const
 	return m_BattleState->anchorStacks.conversionProgress;
 }
 
+const AnchorStackRules::State& Game::GetAnchorStackState() const
+{
+	return m_BattleState->anchorStacks;
+}
+
 int Game::GetCushionStrongUsesThisShot() const
 {
     return m_BattleState->cushionStrongUsesThisShot;

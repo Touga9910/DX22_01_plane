@@ -72,6 +72,7 @@ void BalanceValidationController::LoadConfig(
 						id,
 						variant.value("adjusted_early_stages", false),
 						variant.value("adjusted_mid_stages", false),
+						variant.value("normal_play_balance", false),
 						variant.value("tactical_ai", true),
 						variant.value(
 							"tactical_ai_profile",
@@ -123,6 +124,7 @@ BalanceValidationRun BalanceValidationController::OnRunStarted(
 {
 	BalanceValidationRun result;
 	result.enabled = m_Enabled;
+	m_ForcedVariantForCurrentRun = false;
 	if (!forcedVariant.empty())
 	{
 		const auto found = std::find_if(
@@ -134,6 +136,7 @@ BalanceValidationRun BalanceValidationController::OnRunStarted(
 			});
 		if (found != m_Variants.end())
 		{
+			m_ForcedVariantForCurrentRun = true;
 			m_VariantIndex = static_cast<std::uint32_t>(
 				std::distance(m_Variants.begin(), found));
 			m_CurrentVariantId = found->id;
@@ -222,6 +225,12 @@ bool BalanceValidationController::UsesAdjustedMidStages() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
 	return variant != nullptr && variant->adjustedMidStages;
+}
+
+bool BalanceValidationController::UsesNormalPlayBalance() const
+{
+	const BalanceValidationVariant* variant = GetCurrentVariant();
+	return variant != nullptr && variant->normalPlayBalance;
 }
 
 bool BalanceValidationController::UsesTacticalAi() const

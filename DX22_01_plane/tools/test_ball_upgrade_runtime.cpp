@@ -45,6 +45,17 @@ int main()
             runtime.ApplyStatusValuesOnly(ball.status);
             assert(runtime.GetMaxHp() == 50 && runtime.GetCurrentHp() == 23);
             const json saved = BallToJson(ball);
+			const json currentMcpStatus = WritePlayerBallStatus(ball.status);
+			assert(!currentMcpStatus.contains("defense"));
+			assert(currentMcpStatus.at("attack") == ball.status.attack);
+			assert(currentMcpStatus.at("heavyFinisherDamagePerCollision") ==
+				ball.status.heavyFinisherDamagePerCollision);
+			assert(currentMcpStatus.at("cushionBounceAttackBonus") ==
+				ball.status.cushionBounceAttackBonus);
+			assert(currentMcpStatus.at("anchorEnemyStackGenerate") ==
+				ball.status.anchorEnemyStackGenerate);
+			assert(WritePlayerBallStatus(
+				ReadPlayerBallStatus(currentMcpStatus)) == currentMcpStatus);
 			assert(saved.at("upgrade_model_version") ==
 				PlayerBallSaveData::UpgradeModelVersion);
             assert(!saved.at("status").contains("max_hp") && !saved.at("status").contains("maxHp"));
@@ -303,10 +314,10 @@ int main()
         std::unordered_map<std::string, int> composition;
     };
     const std::array<BoardStageExpectation, 6> boardStageExpectations{{
-        { "normal_swarm_center", 1, 6,
+        { "normal_swarm_center", 2, 6,
             {{"enemy_swarm_amplifier", 1}, {"enemy_normal", 2},
              {"enemy_strong", 2}, {"enemy_tank", 1}} },
-        { "normal_brittle_wall", 1, 6,
+        { "normal_brittle_wall", 2, 6,
             {{"enemy_impact_brittle", 1}, {"enemy_normal", 2},
              {"enemy_strong", 2}, {"enemy_tank", 1}} },
         { "normal_resonance_guard", 2, 8,
@@ -439,12 +450,20 @@ int main()
         boardStages.push_back(*found);
     }
 
-    const std::array<std::pair<int, std::unordered_set<std::string>>, 3>
+    StageSelector lockedSelector;
+    lockedSelector.Seed(20261112u);
+    assert(lockedSelector.SelectStage(
+        boardStages, StageType::Normal, 1, std::string()) == nullptr);
+    assert(lockedSelector.SelectStage(
+        boardStages, StageType::Normal, 3, std::string(),
+        { "stage_id_that_does_not_exist" }) == nullptr);
+
+    const std::array<std::pair<int, std::unordered_set<std::string>>, 2>
         selectionExpectations{{
-            {1, {"normal_swarm_center", "normal_brittle_wall"}},
             {3, {"normal_swarm_center", "normal_brittle_wall",
                  "normal_resonance_guard", "normal_dual_threat"}},
-            {5, {"normal_resonance_guard", "normal_dual_threat",
+            {5, {"normal_swarm_center", "normal_brittle_wall",
+                 "normal_resonance_guard", "normal_dual_threat",
                  "normal_resonant_swarm", "normal_triple_encirclement"}},
         }};
     for (const auto& [progress, eligibleIds] : selectionExpectations)

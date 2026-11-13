@@ -294,7 +294,7 @@
       ]
     },
     {
-      "difficulty": 1,
+      "difficulty": 2,
       "id": "normal_swarm_center",
       "par": 6,
       "preserveLayout": true,
@@ -309,7 +309,7 @@
       ]
     },
     {
-      "difficulty": 1,
+      "difficulty": 2,
       "id": "normal_brittle_wall",
       "par": 6,
       "preserveLayout": true,

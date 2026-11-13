@@ -158,6 +158,11 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			AnchorStackRules::SaveReturnPosition(
 				m_BattleState->anchorStacks,
 				player->GetPosition());
+			RecordBalanceEvent("origin_anchor_return_armed", {
+				{ "position_xz", {
+					player->GetPosition().x,
+					player->GetPosition().z } },
+			});
 		}
 		auto shotRules = m_BattleState->controller.GetShotRelicRules();
 		shotRules.launchPower = player->GetVelocity().Length();

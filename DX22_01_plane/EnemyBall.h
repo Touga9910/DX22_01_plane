@@ -90,6 +90,7 @@ public:
 		m_PendingKnockbackMultiplier = 1.0f;
 	}
 	float GetNextKnockbackMultiplier() const { return m_NextKnockbackMultiplier; }
+	float GetPendingKnockbackMultiplier() const { return m_PendingKnockbackMultiplier; }
 	void ConsumeLightweight()
 	{
 		if (CanParticipateInCombat()) m_NextKnockbackMultiplier = 1.0f;

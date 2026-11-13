@@ -14,7 +14,10 @@ class BallAimGuidanceTests(unittest.TestCase):
         ids = {ball["id"] for ball in catalog["balls"]}
         self.assertEqual(ids, set(BALL_AIM_GUIDANCE))
         for guidance in BALL_AIM_GUIDANCE.values():
-            for field in ("role", "target_pattern", "shot_path", "follow_up"):
+            for field in (
+                "role", "activation", "effect", "target_pattern",
+                "shot_path", "follow_up", "avoid",
+            ):
                 self.assertTrue(guidance[field])
 
     def test_live_resource_counts_are_attached_to_each_ball_collection(self) -> None:
@@ -47,6 +50,50 @@ class BallAimGuidanceTests(unittest.TestCase):
                 ball["aim_guidance"]["current_resource"]["available"]
                 for ball in state[collection]
             ))
+
+    def test_live_resources_use_runtime_keys_and_anchor_target_ids(self) -> None:
+        state = {
+            "offered_balls": [
+                {"definition_id": "player_collision_boost"},
+                {"definition_id": "player_minion_finisher"},
+                {"definition_id": "player_reflection_setup"},
+                {"definition_id": "player_origin_anchor"},
+            ],
+            "ball_synergies": {
+                "heavy_stacks": 4,
+                "pierce_stacks": 10,
+                "pierce_traces": [{"id": 1}, {"id": 2}, {"id": 3}],
+                "player_anchor_stacks": 2,
+                "enemy_anchor_stacks": [{
+                    "target_id": "enemy:3",
+                    "enemy_id": "enemy_tank",
+                    "stacks": 5,
+                }],
+                "next_shot_effects": {
+                    "heavy_enemy_collision_multiplier": 1.5,
+                },
+            },
+            "table": {
+                "reflection_stacks": 6,
+                "reflection_setup_pending": 3,
+            },
+        }
+
+        attach_ball_aim_guidance(state)
+
+        heavy, pierce, reflection, anchor = (
+            ball["aim_guidance"]["current_resource"]
+            for ball in state["offered_balls"]
+        )
+        self.assertEqual(heavy["count"], 4)
+        self.assertEqual(heavy["next_enemy_collision_multiplier"], 1.5)
+        self.assertEqual((pierce["count"], pierce["trace_count"]), (10, 3))
+        self.assertEqual((reflection["count"], reflection["setup_pending"]), (6, 3))
+        self.assertEqual(anchor["enemy_targets"], [{
+            "target_id": "enemy:3",
+            "enemy_id": "enemy_tank",
+            "stacks": 5,
+        }])
 
 
 if __name__ == "__main__":

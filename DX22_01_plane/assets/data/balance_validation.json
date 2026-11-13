@@ -107,6 +107,16 @@
       "tactical_ai_profile": "survival_v2",
       "early_attack_budget": 4,
       "mid_attack_budget": -1
+    },
+    {
+      "id": "normal_play_1112",
+      "adjusted_early_stages": false,
+      "adjusted_mid_stages": false,
+      "normal_play_balance": true,
+      "tactical_ai": true,
+      "tactical_ai_profile": "tactics_v1",
+      "early_attack_budget": 4,
+      "mid_attack_budget": 5
     }
   ],
   "minimum_runs_per_variant": 5,

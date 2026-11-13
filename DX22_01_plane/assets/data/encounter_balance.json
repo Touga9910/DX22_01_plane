@@ -7,7 +7,10 @@
     "enemy_striker": 28.0,
     "enemy_boss_core": 71.5,
     "enemy_midboss_guard": 45.0,
-    "enemy_midboss_pocket": 56.0
+    "enemy_midboss_pocket": 56.0,
+    "enemy_swarm_amplifier": 28.0,
+    "enemy_impact_brittle": 32.0,
+    "enemy_protection_resonator": 30.0
   },
   "layout_multipliers": {
     "stage_data": 1.0,
@@ -22,6 +25,16 @@
     "midboss_001": 69.0,
     "midboss_002": 80.0,
     "boss_001": 71.5,
-    "boss_002": 71.5
+    "boss_002": 71.5,
+    "board_swarm_dense6": 110.0,
+    "board_impact_brittle_wall": 56.0,
+    "board_resonance_cluster": 112.5,
+    "board_control_composite": 157.5,
+    "normal_swarm_center": 203.125,
+    "normal_brittle_wall": 208.125,
+    "normal_resonance_guard": 250.625,
+    "normal_dual_threat": 273.125,
+    "normal_resonant_swarm": 315.625,
+    "normal_triple_encirclement": 325.625
   }
 }

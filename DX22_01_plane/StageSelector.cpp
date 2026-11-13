@@ -59,22 +59,9 @@ const StageData* StageSelector::SelectStage(
     {
         std::cerr << "[StageSelector] 種別「" << ToString(stageType)
             << "」、難易度" << range.min << "～" << range.max
-            << "に一致するステージがないため、難易度を無視します"
+            << "、指定候補に一致するステージがありません。"
+            << "未解放ステージへのフォールバックは行いません"
             << std::endl;
-
-        for (const StageData& stage : stages)
-        {
-            if (stage.stageType == stageType)
-            {
-                candidates.push_back(&stage);
-            }
-        }
-    }
-
-    if (candidates.empty())
-    {
-        std::cerr << "[StageSelector] 種別「" << ToString(stageType)
-            << "」のステージが存在しません" << std::endl;
         return nullptr;
     }
 

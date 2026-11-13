@@ -48,6 +48,30 @@
       "actual_result": null,
       "balance_config_hash": "8dd9f465b5e4fb5c6c030e653a7c75b69422e22dda514887ddde177c7195bfd2",
       "git_commit": "596aa9bc71fddbe9494ef9d7a5cf9d85d48f2e52"
+    },
+    {
+      "version": "B0005",
+      "changed_at": "2026-11-12T11:36:22Z",
+      "target": "通常プレイの進行度別ステージ候補と敵行動予算",
+      "before": "難易度帯のみで抽選、敵行動予算5、候補0件時は全ステージへフォールバック",
+      "after": "進行度別JSON候補、進行度1-6は予算4、進行度7以降は予算5、未解放フォールバック禁止",
+      "reason": "11月8日の序盤32シード検証結果を通常プレイへ正式導入し、6体・8体・10体構成の出現開始を段階化するため",
+      "expected_impact": "序盤の理不尽なHP消費を抑え、進行度9以降の敵数と能力の増加を滑らかにする。勝率への効果は11月12日の再計測で確認する",
+      "actual_result": null,
+      "balance_config_hash": "ebecf4ee6724d14a76109bbaafe7e50e96a7fa77a5ea9b8abb5e4ef9056357eb",
+      "git_commit": "4d11fef50d82e630d3a4dd3c20a50a3169d2d099"
+    },
+    {
+      "version": "B0006",
+      "changed_at": "2026-11-12T11:41:38Z",
+      "target": "MCP自動検証のAscension初期条件",
+      "before": "保存済み選択AscensionをMCPランにも適用し、HP・敵攻撃が通常検証条件から変化",
+      "after": "選択Ascensionは人間の通常プレイだけに適用し、MCP・自動検証はAscension 0",
+      "reason": "プレイヤーAIやステージ調整と無関係なメタ進行差を同一シード比較から除外するため",
+      "expected_impact": "MCP比較の開始HPを基礎値50へ統一し、敵攻撃ボーナスを除去する。人間の通常プレイで選択したAscensionには影響しない",
+      "actual_result": null,
+      "balance_config_hash": "42c2682b16cff45ec34e9e45e0eec4d50336b56f99c80e8f20c521a14aef3c1a",
+      "git_commit": "4d11fef50d82e630d3a4dd3c20a50a3169d2d099"
     }
   ]
 }

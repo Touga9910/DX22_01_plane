@@ -3,6 +3,7 @@
 #include "BalanceAutoPlayer.h"
 #include "BalanceValidationController.h"
 #include "DynamicBalanceController.h"
+#include "NormalPlayBalance.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -54,10 +55,15 @@ struct GameBalanceReadSnapshot final
 	bool validationEnduranceMode = false;
 	bool validationAdjustedEarlyStages = false;
 	bool validationAdjustedMidStages = false;
+	bool validationNormalPlayBalance = false;
+	bool validationBalanceOverrideActive = false;
 	bool validationTacticalAi = true;
 	std::string validationTacticalAiProfile = "tactics_v1";
 	int validationEarlyAttackBudget = -1;
 	int validationAttackBudget = -1;
+	std::string effectiveBalanceSource = "normal_play";
+	std::string effectiveNormalStagePoolId;
+	int effectiveAttackBudget = -1;
 	int clearedStageCount = 0;
 };
 
@@ -77,12 +83,16 @@ public:
 	bool IsValidationEnabled() const;
 	void SetValidationEnabled(bool enabled);
 	bool HasValidationVariant(const std::string& variantId) const;
+	std::vector<std::string> GetAllowedNormalStageIds(int progress) const;
+	int GetEnemyActionMaximumBudget(int progress) const;
+	std::string GetEffectiveBalanceSource() const;
 
 private:
 	friend class Game;
 
 	BalanceAutoPlayer autoPlayer;
 	BalanceValidationController validation;
+	NormalPlayBalance normalPlay;
 	DynamicBalanceController scaling;
 
 	std::uint32_t runRandomSeed = 0;
