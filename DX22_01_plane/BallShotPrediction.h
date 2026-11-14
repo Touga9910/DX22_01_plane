@@ -75,6 +75,7 @@ namespace BallShotPrediction
 		bool cushionStrongConsumed = false;
 		bool heavyFinisherConsumed = false;
 		bool anchorFinisherTriggered = false;
+		bool anchorGrantCommitted = false;
 		std::unordered_set<std::uintptr_t> uniquePiercedEnemies;
         double milliseconds = 0.0;
 

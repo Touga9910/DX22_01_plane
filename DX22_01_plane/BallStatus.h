@@ -56,6 +56,7 @@ struct BallStatus
 	float heavyEnemyCollisionMultiplier = 1.0f;
 	float lightweightKnockbackMultiplier = 1.0f;
 	float lightweightSpeedLossReduction = 0.0f;
+	int eventStackGenerationBonus = 0; // 距離・貫通・初回接触の1回あたり追加生成数
 
 	// 貫通カテゴリ
 	int traceDurability = 0;						// 生成する貫通痕の耐久値(0では痕を生成しない)
@@ -125,6 +126,7 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.heavyEnemyCollisionMultiplier = std::clamp(status.heavyEnemyCollisionMultiplier, 1.0f, 10.0f);
 	status.lightweightKnockbackMultiplier = std::clamp(status.lightweightKnockbackMultiplier, 1.0f, 10.0f);
 	status.lightweightSpeedLossReduction = std::clamp(status.lightweightSpeedLossReduction, 0.0f, 1.0f);
+	status.eventStackGenerationBonus = std::clamp(status.eventStackGenerationBonus, 0, 2);
 	status.traceDurability = std::clamp(status.traceDurability, 0, 99);
 	status.traceUseAngleTolerance = std::clamp(status.traceUseAngleTolerance, 1.0f, 89.0f);
 	status.traceUseDistance = std::clamp(status.traceUseDistance, 0.1f, 200.0f);

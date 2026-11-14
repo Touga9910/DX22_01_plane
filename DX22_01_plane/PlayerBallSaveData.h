@@ -9,7 +9,7 @@
 namespace PlayerBallSaveData
 {
 	using nlohmann::json;
-	inline constexpr int UpgradeModelVersion = 4;
+	inline constexpr int UpgradeModelVersion = 5;
 
 	// ボール1個分の実行時データをセーブ用JSONへ変換
 	// プレイヤーボールではdefenseを保存せず、現行の強化モデル番号を出力

@@ -25,7 +25,8 @@ void Game::NotifyPlayerPiercedEnemy(
 	const int stacksBefore = m_BattleState->pierceTraces.stackCount;
 	const bool uniquePierce = PierceTraceRules::RecordPierce(
 		m_BattleState->pierceTraces,
-		reinterpret_cast<std::uintptr_t>(enemy));
+		reinterpret_cast<std::uintptr_t>(enemy),
+		1 + currentBall->status.eventStackGenerationBonus);
 	const int stackGranted = (std::max)(
 		0,
 		m_BattleState->pierceTraces.stackCount - stacksBefore);
@@ -44,9 +45,11 @@ void Game::NotifyPlayerPiercedEnemy(
 		RecordBalanceEvent("pierce_trace_generated", {
 			{ "overwrote_oldest", m_BattleState->pierceTraces.overwrittenCount > overwrittenBefore },
 			{ "unique_pierce", uniquePierce },
-			{ "requested_amount", uniquePierce ? 1 : 0 },
+			{ "requested_amount", uniquePierce
+				? 1 + currentBall->status.eventStackGenerationBonus : 0 },
 			{ "granted_amount", stackGranted },
-			{ "discarded_by_stack_max", uniquePierce ? 1 - stackGranted : 0 },
+			{ "discarded_by_stack_max", uniquePierce
+				? 1 + currentBall->status.eventStackGenerationBonus - stackGranted : 0 },
 			{ "stack_generated", stackGranted > 0 },
 			{ "stacks_before", stacksBefore },
 			{ "stacks", m_BattleState->pierceTraces.stackCount },

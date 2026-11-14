@@ -109,7 +109,7 @@ namespace HeavyCollisionRules
 		return result;
 	}
 
-	inline GainResult EndShot(State& state)
+	inline GainResult EndShot(State& state, int generationBonus = 0)
 	{
 		long long requested = 0;
 		for (const auto& [enemyId, distance] : state.distanceByEnemyThisShot)
@@ -119,6 +119,12 @@ namespace HeavyCollisionRules
 				std::floor(distance / state.distancePerStack)));
 			requested = (std::min)(
 				requested,
+				static_cast<long long>((std::numeric_limits<int>::max)()));
+		}
+		if (requested > 0)
+		{
+			requested = (std::min)(
+				requested + (std::max)(0, generationBonus),
 				static_cast<long long>((std::numeric_limits<int>::max)()));
 		}
 		const GainResult result = ApplyGain(

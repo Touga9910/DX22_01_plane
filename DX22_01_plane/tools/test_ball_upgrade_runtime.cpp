@@ -151,13 +151,41 @@ int main()
 	assert(originAnchor.status.knockbackTransfer == 0.0f &&
 		originAnchor.status.abilities.returnToShotStart);
     assert(standard.upgradeTable[1].attack > standard.status.attack);
-	assert(heavy.status.attack == 2 && heavy.upgradeTable[0].attack == 3 &&
-		heavy.upgradeTable[1].attack == 4);
-	assert(pierce.status.attack == 1 && pierce.upgradeTable[0].attack == 2 &&
-		pierce.upgradeTable[1].attack == 3);
+	assert(heavy.status.attack == 2 && heavy.upgradeTable[0].attack == 2 &&
+		heavy.upgradeTable[1].attack == 3);
+	assert(pierce.status.attack == 1 && pierce.upgradeTable[0].attack == 1 &&
+		pierce.upgradeTable[1].attack == 2);
 	assert(refractivePierce.status.attack == 1 &&
-		refractivePierce.upgradeTable[0].attack == 2 &&
-		refractivePierce.upgradeTable[1].attack == 3);
+		refractivePierce.upgradeTable[0].attack == 1 &&
+		refractivePierce.upgradeTable[1].attack == 2);
+	for (const PlayerBallData* generator : {
+		&heavy, &pierce, &refractivePierce, &pierceFinisher,
+		&lightweight, &minionFinisher })
+	{
+		assert(generator->upgradeTable[0].attack == generator->status.attack);
+		assert(generator->upgradeTable[1].attack == generator->status.attack + 1);
+		assert(generator->status.eventStackGenerationBonus == 0);
+		assert(generator->upgradeTable[0].eventStackGenerationBonus == 1);
+		assert(generator->upgradeTable[1].eventStackGenerationBonus == 2);
+	}
+	for (const PlayerBallData* generator : {
+		&anchor, &cushion, &reflectionSetup, &originAnchor })
+	{
+		assert(generator->upgradeTable[0].attack == generator->status.attack);
+		assert(generator->upgradeTable[1].attack == generator->status.attack + 1);
+	}
+	assert(anchor.status.anchorEnemyStackGenerate == 2 &&
+		anchor.upgradeTable[0].anchorEnemyStackGenerate == 3 &&
+		anchor.upgradeTable[1].anchorEnemyStackGenerate == 4);
+	assert(cushion.status.cushionStackGenerateAmount == 1 &&
+		cushion.upgradeTable[0].cushionStackGenerateAmount == 2 &&
+		cushion.upgradeTable[1].cushionStackGenerateAmount == 3);
+	assert(reflectionSetup.status.reflectionSetupAmount == 1 &&
+		reflectionSetup.upgradeTable[0].reflectionSetupAmount == 2 &&
+		reflectionSetup.upgradeTable[1].reflectionSetupAmount == 3);
+	assert(originAnchor.status.anchorEnemyStackGenerate == 1 &&
+		originAnchor.upgradeTable[0].anchorEnemyStackGenerate == 2 &&
+		originAnchor.upgradeTable[1].anchorEnemyStackGenerate == 3);
     float lastEnemySpeed = 0;
     for (const BallStatus& status : { heavy.status, heavy.upgradeTable[0], heavy.upgradeTable[1] })
     {
@@ -238,7 +266,7 @@ int main()
 	assert(CushionChargeRules::TotalStacks(cushionState) == 1);
 	assert(cushion.status.cushionReflectionLimit == 3);
 	assert(cushion.upgradeTable[0].cushionReflectionLimit == 6);
-	assert(cushion.upgradeTable[1].cushionStackGenerateAmount == 2);
+	assert(cushion.upgradeTable[1].cushionStackGenerateAmount == 3);
 
     assert(BallMechanics::DirectionalDamage(6, 1.0f, 0.5f) == 3);
     assert(BallMechanics::DirectionalDamage(6, 0.0f, 0.5f) == 6);
@@ -293,7 +321,7 @@ int main()
     assert(shellDefinition != enemyDefinitions.end());
     assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    assert(stages.size() == 18);
+    assert(stages.size() == 19);
     std::unordered_set<std::string> stageIds;
     for (const auto& stage : stages)
     {

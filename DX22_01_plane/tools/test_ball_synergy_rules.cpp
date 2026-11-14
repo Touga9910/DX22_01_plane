@@ -121,6 +121,16 @@ int main()
 	assert(initialHeavyGain.requested == 6 && initialHeavyGain.granted == 6);
 	assert(initialHeavyGain.discardedByTurnLimit == 0);
 	assert(heavy.stackCount == 6);
+	HeavyCollisionRules::State upgradedHeavy{};
+	HeavyCollisionRules::BeginShot(upgradedHeavy);
+	HeavyCollisionRules::RecordEnemyMovement(upgradedHeavy, 1, 40.0f, true);
+	assert(HeavyCollisionRules::EndShot(upgradedHeavy, 0).granted == 1);
+	HeavyCollisionRules::BeginShot(upgradedHeavy);
+	HeavyCollisionRules::RecordEnemyMovement(upgradedHeavy, 1, 40.0f, true);
+	assert(HeavyCollisionRules::EndShot(upgradedHeavy, 1).granted == 2);
+	HeavyCollisionRules::BeginShot(upgradedHeavy);
+	HeavyCollisionRules::RecordEnemyMovement(upgradedHeavy, 1, 40.0f, true);
+	assert(HeavyCollisionRules::EndShot(upgradedHeavy, 2).granted == 3);
 	HeavyCollisionRules::BeginShot(heavy);
 	assert(HeavyCollisionRules::GenerateOncePerEnemy(heavy, 1));
 	assert(!HeavyCollisionRules::GenerateOncePerEnemy(heavy, 1));
@@ -232,6 +242,38 @@ int main()
 	assert(enemyB == 0 && anchor.playerStacks == 1 && anchor.conversionProgress == 2);
 	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 4, 0) == 3);
 	assert(AnchorStackRules::CalculateEnemyGrant(2, 6, 3, 1) == 5);
+	// The grant is committed by the collision itself. A later pocket event has
+	// no operation that can roll it back.
+	int collisionTarget = 0;
+	const auto collisionGrant = AnchorStackRules::GrantEnemyStacksOnCollision(
+		collisionTarget, 2, 0, 4, 0, 99);
+	assert(collisionGrant.granted == 2 && collisionTarget == 2);
+	// Simulated player pocket: enemy state remains committed.
+	assert(collisionTarget == 2);
+	int chainB = 0;
+	int chainC = 0;
+	const auto shareAB = AnchorStackRules::ShareEnemyStacks(
+		collisionTarget, chainB, 99);
+	assert(shareAB.shared == 2 && collisionTarget == 2 && chainB == 2);
+	const auto shareBC = AnchorStackRules::ShareEnemyStacks(chainB, chainC, 99);
+	assert(shareBC.shared == 2 && chainB == 2 && chainC == 2);
+	int zero = 0, two = 2;
+	auto zeroTwo = AnchorStackRules::ShareEnemyStacks(zero, two, 99);
+	assert(zeroTwo.shared == 2 && zero == 2 && two == 2);
+	int one = 1, five = 5;
+	auto oneFive = AnchorStackRules::ShareEnemyStacks(one, five, 99);
+	assert(oneFive.shared == 5 && one == 5 && five == 5);
+	int zeroA = 0, zeroB = 0;
+	auto zeroZero = AnchorStackRules::ShareEnemyStacks(zeroA, zeroB, 99);
+	assert(zeroZero.shared == 0 && zeroZero.firstGained == 0 &&
+		zeroZero.secondGained == 0);
+	int capA = 2, capB = 12;
+	auto cappedShare = AnchorStackRules::ShareEnemyStacks(capA, capB, 7);
+	assert(cappedShare.shared == 7 && capA == 7 && capB == 7);
+	AnchorStackRules::State sharedConsumeState{};
+	auto sharedConsume = AnchorStackRules::ConsumeEnemyStacks(
+		capA, sharedConsumeState, 3, 99);
+	assert(sharedConsume.consumed == 3 && capA == 4);
 	assert(AnchorStackRules::CalculateShield(1, 7) == 1);
 	assert(AnchorStackRules::CalculateShield(2, 7) == 3);
 	assert(AnchorStackRules::CalculateShield(3, 7) == 4);
@@ -254,6 +296,13 @@ int main()
 	for (std::uintptr_t id = 2; id <= 20; ++id)
 		PierceTraceRules::RecordPierce(traces, id);
 	assert(traces.stackCount == PierceTraceRules::MaxStackCount);
+	PierceTraceRules::State upgradedPierce{};
+	assert(PierceTraceRules::RecordPierce(upgradedPierce, 100, 1));
+	assert(upgradedPierce.stackCount == 1);
+	assert(PierceTraceRules::RecordPierce(upgradedPierce, 101, 2));
+	assert(upgradedPierce.stackCount == 3);
+	assert(PierceTraceRules::RecordPierce(upgradedPierce, 102, 3));
+	assert(upgradedPierce.stackCount == 6);
 	assert(PierceTraceRules::ConsumeStacks(traces, 9) == 9);
 	assert(traces.stackCount == 6);
 	assert(PierceTraceRules::AddTrace(traces, { 0, 0, 0 }, { 20, 0, 0 }));

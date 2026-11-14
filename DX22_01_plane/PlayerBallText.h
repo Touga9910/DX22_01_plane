@@ -123,9 +123,11 @@ namespace PlayerBallText
         if (id == "player_standard")
             text << Utf8(u8"特殊効果のない基本球。\n強化すると攻撃力が上がる。");
         else if (id == "player_heavy")
-            text << Utf8(u8"敵を強く吹き飛ばす。\n敵の移動距離で重量スタック生成。");
+			text << Utf8(u8"敵を強く吹き飛ばす。\n敵の移動距離で重量スタック生成+")
+				 << 1 + s.eventStackGenerationBonus << Utf8(u8"。");
         else if (id == "player_pierce")
-            text << Utf8(u8"敵を貫通する。\n貫通スタック・貫通痕を生成。");
+			text << Utf8(u8"敵を貫通する。\n1体ごとに貫通スタック+")
+				 << 1 + s.eventStackGenerationBonus << Utf8(u8"・貫通痕を生成。");
         else if (id == "player_bounce")
         {
             text << Utf8(u8"壁反射で反射スタックを消費。\n次の敵への攻撃+") << s.cushionBounceAttackBonus
@@ -143,7 +145,8 @@ namespace PlayerBallText
             text << Utf8(u8"重量を最大") << s.heavyCollisionConsumeAmount
                  << Utf8(u8"消費し衝撃波。\n周囲の敵最大2体に、消費1個で+1ダメージ。");
         else if (id == "player_refractive_pierce")
-            text << Utf8(u8"敵を貫通し進行方向を変える。\n貫通スタックと貫通痕を生成。");
+			text << Utf8(u8"敵を貫通し進行方向を変える。\n1体ごとに貫通スタック+")
+				 << 1 + s.eventStackGenerationBonus << Utf8(u8"と貫通痕を生成。");
         else if (id == "player_stop_shield")
             text << Utf8(u8"接触敵の錨を最大") << s.anchorEnemyConsumeLimit
                  << Utf8(u8"消費。\n最大") << s.stopShieldAmount << Utf8(u8"シールド")
@@ -178,7 +181,8 @@ namespace PlayerBallText
         {
             text << Utf8(u8"次の敵ノックバック×");
             putRatio(s.lightweightKnockbackMultiplier);
-            text << Utf8(u8"。\n敵ごとに重量+1、貫通軸併用で貫通+1。");
+			text << Utf8(u8"。\n敵ごとに重量+") << 1 + s.eventStackGenerationBonus
+				 << Utf8(u8"、貫通軸併用で貫通+1。");
             if (s.lightweightSpeedLossReduction > 0.0f)
                 text << Utf8(u8"\n自球減速軽減")
                      << static_cast<int>(std::lround(s.lightweightSpeedLossReduction * 100.0f))
@@ -208,9 +212,11 @@ namespace PlayerBallText
         const std::string& id = ball.definitionId;
         if (id == "player_heavy")
             text << Utf8(u8" / 質量") << std::fixed << std::setprecision(1) << s.mass
-                 << Utf8(u8" / 伝達×") << std::setprecision(2) << s.knockbackTransfer;
+				 << Utf8(u8" / 伝達×") << std::setprecision(2) << s.knockbackTransfer
+				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;
         else if (id == "player_pierce" || id == "player_refractive_pierce" || id == "player_minion_finisher")
-            text << Utf8(u8" / 貫通後速度") << std::lround(s.pierceSpeedRetention * 100.0f) << "%";
+			text << Utf8(u8" / 貫通後速度") << std::lround(s.pierceSpeedRetention * 100.0f) << "%"
+				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;
         else if (id == "player_bounce")
             text << Utf8(u8" / 追加+") << s.cushionBounceAttackBonus
                  << Utf8(u8" / 使用上限") << s.cushionConsumptionLimit;
@@ -229,7 +235,8 @@ namespace PlayerBallText
                  << Utf8(u8" / 自球伝達×") << std::fixed << std::setprecision(2) << s.knockbackTransfer;
         else if (id == "player_pierce_finisher")
             text << Utf8(u8" / 追加+") << s.pierceFinisherBaseBonus
-                 << Utf8(u8" / 複数補正+") << s.pierceFinisherMultiTargetBonus;
+				 << Utf8(u8" / 複数補正+") << s.pierceFinisherMultiTargetBonus
+				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;
         else if (id == "player_ricochet_finisher")
             text << Utf8(u8" / 衝突") << s.pinballCollisionsPerStage << Utf8(u8"回で成長");
         else if (id == "player_anchor_finisher")
@@ -240,7 +247,8 @@ namespace PlayerBallText
                  << Utf8(u8" / 衝突×") << std::fixed << std::setprecision(2) << s.heavyEnemyCollisionMultiplier;
         else if (id == "player_lightweight")
             text << Utf8(u8" / 吹飛×") << std::fixed << std::setprecision(2) << s.lightweightKnockbackMultiplier
-                 << Utf8(u8" / 減速軽減") << std::lround(s.lightweightSpeedLossReduction * 100.0f) << "%";
+				 << Utf8(u8" / 減速軽減") << std::lround(s.lightweightSpeedLossReduction * 100.0f) << "%"
+				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;
         else if (id == "player_reflection_setup")
             text << Utf8(u8" / 次球反射+") << s.reflectionSetupAmount;
         else if (id == "player_origin_anchor")

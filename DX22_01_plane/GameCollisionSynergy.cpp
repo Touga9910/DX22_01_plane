@@ -26,13 +26,61 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
 	if (currentBall == nullptr) return result;
 	const BallStatus& status = currentBall->status;
-	if (status.anchorEnemyStackGenerate > 0)
+	if (status.anchorEnemyStackGenerate > 0 &&
+		m_BattleState->anchorContactTarget == nullptr)
 	{
-		if (currentBall->definitionId != "player_origin_anchor" ||
-			m_BattleState->anchorContactTarget == nullptr)
+		// Commit the first valid anchor contact immediately. Shot-end processing
+		// can run after the player has entered a pocket and must not own this grant.
+		m_BattleState->anchorContactTarget = enemy;
+		const int oneShotBonus = currentBall->category == BallCategory::Anchor
+			? m_BattleState->anchorStacks.nextAnchorGrantBonus
+			: 0;
+		const auto grant = AnchorStackRules::GrantEnemyStacksOnCollision(
+			enemy->MutableAnchorStacks(),
+			status.anchorEnemyStackGenerate,
+			m_BattleState->anchorStacks.playerStacks,
+			status.anchorPlayerStacksPerBonus,
+			oneShotBonus,
+			status.anchorStackMax);
+		if (grant.granted > 0)
 		{
-			m_BattleState->anchorContactTarget = enemy;
+			const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+			const PlayerBall* player = players.empty() ? nullptr : players.front();
+			const DirectX::SimpleMath::Vector3 sourcePosition = player != nullptr
+				? player->GetPosition()
+				: enemy->GetPosition();
+			RecordBalanceEvent("anchor_stacks_generated", {
+				{ "enemy_amount", grant.granted },
+				{ "requested_amount", grant.requested },
+				{ "player_anchor", m_BattleState->anchorStacks.playerStacks },
+				{ "one_shot_bonus", oneShotBonus },
+				{ "timing", "collision" },
+			});
+			PublishGameEvent(AxisAbilityResolvedEvent{
+				AxisResourceKind::Anchor,
+				AxisAbilityAction::AnchorApplied,
+				sourcePosition,
+				enemy->GetPosition(),
+				grant.granted,
+				grant.after,
+				0.0f,
+				grant.after >= 5,
+				false,
+				reinterpret_cast<std::uintptr_t>(player),
+				reinterpret_cast<std::uintptr_t>(enemy),
+				currentBall->definitionId,
+			});
 		}
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			grant.before,
+			grant.after,
+			AxisResourceChangeReason::Collision,
+			currentBall->definitionId,
+			false,
+			enemy->GetPosition(),
+			enemy);
 	}
 
 	if (status.abilities.lightweight)
@@ -42,7 +90,8 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			m_BattleState->heavyCollisions.stackCount;
 		const auto heavyGain = HeavyCollisionRules::GenerateOncePerEnemy(
 			m_BattleState->heavyCollisions,
-			reinterpret_cast<std::uintptr_t>(enemy));
+			reinterpret_cast<std::uintptr_t>(enemy),
+			1 + status.eventStackGenerationBonus);
 		if (heavyGain.requested > 0)
 		{
 			RecordBalanceEvent("heavy_micro_stack_generated", {

@@ -49,14 +49,19 @@ namespace PierceTraceRules
 		state.piercedEnemiesThisShot.clear();
 	}
 
-	inline bool RecordPierce(State& state, std::uintptr_t enemyId)
+	inline bool RecordPierce(
+		State& state,
+		std::uintptr_t enemyId,
+		int amount = 1)
 	{
 		if (enemyId == 0 ||
 			!state.piercedEnemiesThisShot.insert(enemyId).second)
 		{
 			return false;
 		}
-		state.stackCount = (std::min)(MaxStackCount, state.stackCount + 1);
+		state.stackCount = (std::min)(
+			MaxStackCount,
+			state.stackCount + (std::max)(1, amount));
 		return true;
 	}
 

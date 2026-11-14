@@ -32,6 +32,8 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.lightweightKnockbackMultiplier = value.value("lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier);
 	status.lightweightSpeedLossReduction = value.value(
 		"lightweightSpeedLossReduction", status.lightweightSpeedLossReduction);
+	status.eventStackGenerationBonus = value.value(
+		"eventStackGenerationBonus", status.eventStackGenerationBonus);
 	status.traceDurability = value.value("traceDurability", status.traceDurability);
 	status.traceUseAngleTolerance = value.value("traceUseAngleTolerance", status.traceUseAngleTolerance);
 	status.traceUseDistance = value.value("traceUseDistance", status.traceUseDistance);
@@ -109,6 +111,7 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "heavyEnemyCollisionMultiplier", status.heavyEnemyCollisionMultiplier },
 		{ "lightweightKnockbackMultiplier", status.lightweightKnockbackMultiplier },
 		{ "lightweightSpeedLossReduction", status.lightweightSpeedLossReduction },
+		{ "eventStackGenerationBonus", status.eventStackGenerationBonus },
 		{ "traceDurability", status.traceDurability },
 		{ "traceUseAngleTolerance", status.traceUseAngleTolerance },
 		{ "traceUseDistance", status.traceUseDistance },
@@ -178,6 +181,7 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		std::isfinite(s.heavyEnemyCollisionMultiplier) && s.heavyEnemyCollisionMultiplier >= 1.0f && s.heavyEnemyCollisionMultiplier <= 10.0f &&
 		std::isfinite(s.lightweightKnockbackMultiplier) && s.lightweightKnockbackMultiplier >= 1.0f && s.lightweightKnockbackMultiplier <= 10.0f &&
 		std::isfinite(s.lightweightSpeedLossReduction) && s.lightweightSpeedLossReduction >= 0.0f && s.lightweightSpeedLossReduction <= 1.0f &&
+		s.eventStackGenerationBonus >= 0 && s.eventStackGenerationBonus <= 2 &&
 		s.traceDurability >= 0 && s.traceDurability <= 99 &&
 		std::isfinite(s.traceUseAngleTolerance) && s.traceUseAngleTolerance >= 1.0f && s.traceUseAngleTolerance <= 89.0f &&
 		std::isfinite(s.traceUseDistance) && s.traceUseDistance >= 0.1f && s.traceUseDistance <= 200.0f &&

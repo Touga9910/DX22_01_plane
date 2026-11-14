@@ -30,16 +30,16 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 		if (minion != nullptr) minion->Destroy();
 	}
 	const PlayerBallData* currentBall = m_RunController->Deck().GetCurrent();
-	const int oneShotAnchorBonus = currentBall != nullptr &&
-		currentBall->category == BallCategory::Anchor
-		? m_BattleState->anchorStacks.nextAnchorGrantBonus
-		: 0;
 	if (currentBall != nullptr && currentBall->category == BallCategory::Anchor)
 		m_BattleState->anchorStacks.nextAnchorGrantBonus = 0;
 	const int heavyStacksBeforeEnd =
 		m_BattleState->heavyCollisions.stackCount;
 	const auto heavyGain = HeavyCollisionRules::EndShot(
-		m_BattleState->heavyCollisions);
+		m_BattleState->heavyCollisions,
+		currentBall != nullptr &&
+			currentBall->status.abilities.heavyDistanceStacks
+			? currentBall->status.eventStackGenerationBonus
+			: 0);
 	if (heavyGain.requested > 0)
 	{
 		RecordBalanceEvent("heavy_distance_stacks_generated", {
@@ -65,62 +65,6 @@ void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 			? player->GetPosition()
 			: DirectX::SimpleMath::Vector3::Zero);
 
-	if (player != nullptr && currentBall != nullptr &&
-		currentBall->status.anchorEnemyStackGenerate > 0 &&
-		m_BattleState->anchorContactTarget != nullptr &&
-		m_BattleState->anchorContactTarget->CanParticipateInCombat())
-	{
-		const BallStatus& status = currentBall->status;
-		const int grant = AnchorStackRules::CalculateEnemyGrant(
-			status.anchorEnemyStackGenerate,
-			m_BattleState->anchorStacks.playerStacks,
-			status.anchorPlayerStacksPerBonus,
-			oneShotAnchorBonus);
-		const int enemyStacksBefore =
-			m_BattleState->anchorContactTarget->GetAnchorStacks();
-		const int enemyGenerated = AnchorStackRules::AddEnemyStacks(
-			m_BattleState->anchorContactTarget->MutableAnchorStacks(),
-			grant,
-			status.anchorStackMax);
-		if (enemyGenerated > 0)
-		{
-			RecordBalanceEvent("anchor_stacks_generated", {
-				{ "enemy_amount", enemyGenerated },
-				{ "player_anchor", m_BattleState->anchorStacks.playerStacks },
-				{ "one_shot_bonus", oneShotAnchorBonus },
-			});
-		}
-		NotifyAxisResourceChanged(
-			AxisResourceKind::Anchor,
-			AxisResourceOwner::Enemy,
-			enemyStacksBefore,
-			m_BattleState->anchorContactTarget->GetAnchorStacks(),
-			AxisResourceChangeReason::EndOfShot,
-			currentBall->definitionId,
-			false,
-			m_BattleState->anchorContactTarget->GetPosition(),
-			m_BattleState->anchorContactTarget);
-		if (enemyGenerated > 0)
-		{
-			const DirectX::SimpleMath::Vector3 sourcePosition = player != nullptr
-				? player->GetPosition()
-				: m_BattleState->anchorContactTarget->GetPosition();
-			PublishGameEvent(AxisAbilityResolvedEvent{
-				AxisResourceKind::Anchor,
-				AxisAbilityAction::AnchorApplied,
-				sourcePosition,
-				m_BattleState->anchorContactTarget->GetPosition(),
-				enemyGenerated,
-				m_BattleState->anchorContactTarget->GetAnchorStacks(),
-				0.0f,
-				m_BattleState->anchorContactTarget->GetAnchorStacks() >= 5,
-				false,
-				reinterpret_cast<std::uintptr_t>(player),
-				reinterpret_cast<std::uintptr_t>(m_BattleState->anchorContactTarget),
-				currentBall->definitionId,
-			});
-		}
-	}
 	m_BattleState->anchorContactTarget = nullptr;
 	if (currentBall != nullptr &&
 		currentBall->definitionId == "player_origin_anchor" &&

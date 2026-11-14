@@ -42,6 +42,71 @@ namespace AnchorStackRules
 		return enemyStacks - before;
 	}
 
+	inline int CalculateEnemyGrant(
+		int baseAmount,
+		int playerStacks,
+		int playerStacksPerBonus,
+		int oneShotBonus);
+
+	struct EnemyGrantResult
+	{
+		int requested = 0;
+		int granted = 0;
+		int before = 0;
+		int after = 0;
+	};
+
+	// Resolve an anchor grant at collision time. Keeping this value-only makes
+	// the grant independent from a later player pocket/despawn event.
+	inline EnemyGrantResult GrantEnemyStacksOnCollision(
+		int& enemyStacks,
+		int baseAmount,
+		int playerStacks,
+		int playerStacksPerBonus,
+		int oneShotBonus,
+		int maximum)
+	{
+		EnemyGrantResult result;
+		result.before = enemyStacks;
+		result.requested = CalculateEnemyGrant(
+			baseAmount,
+			playerStacks,
+			playerStacksPerBonus,
+			oneShotBonus);
+		result.granted = AddEnemyStacks(
+			enemyStacks, result.requested, maximum);
+		result.after = enemyStacks;
+		return result;
+	}
+
+	struct EnemyShareResult
+	{
+		int firstBefore = 0;
+		int secondBefore = 0;
+		int shared = 0;
+		int firstGained = 0;
+		int secondGained = 0;
+	};
+
+	// Living-enemy filtering belongs to the collision caller. This rule only
+	// shares the larger current value and never sums the two values.
+	inline EnemyShareResult ShareEnemyStacks(
+		int& firstStacks,
+		int& secondStacks,
+		int maximum)
+	{
+		EnemyShareResult result;
+		const int cap = (std::max)(0, maximum);
+		result.firstBefore = std::clamp(firstStacks, 0, cap);
+		result.secondBefore = std::clamp(secondStacks, 0, cap);
+		result.shared = (std::max)(result.firstBefore, result.secondBefore);
+		firstStacks = result.shared;
+		secondStacks = result.shared;
+		result.firstGained = result.shared - result.firstBefore;
+		result.secondGained = result.shared - result.secondBefore;
+		return result;
+	}
+
 	// Consume player stacks. A non-positive amount consumes all stacks.
 	inline int ConsumePlayerStacks(State& state, int amount)
 	{

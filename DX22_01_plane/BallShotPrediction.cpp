@@ -474,7 +474,9 @@ namespace
 					if (enemyBall.defeated || enemyBall.pocketed) return;
 					result.uniquePiercedEnemies.insert(enemyBall.physics.id);
 					PierceTraceRules::RecordPierce(
-						result.pierceTraces, enemyBall.physics.id);
+						result.pierceTraces,
+						enemyBall.physics.id,
+						1 + result.shotStatus.eventStackGenerationBonus);
 					Vector3 direction = playerBall.physics.velocity;
 					direction.y = 0.0f;
 					if (direction.LengthSquared() <= 0.0001f) return;
@@ -499,7 +501,29 @@ namespace
 					result.shotStatus.abilities.lightweight)
 				{
 					HeavyCollisionRules::GenerateOncePerEnemy(
-						result.heavyCollisions, targetEnemy->physics.id);
+						result.heavyCollisions,
+						targetEnemy->physics.id,
+						1 + result.shotStatus.eventStackGenerationBonus);
+				}
+				if (playerHitCombatEnemy &&
+					!result.anchorGrantCommitted &&
+					result.shotStatus.anchorEnemyStackGenerate > 0)
+				{
+					AnchorStackRules::GrantEnemyStacksOnCollision(
+						targetEnemy->anchorStacks,
+						result.shotStatus.anchorEnemyStackGenerate,
+						result.playerAnchorStacks,
+						result.shotStatus.anchorPlayerStacksPerBonus,
+						0,
+						result.shotStatus.anchorStackMax);
+					result.anchorGrantCommitted = true;
+				}
+				if (combatEnemyPair)
+				{
+					AnchorStackRules::ShareEnemyStacks(
+						a.anchorStacks,
+						b.anchorStacks,
+						result.shotStatus.anchorStackMax);
 				}
 				auto damage = BallPhysicsRules::ContactDamage(a.physics, b.physics, Attack(a), Attack(b),
                     a.defeated, b.defeated, result.shot);
@@ -882,7 +906,10 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
         if (result.substeps >= MaxTotalSubsteps) break;
     }
     for (const auto& ball : result.balls) world.AddPoint(ball, true);
-	HeavyCollisionRules::EndShot(result.heavyCollisions);
+	HeavyCollisionRules::EndShot(
+		result.heavyCollisions,
+		result.shotStatus.abilities.heavyDistanceStacks
+			? result.shotStatus.eventStackGenerationBonus : 0);
 	result.heavyCollisionCount = result.heavyCollisions.stackCount;
     result.milliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
     return result;
@@ -906,6 +933,7 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
         scalar(s.radius); scalar(s.mass); scalar(s.restitution); scalar(s.friction); scalar(s.knockbackTransfer);
 		scalar(s.lightweightKnockbackMultiplier);
 		scalar(s.lightweightSpeedLossReduction);
+		add(s.eventStackGenerationBonus);
 		add(s.heavySetupStackConsume);
 		scalar(s.heavyEnemyCollisionMultiplier);
 		add(s.heavyCollisionConsumeAmount);

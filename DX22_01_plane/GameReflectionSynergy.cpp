@@ -1,8 +1,10 @@
 ﻿#include "Game.h"
 #include "GameBattleState.h"
+#include "GameRunDefaults.h"
 #include "PlayerDeck.h"
 #include "RunController.h"
 #include "BalanceLogger.h"
+#include "AnchorStackRules.h"
 #include "PlayerBall.h"
 #include "EnemyBall.h"
 #include "json/json.hpp"
@@ -157,6 +159,41 @@ int Game::NotifyEnemyEnemySynergyCollision(
 	if (first == nullptr || second == nullptr ||
 		!first->CanParticipateInCombat() ||
 		!second->CanParticipateInCombat()) return 0;
+	const int anchorMaximum = m_RunDefaults->PlayerBallStatus().anchorStackMax;
+	const auto anchorShare = AnchorStackRules::ShareEnemyStacks(
+		first->MutableAnchorStacks(),
+		second->MutableAnchorStacks(),
+		anchorMaximum);
+	if (anchorShare.firstGained > 0 || anchorShare.secondGained > 0)
+	{
+		RecordBalanceEvent("anchor_stacks_propagated", {
+			{ "first_before", anchorShare.firstBefore },
+			{ "second_before", anchorShare.secondBefore },
+			{ "shared", anchorShare.shared },
+			{ "first_gained", anchorShare.firstGained },
+			{ "second_gained", anchorShare.secondGained },
+		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			anchorShare.firstBefore,
+			anchorShare.shared,
+			AxisResourceChangeReason::Collision,
+			"enemy_anchor_propagation",
+			false,
+			first->GetPosition(),
+			first);
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Anchor,
+			AxisResourceOwner::Enemy,
+			anchorShare.secondBefore,
+			anchorShare.shared,
+			AxisResourceChangeReason::Collision,
+			"enemy_anchor_propagation",
+			false,
+			second->GetPosition(),
+			second);
+	}
 	const std::uintptr_t firstId = reinterpret_cast<std::uintptr_t>(first);
 	const std::uintptr_t secondId = reinterpret_cast<std::uintptr_t>(second);
 	EnemyBall* target = nullptr;
