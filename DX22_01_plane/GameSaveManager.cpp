@@ -258,11 +258,16 @@ bool GameSaveManager::Save(
 				{ "shop_relic_offers", snapshot.shopRelicOffers },
 			} },
 			{ "run", {
+				{ "run_combat_mode", ToString(snapshot.runCombatMode) },
+				{ "phase_progression_mode",
+					ToString(snapshot.phaseProgressionMode) },
 				{ "max_hp", snapshot.status.maxHp },
 				{ "current_hp", snapshot.status.currentHp },
 				{ "money", snapshot.status.money },
 				{ "progress", snapshot.status.progress },
 				{ "cleared_stage_count", snapshot.progress.clearedBattles },
+				{ "phase_normal_battle_encounter_count",
+					snapshot.progress.phaseNormalBattleEncounters },
 				{ "area_progress", snapshot.progress.areaProgress },
 				{ "ascension", snapshot.activeAscension },
 				{ "run_phase", ToString(snapshot.progress.phase) },
@@ -369,6 +374,12 @@ bool GameSaveManager::Load(
 		SceneType resumeScene =
 			SceneFromId(payload.at("resume_scene").get<std::string>());
 		const json& run = payload.at("run");
+		const RunCombatMode runCombatMode = RunCombatModeFromString(
+			run.value("run_combat_mode", std::string("legacy")));
+		const PhaseRunProgressionMode phaseProgressionMode =
+			PhaseRunProgressionModeFromString(run.value(
+				"phase_progression_mode",
+				std::string("encounter")));
 		const int activeAscension = std::clamp(run.value("ascension", 0), 0, ProgressionProfile::MaximumAscension);
 		const json& random = payload.at("random");
 		const json& deckJson = payload.at("deck");
@@ -469,10 +480,17 @@ bool GameSaveManager::Load(
 		restoredStatus.SetLastStageId(
 			run.at("last_stage_id").get<std::string>());
 		const int clearedStages = run.at("cleared_stage_count").get<int>();
+		const int phaseNormalBattleEncounters = run.value(
+			"phase_normal_battle_encounter_count",
+			(std::max)(
+				0,
+				clearedStages - restoredStatistics.midBossDefeats));
 		int areaProgress = run.value("area_progress", clearedStages);
 		RunPhase runPhase = RunPhaseFromString(
 			run.value("run_phase", std::string("normal_route")));
 		if (clearedStages < 0 || clearedStages > 1000000 ||
+			phaseNormalBattleEncounters < 0 ||
+			phaseNormalBattleEncounters > 1000000 ||
 			areaProgress < 0 || areaProgress > 1000000)
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);
@@ -623,12 +641,15 @@ bool GameSaveManager::Load(
 			throw std::runtime_error(UiText::InvalidSaveData);
 
 		request = {};
+		request.snapshot.runCombatMode = runCombatMode;
+		request.snapshot.phaseProgressionMode = phaseProgressionMode;
 		request.snapshot.status = std::move(restoredStatus);
 		request.snapshot.progress = {
 			std::move(restoredMap),
 			clearedStages,
 			areaProgress,
 			runPhase,
+			phaseNormalBattleEncounters,
 		};
 		request.snapshot.relics = relics;
 		request.snapshot.deck = std::move(restoredDeck);

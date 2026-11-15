@@ -252,7 +252,9 @@ void Game::ResetPlayerRuntimeStatus()
 	m_RewardState->ResetForRun();
 	m_RunController->Progress().Reset(0);
 	m_BalanceRuntime->autoPlayer.ResetPendingBallAdjustments();
-	m_BattleState->controller.BeginStage(StageType::Normal);
+	StageData legacyStage{};
+	legacyStage.stageType = StageType::Normal;
+	m_BattleState->controller.BeginStage(legacyStage);
 	m_StageOverrideState->ClearCurrent();
 	m_DebugController->ResetDiagnostics("ラン初期化");
 }
@@ -264,19 +266,34 @@ void Game::StartNewRun(
 	const std::string& buildProfile,
 	const std::string& buildProfileSettingsHash,
 	std::optional<std::uint32_t> forcedRandomSeed,
-	const std::string& forcedValidationVariant)
+	const std::string& forcedValidationVariant,
+	std::optional<RunCombatMode> forcedRunCombatMode,
+	std::optional<PhaseRunProgressionMode> forcedPhaseProgressionMode,
+	const std::string& mcpShotPolicy)
 {
 	if (!IsDebugMode()) LoadPlayerStatusFromJson(); // Refresh the catalog after newly completed achievements.
 	ResetPlayerRuntimeStatus();
+	const RunCombatMode runCombatMode = forcedRunCombatMode.value_or(
+		m_PhaseTestRunRequested
+			? RunCombatMode::PhaseTest
+			: RunCombatMode::Legacy);
+	m_LastRequestedRunCombatMode = runCombatMode;
+	m_RunController->SetCombatMode(runCombatMode);
+	const PhaseRunProgressionMode phaseProgressionMode =
+		forcedPhaseProgressionMode.value_or(
+			PhaseRunProgressionMode::EncounterCount);
+	m_RunController->SetPhaseProgressionMode(phaseProgressionMode);
 	const std::string effectiveControllerType = !controllerType.empty()
 		? controllerType
 		: (m_BalanceRuntime->autoPlayer.IsEnabled() ? "autoplay" : "human");
 	m_PersistenceRuntime->PersistentProgressEligible() =
 		effectiveControllerType == "human" && !IsDebugMode() &&
+		runCombatMode == RunCombatMode::Legacy &&
 		!m_BalanceRuntime->autoPlayer.IsEnabled() &&
 		!m_BalanceRuntime->validation.IsEnabled();
 	m_PersistenceRuntime->ActiveAscension() = (effectiveControllerType == "human" &&
 		!IsDebugMode() &&
+		runCombatMode == RunCombatMode::Legacy &&
 		!m_BalanceRuntime->autoPlayer.IsEnabled() &&
 		!m_BalanceRuntime->validation.IsEnabled())
 		? m_PersistenceRuntime->Profile().selectedAscension : 0;
@@ -361,6 +378,13 @@ void Game::StartNewRun(
 
 	const nlohmann::json runContext =
 	{
+		{ "run_combat_mode", ToString(runCombatMode) },
+		{ "requested_combat_mode", ToString(runCombatMode) },
+		{ "applied_combat_mode", ToString(m_RunController->GetCombatMode()) },
+		{ "phase_progression_mode", ToString(phaseProgressionMode) },
+		{ "mcp_shot_policy", mcpShotPolicy.empty()
+			? std::string("not_applicable")
+			: mcpShotPolicy },
 		{ "debug_sandbox", IsDebugMode() },
 		{ "physics_model", BallPhysicsWorld::ModelName },
 		{ "controller_profile", controllerProfile },

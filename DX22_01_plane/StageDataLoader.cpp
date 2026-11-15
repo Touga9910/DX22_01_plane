@@ -270,6 +270,75 @@ namespace
         return StageType::Normal;
     }
 
+    CombatMode ParseCombatMode(const std::string& value)
+    {
+        if (value == "phasePrototype" || value == "phase_prototype")
+        {
+            return CombatMode::PhasePrototype;
+        }
+        return CombatMode::Legacy;
+    }
+
+    bool LoadEnemySpawn(
+        const json& spawnJson,
+        const std::unordered_map<std::string, EnemyData>& enemyMasterMap,
+        const std::string& stageId,
+        size_t enemyIndex,
+        EnemySpawnData& spawn)
+    {
+        if (!spawnJson.is_object() || !spawnJson.contains("position"))
+        {
+            std::cerr << "[StageDataLoader] stage「" << stageId
+                << "」の敵[" << enemyIndex << "] にpositionがありません"
+                << std::endl;
+            return false;
+        }
+
+        spawn.enemyId =
+            spawnJson.value("enemyId", std::string(kDefaultEnemyId));
+        const auto enemyIt = enemyMasterMap.find(spawn.enemyId);
+        if (enemyIt == enemyMasterMap.end())
+        {
+            std::cerr << "[StageDataLoader] stage「" << stageId
+                << "」の敵[" << enemyIndex << "] が参照するenemy ID「"
+                << spawn.enemyId << "」は存在しません" << std::endl;
+            return false;
+        }
+
+        try
+        {
+            spawn.position = LoadVector3(
+                spawnJson["position"],
+                Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f));
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "[StageDataLoader] stage「" << stageId
+                << "」の敵[" << enemyIndex
+                << "] のpositionが不正です: " << e.what() << std::endl;
+            return false;
+        }
+
+        spawn.enemyData = enemyIt->second;
+        spawn.enemyData.initPosition = spawn.position;
+        spawn.attackInterval = (std::max)(
+            0, spawnJson.value("attackInterval", 0));
+        spawn.spawnGroup = (std::max)(
+            0, spawnJson.value("spawnGroup", 0));
+        if (spawnJson.contains("statusEffects"))
+        {
+            spawn.enemyData.initialStatusEffects =
+                ReadStatusEffects(spawnJson["statusEffects"]);
+        }
+        if (spawnJson.contains("nuisanceStatusEffects") &&
+            spawn.enemyData.nuisanceBall.enabled)
+        {
+            spawn.enemyData.nuisanceBall.debuffs =
+                ReadStatusEffects(spawnJson["nuisanceStatusEffects"]);
+        }
+        return true;
+    }
+
     bool HasRequiredStageFields(const json& stageJson, size_t index)
     {
         const char* requiredFields[] =
@@ -390,6 +459,15 @@ std::vector<StageData> StageDataLoader::LoadAll(
             stage.difficulty = stageJson["difficulty"].get<int>();
             stage.par = stageJson.value("par", stage.par);
             stage.preserveLayout = stageJson.value("preserveLayout", false);
+            stage.prototypeOnly = stageJson.value("prototypeOnly", false);
+            stage.combatMode = ParseCombatMode(
+                stageJson.value("combatMode", std::string("legacy")));
+            stage.phaseBattle.turnsPerPhase = (std::max)(
+                1, stageJson.value("turnsPerPhase", 2));
+            stage.phaseBattle.defaultAttackInterval = (std::max)(
+                1, stageJson.value("defaultAttackInterval", 2));
+            stage.phaseBattle.spawnSeed = stageJson.value(
+                "spawnSeed", stage.phaseBattle.spawnSeed);
             if (stageJson.contains("breakBalls"))
             {
                 stage.hasBreakBallLayout = true;
@@ -432,46 +510,39 @@ std::vector<StageData> StageDataLoader::LoadAll(
                 }
 
                 EnemySpawnData spawn;
-                spawn.enemyId =
-                    spawnJson.value("enemyId", std::string(kDefaultEnemyId));
-                const auto enemyIt = enemyMasterMap.find(spawn.enemyId);
-                if (enemyIt == enemyMasterMap.end())
+                if (LoadEnemySpawn(
+                    spawnJson, enemyMasterMap, stage.id, enemyIndex, spawn))
                 {
-                    std::cerr << "[StageDataLoader] stage「" << stage.id
-                        << "」の敵[" << enemyIndex << "] が参照するenemy ID「"
-                        << spawn.enemyId << "」は存在しません" << std::endl;
-                    continue;
+                    stage.enemies.push_back(std::move(spawn));
                 }
+            }
 
-                try
+            if (stage.combatMode == CombatMode::PhasePrototype)
+            {
+                stage.phaseBattle.phases.push_back({ stage.enemies });
+                if (stageJson.contains("additionalPhases") &&
+                    stageJson["additionalPhases"].is_array())
                 {
-                    spawn.position = LoadVector3(
-                        spawnJson["position"],
-                        Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f));
+                    for (const json& phaseJson : stageJson["additionalPhases"])
+                    {
+                        EnemyPhaseData phase;
+                        const json& phaseEnemies = phaseJson.is_object()
+                            ? phaseJson.value("enemies", json::array())
+                            : json::array();
+                        for (size_t enemyIndex = 0;
+                            enemyIndex < phaseEnemies.size(); ++enemyIndex)
+                        {
+                            EnemySpawnData spawn;
+                            if (LoadEnemySpawn(
+                                phaseEnemies[enemyIndex], enemyMasterMap,
+                                stage.id, enemyIndex, spawn))
+                            {
+                                phase.enemies.push_back(std::move(spawn));
+                            }
+                        }
+                        stage.phaseBattle.phases.push_back(std::move(phase));
+                    }
                 }
-                catch (const std::exception& e)
-                {
-                    std::cerr << "[StageDataLoader] stage「" << stage.id
-                        << "」の敵[" << enemyIndex
-                        << "] のpositionが不正です: " << e.what()
-                        << std::endl;
-                    continue;
-                }
-
-                spawn.enemyData = enemyIt->second;
-                spawn.enemyData.initPosition = spawn.position;
-                if (spawnJson.contains("statusEffects"))
-                {
-                    spawn.enemyData.initialStatusEffects =
-                        ReadStatusEffects(spawnJson["statusEffects"]);
-                }
-                if (spawnJson.contains("nuisanceStatusEffects") &&
-                    spawn.enemyData.nuisanceBall.enabled)
-                {
-                    spawn.enemyData.nuisanceBall.debuffs =
-                        ReadStatusEffects(spawnJson["nuisanceStatusEffects"]);
-                }
-                stage.enemies.push_back(spawn);
             }
 
             stages.push_back(std::move(stage));

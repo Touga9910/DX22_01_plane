@@ -50,6 +50,9 @@ struct BattleControllerHooks
         int hpAfter)> notifyPlayerDamage;
     std::function<void(PlayerBall*)> capturePlayerStatus;
     std::function<void()> restoreNextPocketedEnemy;
+    std::function<void(
+        const std::vector<EnemySpawnData>&, int, unsigned int, int)>
+        spawnPhaseEnemies;
 
     // 敵行動計画とCharge妨害の観測結果。ログ・表示はHook先の責務。
     std::function<void(const EnemyActionTurnPlan&)>
@@ -93,6 +96,8 @@ public:
     void BeginAimingPower();
     void NotifyShotFired(bool heavyShot);
     void NotifyPlayerDefeated();
+    // EnemyBallの一度限りのDefeat通知を、削除後も残る戦闘集計へ反映。
+    void NotifyEnemyDefeated();
 
     BattleState GetState() const
     {
@@ -143,8 +148,19 @@ public:
     void SetShotRelicRules(const ShotRelicRules& rules) { m_ShotRelicRules = rules; }
     bool ClaimBountyReward();
 
-    void BeginStage(StageType stageType);
+    void BeginStage(const StageData& stage);
     StageType GetStageType() const { return m_StageType; }
+    CombatMode GetCombatMode() const { return m_CombatMode; }
+    bool IsPhasePrototype() const
+    {
+        return m_CombatMode == CombatMode::PhasePrototype;
+    }
+    int GetCurrentPhase() const { return m_CurrentPhase; }
+    int GetTotalPhases() const { return m_TotalPhases; }
+    int GetTurnsUntilNextPhase() const { return m_TurnsUntilNextPhase; }
+    int GetNextPhaseEnemyCount() const;
+    int GetLivingEnemyCount() const;
+    int GetDefeatedEnemyCount() const;
     BattlePocketRules& PocketRules() { return m_PocketRules; }
     const BattlePocketRules& PocketRules() const { return m_PocketRules; }
     std::mt19937& PocketRandomEngine() { return m_PocketRandomEngine; }
@@ -178,6 +194,12 @@ private:
     ShotRelicRules m_ShotRelicRules{};
     bool m_BountyRewardClaimed = false;
     StageType m_StageType = StageType::Normal;
+    CombatMode m_CombatMode = CombatMode::Legacy;
+    PhaseBattleData m_PhaseBattle{};
+    int m_CurrentPhase = 0;
+    int m_TotalPhases = 0;
+    int m_TurnsUntilNextPhase = 0;
+    int m_PhaseDefeatedEnemyCount = 0;
     BattlePocketRules m_PocketRules{};
     std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
     std::deque<EnemyBall*> m_PocketedEnemyQueue;
@@ -189,6 +211,9 @@ private:
     void ProcessEnemyAttack();
     void ProcessTurnEnd();
     void PlanNextTurn();
+    void PlanPhaseTurn();
+    void RemoveDefeatedPhaseEnemies();
+    bool TryAdvancePhase();
     void ResolveChargeInterruptions();
 
     void SetState(BattleState state, const char* reason);

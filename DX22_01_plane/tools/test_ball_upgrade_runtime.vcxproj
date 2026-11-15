@@ -27,6 +27,7 @@
     <ClCompile Include="..\PlayerBallDataLoader.cpp" />
     <ClCompile Include="..\StageDataLoader.cpp" />
 	<ClCompile Include="..\StageSelector.cpp" />
+	<ClCompile Include="..\RunProgressController.cpp" />
 	<ClCompile Include="..\GameEncounterBalance.cpp" />
 	<ClCompile Include="..\Collision.cpp" />
   </ItemGroup>

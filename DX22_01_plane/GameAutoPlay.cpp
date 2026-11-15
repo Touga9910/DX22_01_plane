@@ -1337,7 +1337,7 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	m_BattleState->controller.SetEnemyActionMaximumBudget(
 		m_BalanceRuntime->GetEnemyActionMaximumBudget(
 			m_RunController->Status().progress));
-	m_BattleState->controller.BeginStage(stage.stageType);
+	m_BattleState->controller.BeginStage(stage);
 	m_BattleState->cushionCharges = {};
 	m_BattleState->cushionBoostConsumedThisShot = false;
 	m_BattleState->cushionStrongUsesThisShot = 0;
@@ -1438,6 +1438,22 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	const bool validationEnabled =
 		stage.enemyValidation.has_value() &&
 		stage.enemyValidation->enabled;
+	nlohmann::json phaseEnemyCounts = nlohmann::json::array();
+	int scheduledEnemyCount = 0;
+	if (stage.combatMode == CombatMode::PhasePrototype)
+	{
+		for (const EnemyPhaseData& phase : stage.phaseBattle.phases)
+		{
+			const int enemyCount = static_cast<int>(phase.enemies.size());
+			phaseEnemyCounts.push_back(enemyCount);
+			scheduledEnemyCount += enemyCount;
+		}
+	}
+	else
+	{
+		phaseEnemyCounts.push_back(static_cast<int>(stage.enemies.size()));
+		scheduledEnemyCount = static_cast<int>(stage.enemies.size());
+	}
 	const nlohmann::json enemyValidationContext =
 		validationEnabled
 		? nlohmann::json{
@@ -1457,6 +1473,15 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		};
 	const nlohmann::json stageContext =
 	{
+		{ "run_combat_mode", ToString(m_RunController->GetCombatMode()) },
+		{ "phase_progression_mode",
+			ToString(m_RunController->GetPhaseProgressionMode()) },
+		{ "phase_normal_battle_encounter_count",
+			m_RunController->Progress().GetPhaseNormalBattleEncounterCount() },
+		{ "combat_mode", ToString(stage.combatMode) },
+		{ "phase_count", static_cast<int>(phaseEnemyCounts.size()) },
+		{ "phase_enemy_counts", phaseEnemyCounts },
+		{ "scheduled_enemy_count", scheduledEnemyCount },
 		{ "progress", m_RunController->Status().progress },
 		{ "area_progress", m_RunController->Progress().GetAreaProgress() },
 		{ "area_goal", kNormalRouteAreaGoal },

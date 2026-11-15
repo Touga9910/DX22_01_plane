@@ -98,6 +98,8 @@ private:
 	std::unique_ptr<GameRunSession> m_RunSession;
 	std::unique_ptr<RunController> m_RunController;
 	std::unique_ptr<GameStageOverrideState> m_StageOverrideState;
+	bool m_PhaseTestRunRequested = false;
+	RunCombatMode m_LastRequestedRunCombatMode = RunCombatMode::Legacy;
 
 	// ===== ボスAIとボール選択UI =====
 	// ボスのショット計画と、手球候補の選択・ホールド位置を保持
@@ -163,7 +165,7 @@ private:
 	void UpdateClearReward();
 	void DrawClearRewardUI();
 	bool BeginBallSelection();
-	void UpdateBallSelection();
+	void UpdateBallSelection(float deltaSeconds);
 	void DrawBallSelectionUI();
 	void ApplySelectedBallPreview();
 
@@ -318,6 +320,7 @@ public:
 	bool AddClearRewardBallOffer(int offerIndex);
 	int GetSelectedBallOfferIndex() const;
 	int GetHeldBallOfferIndex() const;
+	bool IsShotPreparationInputEnabled() const;
 
 	bool AreAllBallsStopped() const;
 	// バランス検証用の自動プレイが有効かを返す。
@@ -352,7 +355,11 @@ public:
 		const std::string& buildProfile = std::string(),
 		const std::string& buildProfileSettingsHash = std::string(),
 		std::optional<std::uint32_t> forcedRandomSeed = std::nullopt,
-		const std::string& forcedValidationVariant = std::string());
+		const std::string& forcedValidationVariant = std::string(),
+		std::optional<RunCombatMode> forcedRunCombatMode = std::nullopt,
+		std::optional<PhaseRunProgressionMode> forcedPhaseProgressionMode =
+			std::nullopt,
+		const std::string& mcpShotPolicy = std::string());
 	bool HasValidRunSave() const;
 	std::string GetRunSaveSummary() const;
 	// 直近のセーブ・ロード結果メッセージを返す。
@@ -565,6 +572,11 @@ public:
 	int GetNormalRouteAreaGoal() const;
 	// 現在のランフェーズを返す。
 	RunPhase GetRunPhase() const;
+	RunCombatMode GetRunCombatMode() const;
+	PhaseRunProgressionMode GetPhaseProgressionMode() const;
+	int GetPhaseNormalBattleEncounterCount() const;
+	RunCombatMode GetLastRequestedRunCombatMode() const;
+	RunCombatMode GetNextRunDefaultCombatMode() const;
 	// 最終ボス前の準備フェーズかを返す。
 	bool IsBossPreparation() const;
 	// 最終ボスを選択可能なフェーズかを返す。

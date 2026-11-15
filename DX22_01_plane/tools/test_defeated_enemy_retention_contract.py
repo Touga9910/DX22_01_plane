@@ -93,6 +93,30 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         self.assertIn('{ "combat_active", combatActive }', mcp)
         self.assertIn("!enemy->CanParticipateInCombat()) continue;", mcp)
 
+    def test_phase_defeat_logging_survives_end_of_turn_removal(self) -> None:
+        controller = source("BattleController.cpp")
+        game_damage = source("GameDamageAndDefeat.cpp")
+        shot_start = source("GameShotStart.cpp")
+        game = source("Game.cpp")
+
+        self.assertIn("++m_PhaseDefeatedEnemyCount;", controller)
+        self.assertIn(
+            "m_BattleState->controller.NotifyEnemyDefeated();",
+            game_damage,
+        )
+        self.assertIn(
+            "m_BattleState->controller.GetDefeatedEnemyCount(),",
+            shot_start,
+        )
+        self.assertGreaterEqual(
+            game.count("controller.GetDefeatedEnemyCount()"),
+            6,
+        )
+        self.assertIn(
+            "return CountDefeatedEnemies(m_World->GetComponents<EnemyBall>());",
+            controller,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,7 @@ void RunProgressController::Reset(std::uint32_t routeSeed)
 	m_ClearedBattles = 0;
 	m_AreaProgress = 0;
 	m_Phase = RunPhase::NormalRoute;
+	m_PhaseNormalBattleEncounters = 0;
 }
 
 // セーブデータから検証済みの進行状態を復元
@@ -27,6 +28,9 @@ void RunProgressController::Restore(RunProgressState state)
 		0,
 		NormalRouteAreaGoal);
 	m_Phase = state.phase;
+	m_PhaseNormalBattleEncounters = (std::max)(
+		0,
+		state.phaseNormalBattleEncounters);
 }
 
 // 現在の進行状態をセーブ用の値オブジェクトとして複製
@@ -37,6 +41,7 @@ RunProgressState RunProgressController::Capture() const
 		m_ClearedBattles,
 		m_AreaProgress,
 		m_Phase,
+		m_PhaseNormalBattleEncounters,
 	};
 }
 
@@ -129,4 +134,9 @@ void RunProgressController::CompleteFinalBoss()
 void RunProgressController::RecordBattleCleared()
 {
 	++m_ClearedBattles;
+}
+
+void RunProgressController::RecordPhaseNormalBattleEncounter()
+{
+	++m_PhaseNormalBattleEncounters;
 }

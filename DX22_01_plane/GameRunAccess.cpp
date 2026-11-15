@@ -173,6 +173,33 @@ RunPhase Game::GetRunPhase() const
 	return m_RunController->Progress().GetPhase();
 }
 
+RunCombatMode Game::GetRunCombatMode() const
+{
+	return m_RunController->GetCombatMode();
+}
+
+PhaseRunProgressionMode Game::GetPhaseProgressionMode() const
+{
+	return m_RunController->GetPhaseProgressionMode();
+}
+
+int Game::GetPhaseNormalBattleEncounterCount() const
+{
+	return m_RunController->Progress().GetPhaseNormalBattleEncounterCount();
+}
+
+RunCombatMode Game::GetLastRequestedRunCombatMode() const
+{
+	return m_LastRequestedRunCombatMode;
+}
+
+RunCombatMode Game::GetNextRunDefaultCombatMode() const
+{
+	return m_PhaseTestRunRequested
+		? RunCombatMode::PhaseTest
+		: RunCombatMode::Legacy;
+}
+
 bool Game::IsBossPreparation() const
 {
 	return m_RunController->Progress().IsBossPreparation();

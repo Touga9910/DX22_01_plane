@@ -17,6 +17,19 @@ DifficultyRange GetDifficultyRange(int progress)
     return { 2, 3 };
 }
 
+std::vector<std::string> GetPhaseTestStageIds(int progress)
+{
+	if (progress <= 2)
+	{
+		return { "phase_run_p1_mixed6", "phase_run_p1_pairs6" };
+	}
+	if (progress <= 4)
+	{
+		return { "phase_run_p3_mixed10", "phase_run_p3_pairs10" };
+	}
+	return { "phase_prototype_009", "phase_prototype_010" };
+}
+
 StageSelector::StageSelector()
     : m_RandomEngine(std::random_device{}())
 {
@@ -34,6 +47,10 @@ const StageData* StageSelector::SelectStage(
 
     for (const StageData& stage : stages)
     {
+        if (stage.prototypeOnly)
+        {
+            continue;
+        }
         if (stage.stageType != stageType)
         {
             continue;
@@ -101,4 +118,44 @@ StageSelectorSnapshot StageSelector::CaptureSnapshot() const
 void StageSelector::RestoreSnapshot(const StageSelectorSnapshot& snapshot)
 {
     m_RandomEngine = snapshot.randomEngine;
+}
+
+const StageData* StageSelector::SelectPhaseTestStage(
+	const std::vector<StageData>& stages,
+	int progress,
+	const std::string& lastStageId)
+{
+	const std::vector<std::string> allowedIds =
+		GetPhaseTestStageIds(progress);
+	std::vector<const StageData*> candidates;
+	for (const StageData& stage : stages)
+	{
+		if (stage.stageType == StageType::Normal &&
+			stage.prototypeOnly &&
+			stage.combatMode == CombatMode::PhasePrototype &&
+			std::find(allowedIds.begin(), allowedIds.end(), stage.id) !=
+				allowedIds.end())
+		{
+			candidates.push_back(&stage);
+		}
+	}
+	if (candidates.empty())
+	{
+		std::cerr << "[StageSelector] Phase Test Run progress "
+			<< progress << " has no matching stage." << std::endl;
+		return nullptr;
+	}
+	if (candidates.size() > 1 && !lastStageId.empty())
+	{
+		candidates.erase(
+			std::remove_if(candidates.begin(), candidates.end(),
+				[&lastStageId](const StageData* stage)
+				{
+					return stage->id == lastStageId;
+				}),
+			candidates.end());
+	}
+	std::uniform_int_distribution<std::size_t> distribution(
+		0, candidates.size() - 1);
+	return candidates[distribution(m_RandomEngine)];
 }

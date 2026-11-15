@@ -24,6 +24,27 @@ tools\game_mcp\start_game_mcp.cmd
 
 MCPエンドポイントは `http://127.0.0.1:8765/mcp` です。
 
+### ツール定義を変更したとき
+
+`server.py` の引数やツール定義はサーバー起動時に読み込まれます。
+サーバーを起動したコマンドプロンプトで `Ctrl+C` を押し、
+プロジェクトディレクトリから再起動してください。
+
+```bat
+tools\game_mcp\start_game_mcp.cmd
+```
+
+Secure MCP Tunnelは同じ `127.0.0.1:8765/mcp` を参照するため、接続が
+維持されていれば再起動不要です。切断された場合のみ
+`tools\game_mcp\start_secure_tunnel.cmd` を再起動します。
+
+ChatGPT側は承認時のツール定義を固定スナップショットとして保持し、
+サーバーの再起動だけでは更新しません。MCPサーバーの再起動後、
+ChatGPTのPlugins設定でDX22 Game MCPの詳細またはAction controlを開き、
+`Refresh` を実行して変更されたアクション定義を確認・有効化してください。
+その後に新しいチャットでDX22 Game MCPを選択し、`start_new_run` の
+公開引数が更新されたことを確認します。
+
 ## プレイヤーレベル
 
 既定値は中級者です。起動時に次のいずれかを指定できます。
@@ -89,6 +110,25 @@ tools\game_mcp\.venv\Scripts\python.exe tools\game_mcp\collect_fixed_balance_run
 
 シードは指定順に使われ、ラン数のほうが多い場合は循環します。
 `start_new_run` からも任意の `run_seed` と `validation_variant` を渡せます。
+ランの戦闘方式は `combat_mode` に `legacy` または `phase` を明示します。
+省略時は後方互換のため `legacy` です。`validation_variant` とは独立した設定です。
+
+```json
+{
+  "run_seed": 2026111401,
+  "combat_mode": "phase",
+  "phase_progression_mode": "encounter",
+  "mcp_shot_policy": "tactical"
+}
+```
+
+`phase_progression_mode` は `encounter` が通常戦の遭遇順を使う修正後、
+`route` がショップ・休憩も含む全体進行度を使う修正前の比較条件です。
+`mcp_shot_policy` は `standard` が旧来ロジック、`tactical` が予測物理・連鎖・
+特殊効果を含む既存の合計スコアを強制的な球種補正なしで比較します。
+どちらも省略時はそれぞれ `encounter` / `standard` です。
+
+未知のモードはエラーになり、`phase` 指定時に `legacy` へのフォールバックは行いません。
 固定シード時はステージ・経路・ポケット配置・山札シャッフルと、
 MCPの人間的ショット誤差が再現されます。
 

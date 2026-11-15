@@ -899,6 +899,7 @@ def create_server(
     )
     deterministic_shot_random: random.Random | None = None
     last_candidate_generation: dict[str, Any] = {}
+    current_shot_policy = "standard"
 
     # Older running game binaries omit enemy physical properties. Use the
     # matching local data only for missing fields; live fields always win.
@@ -921,10 +922,12 @@ def create_server(
         return state
 
     def control_profile() -> dict[str, Any]:
-        return compose_control_profile(
+        profile = compose_control_profile(
             profile_controller.snapshot(),
             build_profile_controller.snapshot(),
         )
+        profile["mcp_shot_policy"] = current_shot_policy
+        return profile
 
     mcp = FastMCP(
         "dx22-game-control",
@@ -1373,6 +1376,13 @@ def create_server(
         title="新しいランを開始",
         description=(
             "タイトルまたはリザルト画面から新しいランを開始します。"
+            "combat_modeはlegacyまたはphaseを明示指定でき、省略時はlegacyです。"
+            "phaseを指定した場合はフェーズ制通常戦の検証ランを開始します。"
+            "phase_progression_modeはencounterで通常戦の遭遇順、routeで"
+            "旧来の全体進行度を使う比較条件です。"
+            "mcp_shot_policyはstandardで旧来選択、tacticalで物理予測と"
+            "特殊効果の合計スコアをそのまま比較します。"
+            "validation_variantは独立したバランス検証条件です。"
             "現在の進行を置き換えるため、ユーザーが明示した場合だけ使用します。"
         ),
         annotations=destructive_write,
@@ -1381,8 +1391,11 @@ def create_server(
     def start_new_run(
         run_seed: int | None = None,
         validation_variant: str = "",
+        combat_mode: Literal["legacy", "phase"] = "legacy",
+        phase_progression_mode: Literal["encounter", "route"] = "encounter",
+        mcp_shot_policy: Literal["standard", "tactical"] = "standard",
     ) -> GameToolResult:
-        nonlocal deterministic_shot_random
+        nonlocal deterministic_shot_random, current_shot_policy
         if run_seed is not None and not 0 <= run_seed <= 0xFFFFFFFF:
             raise GameBridgeError(
                 "run_seedは0以上4294967295以下で指定してください。"
@@ -1394,6 +1407,9 @@ def create_server(
             "build_profile_settings_hash": (
                 build_profile["settings_hash"]
             ),
+            "combat_mode": combat_mode,
+            "phase_progression_mode": phase_progression_mode,
+            "mcp_shot_policy": mcp_shot_policy,
         }
         if run_seed is not None:
             arguments["run_seed"] = run_seed
@@ -1401,6 +1417,7 @@ def create_server(
             arguments["validation_variant"] = validation_variant
         result = store.submit_command("start_new_run", arguments)
         if result.get("ok", False):
+            current_shot_policy = mcp_shot_policy
             deterministic_shot_random = (
                 random.Random(run_seed ^ 0xC2B2AE35)
                 if run_seed is not None
@@ -1626,13 +1643,13 @@ def create_server(
             # get_game_state in the telemetry of the shot that is actually fired.
             # plan_build_shot otherwise receives the raw bridge state, which does
             # not contain the derived build_shot_choices snapshot.
+            joint_context = build_joint_shot_context(state, profile)
             candidate_generation = {}
             if last_candidate_generation.get("sequence") == state.get("sequence"):
                 candidate_generation = dict(
                     last_candidate_generation.get("candidate_generation", {})
                 )
             if not candidate_generation:
-                joint_context = build_joint_shot_context(state, profile)
                 candidate_generation = dict(
                     joint_context.get("candidate_generation", {})
                 )
@@ -1709,6 +1726,35 @@ def create_server(
                     or (pocket_index >= 0 and used["pocket_index"] != pocket_index)
                 ),
             }
+            selection_diagnostics = dict(
+                joint_context.get("selection_diagnostics", {})
+            )
+            selection_diagnostics["actual_selected_definition_id"] = (
+                current_ball.get("definition_id")
+            )
+            selection_diagnostics["actual_selected_instance_id"] = (
+                current_ball.get("instance_id")
+            )
+            recommended_instance_id = selection_diagnostics.get(
+                "selected_instance_id"
+            )
+            selection_diagnostics["actual_matches_recommendation"] = (
+                recommended_instance_id == current_ball.get("instance_id")
+            )
+            if not selection_diagnostics["actual_matches_recommendation"]:
+                selection_diagnostics["actual_selection_reason"] = (
+                    "caller_selected_ball"
+                )
+            else:
+                selection_diagnostics["actual_selection_reason"] = (
+                    "policy_recommendation"
+                )
+            shot_plan["shot_plan"]["mcp_shot_policy"] = (
+                joint_context.get("selection_policy", current_shot_policy)
+            )
+            shot_plan["shot_plan"]["candidate_comparison"] = (
+                selection_diagnostics
+            )
             shot_debug("candidate_selected", selected_ball=current_ball.get("definition_id"),
                        selected_instance_id=current_ball.get("instance_id"),
                        requested=requested, used=shot_plan["shot_plan"]["fallback"]["used"],
@@ -2044,6 +2090,8 @@ def main() -> None:
         "DX22 Game MCP server: "
         f"http://{args.host}:{args.port}/mcp"
     )
+    print(f"Server source: {Path(__file__).resolve()}")
+    print("start_new_run combat_mode: legacy | phase")
     print(f"Bridge directory: {store.bridge_directory}")
     print(
         "Player level: "

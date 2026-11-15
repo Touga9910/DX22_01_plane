@@ -15,6 +15,9 @@
 // Typed boundary between the run-save document and Game's internal owners.
 struct GameRunSaveSnapshot
 {
+	RunCombatMode runCombatMode = RunCombatMode::Legacy;
+	PhaseRunProgressionMode phaseProgressionMode =
+		PhaseRunProgressionMode::EncounterCount;
 	PlayerRunStatus status{};
 	RunProgressState progress{};
 	std::array<bool, static_cast<std::size_t>(RelicType::Count)> relics{};

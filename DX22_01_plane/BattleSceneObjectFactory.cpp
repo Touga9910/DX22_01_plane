@@ -73,6 +73,10 @@ void BattleSceneObjectFactory::CreateStageObjects(
         enemyData.initPosition.y = TableConfig::FIELD_HEIGHT;
 
         EnemyBall* enemy = BallFactory::CreateEnemy(game, enemyData);
+        enemy->InitializeAttackTimer(
+            spawn.attackInterval > 0
+                ? spawn.attackInterval
+                : stage.phaseBattle.defaultAttackInterval);
         m_Services.ApplyDebugEnemy(enemy, enemyIndex);
         sceneObjects.emplace_back(enemy->GetGameObject());
     }

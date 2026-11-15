@@ -26,6 +26,10 @@ public:
     RunController& operator=(const RunController&) = delete;
 
     void ResetRuntimeState(const PlayerRunStatus& defaultStatus);
+	void SetCombatMode(RunCombatMode mode);
+	RunCombatMode GetCombatMode() const;
+	void SetPhaseProgressionMode(PhaseRunProgressionMode mode);
+	PhaseRunProgressionMode GetPhaseProgressionMode() const;
 
     PlayerRunStatus& Status();
     const PlayerRunStatus& Status() const;

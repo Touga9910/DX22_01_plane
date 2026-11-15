@@ -5,6 +5,7 @@
 #include "../CushionChargeRules.h"
 #include "../StageDataLoader.h"
 #include "../StageSelector.h"
+#include "../RunProgressController.h"
 #include "../GameEncounterBalance.h"
 #include "../EnemyGimmickRules.h"
 #include "../PocketReturnRules.h"
@@ -12,6 +13,8 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -22,6 +25,17 @@ using DirectX::SimpleMath::Vector3;
 
 int main()
 {
+    RunProgressController phaseProgress;
+    phaseProgress.Reset(20261114u);
+    assert(phaseProgress.GetPhaseNormalBattleEncounterCount() == 0);
+    phaseProgress.RecordPhaseNormalBattleEncounter();
+    phaseProgress.RecordPhaseNormalBattleEncounter();
+    assert(phaseProgress.GetPhaseNormalBattleEncounterCount() == 2);
+    RunProgressState phaseProgressSnapshot = phaseProgress.Capture();
+    RunProgressController restoredPhaseProgress;
+    restoredPhaseProgress.Restore(phaseProgressSnapshot);
+    assert(restoredPhaseProgress.GetPhaseNormalBattleEncounterCount() == 2);
+
     const auto loaded = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
     assert(loaded.defaultRunStatus.maxHp == 50 && loaded.defaultRunStatus.currentHp == 50);
 	assert(loaded.ballDefinitions.size() == 18);
@@ -321,7 +335,7 @@ int main()
     assert(shellDefinition != enemyDefinitions.end());
     assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    assert(stages.size() == 19);
+    assert(stages.size() == 34);
     std::unordered_set<std::string> stageIds;
     for (const auto& stage : stages)
     {
@@ -332,6 +346,280 @@ int main()
         "midboss_001", "midboss_002", "boss_001", "boss_002" })
     {
         assert(stageIds.contains(existingId));
+    }
+    const auto phasePrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_001";
+        });
+    assert(phasePrototype != stages.end());
+    assert(phasePrototype->prototypeOnly);
+    assert(phasePrototype->combatMode == CombatMode::PhasePrototype);
+    assert(phasePrototype->phaseBattle.turnsPerPhase == 2);
+    assert(phasePrototype->phaseBattle.defaultAttackInterval == 2);
+    assert(phasePrototype->phaseBattle.spawnSeed == 20261114u);
+    assert(phasePrototype->phaseBattle.phases.size() == 3);
+    assert(phasePrototype->phaseBattle.phases[0].enemies.size() == 6);
+    assert(phasePrototype->phaseBattle.phases[1].enemies.size() == 4);
+    assert(phasePrototype->phaseBattle.phases[2].enemies.size() == 4);
+    const auto densePhasePrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_002";
+        });
+    const auto spreadPhasePrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_003";
+        });
+    assert(densePhasePrototype != stages.end());
+    assert(spreadPhasePrototype != stages.end());
+    for (const StageData* stage :
+        { &*densePhasePrototype, &*spreadPhasePrototype })
+    {
+        assert(stage->prototypeOnly);
+        assert(stage->preserveLayout);
+        assert(stage->combatMode == CombatMode::PhasePrototype);
+        assert(stage->phaseBattle.turnsPerPhase == 2);
+        assert(stage->phaseBattle.defaultAttackInterval == 2);
+        assert(stage->phaseBattle.spawnSeed == 20261114u);
+        assert(stage->phaseBattle.phases.size() == 2);
+        assert(stage->phaseBattle.phases[0].enemies.size() == 6);
+        assert(stage->phaseBattle.phases[1].enemies.size() == 4);
+    }
+    const auto phaseComposition = [](const StageData& stage)
+    {
+        std::vector<std::pair<std::string, int>> result;
+        for (const EnemyPhaseData& phase : stage.phaseBattle.phases)
+        {
+            for (const EnemySpawnData& spawn : phase.enemies)
+            {
+                result.emplace_back(spawn.enemyId, spawn.attackInterval);
+            }
+        }
+        return result;
+    };
+    assert(phaseComposition(*densePhasePrototype) ==
+        phaseComposition(*spreadPhasePrototype));
+    for (const StageData* existingPrototype :
+        { &*phasePrototype, &*densePhasePrototype, &*spreadPhasePrototype })
+    {
+        for (const EnemyPhaseData& phase : existingPrototype->phaseBattle.phases)
+        {
+            for (const EnemySpawnData& spawn : phase.enemies)
+            {
+                assert(spawn.spawnGroup == 0);
+            }
+        }
+    }
+    const auto twoGroupPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_004";
+        });
+    const auto largerTwoGroupPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_005";
+        });
+    assert(twoGroupPrototype != stages.end());
+    assert(largerTwoGroupPrototype != stages.end());
+    for (const StageData* stage :
+        { &*twoGroupPrototype, &*largerTwoGroupPrototype })
+    {
+        assert(stage->prototypeOnly);
+        assert(stage->preserveLayout);
+        assert(stage->combatMode == CombatMode::PhasePrototype);
+        assert(stage->phaseBattle.turnsPerPhase == 2);
+        assert(stage->phaseBattle.defaultAttackInterval == 2);
+        assert(stage->phaseBattle.spawnSeed == 20261114u);
+        assert(stage->phaseBattle.phases.size() == 2);
+        assert(stage->phaseBattle.phases[0].enemies.size() == 6);
+    }
+    assert(twoGroupPrototype->phaseBattle.phases[1].enemies.size() == 4);
+    assert(largerTwoGroupPrototype->phaseBattle.phases[1].enemies.size() == 6);
+    const auto sameSpawn = [](const EnemySpawnData& left,
+        const EnemySpawnData& right)
+    {
+        return left.enemyId == right.enemyId &&
+            left.position == right.position &&
+            left.attackInterval == right.attackInterval &&
+            left.spawnGroup == right.spawnGroup;
+    };
+    for (std::size_t index = 0; index < 6; ++index)
+    {
+        assert(sameSpawn(
+            twoGroupPrototype->phaseBattle.phases[0].enemies[index],
+            largerTwoGroupPrototype->phaseBattle.phases[0].enemies[index]));
+    }
+    for (const EnemySpawnData& source :
+        twoGroupPrototype->phaseBattle.phases[1].enemies)
+    {
+        assert(std::any_of(
+            largerTwoGroupPrototype->phaseBattle.phases[1].enemies.begin(),
+            largerTwoGroupPrototype->phaseBattle.phases[1].enemies.end(),
+            [&](const EnemySpawnData& candidate)
+            {
+                return sameSpawn(source, candidate);
+            }));
+    }
+    const auto denseToSpreadPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_006";
+        });
+    const auto spreadToDensePrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_007";
+        });
+    const auto denseToMixedPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_008";
+        });
+    assert(denseToSpreadPrototype != stages.end());
+    assert(spreadToDensePrototype != stages.end());
+    assert(denseToMixedPrototype != stages.end());
+    for (const StageData* stage : { &*denseToSpreadPrototype,
+        &*spreadToDensePrototype, &*denseToMixedPrototype })
+    {
+        assert(stage->prototypeOnly);
+        assert(stage->preserveLayout);
+        assert(stage->combatMode == CombatMode::PhasePrototype);
+        assert(stage->phaseBattle.turnsPerPhase == 2);
+        assert(stage->phaseBattle.defaultAttackInterval == 2);
+        assert(stage->phaseBattle.spawnSeed == 20261114u);
+        assert(stage->phaseBattle.phases.size() == 2);
+        assert(stage->phaseBattle.phases[0].enemies.size() == 6);
+        assert(stage->phaseBattle.phases[1].enemies.size() == 6);
+        assert(phaseComposition(*stage) ==
+            phaseComposition(*largerTwoGroupPrototype));
+    }
+    for (std::size_t index = 0; index < 6; ++index)
+    {
+        assert(sameSpawn(
+            denseToSpreadPrototype->phaseBattle.phases[0].enemies[index],
+            largerTwoGroupPrototype->phaseBattle.phases[0].enemies[index]));
+        assert(sameSpawn(
+            denseToMixedPrototype->phaseBattle.phases[0].enemies[index],
+            largerTwoGroupPrototype->phaseBattle.phases[0].enemies[index]));
+        assert(sameSpawn(
+            spreadToDensePrototype->phaseBattle.phases[1].enemies[index],
+            largerTwoGroupPrototype->phaseBattle.phases[1].enemies[index]));
+        const EnemySpawnData& spreadReinforcement =
+            denseToSpreadPrototype->phaseBattle.phases[1].enemies[index];
+        const EnemySpawnData& spreadInitial =
+            spreadToDensePrototype->phaseBattle.phases[0].enemies[index];
+        assert(spreadReinforcement.enemyId == spreadInitial.enemyId);
+        assert(spreadReinforcement.position == spreadInitial.position);
+    }
+    const auto mixedBothPhasesPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_009";
+        });
+    const auto pairedMixedPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_010";
+        });
+    const auto fastPairedMixedPrototype = std::find_if(
+        stages.begin(), stages.end(), [](const StageData& stage)
+        {
+            return stage.id == "phase_prototype_011";
+        });
+    assert(mixedBothPhasesPrototype != stages.end());
+    assert(pairedMixedPrototype != stages.end());
+    assert(fastPairedMixedPrototype != stages.end());
+    for (const StageData* stage : { &*mixedBothPhasesPrototype,
+        &*pairedMixedPrototype, &*fastPairedMixedPrototype })
+    {
+        assert(stage->prototypeOnly);
+        assert(stage->preserveLayout);
+        assert(stage->combatMode == CombatMode::PhasePrototype);
+        assert(stage->phaseBattle.turnsPerPhase == 2);
+        assert(stage->phaseBattle.defaultAttackInterval == 2);
+        assert(stage->phaseBattle.spawnSeed == 20261114u);
+        assert(stage->phaseBattle.phases.size() == 2);
+        assert(stage->phaseBattle.phases[0].enemies.size() == 6);
+        assert(stage->phaseBattle.phases[1].enemies.size() == 6);
+    }
+    assert(phaseComposition(*mixedBothPhasesPrototype) ==
+        phaseComposition(*largerTwoGroupPrototype));
+    assert(phaseComposition(*pairedMixedPrototype) ==
+        phaseComposition(*largerTwoGroupPrototype));
+    for (std::size_t phaseIndex = 0; phaseIndex < 2; ++phaseIndex)
+    {
+        const auto& regularPhase =
+            pairedMixedPrototype->phaseBattle.phases[phaseIndex].enemies;
+        const auto& fastPhase =
+            fastPairedMixedPrototype->phaseBattle.phases[phaseIndex].enemies;
+        for (std::size_t enemyIndex = 0; enemyIndex < 6; ++enemyIndex)
+        {
+            assert(regularPhase[enemyIndex].enemyId ==
+                fastPhase[enemyIndex].enemyId);
+            assert(regularPhase[enemyIndex].position ==
+                fastPhase[enemyIndex].position);
+            assert(regularPhase[enemyIndex].spawnGroup ==
+                fastPhase[enemyIndex].spawnGroup);
+            const bool fastDistributedEnemy =
+                enemyIndex == 3 || enemyIndex == 5;
+            if (fastDistributedEnemy)
+            {
+                assert(fastPhase[enemyIndex].enemyId == "enemy_normal");
+                assert(regularPhase[enemyIndex].attackInterval == 0);
+                assert(fastPhase[enemyIndex].attackInterval == 1);
+                assert(fastPhase[enemyIndex].spawnGroup == 3);
+            }
+            else
+            {
+                assert(regularPhase[enemyIndex].attackInterval ==
+                    fastPhase[enemyIndex].attackInterval);
+            }
+        }
+    }
+
+    const std::array<std::tuple<const char*, std::size_t, std::size_t>, 4>
+        phaseRunStages{{
+            { "phase_run_p1_mixed6", 1, 6 },
+            { "phase_run_p1_pairs6", 1, 6 },
+            { "phase_run_p3_mixed10", 2, 10 },
+            { "phase_run_p3_pairs10", 2, 10 },
+        }};
+    for (const auto& [id, phaseCount, totalEnemyCount] : phaseRunStages)
+    {
+        const auto found = std::find_if(
+            stages.begin(), stages.end(),
+            [id](const StageData& stage) { return stage.id == id; });
+        assert(found != stages.end());
+        assert(found->prototypeOnly);
+        assert(found->combatMode == CombatMode::PhasePrototype);
+        assert(found->phaseBattle.turnsPerPhase == 2);
+        assert(found->phaseBattle.defaultAttackInterval == 2);
+        assert(found->phaseBattle.phases.size() == phaseCount);
+        std::size_t actualEnemyCount = 0;
+        for (const EnemyPhaseData& phase : found->phaseBattle.phases)
+            actualEnemyCount += phase.enemies.size();
+        assert(actualEnemyCount == totalEnemyCount);
+    }
+
+    assert(GetPhaseTestStageIds(1) ==
+        std::vector<std::string>({ "phase_run_p1_mixed6", "phase_run_p1_pairs6" }));
+    assert(GetPhaseTestStageIds(3) ==
+        std::vector<std::string>({ "phase_run_p3_mixed10", "phase_run_p3_pairs10" }));
+    assert(GetPhaseTestStageIds(5) ==
+        std::vector<std::string>({ "phase_prototype_009", "phase_prototype_010" }));
+    StageSelector phaseRunSelector;
+    phaseRunSelector.Seed(20261114u);
+    for (const int encounterOrdinal : { 1, 2, 3, 4, 5, 15 })
+    {
+        const StageData* selected = phaseRunSelector.SelectPhaseTestStage(
+            stages, encounterOrdinal, std::string());
+        assert(selected != nullptr);
+        const auto allowed = GetPhaseTestStageIds(encounterOrdinal);
+        assert(std::find(allowed.begin(), allowed.end(), selected->id) !=
+            allowed.end());
     }
 
     struct BoardStageExpectation
@@ -382,6 +670,197 @@ int main()
         const float z = left.z - right.z;
         return std::sqrt(x * x + z * z);
     };
+    const auto validatePhaseLayout = [&](const StageData& stage)
+    {
+        std::vector<const EnemySpawnData*> spawned;
+        float minimumDistance = (std::numeric_limits<float>::max)();
+        for (const EnemyPhaseData& phase : stage.phaseBattle.phases)
+        {
+            for (const EnemySpawnData& spawn : phase.enemies)
+            {
+                const float radius = spawn.enemyData.status.radius;
+                assert(std::abs(spawn.position.x) + radius < fieldHalfWidth);
+                assert(std::abs(spawn.position.z) + radius < fieldHalfDepth);
+                for (const Vector3& pocketPosition : pockets)
+                {
+                    assert(planarDistance(spawn.position, pocketPosition) >=
+                        radius + 5.0f);
+                }
+                for (const EnemySpawnData* other : spawned)
+                {
+                    const float distance = planarDistance(
+                        spawn.position, other->position);
+                    assert(distance >= radius +
+                        other->enemyData.status.radius + 1.0f);
+                    minimumDistance = (std::min)(minimumDistance, distance);
+                }
+                spawned.push_back(&spawn);
+            }
+        }
+        return minimumDistance;
+    };
+    const float denseMinimumDistance =
+        validatePhaseLayout(*densePhasePrototype);
+    const float spreadMinimumDistance =
+        validatePhaseLayout(*spreadPhasePrototype);
+    assert(denseMinimumDistance <= 7.01f);
+    assert(spreadMinimumDistance >= denseMinimumDistance * 1.9f);
+    validatePhaseLayout(*twoGroupPrototype);
+    validatePhaseLayout(*largerTwoGroupPrototype);
+    const auto validateTwoGroups = [&](
+        const EnemyPhaseData& phase,
+        std::size_t expectedGroupSize)
+    {
+        std::unordered_map<int, std::vector<const EnemySpawnData*>> groups;
+        for (const EnemySpawnData& spawn : phase.enemies)
+        {
+            assert(spawn.spawnGroup == 1 || spawn.spawnGroup == 2);
+            groups[spawn.spawnGroup].push_back(&spawn);
+        }
+        assert(groups.size() == 2);
+        assert(groups.at(1).size() == expectedGroupSize);
+        assert(groups.at(2).size() == expectedGroupSize);
+        for (const auto& [groupId, members] : groups)
+        {
+            (void)groupId;
+            for (std::size_t index = 0; index < members.size(); ++index)
+            {
+                for (std::size_t other = 0; other < index; ++other)
+                {
+                    const float distance = planarDistance(
+                        members[index]->position, members[other]->position);
+                    assert(distance >= members[index]->enemyData.status.radius +
+                        members[other]->enemyData.status.radius + 1.0f);
+                    assert(distance <= 7.1f);
+                }
+            }
+        }
+        float closestGroupDistance =
+            (std::numeric_limits<float>::max)();
+        for (const EnemySpawnData* left : groups.at(1))
+        {
+            for (const EnemySpawnData* right : groups.at(2))
+            {
+                closestGroupDistance = (std::min)(closestGroupDistance,
+                    planarDistance(left->position, right->position));
+            }
+        }
+        assert(closestGroupDistance >= 28.9f);
+        assert(closestGroupDistance <= 29.1f);
+    };
+    validateTwoGroups(twoGroupPrototype->phaseBattle.phases[0], 3);
+    validateTwoGroups(twoGroupPrototype->phaseBattle.phases[1], 2);
+    validateTwoGroups(largerTwoGroupPrototype->phaseBattle.phases[0], 3);
+    validateTwoGroups(largerTwoGroupPrototype->phaseBattle.phases[1], 3);
+    validatePhaseLayout(*denseToSpreadPrototype);
+    validatePhaseLayout(*spreadToDensePrototype);
+    validatePhaseLayout(*denseToMixedPrototype);
+    const auto minimumPhaseDistance = [&](const EnemyPhaseData& phase)
+    {
+        float minimumDistance = (std::numeric_limits<float>::max)();
+        for (std::size_t index = 0; index < phase.enemies.size(); ++index)
+        {
+            for (std::size_t other = 0; other < index; ++other)
+            {
+                minimumDistance = (std::min)(minimumDistance,
+                    planarDistance(phase.enemies[index].position,
+                        phase.enemies[other].position));
+            }
+        }
+        return minimumDistance;
+    };
+    assert(minimumPhaseDistance(
+        denseToSpreadPrototype->phaseBattle.phases[0]) <= 7.1f);
+    assert(minimumPhaseDistance(
+        denseToSpreadPrototype->phaseBattle.phases[1]) >= 20.0f);
+    assert(minimumPhaseDistance(
+        spreadToDensePrototype->phaseBattle.phases[0]) >= 20.0f);
+    assert(minimumPhaseDistance(
+        spreadToDensePrototype->phaseBattle.phases[1]) <= 7.1f);
+    assert(minimumPhaseDistance(
+        denseToMixedPrototype->phaseBattle.phases[0]) <= 7.1f);
+    const EnemyPhaseData& mixedPhase =
+        denseToMixedPrototype->phaseBattle.phases[1];
+    std::vector<const EnemySpawnData*> mixedDense;
+    std::vector<const EnemySpawnData*> mixedSpread;
+    for (const EnemySpawnData& spawn : mixedPhase.enemies)
+    {
+        (spawn.spawnGroup == 1 ? mixedDense : mixedSpread).push_back(&spawn);
+    }
+    assert(mixedDense.size() == 3);
+    assert(mixedSpread.size() == 3);
+    for (std::size_t index = 0; index < mixedDense.size(); ++index)
+    {
+        for (std::size_t other = 0; other < index; ++other)
+        {
+            assert(planarDistance(mixedDense[index]->position,
+                mixedDense[other]->position) <= 7.1f);
+            assert(planarDistance(mixedSpread[index]->position,
+                mixedSpread[other]->position) >= 20.0f);
+        }
+    }
+    for (const EnemySpawnData* dense : mixedDense)
+    {
+        for (const EnemySpawnData* spread : mixedSpread)
+        {
+            assert(planarDistance(dense->position, spread->position) >= 20.0f);
+        }
+    }
+    validatePhaseLayout(*mixedBothPhasesPrototype);
+    validatePhaseLayout(*pairedMixedPrototype);
+    validatePhaseLayout(*fastPairedMixedPrototype);
+    for (const EnemyPhaseData& phase :
+        mixedBothPhasesPrototype->phaseBattle.phases)
+    {
+        std::vector<const EnemySpawnData*> dense;
+        std::vector<const EnemySpawnData*> spread;
+        for (const EnemySpawnData& spawn : phase.enemies)
+        {
+            (spawn.spawnGroup == 1 ? dense : spread).push_back(&spawn);
+        }
+        assert(dense.size() == 3);
+        assert(spread.size() == 3);
+        for (std::size_t index = 0; index < 3; ++index)
+        {
+            for (std::size_t other = 0; other < index; ++other)
+            {
+                assert(planarDistance(dense[index]->position,
+                    dense[other]->position) <= 7.1f);
+                assert(planarDistance(spread[index]->position,
+                    spread[other]->position) >= 20.0f);
+            }
+        }
+        for (const EnemySpawnData* denseEnemy : dense)
+        {
+            for (const EnemySpawnData* spreadEnemy : spread)
+            {
+                assert(planarDistance(denseEnemy->position,
+                    spreadEnemy->position) >= 20.0f);
+            }
+        }
+    }
+    for (const StageData* stage :
+        { &*pairedMixedPrototype, &*fastPairedMixedPrototype })
+    {
+        for (const EnemyPhaseData& phase : stage->phaseBattle.phases)
+        {
+            std::unordered_map<int, std::vector<const EnemySpawnData*>> groups;
+            for (const EnemySpawnData& spawn : phase.enemies)
+            {
+                groups[spawn.spawnGroup].push_back(&spawn);
+            }
+            assert(groups.size() == 3);
+            assert(groups.at(1).size() == 2);
+            assert(groups.at(2).size() == 2);
+            assert(groups.at(3).size() == 2);
+            assert(planarDistance(groups.at(1)[0]->position,
+                groups.at(1)[1]->position) <= 7.1f);
+            assert(planarDistance(groups.at(2)[0]->position,
+                groups.at(2)[1]->position) <= 7.1f);
+            assert(planarDistance(groups.at(3)[0]->position,
+                groups.at(3)[1]->position) >= 40.0f);
+        }
+    }
     constexpr float pocketSafetyMargin = 6.0f;
     for (const StageData& stage : stages)
     {

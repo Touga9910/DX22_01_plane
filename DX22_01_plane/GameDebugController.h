@@ -124,6 +124,7 @@ private:
 	std::vector<StageData> m_DebugStages;
 	std::string m_DebugMessage;
 	StageLayoutEditor m_StageEditor;
+	std::optional<StageData> m_DebugStageOverride;
 
 	CombatForecastSnapshot m_DebugCombatForecast{};
 	bool m_DebugCombatForecastDirty = true;

@@ -67,6 +67,20 @@ BattleSceneSetupResult BattleSceneSetup::Prepare() const
                 adjustedStage.enemyValidation->hpMultiplier);
         }
     }
+    for (EnemyPhaseData& phase : adjustedStage.phaseBattle.phases)
+    {
+        for (EnemySpawnData& spawn : phase.enemies)
+        {
+            m_Services.ApplyEnemyDifficultyScaling(spawn.enemyData);
+            if (adjustedStage.enemyValidation.has_value() &&
+                adjustedStage.enemyValidation->enabled)
+            {
+                spawn.enemyData.maxHp = EnemyHpScaling::ApplyMultiplier(
+                    spawn.enemyData.maxHp,
+                    adjustedStage.enemyValidation->hpMultiplier);
+            }
+        }
+    }
     if (!usesMcpStageOverride)
     {
         ArrangeDenseEnemySpawns(adjustedStage);

@@ -75,6 +75,20 @@ public:
         float heavyInterruptDiameterMultiplier,
         float pierceInterruptMaxHpRatio);
     void CancelCharge(ChargeInterruptReason reason);
+	void InitializeAttackTimer(int interval)
+	{
+		m_AttackInterval = (std::max)(1, interval);
+		m_TurnsUntilAttack = m_AttackInterval;
+	}
+	int GetAttackInterval() const { return m_AttackInterval; }
+	int GetTurnsUntilAttack() const { return m_TurnsUntilAttack; }
+	bool AdvanceAttackTimer()
+	{
+		if (!CanParticipateInCombat()) return false;
+		m_TurnsUntilAttack = (std::max)(0, m_TurnsUntilAttack - 1);
+		return m_TurnsUntilAttack == 0;
+	}
+	void ResetAttackTimer() { m_TurnsUntilAttack = m_AttackInterval; }
 	int GetAnchorStacks() const { return m_AnchorStacks; }
 	int& MutableAnchorStacks() { return m_AnchorStacks; }
 	void ApplyLightweight(float multiplier)
@@ -302,5 +316,7 @@ private:
         DirectX::SimpleMath::Vector3::Zero;
     int m_ChargeShotPierceDamage = 0;
     std::optional<ChargeInterruptionResult> m_PendingChargeInterruption;
+    int m_AttackInterval = 2;
+    int m_TurnsUntilAttack = 2;
     void ResetChargeShotTracking();
 };

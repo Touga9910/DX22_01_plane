@@ -113,6 +113,7 @@ public:
 		return m_TrajectoryPositions;
 	}
 	bool IsPowerDragging() const noexcept { return m_IsPowerDragging; }
+	void CancelShotPreparationInput();
 	float GetShotPower() const noexcept { return m_ShotPower; }
 	float GetShotPowerRatio() const noexcept
 	{

@@ -23,6 +23,9 @@ struct RunController::Impl
     std::mt19937 relicRandomEngine{ std::random_device{}() };
     int currentStageRewardMoney = 0;
     bool isStageRewardCollected = false;
+	RunCombatMode combatMode = RunCombatMode::Legacy;
+	PhaseRunProgressionMode phaseProgressionMode =
+		PhaseRunProgressionMode::EncounterCount;
 };
 
 RunController::RunController()
@@ -106,6 +109,28 @@ void RunController::ResetRuntimeState(
     m_Impl->shopBallOffers.clear();
     m_Impl->shopRelicOffers.clear();
     m_Impl->midBossRelicOffers.clear();
+	m_Impl->combatMode = RunCombatMode::Legacy;
+	m_Impl->phaseProgressionMode = PhaseRunProgressionMode::EncounterCount;
+}
+
+void RunController::SetCombatMode(RunCombatMode mode)
+{
+	m_Impl->combatMode = mode;
+}
+
+RunCombatMode RunController::GetCombatMode() const
+{
+	return m_Impl->combatMode;
+}
+
+void RunController::SetPhaseProgressionMode(PhaseRunProgressionMode mode)
+{
+	m_Impl->phaseProgressionMode = mode;
+}
+
+PhaseRunProgressionMode RunController::GetPhaseProgressionMode() const
+{
+	return m_Impl->phaseProgressionMode;
 }
 
 bool RunController::CanRestHeal() const

@@ -18,6 +18,7 @@ struct StageSelectorSnapshot
 };
 
 DifficultyRange GetDifficultyRange(int progress);
+std::vector<std::string> GetPhaseTestStageIds(int progress);
 
 class StageSelector
 {
@@ -31,6 +32,11 @@ public:
         int progress,
         const std::string& lastStageId,
         const std::vector<std::string>& allowedStageIds = {});
+
+	const StageData* SelectPhaseTestStage(
+		const std::vector<StageData>& stages,
+		int progress,
+		const std::string& lastStageId);
 
     StageSelectorSnapshot CaptureSnapshot() const;
     void RestoreSnapshot(const StageSelectorSnapshot& snapshot);

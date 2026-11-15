@@ -17,6 +17,10 @@ public:
 
     void Init();
     void Update() override;
+    void TrackSpawnedObject(GameObject* object)
+    {
+        if (object != nullptr) m_SceneGameObjects.push_back(object);
+    }
 
 private:
     std::unique_ptr<BattleSceneServices> m_Services;

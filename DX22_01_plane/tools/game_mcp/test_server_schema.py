@@ -170,8 +170,45 @@ class ServerSchemaTests(unittest.TestCase):
         properties = start_new_run.inputSchema["properties"]
         self.assertIn("run_seed", properties)
         self.assertIn("validation_variant", properties)
+        self.assertIn("combat_mode", properties)
+        self.assertEqual(
+            set(properties["combat_mode"]["enum"]),
+            {"legacy", "phase"},
+        )
+        self.assertEqual(
+            properties["combat_mode"]["default"],
+            "legacy",
+        )
+        self.assertEqual(
+            set(properties["phase_progression_mode"]["enum"]),
+            {"encounter", "route"},
+        )
+        self.assertEqual(
+            properties["phase_progression_mode"]["default"],
+            "encounter",
+        )
+        self.assertEqual(
+            set(properties["mcp_shot_policy"]["enum"]),
+            {"standard", "tactical"},
+        )
+        self.assertEqual(
+            properties["mcp_shot_policy"]["default"],
+            "standard",
+        )
         self.assertNotIn(
             "run_seed",
+            start_new_run.inputSchema.get("required", []),
+        )
+        self.assertNotIn(
+            "combat_mode",
+            start_new_run.inputSchema.get("required", []),
+        )
+        self.assertNotIn(
+            "phase_progression_mode",
+            start_new_run.inputSchema.get("required", []),
+        )
+        self.assertNotIn(
+            "mcp_shot_policy",
             start_new_run.inputSchema.get("required", []),
         )
 

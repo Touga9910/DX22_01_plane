@@ -730,6 +730,11 @@ void PlayerBall::CancelMousePowerDrag()
 	GameBattleCommands::CancelShot();				// 方向合わせ状態へ戻す
 }
 
+void PlayerBall::CancelShotPreparationInput()
+{
+	CancelMousePowerDrag();
+}
+
 void PlayerBall::FireMouseShot()
 {
 	// Legacy mouse shots move once before friction starts on the next tick.

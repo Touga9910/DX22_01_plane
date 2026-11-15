@@ -6,7 +6,9 @@
 #include "CollisionPresentationRules.h"
 #include "GameObject.h"
 #include "BattleScene.h"
+#include "BattleController.h"
 #include "Camera.h"
+#include "BattleViewportLayout.h"
 #include "Game.h"
 #include "GameEvent.h"
 #include "GameRuntime.h"
@@ -1066,7 +1068,8 @@ void GamePresentation::Draw(Game& game)
 		DrawDashboard();
 	}
 
-	if (ImGui::BeginMainMenuBar())
+	const bool battleScene = IsBattleScene(game);
+	if (!battleScene && ImGui::BeginMainMenuBar())
 	{
 		ImGui::BeginDisabled(!game.CanOpenPauseMenu());
 		if (ImGui::Button(game.IsPaused() ? "再開" : "ポーズ / 設定")) game.RequestPauseToggle();
@@ -1080,7 +1083,7 @@ void GamePresentation::Draw(Game& game)
 		if (ImGui::Button("終了")) PostMessage(Application::GetWindow(), WM_CLOSE, 0, 0);
 		ImGui::EndMainMenuBar();
 	}
-	if (IsBattleScene(game))
+	if (battleScene)
 	{
 		DrawPierceTraces(game);
 		DrawEnemyStatusEffects(game);
@@ -1156,6 +1159,10 @@ void GamePresentation::Draw(Game& game)
 
 void GamePresentation::DrawEnemyStatusEffects(Game& game)
 {
+	const BattleController* battleController =
+		game.GetBattleControllerDiagnostics();
+	const bool phasePrototype = battleController != nullptr &&
+		battleController->IsPhasePrototype();
 	const BattleState state = game.GetBattleState();
 	const bool showActionPlan =
 		state == BattleState::AimingDirection ||
@@ -1178,12 +1185,14 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
 		ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoInputs;
-
 	// 背景・枠線で使用している余白と同じ値にする
 	constexpr float kEnemyFramePadding = 4.0f;
 
 	// 枠同士の最低間隔
 	constexpr float kEnemyFrameGap = 2.0f;
+	const BattleViewportLayout battleLayout = BattleViewportLayout::Calculate(
+		viewport->Size.x, viewport->Size.y);
+	const float enemyUiSafeTop = viewport->Pos.y + battleLayout.stageTop;
 
 	// このフレームで配置済みのウィンドウ領域
 	std::vector<ImVec4> occupiedEnemyFrames;
@@ -1207,7 +1216,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 		[&](const ImVec2& base, float width, float height) -> ImVec2
 		{
 			const float left = viewport->Pos.x + kEnemyFramePadding + 2.0f;
-			const float top = viewport->Pos.y + kEnemyFramePadding + 2.0f;
+			const float top = enemyUiSafeTop + kEnemyFramePadding;
 			const float right = viewport->Pos.x + viewport->Size.x -
 				kEnemyFramePadding - width - 2.0f;
 			const float bottom = viewport->Pos.y + viewport->Size.y -
@@ -1324,7 +1333,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 
 					// 画面外判定
 					if (frame.x < viewport->Pos.x + 2.0f ||
-						frame.y < viewport->Pos.y + 2.0f ||
+						frame.y < enemyUiSafeTop ||
 						frame.z > viewport->Pos.x + viewport->Size.x - 2.0f ||
 						frame.w > viewport->Pos.y + viewport->Size.y - 2.0f)
 					{
@@ -1807,11 +1816,26 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			const int boardStatusCount =
 				(boardAbility != EnemyBoardAbilityType::None ? 1 : 0) +
 				(protectedByResonator ? 1 : 0);
-			const EnemyActionType action = enemy->GetPlannedAction();
-			const bool hasActionIntent = showActionPlan &&
+			const EnemyActionType plannedAction = enemy->GetPlannedAction();
+			EnemyActionType action = plannedAction;
+			if (phasePrototype && action == EnemyActionType::Wait &&
+				enemy->GetTurnsUntilAttack() <= 1)
+			{
+				if (enemy->CanUseCharge())
+				{
+					action = enemy->IsCharging()
+						? EnemyActionType::ChargeAttack
+						: EnemyActionType::ChargeStart;
+				}
+				else
+				{
+					action = EnemyActionType::NormalAttack;
+				}
+			}
+			const bool hasActionIntent = showActionPlan && (phasePrototype ||
 				(action == EnemyActionType::NormalAttack ||
 				 action == EnemyActionType::ChargeStart ||
-				 action == EnemyActionType::ChargeAttack);
+				 action == EnemyActionType::ChargeAttack));
 			const bool actionIsAttack =
 				action == EnemyActionType::NormalAttack ||
 				action == EnemyActionType::ChargeAttack;
@@ -1822,13 +1846,21 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 				const EnemyAttackComponent* attack = owner != nullptr
 					? owner->GetComponent<EnemyAttackComponent>()
 					: nullptr;
+				const float displayedDamageMultiplier =
+					action == EnemyActionType::ChargeAttack
+						? game.GetEnemyActionConfig().chargeDamageMultiplier
+						: enemy->GetPlannedDamageMultiplier();
 				expectedDamage = attack != nullptr
 					? PlayerBall::CalculateIncomingDamage(
 						attack->CalculateDamage(
-							enemy->GetPlannedDamageMultiplier()))
+							displayedDamageMultiplier))
 					: 0;
 			}
-			const std::string intentText = actionIsAttack ? "-" + std::to_string(expectedDamage) : std::string{};
+			const std::string intentText = actionIsAttack
+				? "-" + std::to_string(expectedDamage)
+				: std::string{};
+			const std::string countdownText =
+				std::to_string(enemy->GetTurnsUntilAttack());
 			const int shownEffectCount = visibleEnemyCount >= 10 ? (std::min)(effectCount, 1)
 				: visibleEnemyCount >= 8 ? (std::min)(effectCount, 2)
 				: effectCount;
@@ -1993,6 +2025,33 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 							? ImGui::GetForegroundDrawList(ImGui::GetMainViewport())
 							: ImGui::GetWindowDrawList();
 						DrawEnemyActionBadge(actionDrawList, iconMinimum, action);
+						if (phasePrototype && action == EnemyActionType::Wait)
+						{
+							const char* waitLabel = "...";
+							const ImVec2 waitSize = ImGui::CalcTextSize(waitLabel);
+							DrawOutlinedValue(
+								actionDrawList,
+								ImVec2(
+									iconMinimum.x +
+										(kCombatIconSize - waitSize.x) * 0.5f,
+									iconMinimum.y +
+										(kCombatIconSize - waitSize.y) * 0.42f),
+								waitLabel,
+								IM_COL32(205, 220, 230, 255));
+						}
+						if (phasePrototype && action == EnemyActionType::Wait)
+						{
+							const float turnFontSize = ImGui::GetFontSize() * 0.78f;
+							const ImVec2 turnSize = ImGui::GetFont()->CalcTextSizeA(
+								turnFontSize, FLT_MAX, 0.0f, countdownText.c_str());
+							DrawOutlinedValue(
+								actionDrawList,
+								ImVec2(
+									iconMaximum.x - turnSize.x,
+									iconMaximum.y - turnSize.y),
+								countdownText.c_str(),
+								IM_COL32(255, 245, 190, 255));
+						}
 						if (actionIsAttack)
 						{
 							const float damageFontSize = ImGui::GetFontSize() * 0.72f;
@@ -2005,19 +2064,47 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 						if (allowEnemyIconTooltip && IsMouseInside(iconMinimum, iconMaximum))
 						{
 							ImGui::BeginTooltip();
-							ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(EnemyActionColor(action)), "%s",
-								EnemyActionDisplayName(action));
-							ImGui::Text("%s: %d", PresentationUtf8(u8"行動コスト"), enemy->GetPlannedActionCost());
-							ImGui::Text("Charge: %s", enemy->IsCharging() ? "Charging" : "Normal");
+							if (phasePrototype)
+							{
+								if (actionIsAttack)
+								{
+									ImGui::TextUnformatted(PresentationUtf8(
+										u8"このターンのショット終了後に攻撃"));
+								}
+								else if (action == EnemyActionType::ChargeStart)
+								{
+									ImGui::TextUnformatted(PresentationUtf8(
+										u8"このターンのショット終了後にCharge開始"));
+								}
+								else
+								{
+									ImGui::Text(PresentationUtf8(
+										u8"あと%dターン後に攻撃"),
+										enemy->GetTurnsUntilAttack());
+								}
+								ImGui::Text(PresentationUtf8(u8"攻撃間隔: %dターン"),
+									enemy->GetAttackInterval());
+							}
+							else
+							{
+								ImGui::TextColored(
+									ImGui::ColorConvertU32ToFloat4(EnemyActionColor(action)),
+									"%s", EnemyActionDisplayName(action));
+								ImGui::Text("%s: %d", PresentationUtf8(u8"行動コスト"),
+									enemy->GetPlannedActionCost());
+								ImGui::Text("Charge: %s",
+									enemy->IsCharging() ? "Charging" : "Normal");
+							}
 							if (actionIsAttack)
 							{
 								ImGui::Text(PresentationUtf8(u8"予測ダメージ: %d（シールド適用前）"), expectedDamage);
 							}
-							else if (action == EnemyActionType::ChargeStart)
+							else if (!phasePrototype &&
+								action == EnemyActionType::ChargeStart)
 							{
 								ImGui::TextUnformatted(PresentationUtf8(u8"このターンは攻撃せずChargeを開始"));
 							}
-							else
+							else if (!phasePrototype)
 							{
 								ImGui::TextUnformatted(PresentationUtf8(u8"このターンは行動しません。"));
 							}
@@ -2540,7 +2627,13 @@ void GamePresentation::DrawBattleHud(Game& game)
 		ImGuiWindowFlags_NoDocking |
 		ImGuiWindowFlags_NoNavFocus |
 		ImGuiWindowFlags_NoScrollbar |
-		ImGuiWindowFlags_NoScrollWithMouse;
+		ImGuiWindowFlags_NoScrollWithMouse |
+		ImGuiWindowFlags_NoBackground;
+	const float hudHeight = BattleViewportLayout::Calculate(
+		workSize.x, workSize.y).hudHeight;
+	const ImVec2 hudPosition(workPosition.x, workPosition.y);
+	const ImU32 panelBackground = IM_COL32(8, 16, 25, 210);
+	const ImU32 panelBorder = IM_COL32(83, 110, 138, 220);
 
 	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
 	const int currentHp = players.empty() || players[0] == nullptr
@@ -2552,63 +2645,124 @@ void GamePresentation::DrawBattleHud(Game& game)
 		0.0f,
 		1.0f);
 
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::SetNextWindowPos(ImVec2(workPosition.x + 16.0f, workPosition.y + 16.0f));
-	ImGui::SetNextWindowSize(ImVec2(278.0f, 112.0f));
-	ImGui::SetNextWindowBgAlpha(0.91f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
-	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(82, 98, 119, 225));
-	if (ImGui::Begin("##battle_status_hud", nullptr, fixedFlags))
+	const bool compact = workSize.x < 1280.0f;
+	const int areaGoal = (std::max)(1, game.GetNormalRouteAreaGoal());
+	const int area = std::clamp(game.GetAreaProgress(), 0, areaGoal);
+	const BattleController* controller = game.GetBattleControllerDiagnostics();
+	char progressText[192]{};
+	if (controller != nullptr && controller->IsPhasePrototype())
 	{
-		ImGui::TextColored(ImVec4(1.0f, 0.42f, 0.38f, 1.0f), "HP  %d / %d", currentHp, maxHp);
-		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.92f, 0.25f, 0.22f, 1.0f));
-		ImGui::ProgressBar(hpRatio, ImVec2(-1.0f, 8.0f), "");
+		sprintf_s(progressText,
+			compact
+			? PresentationUtf8(u8"進行 %d/%d  F%d/%d  次%dT")
+			: PresentationUtf8(u8"進行 %d / %d    PHASE %d / %d    次まで %dターン"),
+			area, areaGoal, controller->GetCurrentPhase(),
+			controller->GetTotalPhases(), controller->GetTurnsUntilNextPhase());
+	}
+	else
+	{
+		sprintf_s(progressText,
+			compact ? "PROGRESS %d/%d  LEGACY" : "PROGRESS %d / %d    LEGACY BATTLE",
+			area, areaGoal);
+	}
+
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::SetNextWindowPos(hudPosition);
+	ImGui::SetNextWindowSize(ImVec2(workSize.x, hudHeight));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 7.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(compact ? 4.0f : 7.0f, 4.0f));
+	if (ImGui::Begin("##battle_top_bar", nullptr, fixedFlags))
+	{
+		ImDrawList* draw = ImGui::GetWindowDrawList();
+		draw->AddRectFilled(hudPosition,
+			ImVec2(hudPosition.x + workSize.x, hudPosition.y + hudHeight),
+			panelBackground);
+		draw->AddLine(
+			ImVec2(hudPosition.x, hudPosition.y + hudHeight - 1.0f),
+			ImVec2(hudPosition.x + workSize.x, hudPosition.y + hudHeight - 1.0f),
+			panelBorder, 1.0f);
+
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextColored(ImVec4(1.0f, 0.46f, 0.42f, 1.0f),
+			compact ? "HP %d/%d" : "HP  %d / %d", currentHp, maxHp);
+		ImGui::SameLine();
+		const float hpBarHeight = 9.0f;
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() +
+			(std::max)(0.0f,
+				(ImGui::GetTextLineHeight() - hpBarHeight) * 0.5f));
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+			ImVec4(0.92f, 0.25f, 0.22f, 1.0f));
+		ImGui::ProgressBar(hpRatio,
+			ImVec2(compact ? 68.0f : 104.0f, hpBarHeight), "");
 		ImGui::PopStyleColor();
-		ImGui::TextDisabled("シールド %d    所持金 %d", game.GetPlayerShield(), game.GetPlayerMoney());
+		ImGui::SameLine();
+		ImGui::TextColored(ImVec4(0.45f, 0.82f, 1.0f, 1.0f),
+			compact ? "S %d" : PresentationUtf8(u8"シールド %d"),
+			game.GetPlayerShield());
+
+		const ImVec2 progressSize = ImGui::CalcTextSize(progressText);
+		ImGui::SameLine((std::max)(
+			ImGui::GetCursorPosX() + 8.0f,
+			(workSize.x - progressSize.x) * 0.5f));
+		ImGui::TextUnformatted(progressText);
+
+		const float relicWidth = compact ? 58.0f : 92.0f;
+		const float deckWidth = compact ? 54.0f : 76.0f;
+		const float settingsWidth = compact ? 50.0f : 64.0f;
+		const char* debugLabel = compact
+			? "DBG##battle_debug"
+			: PresentationUtf8(u8"デバッグ##battle_debug");
+		const char* debugVisibleLabel = compact
+			? "DBG"
+			: PresentationUtf8(u8"デバッグ");
+		const float debugWidth = ImGui::GetFrameHeight() +
+			ImGui::GetStyle().ItemInnerSpacing.x +
+			ImGui::CalcTextSize(debugVisibleLabel).x;
+		const char* moneyText = compact ? "$%d" : PresentationUtf8(u8"所持金 %d");
+		char moneyLabel[64]{};
+		sprintf_s(moneyLabel, moneyText, game.GetPlayerMoney());
+		const float rightWidth = ImGui::CalcTextSize(moneyLabel).x +
+			relicWidth + deckWidth + settingsWidth + debugWidth +
+			ImGui::GetStyle().ItemSpacing.x * 4.0f;
+		ImGui::SameLine((std::max)(ImGui::GetCursorPosX() + 8.0f,
+			workSize.x - rightWidth - 10.0f));
+		ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.28f, 1.0f), "%s", moneyLabel);
+		ImGui::SameLine();
 		char relicButton[64]{};
-		sprintf_s(
-			relicButton,
-			PresentationUtf8(u8"レリック一覧  %d##relic_list"),
+		sprintf_s(relicButton,
+			compact ? "R %d##relic_list" : PresentationUtf8(u8"レリック %d##relic_list"),
 			game.GetOwnedRelicCount());
-		if (ImGui::Button(relicButton, ImVec2(-1.0f, 25.0f)))
+		if (ImGui::Button(relicButton, ImVec2(relicWidth, 28.0f)))
 		{
 			m_RelicListOpen = !m_RelicListOpen;
 		}
-	}
-	ImGui::End();
-	ImGui::PopStyleColor();
-	ImGui::PopStyleVar(2);
-
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::SetNextWindowPos(ImVec2(
-		workPosition.x + workSize.x - 202.0f,
-		workPosition.y + 16.0f));
-	ImGui::SetNextWindowSize(ImVec2(186.0f, 51.0f));
-	ImGui::SetNextWindowBgAlpha(0.91f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
-	if (ImGui::Begin("##deck_button_hud", nullptr, fixedFlags))
-	{
-		char deckButton[64]{};
-		sprintf_s(
-			deckButton,
-			PresentationUtf8(u8"デッキ確認  %d枚##deck_list"),
-			game.GetDeckBallCount());
-		if (ImGui::Button(deckButton, ImVec2(-1.0f, 30.0f)))
+		ImGui::SameLine();
+		if (ImGui::Button(compact ? "DECK##deck_list" : PresentationUtf8(u8"デッキ##deck_list"),
+			ImVec2(deckWidth, 28.0f)))
 		{
 			m_DeckListView = DeckListView::All;
 			m_DeckListOpen = !m_DeckListOpen;
 		}
+		ImGui::SameLine();
+		if (ImGui::Button(PresentationUtf8(u8"設定##settings"),
+			ImVec2(settingsWidth, 28.0f)))
+		{
+			game.RequestPauseToggle();
+		}
+		ImGui::SameLine();
+		ImGui::Checkbox(debugLabel, &GameUi::showDebugger);
 	}
 	ImGui::End();
-	ImGui::PopStyleVar();
+	ImGui::PopStyleVar(2);
 
-	const ImVec2 pileSize(112.0f, 76.0f);
+	const float pileWidth = std::clamp(workSize.x * 0.085f, 124.0f, 140.0f);
+	const float pileHeight = std::clamp(workSize.y * 0.092f, 78.0f, 88.0f);
+	const ImVec2 pileSize(pileWidth, pileHeight);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(ImVec2(
 		workPosition.x + 16.0f,
-		workPosition.y + workSize.y - pileSize.y - 12.0f));
+		workPosition.y + workSize.y - pileSize.y - 16.0f));
 	ImGui::SetNextWindowSize(pileSize);
 	if (ImGui::Begin("##draw_pile_hud", nullptr, fixedFlags | ImGuiWindowFlags_NoBackground))
 	{
@@ -2628,7 +2782,7 @@ void GamePresentation::DrawBattleHud(Game& game)
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(ImVec2(
 		workPosition.x + workSize.x - pileSize.x - 16.0f,
-		workPosition.y + workSize.y - pileSize.y - 12.0f));
+		workPosition.y + workSize.y - pileSize.y - 16.0f));
 	ImGui::SetNextWindowSize(pileSize);
 	if (ImGui::Begin("##discard_pile_hud", nullptr, fixedFlags | ImGuiWindowFlags_NoBackground))
 	{
@@ -2646,6 +2800,37 @@ void GamePresentation::DrawBattleHud(Game& game)
 	ImGui::End();
 	ImGui::PopStyleVar();
 
+	if (game.IsShotPreparationInputEnabled())
+	{
+		const PlayerBallData* selected = game.GetBallOffer(
+			game.GetSelectedBallOfferIndex());
+		if (selected != nullptr)
+		{
+			const float readyWidth = std::clamp(workSize.x * 0.30f, 280.0f, 460.0f);
+			const ImVec2 readyPosition(
+				workPosition.x + (workSize.x - readyWidth) * 0.5f,
+				workPosition.y + workSize.y - 62.0f);
+			ImGui::SetNextWindowViewport(viewport->ID);
+			ImGui::SetNextWindowPos(readyPosition);
+			ImGui::SetNextWindowSize(ImVec2(readyWidth, 46.0f));
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 6.0f));
+			if (ImGui::Begin("##selected_ball_compact", nullptr,
+				fixedFlags | ImGuiWindowFlags_NoInputs))
+			{
+				ImDrawList* draw = ImGui::GetWindowDrawList();
+				draw->AddRectFilled(readyPosition,
+					ImVec2(readyPosition.x + readyWidth, readyPosition.y + 46.0f),
+					IM_COL32(7, 17, 27, 220), 8.0f);
+				ImGui::Text("%s  Lv.%d", PlayerBallText::GetName(selected->definitionId),
+					selected->upgradeLevel);
+				ImGui::SameLine();
+				ImGui::TextDisabled(PresentationUtf8(u8"右クリック: カード選択に戻る"));
+			}
+			ImGui::End();
+			ImGui::PopStyleVar();
+		}
+	}
+
 	if (m_DeckListOpen)
 	{
 		DrawDeckList(game);
@@ -2659,12 +2844,15 @@ void GamePresentation::DrawBattleHud(Game& game)
 void GamePresentation::DrawDeckList(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	const float overlayHeight = (std::min)(440.0f, viewport->WorkSize.y - 112.0f);
+	const float overlayWidth = std::clamp(
+		viewport->WorkSize.x - 32.0f, 280.0f, 372.0f);
+	const float overlayHeight = std::clamp(
+		viewport->WorkSize.y - 128.0f, 220.0f, 440.0f);
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(ImVec2(
-		viewport->WorkPos.x + viewport->WorkSize.x - 388.0f,
-		viewport->WorkPos.y + 76.0f));
-	ImGui::SetNextWindowSize(ImVec2(372.0f, overlayHeight));
+		viewport->WorkPos.x + viewport->WorkSize.x - overlayWidth - 16.0f,
+		viewport->WorkPos.y + 96.0f));
+	ImGui::SetNextWindowSize(ImVec2(overlayWidth, overlayHeight));
 	ImGui::SetNextWindowBgAlpha(0.96f);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
 	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(88, 113, 143, 255));
@@ -2748,12 +2936,15 @@ void GamePresentation::DrawDeckList(Game& game)
 void GamePresentation::DrawRelicList(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
-	const float overlayHeight = (std::min)(360.0f, viewport->WorkSize.y - 164.0f);
+	const float overlayWidth = std::clamp(
+		viewport->WorkSize.x - 32.0f, 280.0f, 362.0f);
+	const float overlayHeight = std::clamp(
+		viewport->WorkSize.y - 164.0f, 200.0f, 360.0f);
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(ImVec2(
 		viewport->WorkPos.x + 16.0f,
 		viewport->WorkPos.y + 138.0f));
-	ImGui::SetNextWindowSize(ImVec2(362.0f, overlayHeight));
+	ImGui::SetNextWindowSize(ImVec2(overlayWidth, overlayHeight));
 	ImGui::SetNextWindowBgAlpha(0.96f);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 10.0f);
 	ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(112, 190, 166, 255));
@@ -5201,6 +5392,9 @@ void Game::DrawBallSelectionUI()
 	BallSelectionPresentationModel model{};
 	model.selectedOfferIndex = GetSelectedBallOfferIndex();
 	model.selectedHoldIndex = GetHeldBallOfferIndex();
+	model.handHiddenRatio = m_BallSelectionState->HandHiddenRatio();
+	model.selectionInteractive =
+		m_BallSelectionState->IsSelectionInteractive();
 	const int offerCount = GetBallOfferCount();
 	model.offers.reserve(static_cast<std::size_t>(offerCount));
 	model.effectiveAttacks.reserve(static_cast<std::size_t>(offerCount));
@@ -5220,6 +5414,10 @@ void Game::DrawBallSelectionUI()
 	if (intent.selectionChanged)
 	{
 		ApplySelectedBallPreview();
+	}
+	if (intent.confirmSelection)
+	{
+		m_BallSelectionState->ConfirmSelection(offerCount);
 	}
 }
 

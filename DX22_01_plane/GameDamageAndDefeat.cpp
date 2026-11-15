@@ -207,6 +207,7 @@ void Game::NotifyAnchorStopped(EnemyBall* directTarget)
 void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
 	if (enemy == nullptr) return;
+	m_BattleState->controller.NotifyEnemyDefeated();
 	const std::string enemyId = enemy->GetEnemyId();
 	const auto enemies = m_RuntimeState->World().GetComponents<EnemyBall>();
 	const auto found = std::find(enemies.begin(), enemies.end(), enemy);

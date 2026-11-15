@@ -157,6 +157,49 @@ class BuildShotTests(unittest.TestCase):
         self.assertEqual(joint["recommended"]["offer_index"], 1)
         self.assertEqual(s, before)
 
+    def test_joint_diagnostics_compare_every_reachable_ball(self):
+        standard = ball("standard")
+        standard["upgrade_level"] = 0
+        heavy = ball("heavy")
+        heavy.update(index=1, instance_id=2, selected=False,
+                     upgrade_level=1)
+        s = state(standard, [enemy(0, 0, 15), enemy(1, 8, 28)])
+        s["offered_balls"].append(heavy)
+        joint = build_joint_shot_context(s, self.profile("standard"))
+        diagnostics = joint["selection_diagnostics"]
+        self.assertEqual(diagnostics["policy"], "standard")
+        self.assertEqual(len(diagnostics["candidates"]), 2)
+        self.assertEqual(
+            {candidate["definition_id"] for candidate in diagnostics["candidates"]},
+            {"player_standard", "player_heavy"},
+        )
+        heavy_diagnostic = next(
+            candidate for candidate in diagnostics["candidates"]
+            if candidate["definition_id"] == "player_heavy"
+        )
+        self.assertEqual(heavy_diagnostic["upgrade_level"], 1)
+        self.assertIn("predicted_damage", heavy_diagnostic)
+        self.assertIn("predicted_chain_count", heavy_diagnostic)
+        self.assertIn("special_ability_estimates", heavy_diagnostic)
+        self.assertIn("score_breakdown", heavy_diagnostic)
+
+    def test_tactical_policy_does_not_force_special_ball_or_apply_legacy_reorder(self):
+        standard = ball("standard", attack=2)
+        heavy = ball("heavy", attack=1)
+        heavy.update(index=1, instance_id=2, selected=False)
+        s = state(standard, [enemy(0, 0, 15, hp=2), enemy(1, 8, 28, hp=20)])
+        s["offered_balls"].append(heavy)
+        tactical_profile = dict(self.profile("standard"), mcp_shot_policy="tactical")
+        joint = build_joint_shot_context(s, tactical_profile)
+        self.assertEqual(joint["selection_policy"], "tactical")
+        self.assertFalse(
+            joint["candidate_generation"]["lethal_preference_over_stack_farming"]
+        )
+        self.assertEqual(
+            joint["recommended"]["score"],
+            max(choice["score"] for choice in joint["choices"]),
+        )
+
     def test_execution_matches_recommendation_before_seeded_human_error(self):
         s = state(ball("heavy"), [enemy(0, 0, 20), enemy(1, 12, 40)])
         profile = self.profile("heavy")

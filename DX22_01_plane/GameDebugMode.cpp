@@ -235,7 +235,12 @@ bool GameDebugController::StartBattle(Game& game)
     if (!m_DebugMessage.empty()) return false;
     StageData stage;
     stage.id = "debug_battle";
-    if (m_DebugSetup.enemyValidation.enabled)
+    if (m_DebugStageOverride.has_value())
+    {
+        stage = std::move(m_DebugStageOverride.value());
+        m_DebugStageOverride.reset();
+    }
+    else if (m_DebugSetup.enemyValidation.enabled)
     {
         EnemyValidationSettings activeValidation =
             m_DebugSetup.enemyValidation;

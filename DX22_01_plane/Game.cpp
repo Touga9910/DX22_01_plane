@@ -1,5 +1,6 @@
 ﻿#include "Game.h"
 #include "GameBattleState.h"
+#include "Application.h"
 #include "GameBalanceRuntime.h"
 #include "GameShotPrediction.h"
 #include "GameObject.h"
@@ -22,6 +23,7 @@
 #include "RunProgressController.h"
 #include "StageSelector.h"
 #include "Camera.h"
+#include "BattleViewportLayout.h"
 #include "GameUi.h"
 #include "BallMechanics.h"
 
@@ -644,7 +646,8 @@ namespace
 			ImVec2(size.x, size.y));
 		const bool cardHovered = ImGui::IsItemHovered();
 		interaction.select = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-		interaction.openDetails = interaction.select && selected;
+		interaction.openDetails = selected && cardHovered &&
+			ImGui::IsMouseClicked(ImGuiMouseButton_Right);
 		interaction.toggleHold =
 			!selected && cardHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
 
@@ -874,7 +877,7 @@ namespace
 			cornerRadius,
 			ImDrawFlags_RoundCornersBottom);
 		const char* footerText = selected
-			? PlayerBallText::Utf8(u8"選択中")
+			? PlayerBallText::Utf8(u8"左:決定 / 右:詳細")
 			: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
 		const float footerFontSize = fontSize * 0.78f * readableScale;
 		const ImVec2 footerTextSize = font->CalcTextSizeA(
@@ -1436,6 +1439,17 @@ int Game::GetHeldBallOfferIndex() const
 	return m_BallSelectionState->HeldOfferIndex();
 }
 
+bool Game::IsShotPreparationInputEnabled() const
+{
+	return m_BallSelectionState != nullptr &&
+		m_BallSelectionState->IsShotReady() &&
+		m_GamePresentation != nullptr &&
+		!m_GamePresentation->IsBattleInteractionBlocked() &&
+		!IsPaused() &&
+		!IsClearRewardActive() &&
+		!m_DebugController->IsEditorOpen();
+}
+
 bool Game::IsMidBossRelicSelectionActive() const
 {
 	return m_RewardState->IsMidBossRelicSelectionActive();
@@ -1624,6 +1638,9 @@ void Game::Init()
 	m_Instance->m_GamePresentation =
 		std::make_unique<GamePresentation>();
 	m_Instance->m_GamePresentation->Initialize(*m_Instance);
+	m_Instance->m_PhaseTestRunRequested =
+		std::wstring(GetCommandLineW()).find(L"--phase-test-run") !=
+			std::wstring::npos;
 	// 保存済みの実験条件を直接開くための任意起動引数。
 	if (std::wstring(GetCommandLineW()).find(L"--debug-battle") != std::wstring::npos)
 	{
@@ -1746,7 +1763,7 @@ void Game::Update(double elapsedSeconds)
 		dynamic_cast<BattleScene*>(m_Instance->GetCurrentScene()) != nullptr &&
 		m_Instance->m_RunController->Deck().GetOfferCount() > 0)
 	{
-		m_Instance->UpdateBallSelection();
+		m_Instance->UpdateBallSelection(static_cast<float>(elapsedSeconds));
 	}
 
 	// シーンを更新
@@ -1760,18 +1777,27 @@ void Game::Update(double elapsedSeconds)
 	// カメラを更新
 	const auto cameraStarted = startSection();
 
-	constexpr float kBattleStageOffsetZ = -15.0f;
-
 	if (dynamic_cast<BattleScene*>(
 		m_Instance->GetCurrentScene()) != nullptr)
 	{
+		const BattleViewportLayout battleLayout =
+			BattleViewportLayout::Calculate(
+				static_cast<float>(Application::GetWidth()),
+				static_cast<float>(Application::GetHeight()));
+		m_Instance->m_Camera.SetDistanceY(battleLayout.cameraDistance);
+
 		// GamePresentation側が設定したカメラシェイクを維持
 		Vector3 target = m_Instance->m_Camera.GetTarget();
 
-		// 戦闘画面だけ上方向にずらす
-		target.z += kBattleStageOffsetZ;
+		// 上部HUDの下に盤面の中心を合わせる
+		target.z += battleLayout.cameraTargetZ;
 
 		m_Instance->m_Camera.SetTarget(target);
+	}
+	else
+	{
+		// 戦闘以外の既存カメラ構図を維持する
+		m_Instance->m_Camera.SetDistanceY(150.0f);
 	}
 
 	m_Instance->m_Camera.Update();
@@ -2660,12 +2686,12 @@ void Game::Uninit()
 		logger.EndShot(
 			playerHp,
 			CountAliveEnemies(enemies),
-			CountDefeatedEnemies(enemies));
+			m_Instance->m_BattleState->controller.GetDefeatedEnemyCount());
 		logger.EndStage(
 			"application_exit",
 			playerHp,
 			m_Instance->m_RunController->Status().maxHp,
-			CountDefeatedEnemies(enemies));
+			m_Instance->m_BattleState->controller.GetDefeatedEnemyCount());
 		logger.EndRun(
 			"application_exit",
 			playerHp,
@@ -2985,6 +3011,22 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
     if (enemy && enemy->IsArmorBoss()) return;
 	if (enemy == nullptr || enemy->IsPocketed())
 	{
+		return;
+	}
+	if (m_BattleState->controller.IsPhasePrototype())
+	{
+		const int hpBefore = enemy->GetHP();
+		const Vector3 pocketPosition = enemy->GetPosition();
+		enemy->Defeat();
+		enemy->RemoveFromFieldAfterPocket();
+		NotifyPocketFeedback(
+			pocketPosition, false, true, hpBefore, enemy);
+		m_RuntimeState->World().RequestDestroy(enemy->GetGameObject());
+		RecordBalanceEvent("enemy_phase_pocket_defeat", {
+			{ "enemy_id", enemy->GetEnemyId() },
+			{ "hp_before", hpBefore },
+			{ "combat_mode", "phase_prototype" },
+		});
 		return;
 	}
 	const bool wasAlreadyDefeated = enemy->IsDefeated();
@@ -3417,12 +3459,12 @@ void Game::ProcessGameOver()
 	logger.EndShot(
 		m_RunController->Status().currentHp,
 		CountAliveEnemies(enemies),
-		CountDefeatedEnemies(enemies));
+		m_BattleState->controller.GetDefeatedEnemyCount());
 	logger.EndStage(
 		"game_over",
 		m_RunController->Status().currentHp,
 		m_RunController->Status().maxHp,
-		CountDefeatedEnemies(enemies));
+		m_BattleState->controller.GetDefeatedEnemyCount());
 	logger.EndRun(
 		"game_over",
 		m_RunController->Status().currentHp,
@@ -3454,12 +3496,12 @@ void Game::StartClearReward()
 	logger.EndShot(
 		m_RunController->Status().currentHp,
 		CountAliveEnemies(enemies),
-		CountDefeatedEnemies(enemies));
+		m_BattleState->controller.GetDefeatedEnemyCount());
 	logger.EndStage(
 		"clear",
 		m_RunController->Status().currentHp,
 		m_RunController->Status().maxHp,
-		CountDefeatedEnemies(enemies));
+		m_BattleState->controller.GetDefeatedEnemyCount());
 	if (m_RunController->Progress().GetPhase() == RunPhase::FinalBoss &&
 		m_BattleState->controller.GetStageType() == StageType::Boss)
 	{
@@ -3641,13 +3683,28 @@ void Game::StartNextBattle(StageType stageType)
 		"assets/data/stage_01.json",
 		"assets/data/enemy_data.json");
 
-	const StageData* selectedStage = m_RunController->StageSelection().SelectStage(
-		stages,
-		stageType,
-		m_RunController->Status().progress,
-		previousStageId,
-		m_BalanceRuntime->GetAllowedNormalStageIds(
-			m_RunController->Status().progress));
+	const bool phaseTestNormalBattle =
+		stageType == StageType::Normal &&
+		m_RunController->GetCombatMode() == RunCombatMode::PhaseTest;
+	const int phaseNormalEncounterOrdinal =
+		m_RunController->Progress().GetPhaseNormalBattleEncounterCount() + 1;
+	const int phaseSelectionProgress =
+		m_RunController->GetPhaseProgressionMode() ==
+			PhaseRunProgressionMode::RouteProgress
+		? m_RunController->Status().progress
+		: phaseNormalEncounterOrdinal;
+	const StageData* selectedStage = phaseTestNormalBattle
+		? m_RunController->StageSelection().SelectPhaseTestStage(
+			stages,
+			phaseSelectionProgress,
+			previousStageId)
+		: m_RunController->StageSelection().SelectStage(
+			stages,
+			stageType,
+			m_RunController->Status().progress,
+			previousStageId,
+			m_BalanceRuntime->GetAllowedNormalStageIds(
+				m_RunController->Status().progress));
 	if (selectedStage == nullptr)
 	{
 		m_RunController->Progress().CancelActiveNode();
@@ -3662,6 +3719,21 @@ void Game::StartNextBattle(StageType stageType)
 
 	m_RunController->Status().SetLastStageId(previousStageId);
 	m_RunController->Status().SetSelectedStageId(selectedStage->id);
+	if (phaseTestNormalBattle)
+	{
+		m_RunController->Progress().RecordPhaseNormalBattleEncounter();
+		RecordBalanceEvent(
+			"phase_normal_battle_selected",
+			{
+				{ "encounter_ordinal", phaseNormalEncounterOrdinal },
+				{ "selection_progress", phaseSelectionProgress },
+				{ "progression_mode", ToString(
+					m_RunController->GetPhaseProgressionMode()) },
+				{ "stage_id", selectedStage->id },
+				{ "phase_count", static_cast<int>(
+					selectedStage->phaseBattle.phases.size()) },
+			});
+	}
 	ChangeScene(SceneType::Battle);
 }
 
@@ -3860,10 +3932,33 @@ bool Game::BeginBallSelection()
 }
 
 // Ball Selectionを更新
-void Game::UpdateBallSelection()
+void Game::UpdateBallSelection(float deltaSeconds)
 {
 	const int offerCount = m_RunController->Deck().GetOfferCount();
 	if (offerCount <= 0)
+	{
+		return;
+	}
+
+	m_BallSelectionState->Update(deltaSeconds);
+	if (m_BallSelectionState->IsShotReady() &&
+		m_GamePresentation != nullptr &&
+		!m_GamePresentation->IsBattleInteractionBlocked() &&
+		!ImGui::GetIO().WantCaptureMouse &&
+		Input::GetKeyTrigger(VK_RBUTTON))
+	{
+		for (PlayerBall* player :
+			GameRuntime::World().GetComponents<PlayerBall>())
+		{
+			if (player != nullptr)
+			{
+				player->CancelShotPreparationInput();
+			}
+		}
+		m_BallSelectionState->CancelShotPreparation();
+		return;
+	}
+	if (!m_BallSelectionState->IsSelectionInteractive())
 	{
 		return;
 	}
@@ -3873,6 +3968,8 @@ void Game::UpdateBallSelection()
 		if (Input::GetKeyTrigger('1' + index))
 		{
 			ApplyBalanceAutoBallSelection(index);
+			m_BallSelectionState->ConfirmSelection(offerCount);
+			return;
 		}
 	}
 
@@ -3916,6 +4013,13 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 	}
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	const float hiddenRatio = std::clamp(model.handHiddenRatio, 0.0f, 1.0f);
+	if (hiddenRatio >= 1.0f)
+	{
+		return intent;
+	}
+	const float easedHiddenRatio = hiddenRatio * hiddenRatio *
+		(3.0f - 2.0f * hiddenRatio);
 	// 左下・右下の山札表示ぶんを空け、持ち札とHOLDは中央にまとめる。
 	const float horizontalPadding = std::clamp(
 		viewport->WorkSize.x * 0.105f,
@@ -3928,7 +4032,8 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		228.0f,
 		280.0f);
 	const float cardBottom =
-		viewport->WorkPos.y + viewport->WorkSize.y - 12.0f;
+		viewport->WorkPos.y + viewport->WorkSize.y - 12.0f +
+		easedHiddenRatio * (fixedCardHeightLimit + 52.0f);
 	const float availableCardWidth =
 		(viewport->WorkSize.x - horizontalPadding * 2.0f -
 			gap * static_cast<float>((std::max)(0, offerCount - 1))) /
@@ -3944,10 +4049,16 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 	const float cardsStartX = viewport->WorkPos.x +
 		(viewport->WorkSize.x - cardsWidth) * 0.5f;
 
-	const float panelHeight = fixedCardSize.y + 24.0f;
+	constexpr float hoverScale = 1.07f;
+	constexpr float hoverLift = 8.0f;
+	// The hovered card grows upward. Reserve that overflow inside the ImGui
+	// window so the illustration and frame are not clipped at its top edge.
+	const float hoverTopAllowance =
+		fixedCardSize.y * (hoverScale - 1.0f) + hoverLift + 4.0f;
+	const float panelHeight = fixedCardSize.y + 24.0f + hoverTopAllowance;
 	const ImVec2 panelPosition(
 		viewport->WorkPos.x,
-		cardBottom - fixedCardSize.y - 12.0f);
+		cardBottom - fixedCardSize.y - 12.0f - hoverTopAllowance);
 
 	ImGui::SetNextWindowViewport(viewport->ID);
 	ImGui::SetNextWindowPos(panelPosition, ImGuiCond_Always);
@@ -3967,6 +4078,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		ImGuiWindowFlags_NoScrollbar |
 		ImGuiWindowFlags_NoScrollWithMouse;
 	ImGui::Begin("##ball_card_hud", nullptr, flags);
+	ImGui::BeginDisabled(!model.selectionInteractive);
 
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	drawList->AddRectFilledMultiColor(
@@ -3976,6 +4088,22 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		IM_COL32(5, 9, 15, 0),
 		IM_COL32(5, 9, 15, 218),
 		IM_COL32(5, 9, 15, 218));
+	int hoveredIndex = -1;
+	if (model.selectionInteractive)
+	{
+		const ImVec2 mouse = ImGui::GetIO().MousePos;
+		for (int index = 0; index < offerCount; ++index)
+		{
+			const float slotLeft = cardsStartX +
+				static_cast<float>(index) * (fixedCardSize.x + gap);
+			if (mouse.x >= slotLeft && mouse.x <= slotLeft + fixedCardSize.x &&
+				mouse.y >= cardBottom - fixedCardSize.y && mouse.y <= cardBottom)
+			{
+				hoveredIndex = index;
+				break;
+			}
+		}
+	}
 
 	const auto drawCard = [&](int index)
 	{
@@ -3989,15 +4117,20 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		const bool held = intent.selectedHoldIndex == index;
 		const float slotLeft = cardsStartX +
 			static_cast<float>(index) * (fixedCardSize.x + gap);
+		const bool hovered = hoveredIndex == index;
+		const float cardScale = hovered ? hoverScale : 1.0f;
+		const ImVec2 cardSize(
+			fixedCardSize.x * cardScale,
+			fixedCardSize.y * cardScale);
 		const ImVec2 cardPosition(
-			slotLeft,
-			cardBottom - fixedCardSize.y);
+			slotLeft - (cardSize.x - fixedCardSize.x) * 0.5f,
+			cardBottom - cardSize.y - (hovered ? hoverLift : 0.0f));
 		const BallCardInteraction interaction = DrawBallSelectionCard(
 			*ball,
 			index,
 			model.effectiveAttacks[static_cast<std::size_t>(index)],
 			cardPosition,
-			fixedCardSize,
+			cardSize,
 			selected,
 			held);
 
@@ -4007,14 +4140,18 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 			ImGui::OpenPopup("ボール詳細");
 		}
 
-		if (interaction.select && !selected)
+		if (interaction.select)
 		{
-			intent.selectedOfferIndex = index;
-			if (held)
+			if (!selected)
 			{
-				intent.selectedHoldIndex = -1;
+				intent.selectedOfferIndex = index;
+				if (held)
+				{
+					intent.selectedHoldIndex = -1;
+				}
+				intent.selectionChanged = true;
 			}
-			intent.selectionChanged = true;
+			intent.confirmSelection = true;
 		}
 		if (interaction.toggleHold && !selected)
 		{
@@ -4024,7 +4161,14 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 
 	for (int index = 0; index < offerCount; ++index)
 	{
-		drawCard(index);
+		if (index != hoveredIndex)
+		{
+			drawCard(index);
+		}
+	}
+	if (hoveredIndex >= 0)
+	{
+		drawCard(hoveredIndex);
 	}
 
 	const ImGuiViewport* detailViewport = ImGui::GetMainViewport();
@@ -4049,6 +4193,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		ImGui::EndPopup();
 	}
 
+	ImGui::EndDisabled();
 	ImGui::End();
 	ImGui::PopStyleVar(2);
 	return intent;

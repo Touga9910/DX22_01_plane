@@ -13,6 +13,7 @@ struct RunProgressState
 	int clearedBattles = 0;
 	int areaProgress = 0;
 	RunPhase phase = RunPhase::NormalRoute;
+	int phaseNormalBattleEncounters = 0;
 };
 
 // 通常エリア完了によって発生した進行上の変化を表す。
@@ -68,11 +69,19 @@ public:
 	// 戦闘ステージのクリア回数を1増やす。
 	void RecordBattleCleared();
 
+	// Phase Test Runで通常戦を開始した回数を記録する。
+	void RecordPhaseNormalBattleEncounter();
+
 	// 現在のルートマップを読み取り専用で返す。
 	const RunMap& GetMap() const { return m_Map; }
 
 	// 現在の戦闘クリア回数を返す。
 	int GetClearedBattleCount() const { return m_ClearedBattles; }
+
+	int GetPhaseNormalBattleEncounterCount() const
+	{
+		return m_PhaseNormalBattleEncounters;
+	}
 
 	// 現在の通常エリア進行数を返す。
 	int GetAreaProgress() const { return m_AreaProgress; }
@@ -97,4 +106,5 @@ private:
 	int m_ClearedBattles = 0;
 	int m_AreaProgress = 0;
 	RunPhase m_Phase = RunPhase::NormalRoute;
+	int m_PhaseNormalBattleEncounters = 0;
 };

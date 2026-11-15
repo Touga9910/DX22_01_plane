@@ -1216,7 +1216,9 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     return {
         "model": MODEL_VERSION, "estimate_only": True,
         "offer_index": ball.get("index", -1), "instance_id": ball.get("instance_id"),
-        "definition_id": definition, "target_id": target["target_id"],
+        "definition_id": definition,
+        "upgrade_level": int(ball.get("upgrade_level", 0)),
+        "target_id": target["target_id"],
         "shot_type": path["mode"], "shot_goal": "pocket" if path["kind"] == "pocket" else "damage",
         "contact_kind": path["kind"], "wall_index": path.get("wall_index", -1),
         "pocket_index": path.get("pocket_index", -1), "power": round(power, 3),
@@ -1344,15 +1346,19 @@ def build_joint_shot_context(state, profile):
         if candidates:
             choices.append(candidates[0])
     choices.sort(key=lambda c: c["score"], reverse=True)
+    shot_policy = str(profile.get("mcp_shot_policy", "standard"))
     # Shared priority for *all* resource-generating balls: a reasonably close
     # confirmed kill beats speculative stack farming. Exceptional setups that
-    # unlock an owned consumer remain valid alternatives.
+    # unlock an owned consumer remain valid alternatives. The tactical policy
+    # deliberately omits this legacy reorder and trusts the already bounded
+    # physical/special-effect score instead of forcing a special-ball choice.
     lethal_preference_used = False
     generators = {"player_heavy", "player_lightweight", "player_pierce",
                   "player_refractive_pierce", "player_pierce_finisher",
                   "player_minion_finisher", "player_cushion_charge",
                   "player_anchor", "player_origin_anchor"}
-    if choices and choices[0].get("definition_id") in generators:
+    if (shot_policy == "standard" and choices
+            and choices[0].get("definition_id") in generators):
         best = choices[0]
         exceptional = best.get("special_ability_estimates", {}).get(
             "exceptional_stack_setup", False)
@@ -1362,6 +1368,40 @@ def build_joint_shot_context(state, profile):
                 choices.remove(lethal)
                 choices.insert(0, lethal)
                 lethal_preference_used = True
+    selected = choices[0] if choices else None
+    alternatives = []
+    if selected:
+        for choice in choices:
+            gap = round(float(selected["score"]) - float(choice["score"]), 4)
+            reasons = []
+            if choice is selected:
+                reasons.append(
+                    "legacy_lethal_preference" if lethal_preference_used
+                    else "highest_total_score")
+            else:
+                reasons.append("lower_total_score")
+                if gap > 0:
+                    reasons.append(f"score_gap:{gap}")
+                if (choice.get("definition_id") in generators
+                        and choice.get("predicted_kill_count", 0) == 0
+                        and not choice.get("special_ability_estimates", {}).get(
+                            "exceptional_stack_setup", False)):
+                    reasons.append("resource_setup_without_immediate_kill")
+            alternatives.append({
+                "offer_index": choice.get("offer_index", -1),
+                "instance_id": choice.get("instance_id"),
+                "definition_id": choice.get("definition_id", ""),
+                "upgrade_level": choice.get("upgrade_level", 0),
+                "score": choice.get("score", 0.0),
+                "score_gap_from_selected": gap,
+                "predicted_damage": choice.get("metrics", {}).get("damage", 0.0),
+                "predicted_chain_count": choice.get("predicted_chain_count", 0),
+                "predicted_kill_count": choice.get("predicted_kill_count", 0),
+                "special_ability_estimates": choice.get(
+                    "special_ability_estimates", {}),
+                "score_breakdown": choice.get("score_breakdown", {}),
+                "selection_reasons": reasons,
+            })
     candidate_generation = {
         "reachable_candidates": reachable_candidates,
         "charge_interruption_candidates": charge_candidates,
@@ -1369,6 +1409,16 @@ def build_joint_shot_context(state, profile):
         "lethal_preference_over_stack_farming": lethal_preference_used,
     }
     return {"model": MODEL_VERSION, "estimate_only": True,
-            "recommended": choices[0] if choices else None, "choices": choices,
+            "selection_policy": shot_policy,
+            "recommended": selected, "choices": choices,
+            "selection_diagnostics": {
+                "policy": shot_policy,
+                "legacy_lethal_preference_used": lethal_preference_used,
+                "selected_definition_id": (
+                    selected.get("definition_id") if selected else None),
+                "selected_instance_id": (
+                    selected.get("instance_id") if selected else None),
+                "candidates": alternatives,
+            },
             "candidate_generation": candidate_generation,
             "limitations": "Geometry estimates: at most one pushed-enemy collision and one residual hit; up to three pushed-enemy wall rebounds are heuristic only, not a moving multi-ball simulation."}

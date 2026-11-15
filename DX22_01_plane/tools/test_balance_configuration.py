@@ -142,6 +142,19 @@ class BalanceConfigurationTests(unittest.TestCase):
             '"latest_shot_bounce_axis"',
             (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
         )
+        self.assertIn(
+            '"latest_shot_combat_result"',
+            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+        )
+        self.assertIn(
+            '"measurement_scope", "all_recorded_enemy_hp_damage"',
+            logger_source,
+        )
+        self.assertIn(
+            '"measurement_scope", "pierce_attack_telemetry_sources_only"',
+            logger_source,
+        )
+        self.assertIn('"is_generic_combat_total", false', logger_source)
 
     def test_mcp_enemy_state_supports_aim_error(self) -> None:
         bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(

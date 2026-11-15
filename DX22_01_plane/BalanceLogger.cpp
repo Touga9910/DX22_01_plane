@@ -218,6 +218,11 @@ namespace
 			makeAttackPhaseSummary("after_first_reflection");
 		return {
 			{ "enabled", true },
+			{ "measurement_scope", "reflection_axis_diagnostics" },
+			{ "attacks_measurement_scope",
+				"tracked_contact_attack_sources_only" },
+			{ "enemies_defeated_measurement_scope", "all_sources_in_shot" },
+			{ "is_generic_combat_total", false },
 			{ "physical_reflection_definition",
 				"A BallPhysicsRules::Wall call that accepted an approaching contact and changed velocity. Persistent contact without a new accepted bounce is not counted." },
 			{ "effective_attack_definition",
@@ -317,6 +322,8 @@ namespace
 
 		return {
 			{ "enabled", true },
+			{ "measurement_scope", "pierce_attack_telemetry_sources_only" },
+			{ "is_generic_combat_total", false },
 			{ "classification",
 				"Exclusive source categories. A player contact that consumes a pierce use is player_pierce, not also player_direct." },
 			{ "effective_attack_definition",
@@ -504,6 +511,7 @@ void BalanceLogger::BeginRun(
 	m_LatestShotPhysicsTelemetry = json(nullptr);
 	m_LatestShotPierceAttackTelemetry = json(nullptr);
 	m_LatestShotBounceTelemetry = json(nullptr);
+	m_LatestShotCombatResult = json(nullptr);
 	m_RunActive = true;
 	m_SavePending = true;
 
@@ -544,6 +552,7 @@ void BalanceLogger::BeginStage(
 	m_LatestShotPhysicsTelemetry = json(nullptr);
 	m_LatestShotPierceAttackTelemetry = json(nullptr);
 	m_LatestShotBounceTelemetry = json(nullptr);
+	m_LatestShotCombatResult = json(nullptr);
 
 	json enemiesJson = json::array();
 	for (const BalanceEnemySnapshot& enemy : enemies)
@@ -1320,6 +1329,12 @@ void BalanceLogger::EndShot(
 			"charge_interruptions", json::array());
 	m_PendingShot["decision_log"] = {
 		{ "used_ball", m_PendingShot.value("ball_id", std::string()) },
+		{ "used_ball_upgrade_level",
+			m_PendingShot.value("upgrade_level", 0) },
+		{ "mcp_shot_policy",
+			mcpTelemetry.value("mcp_shot_policy", std::string("standard")) },
+		{ "candidate_comparison",
+			mcpTelemetry.value("candidate_comparison", json::object()) },
 		{ "target_id", buildEvaluation.value("target_id", std::string()) },
 		{ "shot_path", buildEvaluation.value("shot_path", json::object()) },
 		{ "candidate_score", buildEvaluation.value("score", 0.0) },
@@ -1341,6 +1356,22 @@ void BalanceLogger::EndShot(
 		{ "predicted_chain_count",
 			buildEvaluation.value("predicted_chain_count", 0) },
 		{ "actual_chain_count", m_EnemyEnemyHitCount },
+		{ "predicted_special_effects",
+			buildEvaluation.value(
+				"special_ability_estimates", json::object()) },
+		{ "actual_special_effects", {
+			{ "heavy_stacks_generated", heavyStacksGenerated },
+			{ "pierce_stacks_generated", pierceStacksGenerated },
+			{ "reflection_stacks_generated", reflectionStacksGenerated },
+			{ "reflection_stacks_consumed", reflectionStacksConsumed },
+			{ "pinball_activations", pinballActivations },
+			{ "cushion_empowered_hits", empoweredHitActivations },
+			{ "charge_interruptions", chargeInterruptions },
+			{ "protection_removals", protectionRemovals },
+			{ "swarm_attack_reduction", swarmAttackReduction },
+			{ "impact_brittle_attack_reduction", brittleAttackReduction },
+		} },
+		{ "enemy_count_after", enemiesAlive },
 		{ "predicted_attack_prevention",
 			buildEvaluation.value("expected_attack_prevention", 0.0) },
 		{ "actual_attack_prevention", actualAttackPrevention },
@@ -1510,6 +1541,30 @@ void BalanceLogger::EndShot(
 	m_PendingShot["physics_chain"] = m_LatestShotPhysicsTelemetry;
 	m_PendingShot["pierce_attack"] = m_LatestShotPierceAttackTelemetry;
 	m_PendingShot["bounce_axis"] = m_LatestShotBounceTelemetry;
+	m_LatestShotCombatResult = {
+		{ "measurement_scope", "all_recorded_enemy_hp_damage" },
+		{ "shot_no", m_PendingShot.value("shot_no", 0) },
+		{ "ball_id", m_PendingShot.value("ball_id", std::string()) },
+		{ "upgrade_level", m_PendingShot.value("upgrade_level", 0) },
+		{ "total_enemy_damage",
+			m_PendingShot.value("total_enemy_damage", json(nullptr)) },
+		{ "player_enemy_damage",
+			m_PendingShot.value("player_enemy_damage", json(nullptr)) },
+		{ "enemy_enemy_damage",
+			m_PendingShot.value("enemy_enemy_damage", json(nullptr)) },
+		{ "player_enemy_hit_count",
+			m_PendingShot.value("player_enemy_hit_count", 0) },
+		{ "enemy_enemy_hit_count",
+			m_PendingShot.value("enemy_enemy_hit_count", 0) },
+		{ "enemies_defeated",
+			m_PendingShot.value("enemies_defeated", 0) },
+		{ "enemies_alive_after",
+			m_PendingShot.value("enemies_alive_after", 0) },
+		{ "player_hp_after",
+			m_PendingShot.value("player_hp_after", 0) },
+		{ "decision_log",
+			m_PendingShot.value("decision_log", json::object()) },
+	};
 
 	(*stage)["shots"].push_back(std::move(m_PendingShot));
 	m_PendingShot = json{};

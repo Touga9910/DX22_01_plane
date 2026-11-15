@@ -58,7 +58,23 @@ void GameDebugController::TestStageEditorLayout()
 {
     const auto report = StageLayoutEditor::Inspect(m_StageEditor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
     if (!report["valid"].get<bool>()) { m_DebugMessage = "配置のエラーを解消してから試遊してください。"; return; }
-    const auto stage = StageLayoutEditor::Decode(m_StageEditor.draft, m_DebugEnemyCatalog);
+    StageData stage = StageLayoutEditor::Decode(
+        m_StageEditor.draft, m_DebugEnemyCatalog);
+    const auto loadedStages = StageDataLoader::LoadAll(
+        "assets/data/stage_01.json", "assets/data/enemy_data.json");
+    const auto loaded = std::find_if(
+        loadedStages.begin(), loadedStages.end(),
+        [&stage](const StageData& candidate) { return candidate.id == stage.id; });
+    if (loaded != loadedStages.end() &&
+        loaded->combatMode == CombatMode::PhasePrototype)
+    {
+        stage = *loaded;
+        m_DebugStageOverride = stage;
+    }
+    else
+    {
+        m_DebugStageOverride.reset();
+    }
     m_DebugSetup.enemies.clear();
     for (const auto& e : stage.enemies) m_DebugSetup.enemies.push_back({e, e.enemyData.maxHp});
     m_DebugSetup.breakBallPositions = stage.breakBallPositions;

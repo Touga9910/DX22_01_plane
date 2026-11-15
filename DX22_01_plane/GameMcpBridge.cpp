@@ -62,7 +62,7 @@ namespace
 	constexpr int kShopRemoveCost = 15;
 	constexpr int kShopBallCost = 20;
 	constexpr int kExtraRewardMoney = 10;
-	constexpr std::size_t kMaximumMcpStageEnemyCount = 12;
+	constexpr std::size_t kMaximumMcpStageEnemyCount = 16;
 
 	std::int64_t UnixTimeMilliseconds()
 	{
@@ -275,6 +275,7 @@ namespace
 		return {
 			{ "layout_id", stage.id },
 			{ "stage_type", StageTypeToMcpString(stage.stageType) },
+			{ "combat_mode", ToString(stage.combatMode) },
 			{ "difficulty", stage.difficulty },
 			{ "par", stage.par },
 			{ "enemies", std::move(enemies) },
@@ -362,6 +363,11 @@ namespace
 			return StageType::Boss;
 		}
 		return StageType::Normal;
+	}
+
+	const char* McpRunCombatModeId(RunCombatMode mode)
+	{
+		return mode == RunCombatMode::PhaseTest ? "phase" : "legacy";
 	}
 
 	nlohmann::json CommandResult(
@@ -853,7 +859,14 @@ nlohmann::json GameMcpBridge::BuildState(
 				return enemy != nullptr && enemy->CanParticipateInCombat();
 			}));
 		state["battle_progress_diagnostics"] = {
+			{ "combat_mode", ToString(controller->GetCombatMode()) },
 			{ "turn", controller->GetTurnNumber() },
+			{ "current_phase", controller->GetCurrentPhase() },
+			{ "total_phases", controller->GetTotalPhases() },
+			{ "turns_until_next_phase",
+				controller->GetTurnsUntilNextPhase() },
+			{ "next_phase_enemy_count",
+				controller->GetNextPhaseEnemyCount() },
 			{ "living_enemies", livingEnemyCount },
 			{ "defeated_enemies",
 				static_cast<int>(enemies.size()) - livingEnemyCount },
@@ -866,7 +879,35 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "shot_fixed_step_count", controller->GetShotFixedStepCount() },
 			{ "state_history", std::move(stateHistory) },
 		};
+		state["phase_battle"] = {
+			{ "current_phase", controller->GetCurrentPhase() },
+			{ "total_phases", controller->GetTotalPhases() },
+			{ "turns_until_next_phase",
+				controller->GetTurnsUntilNextPhase() },
+			{ "living_enemy_count", livingEnemyCount },
+			{ "next_phase_enemy_count",
+				controller->GetNextPhaseEnemyCount() },
+		};
 	}
+	const std::string stateScene = state.value("scene", std::string("unknown"));
+	const RunCombatMode appliedRunMode = game.GetRunCombatMode();
+	const RunCombatMode nextRunMode = game.GetNextRunDefaultCombatMode();
+	state["combat_mode"] = McpRunCombatModeId(
+		stateScene == "title" ? nextRunMode : appliedRunMode);
+	state["combat_mode_scope"] = stateScene == "title"
+		? "next_run_default"
+		: ((stateScene == "result" || stateScene == "game_over")
+			? "last_run" : "active_run");
+	state["requested_combat_mode"] = McpRunCombatModeId(
+		game.GetLastRequestedRunCombatMode());
+	state["applied_combat_mode"] = McpRunCombatModeId(appliedRunMode);
+	state["next_run_combat_mode"] = McpRunCombatModeId(nextRunMode);
+	state["available_run_modes"] = { "legacy", "phase" };
+	state["phase_progression_mode"] = ToString(
+		game.GetPhaseProgressionMode());
+	state["phase_normal_battle_encounter_count"] =
+		game.GetPhaseNormalBattleEncounterCount();
+	state["balance_log_directory"] = "logs/balance";
 	const FrameTimingSnapshot& frameTiming = game.GetFrameTimingSnapshot();
 	const auto timingAggregateJson = [](const TimingAggregate& aggregate)
 	{
@@ -1248,6 +1289,15 @@ nlohmann::json GameMcpBridge::BuildState(
 	state["player"]["temporary_shield"] = game.GetPlayerShield();
 	const RunResultSnapshot& runStatistics = snapshot.runStatistics;
 	state["run_progress"] = {
+		{ "combat_mode", McpRunCombatModeId(game.GetRunCombatMode()) },
+		{ "requested_combat_mode", McpRunCombatModeId(
+			game.GetLastRequestedRunCombatMode()) },
+		{ "applied_combat_mode", McpRunCombatModeId(
+			game.GetRunCombatMode()) },
+		{ "phase_progression_mode", ToString(
+			game.GetPhaseProgressionMode()) },
+		{ "phase_normal_battle_encounter_count",
+			game.GetPhaseNormalBattleEncounterCount() },
 		{ "phase", ToString(game.GetRunPhase()) },
 		{ "area_progress", game.GetAreaProgress() },
 		{ "area_goal", game.GetNormalRouteAreaGoal() },
@@ -1580,6 +1630,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "charge_state", ToString(enemy->GetChargeState()) },
 			{ "planned_action", ToString(enemy->GetPlannedAction()) },
 			{ "planned_action_cost", enemy->GetPlannedActionCost() },
+			{ "attack_interval", enemy->GetAttackInterval() },
+			{ "turns_until_attack", enemy->GetTurnsUntilAttack() },
 			{ "hp", enemy->GetHP() },
 			{ "max_hp", enemy->GetMaxHP() },
 			{ "attack", enemy->GetAttack() },
@@ -2101,6 +2153,8 @@ nlohmann::json GameMcpBridge::BuildState(
 		BalanceLogger::GetInstance().GetLatestShotPierceAttackTelemetry();
 	state["latest_shot_bounce_axis"] =
 		BalanceLogger::GetInstance().GetLatestShotBounceTelemetry();
+	state["latest_shot_combat_result"] =
+		BalanceLogger::GetInstance().GetLatestShotCombatResult();
 	state["balance_metadata"] =
 		BalanceLogger::GetInstance().GetBalanceMetadata();
 	for (const auto& trace : game.GetPierceTraceState().traces)
@@ -2541,6 +2595,76 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 					"validation_variant does not exist.");
 			}
 		}
+		std::optional<RunCombatMode> requestedRunMode;
+		std::string requestedModeId = "legacy";
+		if (arguments.contains("combat_mode"))
+		{
+			if (!arguments["combat_mode"].is_string())
+			{
+				return CommandResult(false, "combat_mode must be a string.");
+			}
+			requestedModeId = arguments["combat_mode"].get<std::string>();
+			if (requestedModeId == "phase")
+			{
+				requestedRunMode = RunCombatMode::PhaseTest;
+			}
+			else if (requestedModeId == "legacy")
+			{
+				requestedRunMode = RunCombatMode::Legacy;
+			}
+			else
+			{
+				return CommandResult(
+					false, "combat_mode must be legacy or phase.");
+			}
+		}
+		if (arguments.contains("run_mode"))
+		{
+			if (!arguments["run_mode"].is_string())
+			{
+				return CommandResult(false, "run_mode must be a string.");
+			}
+			const std::string legacyModeId =
+				arguments["run_mode"].get<std::string>();
+			if (legacyModeId != "legacy" && legacyModeId != "phase_test")
+			{
+				return CommandResult(
+					false, "run_mode must be legacy or phase_test.");
+			}
+			const RunCombatMode legacyRequestedMode =
+				RunCombatModeFromString(legacyModeId);
+			if (requestedRunMode.has_value() &&
+				requestedRunMode.value() != legacyRequestedMode)
+			{
+				return CommandResult(
+					false, "combat_mode conflicts with legacy run_mode.");
+			}
+			requestedRunMode = legacyRequestedMode;
+			requestedModeId = McpRunCombatModeId(legacyRequestedMode);
+		}
+		const RunCombatMode runCombatMode = requestedRunMode.value_or(
+			RunCombatMode::Legacy);
+		const std::string phaseProgressionId = arguments.value(
+			"phase_progression_mode",
+			std::string("encounter"));
+		if (phaseProgressionId != "encounter" &&
+			phaseProgressionId != "route")
+		{
+			return CommandResult(
+				false,
+				"phase_progression_mode must be encounter or route.");
+		}
+		const PhaseRunProgressionMode phaseProgressionMode =
+			PhaseRunProgressionModeFromString(phaseProgressionId);
+		const std::string mcpShotPolicy = arguments.value(
+			"mcp_shot_policy",
+			std::string("standard"));
+		if (mcpShotPolicy != "standard" && mcpShotPolicy != "tactical")
+		{
+			return CommandResult(
+				false,
+				"mcp_shot_policy must be standard or tactical.");
+		}
 		game.StartNewRun(
 			"mcp",
 			arguments.value(
@@ -2553,9 +2677,30 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 				"build_profile_settings_hash",
 				std::string()),
 			forcedRandomSeed,
-			forcedValidationVariant);
+			forcedValidationVariant,
+			runCombatMode,
+			phaseProgressionMode,
+			mcpShotPolicy);
+		const RunCombatMode appliedRunMode = game.GetRunCombatMode();
+		if (appliedRunMode != runCombatMode)
+		{
+			return CommandResult(
+				false,
+				"Requested combat mode was not applied; run start aborted.");
+		}
 		game.ChangeScene(SceneType::Select);
-		return CommandResult(true, "Started a new run.");
+		nlohmann::json result = CommandResult(
+			true,
+			"Started a new " + requestedModeId + " run.");
+		result["requested_combat_mode"] = requestedModeId;
+		result["applied_combat_mode"] =
+			McpRunCombatModeId(appliedRunMode);
+		result["phase_progression_mode"] = phaseProgressionId;
+		result["mcp_shot_policy"] = mcpShotPolicy;
+		result["run_seed"] = forcedRandomSeed.has_value()
+			? nlohmann::json(forcedRandomSeed.value())
+			: nlohmann::json(nullptr);
+		return result;
 	}
 
 	if (action == "choose_destination")

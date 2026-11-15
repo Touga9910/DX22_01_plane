@@ -409,6 +409,458 @@
         { "enemyId": "enemy_strong", "position": [0.0, 1.0, 22.0] },
         { "enemyId": "enemy_normal", "position": [5.4, 1.0, 22.0] }
       ]
+    },
+    {
+      "id": "phase_run_p1_mixed6",
+      "stageType": "normal",
+      "difficulty": 1,
+      "par": 5,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 2026111401,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-23.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-16.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-20.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [8.0, 1.0, 8.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [42.0, 1.0, 18.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [30.0, 1.0, -4.0], "spawnGroup": 2 }
+      ]
+    },
+    {
+      "id": "phase_run_p1_pairs6",
+      "stageType": "normal",
+      "difficulty": 1,
+      "par": 5,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 2026111402,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-25.0, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-18.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [-40.0, 1.0, -4.0], "spawnGroup": 3 },
+        { "enemyId": "enemy_strong", "position": [25.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [40.0, 1.0, -4.0], "spawnGroup": 3 }
+      ]
+    },
+    {
+      "id": "phase_run_p3_mixed10",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 2026111403,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-23.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-16.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-20.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [8.0, 1.0, 8.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [42.0, 1.0, 18.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [30.0, 1.0, -4.0], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-23.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-16.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [-20.0, 1.0, -20.1], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [36.0, 1.0, -8.0], "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_run_p3_pairs10",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 2026111404,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-25.0, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-18.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [-40.0, 1.0, -4.0], "spawnGroup": 3 },
+        { "enemyId": "enemy_strong", "position": [25.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [40.0, 1.0, -4.0], "spawnGroup": 3 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-25.0, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-18.0, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [18.0, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [40.0, 1.0, 4.0], "spawnGroup": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_001",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 8,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 10.0] },
+        { "enemyId": "enemy_normal", "position": [0.0, 1.0, 10.0] },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 10.0] },
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 24.0] },
+        { "enemyId": "enemy_strong", "position": [0.0, 1.0, 24.0], "attackInterval": 3 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 24.0] }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-38.0, 1.0, -2.0] },
+            { "enemyId": "enemy_strong", "position": [-38.0, 1.0, 16.0], "attackInterval": 3 },
+            { "enemyId": "enemy_normal", "position": [38.0, 1.0, -2.0] },
+            { "enemyId": "enemy_strong", "position": [38.0, 1.0, 16.0], "attackInterval": 4 }
+          ]
+        },
+        {
+          "enemies": [
+            { "enemyId": "enemy_swarm_amplifier", "position": [-27.0, 1.0, -18.0] },
+            { "enemyId": "enemy_normal", "position": [-9.0, 1.0, -18.0] },
+            { "enemyId": "enemy_normal", "position": [9.0, 1.0, -18.0] },
+            { "enemyId": "enemy_protection_resonator", "position": [27.0, 1.0, -18.0] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_002",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-7.0, 1.0, 14.0] },
+        { "enemyId": "enemy_normal", "position": [0.0, 1.0, 14.0] },
+        { "enemyId": "enemy_normal", "position": [7.0, 1.0, 14.0] },
+        { "enemyId": "enemy_normal", "position": [-7.0, 1.0, 21.0] },
+        { "enemyId": "enemy_strong", "position": [0.0, 1.0, 21.0], "attackInterval": 3 },
+        { "enemyId": "enemy_normal", "position": [7.0, 1.0, 21.0] }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-10.5, 1.0, 7.0] },
+            { "enemyId": "enemy_strong", "position": [-3.5, 1.0, 7.0], "attackInterval": 3 },
+            { "enemyId": "enemy_normal", "position": [3.5, 1.0, 7.0] },
+            { "enemyId": "enemy_strong", "position": [10.5, 1.0, 7.0], "attackInterval": 4 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_003",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-48.0, 1.0, 12.0] },
+        { "enemyId": "enemy_normal", "position": [0.0, 1.0, 12.0] },
+        { "enemyId": "enemy_normal", "position": [48.0, 1.0, 12.0] },
+        { "enemyId": "enemy_normal", "position": [-42.0, 1.0, 26.0] },
+        { "enemyId": "enemy_strong", "position": [12.0, 1.0, 26.0], "attackInterval": 3 },
+        { "enemyId": "enemy_normal", "position": [42.0, 1.0, 26.0] }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-58.0, 1.0, -16.0] },
+            { "enemyId": "enemy_strong", "position": [-22.0, 1.0, -20.0], "attackInterval": 3 },
+            { "enemyId": "enemy_normal", "position": [22.0, 1.0, -20.0] },
+            { "enemyId": "enemy_strong", "position": [58.0, 1.0, -16.0], "attackInterval": 4 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_004",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-21.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-14.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [14.5, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [21.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 20.1], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-21.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-14.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [14.5, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_strong", "position": [21.5, 1.0, -14.0], "attackInterval": 4, "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_005",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-21.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-14.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [14.5, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [21.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 20.1], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-21.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-14.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [-18.0, 1.0, -20.1], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [14.5, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_strong", "position": [21.5, 1.0, -14.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [18.0, 1.0, -20.1], "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_006",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-21.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-14.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [14.5, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [21.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 20.1], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-46.0, 1.0, -18.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-12.0, 1.0, 2.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [6.0, 1.0, -22.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [42.0, 1.0, -16.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-35.0, 1.0, 8.0], "attackInterval": 4, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [36.0, 1.0, 8.0], "spawnGroup": 1 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_007",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-46.0, 1.0, -18.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-12.0, 1.0, 2.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [6.0, 1.0, -22.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [42.0, 1.0, -16.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-35.0, 1.0, 8.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [36.0, 1.0, 8.0], "spawnGroup": 1 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-21.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-14.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [-18.0, 1.0, -20.1], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [14.5, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_strong", "position": [21.5, 1.0, -14.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [18.0, 1.0, -20.1], "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_008",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-21.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-14.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-18.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [14.5, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [21.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 20.1], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-23.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-16.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [-20.0, 1.0, -20.1], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [8.0, 1.0, -8.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_strong", "position": [42.0, 1.0, -18.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [30.0, 1.0, 4.0], "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_009",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-23.5, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-16.5, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [-20.0, 1.0, 20.1], "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [8.0, 1.0, 8.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_strong", "position": [42.0, 1.0, 18.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [30.0, 1.0, -4.0], "spawnGroup": 2 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-23.5, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-16.5, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [-20.0, 1.0, -20.1], "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [8.0, 1.0, -8.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_strong", "position": [42.0, 1.0, -18.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [30.0, 1.0, 4.0], "spawnGroup": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_010",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-25.0, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-18.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [-40.0, 1.0, -4.0], "spawnGroup": 3 },
+        { "enemyId": "enemy_strong", "position": [25.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [40.0, 1.0, -4.0], "spawnGroup": 3 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-25.0, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-18.0, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [18.0, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [-40.0, 1.0, 4.0], "spawnGroup": 3 },
+            { "enemyId": "enemy_strong", "position": [25.0, 1.0, -14.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [40.0, 1.0, 4.0], "spawnGroup": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_prototype_011",
+      "stageType": "normal",
+      "difficulty": 2,
+      "par": 6,
+      "preserveLayout": true,
+      "prototypeOnly": true,
+      "combatMode": "phasePrototype",
+      "turnsPerPhase": 2,
+      "defaultAttackInterval": 2,
+      "spawnSeed": 20261114,
+      "enemies": [
+        { "enemyId": "enemy_normal", "position": [-25.0, 1.0, 14.0], "spawnGroup": 1 },
+        { "enemyId": "enemy_strong", "position": [-18.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 1 },
+        { "enemyId": "enemy_normal", "position": [18.0, 1.0, 14.0], "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [-40.0, 1.0, -4.0], "attackInterval": 1, "spawnGroup": 3 },
+        { "enemyId": "enemy_strong", "position": [25.0, 1.0, 14.0], "attackInterval": 3, "spawnGroup": 2 },
+        { "enemyId": "enemy_normal", "position": [40.0, 1.0, -4.0], "attackInterval": 1, "spawnGroup": 3 }
+      ],
+      "additionalPhases": [
+        {
+          "enemies": [
+            { "enemyId": "enemy_normal", "position": [-25.0, 1.0, -14.0], "spawnGroup": 1 },
+            { "enemyId": "enemy_strong", "position": [-18.0, 1.0, -14.0], "attackInterval": 3, "spawnGroup": 1 },
+            { "enemyId": "enemy_normal", "position": [18.0, 1.0, -14.0], "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [-40.0, 1.0, 4.0], "attackInterval": 1, "spawnGroup": 3 },
+            { "enemyId": "enemy_strong", "position": [25.0, 1.0, -14.0], "attackInterval": 4, "spawnGroup": 2 },
+            { "enemyId": "enemy_normal", "position": [40.0, 1.0, 4.0], "attackInterval": 1, "spawnGroup": 3 }
+          ]
+        }
+      ]
     }
   ]
 }

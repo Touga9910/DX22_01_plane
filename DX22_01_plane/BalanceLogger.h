@@ -184,6 +184,10 @@ public:
 	{
 		return m_LatestShotBounceTelemetry;
 	}
+	const nlohmann::json& GetLatestShotCombatResult() const
+	{
+		return m_LatestShotCombatResult;
+	}
 	const nlohmann::json& GetBalanceMetadata() const
 	{
 		return m_BalanceMetadata;
@@ -213,6 +217,7 @@ private:
 	nlohmann::json m_LatestShotPhysicsTelemetry;
 	nlohmann::json m_LatestShotPierceAttackTelemetry;
 	nlohmann::json m_LatestShotBounceTelemetry;
+	nlohmann::json m_LatestShotCombatResult;
 	nlohmann::json m_BalanceMetadata;
 	std::filesystem::path m_LogPath;
 	ShotPhysicsTelemetry m_ShotPhysicsTelemetry;

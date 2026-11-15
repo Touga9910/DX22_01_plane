@@ -30,9 +30,19 @@ bool BattleController::ClaimBountyReward()
     return true;
 }
 
-void BattleController::BeginStage(StageType stageType)
+void BattleController::BeginStage(const StageData& stage)
 {
-    m_StageType = stageType;
+    m_StageType = stage.stageType;
+    m_CombatMode = stage.combatMode;
+    m_PhaseBattle = stage.phaseBattle;
+    m_TotalPhases = IsPhasePrototype()
+        ? static_cast<int>(m_PhaseBattle.phases.size())
+        : 0;
+    m_CurrentPhase = IsPhasePrototype() && m_TotalPhases > 0 ? 1 : 0;
+    m_TurnsUntilNextPhase = IsPhasePrototype() && m_TotalPhases > 1
+        ? m_PhaseBattle.turnsPerPhase
+        : 0;
+    m_PhaseDefeatedEnemyCount = 0;
     m_BountyRewardClaimed = false;
     m_PocketedEnemyQueue.clear();
     m_EnemyActionPlanner.Reset();
@@ -43,7 +53,7 @@ void BattleController::BeginStage(StageType stageType)
             if (enemy != nullptr) enemy->RefreshBoardAbilityState(false);
         }
     }
-    PlanNextTurn();
+    if (!IsPhasePrototype()) PlanNextTurn();
 }
 
 void BattleController::QueuePocketedEnemy(EnemyBall* enemy)
@@ -192,6 +202,20 @@ void BattleController::Reset()
     m_ShotFixedStepCount = 0;
     m_Active = false;
     m_EnemyActionPlanner.Reset();
+    m_CombatMode = CombatMode::Legacy;
+    m_PhaseBattle = {};
+    m_CurrentPhase = 0;
+    m_TotalPhases = 0;
+    m_TurnsUntilNextPhase = 0;
+    m_PhaseDefeatedEnemyCount = 0;
+}
+
+void BattleController::NotifyEnemyDefeated()
+{
+    if (IsPhasePrototype())
+    {
+        ++m_PhaseDefeatedEnemyCount;
+    }
 }
 
 void BattleController::Update()
@@ -378,6 +402,19 @@ bool BattleController::AreAllEnemiesDefeated() const
     const std::vector<EnemyBall*> enemies =
         m_World->GetComponents<EnemyBall>();
 
+    if (IsPhasePrototype())
+    {
+        if (m_TotalPhases <= 0 || m_CurrentPhase < m_TotalPhases)
+        {
+            return false;
+        }
+        return std::none_of(
+            enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
+            {
+                return enemy != nullptr && enemy->CanParticipateInCombat();
+            });
+    }
+
     // 敵が存在しないロード途中を勝利扱いにしない。
     if (enemies.empty())
     {
@@ -439,6 +476,18 @@ void BattleController::CompleteShot()
 
     ResolveChargeInterruptions();
 
+    if (IsPhasePrototype())
+    {
+        // HP0 enemies remain physical through the shot, then leave before any
+        // attack or reinforcement decision for this turn.
+        RemoveDefeatedPhaseEnemies();
+        if (m_CurrentPhase < m_TotalPhases && m_TurnsUntilNextPhase > 0)
+        {
+            --m_TurnsUntilNextPhase;
+        }
+        PlanPhaseTurn();
+    }
+
     // Positions are now stable. Re-evaluate only board-dependent modifiers;
     // the already committed action type and budget remain untouched.
     for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
@@ -476,7 +525,7 @@ void BattleController::CompleteShot()
         m_Hooks.endShotLog(
             player->GetHP(),
             CountAliveEnemies(enemies),
-            CountDefeatedEnemies(enemies));
+            GetDefeatedEnemyCount());
     }
 
     for (EnemyBall* enemy : enemies)
@@ -572,6 +621,7 @@ void BattleController::ProcessEnemyAttack()
         if (action == EnemyActionType::ChargeStart)
         {
             enemy->BeginCharge();
+            if (IsPhasePrototype()) enemy->ResetAttackTimer();
             continue;
         }
         if (action == EnemyActionType::ChargeAttack &&
@@ -595,6 +645,7 @@ void BattleController::ProcessEnemyAttack()
         {
             enemy->CompleteChargeAttack();
         }
+        if (IsPhasePrototype()) enemy->ResetAttackTimer();
 
         const int hpAfter = player->GetHP();
         const int damage =
@@ -665,6 +716,16 @@ void BattleController::ProcessTurnEnd()
         }
     }
 
+    if (IsPhasePrototype())
+    {
+        TryAdvancePhase();
+        if (AreAllEnemiesDefeated())
+        {
+            FinishBattle(BattleResult::Victory);
+            return;
+        }
+    }
+
     if (!m_Hooks.prepareNextTurn)
     {
         FinishBattle(BattleResult::Defeat);
@@ -677,8 +738,137 @@ void BattleController::ProcessTurnEnd()
         return;
     }
 
-    PlanNextTurn();
+    if (!IsPhasePrototype()) PlanNextTurn();
+    if (IsPhasePrototype() && m_World != nullptr)
+    {
+        for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+        {
+            if (enemy != nullptr && enemy->CanParticipateInCombat())
+            {
+                enemy->SetPlannedAction(
+                    EnemyActionType::Wait, 0,
+                    m_EnemyActionPlanner.Config().chargeDamageMultiplier);
+            }
+        }
+    }
     SetState(BattleState::AimingDirection, "turn_completed");
+}
+
+void BattleController::PlanPhaseTurn()
+{
+    if (m_World == nullptr || !IsPhasePrototype()) return;
+
+    EnemyActionTurnPlan plan{};
+    for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+    {
+        if (enemy == nullptr || !enemy->CanParticipateInCombat()) continue;
+
+        EnemyActionType action = EnemyActionType::Wait;
+        if (!enemy->IsStunned() && enemy->AdvanceAttackTimer())
+        {
+            if (enemy->CanUseCharge())
+            {
+                action = enemy->IsCharging()
+                    ? EnemyActionType::ChargeAttack
+                    : EnemyActionType::ChargeStart;
+            }
+            else
+            {
+                action = EnemyActionType::NormalAttack;
+            }
+        }
+        enemy->SetPlannedAction(
+            action, 0, m_EnemyActionPlanner.Config().chargeDamageMultiplier);
+        plan.actions.push_back({
+            reinterpret_cast<std::uintptr_t>(enemy), action, 0 });
+    }
+    if (m_Hooks.enemyActionPlanConfirmed)
+    {
+        m_Hooks.enemyActionPlanConfirmed(plan);
+    }
+}
+
+void BattleController::RemoveDefeatedPhaseEnemies()
+{
+    if (m_World == nullptr || !IsPhasePrototype()) return;
+    for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
+    {
+        if (enemy != nullptr && enemy->IsDefeated())
+        {
+            m_World->RequestDestroy(enemy->GetGameObject());
+        }
+    }
+}
+
+bool BattleController::TryAdvancePhase()
+{
+    if (!IsPhasePrototype() || m_CurrentPhase >= m_TotalPhases)
+    {
+        return false;
+    }
+    const bool noLivingEnemies = GetLivingEnemyCount() == 0;
+    if (!noLivingEnemies && m_TurnsUntilNextPhase > 0)
+    {
+        return false;
+    }
+
+    const int nextIndex = m_CurrentPhase;
+    if (nextIndex < 0 ||
+        nextIndex >= static_cast<int>(m_PhaseBattle.phases.size()))
+    {
+        return false;
+    }
+    if (m_Hooks.spawnPhaseEnemies)
+    {
+        m_Hooks.spawnPhaseEnemies(
+            m_PhaseBattle.phases[static_cast<std::size_t>(nextIndex)].enemies,
+            m_PhaseBattle.defaultAttackInterval,
+            m_PhaseBattle.spawnSeed,
+            nextIndex + 1);
+    }
+    ++m_CurrentPhase;
+    m_TurnsUntilNextPhase = m_CurrentPhase < m_TotalPhases
+        ? m_PhaseBattle.turnsPerPhase
+        : 0;
+    return true;
+}
+
+int BattleController::GetLivingEnemyCount() const
+{
+    if (m_World == nullptr) return 0;
+    const std::vector<EnemyBall*> enemies =
+        m_World->GetComponents<EnemyBall>();
+    return static_cast<int>(std::count_if(
+        enemies.begin(), enemies.end(),
+        [](const EnemyBall* enemy)
+        {
+            return enemy != nullptr && enemy->CanParticipateInCombat();
+        }));
+}
+
+int BattleController::GetDefeatedEnemyCount() const
+{
+    if (IsPhasePrototype())
+    {
+        return m_PhaseDefeatedEnemyCount;
+    }
+    if (m_World == nullptr)
+    {
+        return 0;
+    }
+    return CountDefeatedEnemies(m_World->GetComponents<EnemyBall>());
+}
+
+int BattleController::GetNextPhaseEnemyCount() const
+{
+    if (!IsPhasePrototype() || m_CurrentPhase >= m_TotalPhases ||
+        m_CurrentPhase < 0 ||
+        m_CurrentPhase >= static_cast<int>(m_PhaseBattle.phases.size()))
+    {
+        return 0;
+    }
+    return static_cast<int>(m_PhaseBattle.phases[
+        static_cast<std::size_t>(m_CurrentPhase)].enemies.size());
 }
 
 void BattleController::PlanNextTurn()

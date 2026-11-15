@@ -40,6 +40,47 @@ enum class RunPhase
 	Completed			// 最終ボスを終え、ランが完了した状態
 };
 
+// 1回のランで通常戦闘に使用する方式。ボス戦には適用しない。
+enum class RunCombatMode
+{
+	Legacy,
+	PhaseTest
+};
+
+// Phase Test Runの通常戦ステージ帯を決める基準。
+enum class PhaseRunProgressionMode
+{
+	EncounterCount,
+	RouteProgress
+};
+
+inline const char* ToString(PhaseRunProgressionMode mode)
+{
+	return mode == PhaseRunProgressionMode::RouteProgress
+		? "route"
+		: "encounter";
+}
+
+inline PhaseRunProgressionMode PhaseRunProgressionModeFromString(
+	const std::string& value)
+{
+	return value == "route"
+		? PhaseRunProgressionMode::RouteProgress
+		: PhaseRunProgressionMode::EncounterCount;
+}
+
+inline const char* ToString(RunCombatMode mode)
+{
+	return mode == RunCombatMode::PhaseTest ? "phase_test" : "legacy";
+}
+
+inline RunCombatMode RunCombatModeFromString(const std::string& value)
+{
+	return value == "phase_test"
+		? RunCombatMode::PhaseTest
+		: RunCombatMode::Legacy;
+}
+
 // RunPhaseをセーブデータなどで扱う文字列へ変換
 // 未定義の値が渡された場合は"normal_route"を返す。
 inline const char* ToString(RunPhase phase)

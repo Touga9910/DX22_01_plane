@@ -352,7 +352,7 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 			velocity.z,
 			player->GetHP(),
 			CountAliveEnemies(enemies),
-			CountDefeatedEnemies(enemies),
+			m_BattleState->controller.GetDefeatedEnemyCount(),
 			shotEnemies,
 			shotContext);
 		if (pierceMinionActivationAttempted)

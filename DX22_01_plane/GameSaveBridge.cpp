@@ -19,6 +19,9 @@
 GameRunSaveSnapshot Game::CaptureRunSaveSnapshot() const
 {
 	GameRunSaveSnapshot snapshot{};
+	snapshot.runCombatMode = m_RunController->GetCombatMode();
+	snapshot.phaseProgressionMode =
+		m_RunController->GetPhaseProgressionMode();
 	snapshot.status = m_RunController->Status();
 	snapshot.progress = m_RunController->Progress().Capture();
 	snapshot.relics = m_RunController->Relics();
@@ -42,7 +45,10 @@ void Game::RestoreRunSaveSnapshot(GameRunRestoreRequest request)
 {
 	GameRunSaveSnapshot& snapshot = request.snapshot;
 	const std::mt19937 savedDeckRandomEngine = snapshot.deck.randomEngine;
-	StartNewRun("human", "save_load", "", "", snapshot.runSeed);
+	StartNewRun(
+		"human", "save_load", "", "", snapshot.runSeed, "",
+		snapshot.runCombatMode,
+		snapshot.phaseProgressionMode);
 
 	m_PersistenceRuntime->ActiveAscension() = snapshot.activeAscension;
 	m_RunController->RestHealRatio() = (std::max)(

@@ -62,6 +62,8 @@ struct BallSelectionPresentationModel
 	std::vector<int> effectiveAttacks;
 	int selectedOfferIndex = 0;
 	int selectedHoldIndex = -1;
+	float handHiddenRatio = 0.0f;
+	bool selectionInteractive = true;
 };
 
 struct BallSelectionPresentationIntent
@@ -69,6 +71,7 @@ struct BallSelectionPresentationIntent
 	int selectedOfferIndex = 0;
 	int selectedHoldIndex = -1;
 	bool selectionChanged = false;
+	bool confirmSelection = false;
 };
 
 struct ClearRewardBallView
@@ -116,6 +119,10 @@ public:
 		const BallSelectionPresentationModel& model);
 	ClearRewardPresentationIntent DrawClearReward(
 		const ClearRewardPresentationModel& model);
+	bool IsBattleInteractionBlocked() const noexcept
+	{
+		return m_DeckListOpen || m_RelicListOpen || m_DashboardOpen;
+	}
 
 	void OnBattleStarted(Game& game);
 	void OnShotFired(int ballCategory);

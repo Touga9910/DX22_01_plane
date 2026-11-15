@@ -3,6 +3,7 @@
 #include "GameRuntime.h"
 #include "GameRuntimeState.h"
 #include "GameWorld.h"
+#include "GameObject.h"
 #include "GameBattleState.h"
 #include "GameBattleCommands.h"
 #include "GameBattleEvents.h"
@@ -14,6 +15,7 @@
 #include "CushionChargeRules.h"
 #include "BallShotPrediction.h"
 #include "BallComponent.h"
+#include "BallFactory.h"
 #include "BalanceLogger.h"
 #include "BattleScene.h"
 #include "BattleSceneServices.h"
@@ -22,10 +24,13 @@
 #include "Pocket.h"
 #include "PlayerBall.h"
 #include "TableFrame.h"
+#include "TableConfig.h"
+#include "TableGeometry.h"
 
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <random>
 #include <utility>
 
 BattleState GameBattleView::State()
@@ -35,7 +40,9 @@ BattleState GameBattleView::State()
 
 bool GameBattleView::AcceptsHumanInput()
 {
-    return !Game::GetInstance()->IsBalanceAutoPlayEnabled();
+	Game* game = Game::GetInstance();
+	return !game->IsBalanceAutoPlayEnabled() &&
+		game->IsShotPreparationInputEnabled();
 }
 
 bool GameBattleView::ClearRewardActive()
@@ -682,6 +689,231 @@ void Game::InitializeBattleController()
 		[this]()
 		{
 			RestoreNextPocketedEnemy();
+		};
+
+	hooks.spawnPhaseEnemies =
+		[this](
+			const std::vector<EnemySpawnData>& spawns,
+			int defaultInterval,
+			unsigned int spawnSeed,
+			int phaseNumber)
+		{
+			std::mt19937 random(spawnSeed +
+				static_cast<unsigned int>(phaseNumber));
+			using Vector3 = DirectX::SimpleMath::Vector3;
+			using PendingBall = std::pair<Vector3, float>;
+			auto isClear = [this](
+				const EnemySpawnData& spawn,
+				const Vector3& candidate,
+				const std::vector<PendingBall>& pending)
+			{
+				const float radius = (std::max)(
+					0.01f, spawn.enemyData.status.radius);
+				const float halfWidth =
+					TableConfig::GetFieldWidth() * 0.5f - radius - 1.0f;
+				const float halfDepth =
+					TableConfig::GetFieldDepth() * 0.5f - radius - 1.0f;
+				if (std::abs(candidate.x) > halfWidth ||
+					std::abs(candidate.z) > halfDepth)
+				{
+					return false;
+				}
+				for (BallComponent* ball :
+					m_RuntimeState->World().GetComponents<BallComponent>())
+				{
+					if (ball == nullptr || ball->GetGameObject() == nullptr ||
+						!ball->GetGameObject()->IsActive()) continue;
+					Vector3 delta = candidate - ball->GetPosition();
+					delta.y = 0.0f;
+					const float clearance =
+						radius + ball->GetRadius() + 1.0f;
+					if (delta.LengthSquared() < clearance * clearance)
+						return false;
+				}
+				for (const auto& pocket : TableConfig::GetPocketCenters())
+				{
+					Vector3 delta = candidate - pocket;
+					delta.y = 0.0f;
+					const float clearance = radius + 5.0f;
+					if (delta.LengthSquared() < clearance * clearance)
+						return false;
+				}
+				for (const PendingBall& other : pending)
+				{
+					Vector3 delta = candidate - other.first;
+					delta.y = 0.0f;
+					const float clearance = radius + other.second + 1.0f;
+					if (delta.LengthSquared() < clearance * clearance)
+						return false;
+				}
+				return true;
+			};
+			auto resolveIndividualPosition = [&](const EnemySpawnData& spawn)
+			{
+				const float radius = (std::max)(
+					0.01f, spawn.enemyData.status.radius);
+				const float halfWidth =
+					TableConfig::GetFieldWidth() * 0.5f - radius - 1.0f;
+				const float halfDepth =
+					TableConfig::GetFieldDepth() * 0.5f - radius - 1.0f;
+				std::uniform_real_distribution<float> xDistribution(
+					-halfWidth, halfWidth);
+				std::uniform_real_distribution<float> zDistribution(
+					-halfDepth, halfDepth);
+				Vector3 position = spawn.position;
+				position.y = TableConfig::FIELD_HEIGHT;
+				const std::vector<PendingBall> none;
+				for (int attempt = 0;
+					attempt < 64 && !isClear(spawn, position, none); ++attempt)
+				{
+					position = Vector3(
+						xDistribution(random), TableConfig::FIELD_HEIGHT,
+						zDistribution(random));
+				}
+				return position;
+			};
+			auto spawnAt = [this, defaultInterval](
+				const EnemySpawnData& spawn, const Vector3& position)
+			{
+				EnemyData data = spawn.enemyData;
+				data.initPosition = position;
+				EnemyBall* enemy = BallFactory::CreateEnemy(*this, data);
+				if (BattleScene* scene =
+					dynamic_cast<BattleScene*>(GetCurrentScene()))
+				{
+					scene->TrackSpawnedObject(enemy->GetGameObject());
+				}
+				enemy->InitializeAttackTimer(
+					spawn.attackInterval > 0
+						? spawn.attackInterval
+						: defaultInterval);
+			};
+
+			std::vector<bool> handled(spawns.size(), false);
+			for (std::size_t spawnIndex = 0;
+				spawnIndex < spawns.size(); ++spawnIndex)
+			{
+				if (handled[spawnIndex]) continue;
+				const EnemySpawnData& first = spawns[spawnIndex];
+				if (first.spawnGroup <= 0)
+				{
+					spawnAt(first, resolveIndividualPosition(first));
+					handled[spawnIndex] = true;
+					continue;
+				}
+
+				std::vector<std::size_t> groupIndices;
+				for (std::size_t candidateIndex = spawnIndex;
+					candidateIndex < spawns.size(); ++candidateIndex)
+				{
+					if (!handled[candidateIndex] &&
+						spawns[candidateIndex].spawnGroup == first.spawnGroup)
+					{
+						groupIndices.push_back(candidateIndex);
+					}
+				}
+
+				float minimumOffsetX = -TableConfig::GetFieldWidth();
+				float maximumOffsetX = TableConfig::GetFieldWidth();
+				float minimumOffsetZ = -TableConfig::GetFieldDepth();
+				float maximumOffsetZ = TableConfig::GetFieldDepth();
+				for (std::size_t index : groupIndices)
+				{
+					const EnemySpawnData& spawn = spawns[index];
+					const float radius = (std::max)(
+						0.01f, spawn.enemyData.status.radius);
+					const float halfWidth = TableConfig::GetFieldWidth() * 0.5f -
+						radius - 1.0f;
+					const float halfDepth = TableConfig::GetFieldDepth() * 0.5f -
+						radius - 1.0f;
+					minimumOffsetX = (std::max)(
+						minimumOffsetX, -halfWidth - spawn.position.x);
+					maximumOffsetX = (std::min)(
+						maximumOffsetX, halfWidth - spawn.position.x);
+					minimumOffsetZ = (std::max)(
+						minimumOffsetZ, -halfDepth - spawn.position.z);
+					maximumOffsetZ = (std::min)(
+						maximumOffsetZ, halfDepth - spawn.position.z);
+				}
+
+				std::vector<Vector3> resolvedGroup;
+				auto tryGroupOffset = [&](float offsetX, float offsetZ)
+				{
+					std::vector<PendingBall> pending;
+					std::vector<Vector3> candidates;
+					for (std::size_t index : groupIndices)
+					{
+						const EnemySpawnData& spawn = spawns[index];
+						Vector3 candidate = spawn.position +
+							Vector3(offsetX, 0.0f, offsetZ);
+						candidate.y = TableConfig::FIELD_HEIGHT;
+						if (!isClear(spawn, candidate, pending)) return false;
+						candidates.push_back(candidate);
+						pending.emplace_back(candidate, (std::max)(
+							0.01f, spawn.enemyData.status.radius));
+					}
+					resolvedGroup = std::move(candidates);
+					return true;
+				};
+
+				bool groupPlaced = tryGroupOffset(0.0f, 0.0f);
+				constexpr float kPi = 3.14159265358979323846f;
+				for (int attempt = 1; attempt <= 48 && !groupPlaced; ++attempt)
+				{
+					const int ring = (attempt + 7) / 8;
+					const float angle = static_cast<float>((attempt - 1) % 8) *
+						(kPi * 0.25f);
+					const float distance = static_cast<float>(ring) * 3.0f;
+					const float offsetX = std::cos(angle) * distance;
+					const float offsetZ = std::sin(angle) * distance;
+					if (offsetX < minimumOffsetX || offsetX > maximumOffsetX ||
+						offsetZ < minimumOffsetZ || offsetZ > maximumOffsetZ)
+					{
+						continue;
+					}
+					groupPlaced = tryGroupOffset(offsetX, offsetZ);
+				}
+				if (!groupPlaced && minimumOffsetX <= maximumOffsetX &&
+					minimumOffsetZ <= maximumOffsetZ)
+				{
+					std::uniform_real_distribution<float> xOffsetDistribution(
+						minimumOffsetX, maximumOffsetX);
+					std::uniform_real_distribution<float> zOffsetDistribution(
+						minimumOffsetZ, maximumOffsetZ);
+					for (int attempt = 0; attempt < 128 && !groupPlaced; ++attempt)
+					{
+						groupPlaced = tryGroupOffset(
+							xOffsetDistribution(random), zOffsetDistribution(random));
+					}
+				}
+
+				for (std::size_t groupIndex = 0;
+					groupIndex < groupIndices.size(); ++groupIndex)
+				{
+					const std::size_t index = groupIndices[groupIndex];
+					spawnAt(spawns[index], groupPlaced
+						? resolvedGroup[groupIndex]
+						: resolveIndividualPosition(spawns[index]));
+					handled[index] = true;
+				}
+			}
+			for (EnemyBall* enemy :
+				m_RuntimeState->World().GetComponents<EnemyBall>())
+			{
+				if (enemy != nullptr && enemy->CanParticipateInCombat())
+				{
+					enemy->RefreshBoardAbilityState(true);
+				}
+			}
+			InvalidateDebugCombatForecast("フェーズ増援生成");
+			RecordBalanceEvent("phase_transition", {
+				{ "phase", phaseNumber },
+				{ "total_phases", m_BattleState->controller.GetTotalPhases() },
+				{ "spawned_enemy_count", static_cast<int>(spawns.size()) },
+				{ "living_enemy_count",
+					m_BattleState->controller.GetLivingEnemyCount() },
+				{ "spawn_seed", spawnSeed },
+			});
 		};
 
 	hooks.enemyActionPlanConfirmed =
