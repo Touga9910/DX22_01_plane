@@ -810,6 +810,7 @@ void PlayerBall::GeneratePreTrajectory(
 		prediction.path, prediction.path.size());
 
 	const std::vector<Vector3>* displayedPath = &prediction.path;
+	const auto* displayedContactGuide = &prediction.initialContactGuide;
 	std::size_t displayedPoints = prediction.path.size();
 	if (!currentPowerReachesContact && initialVelocity.LengthSquared() > 0.0001f)
 	{
@@ -839,6 +840,8 @@ void PlayerBall::GeneratePreTrajectory(
 				maximumPowerPrediction.copiedBalls);
 			m_MaximumPowerPreviewPath =
 				std::move(maximumPowerPrediction.path);
+			m_MaximumPowerPreviewContactGuide =
+				maximumPowerPrediction.initialContactGuide;
 			m_MaximumPowerPreviewReachedBlockingContact =
 				maximumPowerPrediction.reachedBlockingContact;
 			m_MaximumPowerPreviewDistance = pathDistance(
@@ -853,6 +856,7 @@ void PlayerBall::GeneratePreTrajectory(
 			m_MaximumPowerPreviewDistance > m_PreviewReachableDistance)
 		{
 			displayedPath = &m_MaximumPowerPreviewPath;
+			displayedContactGuide = &m_MaximumPowerPreviewContactGuide;
 			displayedPoints = m_MaximumPowerPreviewPath.size();
 		}
 	}
@@ -862,11 +866,13 @@ void PlayerBall::GeneratePreTrajectory(
 	}
     // Keep the original aiming-only display: no reflected player trajectory,
     // just a short direction guide for the ball at the first blocking contact.
-    m_PreviewHitBall = prediction.initialContactGuide.hitBall;
-    m_PreviewHitEnemy = prediction.initialContactGuide.chainImpactCenter;
-    m_PreviewGhostBallPosition = prediction.initialContactGuide.playerPosition;
-    m_PreviewHitBallPosition = prediction.initialContactGuide.ballPosition;
-    m_PreviewObjectBallDirection = prediction.initialContactGuide.ballDirection;
+	// The guide and path must come from the same preview, including cache hits
+	// while the current power cannot reach the displayed contact yet.
+	m_PreviewHitBall = displayedContactGuide->hitBall;
+	m_PreviewHitEnemy = displayedContactGuide->chainImpactCenter;
+	m_PreviewGhostBallPosition = displayedContactGuide->playerPosition;
+	m_PreviewHitBallPosition = displayedContactGuide->ballPosition;
+	m_PreviewObjectBallDirection = displayedContactGuide->ballDirection;
 	m_PreviewComplete = currentPowerReachesContact;
 	m_LastPreviewWorldKey = worldKey;
 }

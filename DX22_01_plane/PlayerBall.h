@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "BallComponent.h"
+#include "BallTrajectoryPreview.h"
 #include "BallRenderComponent.h"
 #include "Texture.h"
 #include "MeshRenderer.h"
@@ -304,6 +305,7 @@ private:
 	float m_MaximumPowerPreviewDistance = 0.0f;
 	bool m_MaximumPowerPreviewReachedBlockingContact = false;
 	std::vector<DirectX::SimpleMath::Vector3> m_MaximumPowerPreviewPath;
+	BallTrajectoryPreview::ContactGuide m_MaximumPowerPreviewContactGuide;
 
 	//=======================================
 	// 弾道予測描画

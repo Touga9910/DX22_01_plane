@@ -3906,6 +3906,10 @@ void GamePresentation::DrawFeedback(Game& game)
 	if (game.IsScreenFlashEnabled() && m_DamageFlashLifetime > 0.0f)
 	{
 		const float alpha = std::clamp(m_DamageFlashLifetime / 0.28f, 0.0f, 1.0f);
+		// Tint the whole screen on HP damage; the stronger border keeps the
+		// reaction visible without hiding the table or damage numbers.
+		foreground->AddRectFilled(topLeft, bottomRight,
+			IM_COL32(255, 45, 55, static_cast<int>(48.0f * alpha)));
 		const ImU32 red = IM_COL32(255, 45, 55, static_cast<int>(80.0f * alpha));
 		const float border = 24.0f + 24.0f * alpha;
 		foreground->AddRectFilled(topLeft, ImVec2(bottomRight.x, topLeft.y + border), red);
