@@ -1,0 +1,66 @@
+作成日：2026年11月17日
+生成物除外後のクローン再現性確認
+
+1. 目的と判定範囲
+生成物を除外したコミット予定の内容だけで、x64のビルドと実行に必要なファイルが揃うか確認した。
+ゲームの選択・狙い・連鎖、設定値、責務分割、PCH設定は変更しない。
+失敗を隠すためにセーブや以前のビルド結果を補充しない。必要依存だけをGitの例外として登録する。
+成功条件はプロジェクト入力とアセットの欠落0、独立展開先のクリーンビルドと実行確認。
+
+2. 発見して修正した不足
+以前からのx64/、Bin/、*.objの汎用除外が正式な依存物やモデルにも適用されていた。
+今回除外した梱包用コピー等とは別の既存の登録漏れである。
+.gitignoreに限定した例外を設け、次の8点をステージした。
+
+third_party/DirectXTK/lib/x64/Debug/DirectXTK.lib
+third_party/DirectXTK/lib/x64/Release/DirectXTK.lib
+third_party/assimp/bin/assimp-vc143-mt.dll
+third_party/assimp/bin/assimp-vc143-mtd.dll
+DX22_01_plane/assets/model/cylinder/cylinder.obj
+DX22_01_plane/assets/model/golfball/golf_ball.obj
+DX22_01_plane/assets/model/golf_pole/golf_pole_NO_HOLE.obj
+DX22_01_plane/assets/model/SkyBox/SkyBox.obj
+
+コンパイラの.obj生成物、依存ライブラリ内の他の作業ファイルを一括で除外解除してはいない。
+
+3. 検証方法と結果
+git checkout-indexでステージ内容をlogs/clone_readiness_20261117/sourceへ展開した。
+検証時1013ファイル。元の作業ツリーを丸ごとコピーせず、生成物・saves・既存x64出力は初期状態に含めない。
+ClCompile/ClInclude/FxCompileの入力欠落0。正式assetsとshaderの未登録は.editor.bakを除いて0。
+VSのユーザー固有propsを読み込まない場所を指定し、CL/_CL_/INCLUDE/LIBを初期化してVS環境を設定した。
+
+Windows / Visual Studio 2022 Enterprise / MSVC 14.38.33130 / Windows SDK / x64。
+既存tools/release_without_compiler_pdb.targetsを指定したRebuildは以下のとおり。
+Debug：36.22秒、警告0・エラー0。
+Release：41.78秒、警告0・エラー0。
+この時間はMSBuild表示値で、今回の除外前後の性能比較ではない。
+
+展開先の検証CLIとアセットを使い、C++自動プレイの2戦・報酬選択・Title復帰・識別子付きcleanupを確認した。
+Debug：ordinary_success、73.891秒。
+Release：ordinary_success、53.859秒。
+モデルを追加展開した最終アセット集合でもReleaseを再実行：ordinary_success、53.390秒。
+実行は逐次で、各CLIはexit0。Pythonの観測コントローラーには元環境の既存venvを使った。
+
+4. 通常ビルドと未検証範囲
+PDB回避targetsを外した通常Debug Rebuildでは、実行ホストで既知のC1902
+（プログラムデータベースマネージャー不一致）が再現した。
+ファイル不足とは別のコンパイラ/PDB環境問題として記録し、通常設定の成功とは扱わない。
+通常Releaseは通常Debugの失敗で検証列を停止したため未検証。
+物理的に別のPCでの試験ではなく、同じホスト上でGit登録内容だけを独立展開した確認である。
+Win32/x86、MCP用Python依存の新規インストールは今回の対象外。
+必要な開発環境はVS2022のC++デスクトップ開発、v143、Windows SDK、x64構成。
+PDB不整合のある環境ではVS/MSVCのセットアップ整合確認が別途必要。
+
+5. クローン先の起動時の注意
+assets/とshader/はプロジェクトフォルダーDX22_01_plane内にある。
+コマンドからの実行時は、このフォルダーをカレントディレクトリにする。
+例（リポジトリー直下から）：
+  cd DX22_01_plane
+  ..\x64\Release\DX22_01_plane.exe
+DLLはPostBuildEventで出力先へコピーされる。削除したユーザーのセーブは持ち込まない。
+
+6. ローカルの証拠
+logs/clone_readiness_20261117/export.json
+同フォルダーのDebug.log、Release.log、Debug_standard.log
+validation/campaigns/clone_debug、clone_release、clone_release_assetsのsummary.json
+標準ビルドの失敗ログも保持し、診断条件での成功と区別した。

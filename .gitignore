@@ -362,5 +362,48 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Local submission archives are generated deliverables and exceed GitHub's file-size limit.
-/提出用_*.zip
+# Local submission/source archives (keep original source and assets in their directories).
+/*.zip
+
+# Packaging scratch: library checkouts, CMake builds, extracted bundles and smoke runs.
+/packaging_work/
+
+# Local saves, ImGui window layout and stage-editor recovery copies.
+/saves/
+imgui.ini
+*.editor.bak
+
+# Isolated validation workers and generated native test executables/intermediates.
+/DX22_01_plane/.validation_workers/
+/DX22_01_plane/tools/runtime_tests_codex*/
+/DX22_01_plane/tools/game_mcp/.test_tmp/
+
+# Per-machine Python environments and disposable analysis caches.
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated MSBuild tracking and CMake configuration (not exported dependency configs).
+*.tlog/
+*.tlog
+*.lastbuildstate
+CMakeFiles/
+CMakeCache.txt
+
+# Required vendored x64 dependencies: exceptions to Debug/Release/x64/Bin rules.
+!/third_party/DirectXTK/lib/x64/
+/third_party/DirectXTK/lib/x64/*
+!/third_party/DirectXTK/lib/x64/Debug/
+!/third_party/DirectXTK/lib/x64/Release/
+/third_party/DirectXTK/lib/x64/Debug/*
+/third_party/DirectXTK/lib/x64/Release/*
+!/third_party/DirectXTK/lib/x64/Debug/DirectXTK.lib
+!/third_party/DirectXTK/lib/x64/Release/DirectXTK.lib
+!/third_party/assimp/bin/
+/third_party/assimp/bin/*
+!/third_party/assimp/bin/assimp-vc143-mt.dll
+!/third_party/assimp/bin/assimp-vc143-mtd.dll
+
+# Wavefront OBJ models are source assets, not compiler object files.
+!/DX22_01_plane/assets/model/**/*.obj
