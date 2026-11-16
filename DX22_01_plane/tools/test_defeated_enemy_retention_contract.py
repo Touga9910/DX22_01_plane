@@ -99,7 +99,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         shot_start = source("GameShotStart.cpp")
         game = source("Game.cpp")
 
-        self.assertIn("++m_PhaseDefeatedEnemyCount;", controller)
+        self.assertIn("++m_DefeatedEnemyCount;", controller)
         self.assertIn(
             "m_BattleState->controller.NotifyEnemyDefeated();",
             game_damage,
@@ -112,10 +112,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
             game.count("controller.GetDefeatedEnemyCount()"),
             6,
         )
-        self.assertIn(
-            "return CountDefeatedEnemies(m_World->GetComponents<EnemyBall>());",
-            controller,
-        )
+        self.assertIn("return m_DefeatedEnemyCount;", controller)
 
 
 if __name__ == "__main__":

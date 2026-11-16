@@ -201,12 +201,9 @@ private:
 		const std::string& filePath =
 			"assets/data/pocket_rules.json");
 
-	// ===== ポケット後のボール復帰 =====
-	// ポケットに落ちた敵・プレイヤーを安全な位置へ順番に戻す。
-	void RestoreNextPocketedEnemy();
+	// ===== ポケット後のプレイヤーボール復帰 =====
+	// ポケットに落ちたプレイヤーを安全な位置へ戻す。
 	void RestorePocketedPlayer();
-	DirectX::SimpleMath::Vector3 FindEnemyPocketReturnPosition(
-		const EnemyBall* returningEnemy) const;
 
 	// ===== 自動プレイの報酬選択 =====
 	// 次のステージ種別を判定し、自動検証でのボール報酬・強化選択と保留候補を整理
@@ -522,13 +519,11 @@ public:
 	void InvalidateDebugCombatForecast(const char* reason);
 
 	// ===== ポケット判定と復帰位置 =====
-	// 敵・プレイヤーの落下処理、フィニッシャー条件、復帰順と復帰位置、落下ダメージを決定
+	// 敵の即撃破、プレイヤーの復帰位置と落下ダメージを決定
 	void HandleEnemyPocket(EnemyBall* enemy);
 	DirectX::SimpleMath::Vector3 FindPlayerPocketReturnPosition(
 		const PlayerBall* player);
-	float GetCurrentPocketFinisherRatio() const;
 	bool IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const;
-	int GetPocketQueueIndex(const EnemyBall* enemy) const;
 	int GetPlayerPocketDamageAmount() const;
 
 	// ===== 難易度補正とバランス検証 =====

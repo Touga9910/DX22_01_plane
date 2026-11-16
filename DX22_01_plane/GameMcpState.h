@@ -42,15 +42,10 @@ struct GameMcpReadSnapshot
 	struct PocketRules
 	{
 		float playerDamageRatio = 0.0f;
+		bool enemyInstantDefeat = true;
 		float playerReturnHalfWidth = 0.0f;
 		float playerReturnHalfDepth = 0.0f;
-		float enemyReturnX = 0.0f;
-		float enemyReturnTopEdgeOffset = 0.0f;
-		float normalFinisherRatio = 0.0f;
-		float midBossFinisherRatio = 0.0f;
-		float bossFinisherRatio = 0.0f;
 		StageType stageType = StageType::Normal;
-		std::size_t returnQueueSize = 0;
 	} pocketRules{};
 
 	struct ProgressionScaling

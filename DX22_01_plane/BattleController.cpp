@@ -1,5 +1,6 @@
 ﻿#include "BattleController.h"
 
+#include "BattleFlowRules.h"
 #include "BallPhysicsComponent.h"
 #include "BreakBall.h"
 #include "EnemyAttackComponent.h"
@@ -35,16 +36,17 @@ void BattleController::BeginStage(const StageData& stage)
     m_StageType = stage.stageType;
     m_CombatMode = stage.combatMode;
     m_PhaseBattle = stage.phaseBattle;
-    m_TotalPhases = IsPhasePrototype()
-        ? static_cast<int>(m_PhaseBattle.phases.size())
-        : 0;
-    m_CurrentPhase = IsPhasePrototype() && m_TotalPhases > 0 ? 1 : 0;
-    m_TurnsUntilNextPhase = IsPhasePrototype() && m_TotalPhases > 1
-        ? m_PhaseBattle.turnsPerPhase
-        : 0;
-    m_PhaseDefeatedEnemyCount = 0;
+    const BattleFlowRules::PhaseStartState phaseStart =
+        BattleFlowRules::BeginPhaseBattle(
+            IsPhasePrototype(),
+            static_cast<int>(m_PhaseBattle.phases.size()),
+            m_PhaseBattle.turnsPerPhase);
+    m_TotalPhases = phaseStart.totalPhases;
+    m_CurrentPhase = phaseStart.currentPhase;
+    m_TurnsUntilNextPhase = phaseStart.turnsUntilNextPhase;
+    m_DefeatedEnemyCount = 0;
+    m_PocketDefeatedEnemyCount = 0;
     m_BountyRewardClaimed = false;
-    m_PocketedEnemyQueue.clear();
     m_EnemyActionPlanner.Reset();
     if (m_World != nullptr)
     {
@@ -54,37 +56,6 @@ void BattleController::BeginStage(const StageData& stage)
         }
     }
     if (!IsPhasePrototype()) PlanNextTurn();
-}
-
-void BattleController::QueuePocketedEnemy(EnemyBall* enemy)
-{
-    if (enemy != nullptr)
-    {
-        m_PocketedEnemyQueue.push_back(enemy);
-    }
-}
-
-EnemyBall* BattleController::PopPocketedEnemy()
-{
-    if (m_PocketedEnemyQueue.empty())
-    {
-        return nullptr;
-    }
-    EnemyBall* enemy = m_PocketedEnemyQueue.front();
-    m_PocketedEnemyQueue.pop_front();
-    return enemy;
-}
-
-int BattleController::GetPocketQueueIndex(const EnemyBall* enemy) const
-{
-    for (std::size_t index = 0; index < m_PocketedEnemyQueue.size(); ++index)
-    {
-        if (m_PocketedEnemyQueue[index] == enemy)
-        {
-            return static_cast<int>(index);
-        }
-    }
-    return -1;
 }
 
 const char* ToString(BattleState state)
@@ -207,15 +178,18 @@ void BattleController::Reset()
     m_CurrentPhase = 0;
     m_TotalPhases = 0;
     m_TurnsUntilNextPhase = 0;
-    m_PhaseDefeatedEnemyCount = 0;
+    m_DefeatedEnemyCount = 0;
+    m_PocketDefeatedEnemyCount = 0;
 }
 
 void BattleController::NotifyEnemyDefeated()
 {
-    if (IsPhasePrototype())
-    {
-        ++m_PhaseDefeatedEnemyCount;
-    }
+    ++m_DefeatedEnemyCount;
+}
+
+void BattleController::NotifyEnemyPocketDefeated()
+{
+    ++m_PocketDefeatedEnemyCount;
 }
 
 void BattleController::Update()
@@ -235,7 +209,8 @@ void BattleController::Update()
     switch (m_State)
     {
     case BattleState::BallsMoving:
-        if (m_AllBallsStoppedTickCount >= kRequiredStoppedTicks)
+        if (BattleFlowRules::HasConfirmedStop(
+                m_AllBallsStoppedTickCount))
         {
             CompleteShot();
         }
@@ -291,8 +266,8 @@ bool BattleController::OnFixedStepCompleted()
         m_AllBallsStoppedTickCount = 0;
     }
 
-    return m_AllBallsStoppedTickCount >=
-           kRequiredStoppedTicks;
+    return BattleFlowRules::HasConfirmedStop(
+        m_AllBallsStoppedTickCount);
 }
 
 void BattleController::BeginAimingDirection()
@@ -404,15 +379,13 @@ bool BattleController::AreAllEnemiesDefeated() const
 
     if (IsPhasePrototype())
     {
-        if (m_TotalPhases <= 0 || m_CurrentPhase < m_TotalPhases)
-        {
-            return false;
-        }
-        return std::none_of(
-            enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
-            {
-                return enemy != nullptr && enemy->CanParticipateInCombat();
-            });
+        return IsPhaseVictoryForLivingCount(
+            static_cast<int>(std::count_if(
+                enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
+                {
+                    return enemy != nullptr &&
+                        enemy->CanParticipateInCombat();
+                })));
     }
 
     // 敵が存在しないロード途中を勝利扱いにしない。
@@ -698,11 +671,6 @@ void BattleController::ProcessEnemyAttack()
         return;
     }
 
-    if (m_Hooks.restoreNextPocketedEnemy)
-    {
-        m_Hooks.restoreNextPocketedEnemy();
-    }
-
     SetState(BattleState::TurnEnd, "enemy_attack_completed");
 }
 
@@ -802,12 +770,18 @@ void BattleController::RemoveDefeatedPhaseEnemies()
 
 bool BattleController::TryAdvancePhase()
 {
-    if (!IsPhasePrototype() || m_CurrentPhase >= m_TotalPhases)
-    {
-        return false;
-    }
-    const bool noLivingEnemies = GetLivingEnemyCount() == 0;
-    if (!noLivingEnemies && m_TurnsUntilNextPhase > 0)
+    return TryAdvancePhase(GetLivingEnemyCount());
+}
+
+bool BattleController::TryAdvancePhase(int livingEnemyCount)
+{
+    const bool noLivingEnemies = livingEnemyCount <= 0;
+    if (!BattleFlowRules::CanAdvancePhase(
+            IsPhasePrototype(),
+            m_CurrentPhase,
+            m_TotalPhases,
+            noLivingEnemies,
+            m_TurnsUntilNextPhase))
     {
         return false;
     }
@@ -833,6 +807,16 @@ bool BattleController::TryAdvancePhase()
     return true;
 }
 
+bool BattleController::IsPhaseVictoryForLivingCount(
+    int livingEnemyCount) const
+{
+    return BattleFlowRules::IsPhaseVictory(
+        IsPhasePrototype(),
+        m_CurrentPhase,
+        m_TotalPhases,
+        livingEnemyCount);
+}
+
 int BattleController::GetLivingEnemyCount() const
 {
     if (m_World == nullptr) return 0;
@@ -848,15 +832,7 @@ int BattleController::GetLivingEnemyCount() const
 
 int BattleController::GetDefeatedEnemyCount() const
 {
-    if (IsPhasePrototype())
-    {
-        return m_PhaseDefeatedEnemyCount;
-    }
-    if (m_World == nullptr)
-    {
-        return 0;
-    }
-    return CountDefeatedEnemies(m_World->GetComponents<EnemyBall>());
+    return m_DefeatedEnemyCount;
 }
 
 int BattleController::GetNextPhaseEnemyCount() const
@@ -960,10 +936,11 @@ void BattleController::ResolveChargeInterruptions()
 bool BattleController::TryRecoverClearedBattle(
     const char* source)
 {
-    if (!m_Active ||
-        IsFinished() ||
-        m_State == BattleState::BallsMoving ||
-        !AreAllEnemiesDefeated())
+    if (!BattleFlowRules::CanRecoverClearedBattle(
+            m_Active,
+            IsFinished(),
+            m_State,
+            AreAllEnemiesDefeated()))
     {
         return false;
     }

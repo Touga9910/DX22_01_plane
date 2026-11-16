@@ -28,6 +28,9 @@ using nlohmann::json;
 namespace
 {
 	constexpr int kSchemaVersion = 1;
+	constexpr int kBallCatalogVersion = 2;
+	constexpr int kRemovedTraceDriverCatalogIndex = 9;
+	constexpr int kMinionFinisherCatalogIndex = 14;
 	const std::filesystem::path kSavePath =
 		std::filesystem::path("saves") / "run_save.json";
 
@@ -124,6 +127,15 @@ namespace
 			result.push_back(BallFromJson(value));
 		}
 		return result;
+	}
+
+	int MigrateLegacyCatalogIndex(int index)
+	{
+		if (index == kRemovedTraceDriverCatalogIndex)
+		{
+			return kMinionFinisherCatalogIndex;
+		}
+		return index > kRemovedTraceDriverCatalogIndex ? index - 1 : index;
 	}
 
 	json ReadAndValidateDocument()
@@ -249,6 +261,7 @@ bool GameSaveManager::Save(
 		const PlayerDeckSnapshot& deck = snapshot.deck;
 		const StageSelectorSnapshot& stageSelector = snapshot.stageSelector;
 		const json payload = {
+			{ "ball_catalog_version", kBallCatalogVersion },
 			{ "run_map", snapshot.progress.map.Save() },
 			{ "saved_at_utc", MakeUtcTimestamp() },
 			{ "resume_scene", SceneToId(resumeScene) },
@@ -371,6 +384,8 @@ bool GameSaveManager::Load(
 	try
 	{
 		const json payload = ReadAndValidateDocument();
+		const bool legacyBallCatalog =
+			payload.value("ball_catalog_version", 1) < kBallCatalogVersion;
 		SceneType resumeScene =
 			SceneFromId(payload.at("resume_scene").get<std::string>());
 		const json& run = payload.at("run");
@@ -424,10 +439,14 @@ bool GameSaveManager::Load(
 				}
 				for (const json& value : acquired)
 				{
-					const std::string ballId = value.get<std::string>();
+					std::string ballId = value.get<std::string>();
 					if (ballId.empty() || ballId.size() > 128)
 					{
 						throw std::runtime_error(UiText::InvalidSaveData);
+					}
+					if (ballId == "player_trace_driver")
+					{
+						ballId = "player_minion_finisher";
 					}
 					restoredStatistics.acquiredBallIds.push_back(ballId);
 				}
@@ -439,15 +458,18 @@ bool GameSaveManager::Load(
 				{
 					throw std::runtime_error(UiText::InvalidSaveData);
 				}
-				for (const auto& [ballId, count] : usage.items())
+				for (const auto& [savedBallId, count] : usage.items())
 				{
 					const int shotCount = count.get<int>();
-					if (ballId.empty() || ballId.size() > 128 ||
+					if (savedBallId.empty() || savedBallId.size() > 128 ||
 						shotCount < 0 || shotCount > 100000000)
 					{
 						throw std::runtime_error(UiText::InvalidSaveData);
 					}
-					restoredStatistics.ballShotCounts[ballId] = shotCount;
+					const std::string ballId = savedBallId == "player_trace_driver"
+						? "player_minion_finisher"
+						: savedBallId;
+					restoredStatistics.ballShotCounts[ballId] += shotCount;
 				}
 			}
 			if (restoredStatistics.reachedFloor < 1 ||
@@ -579,6 +601,13 @@ bool GameSaveManager::Load(
 			const json& sceneState = payload.at("scene_state");
 			shopBallOffers = sceneState.value(
 				"shop_ball_offers", std::vector<int>{});
+			if (legacyBallCatalog)
+			{
+				for (int& ballIndex : shopBallOffers)
+				{
+					ballIndex = MigrateLegacyCatalogIndex(ballIndex);
+				}
+			}
 			for (int ballIndex : shopBallOffers)
 			{
 				if (ballIndex < 0 || ballIndex >= rules.ballCatalogCount)

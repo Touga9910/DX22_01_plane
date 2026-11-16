@@ -19,13 +19,9 @@ class EnemyBall;
 struct BattlePocketRules
 {
     float playerDamageRatio = 0.04f;
-    float normalFinisherRatio = 0.30f;
-    float midBossFinisherRatio = 0.20f;
-    float bossFinisherRatio = 0.10f;
+    bool enemyInstantDefeat = true;
     float playerReturnHalfWidth = 12.0f;
     float playerReturnHalfDepth = 8.0f;
-    float enemyReturnX = 0.0f;
-    float enemyReturnTopEdgeOffset = 10.0f;
 };
 
 // BattleController自身が所有しないGame側処理だけを受け取る。
@@ -49,7 +45,6 @@ struct BattleControllerHooks
         int hpBefore,
         int hpAfter)> notifyPlayerDamage;
     std::function<void(PlayerBall*)> capturePlayerStatus;
-    std::function<void()> restoreNextPocketedEnemy;
     std::function<void(
         const std::vector<EnemySpawnData>&, int, unsigned int, int)>
         spawnPhaseEnemies;
@@ -98,6 +93,7 @@ public:
     void NotifyPlayerDefeated();
     // EnemyBallの一度限りのDefeat通知を、削除後も残る戦闘集計へ反映。
     void NotifyEnemyDefeated();
+    void NotifyEnemyPocketDefeated();
 
     BattleState GetState() const
     {
@@ -161,15 +157,14 @@ public:
     int GetNextPhaseEnemyCount() const;
     int GetLivingEnemyCount() const;
     int GetDefeatedEnemyCount() const;
+    int GetPocketDefeatedEnemyCount() const
+    {
+        return m_PocketDefeatedEnemyCount;
+    }
     BattlePocketRules& PocketRules() { return m_PocketRules; }
     const BattlePocketRules& PocketRules() const { return m_PocketRules; }
     std::mt19937& PocketRandomEngine() { return m_PocketRandomEngine; }
     const std::mt19937& PocketRandomEngine() const { return m_PocketRandomEngine; }
-    void QueuePocketedEnemy(EnemyBall* enemy);
-    EnemyBall* PopPocketedEnemy();
-    int GetPocketQueueIndex(const EnemyBall* enemy) const;
-    std::size_t GetPocketQueueSize() const { return m_PocketedEnemyQueue.size(); }
-    void ClearPocketQueue() { m_PocketedEnemyQueue.clear(); }
     const EnemyActionConfig& GetEnemyActionConfig() const
     {
         return m_EnemyActionPlanner.Config();
@@ -177,8 +172,6 @@ public:
 	void SetEnemyActionMaximumBudget(int maximumBudget);
 
 private:
-    static constexpr int kRequiredStoppedTicks = 11;
-
     GameWorld* m_World = nullptr;
     BattleControllerHooks m_Hooks{};
 
@@ -199,14 +192,16 @@ private:
     int m_CurrentPhase = 0;
     int m_TotalPhases = 0;
     int m_TurnsUntilNextPhase = 0;
-    int m_PhaseDefeatedEnemyCount = 0;
+    int m_DefeatedEnemyCount = 0;
+    int m_PocketDefeatedEnemyCount = 0;
     BattlePocketRules m_PocketRules{};
     std::mt19937 m_PocketRandomEngine{ std::random_device{}() };
-    std::deque<EnemyBall*> m_PocketedEnemyQueue;
     EnemyActionPlanner m_EnemyActionPlanner;
 	EnemyActionConfig m_DefaultEnemyActionConfig{};
 
 private:
+    friend class BattleControllerTestAccess;
+
     void CompleteShot();
     void ProcessEnemyAttack();
     void ProcessTurnEnd();
@@ -214,6 +209,8 @@ private:
     void PlanPhaseTurn();
     void RemoveDefeatedPhaseEnemies();
     bool TryAdvancePhase();
+    bool TryAdvancePhase(int livingEnemyCount);
+    bool IsPhaseVictoryForLivingCount(int livingEnemyCount) const;
     void ResolveChargeInterruptions();
 
     void SetState(BattleState state, const char* reason);

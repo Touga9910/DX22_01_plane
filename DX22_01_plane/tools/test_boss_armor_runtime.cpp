@@ -1,5 +1,6 @@
 #include "../BossCombatRules.h"
 #include "../ContinuousBallStepper.h"
+#include "../TableGeometry.h"
 #include <cassert>
 #include <iostream>
 #include <crtdbg.h>

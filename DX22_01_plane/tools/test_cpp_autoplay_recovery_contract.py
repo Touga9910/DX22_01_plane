@@ -34,8 +34,9 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
         battle = source("BattleController.cpp")
         player = source("PlayerBall.cpp")
 
-        self.assertIn("kRequiredStoppedTicks = 11", source("BattleController.h"))
-        self.assertIn("m_AllBallsStoppedTickCount >= kRequiredStoppedTicks", battle)
+        flow_rules = source("BattleFlowRules.h")
+        self.assertIn("RequiredStoppedTicks = 11", flow_rules)
+        self.assertIn("BattleFlowRules::HasConfirmedStop", battle)
         self.assertIn("physics->Velocity() =", battle)
         self.assertIn("physics->Acceleration() =", battle)
         self.assertIn("BallPhysicsRules::PlayerFriction", player)

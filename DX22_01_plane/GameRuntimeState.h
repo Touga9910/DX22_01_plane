@@ -76,17 +76,24 @@ struct FrameTimingSnapshot final
 struct AimingPerformanceSnapshot final
 {
 	bool active = false;
+	bool complete = false;
+	std::uint64_t sequence = 0;
 	int sampleCount = 0;
 	double durationSeconds = 0.0;
 	double averageFrameMilliseconds = 0.0;
 	double maximumFrameMilliseconds = 0.0;
 	double p95FrameMilliseconds = 0.0;
+	double p99FrameMilliseconds = 0.0;
 	double averageFps = 0.0;
 	double averageUpdateMilliseconds = 0.0;
 	TimingAggregate previewPrediction;
 	TimingAggregate previewWorldKey;
 	std::uint64_t previewCacheReuseFrames = 0;
+	std::uint64_t previewRefreshes = 0;
+	std::uint64_t maximumPowerPreviewCacheHits = 0;
 	std::uint64_t previewBallCopies = 0;
+	std::uint64_t physicsFixedTickCount = 0;
+	std::uint64_t ccdLimitReachedCount = 0;
 };
 
 // Game's mutable loop infrastructure. Game keeps orchestration decisions while
@@ -133,6 +140,8 @@ public:
 		std::size_t copiedBalls);
 	void RecordTrajectoryPreviewWorldKey(double milliseconds);
 	void RecordTrajectoryPreviewCacheReuse();
+	void RecordTrajectoryPreviewRefresh();
+	void RecordMaximumPowerPreviewCacheReuse();
 	AimingPerformanceSnapshot CaptureAimingPerformance() const;
 	void RecordFrameTiming(
 		double frameMilliseconds,
@@ -190,9 +199,14 @@ private:
 	std::size_t m_AimingTimingWriteIndex = 0;
 	std::size_t m_AimingTimingSampleCount = 0;
 	bool m_AimingTimingActive = false;
+	std::uint64_t m_AimingTimingSequence = 0;
+	std::uint64_t m_AimingPhysicsTickStart = 0;
+	std::uint64_t m_AimingCcdLimitStart = 0;
 	double m_AimingElapsedMilliseconds = 0.0;
 	TimingAggregate m_AimingPreviewPrediction{};
 	TimingAggregate m_AimingPreviewWorldKey{};
 	std::uint64_t m_AimingPreviewCacheReuseFrames = 0;
+	std::uint64_t m_AimingPreviewRefreshes = 0;
+	std::uint64_t m_AimingMaximumPowerPreviewCacheHits = 0;
 	std::uint64_t m_AimingPreviewBallCopies = 0;
 };

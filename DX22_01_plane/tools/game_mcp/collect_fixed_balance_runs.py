@@ -45,7 +45,6 @@ BUILD_TARGET_BALLS = {
     ),
     "pierce": (
         "player_pierce",
-        "player_trace_driver",
         "player_pierce_finisher",
         "player_refractive_pierce",
         "player_minion_finisher",
@@ -68,7 +67,7 @@ BUILD_CORE_BALLS = {
     "heavy": ("player_heavy", "player_chain_impact"),
     "pierce": (
         "player_pierce",
-        "player_trace_driver",
+		"player_minion_finisher",
         "player_pierce_finisher",
     ),
     "bounce": (
@@ -123,7 +122,6 @@ BALL_ABILITY_EVENTS = {
     "player_lightweight": ("heavy_micro_stack_generated",),
     "player_pierce": ("pierce_trace_generated",),
     "player_refractive_pierce": ("pierce_trace_generated",),
-    "player_trace_driver": ("pierce_minions_launched",),
     "player_pierce_finisher": ("pierce_finisher_hit",),
     "player_minion_finisher": ("pierce_minions_launched",),
     "player_cushion_charge": ("cushion_stacks_generated",),

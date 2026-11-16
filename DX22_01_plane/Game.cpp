@@ -6,6 +6,7 @@
 #include "GameObject.h"
 #include "GameRuntime.h"
 #include "GameRuntimeState.h"
+#include "LocalPerformanceLogger.h"
 #include "GameWorld.h"
 #include "GameSettingsRuntime.h"
 #include "GamePersistenceRuntime.h"
@@ -60,7 +61,6 @@
 #include "StageDataLoader.h"
 #include "EnemyData.h"
 #include "TableConfig.h"
-#include "PocketReturnRules.h"
 #include "UiText.h"
 
 #include "imgui/imgui.h"
@@ -135,6 +135,26 @@ void GameRuntime::RecordFrameTiming(
 		updateMilliseconds,
 		state == BattleState::AimingDirection ||
 		state == BattleState::AimingPower);
+	if (game.IsFrameTimeMeasurementEnabled())
+	{
+		const AimingPerformanceSnapshot snapshot =
+			game.m_RuntimeState->CaptureAimingPerformance();
+		if (LocalPerformanceLogger::IsAimingSnapshotPending(snapshot))
+		{
+			const auto enemies =
+				GameRuntime::World().GetComponents<EnemyBall>();
+			const int livingEnemyCount = static_cast<int>(std::count_if(
+				enemies.begin(), enemies.end(),
+				[](const EnemyBall* enemy)
+				{
+					return enemy != nullptr && !enemy->IsDefeated();
+				}));
+			LocalPerformanceLogger::TryWriteAimingSnapshot(
+				snapshot,
+				livingEnemyCount,
+				game.m_RunController->Status().GetSelectedStageId());
+		}
+	}
 	if (!game.IsFrameTimeMeasurementEnabled() ||
 		!game.m_RuntimeState->IsFrameTimingMeasurementActive())
 	{
@@ -167,6 +187,16 @@ void GameRuntime::RecordTrajectoryPreviewWorldKey(double milliseconds)
 void GameRuntime::RecordTrajectoryPreviewCacheReuse()
 {
 	CurrentGame().m_RuntimeState->RecordTrajectoryPreviewCacheReuse();
+}
+
+void GameRuntime::RecordTrajectoryPreviewRefresh()
+{
+	CurrentGame().m_RuntimeState->RecordTrajectoryPreviewRefresh();
+}
+
+void GameRuntime::RecordMaximumPowerPreviewCacheReuse()
+{
+	CurrentGame().m_RuntimeState->RecordMaximumPowerPreviewCacheReuse();
 }
 
 bool GameRuntime::IsFrameTimingMeasurementActive()
@@ -984,16 +1014,14 @@ namespace
 				id == "player_pierce_finisher" || id == "player_minion_finisher")
 				term("貫通", "敵に当たっても通常衝突のように押し返さず、球が通り抜けます。貫通回数と貫通後の速度維持率に制限があります。");
 			if (id == "player_pierce" || id == "player_refractive_pierce" ||
-				id == "player_trace_driver" || id == "player_minion_finisher")
+				id == "player_minion_finisher")
 				term("貫通痕", "貫通した位置と方向を記録した軌跡です。最大3本保持し、ミニオンを発射する位置・方向として使います。");
 			if (id == "player_refractive_pierce")
 				term("屈折", "貫通後に、本来の衝突なら敵が飛んでいく方向へ、自球の進行方向を変化させる効果です。");
 			if (id == "player_pierce_finisher")
 				term("貫通決着", "そのショットで異なる敵を貫通した数に応じ、以降の命中時の追加ダメージを増加させます。");
-			if (id == "player_trace_driver" || id == "player_minion_finisher")
+			if (id == "player_minion_finisher")
 				term("ミニオン", "過去の貫通痕からショット開始時に発射する攻撃球。1体につき基本3スタックまで攻撃力・ノックバックが強化されます。");
-			if (id == "player_trace_driver")
-				term("消費上限", "強化段階で3／6／9と増加。貫通痕が足りない場合、その本数で使えるスタックだけを消費し、残りを温存します。");
 			if (id == "player_minion_finisher")
 				term("過充填", "10～15スタック消費でミニオンをさらに強化します。実際に存在する貫通痕の本数に応じて、効果がない余分な消費は防止します。");
 
@@ -1028,16 +1056,17 @@ namespace
 			ImGui::Text("質量：%.1f", status.mass);
 			if (id == "player_chain_impact")
 				ImGui::Text("衝撃波範囲：%.0f", status.chainImpactRadius);
-			if (id == "player_trace_driver")
-				ImGui::Text("消費上限：%d", status.pierceStackConsumeLimit);
 			if (id == "player_minion_finisher")
 				ImGui::TextUnformatted("消費上限：15（貫通痕に応じ制限）");
 			if (id == "player_collision_boost")
 				ImGui::Text("衝突倍率：x%.2f", status.heavyEnemyCollisionMultiplier);
 			if (id == "player_ricochet_finisher")
-				ImGui::Text("ダメージ段階：%d衝突ごと", status.pinballCollisionsPerStage);
+				ImGui::Text("ダメージ段階：%d衝突ごと / 速度維持：%d%%",
+					status.pinballCollisionsPerStage,
+					static_cast<int>(std::lround(status.pinballSpeedRetention * 100.0f)));
 			if (id == "player_stop_shield")
-				ImGui::Text("シールド上限：%d", status.stopShieldAmount);
+				ImGui::Text("錨1個：%d / シールド上限：%d",
+					status.stopShieldPerStack, status.stopShieldCapacity);
 			ImGui::Spacing();
 			ImGui::Separator();
 			ImGui::TextUnformatted("次回強化");
@@ -2967,34 +2996,11 @@ bool Game::AreAllEnemiesDefeated() const
 	return m_BattleState->controller.AreAllEnemiesDefeated();
 }
 
-// Current Pocket Finisher Ratioを取得
-float Game::GetCurrentPocketFinisherRatio() const
-{
-	switch (m_BattleState->controller.GetStageType())
-	{
-	case StageType::MidBoss:
-		return m_BattleState->controller.PocketRules().midBossFinisherRatio;
-	case StageType::Boss:
-		return m_BattleState->controller.PocketRules().bossFinisherRatio;
-	case StageType::Normal:
-	default:
-		return m_BattleState->controller.PocketRules().normalFinisherRatio;
-	}
-}
-
 // Enemy Pocket Finisher Eligibleかどうかを判定
 bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 {
-    if (enemy && enemy->IsArmorBoss()) return false;
-	if (enemy == nullptr || enemy->IsDefeated() || enemy->IsPocketed() ||
-		enemy->GetMaxHP() <= 0)
-	{
-		return false;
-	}
-	const int pocketDamage = BallMechanics::PocketDamage(enemy->GetMaxHP(), enemy->GetPocketDamageRatio());
-	const float hpRatio = static_cast<float>((std::max)(0, enemy->GetHP() - pocketDamage)) /
-		static_cast<float>(enemy->GetMaxHP());
-	return hpRatio <= GetCurrentPocketFinisherRatio() + 0.0001f;
+	return enemy != nullptr && !enemy->IsDefeated() &&
+		!enemy->IsPocketed();
 }
 
 // Player Pocket Damage Amountを取得
@@ -3008,91 +3014,42 @@ int Game::GetPlayerPocketDamageAmount() const
 // Enemy Pocketを処理
 void Game::HandleEnemyPocket(EnemyBall* enemy)
 {
-    if (enemy && enemy->IsArmorBoss()) return;
 	if (enemy == nullptr || enemy->IsPocketed())
 	{
 		return;
 	}
-	if (m_BattleState->controller.IsPhasePrototype())
-	{
-		const int hpBefore = enemy->GetHP();
-		const Vector3 pocketPosition = enemy->GetPosition();
-		enemy->Defeat();
-		enemy->RemoveFromFieldAfterPocket();
-		NotifyPocketFeedback(
-			pocketPosition, false, true, hpBefore, enemy);
-		m_RuntimeState->World().RequestDestroy(enemy->GetGameObject());
-		RecordBalanceEvent("enemy_phase_pocket_defeat", {
-			{ "enemy_id", enemy->GetEnemyId() },
-			{ "hp_before", hpBefore },
-			{ "combat_mode", "phase_prototype" },
-		});
-		return;
-	}
-	const bool wasAlreadyDefeated = enemy->IsDefeated();
+	const bool newlyDefeated = !enemy->IsDefeated();
 	const int hpBefore = enemy->GetHP();
-	const int maxHp = (std::max)(1, enemy->GetMaxHP());
-	const int pocketDamage = enemy->ApplyPocketDamage();
-	const float hpRatio = static_cast<float>(enemy->GetHP()) /
-		static_cast<float>(maxHp);
-	if (pocketDamage > 0)
-	{
-		RecordBalanceEvent("enemy_pocket_damage", {
-			{ "enemy_id", enemy->GetEnemyId() }, { "damage", pocketDamage },
-			{ "hp_before", hpBefore }, { "hp_after", enemy->GetHP() },
-		});
-	}
-	const float finisherRatio = GetCurrentPocketFinisherRatio();
+	const int maxHp = enemy->GetMaxHP();
 	const Vector3 pocketPosition = enemy->GetPosition();
-	if (wasAlreadyDefeated || enemy->IsDefeated() || hpRatio <= finisherRatio + 0.0001f)
+	if (newlyDefeated)
 	{
-		NotifyPocketFeedback(
-			pocketPosition,
-			false,
-			true,
-			hpBefore,
-			enemy);
 		enemy->Defeat();
-		enemy->RemoveFromFieldAfterPocket();
-		RecordBalanceEvent(
-			"enemy_pocket_finisher",
-			{
-				{ "enemy_id", enemy->GetEnemyId() },
-				{ "stage_type", ToString(m_BattleState->controller.GetStageType()) },
-				{ "hp_before", hpBefore },
-				{ "max_hp", maxHp },
-				{ "hp_ratio", hpRatio },
-				{ "finisher_ratio", finisherRatio },
-				{ "already_defeated", wasAlreadyDefeated },
-			});
-		return;
+		m_BattleState->controller.NotifyEnemyPocketDefeated();
 	}
-
-	enemy->EnterPocketQueue(pocketPosition);
 	NotifyPocketFeedback(
 		pocketPosition,
 		false,
-		false,
-		pocketDamage,
+		true,
+		hpBefore,
 		enemy);
-	m_BattleState->controller.QueuePocketedEnemy(enemy);
+	enemy->RemoveFromFieldAfterPocket();
 	RecordBalanceEvent(
-		"enemy_pocket_controlled",
+		"enemy_pocket_defeat",
 		{
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "stage_type", ToString(m_BattleState->controller.GetStageType()) },
-			{ "hp", enemy->GetHP() },
+			{ "combat_mode", ToString(
+				m_BattleState->controller.GetCombatMode()) },
+			{ "hp_before", hpBefore },
 			{ "max_hp", maxHp },
-			{ "hp_ratio", hpRatio },
-			{ "finisher_ratio", finisherRatio },
-			{ "queue_size", m_BattleState->controller.GetPocketQueueSize() },
+			{ "newly_defeated", newlyDefeated },
+			{ "cumulative_defeated_count",
+				m_BattleState->controller.GetDefeatedEnemyCount() },
+			{ "pocket_defeated_count",
+				m_BattleState->controller.GetPocketDefeatedEnemyCount() },
 		});
-}
-
-// Pocket Queue Indexを取得
-int Game::GetPocketQueueIndex(const EnemyBall* enemy) const
-{
-	return m_BattleState->controller.GetPocketQueueIndex(enemy);
+	m_RuntimeState->World().RequestDestroy(enemy->GetGameObject());
 }
 
 // Player Pocket Return Positionを検索
@@ -3162,108 +3119,6 @@ void Game::RestorePocketedPlayer()
 				{ "position_x", returnPosition.x },
 				{ "position_z", returnPosition.z },
 			});
-	}
-}
-
-// Enemy Pocket Return Positionを検索
-Vector3 Game::FindEnemyPocketReturnPosition(
-	const EnemyBall* returningEnemy) const
-{
-	const float radius = returningEnemy != nullptr
-		? returningEnemy->GetRadius()
-		: 2.4f;
-	const Vector3 pocketEntryPosition = returningEnemy != nullptr
-		? returningEnemy->GetPocketEntryPosition()
-		: Vector3(0.0f, TableConfig::FIELD_HEIGHT,
-			TableConfig::GetFieldDepth() * 0.5f);
-	const float inwardDistance = (std::max)(
-		m_BattleState->controller.PocketRules().enemyReturnTopEdgeOffset,
-		TableConfig::POCKET_RADIUS + radius + 0.5f);
-	const Vector3 basePosition = PocketReturnRules::ReturnAnchor(
-		pocketEntryPosition,
-		inwardDistance);
-	const Vector3 inward = PocketReturnRules::InwardDirection(
-		pocketEntryPosition);
-	const Vector3 tangent(-inward.z, 0.0f, inward.x);
-	const float spacing = radius * 2.0f + 1.0f;
-	const std::array<int, 9> offsets{ 0, -1, 1, -2, 2, -3, 3, -4, 4 };
-	const float horizontalLimit =
-		TableConfig::GetFieldWidth() * 0.5f - radius - 0.5f;
-	const float verticalLimit =
-		TableConfig::GetFieldDepth() * 0.5f - radius - 0.5f;
-	for (int depthStep = 0; depthStep < 5; ++depthStep)
-	{
-		for (int offset : offsets)
-		{
-			const float depthOffset = static_cast<float>(depthStep) * spacing;
-			const float lateralOffset = static_cast<float>(offset) * spacing;
-			const Vector3 candidate(
-				basePosition.x + inward.x * depthOffset + tangent.x * lateralOffset,
-				TableConfig::FIELD_HEIGHT,
-				basePosition.z + inward.z * depthOffset + tangent.z * lateralOffset);
-			if (std::abs(candidate.x) > horizontalLimit ||
-				std::abs(candidate.z) > verticalLimit)
-			{
-				continue;
-			}
-			bool blocked = false;
-			for (BallComponent* ball :
-				GameRuntime::World().GetComponents<BallComponent>())
-			{
-				if (ball == nullptr || ball->GetGameObject() == nullptr ||
-					!ball->GetGameObject()->IsActive() ||
-					(returningEnemy != nullptr &&
-						ball == returningEnemy->GetBall()))
-				{
-					continue;
-				}
-				Vector3 difference = candidate - ball->GetPosition();
-				difference.y = 0.0f;
-				const float clearance = radius + ball->GetRadius() + 0.5f;
-				if (difference.LengthSquared() < clearance * clearance)
-				{
-					blocked = true;
-					break;
-				}
-			}
-			if (!blocked)
-			{
-				return candidate;
-			}
-		}
-	}
-	return Vector3(
-		std::clamp(basePosition.x, -horizontalLimit, horizontalLimit),
-		TableConfig::FIELD_HEIGHT,
-		std::clamp(basePosition.z, -verticalLimit, verticalLimit));
-}
-
-// Next Pocketed Enemyを復元
-void Game::RestoreNextPocketedEnemy()
-{
-	while (m_BattleState->controller.GetPocketQueueSize() > 0)
-	{
-		EnemyBall* enemy = m_BattleState->controller.PopPocketedEnemy();
-		if (enemy == nullptr || !ContainsComponent(enemy) ||
-			enemy->IsDefeated() || !enemy->IsPocketed())
-		{
-			continue;
-		}
-		const Vector3 returnPosition =
-			FindEnemyPocketReturnPosition(enemy);
-		enemy->ReturnFromPocket(returnPosition);
-		InvalidateDebugCombatForecast("エネミー復帰");
-		RecordBalanceEvent(
-			"enemy_pocket_returned",
-			{
-				{ "enemy_id", enemy->GetEnemyId() },
-				{ "pocket_entry_x", enemy->GetPocketEntryPosition().x },
-				{ "pocket_entry_z", enemy->GetPocketEntryPosition().z },
-				{ "position_x", returnPosition.x },
-				{ "position_z", returnPosition.z },
-				{ "remaining_queue_size", m_BattleState->controller.GetPocketQueueSize() },
-			});
-		break;
 	}
 }
 
@@ -3489,6 +3344,26 @@ void Game::StartClearReward()
 {
 	if (IsDebugMode()) { FinishDebugBattle(true); return; }
 	DiscardCurrentPlayerBall();
+	if (m_BattleState->controller.IsPhasePrototype())
+	{
+		RecordBalanceEvent("phase_ended", {
+			{ "phase", m_BattleState->controller.GetCurrentPhase() },
+			{ "total_phases", m_BattleState->controller.GetTotalPhases() },
+			{ "reason", "battle_victory" },
+			{ "living_enemy_count", 0 },
+		});
+	}
+	RecordBalanceEvent("battle_victory", {
+		{ "stage_id", m_RunController->Status().GetSelectedStageId() },
+		{ "floor", m_RunController->Status().progress },
+		{ "combat_mode", ToString(
+			m_BattleState->controller.GetCombatMode()) },
+		{ "total_phases", m_BattleState->controller.GetTotalPhases() },
+		{ "defeated_enemy_count",
+			m_BattleState->controller.GetDefeatedEnemyCount() },
+		{ "pocket_defeated_enemy_count",
+			m_BattleState->controller.GetPocketDefeatedEnemyCount() },
+	});
 
 	const std::vector<EnemyBall*> enemies =
 		GameRuntime::World().GetComponents<EnemyBall>();
@@ -3693,18 +3568,37 @@ void Game::StartNextBattle(StageType stageType)
 			PhaseRunProgressionMode::RouteProgress
 		? m_RunController->Status().progress
 		: phaseNormalEncounterOrdinal;
-	const StageData* selectedStage = phaseTestNormalBattle
-		? m_RunController->StageSelection().SelectPhaseTestStage(
-			stages,
-			phaseSelectionProgress,
-			previousStageId)
-		: m_RunController->StageSelection().SelectStage(
+	const int currentFloor = (std::max)(
+		1, m_RunController->Status().progress);
+	const std::vector<std::string> allowedNormalStageIds =
+		m_BalanceRuntime->GetAllowedNormalStageIds(currentFloor);
+	const StageData* selectedStage = nullptr;
+	if (phaseTestNormalBattle)
+	{
+		selectedStage =
+			m_RunController->StageSelection().SelectPhaseTestStage(
+				stages,
+				phaseSelectionProgress,
+				previousStageId);
+	}
+	else if (stageType == StageType::Normal)
+	{
+		selectedStage =
+			m_RunController->StageSelection().SelectCampaignNormalStage(
+				stages,
+				currentFloor,
+				previousStageId,
+				allowedNormalStageIds);
+	}
+	else
+	{
+		selectedStage = m_RunController->StageSelection().SelectStage(
 			stages,
 			stageType,
-			m_RunController->Status().progress,
+			currentFloor,
 			previousStageId,
-			m_BalanceRuntime->GetAllowedNormalStageIds(
-				m_RunController->Status().progress));
+			allowedNormalStageIds);
+	}
 	if (selectedStage == nullptr)
 	{
 		m_RunController->Progress().CancelActiveNode();
@@ -3719,6 +3613,18 @@ void Game::StartNextBattle(StageType stageType)
 
 	m_RunController->Status().SetLastStageId(previousStageId);
 	m_RunController->Status().SetSelectedStageId(selectedStage->id);
+	if (!phaseTestNormalBattle && stageType == StageType::Normal)
+	{
+		RecordBalanceEvent(
+			"campaign_normal_battle_selected",
+			{
+				{ "floor", currentFloor },
+				{ "stage_id", selectedStage->id },
+				{ "combat_mode", ToString(selectedStage->combatMode) },
+				{ "phase_count", static_cast<int>(
+					selectedStage->phaseBattle.phases.size()) },
+			});
+	}
 	if (phaseTestNormalBattle)
 	{
 		m_RunController->Progress().RecordPhaseNormalBattleEncounter();

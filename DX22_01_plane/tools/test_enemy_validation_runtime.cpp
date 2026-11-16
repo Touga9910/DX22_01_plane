@@ -89,7 +89,8 @@ int main()
     settings.seed = 12345;
 
     for (const auto [count, low, standard] : {
-        std::tuple{6, 2, 3}, std::tuple{8, 3, 4}, std::tuple{10, 4, 5}})
+        std::tuple{6, 2, 3}, std::tuple{8, 3, 4},
+		std::tuple{10, 4, 5}, std::tuple{12, 5, 6}})
     {
         settings.enemyCount = count;
         for (const auto pattern : {
@@ -100,6 +101,12 @@ int main()
             settings.layoutPattern = pattern;
             const auto result = EnemyValidationLayout::Generate(
                 catalog, settings, player, 2.4f);
+            if (!result.Succeeded())
+            {
+                std::cerr << "Layout failed: count=" << count
+                    << " pattern=" << static_cast<int>(pattern)
+                    << " error=" << result.error << '\n';
+            }
             assert(result.Succeeded());
             assert(static_cast<int>(result.enemies.size()) == count);
             assert(CountId(result.enemies, "enemy_normal") == low);
@@ -121,6 +128,6 @@ int main()
         assert(first.enemies[index].position == second.enemies[index].position);
     }
 
-    std::cout << "PASS: enemy HP multiplier, 6/8/10 compositions, "
+    std::cout << "PASS: enemy HP multiplier, 6/8/10/12 compositions, "
         "Dense/Line/Random safe layouts, deterministic random seed\n";
 }

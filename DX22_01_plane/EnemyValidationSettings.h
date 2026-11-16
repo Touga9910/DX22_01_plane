@@ -43,7 +43,7 @@ inline bool IsSupportedEnemyHpMultiplier(float multiplier)
 
 inline bool IsSupportedEnemyValidationCount(int count)
 {
-    return count == 6 || count == 8 || count == 10;
+	return count == 6 || count == 8 || count == 10 || count == 12;
 }
 
 // DebugBattleSetup owns this value. StageData only carries the active snapshot

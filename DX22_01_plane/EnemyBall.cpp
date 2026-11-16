@@ -349,6 +349,8 @@ void EnemyBall::RemoveFromFieldAfterPocket()
         return;
     }
 
+    m_IsPocketed = true;
+    m_PocketEntryPosition = m_Ball->GetPosition();
     m_Ball->GetMutableVelocity() = Vector3::Zero;
     m_Ball->GetMutableAcceleration() = Vector3::Zero;
     if (GameObject* owner = GetGameObject())
@@ -439,58 +441,7 @@ void EnemyBall::OnPocketHit()
     {
         return;
     }
-    if (!IsArmorBoss()) GameBattleEvents::EnemyPocketed(this);
-}
-
-void EnemyBall::EnterPocketQueue(const Vector3& pocketEntryPosition)
-{
-    if (m_Ball == nullptr || IsDefeated() || m_IsPocketed)
-    {
-        return;
-    }
-    CancelCharge(ChargeInterruptReason::Pocketed);
-    m_IsPocketed = true;
-    m_PocketEntryPosition = pocketEntryPosition;
-    m_SkipNextGimmickAdvance = true;
-    m_NuisanceWarningVisible = false;
-    if (m_EnemyData.nuisanceBall.enabled)
-    {
-        m_NuisanceTurnsUntilSpawn = (std::max)(1, m_EnemyData.nuisanceBall.respawnDelayTurns);
-    }
-    m_Ball->ResetAtPosition(Vector3(0.0f, -1000.0f, 0.0f));
-    if (GameObject* owner = GetGameObject())
-    {
-        owner->SetActive(false);
-    }
-}
-
-void EnemyBall::ReturnFromPocket(const Vector3& position)
-{
-    if (m_Ball == nullptr || IsDefeated())
-    {
-        return;
-    }
-    m_Ball->ResetAtPosition(position);
-    m_IsPocketed = false;
-    m_NuisanceSpawnPosition = position + m_EnemyData.nuisanceBall.spawnOffset;
-    m_NuisanceSpawnPosition.y = TableConfig::FIELD_HEIGHT;
-    const float nuisanceMargin = m_EnemyData.nuisanceBall.radius + 1.0f;
-    m_NuisanceSpawnPosition.x = std::clamp(
-        m_NuisanceSpawnPosition.x,
-        -TableConfig::GetFieldWidth() * 0.5f + nuisanceMargin,
-        TableConfig::GetFieldWidth() * 0.5f - nuisanceMargin);
-    m_NuisanceSpawnPosition.z = std::clamp(
-        m_NuisanceSpawnPosition.z,
-        -TableConfig::GetFieldDepth() * 0.5f + nuisanceMargin,
-        TableConfig::GetFieldDepth() * 0.5f - nuisanceMargin);
-    m_NuisanceWarningVisible =
-        m_EnemyData.nuisanceBall.enabled &&
-        !HasLiveNuisanceBall() &&
-        m_NuisanceTurnsUntilSpawn == 1;
-    if (GameObject* owner = GetGameObject())
-    {
-        owner->SetActive(true);
-    }
+    GameBattleEvents::EnemyPocketed(this);
 }
 
 void EnemyBall::TakeDamage(

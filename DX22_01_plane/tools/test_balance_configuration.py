@@ -320,19 +320,21 @@ class BalanceConfigurationTests(unittest.TestCase):
         )
 
         self.assertEqual(pocket["player_max_hp_damage_ratio"], 0.04)
+        self.assertEqual(pocket["schema_version"], 2)
+        self.assertTrue(pocket["enemy_instant_defeat"])
         self.assertEqual(
             math.ceil(
                 50 * pocket["player_max_hp_damage_ratio"]
             ),
             2,
         )
-        self.assertEqual(
-            pocket["enemy_finisher_hp_ratios"],
-            {"normal": 0.30, "midboss": 0.20, "boss": 0.10},
-        )
-        self.assertEqual(pocket["enemy_return"]["per_turn"], 1)
-        self.assertIn("RestoreNextPocketedEnemy()", game_source)
+        self.assertNotIn("enemy_finisher_hp_ratios", pocket)
+        self.assertNotIn("enemy_return", pocket)
+        self.assertIn('"enemy_pocket_defeat"', game_source)
+        self.assertNotIn("QueuePocketedEnemy", game_source)
+        self.assertNotIn("RestoreNextPocketedEnemy", game_source)
         self.assertIn('state["pocket_rules"]', bridge_source)
+        self.assertIn('{ "instant_defeat",', bridge_source)
         self.assertIn('{ "pocketed", enemy->IsPocketed() }', bridge_source)
         self.assertIn(
             '"pocket_finisher_eligible"',
@@ -361,6 +363,13 @@ class BalanceConfigurationTests(unittest.TestCase):
             )
             actual = sum(float(costs[enemy_id]) for enemy_id in ids)
             actual *= float(encounter["layout_multipliers"][layout])
+            if stage["id"].startswith("validation_") or stage.get(
+                "prototypeOnly", False
+            ):
+                # Validation/prototype layouts intentionally do not
+                # participate in the production encounter target table.
+                self.assertNotIn(stage["id"], targets)
+                continue
             self.assertAlmostEqual(actual, float(targets[stage["id"]]))
 
     def test_effective_hp_targets_with_progression_scaling(self) -> None:
@@ -480,18 +489,16 @@ class BalanceConfigurationTests(unittest.TestCase):
 
         opening = next(pool for pool in pools if pool["id"] == "opening")
         self.assertEqual(opening["stage_ids"], ["normal_001", "normal_002"])
-        first_progress = {
-            stage_id: min(
-                pool["min_progress"] for pool in pools
-                if stage_id in pool["stage_ids"]
-            )
-            for stage_id in normal_ids
-            if any(stage_id in pool["stage_ids"] for pool in pools)
-        }
-        self.assertGreaterEqual(first_progress["normal_swarm_center"], 9)
-        self.assertGreaterEqual(first_progress["normal_brittle_wall"], 9)
-        self.assertGreaterEqual(first_progress["normal_resonant_swarm"], 13)
-        self.assertGreaterEqual(first_progress["normal_triple_encirclement"], 14)
+        for progress in range(5, 10):
+            pool = next(item for item in pools
+                if item["min_progress"] <= progress <= item["max_progress"])
+            self.assertEqual(set(pool["stage_ids"]), {
+                "campaign_phase_mid_mixed", "campaign_phase_mid_pairs"})
+        for progress in range(10, 16):
+            pool = next(item for item in pools
+                if item["min_progress"] <= progress <= item["max_progress"])
+            self.assertEqual(set(pool["stage_ids"]), {
+                "campaign_phase_late_mixed", "campaign_phase_late_pairs"})
 
         budgets = normal_play["enemy_action_budgets"]
         budget_by_progress = {

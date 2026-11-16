@@ -55,7 +55,7 @@ def game(label, case, build, boss=(0,20), configure=None, extra=(), resume=False
             h.write(folder/'initial.json',initial)
             assert len(initial['break_balls'])==2
             assert initial['boss_state']['armor']==2 and initial['boss_state']['hp']==60
-            assert not initial['enemies'][0]['pocket_finisher_eligible']
+            assert initial['enemies'][0]['pocket_finisher_eligible']
             yield folder,process,initial
         finally:
             if process.poll() is None:

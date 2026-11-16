@@ -146,9 +146,15 @@
       <Command>copy /Y "$(SolutionDir)third_party\assimp\bin\assimp-vc143-mt.dll" "$(OutDir)assimp-vc143-mt.dll"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(BattleControllerTest)'=='true'">
+    <Link>
+      <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
+    <ClInclude Include="BattleFlowRules.h" />
     <ClInclude Include="BattleTypes.h" />
     <ClInclude Include="EnemyActionPlanner.h" />
     <ClInclude Include="EnemyChargeRules.h" />
@@ -221,6 +227,7 @@
     <ClCompile Include="EnemyAttackComponent.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameRuntimeState.cpp" />
+    <ClCompile Include="LocalPerformanceLogger.cpp" />
     <ClCompile Include="GameSettingsRuntime.cpp" />
     <ClCompile Include="GamePersistenceRuntime.cpp" />
     <ClCompile Include="GameRunDefaults.cpp" />
@@ -288,7 +295,8 @@
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="input.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main.cpp" Condition="'$(BattleControllerTest)' != 'true'" />
+    <ClCompile Include="tools\test_battle_controller_runtime.cpp" Condition="'$(BattleControllerTest)' == 'true'" />
     <ClCompile Include="Pocket.cpp" />
     <ClCompile Include="PocketFactory.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -363,6 +371,7 @@
     <ClInclude Include="GameObjectTag.h" />
     <ClInclude Include="GameRuntime.h" />
     <ClInclude Include="GameRuntimeState.h" />
+    <ClInclude Include="LocalPerformanceLogger.h" />
     <ClInclude Include="GameSettingsRuntime.h" />
     <ClInclude Include="GamePersistenceRuntime.h" />
     <ClInclude Include="GameRunDefaults.h" />

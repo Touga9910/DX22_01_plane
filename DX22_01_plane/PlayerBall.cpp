@@ -9,7 +9,6 @@
 #include "GameRuntime.h"
 #include "GameShotPrediction.h"
 #include "GameShotTraceView.h"
-#include "Game.h"
 #include "GameWorld.h"
 #include "input.h"
 #include "Ground.h"
@@ -514,6 +513,7 @@ void PlayerBall::UpdateAim()
 		previewChanged && m_PreviewRefreshFramesRemaining <= 0;
 	if (immediateRefresh || delayedRefresh)
 	{
+		GameRuntime::RecordTrajectoryPreviewRefresh();
 		GeneratePreTrajectory(
 			GetShotVector(), currentPreviewWorldKey);
 
@@ -809,39 +809,56 @@ void PlayerBall::GeneratePreTrajectory(
 	m_PreviewReachableDistance = pathDistance(
 		prediction.path, prediction.path.size());
 
-	const BallTrajectoryPreview::Result* displayedPrediction = &prediction;
+	const std::vector<Vector3>* displayedPath = &prediction.path;
 	std::size_t displayedPoints = prediction.path.size();
-	BallTrajectoryPreview::Result maximumPowerPrediction;
 	if (!currentPowerReachesContact && initialVelocity.LengthSquared() > 0.0001f)
 	{
 		Vector3 direction = initialVelocity;
 		direction.Normalize();
-		const auto maximumPredictionStarted =
-			std::chrono::steady_clock::now();
-		maximumPowerPrediction = GameShotPrediction::Preview(
-			*this,
-			direction * m_MaxShotPower,
-			true);
-		GameRuntime::RecordTrajectoryPreviewPrediction(
-			std::chrono::duration<double, std::milli>(
-				std::chrono::steady_clock::now() -
-				maximumPredictionStarted).count(),
-			maximumPowerPrediction.copiedBalls);
-		const std::size_t maximumPoints =
-			maximumPowerPrediction.path.size();
-		const float maximumDistance = pathDistance(
-			maximumPowerPrediction.path,
-			maximumPoints);
-		if (maximumPowerPrediction.reachedBlockingContact ||
-			maximumDistance > m_PreviewReachableDistance)
+		const bool reuseMaximumPowerPreview =
+			m_MaximumPowerPreviewValid &&
+			m_MaximumPowerPreviewWorldKey == worldKey &&
+			fabs(m_MaximumPowerPreviewPower - m_MaxShotPower) <= 0.0001f &&
+			direction == m_MaximumPowerPreviewDirection;
+		if (reuseMaximumPowerPreview)
 		{
-			displayedPrediction = &maximumPowerPrediction;
-			displayedPoints = maximumPoints;
+			GameRuntime::RecordMaximumPowerPreviewCacheReuse();
+		}
+		else
+		{
+			const auto maximumPredictionStarted =
+				std::chrono::steady_clock::now();
+			auto maximumPowerPrediction = GameShotPrediction::Preview(
+				*this,
+				direction * m_MaxShotPower,
+				true);
+			GameRuntime::RecordTrajectoryPreviewPrediction(
+				std::chrono::duration<double, std::milli>(
+					std::chrono::steady_clock::now() -
+					maximumPredictionStarted).count(),
+				maximumPowerPrediction.copiedBalls);
+			m_MaximumPowerPreviewPath =
+				std::move(maximumPowerPrediction.path);
+			m_MaximumPowerPreviewReachedBlockingContact =
+				maximumPowerPrediction.reachedBlockingContact;
+			m_MaximumPowerPreviewDistance = pathDistance(
+				m_MaximumPowerPreviewPath,
+				m_MaximumPowerPreviewPath.size());
+			m_MaximumPowerPreviewWorldKey = worldKey;
+			m_MaximumPowerPreviewDirection = direction;
+			m_MaximumPowerPreviewPower = m_MaxShotPower;
+			m_MaximumPowerPreviewValid = true;
+		}
+		if (m_MaximumPowerPreviewReachedBlockingContact ||
+			m_MaximumPowerPreviewDistance > m_PreviewReachableDistance)
+		{
+			displayedPath = &m_MaximumPowerPreviewPath;
+			displayedPoints = m_MaximumPowerPreviewPath.size();
 		}
 	}
 	for (std::size_t index = 0; index < displayedPoints; ++index)
 	{
-		m_PrePositions.push_back({ displayedPrediction->path[index], 0, 1.0f });
+		m_PrePositions.push_back({ (*displayedPath)[index], 0, 1.0f });
 	}
     // Keep the original aiming-only display: no reflected player trajectory,
     // just a short direction guide for the ball at the first blocking contact.

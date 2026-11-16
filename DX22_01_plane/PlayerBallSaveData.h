@@ -9,7 +9,7 @@
 namespace PlayerBallSaveData
 {
 	using nlohmann::json;
-	inline constexpr int UpgradeModelVersion = 5;
+	inline constexpr int UpgradeModelVersion = 6;
 
 	// ボール1個分の実行時データをセーブ用JSONへ変換
 	// プレイヤーボールではdefenseを保存せず、現行の強化モデル番号を出力
@@ -37,7 +37,13 @@ namespace PlayerBallSaveData
 	inline PlayerBallData BallFromJson(const json& value)
 	{
 		PlayerBallData ball;
-		ball.definitionId = value.at("definition_id").get<std::string>();
+		const std::string savedDefinitionId =
+			value.at("definition_id").get<std::string>();
+		const bool migratedTraceDriver =
+			savedDefinitionId == "player_trace_driver";
+		ball.definitionId = migratedTraceDriver
+			? "player_minion_finisher"
+			: savedDefinitionId;
 		if (value.contains("category") &&
 			(!value.at("category").is_string() ||
 				!IsBallCategoryId(value.at("category").get<std::string>())))
@@ -84,7 +90,8 @@ namespace PlayerBallSaveData
 			previous = ball.upgradeTable[index];
 		}
 		// 旧セーブの個体IDと強化段階を保ち、性能を新しい強化軸へ移行
-		if (upgradeModelVersion < UpgradeModelVersion)
+		if (migratedTraceDriver ||
+			upgradeModelVersion < UpgradeModelVersion)
 		{
 			const auto definitions = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
 			for (const auto& definition : definitions.ballDefinitions)

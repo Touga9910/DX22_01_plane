@@ -29,6 +29,8 @@ public:
 		std::size_t copiedBalls);
 	static void RecordTrajectoryPreviewWorldKey(double milliseconds);
 	static void RecordTrajectoryPreviewCacheReuse();
+	static void RecordTrajectoryPreviewRefresh();
+	static void RecordMaximumPowerPreviewCacheReuse();
     static void Draw();
     static void Shutdown();
 

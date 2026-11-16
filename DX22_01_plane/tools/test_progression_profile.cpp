@@ -60,7 +60,7 @@ int main()
 	assert(p.IsBallUnlocked("player_pierce") && p.IsBallUnlocked("player_bounce") &&
 		p.IsBallUnlocked("player_cushion_charge") && p.IsBallUnlocked("player_anchor") &&
 		p.IsBallUnlocked("player_refractive_pierce") && p.IsBallUnlocked("player_stop_shield") &&
-		p.IsBallUnlocked("player_trace_driver") && p.IsBallUnlocked("player_pierce_finisher") &&
+		!p.IsBallUnlocked("player_trace_driver") && p.IsBallUnlocked("player_pierce_finisher") &&
 		p.IsBallUnlocked("player_ricochet_finisher") && p.IsBallUnlocked("player_anchor_finisher"));
     assert(p.IsRelicUnlocked(RelicType::PierceBallCharger) && p.IsRelicUnlocked(RelicType::ExpandedBallOffer));
     assert(!p.IsRelicUnlocked(RelicType::BounceBallSpring));

@@ -111,7 +111,6 @@ namespace
         std::vector<Collision::Sphere> pockets;
         Vector3 interior = Vector3::Zero, lastPathVelocity = Vector3::Zero;
         std::uintptr_t playerId = 0;
-        float finisherRatio = 0.3f;
         int playerPocketDamage = 1;
         bool gameOver = false;
         const auto& PocketSpheres() const { return pockets; }
@@ -192,7 +191,6 @@ namespace
 
         bool CheckPocket(Ball& ball, const Vector3& start)
         {
-            if (ball.physics.boss) return false;
             if (ball.defeated)
             {
                 bool retained = false;
@@ -221,18 +219,8 @@ namespace
                 }
                 else if (ball.physics.enemy)
                 {
-                    if (!ball.defeated && ball.pocketDamageRatio > 0.0f)
-                        ball.hp = (std::max)(0, ball.hp - BallMechanics::PocketDamage(ball.maxHp, ball.pocketDamageRatio));
-                    if (ball.defeated || static_cast<float>(ball.hp) / (std::max)(1, ball.maxHp) <= finisherRatio + 0.0001f)
-                    {
-                        ball.hp = 0;
-                        ball.defeated = true;
-                    }
-                    else
-                    {
-                        ball.pocketed = true;
-                        ball.physics.position = Vector3(0, -1000, 0);
-                    }
+					ball.hp = 0;
+					ball.defeated = true;
                     result.damage += hpBefore - ball.hp;
 					if (!wasDefeated && ball.defeated)
 						HandleDefeatAnchors(ball);
@@ -612,9 +600,9 @@ namespace
 							result.shotStatus.anchorEnemyConsumeLimit);
 						const int shieldGain = AnchorStackRules::CalculateShield(
 							consumed.consumed,
-							result.shotStatus.stopShieldAmount);
+							result.shotStatus.stopShieldPerStack);
 						result.stopShieldGranted = (std::min)(
-							result.shotStatus.stopShieldAmount,
+							result.shotStatus.stopShieldCapacity,
 							result.stopShieldGranted + shieldGain);
 					}
 					if (result.shot.ballId == "player_anchor_finisher" &&
@@ -786,7 +774,6 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
     if (offer) result.shot.ballId = offer->definitionId;
     World world{ result };
     world.playerId = reinterpret_cast<std::uintptr_t>(player.GetBall());
-    world.finisherRatio = input.pocketFinisherRatio;
     world.playerPocketDamage = input.playerPocketDamage;
     bool found = false;
     for (auto& ball : result.balls)
@@ -827,16 +814,20 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
 			result.heavyCollisions,
 			result.shotStatus.heavyEnemyCollisionMultiplier);
 	}
-	if (result.shot.ballId == "player_trace_driver" ||
-		result.shot.ballId == "player_minion_finisher")
+	if (result.shot.ballId == "player_minion_finisher")
 	{
-		const bool finisher = result.shot.ballId == "player_minion_finisher";
-		const int consumeLimit = finisher
-			? PierceTraceRules::MaxStackCount
-			: result.shotStatus.pierceStackConsumeLimit;
-		const int consumed = PierceTraceRules::ConsumeStacks(
-			result.pierceTraces,
-			consumeLimit);
+		const bool finisher = true;
+		const int consumeLimit = PierceTraceRules::MaxStackCount;
+		const int effectiveConsume =
+			PierceTraceRules::CalculateEffectiveMinionStackConsume(
+				result.pierceTraces,
+				consumeLimit,
+				finisher);
+		const int consumed = effectiveConsume > 0
+			? PierceTraceRules::ConsumeStacks(
+				result.pierceTraces,
+				effectiveConsume)
+			: 0;
 		const auto launches = PierceTraceRules::BuildMinionLaunches(
 			result.pierceTraces,
 			consumed,
@@ -941,10 +932,10 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
         add(s.abilities.pierce); add(s.abilities.anchor); add(s.pierceMaxUses); scalar(s.pierceSpeedRetention);
         scalar(s.anchorBrakeMultiplier); scalar(s.anchorStopSpeedSquared); add(s.anchorKnockbackImmune);
         scalar(s.cushionChargeSpeedMultiplier);
-		add(s.stopShieldAmount); scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
+		add(s.stopShieldPerStack); add(s.stopShieldCapacity);
+		scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
 		add(s.traceDurability); scalar(s.traceUseAngleTolerance); scalar(s.traceUseDistance); scalar(s.traceWidth);
 		add(s.tracePierceMaxUsesBonus); scalar(s.tracePierceSpeedRetentionBonus); scalar(s.traceNonPierceSpeedMultiplier);
-		add(s.pierceStackConsumeLimit);
 		add(s.cushionStackGenerateAmount); add(s.cushionMaxStack); add(s.cushionStackConsumeAmount);
 		add(s.cushionBounceAttackBonus); scalar(s.cushionNonBounceSpeedMultiplier);
 		add(s.cushionReflectionLimit); add(s.cushionConsumptionLimit);
@@ -963,7 +954,7 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
     for (unsigned char c : input.shot.ballId) add(c);
 	if (input.hasCurrentBall)
 		add(static_cast<std::uint64_t>(input.currentBallCategory));
-    scalar(input.pocketFinisherRatio); add(input.playerPocketDamage);
+    add(input.playerPocketDamage);
 	add(input.cushionCharges.stackCount);
 	add(input.cushionCharges.pendingSetupBonus);
 	add(input.cushionCharges.activeSetupBonus);

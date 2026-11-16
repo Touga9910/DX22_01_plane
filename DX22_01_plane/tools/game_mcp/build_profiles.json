@@ -189,7 +189,7 @@
       "label": "貫通整列型",
       "core_parts": [
         "player_pierce",
-        "player_trace_driver",
+		"player_minion_finisher",
         "player_pierce_finisher"
       ],
       "support_parts": [
@@ -198,7 +198,7 @@
       "new_ball_priority": [
         "player_pierce",
 		"player_refractive_pierce",
-		"player_trace_driver",
+		"player_minion_finisher",
 		"player_pierce_finisher",
         "player_standard",
         "player_heavy",
@@ -209,7 +209,7 @@
       "upgrade_priority": [
         "player_pierce",
 		"player_refractive_pierce",
-		"player_trace_driver",
+		"player_minion_finisher",
 		"player_pierce_finisher",
         "player_standard",
         "player_heavy",
@@ -234,7 +234,7 @@
         "definition_bonus": {
           "player_pierce": 320.0,
 		  "player_refractive_pierce": 340.0,
-		  "player_trace_driver": 330.0,
+		  "player_minion_finisher": 350.0,
 		  "player_pierce_finisher": 350.0
         }
       },

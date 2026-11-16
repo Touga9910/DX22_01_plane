@@ -3,12 +3,56 @@
 #include "../BallShotPrediction.h"
 #include "../BallTrajectoryPreview.h"
 #include "../TableFrameCollisionComponent.h"
+#include <array>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <iostream>
 
 using namespace BallPhysicsRules;
 bool Near(float a, float b) { return std::abs(a-b) < 0.00001f; }
+
+double MeasurePreviewMilliseconds(int enemyCount, int iterations)
+{
+	BallTrajectoryPreview::Input input;
+	BallTrajectoryPreview::BallSnapshot player;
+	player.physics.id = 1;
+	player.physics.player = true;
+	player.physics.status.radius = 2.4f;
+	player.physics.status.mass = 2.0f;
+	player.physics.status.restitution = 0.8f;
+	player.physics.status.friction = 0.02f;
+	input.playerId = player.physics.id;
+	input.balls.push_back(player);
+	for (int index = 0; index < enemyCount; ++index)
+	{
+		BallTrajectoryPreview::BallSnapshot enemy;
+		enemy.physics.id = static_cast<std::uintptr_t>(index + 2);
+		enemy.physics.enemy = true;
+		enemy.physics.position = Vector3(
+			-42.0f + static_cast<float>(index % 6) * 14.0f,
+			0.0f,
+			18.0f + static_cast<float>(index / 6) * 12.0f);
+		enemy.physics.status.radius = 2.4f;
+		enemy.physics.status.mass = 2.0f;
+		enemy.physics.status.restitution = 0.8f;
+		input.balls.push_back(enemy);
+	}
+	const auto started = std::chrono::steady_clock::now();
+	std::size_t observedPoints = 0;
+	for (int iteration = 0; iteration < iterations; ++iteration)
+	{
+		const auto result = BallTrajectoryPreview::Predict(
+			input,
+			Vector3(0.0f, 0.0f, 5.0f),
+			true);
+		observedPoints += result.path.size();
+	}
+	assert(observedPoints > 0);
+	return std::chrono::duration<double, std::milli>(
+		std::chrono::steady_clock::now() - started).count() /
+		static_cast<double>(iterations);
+}
 
 int main()
 {
@@ -335,5 +379,12 @@ int main()
 		<< sizeof(BallShotPrediction::Ball)
 		<< " lightweight preview ball bytes="
 		<< sizeof(BallTrajectoryPreview::BallSnapshot) << '\n';
+	for (const int enemyCount : std::array{ 6, 10, 12 })
+	{
+		std::cout << "Preview benchmark enemies=" << enemyCount
+			<< " average_ms="
+			<< MeasurePreviewMilliseconds(enemyCount, 300)
+			<< '\n';
+	}
 	std::cout << "Shared friction, power, pierce/refraction, anchor lock, table, pocket and relic rules PASS\n";
 }

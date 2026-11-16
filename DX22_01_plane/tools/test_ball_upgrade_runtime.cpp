@@ -1,4 +1,5 @@
 #include "../PlayerBallSaveData.h"
+#include "../AnchorStackRules.h"
 #include "../BallMechanics.h"
 #include "../BallPhysicsRules.h"
 #include "../BallStatusComponent.h"
@@ -10,6 +11,7 @@
 #include "../EnemyGimmickRules.h"
 #include "../PocketReturnRules.h"
 #include <array>
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -37,8 +39,15 @@ int main()
     assert(restoredPhaseProgress.GetPhaseNormalBattleEncounterCount() == 2);
 
     const auto loaded = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
-    assert(loaded.defaultRunStatus.maxHp == 50 && loaded.defaultRunStatus.currentHp == 50);
-	assert(loaded.ballDefinitions.size() == 18);
+	assert(loaded.defaultRunStatus.maxHp > 0);
+	assert(loaded.defaultRunStatus.currentHp == loaded.defaultRunStatus.maxHp);
+	assert(loaded.ballDefinitions.size() == 17);
+	assert(std::none_of(
+		loaded.ballDefinitions.begin(), loaded.ballDefinitions.end(),
+		[](const PlayerBallData& ball)
+		{
+			return ball.definitionId == "player_trace_driver";
+		}));
     PlayerRunStatus fallback;
     fallback.maxHp = 73;
     fallback.currentHp = 41;
@@ -117,15 +126,14 @@ int main()
 	const auto& chainImpact = loaded.ballDefinitions[6];
 	const auto& refractivePierce = loaded.ballDefinitions[7];
 	const auto& stopShield = loaded.ballDefinitions[8];
-	const auto& traceDriver = loaded.ballDefinitions[9];
-	const auto& pierceFinisher = loaded.ballDefinitions[10];
-	const auto& ricochetFinisher = loaded.ballDefinitions[11];
-	const auto& anchorFinisher = loaded.ballDefinitions[12];
-	const auto& collisionBoost = loaded.ballDefinitions[13];
-	const auto& lightweight = loaded.ballDefinitions[14];
-	const auto& minionFinisher = loaded.ballDefinitions[15];
-	const auto& reflectionSetup = loaded.ballDefinitions[16];
-	const auto& originAnchor = loaded.ballDefinitions[17];
+	const auto& pierceFinisher = loaded.ballDefinitions[9];
+	const auto& ricochetFinisher = loaded.ballDefinitions[10];
+	const auto& anchorFinisher = loaded.ballDefinitions[11];
+	const auto& collisionBoost = loaded.ballDefinitions[12];
+	const auto& lightweight = loaded.ballDefinitions[13];
+	const auto& minionFinisher = loaded.ballDefinitions[14];
+	const auto& reflectionSetup = loaded.ballDefinitions[15];
+	const auto& originAnchor = loaded.ballDefinitions[16];
 	assert(standard.category == BallCategory::Standard);
 	assert(heavy.category == BallCategory::Heavy);
 	assert(pierce.category == BallCategory::Pierce);
@@ -135,7 +143,6 @@ int main()
 	assert(chainImpact.category == BallCategory::Heavy);
 	assert(refractivePierce.category == BallCategory::Pierce);
 	assert(stopShield.category == BallCategory::Anchor);
-	assert(traceDriver.category == BallCategory::Pierce);
 	assert(pierceFinisher.category == BallCategory::Pierce);
 	assert(ricochetFinisher.category == BallCategory::Bounce);
 	assert(anchorFinisher.category == BallCategory::Anchor);
@@ -145,14 +152,22 @@ int main()
 	assert(refractivePierce.status.abilities.pierce &&
 		refractivePierce.status.abilities.refractAfterPierce);
 	assert(refractivePierce.upgradeTable[1].pierceMaxUses == 3);
-	assert(stopShield.status.stopShieldAmount == 3);
-	assert(stopShield.upgradeTable[0].stopShieldAmount == 5);
-	assert(stopShield.upgradeTable[1].stopShieldAmount == 7);
-	assert(!traceDriver.status.abilities.pierce && traceDriver.status.pierceStackConsumeLimit == 3);
+	assert(stopShield.status.stopShieldPerStack == 1);
+	assert(stopShield.upgradeTable[0].stopShieldPerStack == 2);
+	assert(stopShield.upgradeTable[1].stopShieldPerStack == 3);
+	assert(stopShield.status.stopShieldCapacity == 15 &&
+		stopShield.upgradeTable[0].stopShieldCapacity == 15 &&
+		stopShield.upgradeTable[1].stopShieldCapacity == 15);
 	assert(pierceFinisher.status.pierceFinisherBaseBonus == 1);
 	assert(ricochetFinisher.status.pinballCollisionsPerStage == 3);
-	assert(ricochetFinisher.upgradeTable[0].pinballCollisionsPerStage == 3);
+	assert(ricochetFinisher.upgradeTable[0].pinballCollisionsPerStage == 2);
 	assert(ricochetFinisher.upgradeTable[1].pinballCollisionsPerStage == 2);
+	assert(ricochetFinisher.status.attack == 1 &&
+		ricochetFinisher.upgradeTable[0].attack == 1 &&
+		ricochetFinisher.upgradeTable[1].attack == 1);
+	assert(std::abs(ricochetFinisher.status.pinballSpeedRetention - 0.90f) < 0.0001f &&
+		std::abs(ricochetFinisher.upgradeTable[0].pinballSpeedRetention - 0.90f) < 0.0001f &&
+		std::abs(ricochetFinisher.upgradeTable[1].pinballSpeedRetention - 0.98f) < 0.0001f);
 	assert(anchorFinisher.status.anchorFinisherAoeThreshold == 5);
 	assert(collisionBoost.status.attack == 0 &&
 		collisionBoost.status.heavySetupStackConsume == 3);
@@ -164,6 +179,49 @@ int main()
 	assert(reflectionSetup.upgradeTable[1].reflectionSetupAmount == 3);
 	assert(originAnchor.status.knockbackTransfer == 0.0f &&
 		originAnchor.status.abilities.returnToShotStart);
+	for (int consumed = 1; consumed <= 5; ++consumed)
+	{
+		assert(AnchorStackRules::CalculateShield(consumed, 1) == consumed);
+		assert(AnchorStackRules::CalculateShield(consumed, 2) == consumed * 2);
+		assert(AnchorStackRules::CalculateShield(consumed, 3) == consumed * 3);
+	}
+	for (const BallStatus* status : {
+		&ricochetFinisher.status,
+		&ricochetFinisher.upgradeTable[0],
+		&ricochetFinisher.upgradeTable[1] })
+	{
+		CushionChargeRules::State pinball;
+		pinball.stackCount = 6;
+		assert(CushionChargeRules::ActivatePinball(
+			pinball, 42, status->ricochetStackConsume,
+			status->pinballCollisionsPerStage,
+			status->pinballSpeedRetention));
+		assert(pinball.stackCount == 0);
+		for (int collision = 1;
+			collision < status->pinballCollisionsPerStage; ++collision)
+		{
+			assert(CushionChargeRules::RegisterPinballCollision(pinball, 42) == 0);
+		}
+		assert(CushionChargeRules::RegisterPinballCollision(pinball, 42) == 1);
+		Vector3 velocityAfter(0.0f, 0.0f, 5.0f);
+		CushionChargeRules::PreservePinballSpeed(
+			pinball, 42, Vector3(10.0f, 0.0f, 0.0f), velocityAfter);
+		assert(std::abs(velocityAfter.Length() -
+			10.0f * status->pinballSpeedRetention) < 0.001f);
+	}
+	{
+		PlayerBallData legacyTrace = minionFinisher;
+		legacyTrace.instanceId = 987;
+		legacyTrace.upgradeLevel = 2;
+		legacyTrace.status = legacyTrace.upgradeTable[1];
+		json savedTrace = BallToJson(legacyTrace);
+		savedTrace["definition_id"] = "player_trace_driver";
+		const PlayerBallData migratedTrace = BallFromJson(savedTrace);
+		assert(migratedTrace.definitionId == "player_minion_finisher");
+		assert(migratedTrace.instanceId == 987 && migratedTrace.upgradeLevel == 2);
+		assert(WriteBallStatus(migratedTrace.status) ==
+			WriteBallStatus(minionFinisher.upgradeTable[1]));
+	}
     assert(standard.upgradeTable[1].attack > standard.status.attack);
 	assert(heavy.status.attack == 2 && heavy.upgradeTable[0].attack == 2 &&
 		heavy.upgradeTable[1].attack == 3);
@@ -335,7 +393,7 @@ int main()
     assert(shellDefinition != enemyDefinitions.end());
     assert(shellDefinition->collisionDamageMultipliers == collisionMultipliers);
     const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    assert(stages.size() == 34);
+    assert(stages.size() == 38);
     std::unordered_set<std::string> stageIds;
     for (const auto& stage : stages)
     {
@@ -610,6 +668,34 @@ int main()
         std::vector<std::string>({ "phase_run_p3_mixed10", "phase_run_p3_pairs10" }));
     assert(GetPhaseTestStageIds(5) ==
         std::vector<std::string>({ "phase_prototype_009", "phase_prototype_010" }));
+	assert(GetCampaignPhaseStageIds(4).empty());
+	assert(GetCampaignPhaseStageIds(5) == std::vector<std::string>({
+		"campaign_phase_mid_mixed", "campaign_phase_mid_pairs" }));
+	assert(GetCampaignPhaseStageIds(10) == std::vector<std::string>({
+		"campaign_phase_late_mixed", "campaign_phase_late_pairs" }));
+	StageSelector campaignSelector;
+	campaignSelector.Seed(20261116u);
+	for (const int floor : { 1, 4, 5, 9, 10, 15, 16 })
+	{
+		const StageData* selected = campaignSelector.SelectCampaignNormalStage(
+			stages, floor, std::string(), {});
+		assert(selected != nullptr);
+		assert(!selected->prototypeOnly);
+		if (floor < 5)
+		{
+			assert(selected->combatMode == CombatMode::Legacy);
+			assert(selected->enemies.size() >= 3);
+			assert(selected->enemies.size() <= 5);
+		}
+		else
+		{
+			assert(selected->combatMode == CombatMode::PhasePrototype);
+			assert(selected->phaseBattle.phases.size() == 2);
+			assert(selected->phaseBattle.phases[0].enemies.size() == 6);
+			assert(selected->phaseBattle.phases[1].enemies.size() ==
+				static_cast<std::size_t>(floor < 10 ? 4 : 6));
+		}
+	}
     StageSelector phaseRunSelector;
     phaseRunSelector.Seed(20261114u);
     for (const int encounterOrdinal : { 1, 2, 3, 4, 5, 15 })

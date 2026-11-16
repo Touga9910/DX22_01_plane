@@ -23,7 +23,11 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.anchorKnockbackImmune = value.value("anchorKnockbackImmune", status.anchorKnockbackImmune);
 	status.cushionChargeSpeedMultiplier = value.value(
 		"cushionChargeSpeedMultiplier", status.cushionChargeSpeedMultiplier);
-	status.stopShieldAmount = value.value("stopShieldAmount", status.stopShieldAmount);
+	status.stopShieldPerStack = value.value(
+		"stopShieldPerStack",
+		value.value("stopShieldAmount", status.stopShieldPerStack));
+	status.stopShieldCapacity = value.value(
+		"stopShieldCapacity", status.stopShieldCapacity);
 	status.chainImpactRadius = value.value("chainImpactRadius", status.chainImpactRadius);
 	status.heavyFinisherDamagePerCollision = value.value("heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision);
 	status.heavyCollisionConsumeAmount = value.value("heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount);
@@ -45,7 +49,6 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 	status.traceNonPierceSpeedMultiplier = value.value("traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier);
 	status.pierceFinisherBaseBonus = value.value("pierceFinisherBaseBonus", status.pierceFinisherBaseBonus);
 	status.pierceFinisherMultiTargetBonus = value.value("pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus);
-	status.pierceStackConsumeLimit = value.value("pierceStackConsumeLimit", status.pierceStackConsumeLimit);
 	status.cushionStackGenerateAmount = value.value("cushionStackGenerateAmount", status.cushionStackGenerateAmount);
 	status.cushionMaxStack = value.value("cushionMaxStack", status.cushionMaxStack);
 	status.cushionStackConsumeAmount = value.value("cushionStackConsumeAmount", status.cushionStackConsumeAmount);
@@ -103,7 +106,8 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "anchorStopSpeedSquared", status.anchorStopSpeedSquared },
 		{ "anchorKnockbackImmune", status.anchorKnockbackImmune },
 		{ "cushionChargeSpeedMultiplier", status.cushionChargeSpeedMultiplier },
-		{ "stopShieldAmount", status.stopShieldAmount },
+		{ "stopShieldPerStack", status.stopShieldPerStack },
+		{ "stopShieldCapacity", status.stopShieldCapacity },
 		{ "chainImpactRadius", status.chainImpactRadius },
 		{ "heavyFinisherDamagePerCollision", status.heavyFinisherDamagePerCollision },
 		{ "heavyCollisionConsumeAmount", status.heavyCollisionConsumeAmount },
@@ -123,7 +127,6 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 		{ "traceNonPierceSpeedMultiplier", status.traceNonPierceSpeedMultiplier },
 		{ "pierceFinisherBaseBonus", status.pierceFinisherBaseBonus },
 		{ "pierceFinisherMultiTargetBonus", status.pierceFinisherMultiTargetBonus },
-		{ "pierceStackConsumeLimit", status.pierceStackConsumeLimit },
 		{ "cushionStackGenerateAmount", status.cushionStackGenerateAmount },
 		{ "cushionMaxStack", status.cushionMaxStack },
 		{ "cushionStackConsumeAmount", status.cushionStackConsumeAmount },
@@ -172,7 +175,8 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		std::isfinite(s.anchorStopSpeedSquared) && s.anchorStopSpeedSquared >= 0.03f && s.anchorStopSpeedSquared <= 1.0f &&
 		std::isfinite(s.cushionChargeSpeedMultiplier) && s.cushionChargeSpeedMultiplier >= 1.0f &&
 		s.cushionChargeSpeedMultiplier <= 3.0f &&
-		s.stopShieldAmount >= 0 && s.stopShieldAmount <= 100 &&
+		s.stopShieldPerStack >= 0 && s.stopShieldPerStack <= 100 &&
+		s.stopShieldCapacity >= 0 && s.stopShieldCapacity <= 1000 &&
 		std::isfinite(s.chainImpactRadius) && s.chainImpactRadius >= 0.0f &&
 		s.chainImpactRadius <= 100.0f &&
 		std::isfinite(s.heavyFinisherDamagePerCollision) && s.heavyFinisherDamagePerCollision >= 0.0f && s.heavyFinisherDamagePerCollision <= 100.0f &&
@@ -193,7 +197,6 @@ inline bool IsValidBallStatus(const BallStatus& s)
 		std::isfinite(s.traceNonPierceSpeedMultiplier) && s.traceNonPierceSpeedMultiplier >= 1.0f && s.traceNonPierceSpeedMultiplier <= 1.25f &&
 		s.pierceFinisherBaseBonus >= 0 && s.pierceFinisherBaseBonus <= 1000 &&
 		s.pierceFinisherMultiTargetBonus >= 0 && s.pierceFinisherMultiTargetBonus <= 1000 &&
-		s.pierceStackConsumeLimit >= 0 && s.pierceStackConsumeLimit <= 15 &&
 		s.cushionStackGenerateAmount >= 0 && s.cushionStackGenerateAmount <= 99 &&
 		s.cushionMaxStack >= 1 && s.cushionMaxStack <= 99 &&
 		s.cushionStackConsumeAmount >= 1 && s.cushionStackConsumeAmount <= 99 &&

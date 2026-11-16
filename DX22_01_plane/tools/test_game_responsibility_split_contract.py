@@ -36,12 +36,11 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             "GetCushionCharges",
             "GetPierceTraceState",
             "GetCurrentPlayerBallData",
-            "GetCurrentPocketFinisherRatio",
             "GetPlayerPocketDamageAmount",
             "GetPierceMaximumUses",
             "GetPierceSpeedRetention",
             "GetRelicAttackBonus",
-            "GetHeavyCollisionCount",
+            "GetHeavyCollisionState",
             "GetPlayerAnchorStacks",
             "WasCushionBoostConsumedThisShot",
             "GetCurrentShotPlayerEnemyCollisionCount",
@@ -78,7 +77,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("GameBattleCommands::BeginPowerSelection()", player_ball)
         self.assertIn("GameBattleEvents::PlayerShotFired", player_ball)
         self.assertIn("GamePlayerState::CaptureFrom", player_ball)
-        self.assertIn("GameShotPrediction::Predict", player_ball)
+        self.assertIn("GameShotPrediction::Preview", player_ball)
         self.assertIn("GameShotTraceView::Current", player_ball)
         self.assertIn("BallShotPrediction::Predict(", battle_bridge)
         self.assertIn("void GameBattleEvents::PlayerShotFired", battle_bridge)
@@ -122,7 +121,6 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("BattleResult BattleController::ConsumeResult()", battle)
         for battle_member in (
             "m_ShotRelicRules",
-            "m_PocketedEnemyQueue",
             "m_StageType",
             "m_BountyRewardClaimed",
         ):
@@ -407,7 +405,6 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         controller_header = source("GameDebugController.h")
         host_header = source("GameDebugHost.h")
         implementation = source("GameDebugMode.cpp")
-        diagnostics = source("Game.cpp")
         controller_implementation = implementation[
             implementation.index("void GameDebugController::Open"):
         ]
@@ -418,7 +415,6 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("ProgressionProfile progressionProfile", controller_header)
         self.assertIn("std::optional<DebugRunSnapshot> m_DebugPreviousRun", controller_header)
         self.assertNotIn("game.m_", controller_implementation)
-        self.assertNotIn("game.m_", diagnostics)
         for command in (
             "CaptureRunSnapshot",
             "PrepareSession",

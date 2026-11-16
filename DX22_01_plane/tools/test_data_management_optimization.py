@@ -58,7 +58,9 @@ class DataManagementOptimizationTests(unittest.TestCase):
 
     def test_collision_lists_are_not_rebuilt_inside_substeps(self) -> None:
         source = read_source("BallPhysicsWorld.cpp")
-        resolve = source[source.index("BallPhysicsWorld::Step(Game& game)"):]
+        resolve = source[source.index(
+            "ContinuousBallStepper::Result BallPhysicsWorld::Step("
+        ):]
 
         self.assertEqual(resolve.count("GetComponents<BallComponent>()"), 1)
         self.assertEqual(resolve.count("GetComponents<Pocket>()"), 1)

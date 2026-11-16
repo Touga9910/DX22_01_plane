@@ -293,9 +293,9 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			status.anchorStackMax);
 		const int shieldGain = AnchorStackRules::CalculateShield(
 			consumed.consumed,
-			status.stopShieldAmount);
+			status.stopShieldPerStack);
 		m_BattleState->playerShield = (std::min)(
-			status.stopShieldAmount,
+			status.stopShieldCapacity,
 			m_BattleState->playerShield + shieldGain);
 		if (shieldGain > 0 &&
 			m_BattleState->crossAxisSupportGeneratedThisTurn <
@@ -326,6 +326,8 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 		RecordBalanceEvent("stop_shield_granted", {
 			{ "consumed", consumed.consumed },
 			{ "shield_gain", shieldGain },
+			{ "shield_per_stack", status.stopShieldPerStack },
+			{ "shield_capacity", status.stopShieldCapacity },
 			{ "shield", m_BattleState->playerShield },
 			{ "player_anchor_generated", consumed.playerStacksGenerated },
 		});
@@ -375,7 +377,7 @@ PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 			shieldGain,
 			m_BattleState->playerShield,
 			0.0f,
-			shieldGain >= status.stopShieldAmount,
+			m_BattleState->playerShield >= status.stopShieldCapacity,
 			false,
 			reinterpret_cast<std::uintptr_t>(player),
 			reinterpret_cast<std::uintptr_t>(player),

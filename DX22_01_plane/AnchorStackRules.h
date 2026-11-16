@@ -156,15 +156,11 @@ namespace AnchorStackRules
 			(std::max)(0, oneShotBonus);
 	}
 
-	inline int CalculateShield(int consumedEnemyStacks, int maximumShield)
+	inline int CalculateShield(int consumedEnemyStacks, int shieldPerStack)
 	{
 		const int consumed = std::clamp(
 			consumedEnemyStacks, 0, EnemyStacksPerPlayerStack);
-		const int maximum = (std::max)(0, maximumShield);
-		if (consumed == 0 || maximum == 0) return 0;
-		return (std::max)(1, static_cast<int>(std::lround(
-			static_cast<float>(consumed * maximum) /
-			static_cast<float>(EnemyStacksPerPlayerStack))));
+		return consumed * (std::max)(0, shieldPerStack);
 	}
 
 	inline int FinisherDamagePerEnemyStack(int playerStacksBeforeConsume)

@@ -19,6 +19,9 @@
     <ClInclude Include="GameRuntimeState.h">
       <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
+    <ClInclude Include="LocalPerformanceLogger.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
     <ClInclude Include="GameSettingsRuntime.h">
       <Filter>ヘッダー ファイル\00_Application\Setting</Filter>
     </ClInclude>
@@ -434,6 +437,9 @@
       <Filter>ヘッダー ファイル\90_External\ImGui</Filter>
     </ClInclude>
     <ClInclude Include="BattleController.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleFlowRules.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
     <ClInclude Include="EnemyActionPlanner.h">
@@ -860,6 +866,9 @@
     <ClCompile Include="GameRuntimeState.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
+    <ClCompile Include="LocalPerformanceLogger.cpp">
+      <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
     <ClCompile Include="GameSettingsRuntime.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
@@ -922,6 +931,9 @@
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
+    </ClCompile>
+    <ClCompile Include="tools\test_battle_controller_runtime.cpp">
+      <Filter>ソース ファイル\08_Tools\Debug</Filter>
     </ClCompile>
     <ClCompile Include="SettingsManager.cpp">
       <Filter>ソース ファイル\00_Application\Settings</Filter>

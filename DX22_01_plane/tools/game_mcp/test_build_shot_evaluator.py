@@ -55,8 +55,8 @@ class BuildShotTests(unittest.TestCase):
 
     def test_minion_stack_cost_respects_trace_count(self):
         driver = ball()
-        driver["definition_id"] = "player_trace_driver"
-        driver["status"].update(pierceStackConsumeLimit=9, attack=1)
+        driver["definition_id"] = "player_minion_finisher"
+        driver["status"].update(attack=1)
         s = state(driver, [enemy(0, 0, 15)])
         s["ball_synergies"] = {"pierce_stacks": 9, "pierce_traces": []}
         without_trace = evaluate_build_shots(

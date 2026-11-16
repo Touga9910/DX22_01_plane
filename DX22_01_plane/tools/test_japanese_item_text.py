@@ -21,20 +21,24 @@ class JapaneseItemTextTests(unittest.TestCase):
 			"player_chain_impact",
 			"player_refractive_pierce",
 			"player_stop_shield",
-			"player_trace_driver",
 			"player_pierce_finisher",
 			"player_ricochet_finisher",
 			"player_anchor_finisher",
+            "player_collision_boost",
+            "player_lightweight",
+            "player_minion_finisher",
+            "player_reflection_setup",
+            "player_origin_anchor",
         ):
             self.assertGreaterEqual(text.count(f'"{definition_id}"'), 2)
         self.assertIn("GetName", text)
         self.assertIn("GetDescription", text)
         self.assertIn("GetTrait", text)
-        self.assertIn('u8"\\u6c4e\\u7528"', text)
-        self.assertIn('u8"\\u91cd\\u91cf"', text)
-        self.assertIn('u8"\\u8cab\\u901a"', text)
-        self.assertIn('u8"\\u53cd\\u767a"', text)
-        self.assertIn('u8"\\u30a2\\u30f3\\u30ab\\u30fc"', text)
+        self.assertIn('u8"スタンダード球"', text)
+        self.assertIn('u8"ヘビー球"', text)
+        self.assertIn('u8"貫通球"', text)
+        self.assertIn('u8"バウンド球"', text)
+        self.assertIn('u8"アンカー球"', text)
 
     def test_relic_catalog_no_longer_uses_english_display_text(self) -> None:
         text = (ROOT / "GameTypes.h").read_text(encoding="utf-8")
@@ -47,8 +51,8 @@ class JapaneseItemTextTests(unittest.TestCase):
             "All owned balls gain",
         ):
             self.assertNotIn(old_text, text)
-        # 12種類それぞれの名称と説明がUTF-8日本語で定義される。
-        self.assertEqual(text.count("RelicUtf8(u8"), 12 * 2)
+        # RelicType::Countに対応する11種類の名称と説明が定義される。
+        self.assertEqual(text.count("RelicUtf8(u8"), 11 * 2)
 
     def test_ball_text_is_used_by_each_player_facing_item_screen(self) -> None:
         for file_name in ("Game.cpp", "ShopScene.cpp", "RestSiteScene.cpp"):
@@ -57,12 +61,12 @@ class JapaneseItemTextTests(unittest.TestCase):
             self.assertIn("PlayerBallText::GetDescription", text)
 
     def test_ball_card_dynamic_status_uses_explicit_utf8_format_strings(self) -> None:
-        text = (ROOT / "Game.cpp").read_text(encoding="utf-8-sig")
-
-        self.assertIn('PlayerBallText::Utf8(u8"攻撃 %d   防御 %d")', text)
-        self.assertIn('PlayerBallText::Utf8(u8"重さ %.1f   大きさ %.1f")', text)
-        self.assertNotIn('sprintf_s(text, "\\u653b\\u6483', text)
-        self.assertNotIn('sprintf_s(text, "\\u91cd\\u3055', text)
+        presentation = (ROOT / "Game.cpp").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn('PlayerBallText::Utf8(u8"攻撃力：%d")', presentation)
+        self.assertNotIn('sprintf_s(text, "\\u653b\\u6483', presentation)
+        self.assertNotIn('sprintf_s(text, "\\u91cd\\u3055', presentation)
 
     def test_shared_japanese_ui_text_is_used_by_player_facing_screens(self) -> None:
         ui_text = (ROOT / "UiText.h").read_text(encoding="utf-8")

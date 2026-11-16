@@ -87,7 +87,7 @@ class BuildDecisionTests(unittest.TestCase):
     def test_generator_then_finisher_then_support_priority_is_dynamic(self) -> None:
         offers = [
             ball(0, "player_pierce"),
-            ball(1, "player_trace_driver"),
+            ball(1, "player_minion_finisher"),
             ball(2, "player_refractive_pierce"),
         ]
         state = {
@@ -103,7 +103,7 @@ class BuildDecisionTests(unittest.TestCase):
 
         state["deck_balls"].append(ball(1, "player_pierce", instance_id=11))
         second = evaluate_ball_choices(state, self.profiles, "pierce")
-        self.assertEqual(second["recommended"]["definition_id"], "player_trace_driver")
+        self.assertEqual(second["recommended"]["definition_id"], "player_minion_finisher")
         generator = next(
             choice for choice in second["choices"]
             if choice["definition_id"] == "player_pierce"
@@ -137,7 +137,7 @@ class BuildDecisionTests(unittest.TestCase):
             ball(2, "player_standard", instance_id=3),
             ball(3, "player_standard", instance_id=4),
             ball(4, "player_pierce", instance_id=5),
-            ball(5, "player_trace_driver", instance_id=6),
+            ball(5, "player_minion_finisher", instance_id=6),
         ]
         state = {
             "scene": "shop",
@@ -152,9 +152,9 @@ class BuildDecisionTests(unittest.TestCase):
         protected = {
             candidate["definition_id"]: candidate["protected"]
             for candidate in result["candidates"]
-            if candidate["definition_id"] in {"player_pierce", "player_trace_driver"}
+            if candidate["definition_id"] in {"player_pierce", "player_minion_finisher"}
         }
-        self.assertEqual(protected, {"player_pierce": True, "player_trace_driver": True})
+        self.assertEqual(protected, {"player_pierce": True, "player_minion_finisher": True})
 
     def test_shop_removal_obeys_money_and_minimum_deck(self) -> None:
         state = {
@@ -179,7 +179,7 @@ class BuildDecisionTests(unittest.TestCase):
         protected_pairs = {
             "standard": (),
             "heavy": ("player_heavy", "player_chain_impact"),
-            "pierce": ("player_pierce", "player_trace_driver"),
+            "pierce": ("player_pierce", "player_minion_finisher"),
             "bounce": ("player_cushion_charge", "player_bounce"),
             "anchor": ("player_anchor", "player_anchor_finisher"),
         }

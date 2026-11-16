@@ -66,11 +66,16 @@ namespace BallTrajectoryPreview
 		const BallComponent& player,
 		int pierceMaximumUses,
 		float pierceSpeedRetention);
+	Input Capture(
+		const GameWorld& world,
+		const BallComponent& player,
+		int pierceMaximumUses,
+		float pierceSpeedRetention);
 
 	// Simulates the displayed incoming route only. Shared collision/friction
 	// rules are used, but combat state and post-contact chains are not created.
 	Result Predict(
-		const Input& input,
+		Input input,
 		const DirectX::SimpleMath::Vector3& velocity,
 		bool skipFirstPlayerFriction);
 

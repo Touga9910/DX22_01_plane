@@ -208,7 +208,7 @@ def candidate_paths(state, target, stats, shot_type, wall_index, shot_goal, pock
 # P1: the following helpers only read P0's game-state snapshot.  They never
 # mutate the state, simulate game physics or affect the player's preview line.
 _HEAVY_BALLS = {"player_heavy", "player_chain_impact", "player_collision_boost", "player_lightweight"}
-_PIERCE_BALLS = {"player_pierce", "player_refractive_pierce", "player_trace_driver",
+_PIERCE_BALLS = {"player_pierce", "player_refractive_pierce",
                  "player_pierce_finisher", "player_minion_finisher"}
 _BOUNCE_BALLS = {"player_cushion_charge", "player_bounce", "player_ricochet_finisher",
                  "player_reflection_setup"}
@@ -398,7 +398,7 @@ def _valuable_stack_chain(state, axis, gained, current):
         return False
     consumers = {
         "heavy": ({"player_chain_impact", "player_collision_boost"}, (3, 5)),
-        "pierce": ({"player_trace_driver", "player_minion_finisher"}, (1, 4, 7, 10)),
+        "pierce": ({"player_minion_finisher"}, (1, 4, 7, 10)),
         "reflection": ({"player_bounce", "player_ricochet_finisher"}, (1, 6)),
         "anchor": ({"player_stop_shield", "player_anchor_finisher"}, (4, 5)),
     }
@@ -553,17 +553,16 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
         count = min(max(0, _whole(sy.get("pierce_stack_max", 15), 15) - pierce), len(contacted_ids))
         facts["pierce_stacks_generated_estimate"] = count
         if count:
-            has_spender = _present_ball(state, {"player_trace_driver", "player_minion_finisher"})
+            has_spender = _present_ball(state, {"player_minion_finisher"})
             resource_gain += count * (0.45 if has_spender else 0.15) * future
             exceptional = _valuable_stack_chain(state, "pierce", count, pierce)
             facts["exceptional_stack_setup"] |= exceptional
             if exceptional: resource_gain += 1.0 * future
             if count > 1: reasons.append("複数貫通でスタックと射線記録を増やす")
 
-    if definition in {"player_trace_driver", "player_minion_finisher"}:
-        finisher_ball = definition == "player_minion_finisher"
-        consume_limit = (15 if finisher_ball else
-                         _whole(stats.get("pierceStackConsumeLimit", 3), 3))
+    if definition == "player_minion_finisher":
+        finisher_ball = True
+        consume_limit = 15
         consume = _effective_minion_stack_consume(
             state, pierce, consume_limit, finisher_ball)
         predicted, launched = _minion_expectation(state, consume,
@@ -1076,12 +1075,15 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     if definition == "player_stop_shield":
         stacks = _anchor_stacks_by_target(state).get(target["target_id"], 0)
         consumed = min(stacks, _whole(stats.get("anchorEnemyConsumeLimit", 5), 5))
-        max_shield = _whole(stats.get("stopShieldAmount"))
-        if consumed > 0 and max_shield > 0:
-            predicted_shield = max(1, int(math.floor(consumed * max_shield / 5 + 0.5)))
+        shield_per_stack = _whole(stats.get("stopShieldPerStack"))
+        shield_capacity = _whole(stats.get("stopShieldCapacity"))
+        if consumed > 0 and shield_per_stack > 0:
+            predicted_shield = consumed * shield_per_stack
         # Preserve the game's shield cap and any currently carried shield.
         existing_shield = _number(state.get("player", {}).get("shield", 0))
-        predicted_shield = max(0, min(predicted_shield, max_shield - existing_shield))
+        predicted_shield = max(
+            0, min(predicted_shield, shield_capacity - existing_shield)
+        )
     incoming_damage = max(0.0, incoming_damage - predicted_shield)
     player = state["player"]
     current_hp = float(player.get("current_hp", 50))

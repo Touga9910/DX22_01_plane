@@ -189,8 +189,13 @@ void GameRuntimeState::RecordAimingFrameTiming(
 		m_AimingPreviewPrediction = {};
 		m_AimingPreviewWorldKey = {};
 		m_AimingPreviewCacheReuseFrames = 0;
+		m_AimingPreviewRefreshes = 0;
+		m_AimingMaximumPowerPreviewCacheHits = 0;
 		m_AimingPreviewBallCopies = 0;
 		m_AimingElapsedMilliseconds = 0.0;
+		++m_AimingTimingSequence;
+		m_AimingPhysicsTickStart = m_PhysicsTickCount;
+		m_AimingCcdLimitStart = m_PhysicsSubstepLimitCount;
 		m_AimingTimingActive = true;
 	}
 	AimingFrameSample& sample =
@@ -229,18 +234,44 @@ void GameRuntimeState::RecordTrajectoryPreviewCacheReuse()
 	}
 }
 
+void GameRuntimeState::RecordTrajectoryPreviewRefresh()
+{
+	if (m_AimingTimingActive)
+	{
+		++m_AimingPreviewRefreshes;
+	}
+}
+
+void GameRuntimeState::RecordMaximumPowerPreviewCacheReuse()
+{
+	if (m_AimingTimingActive)
+	{
+		++m_AimingMaximumPowerPreviewCacheHits;
+	}
+}
+
 AimingPerformanceSnapshot
 GameRuntimeState::CaptureAimingPerformance() const
 {
 	AimingPerformanceSnapshot snapshot;
 	snapshot.active = m_AimingTimingActive;
+	snapshot.complete =
+		m_AimingTimingSampleCount == AimingTimingCapacity;
+	snapshot.sequence = m_AimingTimingSequence;
 	snapshot.sampleCount =
 		static_cast<int>(m_AimingTimingSampleCount);
 	snapshot.previewPrediction = m_AimingPreviewPrediction;
 	snapshot.previewWorldKey = m_AimingPreviewWorldKey;
 	snapshot.previewCacheReuseFrames =
 		m_AimingPreviewCacheReuseFrames;
+	snapshot.previewRefreshes = m_AimingPreviewRefreshes;
+	snapshot.maximumPowerPreviewCacheHits =
+		m_AimingMaximumPowerPreviewCacheHits;
 	snapshot.previewBallCopies = m_AimingPreviewBallCopies;
+	snapshot.physicsFixedTickCount =
+		m_PhysicsTickCount - m_AimingPhysicsTickStart;
+	snapshot.ccdLimitReachedCount =
+		m_PhysicsSubstepLimitCount - m_AimingCcdLimitStart;
 	if (m_AimingTimingSampleCount == 0) return snapshot;
 
 	std::vector<double> frameTimes;
@@ -261,10 +292,14 @@ GameRuntimeState::CaptureAimingPerformance() const
 	const std::size_t p95Index = (std::min)(
 		frameTimes.size() - 1,
 		static_cast<std::size_t>(std::ceil(0.95 * count)) - 1);
+	const std::size_t p99Index = (std::min)(
+		frameTimes.size() - 1,
+		static_cast<std::size_t>(std::ceil(0.99 * count)) - 1);
 	snapshot.durationSeconds = m_AimingElapsedMilliseconds / 1000.0;
 	snapshot.averageFrameMilliseconds = frameTotal / count;
 	snapshot.maximumFrameMilliseconds = frameTimes.back();
 	snapshot.p95FrameMilliseconds = frameTimes[p95Index];
+	snapshot.p99FrameMilliseconds = frameTimes[p99Index];
 	snapshot.averageFps = snapshot.averageFrameMilliseconds > 0.0
 		? 1000.0 / snapshot.averageFrameMilliseconds
 		: 0.0;

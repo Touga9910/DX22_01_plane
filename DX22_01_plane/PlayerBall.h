@@ -296,6 +296,14 @@ private:
 	std::uint64_t m_LastPreviewWorldKey = 0;
 	bool m_PreviewComplete = false;
 	float m_PreviewReachableDistance = 0.0f;
+	bool m_MaximumPowerPreviewValid = false;
+	std::uint64_t m_MaximumPowerPreviewWorldKey = 0;
+	DirectX::SimpleMath::Vector3 m_MaximumPowerPreviewDirection =
+		DirectX::SimpleMath::Vector3::Zero;
+	float m_MaximumPowerPreviewPower = 0.0f;
+	float m_MaximumPowerPreviewDistance = 0.0f;
+	bool m_MaximumPowerPreviewReachedBlockingContact = false;
+	std::vector<DirectX::SimpleMath::Vector3> m_MaximumPowerPreviewPath;
 
 	//=======================================
 	// 弾道予測描画

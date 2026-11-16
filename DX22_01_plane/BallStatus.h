@@ -45,7 +45,8 @@ struct BallStatus
 	float cushionChargeSpeedMultiplier = 1.0f;
 
 	// 既存5カテゴリ内の派生ボール用効果。0の項目は対応効果を無効として扱う
-	int stopShieldAmount = 0;           // 停止時に付与するシールド量
+	int stopShieldPerStack = 0;         // 消費した敵錨スタック1個あたりのシールド量
+	int stopShieldCapacity = 0;         // 1ショット中に保持できるシールド上限
 	float chainImpactRadius = 0.0f;     // 連鎖衝撃で周囲の敵へ影響する半径
 
 	// 重量カテゴリ
@@ -70,7 +71,6 @@ struct BallStatus
 	float traceNonPierceSpeedMultiplier = 1.0f;		// 非貫通カテゴリが痕を利用した際の速度倍率
 	int pierceFinisherBaseBonus = 0;				// 貫通フィニッシャーが痕利用後に得る基本追加ダメージ
 	int pierceFinisherMultiTargetBonus = 0;			// 複数の敵を貫通した際、2体目以降1体ごとの追加ダメージ
-	int pierceStackConsumeLimit = 0;
 
 	// 反発カテゴリ
 	int cushionStackGenerateAmount = 0;				// 対象壁区画へ新しく生成するクッションスタック数
@@ -117,7 +117,8 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.anchorStopSpeedSquared = std::clamp(status.anchorStopSpeedSquared, 0.03f, 1.0f);
 	status.cushionChargeSpeedMultiplier =
 		std::clamp(status.cushionChargeSpeedMultiplier, 1.0f, 3.0f);
-	status.stopShieldAmount = std::clamp(status.stopShieldAmount, 0, 100);
+	status.stopShieldPerStack = std::clamp(status.stopShieldPerStack, 0, 100);
+	status.stopShieldCapacity = std::clamp(status.stopShieldCapacity, 0, 1000);
 	status.chainImpactRadius = std::clamp(status.chainImpactRadius, 0.0f, 100.0f);
 	status.heavyFinisherDamagePerCollision = std::clamp(
 		status.heavyFinisherDamagePerCollision, 0.0f, 100.0f);
@@ -142,7 +143,6 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.pierceFinisherBaseBonus = std::clamp(status.pierceFinisherBaseBonus, 0, 1000);
 	status.pierceFinisherMultiTargetBonus = std::clamp(
 		status.pierceFinisherMultiTargetBonus, 0, 1000);
-	status.pierceStackConsumeLimit = std::clamp(status.pierceStackConsumeLimit, 0, 15);
 	status.cushionStackGenerateAmount = std::clamp(status.cushionStackGenerateAmount, 0, 99);
 	status.cushionMaxStack = std::clamp(status.cushionMaxStack, 1, 99);
 	status.cushionStackConsumeAmount = std::clamp(status.cushionStackConsumeAmount, 1, 99);

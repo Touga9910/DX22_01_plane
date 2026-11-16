@@ -55,7 +55,7 @@ inline BallCategory BallCategoryFromId(
 	if (definitionId == "player_chain_impact" || definitionId == "player_collision_boost" ||
 		definitionId == "player_lightweight") return BallCategory::Heavy;
 	if (definitionId == "player_pierce" || definitionId == "player_refractive_pierce" ||
-		definitionId == "player_trace_driver" || definitionId == "player_pierce_finisher" ||
+		definitionId == "player_pierce_finisher" ||
 		definitionId == "player_minion_finisher")
 		return BallCategory::Pierce;
 	if (definitionId == "player_bounce" || definitionId == "player_cushion_charge" ||

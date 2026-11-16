@@ -351,9 +351,7 @@ BallTrajectoryPreview::Input MakeTrajectoryPreviewInput(
 {
 	Game& game = *Game::GetInstance();
 	return BallTrajectoryPreview::Capture(
-		GameRuntime::World().GetComponents<BallComponent>(),
-		GameRuntime::World().GetComponents<TableFrame>(),
-		GameRuntime::World().GetComponents<Pocket>(),
+		GameRuntime::World(),
 		*player.GetBall(),
 		game.GetPierceMaximumUses(),
 		game.GetPierceSpeedRetention());
@@ -374,7 +372,6 @@ BallShotPrediction::Input MakeShotPredictionInput(float launchPower)
         input.hasCurrentBall = true;
         input.currentBallCategory = static_cast<int>(currentBall->category);
     }
-    input.pocketFinisherRatio = game.GetCurrentPocketFinisherRatio();
     input.playerPocketDamage = game.GetPlayerPocketDamageAmount();
     input.pierceMaximumUses = game.GetPierceMaximumUses();
     input.pierceSpeedRetention = game.GetPierceSpeedRetention();
@@ -685,12 +682,6 @@ void Game::InitializeBattleController()
 			CapturePlayerStatusFrom(player);
 		};
 
-	hooks.restoreNextPocketedEnemy =
-		[this]()
-		{
-			RestoreNextPocketedEnemy();
-		};
-
 	hooks.spawnPhaseEnemies =
 		[this](
 			const std::vector<EnemySpawnData>& spawns,
@@ -698,6 +689,14 @@ void Game::InitializeBattleController()
 			unsigned int spawnSeed,
 			int phaseNumber)
 		{
+			RecordBalanceEvent("phase_ended", {
+				{ "phase", phaseNumber - 1 },
+				{ "total_phases",
+					m_BattleState->controller.GetTotalPhases() },
+				{ "reason", "reinforcement_advance" },
+				{ "living_enemy_count_before_reinforcement",
+					m_BattleState->controller.GetLivingEnemyCount() },
+			});
 			std::mt19937 random(spawnSeed +
 				static_cast<unsigned int>(phaseNumber));
 			using Vector3 = DirectX::SimpleMath::Vector3;
@@ -913,6 +912,14 @@ void Game::InitializeBattleController()
 				{ "living_enemy_count",
 					m_BattleState->controller.GetLivingEnemyCount() },
 				{ "spawn_seed", spawnSeed },
+			});
+			RecordBalanceEvent("phase_started", {
+				{ "phase", phaseNumber },
+				{ "total_phases",
+					m_BattleState->controller.GetTotalPhases() },
+				{ "spawned_enemy_count", static_cast<int>(spawns.size()) },
+				{ "living_enemy_count",
+					m_BattleState->controller.GetLivingEnemyCount() },
 			});
 		};
 

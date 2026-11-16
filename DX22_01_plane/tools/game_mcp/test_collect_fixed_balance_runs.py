@@ -82,13 +82,13 @@ class BuildCollectorDecisionTests(unittest.TestCase):
         from collect_fixed_balance_runs import _ball_ability_activation_counts
 
         counts = _ball_ability_activation_counts([{
-            "ball_id": "player_trace_driver",
+            "ball_id": "player_minion_finisher",
             "shot_events": [{
                 "event_type": "pierce_minions_launched",
                 "details": {"consumed": 0, "minion_count": 0},
             }],
         }])
-        self.assertEqual(counts["player_trace_driver"], 0)
+        self.assertEqual(counts["player_minion_finisher"], 0)
 
     def test_tool_result_accepts_single_and_double_result_envelopes(self) -> None:
         state = {"scene": "title", "available_actions": ["start_new_run"]}

@@ -41,15 +41,6 @@ SINGLE_CASES = {
 }
 
 STAGE_CASES = {
-    "trace_driver_stage_3": {
-        "consumer": "player_trace_driver", "upgrade": 0, "target": 3
-    },
-    "trace_driver_stage_6": {
-        "consumer": "player_trace_driver", "upgrade": 1, "target": 6
-    },
-    "trace_driver_stage_9": {
-        "consumer": "player_trace_driver", "upgrade": 2, "target": 9
-    },
     "minion_finisher_overcharge": {
         "consumer": "player_minion_finisher", "upgrade": 0, "target": 15
     },
@@ -63,8 +54,8 @@ ECONOMY_SCENARIOS = {
     "consumption_pierce": {
         "deck": [
             ("player_pierce", 0),
-            ("player_trace_driver", 2),
             ("player_minion_finisher", 0),
+            ("player_minion_finisher", 2),
         ],
         "policy": "consume",
     },
@@ -72,7 +63,7 @@ ECONOMY_SCENARIOS = {
         "deck": [
             ("player_pierce", 0),
             ("player_pierce", 1),
-            ("player_trace_driver", 1),
+            ("player_minion_finisher", 1),
         ],
         "policy": "mixed",
     },
@@ -349,16 +340,16 @@ def choose_economy_ball(state: dict, policy: str, turn: int) -> str:
         preferred = ["player_pierce"]
     elif policy == "consume":
         if turn == 1:
-            preferred = ["player_trace_driver", "player_minion_finisher"]
+            preferred = ["player_minion_finisher"]
         elif stacks >= 9:
-            preferred = ["player_trace_driver", "player_minion_finisher"]
+            preferred = ["player_minion_finisher"]
         else:
             preferred = ["player_pierce"]
     elif policy == "mixed":
-        preferred = ["player_trace_driver"] if stacks >= 6 else ["player_pierce"]
+        preferred = ["player_minion_finisher"] if stacks >= 6 else ["player_pierce"]
     else:
         raise ValueError(policy)
-    preferred.extend(["player_pierce", "player_trace_driver", "player_minion_finisher"])
+    preferred.extend(["player_pierce", "player_minion_finisher"])
     return next(item for item in preferred if item in offered)
 
 

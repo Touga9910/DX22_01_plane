@@ -274,11 +274,12 @@ int main()
 	auto sharedConsume = AnchorStackRules::ConsumeEnemyStacks(
 		capA, sharedConsumeState, 3, 99);
 	assert(sharedConsume.consumed == 3 && capA == 4);
-	assert(AnchorStackRules::CalculateShield(1, 7) == 1);
-	assert(AnchorStackRules::CalculateShield(2, 7) == 3);
-	assert(AnchorStackRules::CalculateShield(3, 7) == 4);
-	assert(AnchorStackRules::CalculateShield(4, 7) == 6);
-	assert(AnchorStackRules::CalculateShield(5, 7) == 7);
+	assert(AnchorStackRules::CalculateShield(1, 3) == 3);
+	assert(AnchorStackRules::CalculateShield(2, 3) == 6);
+	assert(AnchorStackRules::CalculateShield(3, 3) == 9);
+	assert(AnchorStackRules::CalculateShield(4, 3) == 12);
+	assert(AnchorStackRules::CalculateShield(5, 3) == 15);
+	assert(AnchorStackRules::CalculateShield(6, 3) == 15);
 	assert(AnchorStackRules::FinisherDamagePerEnemyStack(4) == 2);
 	assert(AnchorStackRules::FinisherDamagePerEnemyStack(5) == 3);
 	assert(AnchorStackRules::FinisherDamagePerEnemyStack(10) == 4);
@@ -328,6 +329,22 @@ int main()
 		assert(std::abs(minion.knockbackMultiplier - 1.875f) < 0.001f);
 	}
 	assert(PierceTraceRules::MinionLaunchSpeed == 5.0f);
+	PierceTraceRules::State noTraceStacks{};
+	noTraceStacks.stackCount = 15;
+	assert(PierceTraceRules::CalculateEffectiveMinionStackConsume(
+		noTraceStacks, PierceTraceRules::MaxStackCount, true) == 0);
+	assert(noTraceStacks.stackCount == 15);
+	PierceTraceRules::State oneTraceStacks{};
+	oneTraceStacks.stackCount = 15;
+	assert(PierceTraceRules::AddTrace(
+		oneTraceStacks, { 0, 0, 0 }, { 1, 0, 0 }));
+	const int oneTraceConsume =
+		PierceTraceRules::CalculateEffectiveMinionStackConsume(
+			oneTraceStacks, PierceTraceRules::MaxStackCount, true);
+	assert(oneTraceConsume == 11);
+	assert(PierceTraceRules::ConsumeStacks(
+		oneTraceStacks, oneTraceConsume) == 11);
+	assert(oneTraceStacks.stackCount == 4);
 
 	CushionChargeRules::State cushions{};
 	CushionChargeRules::BeginPlayerShot(cushions);

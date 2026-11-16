@@ -22,7 +22,7 @@ class BallAimGuidanceTests(unittest.TestCase):
 
     def test_live_resource_counts_are_attached_to_each_ball_collection(self) -> None:
         ids = (
-            "player_chain_impact", "player_trace_driver",
+			"player_chain_impact", "player_minion_finisher",
             "player_ricochet_finisher", "player_anchor_finisher",
         )
         state = {

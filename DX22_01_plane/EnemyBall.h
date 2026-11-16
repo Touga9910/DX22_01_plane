@@ -37,8 +37,8 @@ public:
     // -------------------------
     void Defeat();
     void RemoveFromFieldAfterPocket();
-    // Defeated and pocketed balls remain physical objects, but no longer
-    // participate in any combat-facing system.
+    // Damage-defeated balls remain physical objects, but no longer
+    // participate in combat-facing systems. Pocketed enemies are removed.
     bool CanParticipateInCombat() const
     {
         return m_Ball != nullptr && !IsDefeated() && !IsPocketed();
@@ -138,10 +138,6 @@ public:
     float GetPocketDamageRatio() const { return m_EnemyData.pocketDamageRatio; }
     float GetFrontalDamageMultiplier() const { return m_EnemyData.frontalDamageMultiplier; }
     void OnPocketHit();
-    void EnterPocketQueue(
-        const DirectX::SimpleMath::Vector3& pocketEntryPosition);
-    void ReturnFromPocket(
-        const DirectX::SimpleMath::Vector3& position);
     void AdvanceTurnGimmicks();
     void ApplyStun(int turns)
     {

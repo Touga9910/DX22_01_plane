@@ -10,7 +10,6 @@
 #include "PierceMinion.h"
 #include "Pocket.h"
 #include "TableFrame.h"
-#include "TransformComponent.h"
 
 #include <algorithm>
 #include <bit>
@@ -152,10 +151,89 @@ BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
 	}
 	return input;
 }
+
+BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
+	const GameWorld& world,
+	const BallComponent& player,
+	int pierceMaximumUses,
+	float pierceSpeedRetention)
+{
+	Input input;
+	input.playerId = reinterpret_cast<std::uintptr_t>(&player);
+	world.ForEachComponent<BallComponent>([&](BallComponent* component)
+	{
+		if (component == nullptr || component->GetGameObject() == nullptr)
+			return;
+		GameObject* owner = component->GetGameObject();
+		BallCollisionComponent* collision =
+			owner->GetComponent<BallCollisionComponent>();
+		if (collision == nullptr) return;
+
+		BallSnapshot snapshot;
+		snapshot.physics.id = reinterpret_cast<std::uintptr_t>(component);
+		snapshot.physics.position = component->GetPosition();
+		snapshot.physics.velocity = component->GetVelocity();
+		snapshot.physics.status = component->GetStatus();
+		if (const BallPhysicsComponent* physical =
+			owner->GetComponent<BallPhysicsComponent>())
+		{
+			snapshot.physics.status.radius = physical->GetRadius();
+			snapshot.physics.status.mass = physical->GetMass();
+			snapshot.physics.status.restitution = physical->GetRestitution();
+			snapshot.physics.status.friction = physical->GetFriction();
+			snapshot.acceleration = physical->GetAcceleration();
+		}
+		snapshot.physics.player = component == &player;
+		if (const EnemyBall* enemy = owner->GetComponent<EnemyBall>())
+		{
+			snapshot.physics.enemy = enemy->CanParticipateInCombat();
+			snapshot.physics.boss = enemy->IsArmorBoss();
+			snapshot.physics.nextKnockbackMultiplier =
+				enemy->GetNextKnockbackMultiplier();
+			snapshot.guideEnemy = enemy->CanParticipateInCombat();
+			snapshot.guideChainCenter = snapshot.guideEnemy;
+		}
+		if (owner->GetComponent<BreakBall>() != nullptr)
+		{
+			snapshot.physics.breakBall = true;
+			snapshot.guideChainCenter = true;
+		}
+		snapshot.physics.minion =
+			owner->GetComponent<PierceMinion>() != nullptr;
+		if (snapshot.physics.player)
+		{
+			snapshot.physics.pierceLimit = pierceMaximumUses;
+			snapshot.physics.pierceRetention = pierceSpeedRetention;
+		}
+		snapshot.active = collision->CanSimulate();
+		input.balls.push_back(std::move(snapshot));
+	});
+	world.ForEachComponent<TableFrame>([&](TableFrame* frame)
+	{
+		if (frame == nullptr || !frame->IsEnabled() ||
+			frame->GetGameObject() == nullptr ||
+			!frame->GetGameObject()->IsActive())
+		{
+			return;
+		}
+		const auto walls = frame->GetWalls();
+		input.walls.insert(input.walls.end(), walls.begin(), walls.end());
+	});
+	world.ForEachComponent<Pocket>([&](Pocket* pocket)
+	{
+		if (pocket == nullptr || pocket->GetGameObject() == nullptr ||
+			!pocket->GetGameObject()->IsActive())
+		{
+			return;
+		}
+		input.pockets.push_back(pocket->GetSphere());
+	});
+	return input;
+}
 #endif
 
 BallTrajectoryPreview::Result BallTrajectoryPreview::Predict(
-	const Input& input,
+	Input input,
 	const Vector3& velocity,
 	bool skipFirstPlayerFriction)
 {
@@ -168,7 +246,7 @@ BallTrajectoryPreview::Result BallTrajectoryPreview::Predict(
 		return result;
 	}
 
-	std::vector<BallSnapshot> balls = input.balls;
+	std::vector<BallSnapshot> balls = std::move(input.balls);
 	auto playerIt = std::find_if(
 		balls.begin(), balls.end(),
 		[&](const BallSnapshot& ball)
@@ -366,21 +444,17 @@ std::uint64_t BallTrajectoryPreview::WorldKey(
 			owner->GetComponent<BallCollisionComponent>();
 		if (collision == nullptr) return;
 		add(reinterpret_cast<std::uintptr_t>(component));
-		add(owner->IsActive());
 		add(collision->CanSimulate());
 		vector(component->GetPosition());
 		vector(component->GetVelocity());
 		const BallStatus& status = component->GetStatus();
-		scalar(status.radius); scalar(status.mass);
-		scalar(status.restitution); scalar(status.friction);
 		scalar(status.knockbackTransfer);
 		scalar(status.lightweightKnockbackMultiplier);
 		scalar(status.lightweightSpeedLossReduction);
 		add(status.abilities.pierce);
 		add(status.abilities.anchor);
+		add(status.abilities.lightweight);
 		add(status.abilities.refractAfterPierce);
-		add(status.pierceMaxUses);
-		scalar(status.pierceSpeedRetention);
 		scalar(status.anchorBrakeMultiplier);
 		scalar(status.anchorStopSpeedSquared);
 		add(status.anchorKnockbackImmune);
@@ -392,10 +466,14 @@ std::uint64_t BallTrajectoryPreview::WorldKey(
 			scalar(physical->GetFriction());
 			vector(physical->GetAcceleration());
 		}
+		else
+		{
+			scalar(status.radius); scalar(status.mass);
+			scalar(status.restitution); scalar(status.friction);
+		}
 		if (const EnemyBall* enemy = owner->GetComponent<EnemyBall>())
 		{
 			add(enemy->CanParticipateInCombat());
-			add(enemy->IsArmorBoss());
 			scalar(enemy->GetNextKnockbackMultiplier());
 		}
 		add(owner->GetComponent<BreakBall>() != nullptr);
@@ -404,24 +482,21 @@ std::uint64_t BallTrajectoryPreview::WorldKey(
 
 	world.ForEachComponent<TableFrame>([&](TableFrame* frame)
 	{
-		if (frame == nullptr || frame->GetGameObject() == nullptr) return;
+		if (frame == nullptr || !frame->IsEnabled() ||
+			frame->GetGameObject() == nullptr ||
+			!frame->GetGameObject()->IsActive()) return;
 		add(reinterpret_cast<std::uintptr_t>(frame));
-		add(frame->IsEnabled());
-		add(frame->GetGameObject()->IsActive());
-		if (const TransformComponent* transform = frame->GetTransform())
+		for (const Collision::Segment& wall : frame->GetWalls())
 		{
-			vector(transform->GetPosition());
-			vector(transform->GetScale());
-			const Quaternion& rotation = transform->GetRotation();
-			scalar(rotation.x); scalar(rotation.y);
-			scalar(rotation.z); scalar(rotation.w);
+			vector(wall.start);
+			vector(wall.end);
 		}
 	});
 	world.ForEachComponent<Pocket>([&](Pocket* pocket)
 	{
-		if (pocket == nullptr || pocket->GetGameObject() == nullptr) return;
+		if (pocket == nullptr || pocket->GetGameObject() == nullptr ||
+			!pocket->GetGameObject()->IsActive()) return;
 		add(reinterpret_cast<std::uintptr_t>(pocket));
-		add(pocket->GetGameObject()->IsActive());
 		const Collision::Sphere sphere = pocket->GetSphere();
 		vector(sphere.center);
 		scalar(sphere.radius);

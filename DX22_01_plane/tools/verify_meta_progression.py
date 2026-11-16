@@ -54,7 +54,7 @@ def verify_fresh_profile(label):
 			"player_pierce": False, "player_bounce": False,
 			"player_cushion_charge": False,
 			"player_refractive_pierce": False,
-			"player_trace_driver": False, "player_pierce_finisher": False,
+			"player_pierce_finisher": False,
 			"player_ricochet_finisher": False,
 			"player_anchor": False, "player_stop_shield": False,
 			"player_anchor_finisher": False}

@@ -102,6 +102,14 @@ class BalanceSystemMetricTests(unittest.TestCase):
                 },
             },
             {
+                "event_type": "enemy_pocket_defeat",
+                "details": {
+                    "enemy_id": "enemy_normal",
+                    "stage_type": "normal",
+                    "newly_defeated": True,
+                },
+            },
+            {
                 "event_type": "enemy_pocket_finisher",
                 "details": {
                     "enemy_id": "enemy_tank",
@@ -189,7 +197,7 @@ class BalanceSystemMetricTests(unittest.TestCase):
         pockets = report["pockets"]
         self.assertEqual(pockets["enemy"]["controlled_count"], 1)
         self.assertEqual(pockets["enemy"]["returned_count"], 1)
-        self.assertEqual(pockets["enemy"]["live_finisher_count"], 1)
+        self.assertEqual(pockets["enemy"]["live_finisher_count"], 2)
         self.assertEqual(
             pockets["enemy"]["post_defeat_finisher_count"],
             1,

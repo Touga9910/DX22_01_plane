@@ -67,7 +67,7 @@ int main()
 		"assets/data/player_status.json",
 		{},
 		{});
-	assert(loaded.ballDefinitions.size() == 18);
+	assert(loaded.ballDefinitions.size() == 17);
 
 	for (const PlayerBallData& definition : loaded.ballDefinitions)
 	{
@@ -84,12 +84,12 @@ int main()
 	ExpectContains(loaded.ballDefinitions, "player_reflection_setup", 0, u8"1生成");
 	ExpectContains(loaded.ballDefinitions, "player_reflection_setup", 1, u8"2生成");
 	ExpectContains(loaded.ballDefinitions, "player_reflection_setup", 2, u8"3生成");
-	ExpectContains(loaded.ballDefinitions, "player_trace_driver", 0, u8"最大3消費");
-	ExpectContains(loaded.ballDefinitions, "player_trace_driver", 1, u8"最大6消費");
-	ExpectContains(loaded.ballDefinitions, "player_trace_driver", 2, u8"最大9消費");
-	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 0, u8"最大3シールド");
-	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 1, u8"最大5シールド");
-	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 2, u8"最大7シールド");
+	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 0, u8"1個につき1シールド");
+	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 1, u8"1個につき2シールド");
+	ExpectContains(loaded.ballDefinitions, "player_stop_shield", 2, u8"1個につき3シールド");
+	ExpectContains(loaded.ballDefinitions, "player_ricochet_finisher", 0, u8"衝突3回");
+	ExpectContains(loaded.ballDefinitions, "player_ricochet_finisher", 1, u8"衝突2回");
+	ExpectContains(loaded.ballDefinitions, "player_ricochet_finisher", 2, u8"速度98%");
 	ExpectContains(loaded.ballDefinitions, "player_pierce_finisher", 0, u8"+1/+2/+3");
 	ExpectContains(loaded.ballDefinitions, "player_pierce_finisher", 1, u8"+2/+3/+4");
 	ExpectContains(loaded.ballDefinitions, "player_pierce_finisher", 2, u8"+2/+4/+6");

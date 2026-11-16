@@ -245,6 +245,7 @@ def calculate_system_metrics(
             elif event_type in {
                 "enemy_pocket_controlled",
                 "enemy_pocket_finisher",
+                "enemy_pocket_defeat",
                 "enemy_pocket_returned",
             }:
                 stage_type = str(details.get("stage_type", "unknown"))
@@ -266,7 +267,10 @@ def calculate_system_metrics(
                     pocket_returned += 1
                     stage_counter["returned"] += 1
                     enemy_counter["returned"] += 1
-                elif bool(details.get("already_defeated", False)):
+                elif (
+                    event_type == "enemy_pocket_defeat"
+                    and not bool(details.get("newly_defeated", True))
+                ) or bool(details.get("already_defeated", False)):
                     pocket_post_defeat_finishers += 1
                     stage_counter["post_defeat_finisher"] += 1
                     enemy_counter["post_defeat_finisher"] += 1

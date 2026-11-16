@@ -19,7 +19,7 @@ namespace PlayerBallText
     inline std::array<float, 3> GetColor(const std::string& id)
     {
         if (id == "player_heavy" || id == "player_collision_boost" || id == "player_lightweight") return { 0.85f, 0.45f, 0.16f };
-        if (id == "player_pierce" || id == "player_refractive_pierce" || id == "player_trace_driver" || id == "player_pierce_finisher" || id == "player_minion_finisher") return { 0.64f, 0.38f, 0.96f };
+        if (id == "player_pierce" || id == "player_refractive_pierce" || id == "player_pierce_finisher" || id == "player_minion_finisher") return { 0.64f, 0.38f, 0.96f };
         if (id == "player_bounce" || id == "player_cushion_charge" || id == "player_ricochet_finisher" || id == "player_reflection_setup") return { 0.98f, 0.81f, 0.18f };
         if (id == "player_anchor" || id == "player_stop_shield" || id == "player_anchor_finisher" || id == "player_origin_anchor") return { 0.20f, 0.78f, 0.64f };
         return { 0.25f, 0.63f, 1.0f };
@@ -48,7 +48,6 @@ namespace PlayerBallText
         if (id == "player_chain_impact") return Utf8(u8"連鎖衝撃球");
         if (id == "player_refractive_pierce") return Utf8(u8"屈折貫通球");
         if (id == "player_stop_shield") return Utf8(u8"停止時シールド球");
-        if (id == "player_trace_driver") return Utf8(u8"射線展開球");
         if (id == "player_pierce_finisher") return Utf8(u8"貫通決着球");
         if (id == "player_ricochet_finisher") return Utf8(u8"連続跳弾球");
         if (id == "player_anchor_finisher") return Utf8(u8"錨回収球");
@@ -71,10 +70,9 @@ namespace PlayerBallText
         if (id == "player_cushion_charge") return Utf8(u8"有効な壁反射で共有の反射スタックを生成する。強化で生成可能回数や1回あたりの生成量が増える。");
         if (id == "player_chain_impact") return Utf8(u8"重量スタックを最大5個消費。命中した敵の周囲から近い最大2体に衝撃波ダメージを与える。消費1個につき衝撃波ダメージが+1。強化で攻撃力と範囲が上昇する。");
         if (id == "player_refractive_pierce") return Utf8(u8"敵を貫通した後、通常衝突時に敵が飛ぶ方向へ進行方向を変える。貫通痕とスタックも生成し、強化で攻撃力と速度維持率が上がる。");
-        if (id == "player_stop_shield") return Utf8(u8"アンカースタックを持つ敵への接触時、その敵のスタックを最大5個消費してシールドに変換する。反射軸の球がデッキにあれば、変換成功時に反射スタック1も生成する。");
-        if (id == "player_trace_driver") return Utf8(u8"ショット開始時、貫通痕からミニオンを発射する。強化で攻撃力、押し出し倍率、消費上限3→6→9が上がる。貫通痕の数と実効強化に見合う量だけ消費する。");
+        if (id == "player_stop_shield") return Utf8(u8"アンカースタックを持つ敵への接触時、その敵のスタックを最大5個消費する。消費した錨1個あたりのシールド量は強化で1→2→3と増える。反射軸の球がデッキにあれば、変換成功時に反射スタック1も生成する。");
         if (id == "player_pierce_finisher") return Utf8(u8"同じショットで貫通した異なる敵の数に応じ、接触ダメージに追加ボーナスを得る。強化で基本攻撃力と追加ダメージ・速度維持率が上昇する。");
-        if (id == "player_ricochet_finisher") return Utf8(u8"反射スタック6個を消費して、最初に触れた敵をピンボール状態にする。対象が衝突を重ねるほど追加ダメージが増える。強化で基本攻撃力が上がり、+2では成長に必要な衝突回数が減る。");
+        if (id == "player_ricochet_finisher") return Utf8(u8"反射スタック6個を消費して、最初に触れた敵をピンボール状態にする。対象が衝突を重ねるほど追加ダメージが増える。+1で成長に必要な衝突が3→2回に減り、+2で速度維持率が90→98%に上がる。");
         if (id == "player_anchor_finisher") return Utf8(u8"最初に接触したアンカースタック保有敵から、スタックを全消費して直接追加ダメージに変換する。一定数以上の消費で周囲にもダメージを与える。強化で攻撃力・範囲・発動条件が改善する。");
         if (id == "player_collision_boost") return Utf8(u8"重量スタック3個で次ショットの敵同士衝突を強化し、不足時も1.10倍を準備する。消費成功時に反射軸がデッキにあれば反射スタック1も生成する。");
         if (id == "player_lightweight") return Utf8(u8"接触した敵の次のノックバックを強化し、敵ごとに重量スタック1を生成する。貫通軸がデッキにあれば貫通スタック1も生成する。");
@@ -100,7 +98,6 @@ namespace PlayerBallText
     {
         if (id == "player_heavy" || id == "player_pierce" || id == "player_refractive_pierce" || id == "player_cushion_charge" || id == "player_anchor") return Utf8(u8"[生成]");
         if (id == "player_stop_shield") return Utf8(u8"[生成] [防御補助]");
-        if (id == "player_trace_driver") return Utf8(u8"[利用] [展開]");
         if (id == "player_chain_impact" || id == "player_pierce_finisher" || id == "player_ricochet_finisher" || id == "player_anchor_finisher") return Utf8(u8"[利用] [決着]");
         if (id == "player_bounce") return Utf8(u8"[利用]");
         if (id == "player_collision_boost") return Utf8(u8"[利用] [準備]");
@@ -149,15 +146,8 @@ namespace PlayerBallText
 				 << 1 + s.eventStackGenerationBonus << Utf8(u8"と貫通痕を生成。");
         else if (id == "player_stop_shield")
             text << Utf8(u8"接触敵の錨を最大") << s.anchorEnemyConsumeLimit
-                 << Utf8(u8"消費。\n最大") << s.stopShieldAmount << Utf8(u8"シールド")
+                 << Utf8(u8"消費。\n1個につき") << s.stopShieldPerStack << Utf8(u8"シールド")
                  << Utf8(u8"。\n反射軸併用で反射+1。");
-        else if (id == "player_trace_driver")
-        {
-            text << Utf8(u8"貫通痕からミニオンを発射。\nスタック最大") << s.pierceStackConsumeLimit
-                 << Utf8(u8"消費（痕数で制限）。\n自球の押し出し×");
-            putRatio(s.knockbackTransfer);
-            text << Utf8(u8"。");
-        }
         else if (id == "player_pierce_finisher")
         {
             const int first = s.pierceFinisherBaseBonus;
@@ -167,7 +157,9 @@ namespace PlayerBallText
         }
         else if (id == "player_ricochet_finisher")
             text << Utf8(u8"反射スタック") << s.ricochetStackConsume
-                 << Utf8(u8"消費で跳弾状態。\n衝突") << s.pinballCollisionsPerStage << Utf8(u8"回ごとに追加ダメージ増加。");
+                 << Utf8(u8"消費で跳弾状態。\n衝突") << s.pinballCollisionsPerStage
+                 << Utf8(u8"回ごとに成長、速度")
+                 << std::lround(s.pinballSpeedRetention * 100.0f) << "%";
         else if (id == "player_anchor_finisher")
             text << Utf8(u8"接触敵の錨を全消費し追撃。\n") << s.anchorFinisherAoeThreshold
                  << Utf8(u8"以上消費で周囲にもダメージ。");
@@ -229,16 +221,15 @@ namespace PlayerBallText
         else if (id == "player_chain_impact")
             text << Utf8(u8" / 範囲") << s.chainImpactRadius;
         else if (id == "player_stop_shield")
-            text << Utf8(u8" / 最大シールド") << s.stopShieldAmount;
-        else if (id == "player_trace_driver")
-            text << Utf8(u8" / 最大消費") << s.pierceStackConsumeLimit
-                 << Utf8(u8" / 自球伝達×") << std::fixed << std::setprecision(2) << s.knockbackTransfer;
+            text << Utf8(u8" / 錨1個+") << s.stopShieldPerStack
+                 << Utf8(u8" / 保持上限") << s.stopShieldCapacity;
         else if (id == "player_pierce_finisher")
             text << Utf8(u8" / 追加+") << s.pierceFinisherBaseBonus
 				 << Utf8(u8" / 複数補正+") << s.pierceFinisherMultiTargetBonus
 				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;
         else if (id == "player_ricochet_finisher")
-            text << Utf8(u8" / 衝突") << s.pinballCollisionsPerStage << Utf8(u8"回で成長");
+            text << Utf8(u8" / 衝突") << s.pinballCollisionsPerStage << Utf8(u8"回で成長")
+                 << Utf8(u8" / 速度維持") << std::lround(s.pinballSpeedRetention * 100.0f) << "%";
         else if (id == "player_anchor_finisher")
             text << Utf8(u8" / 範囲") << s.anchorFinisherAoeRadius
                  << Utf8(u8" / 閾値") << s.anchorFinisherAoeThreshold;

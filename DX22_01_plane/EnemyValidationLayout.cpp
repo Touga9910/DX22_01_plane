@@ -173,19 +173,40 @@ namespace
         {
             std::vector<Vector3> positions;
             positions.reserve(enemies.size());
-            float distance = (std::max)(0.01f, playerRadius) +
-                enemies.front().enemyData.status.radius + 2.0f;
-            for (std::size_t index = 0; index < enemies.size(); ++index)
+            const std::size_t laneCount = enemies.size() > 10 ? 2 : 1;
+            const std::size_t perLane =
+                (enemies.size() + laneCount - 1) / laneCount;
+            float maxRadius = 0.01f;
+            for (const EnemySpawnData& enemy : enemies)
             {
-                if (index > 0)
+                maxRadius = (std::max)(
+                    maxRadius, enemy.enemyData.status.radius);
+            }
+            const float laneOffset = laneCount > 1
+                ? maxRadius + kLineGap
+                : 0.0f;
+            for (std::size_t lane = 0; lane < laneCount; ++lane)
+            {
+                const std::size_t begin = lane * perLane;
+                const std::size_t end = (std::min)(
+                    enemies.size(), begin + perLane);
+                if (begin >= end) break;
+                float distance = (std::max)(0.01f, playerRadius) +
+                    enemies[begin].enemyData.status.radius + 2.0f;
+                const float z = playerPosition.z +
+                    (lane == 0 ? -laneOffset : laneOffset);
+                for (std::size_t index = begin; index < end; ++index)
                 {
-                    distance += enemies[index - 1].enemyData.status.radius +
-                        enemies[index].enemyData.status.radius + kLineGap;
+                    if (index > begin)
+                    {
+                        distance += enemies[index - 1].enemyData.status.radius +
+                            enemies[index].enemyData.status.radius + kLineGap;
+                    }
+                    positions.emplace_back(
+                        playerPosition.x + direction * distance,
+                        TableConfig::FIELD_HEIGHT,
+                        z);
                 }
-                positions.emplace_back(
-                    playerPosition.x + direction * distance,
-                    TableConfig::FIELD_HEIGHT,
-                    playerPosition.z);
             }
             if (CommitPositions(
                 enemies, positions, playerPosition, playerRadius))
@@ -249,7 +270,7 @@ EnemyValidationLayoutResult EnemyValidationLayout::Generate(
     EnemyValidationLayoutResult result;
     if (!IsSupportedEnemyValidationCount(settings.enemyCount))
     {
-        result.error = "Enemy validation count must be 6, 8, or 10.";
+        result.error = "Enemy validation count must be 6, 8, 10, or 12.";
         return result;
     }
 
@@ -268,7 +289,8 @@ EnemyValidationLayoutResult EnemyValidationLayout::Generate(
     int standardCount = 0;
     if (settings.enemyCount == 6) { lowCount = 2; standardCount = 3; }
     else if (settings.enemyCount == 8) { lowCount = 3; standardCount = 4; }
-    else { lowCount = 4; standardCount = 5; }
+    else if (settings.enemyCount == 10) { lowCount = 4; standardCount = 5; }
+    else { lowCount = 5; standardCount = 6; }
 
     const auto append = [&](const char* id, int count)
     {

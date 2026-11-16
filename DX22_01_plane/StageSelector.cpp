@@ -30,6 +30,25 @@ std::vector<std::string> GetPhaseTestStageIds(int progress)
 	return { "phase_prototype_009", "phase_prototype_010" };
 }
 
+std::vector<std::string> GetCampaignPhaseStageIds(int floor)
+{
+	if (floor < 5)
+	{
+		return {};
+	}
+	if (floor < 10)
+	{
+		return {
+			"campaign_phase_mid_mixed",
+			"campaign_phase_mid_pairs",
+		};
+	}
+	return {
+		"campaign_phase_late_mixed",
+		"campaign_phase_late_pairs",
+	};
+}
+
 StageSelector::StageSelector()
     : m_RandomEngine(std::random_device{}())
 {
@@ -158,4 +177,87 @@ const StageData* StageSelector::SelectPhaseTestStage(
 	std::uniform_int_distribution<std::size_t> distribution(
 		0, candidates.size() - 1);
 	return candidates[distribution(m_RandomEngine)];
+}
+
+const StageData* StageSelector::SelectCampaignNormalStage(
+	const std::vector<StageData>& stages,
+	int floor,
+	const std::string& lastStageId,
+	const std::vector<std::string>& allowedStageIds)
+{
+	const int normalizedFloor = (std::max)(1, floor);
+	const bool phaseBattle = normalizedFloor >= 5;
+	const int expectedSecondPhaseCount = normalizedFloor >= 10 ? 6 : 4;
+	const DifficultyRange difficulty = GetDifficultyRange(normalizedFloor);
+	const std::vector<std::string> campaignPhaseIds =
+		GetCampaignPhaseStageIds(normalizedFloor);
+	std::vector<const StageData*> candidates;
+
+	for (const StageData& stage : stages)
+	{
+		if (stage.stageType != StageType::Normal || stage.prototypeOnly)
+		{
+			continue;
+		}
+		if (!allowedStageIds.empty() &&
+			std::find(allowedStageIds.begin(), allowedStageIds.end(), stage.id) ==
+				allowedStageIds.end())
+		{
+			continue;
+		}
+
+		if (!phaseBattle)
+		{
+			if (stage.combatMode != CombatMode::Legacy ||
+				stage.difficulty < difficulty.min ||
+				stage.difficulty > difficulty.max ||
+				stage.enemies.size() < 3 || stage.enemies.size() > 5)
+			{
+				continue;
+			}
+		}
+		else
+		{
+			if (stage.combatMode != CombatMode::PhasePrototype ||
+				std::find(campaignPhaseIds.begin(), campaignPhaseIds.end(),
+					stage.id) == campaignPhaseIds.end() ||
+				stage.phaseBattle.phases.size() != 2 ||
+				stage.phaseBattle.phases[0].enemies.size() != 6 ||
+				static_cast<int>(
+					stage.phaseBattle.phases[1].enemies.size()) !=
+					expectedSecondPhaseCount)
+			{
+				continue;
+			}
+		}
+		candidates.push_back(&stage);
+	}
+
+	if (candidates.empty())
+	{
+		std::cerr << "[StageSelector] Campaign floor " << normalizedFloor
+			<< " has no valid "
+			<< (phaseBattle ? "phase" : "opening")
+			<< " normal stage. No combat-mode fallback was applied."
+			<< std::endl;
+		return nullptr;
+	}
+	if (candidates.size() > 1 && !lastStageId.empty())
+	{
+		candidates.erase(
+			std::remove_if(candidates.begin(), candidates.end(),
+				[&lastStageId](const StageData* stage)
+				{
+					return stage->id == lastStageId;
+				}),
+			candidates.end());
+	}
+	std::uniform_int_distribution<std::size_t> distribution(
+		0, candidates.size() - 1);
+	const StageData* selected = candidates[distribution(m_RandomEngine)];
+	std::cout << "[StageSelector] Campaign floor " << normalizedFloor
+		<< " selected " << selected->id
+		<< " / phases " << selected->phaseBattle.phases.size()
+		<< std::endl;
+	return selected;
 }

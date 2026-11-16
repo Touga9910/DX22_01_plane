@@ -551,24 +551,11 @@ void Game::LoadPocketRulesConfig(const std::string& filePath)
 		nlohmann::json config;
 		file >> config;
 		auto& rules = m_BattleState->controller.PocketRules();
+		rules.enemyInstantDefeat = config.value(
+			"enemy_instant_defeat", true);
 		rules.playerDamageRatio = std::clamp(
 			config.value("player_max_hp_damage_ratio",
 				rules.playerDamageRatio),
-			0.0f,
-			1.0f);
-		const nlohmann::json finishers = config.value(
-			"enemy_finisher_hp_ratios",
-			nlohmann::json::object());
-		rules.normalFinisherRatio = std::clamp(
-			finishers.value("normal", rules.normalFinisherRatio),
-			0.0f,
-			1.0f);
-		rules.midBossFinisherRatio = std::clamp(
-			finishers.value("midboss", rules.midBossFinisherRatio),
-			0.0f,
-			1.0f);
-		rules.bossFinisherRatio = std::clamp(
-			finishers.value("boss", rules.bossFinisherRatio),
 			0.0f,
 			1.0f);
 		const nlohmann::json playerReturn = config.value(
@@ -582,19 +569,6 @@ void Game::LoadPocketRulesConfig(const std::string& filePath)
 			0.0f,
 			playerReturn.value(
 				"half_depth", rules.playerReturnHalfDepth));
-		const nlohmann::json enemyReturn = config.value(
-			"enemy_return",
-			nlohmann::json::object());
-		const nlohmann::json enemyReturnPosition = enemyReturn.value(
-			"position",
-			nlohmann::json::object());
-		rules.enemyReturnX = enemyReturnPosition.value(
-			"x", rules.enemyReturnX);
-		rules.enemyReturnTopEdgeOffset = (std::max)(
-			0.0f,
-			enemyReturnPosition.value(
-				"z_from_top_edge",
-				rules.enemyReturnTopEdgeOffset));
 	}
 	catch (const nlohmann::json::exception& error)
 	{

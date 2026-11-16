@@ -59,7 +59,7 @@ BALL_AIM_GUIDANCE: dict[str, dict[str, str]] = {
         "effect": "貫通スタックは最大15、射線記録は新しい3本を保持し、後続のミニオン発射地点になる。",
         "target_pattern": "一直線上に複数の敵が並ぶ配置。",
         "shot_path": "手前の敵の中心を通し、速度を残して奥の敵へ続ける。",
-        "follow_up": "スタックと射線記録を射線展開球またはミニオン展開球で使う。",
+        "follow_up": "スタックと射線記録をミニオン展開球で使う。",
         "avoid": "敵1体だけの射線、または貫通後の残速で次の敵に届かない強さ。",
     },
     "player_refractive_pierce": {
@@ -70,15 +70,6 @@ BALL_AIM_GUIDANCE: dict[str, dict[str, str]] = {
         "shot_path": "各接触後に再度進行方向が変わることを見越す。",
         "follow_up": "屈折した射線記録もミニオン発射に使われる。",
         "avoid": "最初の中心線が壁や空白へ向かう接触。",
-    },
-    "player_trace_driver": {
-        "role": "貫通スタック消費・ミニオン展開",
-        "activation": "ショット開始時に貫通スタックを最大3/6/9消費する。",
-        "effect": "消費数1/4/7で、新しい射線記録から順にミニオン1/2/3体を発射する。自球は貫通しない。",
-        "target_pattern": "現在の新しい射線記録の先に敵がいる盤面。",
-        "shot_path": "ミニオンは開始時に既存記録から自動発射される。自球は通常の最善経路を狙う。",
-        "follow_up": "残ったスタックと新しい貫通で次の展開につなげる。",
-        "avoid": "射線記録0本や敵へ向かない記録での消費。自球が記録をなぞって強化される機能は未実装。",
     },
     "player_pierce_finisher": {
         "role": "複数対象貫通決着",
@@ -119,7 +110,7 @@ BALL_AIM_GUIDANCE: dict[str, dict[str, str]] = {
     "player_ricochet_finisher": {
         "role": "共有反射スタック一括消費・ピンボール決着",
         "activation": "共有スタック6以上のとき、最初の敵接触で6を消費する。",
-        "effect": "接触敵をピンボール対象にして自球は停止する。対象の壁・敵衝突数で追加ダメージ段階が上がる。",
+        "effect": "接触敵をピンボール対象にして自球は停止する。+0は3衝突、+1/+2は2衝突ごとに追加ダメージ段階が上がり、+2は速度98%を維持する。",
         "target_pattern": "押し出し後に壁や複数敵へ繰り返し衝突できる敵。",
         "shot_path": "最初の敵を密集地帯または壁方向へ押し出す接触角を狙う。",
         "follow_up": "ピンボール対象の衝突数を増やす。",
@@ -146,7 +137,7 @@ BALL_AIM_GUIDANCE: dict[str, dict[str, str]] = {
     "player_stop_shield": {
         "role": "敵錨回収・防御",
         "activation": "錨スタックを持つ敵へ接触すると、その敵から最大5を消費する。",
-        "effect": "消費数に応じてシールドを得る。合計5消費ごとにプレイヤー錨も1生成する。",
+        "effect": "消費錨1個ごとに強化段階に応じ1/2/3シールドを得る（保持上限15）。合計5消費ごとにプレイヤー錨も1生成する。",
         "target_pattern": "錨を多く持つ敵、特に次の敵攻撃ダメージが大きい場面。",
         "shot_path": "錨付きの対象へ確実に接触する。この球はアンカー停止せず、錨も新規付与しない。",
         "follow_up": "5:1変換で生成したプレイヤー錨をアンカー球や錨回収球の強化に使う。",
@@ -211,7 +202,7 @@ def _resource_observation(
         }
 
     if definition_id in {
-        "player_pierce", "player_refractive_pierce", "player_trace_driver",
+        "player_pierce", "player_refractive_pierce",
         "player_pierce_finisher", "player_minion_finisher",
     }:
         traces = synergies.get("pierce_traces", [])

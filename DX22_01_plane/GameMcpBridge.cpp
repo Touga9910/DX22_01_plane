@@ -424,7 +424,6 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 	constexpr const char* unlockableBallIds[]{
 		"player_pierce",
 		"player_refractive_pierce",
-		"player_trace_driver",
 		"player_pierce_finisher",
 		"player_bounce",
 		"player_cushion_charge",
@@ -458,16 +457,10 @@ GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 		const BattleController& controller = game.m_BattleState->controller;
 		const BattlePocketRules& rules = controller.PocketRules();
 		snapshot.pocketRules.playerDamageRatio = rules.playerDamageRatio;
+		snapshot.pocketRules.enemyInstantDefeat = rules.enemyInstantDefeat;
 		snapshot.pocketRules.playerReturnHalfWidth = rules.playerReturnHalfWidth;
 		snapshot.pocketRules.playerReturnHalfDepth = rules.playerReturnHalfDepth;
-		snapshot.pocketRules.enemyReturnX = rules.enemyReturnX;
-		snapshot.pocketRules.enemyReturnTopEdgeOffset =
-			rules.enemyReturnTopEdgeOffset;
-		snapshot.pocketRules.normalFinisherRatio = rules.normalFinisherRatio;
-		snapshot.pocketRules.midBossFinisherRatio = rules.midBossFinisherRatio;
-		snapshot.pocketRules.bossFinisherRatio = rules.bossFinisherRatio;
 		snapshot.pocketRules.stageType = controller.GetStageType();
-		snapshot.pocketRules.returnQueueSize = controller.GetPocketQueueSize();
 	}
 
 	snapshot.queuedStageOverride.reset();
@@ -860,6 +853,7 @@ nlohmann::json GameMcpBridge::BuildState(
 			}));
 		state["battle_progress_diagnostics"] = {
 			{ "combat_mode", ToString(controller->GetCombatMode()) },
+			{ "current_floor", snapshot.progressionScaling.currentProgress },
 			{ "turn", controller->GetTurnNumber() },
 			{ "current_phase", controller->GetCurrentPhase() },
 			{ "total_phases", controller->GetTotalPhases() },
@@ -869,7 +863,9 @@ nlohmann::json GameMcpBridge::BuildState(
 				controller->GetNextPhaseEnemyCount() },
 			{ "living_enemies", livingEnemyCount },
 			{ "defeated_enemies",
-				static_cast<int>(enemies.size()) - livingEnemyCount },
+				controller->GetDefeatedEnemyCount() },
+			{ "pocket_defeated_enemies",
+				controller->GetPocketDefeatedEnemyCount() },
 			{ "physics_component_count", physicsObjects.size() },
 			{ "active_physics_component_count", activePhysicsCount },
 			{ "non_stopped_balls", std::move(nonStopped) },
@@ -880,6 +876,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "state_history", std::move(stateHistory) },
 		};
 		state["phase_battle"] = {
+			{ "combat_mode", ToString(controller->GetCombatMode()) },
+			{ "current_floor", snapshot.progressionScaling.currentProgress },
 			{ "current_phase", controller->GetCurrentPhase() },
 			{ "total_phases", controller->GetTotalPhases() },
 			{ "turns_until_next_phase",
@@ -887,7 +885,13 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "living_enemy_count", livingEnemyCount },
 			{ "next_phase_enemy_count",
 				controller->GetNextPhaseEnemyCount() },
+			{ "cumulative_defeated_enemy_count",
+				controller->GetDefeatedEnemyCount() },
+			{ "pocket_defeated_enemy_count",
+				controller->GetPocketDefeatedEnemyCount() },
 		};
+		state["battle_combat_mode"] =
+			ToString(controller->GetCombatMode());
 	}
 	const std::string stateScene = state.value("scene", std::string("unknown"));
 	const RunCombatMode appliedRunMode = game.GetRunCombatMode();
@@ -902,6 +906,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		game.GetLastRequestedRunCombatMode());
 	state["applied_combat_mode"] = McpRunCombatModeId(appliedRunMode);
 	state["next_run_combat_mode"] = McpRunCombatModeId(nextRunMode);
+	state["current_floor"] = snapshot.progressionScaling.currentProgress;
 	state["available_run_modes"] = { "legacy", "phase" };
 	state["phase_progression_mode"] = ToString(
 		game.GetPhaseProgressionMode());
@@ -1013,7 +1018,20 @@ nlohmann::json GameMcpBridge::BuildState(
 				aimingTiming.durationSeconds
 			: 0.0 },
 		{ "cache_reuse_frames", aimingTiming.previewCacheReuseFrames },
+		{ "preview_refreshes", aimingTiming.previewRefreshes },
+		{ "cache_hit_rate", aimingTiming.previewCacheReuseFrames +
+			aimingTiming.previewRefreshes > 0
+			? static_cast<double>(aimingTiming.previewCacheReuseFrames) /
+				static_cast<double>(aimingTiming.previewCacheReuseFrames +
+					aimingTiming.previewRefreshes)
+			: 0.0 },
+		{ "maximum_power_preview_cache_hits",
+			aimingTiming.maximumPowerPreviewCacheHits },
 		{ "ball_state_copies", aimingTiming.previewBallCopies },
+		{ "average_ball_state_copies", aimingTiming.previewPrediction.callCount > 0
+			? static_cast<double>(aimingTiming.previewBallCopies) /
+				static_cast<double>(aimingTiming.previewPrediction.callCount)
+			: 0.0 },
 	};
 	const CollisionVfxDiagnostics& collisionVfx =
 		game.GetCollisionVfxDiagnostics();
@@ -1175,7 +1193,6 @@ nlohmann::json GameMcpBridge::BuildState(
 		{{ "definition_id", "player_origin_anchor" }, { "unlocked", true }},
 		{{ "definition_id", "player_pierce" }, { "unlocked", isBallUnlocked("player_pierce") }},
 		{{ "definition_id", "player_refractive_pierce" }, { "unlocked", isBallUnlocked("player_refractive_pierce") }},
-		{{ "definition_id", "player_trace_driver" }, { "unlocked", isBallUnlocked("player_trace_driver") }},
 		{{ "definition_id", "player_pierce_finisher" }, { "unlocked", isBallUnlocked("player_pierce_finisher") }},
 		{{ "definition_id", "player_bounce" }, { "unlocked", isBallUnlocked("player_bounce") }},
 		{{ "definition_id", "player_cushion_charge" }, { "unlocked", isBallUnlocked("player_cushion_charge") }},
@@ -1234,24 +1251,14 @@ nlohmann::json GameMcpBridge::BuildState(
 			} },
 		} },
 		{ "enemy", {
-			{ "high_hp_result", "skip_attack_then_queue_return" },
-			{ "returns_per_turn", 1 },
-			{ "return_position", VectorToJson(
-				DirectX::SimpleMath::Vector3(
-					snapshot.pocketRules.enemyReturnX,
-					TableConfig::FIELD_HEIGHT,
-					TableConfig::GetFieldDepth() * 0.5f -
-						snapshot.pocketRules.enemyReturnTopEdgeOffset)) },
-			{ "finisher_hp_ratios", {
-				{ "normal", snapshot.pocketRules.normalFinisherRatio },
-				{ "midboss", snapshot.pocketRules.midBossFinisherRatio },
-				{ "boss", snapshot.pocketRules.bossFinisherRatio },
-			} },
+			{ "instant_defeat", snapshot.pocketRules.enemyInstantDefeat },
+			{ "high_hp_result", "instant_defeat" },
+			{ "returns_per_turn", 0 },
+			{ "return_position", nullptr },
 			{ "current_stage_type",
 				StageTypeToMcpString(snapshot.pocketRules.stageType) },
-			{ "current_finisher_hp_ratio",
-				game.GetCurrentPocketFinisherRatio() },
-			{ "return_queue_size", snapshot.pocketRules.returnQueueSize },
+			{ "current_finisher_hp_ratio", 1.0f },
+			{ "return_queue_size", 0 },
 		} },
 	};
 
@@ -1617,7 +1624,7 @@ nlohmann::json GameMcpBridge::BuildState(
                 {"phase", 1}, {"hp", enemy->GetHP()}, {"max_hp", enemy->GetMaxHP()},
                 {"armor", boss.armor}, {"max_armor", BossCombatRules::MaxArmor},
                 {"is_broken", boss.IsBroken()}, {"break_shots_remaining", boss.shotsRemaining},
-                {"break_started_this_shot", boss.startedThisShot}, {"pocket_immune", true},
+                {"break_started_this_shot", boss.startedThisShot}, {"pocket_immune", false},
                 {"direct_damage_multiplier", boss.IsBroken() ? 1.0f : 0.25f},
                 {"damage_order", "directional_then_defense_then_armor_ceil_min1"},
                 {"break_ball_refreshes_break", false}, {"trigger_shot_consumes_break", false}};
@@ -1649,11 +1656,10 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "defeated", enemy->IsDefeated() },
 			{ "pocketed", enemy->IsPocketed() },
 			{ "combat_active", combatActive },
-            { "pocket_immune", enemy->IsArmorBoss() },
+            { "pocket_immune", false },
 			{ "can_attack_this_turn", attacksThisTurn },
 			{ "tactics", std::move(tactics) },
-			{ "pocket_queue_index",
-				game.GetPocketQueueIndex(enemy) },
+			{ "pocket_queue_index", -1 },
 			{ "hp_ratio",
 				enemy->GetMaxHP() <= 0
 					? 0.0f

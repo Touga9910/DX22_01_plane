@@ -711,7 +711,6 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 	const Vector3& movementStart,
 	const std::vector<Pocket*>& pockets)
 {
-    if (const auto* enemy = GetGameObject()->GetComponent<EnemyBall>(); enemy && enemy->IsArmorBoss()) return false;
 	if (m_BallComponent == nullptr)
 	{
 		return false;

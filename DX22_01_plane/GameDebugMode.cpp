@@ -628,11 +628,13 @@ void GameDebugController::Draw(Game& game)
                 : (m_DebugSetup.enemyValidation.hpMultiplier < 1.75f ? 1 : 2);
             if (ImGui::Combo("敵HP倍率", &hpIndex, hpLabels, IM_ARRAYSIZE(hpLabels)))
                 m_DebugSetup.enemyValidation.hpMultiplier = hpValues[hpIndex];
-            const char* countLabels[] = { "6体", "8体", "10体" };
-            const int countValues[] = { 6, 8, 10 };
+            const char* countLabels[] = { "6体", "8体", "10体", "12体" };
+            const int countValues[] = { 6, 8, 10, 12 };
             int countIndex = m_DebugSetup.enemyValidation.enemyCount == 6
                 ? 0
-                : (m_DebugSetup.enemyValidation.enemyCount == 10 ? 2 : 1);
+                : (m_DebugSetup.enemyValidation.enemyCount == 10
+					? 2
+					: (m_DebugSetup.enemyValidation.enemyCount == 12 ? 3 : 1));
             if (ImGui::Combo("敵数", &countIndex, countLabels, IM_ARRAYSIZE(countLabels)))
                 m_DebugSetup.enemyValidation.enemyCount = countValues[countIndex];
             const char* patternLabels[] = { "Dense（密集）", "Line（直線）", "Random（シード配置）" };
@@ -648,7 +650,7 @@ void GameDebugController::Draw(Game& game)
                     static_cast<EnemyValidationLayoutPattern>(patternIndex);
             }
             ImGui::TextDisabled(
-                "6体=2/3/1、8体=3/4/1、10体=4/5/1（enemy_normal/strong/tank）。");
+                "6体=2/3/1、8体=3/4/1、10体=4/5/1、12体=5/6/1（enemy_normal/strong/tank）。");
             ImGui::TextDisabled(
                 "Random配置は「HP・所持金・レリック」の乱数シードで再現します。");
             if (m_DebugSetup.enemyValidation.enabled)

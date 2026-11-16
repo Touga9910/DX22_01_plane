@@ -42,9 +42,9 @@ BALL_METADATA: dict[str, dict[str, Any]] = {
         "standalone_value": 14.0,
         "tags": ("anchor", "defense", "control"),
     },
-	"player_trace_driver": {
-		"standalone_value": 11.0,
-		"tags": ("pierce", "trace", "setup"),
+	"player_minion_finisher": {
+		"standalone_value": 14.0,
+		"tags": ("pierce", "trace", "finisher"),
 	},
 	"player_pierce_finisher": {
 		"standalone_value": 14.0,
@@ -76,7 +76,6 @@ BALL_ROLES: dict[str, dict[str, tuple[str, ...]]] = {
     "player_refractive_pierce": {
         "roles": ("Generator", "Support"), "generates": ("pierce",),
     },
-    "player_trace_driver": {"roles": ("Finisher",), "consumes": ("pierce",)},
     "player_pierce_finisher": {
         "roles": ("Generator", "Finisher"),
         "generates": ("pierce",), "consumes": ("pierce",),
@@ -401,7 +400,9 @@ def _immediate_ball_value(
         immediate += min(16.0, chain_radius * 0.8)
     if bool(status.get("refractAfterPierce", False)) and living_enemy_count > 1:
         immediate += 10.0
-    shield = max(0.0, float(status.get("stopShieldAmount", 0.0)))
+    shield_per_stack = max(0.0, float(status.get("stopShieldPerStack", 0.0)))
+    shield_capacity = max(0.0, float(status.get("stopShieldCapacity", 0.0)))
+    shield = min(shield_capacity, shield_per_stack * 5.0)
     immediate += shield * 2.0
     survival = 0.0
     if hp_ratio < 0.5:

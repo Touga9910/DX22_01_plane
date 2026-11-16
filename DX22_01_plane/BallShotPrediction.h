@@ -103,7 +103,6 @@ namespace BallShotPrediction
         PierceTraceRules::State pierceTraces{};
         ShotRelicRules shot{};
         int currentBallCategory = -1;
-        float pocketFinisherRatio = 0.0f;
         float pierceSpeedRetention = 1.0f;
         int playerPocketDamage = 0;
         int pierceMaximumUses = 0;

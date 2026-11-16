@@ -177,15 +177,11 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 		}
 	}
 	if (currentBall != nullptr &&
-		(currentBall->definitionId == "player_trace_driver" ||
-		 currentBall->definitionId == "player_minion_finisher"))
+		currentBall->definitionId == "player_minion_finisher")
 	{
 		pierceMinionActivationAttempted = true;
-		pierceMinionFinisher =
-			currentBall->definitionId == "player_minion_finisher";
-		const int consumeLimit = pierceMinionFinisher
-			? PierceTraceRules::MaxStackCount
-			: currentBall->status.pierceStackConsumeLimit;
+		pierceMinionFinisher = true;
+		const int consumeLimit = PierceTraceRules::MaxStackCount;
 		const int effectiveConsume =
 			PierceTraceRules::CalculateEffectiveMinionStackConsume(
 				m_BattleState->pierceTraces,

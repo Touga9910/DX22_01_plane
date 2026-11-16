@@ -10,10 +10,16 @@ int main()
     auto catalog = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
     assert(!catalog.empty());
     const auto existingStages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
-    const auto legacyBoss = std::find_if(existingStages.begin(), existingStages.end(),
+    const auto authoredBoss = std::find_if(existingStages.begin(), existingStages.end(),
         [](const StageData& stage) { return stage.stageType == StageType::Boss; });
-    assert(legacyBoss != existingStages.end() && !legacyBoss->hasBreakBallLayout);
-    assert(StageLayoutEditor::Encode(*legacyBoss)["break_balls"].size() == 2);
+    assert(authoredBoss != existingStages.end());
+    // Exercise the legacy fallback without requiring production stage data to
+    // remain forever unauthored.  Current bosses explicitly store their two
+    // break-ball positions, while older saves/stages omit that layout.
+    StageData legacyBoss = *authoredBoss;
+    legacyBoss.hasBreakBallLayout = false;
+    legacyBoss.breakBallPositions.clear();
+    assert(StageLayoutEditor::Encode(legacyBoss)["break_balls"].size() == 2);
     Json layout = {{"id", "editor_test"}, {"stage_type", "normal"}, {"difficulty", 3}, {"par", 4}, {"break_balls", Json::array()}, {"enemies", {
         {{"enemy_id", "enemy_normal"}, {"x", -30}, {"z", 12}, {"status_effects", {
             {{"type", "attack_up"}, {"magnitude", 2}},

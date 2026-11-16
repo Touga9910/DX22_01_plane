@@ -1054,7 +1054,7 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 		"player_anchor",
 		"player_anchor_finisher",
 		"player_pierce",
-		"player_trace_driver",
+		"player_minion_finisher",
 		"player_pierce_finisher",
 		"player_heavy",
 		"player_standard",
@@ -1113,7 +1113,7 @@ int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 		"player_anchor",
 		"player_anchor_finisher",
 		"player_pierce",
-		"player_trace_driver",
+		"player_minion_finisher",
 		"player_pierce_finisher",
 		"player_heavy",
 		"player_standard",
@@ -1338,6 +1338,18 @@ void Game::OnBattleStageStarted(const StageData& stage)
 		m_BalanceRuntime->GetEnemyActionMaximumBudget(
 			m_RunController->Status().progress));
 	m_BattleState->controller.BeginStage(stage);
+	if (m_BattleState->controller.IsPhasePrototype())
+	{
+		RecordBalanceEvent("phase_started", {
+			{ "phase", m_BattleState->controller.GetCurrentPhase() },
+			{ "total_phases", m_BattleState->controller.GetTotalPhases() },
+			{ "spawned_enemy_count", stage.phaseBattle.phases.empty()
+				? 0
+				: static_cast<int>(
+					stage.phaseBattle.phases.front().enemies.size()) },
+			{ "floor", m_RunController->Status().progress },
+		});
+	}
 	m_BattleState->cushionCharges = {};
 	m_BattleState->cushionBoostConsumedThisShot = false;
 	m_BattleState->cushionStrongUsesThisShot = 0;
