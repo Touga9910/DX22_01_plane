@@ -61,6 +61,7 @@ void GameRewardState::ClearBallOffers()
 
 void GameRewardState::ResetForRun()
 {
+	m_BallAcquired = false;
 	m_MidBossRelicSelectionActive = false;
 	m_BallOfferCatalogIndices.clear();
 }
@@ -70,6 +71,7 @@ void GameRewardState::Prepare(const std::string& message)
 	m_SelectedRewardIndex = 0;
 	m_SelectedRewardBallIndex = 0;
 	m_Chosen = false;
+	m_BallAcquired = false;
 	m_ConfirmationRequested = false;
 	m_Message = message;
 	m_MidBossRelicSelectionActive = false;
@@ -103,7 +105,7 @@ void GameRewardState::SetMessage(std::string message)
 
 void GameRewardState::MarkChosen()
 {
-	m_Chosen = true;
+    m_Chosen = true;
 }
 
 void GameRewardState::MarkChosen(
@@ -114,7 +116,14 @@ void GameRewardState::MarkChosen(
 	m_SelectedRewardIndex = rewardIndex;
 	m_SelectedRewardBallIndex = rewardBallIndex;
 	m_Message = std::move(message);
-	m_Chosen = true;
+    // Buying the optional ball leaves the separate bonus choice available.
+    m_Chosen = rewardIndex != 0;
+    if (rewardIndex == 0)
+    {
+        m_BallAcquired = true;
+        m_SelectedRewardIndex = 2;
+        m_SelectedRewardBallIndex = 0;
+    }
 }
 
 void GameRewardState::StartMidBossRelicSelection(bool hasOffers)

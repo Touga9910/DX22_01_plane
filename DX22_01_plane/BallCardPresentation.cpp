@@ -320,6 +320,26 @@ void LoadResources() { GetBallCardArtResources().Load(); }
 
 void ResetResources() { GetBallCardArtResources().Reset(); }
 
+void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVec2& size)
+{
+    auto& art = GetBallCardArtResources();
+    art.Load();
+    auto* draw = ImGui::GetWindowDrawList();
+    if (const auto* icon = art.Icon(ball.category))
+        DrawTextureContain(draw, *icon, position, ImVec2(position.x + size.x, position.y + size.y));
+    else
+    {
+        const auto color = PlayerBallText::GetColor(ball);
+        const ImVec2 center(position.x + size.x * 0.5f, position.y + size.y * 0.5f);
+        const float radius = (std::min)(size.x, size.y) * 0.43f;
+        draw->AddCircleFilled(center, radius + 3, IM_COL32(40, 26, 47, 255));
+        draw->AddCircleFilled(center, radius, ImGui::ColorConvertFloat4ToU32(ImVec4(color[0], color[1], color[2], 1)));
+        draw->AddCircle(center, radius, IM_COL32(255, 233, 170, 255), 0, 2);
+        draw->AddCircleFilled(ImVec2(center.x - radius * 0.3f, center.y - radius * 0.35f),
+            radius * 0.23f, IM_COL32(255, 255, 255, 220));
+    }
+}
+
 	BallCardInteraction DrawBallSelectionCard(
 		const PlayerBallData& ball,
 		int index,

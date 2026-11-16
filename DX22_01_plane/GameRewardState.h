@@ -10,6 +10,8 @@ class GameRewardState final
 public:
 	bool IsActive() const;
 	bool IsChosen() const;
+	bool IsBallAcquired() const { return m_BallAcquired; }
+	void MarkBallAcquired() { m_BallAcquired = true; }
 	bool IsMidBossRelicSelectionActive() const;
 	int SelectedRewardIndex() const;
 	int SelectedRewardBallIndex() const;
@@ -57,6 +59,7 @@ private:
 	std::vector<int> m_BallOfferCatalogIndices;
 	std::string m_Message;
 	bool m_Chosen = false;
+	bool m_BallAcquired = false;
 	bool m_ConfirmationRequested = false;
 	bool m_MidBossRelicSelectionActive = false;
 	int m_SelectedRelicOfferIndex = 0;

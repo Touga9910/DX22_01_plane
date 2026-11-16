@@ -1,4 +1,4 @@
-#include "GameMcpStateSerialization.h"
+﻿#include "GameMcpStateSerialization.h"
 #include "GameMcpJson.h"
 #include "Game.h"
 #include "GameMcpState.h"
@@ -196,7 +196,9 @@ void AppendInventory(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::
 		nlohmann::json offer = BallDataToJson(*ball, offerIndex);
 		offer["offer_index"] = offerIndex;
 		offer["catalog_index"] = catalogIndex;
-		state["clear_reward_ball_offers"].push_back(std::move(offer));
+		offer["price"] = game.GetClearRewardBallCost();
+        offer["affordable"] = game.GetPlayerMoney() >= game.GetClearRewardBallCost() && !game.IsClearRewardBallAcquired() && !game.IsClearRewardChosen();
+        state["clear_reward_ball_offers"].push_back(std::move(offer));
 	}
 
 	const int deckBallCount =

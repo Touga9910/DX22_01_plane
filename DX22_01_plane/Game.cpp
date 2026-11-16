@@ -1,5 +1,6 @@
 ﻿#include "Game.h"
 #include "GameBattleState.h"
+#include "IllustratedUi.h"
 #include "Application.h"
 #include "GameBalanceRuntime.h"
 #include "GameObject.h"
@@ -417,6 +418,7 @@ void Game::Draw()
 
 	ImGui::BeginDisabled(m_Instance->IsPaused() || m_Instance->m_DebugController->IsEditorOpen());
 	if (dynamic_cast<BattleScene*>(m_Instance->GetCurrentScene()) != nullptr &&
+		!m_Instance->IsClearRewardActive() &&
 		m_Instance->m_RunController->Deck().GetOfferCount() > 0)
 	{
 		m_Instance->DrawBallSelectionUI();
@@ -506,6 +508,7 @@ void Game::Uninit()
 
 	// 描画処理を終了
 	BallCardPresentation::ResetResources();
+	IllustratedUi::ResetResources();
 	Renderer::Uninit();
 
 	// インスタンスを削除

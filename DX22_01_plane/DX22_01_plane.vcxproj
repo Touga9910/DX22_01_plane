@@ -24,6 +24,9 @@
     <ProjectGuid>{ca8db578-3b6f-4c8a-a824-a60411e0fabd}</ProjectGuid>
     <RootNamespace>DX2201plane</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <!-- Large shared PCHs need the x64 compiler host's address space. -->
+    <PreferredToolArchitecture Condition="'$(Platform)'=='x64'">x64</PreferredToolArchitecture>
+    <Dx22MaxCompileProcesses Condition="'$(Dx22MaxCompileProcesses)'==''">4</Dx22MaxCompileProcesses>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -116,6 +119,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ProcessorNumber>$(Dx22MaxCompileProcesses)</ProcessorNumber>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -137,6 +141,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ProcessorNumber>$(Dx22MaxCompileProcesses)</ProcessorNumber>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -424,6 +429,8 @@
     <ClInclude Include="PlayerBallText.h" />
     <ClInclude Include="PlayerBallUI.h" />
     <ClInclude Include="GameUi.h" />
+    <ClInclude Include="IllustratedUi.h" />
+    <ClCompile Include="IllustratedUi.cpp" />
     <ClInclude Include="PlayerDeck.h" />
     <ClInclude Include="PlayerBallDataLoader.h" />
     <ClInclude Include="PlayerRunStatus.h" />

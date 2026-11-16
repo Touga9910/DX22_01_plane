@@ -1321,6 +1321,8 @@
   <ItemGroup>
     <ClCompile Include="BallCardPresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClInclude Include="BallCardPresentation.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClInclude Include="IllustratedUi.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClCompile Include="IllustratedUi.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClCompile Include="CombatOverlayDrawing.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClInclude Include="CombatOverlayDrawing.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
     <ClCompile Include="GameBallSelection.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>

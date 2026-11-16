@@ -61,9 +61,17 @@ const PlayerBallData* Game::GetClearRewardBallOffer(int offerIndex) const
 
 bool Game::AddClearRewardBallOffer(int offerIndex)
 {
-	return m_RunController->Deck().AddCatalogBall(
-		GetClearRewardBallOfferCatalogIndex(offerIndex));
+    const int cost = GetClearRewardBallCost();
+    if (!IsClearRewardActive() || IsClearRewardChosen() ||
+        IsClearRewardBallAcquired() || IsMidBossRelicSelectionActive() ||
+        m_RunController->Status().money < cost) return false;
+    if (!m_RunController->Deck().AddCatalogBall(GetClearRewardBallOfferCatalogIndex(offerIndex))) return false;
+    m_RunController->SpendMoney(cost);
+    m_RewardState->MarkBallAcquired();
+    return true;
 }
+
+bool Game::IsClearRewardBallAcquired() const { return m_RewardState->IsBallAcquired(); }
 
 bool Game::IsMidBossRelicSelectionActive() const
 {
@@ -406,9 +414,13 @@ void Game::UpdateClearReward()
 
 	if (rewardApplied)
 	{
+		const bool ballOnly = m_RewardState->SelectedRewardIndex() == 0;
+		if (ballOnly) rewardDetails["ball_cost"] = GetClearRewardBallCost();
 		rewardDetails["money_after"] = m_RunController->Status().money;
 		rewardDetails["controller"] = "human";
 		RecordBalanceEvent("clear_reward_choice", rewardDetails);
-		m_RewardState->MarkChosen();
+        if (ballOnly)
+            m_RewardState->ApplyPresentationSelection(m_RewardState->SelectedRelicOfferIndex(), 2, 0);
+        else m_RewardState->MarkChosen();
 	}
 }

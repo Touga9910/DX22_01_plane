@@ -315,6 +315,8 @@ public:
 	int GetClearRewardBallOfferCatalogIndex(int offerIndex) const;
 	const PlayerBallData* GetClearRewardBallOffer(int offerIndex) const;
 	bool AddClearRewardBallOffer(int offerIndex);
+	bool IsClearRewardBallAcquired() const;
+	int GetClearRewardBallCost() const { return 25; }
 	int GetSelectedBallOfferIndex() const;
 	int GetHeldBallOfferIndex() const;
 	bool IsShotPreparationInputEnabled() const;

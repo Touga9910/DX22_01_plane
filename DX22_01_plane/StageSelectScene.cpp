@@ -1,12 +1,10 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "StageSelectScene.h"
 #include "GameRuntime.h"
-#include "GameUi.h"
+#include "IllustratedUi.h"
 #include "Input.h"
 #include "RunRouteCommands.h"
 #include "RunRouteView.h"
-#include "SceneObjectFactory.h"
-#include "Texture2D.h"
 #include "UiText.h"
 #include "imgui/imgui.h"
 
@@ -36,18 +34,6 @@ namespace
 		}
 	}
 
-    ImU32 RouteColor(StageRouteType type)
-    {
-        switch (type)
-        {
-        case StageRouteType::MidBoss: return IM_COL32(229, 114, 105, 255);
-        case StageRouteType::Shop: return IM_COL32(232, 190, 91, 255);
-        case StageRouteType::RestSite:
-        case StageRouteType::BossPreparation: return IM_COL32(108, 207, 162, 255);
-        case StageRouteType::FinalBoss: return IM_COL32(204, 143, 230, 255);
-        default: return IM_COL32(133, 180, 219, 255);
-        }
-    }
     const char* RouteHint(StageRouteType type)
     {
         switch (type)
@@ -58,6 +44,19 @@ namespace
         case StageRouteType::BossPreparation: return "15エリアの後に必ず立ち寄る休憩所です。";
         case StageRouteType::FinalBoss: return "最終戦。撃破すればランをクリアします。";
         default: return "通常の戦闘。Moneyとクリア報酬を獲得できます。";
+        }
+    }
+
+    const char* RouteArt(StageRouteType type)
+    {
+        switch (type)
+        {
+        case StageRouteType::MidBoss:
+        case StageRouteType::FinalBoss: return "assets/UI/Run/node_midboss.png";
+        case StageRouteType::Shop: return "assets/UI/Run/node_shop.png";
+        case StageRouteType::RestSite:
+        case StageRouteType::BossPreparation: return "assets/UI/Run/node_rest.png";
+        default: return "assets/UI/Run/node_battle.png";
         }
     }
 
@@ -81,14 +80,6 @@ void StageSelectScene::Init()
 	m_SelectedNode = 0;
 	m_RouteNodes = RunRouteView::AvailableNodeIds();
 
-	//背景画像オブジェクトを作成
-	Texture2D* pt = SceneObjectFactory::CreateTexture2D();
-	pt->SetTexture("assets/texture/background1.png");
-	pt->SetPosition(0.0f, 0.0f, 0.0f);
-	pt->SetRotation(0.0f, 0.0f, 0.0f);
-	pt->SetScale(1280.0f, 720.0f, 0.0f);
-	m_SceneGameObjects.emplace_back(pt->GetGameObject());
-
 }
 
 // 更新
@@ -98,11 +89,13 @@ void StageSelectScene::Update()
 	const bool mouseConfirmed = m_MouseConfirmed;
 	m_MouseConfirmed = false;
 	if (nodeCount == 0) return;
-	if (Input::GetKeyTrigger(VK_S) || Input::GetKeyTrigger(VK_DOWN))
+	if (Input::GetKeyTrigger(VK_S) || Input::GetKeyTrigger(VK_DOWN) ||
+        Input::GetKeyTrigger(VK_D) || Input::GetKeyTrigger(VK_RIGHT))
 	{
 		m_SelectedNode = (m_SelectedNode + 1) % nodeCount;
 	}
-	if (Input::GetKeyTrigger(VK_W) || Input::GetKeyTrigger(VK_UP))
+	if (Input::GetKeyTrigger(VK_W) || Input::GetKeyTrigger(VK_UP) ||
+        Input::GetKeyTrigger(VK_A) || Input::GetKeyTrigger(VK_LEFT))
 	{
 		m_SelectedNode = (m_SelectedNode + nodeCount - 1) % nodeCount;
 	}
@@ -159,133 +152,156 @@ bool StageSelectScene::ChooseRoute(
 
 void StageSelectScene::DrawUI()
 {
-    GameUi::PrepareWindow("run_map", ImVec2(100, 30), ImVec2(1080, 660));
-    ImGui::SetNextWindowBgAlpha(0.98f);
-    if (!ImGui::Begin("ルートマップ", nullptr, ImGuiWindowFlags_NoCollapse))
+    using namespace IllustratedUi;
+    Canvas ui("run_map_art", 1672, 941);
+    ui.Art("assets/UI/Run/map_background.png", 0, 0, 1672, 941);
+    ui.Text("下から上へ進みます。光る行き先をクリックして出発。", 146, 112, 735, 28, 20, Ink);
+    if (ui.Hit("focus_current", 895, 110, 100, 30)) m_FocusCurrent = true;
+    ui.Text("現在地へ", 895, 110, 100, 30, 19, Ink);
+    if (ui.Hit("whole_map", 1000, 110, 100, 30))
     {
-        ImGui::End();
-        return;
+        m_ShowWholeMap = !m_ShowWholeMap;
+        m_FocusCurrent = true;
     }
-	const RunRouteStatusSnapshot status = RunRouteView::CaptureStatus();
-    const RunMap& map = RunRouteView::Map();
-    ImGui::Text("通常エリア %d / %d", status.areaProgress, status.normalRouteAreaGoal);
-    ImGui::SameLine(260);
-    ImGui::Text(UiText::RunStatusFormat, status.playerCurrentHp, status.playerMaxHp, status.playerMoney, status.deckBallCount);
-    ImGui::TextUnformatted("下から上へ進みます。光っている行き先をクリックして出発。先の道はスクロールで確認できます。");
-    if (ImGui::Button("現在地へ")) m_FocusCurrent = true;
-    ImGui::SameLine();
-    if (ImGui::Checkbox("全体表示", &m_ShowWholeMap)) m_FocusCurrent = true;
-    ImGui::Separator();
+    ui.Text(m_ShowWholeMap ? "拡大表示" : "全体表示", 1000, 110, 100, 30, 19, Ink);
+    ui.Text("次の行き先", 1210, 110, 400, 42, 29);
 
-    const float sideWidth = 230.0f;
-    const float mapWidth = (std::max)(360.0f, ImGui::GetContentRegionAvail().x - sideWidth - 16.0f);
-    ImGui::BeginChild("map_canvas", ImVec2(mapWidth, 0), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar);
-    const float viewHeight = ImGui::GetContentRegionAvail().y;
+    const RunMap& map = RunRouteView::Map();
     const int rows = map.AreaCount() + 2;
-    const float rowHeight = m_ShowWholeMap ? (std::max)(26.0f, (viewHeight - 45.0f) / rows) : 88.0f;
-    const float canvasWidth = (std::max)(430.0f, ImGui::GetContentRegionAvail().x);
-    const float nodeWidth = m_ShowWholeMap ? 86.0f : 116.0f;
-    const float nodeHeight = m_ShowWholeMap ? 22.0f : 38.0f;
+    constexpr float mapHeight = 624;
+    const float rowHeight = m_ShowWholeMap ? (mapHeight - 64) / rows : 120;
+    const float nodeWidth = m_ShowWholeMap ? 125.0f : 220.0f;
+    const float nodeHeight = m_ShowWholeMap ? rowHeight - 3 : 86.0f;
+    ImGui::SetCursorScreenPos(ui.At(76, 187));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, IM_COL32(186, 143, 80, 155));
+    ImGui::BeginChild("map_canvas", ui.Size(1040, mapHeight), ImGuiChildFlags_None);
     const ImVec2 origin = ImGui::GetCursorScreenPos();
     const ImVec2 localOrigin = ImGui::GetCursorPos();
-    auto position = [&](const RunMapNode& n)
+    const auto position = [&](const RunMapNode& n)
     {
-        return ImVec2(origin.x + 85.0f + (canvasWidth - 170.0f) * (n.lane / 2.0f),
-            origin.y + 24.0f + (rows - 1 - (n.floor - map.StartArea())) * rowHeight);
+        return ImVec2(origin.x + (245 + 315 * n.lane) * ui.scale,
+            origin.y + (44 + (rows - 1 - (n.floor - map.StartArea())) * rowHeight) * ui.scale);
     };
     auto* draw = ImGui::GetWindowDrawList();
-    // Edges go behind the nodes. Gold records the chosen path; gray is unavailable.
+    // Cache reachability once per node instead of traversing the map per edge.
+    std::vector<bool> reachable(map.Nodes().size());
+    for (const auto& node : map.Nodes()) reachable[node.id] = map.Reachable(node.id);
     for (const auto& node : map.Nodes())
     {
         for (int nextId : node.next)
         {
-            const auto& next = *map.Node(nextId);
+            const auto* next = map.Node(nextId);
+            if (!next) continue;
             const bool used = map.Visited(node.id) && map.Visited(nextId);
-            const bool reachable = (map.Reachable(node.id) || (!map.Path().empty() && map.Path().back() == node.id)) && map.Reachable(nextId);
-            const ImU32 color = used ? IM_COL32(243, 207, 118, 255) :
-                reachable ? IM_COL32(117, 142, 161, 230) : IM_COL32(60, 65, 73, 150);
-            ImVec2 from = position(node), to = position(next);
-            from.y -= nodeHeight * 0.5f; to.y += nodeHeight * 0.5f;
-            draw->AddLine(from, to, color, used ? 3.0f : 1.5f);
+            const bool current = !map.Path().empty() && map.Path().back() == node.id;
+            const bool open = (reachable[node.id] || current) && reachable[nextId];
+            const ImU32 color = used ? Gold : open ? IM_COL32(245, 235, 214, 210) : IM_COL32(107, 102, 117, 110);
+            ImVec2 from = position(node), to = position(*next);
+            from.y -= nodeHeight * ui.scale * 0.28f;
+            to.y += nodeHeight * ui.scale * 0.35f;
+            if (used) draw->AddLine(from, to, IM_COL32(255, 188, 60, 65), 9 * ui.scale);
+            draw->AddLine(from, to, color, (used ? 4 : 2.4f) * ui.scale);
         }
     }
     for (const auto& node : map.Nodes())
     {
         const ImVec2 center = position(node);
-        const ImVec2 lo(center.x - nodeWidth * 0.5f, center.y - nodeHeight * 0.5f);
-        const ImVec2 hi(center.x + nodeWidth * 0.5f, center.y + nodeHeight * 0.5f);
+        const ImVec2 lo(center.x - nodeWidth * ui.scale * 0.5f, center.y - nodeHeight * ui.scale * 0.5f);
+        const ImVec2 hi(center.x + nodeWidth * ui.scale * 0.5f, center.y + nodeHeight * ui.scale * 0.5f);
         const auto found = std::find(m_RouteNodes.begin(), m_RouteNodes.end(), node.id);
         const bool selectable = found != m_RouteNodes.end();
         const bool visited = map.Visited(node.id);
-        const bool reachable = map.Reachable(node.id);
         const bool current = !map.Path().empty() && map.Path().back() == node.id;
-        ImU32 border = visited ? IM_COL32(243, 207, 118, 255) : RouteColor(node.type);
-        if (!visited && !reachable) border = IM_COL32(83, 88, 98, 180);
-        draw->AddRectFilled(lo, hi, selectable ? IM_COL32(43, 62, 77, 255) : IM_COL32(25, 31, 40, 255), 7.0f);
-        draw->AddRect(lo, hi, border, 7.0f, 0, selectable || current ? 3.0f : 1.0f);
-        const char* label = GetLocalizedRouteName(node.type);
-        const float fontSize = m_ShowWholeMap ? 13.0f : ImGui::GetFontSize();
-        const ImVec2 textSize = ImGui::GetFont()->CalcTextSizeA(fontSize, 1000.0f, 0.0f, label);
-        draw->AddText(ImGui::GetFont(), fontSize, ImVec2(center.x - textSize.x / 2, center.y - textSize.y / 2), border, label);
-        if (node.lane == 0)
-        {
-            char area[16]; sprintf_s(area, "%02d", node.floor + 1);
-            draw->AddText(ImVec2(origin.x + 3, center.y - 8), IM_COL32(153, 163, 176, 255), area);
-        }
-        if (current) draw->AddCircleFilled(ImVec2(hi.x + 7, center.y), 3.5f, IM_COL32(243, 207, 118, 255));
+        const bool selected = selectable && static_cast<int>(found - m_RouteNodes.begin()) == m_SelectedNode;
+        const bool visible = hi.y >= ImGui::GetWindowPos().y && lo.y <= ImGui::GetWindowPos().y + ImGui::GetWindowHeight();
+        if (!visible) continue;
         ImGui::SetCursorScreenPos(lo);
         ImGui::PushID(node.id);
-        if (ImGui::InvisibleButton("node", ImVec2(nodeWidth, nodeHeight)) && selectable)
+        if (ImGui::InvisibleButton("node", ImVec2(hi.x - lo.x, hi.y - lo.y)) && selectable)
         {
             m_SelectedNode = static_cast<int>(found - m_RouteNodes.begin());
             m_MouseConfirmed = true;
         }
-        if (ImGui::IsItemHovered())
+        const bool hovered = ImGui::IsItemHovered();
+        if (selectable || current)
+        {
+            draw->AddRectFilled(ImVec2(lo.x - 5 * ui.scale, lo.y - 3 * ui.scale),
+                ImVec2(hi.x + 5 * ui.scale, hi.y + 3 * ui.scale), IM_COL32(255, 193, 68, selected ? 85 : 44), 14 * ui.scale);
+            draw->AddRect(lo, hi, selected || current ? Gold : Cream, 12 * ui.scale, 0, (selected ? 3 : 1.5f) * ui.scale);
+        }
+        Image(draw, RouteArt(node.type), lo, hi,
+            !visited && !reachable[node.id] ? IM_COL32(110, 106, 122, 180) : IM_COL32_WHITE);
+        // Special destinations reuse the matching plate; an explicit caption
+        // prevents the printed rest/midboss label from misidentifying the node.
+        if (node.type == StageRouteType::BossPreparation || node.type == StageRouteType::FinalBoss)
+        {
+            const ImVec2 labelMin(lo.x + 20 * ui.scale, center.y - 4 * ui.scale);
+            const ImVec2 labelMax(hi.x - 20 * ui.scale, hi.y - 9 * ui.scale);
+            draw->AddRectFilled(labelMin, labelMax, node.type == StageRouteType::FinalBoss ? IM_COL32(102, 22, 43, 255) : IM_COL32(22, 77, 45, 255), 3);
+            const char* label = GetLocalizedRouteName(node.type);
+            const float size = (m_ShowWholeMap ? 12 : 22) * ui.scale;
+            const auto textSize = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, label);
+            draw->AddText(ImGui::GetFont(), size, ImVec2(center.x - textSize.x / 2, labelMin.y), Cream, label);
+        }
+        if (node.lane == 0 || node.floor >= map.StartArea() + map.AreaCount())
+        {
+            char area[16]; sprintf_s(area, "%02d", node.floor + 1);
+            const ImVec2 badge(origin.x + 57 * ui.scale, center.y);
+            const float radius = (m_ShowWholeMap ? 15 : 29) * ui.scale;
+            draw->AddCircleFilled(badge, radius, IM_COL32(38, 30, 42, 245), 8);
+            draw->AddCircle(badge, radius, IM_COL32(217, 172, 92, 255), 8, 2 * ui.scale);
+            const float size = (m_ShowWholeMap ? 16 : 26) * ui.scale;
+            const auto textSize = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, area);
+            draw->AddText(ImGui::GetFont(), size, ImVec2(badge.x - textSize.x / 2, badge.y - textSize.y / 2), Cream, area);
+        }
+        if (hovered)
         {
             ImGui::BeginTooltip();
-            ImGui::TextUnformatted(label);
+            ImGui::TextUnformatted(GetLocalizedRouteName(node.type));
             ImGui::TextUnformatted(RouteHint(node.type));
-            ImGui::TextUnformatted(selectable ? "クリックしてこの道へ進む" :
-                current ? "現在地" : visited ? "通過済み" : reachable ? "先の行き先" : "現在の経路からは進めません");
+            ImGui::TextUnformatted(selectable ? "クリックしてこの道へ進む" : current ? "現在地" : visited ? "通過済み" : reachable[node.id] ? "先の行き先" : "現在の経路からは進めません");
             ImGui::EndTooltip();
         }
         ImGui::PopID();
     }
     ImGui::SetCursorPos(localOrigin);
-    ImGui::Dummy(ImVec2(canvasWidth, rows * rowHeight + 45.0f));
+    ImGui::Dummy(ui.Size(1010, (m_ShowWholeMap ? 64 : 145) + (rows - 1) * rowHeight));
     if (m_FocusCurrent && !m_RouteNodes.empty())
     {
         const float nextY = position(*map.Node(m_RouteNodes.front())).y - origin.y;
-        ImGui::SetScrollY(m_ShowWholeMap ? 0.0f : (std::max)(0.0f, nextY - viewHeight * 0.72f));
+        ImGui::SetScrollY(m_ShowWholeMap ? 0 : (std::max)(0.0f, nextY - mapHeight * ui.scale * 0.88f));
         m_FocusCurrent = false;
     }
     ImGui::EndChild();
-    ImGui::SameLine();
-    ImGui::BeginChild("map_details", ImVec2(0, 0));
-    ImGui::TextUnformatted("次の行き先");
+    ImGui::PopStyleColor(3);
+
     for (int index = 0; index < GetRouteNodeCount(); ++index)
     {
         const auto& node = *map.Node(m_RouteNodes[index]);
-        const char* lane = node.lane == 0 ? "左" : node.lane == 1 ? "中央" : "右";
+        const char* lane = node.lane == 0 ? "左の道" : node.lane == 1 ? "中央の道" : "右の道";
+        const float y = 183 + index * 126.0f;
         ImGui::PushID(index);
-        ImGui::Text("%sの道", lane);
-        if (ImGui::Button(GetLocalizedRouteName(node.type), ImVec2(-1, 38)))
+        if (ui.Hit("route_detail", 1194, y, 432, 111))
         {
-            m_SelectedNode = index; m_MouseConfirmed = true;
+            m_SelectedNode = index;
+            m_MouseConfirmed = true;
         }
-        ImGui::TextWrapped("%s", RouteHint(node.type));
-        ImGui::Spacing();
+        ui.Highlight(1194, y, 432, 111, index == m_SelectedNode, ImGui::IsItemHovered());
+        ui.Art(RouteArt(node.type), 1204, y + 6, 172, 61);
+        ui.Text(lane, 1382, y + 7, 220, 26, 22, Gold, false);
+        ui.Text(GetLocalizedRouteName(node.type), 1382, y + 34, 220, 29, 23, Cream, false);
+        ui.Text(RouteHint(node.type), 1210, y + 69, 394, 37, 18, Cream, false);
         ImGui::PopID();
     }
-    ImGui::Separator();
-    ImGui::TextWrapped("金色の線：通った道\n明るい線：これから進める道\n暗いノード：選べなくなった道");
-    ImGui::Spacing();
-    ImGui::TextWrapped("15エリア → ボス前休憩 → 最終ボス");
-    if (map.StartArea() > 0) ImGui::TextWrapped("このマップはエリア%dからの経路です。", map.StartArea() + 1);
-    ImGui::EndChild();
-    ImGui::End();
+    ui.Text("ルートの見方", 1280, 585, 270, 43, 27, Ink);
+    ui.Text("金色の線：通った道", 1302, 643, 308, 30, 22, Gold, false);
+    ui.Text("明るい線：これから進める道", 1302, 683, 308, 30, 21, Cream, false);
+    ui.Text("暗い線：選べなくなった道", 1302, 723, 308, 30, 21, Cream, false);
+    ui.Text("15エリア → ボス前休憩 → 最終ボス", 1250, 791, 370, 38, 20);
+    ui.Text("ホイール：先の道を見る  /  矢印：選択  Enter：出発", 185, 827, 817, 28, 19);
 }
-
 
 // 終了処理
 void StageSelectScene::Uninit()

@@ -116,6 +116,8 @@ void Game::DrawClearRewardUI()
 	model.midBossRelicSelectionActive =
 		m_RewardState->IsMidBossRelicSelectionActive();
 	model.clearRewardChosen = m_RewardState->IsChosen();
+	model.rewardBallAcquired = IsClearRewardBallAcquired();
+	model.rewardBallCost = GetClearRewardBallCost();
 	model.selectedRelicOfferIndex = m_RewardState->SelectedRelicOfferIndex();
 	model.selectedRewardIndex = m_RewardState->SelectedRewardIndex();
 	model.selectedRewardBallIndex = m_RewardState->SelectedRewardBallIndex();

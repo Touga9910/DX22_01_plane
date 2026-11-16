@@ -158,6 +158,9 @@ void AppendAvailableActions(Game& game, const GameMcpReadSnapshot& snapshot, con
 	if (game.IsClearRewardActive())
 	{
 		state["clear_reward_rule"] = {
+            { "optional_new_ball_then_one_bonus", true },
+            { "new_ball_price", game.GetClearRewardBallCost() },
+            { "new_ball_acquired", game.IsClearRewardBallAcquired() },
 			{ "new_ball_offer_count", game.GetClearRewardBallOfferCount() },
 			{ "new_ball_duplicates_allowed", true },
 			{ "new_ball_selection_source", "clear_reward_ball_offers" },

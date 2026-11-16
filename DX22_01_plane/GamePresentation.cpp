@@ -183,6 +183,8 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 
 void GamePresentation::Draw(Game& game)
 {
+    // Reward artwork owns the screen, including the explanation of its choices.
+    if (game.IsClearRewardActive()) return;
 	DrawPlayerAura(game);
     if (m_AttackFlightAge >= 0.0f)
     {
@@ -242,6 +244,8 @@ void GamePresentation::Draw(Game& game)
 		}
 		return;
 	}
+    // The illustrated map already includes its own controls and route legend.
+    if (game.GetCurrentSceneType() == SceneType::Select) return;
 	GameUi::PrepareWindow("play_hints", ImVec2(805, 35), ImVec2(450, 170));
 	if (ImGui::Begin("操作と攻略", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
 	{

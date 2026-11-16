@@ -89,6 +89,8 @@ struct ClearRewardPresentationModel
 	int playerMaxHp = 0;
 	bool midBossRelicSelectionActive = false;
 	bool clearRewardChosen = false;
+	bool rewardBallAcquired = false;
+	int rewardBallCost = 25;
 	int selectedRelicOfferIndex = 0;
 	int selectedRewardIndex = 0;
 	int selectedRewardBallIndex = 0;
