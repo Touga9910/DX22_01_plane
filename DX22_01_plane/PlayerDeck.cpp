@@ -32,7 +32,7 @@ void PlayerDeck::Seed(std::uint32_t seed)
 
 void PlayerDeck::Reset()
 {
-    // 現在ボール・提示・保持・山札・捨て札をすべて回収
+    // 現在ボール・手札・山札・捨て札をすべて回収
     // 
     // 
     // 
@@ -42,17 +42,11 @@ void PlayerDeck::Reset()
         m_DrawPile.size() +
         m_DiscardPile.size() +
         m_OfferedBalls.size() +
-        (m_HeldBall.has_value() ? 1u : 0u) +
         (m_CurrentBall.has_value() ? 1u : 0u));
 
     if (m_CurrentBall.has_value())
     {
         rebuiltDeck.push_back(*m_CurrentBall);
-    }
-
-    if (m_HeldBall.has_value())
-    {
-        rebuiltDeck.push_back(*m_HeldBall);
     }
 
     rebuiltDeck.insert(
@@ -78,9 +72,7 @@ void PlayerDeck::Reset()
     m_DrawPile = std::move(rebuiltDeck);
     m_DiscardPile.clear();
     m_OfferedBalls.clear();
-    m_HeldBall.reset();
     m_CurrentBall.reset();
-    m_PreviousHeldOfferIndex = -1;
     m_IsCurrentBallUsed = false;
 
     ShuffleDrawPile();
@@ -91,9 +83,7 @@ void PlayerDeck::ResetToDefault()
     m_DrawPile = m_DefaultDeck;
     m_DiscardPile.clear();
     m_OfferedBalls.clear();
-    m_HeldBall.reset();
     m_CurrentBall.reset();
-    m_PreviousHeldOfferIndex = -1;
     m_IsCurrentBallUsed = false;
     ShuffleDrawPile();
 }
@@ -108,16 +98,6 @@ bool PlayerDeck::PrepareOffer(int offerSize)
     if (!m_OfferedBalls.empty())
     {
         return true;
-    }
-
-    m_PreviousHeldOfferIndex = -1;
-
-    // 保持中のボールは先頭の選択肢として提示
-    if (m_HeldBall.has_value())
-    {
-        m_PreviousHeldOfferIndex = 0;
-        m_OfferedBalls.push_back(std::move(*m_HeldBall));
-        m_HeldBall.reset();
     }
 
     offerSize = (std::max)(1, offerSize);
@@ -136,7 +116,7 @@ bool PlayerDeck::PrepareOffer(int offerSize)
     return !m_OfferedBalls.empty();
 }
 
-bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
+bool PlayerDeck::SelectOffer(int selectedIndex, int /*legacyHeldIndex*/)
 {
     if (selectedIndex < 0 ||
         selectedIndex >= static_cast<int>(m_OfferedBalls.size()))
@@ -144,29 +124,15 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
         return false;
     }
 
-    if (heldIndex == selectedIndex ||
-        heldIndex < 0 ||
-        heldIndex >= static_cast<int>(m_OfferedBalls.size()))
-    {
-        heldIndex = -1;
-    }
-
     m_CurrentBall = std::move(m_OfferedBalls[selectedIndex]);
     m_CurrentBall->status = NormalizeBallStatus(m_CurrentBall->status);
 
-    m_HeldBall.reset();
-    if (heldIndex >= 0)
-    {
-        m_HeldBall = std::move(m_OfferedBalls[heldIndex]);
-        m_HeldBall->status = NormalizeBallStatus(m_HeldBall->status);
-    }
-
-    // 選択・保持されなかったボールは捨て札へ送る。
+    // 選択しなかった全カードは捨て札へ送る。
     for (int index = 0;
         index < static_cast<int>(m_OfferedBalls.size());
         index++)
     {
-        if (index == selectedIndex || index == heldIndex)
+        if (index == selectedIndex)
         {
             continue;
         }
@@ -175,7 +141,6 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int heldIndex)
     }
 
     m_OfferedBalls.clear();
-    m_PreviousHeldOfferIndex = -1;
     m_IsCurrentBallUsed = false;
 
     return true;
@@ -264,11 +229,6 @@ int PlayerDeck::GetRewardTargetCount() const
         count++;
     }
 
-    if (m_HeldBall.has_value())
-    {
-        count++;
-    }
-
     return count;
 }
 
@@ -286,17 +246,6 @@ const PlayerBallData* PlayerDeck::GetRewardTarget(int index) const
         if (index == 0)
         {
             return &(*m_CurrentBall);
-        }
-
-        index--;
-    }
-
-    // 次に保持中のボールを参照する
-    if (m_HeldBall.has_value())
-    {
-        if (index == 0)
-        {
-            return &(*m_HeldBall);
         }
 
         index--;
@@ -422,20 +371,9 @@ bool PlayerDeck::RemoveRewardTarget(int index)
         index--;
     }
 
-    if (m_HeldBall.has_value())
-    {
-        if (index == 0)
-        {
-            m_HeldBall.reset();
-            return true;
-        }
-        index--;
-    }
-
     if (index < static_cast<int>(m_OfferedBalls.size()))
     {
         m_OfferedBalls.erase(m_OfferedBalls.begin() + index);
-        m_PreviousHeldOfferIndex = -1;
         return true;
     }
     index -= static_cast<int>(m_OfferedBalls.size());
@@ -462,9 +400,9 @@ PlayerDeckSnapshot PlayerDeck::CaptureSnapshot() const
         m_DrawPile,
         m_DiscardPile,
         m_OfferedBalls,
-        m_HeldBall,
+        std::nullopt,
         m_CurrentBall,
-        m_PreviousHeldOfferIndex,
+        -1,
         m_IsCurrentBallUsed,
         m_NextInstanceId,
         m_RandomEngine,
@@ -484,9 +422,9 @@ bool PlayerDeck::RestoreSnapshot(PlayerDeckSnapshot snapshot)
     m_DrawPile = std::move(snapshot.drawPile);
     m_DiscardPile = std::move(snapshot.discardPile);
     m_OfferedBalls = std::move(snapshot.offeredBalls);
-    m_HeldBall = std::move(snapshot.heldBall);
+    if (snapshot.heldBall.has_value())
+        m_DiscardPile.push_back(std::move(*snapshot.heldBall));
     m_CurrentBall = std::move(snapshot.currentBall);
-    m_PreviousHeldOfferIndex = snapshot.previousHeldOfferIndex;
     m_IsCurrentBallUsed = snapshot.currentBallUsed;
     m_NextInstanceId = snapshot.nextInstanceId;
     m_RandomEngine = snapshot.randomEngine;

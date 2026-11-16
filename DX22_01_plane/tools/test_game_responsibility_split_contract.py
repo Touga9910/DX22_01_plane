@@ -727,7 +727,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertNotIn("int m_SelectedOfferIndex", game)
         self.assertNotIn("int m_SelectedHoldIndex", game)
         self.assertIn("bool GameBallSelectionState::SelectOffer", state)
-        self.assertIn("bool GameBallSelectionState::ToggleHold", state)
+        self.assertNotIn("ToggleHold", state)
         self.assertIn("m_BallSelectionState->Begin", core)
         self.assertIn("m_BallSelectionState->SelectOffer", autoplay)
         self.assertIn("ApplyBalanceAutoBallSelection(offerIndex)", boss)

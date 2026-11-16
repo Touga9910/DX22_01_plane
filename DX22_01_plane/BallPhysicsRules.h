@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BallMechanics.h"
+#include "ShotCombatRules.h"
 #include "Collision.h"
 #include "BallCcdGeometry.h"
 #include "TableConfig.h"
@@ -332,7 +333,7 @@ namespace BallPhysicsRules
 
     template<class Shot>
     std::pair<int, int> ContactDamage(const Body& a, const Body& b, int attackA, int attackB,
-        bool defeatedA, bool defeatedB, Shot& shot)
+        bool defeatedA, bool defeatedB, Shot& shot, int impactAttack = 1)
     {
         int damageA = attackB, damageB = attackA;
         if ((a.player && b.enemy && !defeatedB) || (b.player && a.enemy && !defeatedA))
@@ -343,8 +344,8 @@ namespace BallPhysicsRules
         }
         if (a.enemy && b.enemy)
         {
-            damageA += shot.GetCurrentShotCollisionAttackBonus();
-            damageB += shot.GetCurrentShotCollisionAttackBonus();
+            damageA = damageB = ShotCombatRules::EnemyCollisionDamage(
+                impactAttack, shot.GetCurrentShotCollisionAttackBonus());
         }
         return { damageA, damageB };
     }

@@ -14,27 +14,14 @@ int GameBallSelectionState::SelectedOfferIndex() const
 
 int GameBallSelectionState::HeldOfferIndex() const
 {
-	return m_HeldOfferIndex;
+	return -1; // Legacy read API; holding is removed.
 }
 
-void GameBallSelectionState::Begin(int offerCount, int heldOfferIndex)
+void GameBallSelectionState::Begin(int /*offerCount*/, int /*legacyHeldOfferIndex*/)
 {
 	m_FlowState = FlowState::Selecting;
 	m_HandHiddenRatio = 0.0f;
 	m_SelectedOfferIndex = 0;
-	m_HeldOfferIndex =
-		heldOfferIndex >= 0 && heldOfferIndex < offerCount
-		? heldOfferIndex
-		: -1;
-
-	if (m_HeldOfferIndex >= 0 && offerCount > 1)
-	{
-		m_SelectedOfferIndex = 1;
-	}
-	else if (m_HeldOfferIndex == m_SelectedOfferIndex)
-	{
-		m_HeldOfferIndex = -1;
-	}
 }
 
 void GameBallSelectionState::Update(float deltaSeconds)
@@ -66,22 +53,6 @@ bool GameBallSelectionState::SelectOffer(int offerIndex, int offerCount)
 		return false;
 	}
 	m_SelectedOfferIndex = offerIndex;
-	if (m_HeldOfferIndex == offerIndex)
-	{
-		m_HeldOfferIndex = -1;
-	}
-	return true;
-}
-
-bool GameBallSelectionState::ToggleHold(int offerIndex, int offerCount)
-{
-	if (!IsSelectionInteractive() ||
-		offerIndex < 0 || offerIndex >= offerCount ||
-		offerIndex == m_SelectedOfferIndex)
-	{
-		return false;
-	}
-	m_HeldOfferIndex = m_HeldOfferIndex == offerIndex ? -1 : offerIndex;
 	return true;
 }
 
@@ -110,7 +81,7 @@ bool GameBallSelectionState::CancelShotPreparation()
 
 bool GameBallSelectionState::ApplyPresentationSelection(
 	int selectedOfferIndex,
-	int heldOfferIndex,
+	int /*legacyHeldOfferIndex*/,
 	int offerCount)
 {
 	if (!IsSelectionInteractive())
@@ -121,10 +92,5 @@ bool GameBallSelectionState::ApplyPresentationSelection(
 	{
 		return false;
 	}
-	m_HeldOfferIndex =
-		heldOfferIndex >= 0 && heldOfferIndex < offerCount &&
-		heldOfferIndex != m_SelectedOfferIndex
-		? heldOfferIndex
-		: -1;
 	return true;
 }

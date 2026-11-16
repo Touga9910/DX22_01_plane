@@ -611,6 +611,7 @@ public:
 	int GetCushionStrongUsesThisShot() const;
 	int GetPlayerShield() const;
 	int AbsorbPlayerShieldDamage(int damage);
+	void GrantPlayerShield(int amount, const char* source);
 
 	// ===== ショップと休憩所のボール操作 =====
 	// ボールの候補取得、購入・削除・強化と、休憩所で実行できる回復・強化を管理
@@ -667,7 +668,7 @@ public:
 	// ボール報酬として提示する候補数を返す。
 	int GetBallOfferSize() const
 	{
-		return HasRelic(RelicType::ExpandedBallOffer) ? 4 : 3;
+		return HasRelic(RelicType::ExpandedBallOffer) ? 7 : 5;
 	}
 
 	// ===== ショップのレリック候補 =====

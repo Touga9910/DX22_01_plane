@@ -244,7 +244,7 @@ inline const std::array<
 	{
 		RelicType::ExpandedBallOffer,
 		RelicUtf8(u8"拡張ボールラック"),
-		RelicUtf8(u8"ショット前に提示されるボールの選択肢が3つから4つに増える。"),
+		RelicUtf8(u8"ショット前に提示されるボールの選択肢が5つから7つに増える。"),
 		20, RelicRarity::Common, 1, 1
 	}
 } };

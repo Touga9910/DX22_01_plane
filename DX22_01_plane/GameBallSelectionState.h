@@ -1,6 +1,6 @@
 #pragma once
 
-// Owns the transient offer/hold selection shared by human input and automated
+// Owns the transient card selection shared by human input and automated
 // controllers. It validates indices without knowing deck or rendering details.
 class GameBallSelectionState final
 {
@@ -29,7 +29,6 @@ public:
 	void Begin(int offerCount, int heldOfferIndex);
 	void Update(float deltaSeconds);
 	bool SelectOffer(int offerIndex, int offerCount);
-	bool ToggleHold(int offerIndex, int offerCount);
 	bool ConfirmSelection(int offerCount);
 	bool CancelShotPreparation();
 	bool ApplyPresentationSelection(
@@ -39,7 +38,6 @@ public:
 
 private:
 	int m_SelectedOfferIndex = 0;
-	int m_HeldOfferIndex = -1;
 	FlowState m_FlowState = FlowState::Selecting;
 	float m_HandHiddenRatio = 0.0f;
 };

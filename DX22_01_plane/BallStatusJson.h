@@ -10,6 +10,9 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 {
 	if (!value.is_object()) return status;
 	status.attack = value.value("attack", status.attack);
+	status.impactAttack = value.value("impactAttack", status.impactAttack);
+	status.shotShield = value.value("shotShield", status.shotShield);
+	status.enemyCollisionShield = value.value("enemyCollisionShield", status.enemyCollisionShield);
 	status.defense = value.value("defense", status.defense);
 	status.mass = value.value("mass", status.mass);
 	status.radius = value.value("radius", status.radius);
@@ -94,6 +97,9 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 {
 	return {
 		{ "attack", status.attack },
+		{ "impactAttack", status.impactAttack },
+		{ "shotShield", status.shotShield },
+		{ "enemyCollisionShield", status.enemyCollisionShield },
 		{ "defense", status.defense },
 		{ "mass", status.mass },
 		{ "radius", status.radius },
@@ -163,7 +169,10 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 // NaNや無限大を含む不正な浮動小数値もfalseとする
 inline bool IsValidBallStatus(const BallStatus& s)
 {
-	return s.attack >= 0 && s.attack <= 100000 && s.defense >= 0 && s.defense <= 100000 &&
+	return s.impactAttack >= 0 && s.impactAttack <= 100000 &&
+		s.shotShield >= 0 && s.shotShield <= 1000 &&
+		s.enemyCollisionShield >= 0 && s.enemyCollisionShield <= 1000 &&
+		s.attack >= 0 && s.attack <= 100000 && s.defense >= 0 && s.defense <= 100000 &&
 		std::isfinite(s.mass) && s.mass > 0.0f && s.mass <= 1000.0f &&
 		std::isfinite(s.radius) && s.radius >= 0.0f && s.radius <= 100.0f &&
 		std::isfinite(s.restitution) && s.restitution >= 0.0f && s.restitution <= 1.0f &&

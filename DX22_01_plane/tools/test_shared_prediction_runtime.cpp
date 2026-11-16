@@ -373,6 +373,20 @@ int main()
     assert(shot.ConsumePlayerEnemyRelicDamageBonus() == 1);
     shot.launchPower = 4.1f;
     assert(shot.ConsumePlayerEnemyRelicDamageBonus() == 0);
+    {
+        ShotRelicRules ordinaryShot;
+        Body firstEnemy, secondEnemy, cue;
+        firstEnemy.enemy = secondEnemy.enemy = true;
+        cue.player = true;
+        auto direct = ContactDamage(cue, firstEnemy, 1, 99, false, false, ordinaryShot, 3);
+        assert(direct.second == 1); // attack and impact are independent
+        auto secondary = ContactDamage(firstEnemy, secondEnemy, 99, 77,
+            false, false, ordinaryShot, 3);
+        assert(secondary.first == 3 && secondary.second == 3);
+        auto zero = ContactDamage(firstEnemy, secondEnemy, 99, 77,
+            false, false, ordinaryShot, 0);
+        assert(zero.first == 0 && zero.second == 0);
+    }
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,-10), 0.5f) == 5);
     assert(DirectionalDamage(10, Vector3::Zero, Vector3(0,0,10), 0.5f) == 10);
 	std::cout << "Detailed prediction ball bytes="

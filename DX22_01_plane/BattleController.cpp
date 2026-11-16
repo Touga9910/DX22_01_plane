@@ -377,41 +377,20 @@ bool BattleController::AreAllEnemiesDefeated() const
     const std::vector<EnemyBall*> enemies =
         m_World->GetComponents<EnemyBall>();
 
+    const int livingEnemyCount = static_cast<int>(std::count_if(
+        enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
+        {
+            return enemy != nullptr && enemy->GetHP() > 0 && !enemy->IsDefeated();
+        }));
     if (IsPhasePrototype())
     {
-        return IsPhaseVictoryForLivingCount(
-            static_cast<int>(std::count_if(
-                enemies.begin(), enemies.end(), [](const EnemyBall* enemy)
-                {
-                    return enemy != nullptr &&
-                        enemy->CanParticipateInCombat();
-                })));
+        return IsPhaseVictoryForLivingCount(livingEnemyCount);
     }
 
-    // 敵が存在しないロード途中を勝利扱いにしない。
-    if (enemies.empty())
-    {
-        return false;
-    }
-
-    bool foundEnemy = false;
-
-    for (EnemyBall* enemy : enemies)
-    {
-        if (enemy == nullptr)
-        {
-            continue;
-        }
-
-        foundEnemy = true;
-
-        if (!enemy->IsDefeated())
-        {
-            return false;
-        }
-    }
-
-    return foundEnemy;
+    // Pocketed enemies disappear from the world. A cumulative defeat proves
+    // this is a cleared battle rather than an empty board during loading.
+    return BattleFlowRules::IsLegacyVictory(
+        !enemies.empty() || m_DefeatedEnemyCount > 0, livingEnemyCount);
 }
 
 void BattleController::CompleteShot()
@@ -451,9 +430,7 @@ void BattleController::CompleteShot()
 
     if (IsPhasePrototype())
     {
-        // HP0 enemies remain physical through the shot, then leave before any
-        // attack or reinforcement decision for this turn.
-        RemoveDefeatedPhaseEnemies();
+        // HP0 enemies remain physical across turns; only pocket contact removes them.
         if (m_CurrentPhase < m_TotalPhases && m_TurnsUntilNextPhase > 0)
         {
             --m_TurnsUntilNextPhase;
@@ -756,18 +733,6 @@ void BattleController::PlanPhaseTurn()
     }
 }
 
-void BattleController::RemoveDefeatedPhaseEnemies()
-{
-    if (m_World == nullptr || !IsPhasePrototype()) return;
-    for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
-    {
-        if (enemy != nullptr && enemy->IsDefeated())
-        {
-            m_World->RequestDestroy(enemy->GetGameObject());
-        }
-    }
-}
-
 bool BattleController::TryAdvancePhase()
 {
     return TryAdvancePhase(GetLivingEnemyCount());
@@ -826,7 +791,7 @@ int BattleController::GetLivingEnemyCount() const
         enemies.begin(), enemies.end(),
         [](const EnemyBall* enemy)
         {
-            return enemy != nullptr && enemy->CanParticipateInCombat();
+            return enemy != nullptr && enemy->GetHP() > 0 && !enemy->IsDefeated();
         }));
 }
 

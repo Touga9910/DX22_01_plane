@@ -1198,6 +1198,7 @@ nlohmann::json GameMcpBridge::BuildState(
 		{{ "definition_id", "player_cushion_charge" }, { "unlocked", isBallUnlocked("player_cushion_charge") }},
 		{{ "definition_id", "player_ricochet_finisher" }, { "unlocked", isBallUnlocked("player_ricochet_finisher") }},
 		{{ "definition_id", "player_anchor" }, { "unlocked", isBallUnlocked("player_anchor") }},
+		{{ "definition_id", "player_guard" }, { "unlocked", isBallUnlocked("player_guard") }},
 		{{ "definition_id", "player_stop_shield" }, { "unlocked", isBallUnlocked("player_stop_shield") }},
 		{{ "definition_id", "player_anchor_finisher" }, { "unlocked", isBallUnlocked("player_anchor_finisher") }},
 	};

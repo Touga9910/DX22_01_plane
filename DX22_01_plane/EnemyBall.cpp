@@ -861,7 +861,7 @@ void EnemyBall::ResetChargeShotTracking()
 
 int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
 {
-    if (!CanParticipateInCombat()) return 0;
+    if (!CanParticipateInCombat() || damage <= 0) return 0;
     damage = BallPhysicsRules::DirectionalDamage(
         damage,
         GetPosition(),

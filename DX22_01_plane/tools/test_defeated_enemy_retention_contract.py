@@ -17,7 +17,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
 
         self.assertNotIn("m_World->RequestDestroy(owner)", battle)
         self.assertIn("return enemy->IsEnabled() && !enemy->IsPocketed();", collision)
-        self.assertIn("if (m_BallComponent->IsDefeated())", collision)
+        self.assertNotIn("RemoveDefeatedPhaseEnemies", battle)
         self.assertIn("m_Ball->GetMutableVelocity() = velocity;", enemy)
         self.assertIn("m_Ball->GetMutableAcceleration() = acceleration;", enemy)
 
@@ -58,15 +58,16 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         self.assertIn("color.rgb += specular + environment;", shader)
         self.assertIn("kDefeatVisualTransitionSeconds = 0.3f", enemy)
 
-    def test_retained_enemy_resolves_ignored_pocket_overlap(self) -> None:
+    def test_dead_and_living_enemies_share_pocket_removal(self) -> None:
         collision = source("BallCollisionComponent.cpp")
         prediction = source("BallShotPrediction.cpp")
-        rules = source("BallPhysicsRules.h")
-
-        self.assertIn("RetainOutsidePocket", rules)
-        self.assertIn("BallPhysicsRules::RetainOutsidePocket", collision)
-        self.assertIn("BallPhysicsRules::RetainOutsidePocket", prediction)
-        self.assertIn("BallCcdGeometry::ReleaseSlop", rules)
+        game = source("Game.cpp")
+        self.assertNotIn("BallPhysicsRules::RetainOutsidePocket", collision)
+        self.assertNotIn("BallPhysicsRules::RetainOutsidePocket", prediction)
+        self.assertIn("OnPocketHit();", collision)
+        self.assertIn('else if (!ball.enemyId.empty())', prediction)
+        self.assertIn("if (newlyDefeated)", game)
+        self.assertIn("World().RequestDestroy(enemy->GetGameObject())", game)
 
     def test_battle_progress_diagnostics_are_throttled_and_published(self) -> None:
         controller = source("BattleController.cpp")

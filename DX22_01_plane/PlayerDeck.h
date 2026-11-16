@@ -12,6 +12,7 @@ struct PlayerDeckSnapshot
     std::vector<PlayerBallData> drawPile;
     std::vector<PlayerBallData> discardPile;
     std::vector<PlayerBallData> offeredBalls;
+    // Legacy save migration only. New snapshots always write nullopt.
     std::optional<PlayerBallData> heldBall;
     std::optional<PlayerBallData> currentBall;
     int previousHeldOfferIndex = -1;
@@ -37,15 +38,16 @@ public:
     void ResetToDefault();
 
     // -------------------------
-    // ボール提示・選択・保持
+    // ボール提示・選択
     // -------------------------
-    bool PrepareOffer(int offerSize = 3);
-    bool SelectOffer(int selectedIndex, int heldIndex);
+    bool PrepareOffer(int offerSize = 5);
+    // Second argument is ignored for source compatibility with older controllers.
+    bool SelectOffer(int selectedIndex, int legacyHeldIndex = -1);
 
     int GetOfferCount() const { return static_cast<int>(m_OfferedBalls.size()); }
     const PlayerBallData* GetOffer(int index) const;
-    bool WasHeldOffer(int index) const { return index == m_PreviousHeldOfferIndex; }
-    bool HasHeldBall() const { return m_HeldBall.has_value(); }
+    bool WasHeldOffer(int) const { return false; } // Legacy read API
+    bool HasHeldBall() const { return false; } // Legacy read API
 
     // -------------------------
     // 山札・捨て札操作
@@ -102,9 +104,7 @@ private:
     std::vector<PlayerBallData> m_DrawPile;         // 山札
     std::vector<PlayerBallData> m_DiscardPile;      // 捨て札
     std::vector<PlayerBallData> m_OfferedBalls;     // 今回提示しているボール
-    std::optional<PlayerBallData> m_HeldBall;       // 次回まで保持するボール
     std::optional<PlayerBallData> m_CurrentBall;    // 現在使用中のボール
-    int m_PreviousHeldOfferIndex = -1;              // 提示内で前回から保持されていた位置
     bool m_IsCurrentBallUsed = false;               // 現在ボールを使用済みかどうか
     std::uint64_t m_NextInstanceId = 1;              // 同名ボールを区別するランタイムID
     std::mt19937 m_RandomEngine{ std::random_device{}() };

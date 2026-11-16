@@ -88,6 +88,27 @@ namespace
         return controller;
     }
 
+    void VerifyLegacyPocketClear()
+    {
+        GameWorld world;
+        SpawnObservation spawns;
+        int restoredPlayerCount = 0;
+        auto controller = MakeController(world, spawns, restoredPlayerCount);
+        StageData stage;
+        stage.combatMode = CombatMode::Legacy;
+        controller.BeginStage(stage);
+        controller.StartBattle();
+        assert(!controller.AreAllEnemiesDefeated()); // Empty while loading.
+        // EnemyBall has emitted its once-only defeat; the pocket removed its object.
+        controller.NotifyEnemyDefeated();
+        controller.NotifyEnemyPocketDefeated();
+        assert(controller.AreAllEnemiesDefeated());
+        controller.Update();
+        assert(controller.GetResult() == BattleResult::Victory);
+        assert(controller.ConsumeResult() == BattleResult::Victory);
+        assert(controller.ConsumeResult() == BattleResult::None);
+    }
+
     void VerifySinglePhase(
         const StageData& stage)
     {
@@ -220,6 +241,7 @@ int main()
     const StageData& sixToSix = FindStage(
 		stages, "campaign_phase_late_mixed");
 
+    VerifyLegacyPocketClear();
     VerifySinglePhase(single);
     VerifyTwoPhase(sixToFour, 4);
     VerifyTwoPhase(sixToSix, 6);

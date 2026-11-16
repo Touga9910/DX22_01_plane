@@ -103,6 +103,8 @@ void Game::OnPlayerShotFired(PlayerBall* player)
 
 	const PlayerBallData* currentBall =
 		m_RunController->Deck().GetCurrent();
+	if (currentBall != nullptr)
+		GrantPlayerShield(currentBall->status.shotShield, currentBall->definitionId.c_str());
 	const int heavyStacksAtShotStart =
 		m_BattleState->heavyCollisions.stackCount;
 	const int pierceStacksAtShotStart =
