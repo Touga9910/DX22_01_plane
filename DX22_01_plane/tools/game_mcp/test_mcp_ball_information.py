@@ -13,7 +13,7 @@ def source(name: str) -> str:
 
 class McpBallInformationContractTests(unittest.TestCase):
     def test_current_status_reuses_canonical_serializer_and_keeps_aliases(self) -> None:
-        bridge = source("GameMcpBridge.cpp")
+        bridge = source("GameMcpJson.cpp")
         helper = bridge[
             bridge.index("nlohmann::json PlayerBallStatusToMcpJson"):
             bridge.index("nlohmann::json BallDataToJson")
@@ -48,7 +48,7 @@ class McpBallInformationContractTests(unittest.TestCase):
             self.assertIn(f'{{ "{field}", status.{field} }}', serializer)
 
     def test_anchor_and_prepared_effect_state_is_target_addressable(self) -> None:
-        bridge = source("GameMcpBridge.cpp")
+        bridge = source("GameMcpCombatState.cpp")
         for field in (
             '"target_id", targetId',
             '"anchor_stacks", enemy->GetAnchorStacks()',

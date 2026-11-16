@@ -9,6 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PROGRESSION_SOURCES = (
+    "GameClearRewardFlow.cpp",
+    "GamePocketLifecycle.cpp",
     "GameRestActions.cpp",
     "GameRewardOperations.cpp",
     "GameShopOperations.cpp",
@@ -36,6 +38,13 @@ def load_game_sources() -> str:
         for name in (
             "Game.cpp",
             "GameAutoPlay.cpp",
+            "GameBattleStart.cpp",
+            "BalanceAutoPlayer.cpp",
+            "BalanceAutoPlayerScenes.cpp",
+            "BalanceAutoPlayerShots.cpp",
+            "BalanceAutoPlayerRewards.cpp",
+            "BalanceAutoPlayerBuildChoices.cpp",
+            "BalanceAutoPlayerPending.cpp",
             "GameBalanceConfig.cpp",
             *PROGRESSION_SOURCES,
             "DynamicBalanceController.cpp",
@@ -51,9 +60,6 @@ class BalanceConfigurationTests(unittest.TestCase):
             encoding="utf-8"
         )
         game_source = load_game_sources()
-        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
-            encoding="utf-8"
-        )
 
         self.assertEqual(profiles["schema_version"], 1)
         self.assertEqual(
@@ -70,12 +76,14 @@ class BalanceConfigurationTests(unittest.TestCase):
             '{ "build_profile_settings_hash", buildProfileSettingsHash }',
             game_source,
         )
-        self.assertIn('"mcp_build_decision"', bridge_source)
+        for name in ("GameMcpBattleCommands.cpp", "GameMcpEconomyCommands.cpp"):
+            with self.subTest(source=name):
+                self.assertIn(
+                    '"mcp_build_decision"',
+                    (ROOT / name).read_text(encoding="utf-8"),
+                )
 
     def test_enemy_validation_conditions_and_shot_stacks_are_logged(self) -> None:
-        logger_source = (ROOT / "BalanceLogger.cpp").read_text(
-            encoding="utf-8"
-        )
         game_source = load_game_sources()
 
         for field in (
@@ -87,98 +95,94 @@ class BalanceConfigurationTests(unittest.TestCase):
             '"ball_category"',
         ):
             self.assertIn(field, game_source)
-        for field in (
-            '"heavy_stacks_uncapped_gain"',
-            '"heavy_stacks_generated"',
-            '"heavy_stack_distance_per_stack"',
-            '"heavy_stack_gain_limit_per_turn"',
-            '"heavy_stacks_discarded_by_turn_limit"',
-            '"heavy_stacks_discarded_by_storage_limit"',
-            '"heavy_stacks_consumed"',
-            '"heavy_stacks_before"',
-            '"heavy_stacks_after"',
-            '"pierce_stacks_generated"',
-            '"pierce_stacks_uncapped_gain"',
-            '"pierce_stacks_consumed"',
-            '"pierce_stacks_before"',
-            '"pierce_stacks_after"',
-            '"pierce_stack_max"',
-            '"pierce_stack_max_reached"',
-            '"pierce_minion_fizzle_count"',
-            '"pierce_attack"',
-            '"bounce_axis"',
-            '"physical_reflection_count"',
-            '"effective_reflection_count"',
-            '"timeline_event_index"',
-            '"attack_timing"',
-            '"attack_timeline"',
-            '"post_reflection_effective_attack_succeeded"',
-            '"reflection_stacks_uncapped_gain"',
-            '"reflection_stacks_generated"',
-            '"reflection_stacks_consumed"',
-            '"reflection_stacks_before"',
-            '"reflection_stacks_after"',
-            '"pinball_activation_count"',
-            '"pinball_fizzle_count"',
-            '"pinball_applied_bonus_damage"',
-            '"empowered_hit_activation_count"',
-            '"physics_chain"',
-            '"effective_enemy_enemy_collision_count"',
-            '"involved_enemy_count"',
-            '"enemy_distances"',
-            '"physics_processing_microseconds"',
-            '"turn_count"',
-        ):
-            self.assertIn(field, logger_source)
+        fields_by_owner = {
+            "BalanceLoggerShotResults.cpp": (
+                "heavy_stacks_uncapped_gain", "heavy_stacks_generated",
+                "heavy_stack_distance_per_stack", "heavy_stack_gain_limit_per_turn",
+                "heavy_stacks_discarded_by_turn_limit",
+                "heavy_stacks_discarded_by_storage_limit", "heavy_stacks_consumed",
+                "heavy_stacks_before", "heavy_stacks_after",
+                "pierce_stacks_generated", "pierce_stacks_uncapped_gain",
+                "pierce_stacks_consumed", "pierce_stacks_before",
+                "pierce_stacks_after", "pierce_stack_max", "pierce_stack_max_reached",
+                "pierce_minion_fizzle_count",
+            ),
+            "BalanceLoggerShot.cpp": (
+                "pierce_attack", "bounce_axis", "physics_chain",
+                "reflection_stacks_uncapped_gain", "reflection_stacks_generated",
+                "reflection_stacks_consumed", "reflection_stacks_before",
+                "reflection_stacks_after",
+            ),
+            "BalanceLoggerTelemetryJson.cpp": (
+                "physical_reflection_count", "effective_reflection_count",
+                "timeline_event_index", "attack_timing", "attack_timeline",
+                "post_reflection_effective_attack_succeeded", "pinball_activation_count",
+                "pinball_fizzle_count", "pinball_applied_bonus_damage",
+                "empowered_hit_activation_count", "effective_enemy_enemy_collision_count",
+                "involved_enemy_count", "enemy_distances", "physics_processing_microseconds",
+            ),
+            "BalanceLoggerStage.cpp": ("turn_count",),
+        }
+        for name, fields in fields_by_owner.items():
+            logger_source = (ROOT / name).read_text(encoding="utf-8")
+            for field in fields:
+                with self.subTest(source=name, field=field):
+                    self.assertIn(f'"{field}"', logger_source)
         self.assertIn(
             '"latest_shot_physics_chain"',
-            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+            (ROOT / "GameMcpCombatState.cpp").read_text(encoding="utf-8"),
         )
         self.assertIn(
             '"latest_shot_pierce_attack"',
-            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+            (ROOT / "GameMcpCombatState.cpp").read_text(encoding="utf-8"),
         )
         self.assertIn(
             '"latest_shot_bounce_axis"',
-            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+            (ROOT / "GameMcpCombatState.cpp").read_text(encoding="utf-8"),
         )
         self.assertIn(
             '"latest_shot_combat_result"',
-            (ROOT / "GameMcpBridge.cpp").read_text(encoding="utf-8"),
+            (ROOT / "GameMcpCombatState.cpp").read_text(encoding="utf-8"),
         )
         self.assertIn(
             '"measurement_scope", "all_recorded_enemy_hp_damage"',
-            logger_source,
+            (ROOT / "BalanceLoggerShot.cpp").read_text(encoding="utf-8"),
         )
         self.assertIn(
             '"measurement_scope", "pierce_attack_telemetry_sources_only"',
-            logger_source,
+            (ROOT / "BalanceLoggerTelemetryJson.cpp").read_text(encoding="utf-8"),
         )
-        self.assertIn('"is_generic_combat_total", false', logger_source)
+        self.assertIn(
+            '"is_generic_combat_total", false',
+            (ROOT / "BalanceLoggerTelemetryJson.cpp").read_text(encoding="utf-8"),
+        )
 
     def test_mcp_enemy_state_supports_aim_error(self) -> None:
-        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
+        bridge_source = (ROOT / "GameMcpCombatState.cpp").read_text(
             encoding="utf-8"
         )
 
         self.assertIn('{ "radius", enemy->GetRadius() }', bridge_source)
 
     def test_mcp_contract_exposes_percentage_rest_heal(self) -> None:
-        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
+        state_source = (ROOT / "GameMcpRunState.cpp").read_text(
+            encoding="utf-8"
+        )
+        read_view_source = (ROOT / "GameMcpReadView.cpp").read_text(
             encoding="utf-8"
         )
         server_source = (ROOT / "tools/game_mcp/server.py").read_text(
             encoding="utf-8"
         )
 
-        self.assertIn('state["rest_heal"]', bridge_source)
+        self.assertIn('state["rest_heal"]', state_source)
         self.assertIn(
             "snapshot.restHealRatio = game.m_RunController->RestHealRatio()",
-            bridge_source,
+            read_view_source,
         )
         self.assertIn(
             '{ "heal_ratio", snapshot.restHealRatio }',
-            bridge_source,
+            state_source,
         )
         self.assertIn("最大HPの25%回復", server_source)
         self.assertNotIn("プレイヤーHPを全回復", server_source)
@@ -187,7 +191,10 @@ class BalanceConfigurationTests(unittest.TestCase):
         stage_select_source = (ROOT / "StageSelectScene.cpp").read_text(
             encoding="utf-8"
         )
-        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
+        command_source = (ROOT / "GameMcpRunCommands.cpp").read_text(
+            encoding="utf-8"
+        )
+        state_source = (ROOT / "GameMcpAvailableActions.cpp").read_text(
             encoding="utf-8"
         )
 
@@ -197,10 +204,10 @@ class BalanceConfigurationTests(unittest.TestCase):
         )
         self.assertIn(
             'stageSelect->ChooseRoute(routeIndex, "mcp")',
-            bridge_source,
+            command_source,
         )
-        self.assertIn('state["route_options"]', bridge_source)
-        self.assertNotIn('{ "offered_routes", nullptr }', bridge_source)
+        self.assertIn('state["route_options"]', state_source)
+        self.assertNotIn('{ "offered_routes", nullptr }', state_source)
 
     def test_dynamic_balance_runtime_lifecycle_is_removed(self) -> None:
         game_source = load_game_sources()
@@ -251,7 +258,7 @@ class BalanceConfigurationTests(unittest.TestCase):
                 "Game.cpp",
                 "GameBalanceConfig.cpp",
                 *PROGRESSION_SOURCES,
-                "GameMcpBridge.cpp",
+                *(path.name for path in sorted(ROOT.glob("GameMcp*.cpp"))),
                 "GameSaveManager.cpp",
                 "PlayerBallDataLoader.h",
                 "PlayerBallDataLoader.cpp",
@@ -315,7 +322,10 @@ class BalanceConfigurationTests(unittest.TestCase):
     def test_pocket_rules_and_mcp_contract(self) -> None:
         pocket = load("assets/data/pocket_rules.json")
         game_source = load_game_sources()
-        bridge_source = (ROOT / "GameMcpBridge.cpp").read_text(
+        world_source = (ROOT / "GameMcpWorldState.cpp").read_text(
+            encoding="utf-8"
+        )
+        combat_source = (ROOT / "GameMcpCombatState.cpp").read_text(
             encoding="utf-8"
         )
 
@@ -333,12 +343,12 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertIn('"enemy_pocket_defeat"', game_source)
         self.assertNotIn("QueuePocketedEnemy", game_source)
         self.assertNotIn("RestoreNextPocketedEnemy", game_source)
-        self.assertIn('state["pocket_rules"]', bridge_source)
-        self.assertIn('{ "instant_defeat",', bridge_source)
-        self.assertIn('{ "pocketed", enemy->IsPocketed() }', bridge_source)
+        self.assertIn('state["pocket_rules"]', world_source)
+        self.assertIn('{ "instant_defeat",', world_source)
+        self.assertIn('{ "pocketed", enemy->IsPocketed() }', combat_source)
         self.assertIn(
             '"pocket_finisher_eligible"',
-            bridge_source,
+            combat_source,
         )
 
     def test_stage_enemy_references_and_threat_budgets(self) -> None:

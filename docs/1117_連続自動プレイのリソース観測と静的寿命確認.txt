@@ -1,0 +1,40 @@
+作成日：2026年11月17日
+最終更新日：2026年11月17日
+連続自動プレイのリソース観測と静的寿命確認
+
+対象と検証
+v2_resource_long50_hidden の同一process・50 native runが5795.204秒でordinary_success。PID27468、resource sample386件。analyze_resource_samples.pyで最終manifest/result、durable traceの件数・PID/image/作成時刻・sample時計・全milestone境界の整合を確認し、errorsは0。入力、sourcepackage、C++、stage本体、EXEは変更せず、新たなゲーム起動・入力も行っていない。
+証拠folder：logs/autoplay_exit_repetition/trials/v2_resource_long50_hidden/trial_0001_hidden_maximum_runs/maximum_runs
+同folderの resource_samples_analysis.json が再実行可能なanalyzer出力、resource_samples_analysis_audit.json が原row照合・境界近傍・handle系列の補助記録。
+
+同じ公開区間の記述値
+Select状態の公開から最初のeasy Battle状態の公開までに入るsampleは48件。run1を予定どおり除外したrun2～50では47件、各run1件。run9／39は区間内sampleがなく、補間していない。全48割当の指標値はrequest_events.jsonlの該当trace_lineの原rowと一致した。
+
+指標（memoryはbytes）       first        last         min          max          median
+PrivateCommit             191852544    197906432    187424768    205340672    191819776
+WorkingSet                218480640    199008256    187867136    220246016    193421312
+kernel handles            364          648          364          648          510
+
+PrivateCommitとWorkingSetは上記範囲で上下している。handlesは概ね1 native run当たり6個増える形で、run40の590個からrun50の648個まで後半にも58個増えている。このsample範囲ではplateauを確認できなかったが、厳密な単調増加ではない。
+run26は521→次run510、run46は643→次run632という一時的な山がある。前者はBattle公開215ms前、後者は219ms前のsampleであり、後者が同区間のPrivateCommit最大値でもある。これらも原rowと一致する。
+query wrapper時間は全386件でfirst0.1291ms／last0.2149ms／min0.1130ms／max0.5404ms／median0.1895ms。identity／counters wrapperのwall時間で、binding準備、poll、identity照合、JSONL append／fsync、集計、窓／MCP観測を含む総負荷ではない。
+
+近似・初期化の限界
+これは公開timestamp間の近似対応であり、query瞬間の厳密なSelect状態を証明しない。snapshot自体にはPIDがなく、隔離case folderで関連付ける。整数msで境界と一致したsampleは割当拒否する方針を維持し、任意の遅延補正や端付近sampleの除外を加えていない。run1を除外してもrun2以後の初期化、allocator、GPU／asset cacheが全て定常化したとは証明できない。
+handle数はobject種別・生成元・解放時刻を示さない。増加だけでleakや元の一度の終了原因とは断定しない。PrivateCommit／WorkingSetの増減だけでもleakとは判定しない。
+
+観測側で確認した範囲
+sourceのProcessResourcesは自分が起動したPopenの既存handleを借用し、GetProcessId、QueryFullProcessImageNameW、GetProcessTimes、K32GetProcessMemoryInfo、GetProcessHandleCountで読む。OpenProcess／DuplicateHandle／CloseHandle、targetへの入力・終了操作は追加しない。resource traceのファイル操作はcontroller Python側で行う。対象ゲーム側へrunごとに新しいhandleを直接生成するcallはこの観測実装には見つからなかった。ただし、observer有無の対照で総負荷・間接影響まで否定したものではない。
+Microsoft公式説明でもGetProcessHandleCountは入力hProcessのexecutive object handles数を取得し、GetProcessMemoryInfoは入力process handleからmemory countersを取得するAPI。
+https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesshandlecount
+https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo
+
+静的なscene／graphics／asset／file寿命の確認
+・SceneManager.cpp::Changeは旧sceneをresetしてから次sceneを作る。TitleScene／StageSelectScene／ResultScene／StageBaseのdestructor→Uninitは登録objectへDestroy要求を送る。Game.cpp::Updateの先頭と後半でGameWorld::RemoveDestroyedがunique_ptrを消去し、GameObject destructor→Uninit→component OnDestroyとmember破棄へ進む。
+・Texture2DのVB／IB／Shader／Texture／Materialはmemberまたはunique_ptr。GPU COM objectはComPtrで保持し、Shader::CreateCheckedとVB／IB再作成ではResetも行う。named objectの解放鎖は確認したが、driver／D3D内部のkernel handle保持まで証明したものではない。
+・AssimpPerse.cppのImporterは局所object。global作業vectorsはモデル読込みでclearし、texturesは所有権をmoveする。完了runを積み上げるasset履歴をこの経路では見つけていない。
+・Renderer.cppのCSO fopenは通常・size不正の経路でfcloseする。stb_image.hのstbi_loadもfcloseする。Logger／MCP／save／performance出力のofstreamは局所寿命、ApplicationLifecycleはfcloseする構成。
+・Application.cppのhidden modeではViewportsEnableを有効にしないため、このhidden50の増加をsecondary viewport生成だけで説明する根拠はない。
+上記の枝では、測定された約6 handles/runと一致する具体的な生成site＋解放欠落をまだ特定できていない。audio側の独立調査、CPP同一のlegacy20/pub6と旧pub1の比較、Title idle対照は別途rootが扱う。source修正の根拠は現時点では不足しており、全cohort終了前の修正や新たなWin32機能の追加は行わない。
+
+追記：描画後Flushの同一exe対照4起動/40runは docs/1117_描画Flush対照と通常版の保全.txt を参照。両modeとも増加を観測し、生成元や元exit原因は未特定。通常版へFlushは反映していない。

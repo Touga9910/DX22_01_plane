@@ -61,7 +61,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
     def test_dead_and_living_enemies_share_pocket_removal(self) -> None:
         collision = source("BallCollisionComponent.cpp")
         prediction = source("BallShotPrediction.cpp")
-        game = source("Game.cpp")
+        game = source("GamePocketLifecycle.cpp")
         self.assertNotIn("BallPhysicsRules::RetainOutsidePocket", collision)
         self.assertNotIn("BallPhysicsRules::RetainOutsidePocket", prediction)
         self.assertIn("OnPocketHit();", collision)
@@ -71,7 +71,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
 
     def test_battle_progress_diagnostics_are_throttled_and_published(self) -> None:
         controller = source("BattleController.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        mcp = source("GameMcpDiagnosticsState.cpp")
 
         self.assertIn("m_ShotFixedStepCount % 300 == 0", controller)
         self.assertIn('"battle_progress_diagnostics"', mcp)
@@ -88,8 +88,8 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         self.assertIn("enemy->RefreshBoardAbilityState(true);", enemy)
 
     def test_presentation_and_mcp_keep_physics_but_hide_combat_state(self) -> None:
-        presentation = source("GamePresentation.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        presentation = source("GamePresentationEnemyOverlay.cpp")
+        mcp = source("GameMcpCombatState.cpp")
         self.assertIn("enemy->IsDefeated() || enemy->IsPocketed()", presentation)
         self.assertIn('{ "combat_active", combatActive }', mcp)
         self.assertIn("!enemy->CanParticipateInCombat()) continue;", mcp)
@@ -98,7 +98,8 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         controller = source("BattleController.cpp")
         game_damage = source("GameDamageAndDefeat.cpp")
         shot_start = source("GameShotStart.cpp")
-        game = source("Game.cpp")
+        game = (source("Game.cpp") + source("GameClearRewardFlow.cpp")
+                + source("GamePocketLifecycle.cpp") + source("GameRunCompletion.cpp"))
 
         self.assertIn("++m_DefeatedEnemyCount;", controller)
         self.assertIn(

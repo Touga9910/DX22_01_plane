@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="SettingsManager.h">
@@ -84,6 +84,9 @@
     </ClInclude>
     <ClInclude Include="Application.h">
       <Filter>ヘッダー ファイル\00_Application</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationLifecycle.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
     </ClInclude>
     <ClInclude Include="Game.h">
       <Filter>ヘッダー ファイル\00_Application</Filter>
@@ -872,6 +875,9 @@
     <ClCompile Include="Application.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
+    <ClCompile Include="ApplicationLifecycle.cpp">
+      <Filter>ソース ファイル\00_Application\Core</Filter>
+    </ClCompile>
     <ClCompile Include="Game.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>
@@ -1311,5 +1317,168 @@
     <None Include="tools\game_mcp\test_bridge_store.py">
       <Filter>リソース ファイル\Tools\MCP</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BallCardPresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClInclude Include="BallCardPresentation.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClCompile Include="CombatOverlayDrawing.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClInclude Include="CombatOverlayDrawing.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClCompile Include="GameBallSelection.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameBattleTransition.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameClearRewardFlow.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameDebugDiagnostics.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameDebugForecast.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameDiagnosticsAccess.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameFixedPhysics.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameHandPresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePause.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GamePausePresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePocketLifecycle.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GamePresentationAxisEvents.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationCombatEvents.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationDashboard.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationEnemyOverlay.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationFeedback.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationHud.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationPrimitives.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClInclude Include="GamePresentationPrimitives.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClCompile Include="GamePresentationReactions.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GamePresentationTutorial.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GameRewardPresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GameRouteFlow.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameRunCompletion.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameRuntime.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameSceneTransition.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameSessionAccess.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameSettingsAccess.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+    <ClCompile Include="GameUiBridge.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="GameWorldAccess.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="EnemyInfoLayout.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClInclude Include="EnemyInfoLayout.h"><Filter>ヘッダー ファイル\05_UI</Filter></ClInclude>
+    <ClCompile Include="GamePresentationPlayerOverlay.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BuildPch.cpp">
+      <Filter>ソース ファイル\00_Application\Core</Filter>
+    </ClCompile>
+    <ClInclude Include="BuildPch.h">
+      <Filter>ヘッダー ファイル\00_Application\Core</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GameMcpAvailableActions.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpBattleCommands.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpCombatState.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpCommandDispatch.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClInclude Include="GameMcpCommandHandlers.h">
+      <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
+    </ClInclude>
+    <ClCompile Include="GameMcpCommands.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpDiagnosticsState.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpEconomyCommands.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpInventoryState.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpJson.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClInclude Include="GameMcpJson.h">
+      <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
+    </ClInclude>
+    <ClCompile Include="GameMcpReadView.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpRunCommands.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpRunState.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpStageCommands.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClCompile Include="GameMcpStateSerialization.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+    <ClInclude Include="GameMcpStateSerialization.h">
+      <Filter>ヘッダー ファイル\08_Tools\MCP</Filter>
+    </ClInclude>
+    <ClCompile Include="GameMcpWorldState.cpp">
+      <Filter>ソース ファイル\08_Tools\MCP</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BalanceLoggerConfiguration.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerEvents.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerShot.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerShotEvents.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerShotResults.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClInclude Include="BalanceLoggerShotSummary.h">
+      <Filter>ヘッダー ファイル\07_RunSystem\Statistics</Filter>
+    </ClInclude>
+    <ClCompile Include="BalanceLoggerStage.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerStorage.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceLoggerTelemetryJson.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
+    </ClCompile>
+    <ClInclude Include="BalanceLoggerTelemetryJson.h">
+      <Filter>ヘッダー ファイル\07_RunSystem\Statistics</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BalanceAutoPlayer.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceAutoPlayerBuildChoices.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceAutoPlayerPending.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceAutoPlayerRewards.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceAutoPlayerScenes.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="BalanceAutoPlayerShots.cpp">
+      <Filter>ソース ファイル\08_Tools\Balance</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBattleStart.cpp">
+      <Filter>ソース ファイル\00_Application\Core</Filter>
+    </ClCompile>
+    <ClInclude Include="BalanceAutoPlayerPolicy.h">
+      <Filter>ヘッダー ファイル\08_Tools\Balance</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

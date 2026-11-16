@@ -1,0 +1,165 @@
+作成日：2026年11月16日
+最終更新日：2026年11月17日
+自動プレイ途中終了の原因調査と検証結果
+
+実装前の方針
+・プレイヤーに見える変化：終了経路を調査し、再現した問題に必要な修正と終了理由の観測を行う。自動プレイの戦術・成長・物理ルールは変えない。
+・強める柱：選択・狙い・連鎖の検証を最後まで実行でき、途中終了を正常な自動プレイ停止と区別できるようにする。
+・取得前後・強化前後の狙い：変更しない。自動プレイの判断順序・乱数・球や報酬の選択は調査対象の終了処理と独立に維持する。
+・危険：観測していない原因を仮定してゲーム挙動を変えない。再試行成功だけで元の失敗を解決済みと扱わない。
+・成功条件：元の失敗ログと同条件の再現を確認し、正常終了へ至った経路と特定限界を記録する。変更した終了経路は実行テスト、既存自動テスト、ビルドで確認し、責務分割とPCHの維持を検査する。
+
+1. 結論
+
+元の1件は、自動プレイのラン終了による停止ではなく、アプリケーションの通常終了処理を通った途中終了だった。
+ただし、当時のログには終了メッセージの記録がなく、最初の終了要求元は未特定である。
+今回、同じゲーム設定での再実行では自然発生の途中終了を再現しなかった。
+再現できた検証環境の不具合は「初回に隠したウィンドウが、起動時の画面設定適用で再表示される」こと。
+この表示の問題を修正し、別に終了経路を識別する診断ログを追加した。
+表示の問題が元の終了を引き起こした、とまでは結論づけていない。
+
+2. 元の失敗から確認できたこと
+
+対象：logs/autoplay_responsibility_split/after/terminal_stop/manifest.json
+・起動から50.875秒でprocess exit=0。easy戦を1ショットでクリアし、fatal戦の予約後、報酬画面にいる間に終了した。
+・最終のMCP保存状態はsequence=501、running=false、scene=battle、game_state=clear_reward。
+・autoplay_enabled=true、stop_after_current_run=trueのままで、ランの終端には到達していない。
+・ランログにはHP50/50、クリア1戦、result=application_exitが保存された。
+・その試行の後片付けはalready_exited。ハーネスが終了を検出してから送るcleanupのWM_QUITが発端、という順序にはならない。
+
+Game::Uninitへ到達する通常の呼出元はGameRuntime::Shutdown、その呼出元はApplication::MainLoopの終了処理である。
+MainLoopを通常に抜ける条件はWM_QUITの取得だけなので、確認できるコード上の経路は
+WM_QUIT → ImGui終了処理 → GameRuntime::Shutdown → Game::Uninit → application_exit
+に絞れる。これはコードと保存状態からの推論であり、元の試行でWM_QUIT受信を直接記録していたわけではない。
+
+WM_CLOSEの承認からWM_DESTROY→PostQuitMessageへ進んだのか、直接WM_QUITが送られたのか、
+その要求元がどこかは、元の保存情報では区別できない。
+自動プレイの停止分岐、入力更新、Rendererにはアプリ終了APIの呼出がなかった。
+ImGuiの副ウィンドウは専用のWndProcを使い、主ウィンドウはbackendの破棄対象として所有されていない。
+元の最終状態はBattleなので、非Battle時だけ表示する共通メニューの終了ボタンも、その画面では出ていない。
+これらは候補の絞り込みであり、未知の送信者を特定する証拠ではない。
+
+前回の直後のretryは、失敗時とexe SHA-256・設定全体が同一のまま106.312秒で成功していた。
+今回の無変更ハーネス再実行も同じ設定で66.359秒、成功した。
+今回の調査開始時のexeは前回の後続ビルドで再生成されていたため、元の失敗exeとバイト同一とは扱っていない。
+調査開始時のexeは同じ出力先のApplicationExitBeforeDiagnostics.exeへ退避し、同一hashを保存した。
+
+3. 再現できた表示の不具合と修正
+
+既存ハーネスはSTARTF_USESHOWWINDOW/SW_HIDEで起動し、主ウィンドウを最初に見つけたときだけ再度隠していた。
+一方、Game初期化中のSettingsManager::ApplyDisplaySettingsはApplication::SetDisplayModeを呼び、
+SetWindowPosのSWP_SHOWWINDOWで再表示する。先にhideが実行されると、後から表示が復活していた。
+
+旧exeの5ms間隔の観測では、初回hideから約1.046秒後に同じPID・HWND・スレッドのウィンドウが
+visible=true、foreground=trueへ戻った。検出後すぐ再hideし、対象のスレッドだけへ終了要求を送った。
+新exeの通常起動でもdisplay_mode_requestedのvisible=false → display_mode_appliedのvisible=trueを確認した。
+
+修正はDebug限定、明示指定のDX22_TEST_HIDDEN_WINDOW=1に閉じた。
+・InitAppでShowWindowとSetFocusを行わない。
+・画面設定適用でSWP_SHOWWINDOWを外し、NOACTIVATE/NOZORDERを指定する。
+・ImGuiの別ウィンドウ生成を有効にしない。
+・全画面時の非アクティブ化による最小化表示も、この検証モードでは行わない。
+
+新exeの同じ起動試験では、hidden=1の740観測すべてでvisible=false、foreground=false。
+その間にMCP初期化まで到達し、nativeログのdisplay_mode_appliedも非表示のままだった。
+以後の完走2ケースでも、対象プロセスの可視ウィンドウは観測されなかった。
+通常のDebug起動は従来の表示経路を維持する。Releaseでは同じ環境変数を1にしても無視され、通常表示となることも実行確認した。
+
+このモードは表示の制御であり、キーボード・ゲームパッド入力の完全隔離ではない。
+通常の終了確認ダイアログや明示的な終了要求を無視する変更も行っていない。
+
+4. 終了診断の責務
+
+ApplicationLifecycle.h/.cppに終了・表示イベントの保存を分離した。
+Applicationにはイベントの通知と検証時の表示条件だけを置き、自動プレイの責務へ終了制御を混ぜていない。
+診断側はGame、BalanceAutoPlayer、JSONライブラリに依存せず、Win32とcstdioのみを使う。
+少数のイベントごとにlogs/application_lifecycle.jsonlへ追記して閉じ、保存に失敗しても既存の終了判断へ介入しない。
+呼出元のGetLastErrorも復元する。
+
+記録するのはPID、スレッド、壁時計・uptime、HWND、有効性・表示・前面状態、message/wparam/lparam/確認結果、
+検証用非表示モード、画面設定要求と適用、SC_CLOSE、WM_CLOSE、WM_DESTROY、WM_QUIT、session終了、shutdown完了等。
+終了確認、DestroyWindow、PostQuitMessage、MainLoopのbreak条件は維持した。
+ログは終了経路を区別するもので、Windowsメッセージの送信者を取得できたとみなすものではない。
+
+5. 実行検証
+
+全試行はコピーしたassets・shader・saves・runtimeを持つ専用作業ディレクトリで実行した。
+seed=20261116、decision_delay_frames=150、実際のC++自動プレイを使用した。
+タイトル開始、ルート、球、ショット、報酬の判断を外部コマンドで代行せず、既存のレイアウト予約だけを使用する。
+
+無変更ハーネス、元と同じ設定：
+terminal_stop                       成功  66.359秒
+
+修正後、明示的な非表示起動と追加観測あり：
+terminal_stop                       成功 107.062秒  Resultで停止
+maximum_runs                        成功 134.782秒  Titleへ戻り停止
+
+どちらもeasy→fatalの2戦を各1ショットで実行し、実際のgame_overを記録した。
+両方の走行ログ全体・コマンド・終端状態は、前回の分割前の参照と、既存の時刻・アドレス正規化後に完全一致した。
+ゲーム設定のpreparation全体も一致。診断ログ、同一PID、可視windowなし、cleanupの送信結果、終了順序の検査も成功した。
+成功条件確認後にだけハーネスが自分のプロセスへWM_QUITを送り、その送信時刻とnative受信を記録した。
+上記の秒数は起動・フレーム待ち・非表示描画・後片付けを含む実行確認の所要時間で、ビルド性能の比較値ではない。
+
+元の途中終了と同じ保存状態を作る、意図的な終了要求の試験：
+direct_quit                         成功  47.828秒
+close_cancel_accept                 成功  48.156秒
+
+実自動プレイがclear_rewardへ到達後、前者は対象スレッドへWM_QUITを直接投稿。
+後者は対象windowへWM_CLOSEを投稿し、対象PIDの確認dialogへCancelを送り、生存を確認後、再要求にOKを送った。
+全操作でPID・HWND・スレッドを直前に照合し、送信成功値・エラー・時刻を保存した。
+両方でexit0、application_exit、running=false、clear_reward=true、autoplay=trueという元の症状を再現した。
+前者はWM_CLOSE/WM_DESTROYなし、後者は確認結果2→1、WM_DESTROY→WM_QUITとしてnativeログで区別できた。
+これは既知の要求による症状の再現であり、元の試行の要求元を再現・特定したという意味ではない。
+
+範囲：このfixtureは通常戦2戦の経路を確認する。shop/rest/bossの判断や入力の完全隔離、自然発生終了の長時間耐久試験を網羅していない。
+元の途中終了が二度と起きないことを保証したり、自動プレイの不具合が原因だったと断定したりはしない。
+
+6. 責務分割・PCH・ビルドの維持
+
+今回開始時の361ファイルと比較して既存357ファイルはバイト同一。
+変更した既存ファイルはApplication.cpp/.hとproject/filtersだけ。
+GameAutoPlay、BalanceAutoPlayer群、GameBattleStart、GameMcpBridge、BalanceLogger群、BuildPchの保護対象26ファイルは全て同一。
+project/filtersはApplicationLifecycle.cpp/.hの登録2件を除くと、正規化したXML全体が開始時と一致した。
+既存の共通compiler設定、PCH設定、個別設定、imports、フィルターを保持した。
+
+MSVC14.44.35207、x64、既存の計測script・PDB出力回避targets・最適化条件で各1回クリーンRebuild：
+Debug       40.480秒    184.cpp    警告0、エラー0
+Release     43.844秒    184.cpp    警告0、エラー0
+
+両構成の実コンパイルコマンドを解析し、BuildPch.cppの/Ycが1本、/Yuと/FIが173本、既存の除外が10本で一致。
+追加したApplicationLifecycle.cppも共通PCHを継承した。
+PCHソースと設定は同一で、PCHを再生成して使う構成が維持されている。
+各1試行で実行環境の負荷も過去と揃えていないため、この数値から以前に対する高速化率は主張しない。
+無変更Debug Buildは3.874秒、再コンパイル0本、BuildPch.pchの更新日時も不変だった。
+新しいApplicationLifecycle.cppは/Y-・強制includeなしでも単独コンパイルし、警告・エラーなし。
+
+その他の検査：
+・既存toolsのPython自動テスト160件：成功。
+・今回のソース/PCH/登録/ビルド保全監査53項目：成功。
+・前回のGameAutoPlay責務分割監査203項目（165＋内部38）：再実行成功。
+・既存の終了分岐と通常/Releaseの挙動について独立レビューし、修正必須の問題なし。
+
+7. 証拠と再実行
+
+主な記録はlogs/autoplay_exit_investigation/内（logs配下はGit管理外）：
+validation_summary.json：検証の参照一覧。
+original_evidence.json：元の失敗、過去の同一exe retry、今回の無変更試行の区別。
+old_startup_race/、fixed_startup_default/、fixed_startup_hidden/：表示観測・nativeログ。
+startup_probe_comparison.json、release_mode_validation.json：表示制御の対照確認。
+fixed_completion/、completion_comparison.json：完走と分割前ログの完全一致。
+explicit_exit_paths/：直接終了、確認Cancel/OKの経路と操作記録。
+preservation_validation.json、before_hashes.json、after_hashes.json：ソース・設定保全。
+build_validation.json、noop_pch_validation.json、no_pch/compile.log：実際のPCH・ビルド確認。
+tools_contracts.log：160件の実行結果。
+ビルド生ログはlogs/clean_build_optimization/autoplay_exit_debug、autoplay_exit_release、autoplay_exit_debug_noop。
+
+リポジトリ直下で、ゲームMCPの.venv/Scripts/python.exeを使用する再実行例：
+logs/autoplay_exit_investigation/probe_lifecycle.py --label fresh_probe --exe x64/CleanBuildDebug/DX22_01_plane.exe --hidden-env 1
+logs/autoplay_exit_investigation/verify_autoplay_completion.py --label fresh_completion --exe x64/CleanBuildDebug/DX22_01_plane.exe
+logs/autoplay_exit_investigation/verify_exit_paths.py --label fresh_exit --exe x64/CleanBuildDebug/DX22_01_plane.exe
+Labelは既存ディレクトリと重複させない。既存のruntime_autoplay.pyと元の失敗artifactは変更せず再利用している。
+
+残る確認事項は、元の一度だけの終了要求を誰がどの経路で発生させたか。
+再発時はnativeログと検証側の送信記録を突き合わせて終了経路をさらに絞れるが、過去の未記録情報を遡って復元したとは扱わない。
+
+追記：11月17日の追加反復調査は docs/1116_終了診断を使った自動プレイ反復調査.txt を参照。通常版61起動/182runと独立描画対照4起動/40runを完了した。元の終了要求元は未特定で、本資料の過去結果は保持する。

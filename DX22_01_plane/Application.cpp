@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdio.h>
 #include "Application.h"
+#include "ApplicationLifecycle.h"
 
 #pragma execution_character_set("utf-8")
 #include "GameRuntime.h"
@@ -22,6 +23,7 @@ uint32_t   Application::m_Height;  // ウィンドウの縦幅
 uint32_t   Application::m_WindowedWidth;
 uint32_t   Application::m_WindowedHeight;
 bool       Application::m_IsFullscreen = false;
+bool       Application::m_TestHiddenWindow = false;
 
 // ImGuiのWin32プロシージャハンドラ(マウス対応)
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -44,6 +46,8 @@ void Application::SetDisplayMode(
     uint32_t height,
     bool fullscreen)
 {
+    ApplicationLifecycle::RecordDisplayMode(
+        "display_mode_requested", m_hWnd, width, height, fullscreen);
     if (m_hWnd == nullptr)
     {
         return;
@@ -52,6 +56,8 @@ void Application::SetDisplayMode(
     m_WindowedWidth = (std::max)(640u, width);
     m_WindowedHeight = (std::max)(360u, height);
     m_IsFullscreen = fullscreen;
+    const UINT positioningFlags = SWP_FRAMECHANGED |
+        (m_TestHiddenWindow ? (SWP_NOACTIVATE | SWP_NOZORDER) : SWP_SHOWWINDOW);
 
     if (fullscreen)
     {
@@ -67,7 +73,9 @@ void Application::SetDisplayMode(
             monitorInfo.rcMonitor.top,
             monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
             monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
-            SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+            positioningFlags);
+        ApplicationLifecycle::RecordDisplayMode(
+            "display_mode_applied", m_hWnd, m_WindowedWidth, m_WindowedHeight, fullscreen);
         return;
     }
 
@@ -88,7 +96,9 @@ void Application::SetDisplayMode(
         100,
         rectangle.right - rectangle.left,
         rectangle.bottom - rectangle.top,
-        SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+        positioningFlags);
+    ApplicationLifecycle::RecordDisplayMode(
+        "display_mode_applied", m_hWnd, m_WindowedWidth, m_WindowedHeight, fullscreen);
 }
 
 //-----------------------------------------------------------------------------
@@ -106,9 +116,11 @@ void Application::Run()
 {
     //初期化
     bool okfg = InitApp();
+    ApplicationLifecycle::Record("application_init_result", m_hWnd, 0, 0, 0, okfg ? 1 : 0);
     if (okfg) { MainLoop(); }
 
     UninitApp(); // 終了処理
+    ApplicationLifecycle::Record("application_completed", m_hWnd);
 }
 
 //-----------------------------------------------------------------------------
@@ -116,6 +128,16 @@ void Application::Run()
 //-----------------------------------------------------------------------------
 bool Application::InitApp()
 {
+    m_TestHiddenWindow = false;
+#if defined(_DEBUG)
+    wchar_t hiddenWindowValue[2]{};
+    m_TestHiddenWindow =
+        GetEnvironmentVariableW(L"DX22_TEST_HIDDEN_WINDOW", hiddenWindowValue, 2) == 1 &&
+        hiddenWindowValue[0] == L'1' && hiddenWindowValue[1] == L'\0';
+#endif
+    ApplicationLifecycle::SetHiddenWindowMode(m_TestHiddenWindow);
+    ApplicationLifecycle::Record("application_start", m_hWnd);
+
     // インスタンスハンドルを取得
     auto hInst = GetModuleHandle(nullptr);
     if (hInst == nullptr)
@@ -169,6 +191,7 @@ bool Application::InitApp()
         nullptr,
         m_hInst,
         nullptr);
+    ApplicationLifecycle::Record("window_created", m_hWnd);
 
     if (m_hWnd == nullptr)
     {
@@ -176,13 +199,15 @@ bool Application::InitApp()
     }
 
     // ウィンドウを表示
-    ShowWindow(m_hWnd, SW_SHOWNORMAL);
+    if (!m_TestHiddenWindow)
+        ShowWindow(m_hWnd, SW_SHOWNORMAL);
 
     // ウィンドウを更新
     UpdateWindow(m_hWnd);
 
     // ウィンドウにフォーカスを設定
-    SetFocus(m_hWnd);
+    if (!m_TestHiddenWindow)
+        SetFocus(m_hWnd);
 
     // 正常終了
     return true;
@@ -224,7 +249,8 @@ void Application::MainLoop()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    if (!m_TestHiddenWindow)
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     // プレイヤー向けImGui表示に必要な日本語グリフを読み込む。
     // 対応するWindows環境に同梱されるフォントを使い、
@@ -289,6 +315,8 @@ void Application::MainLoop()
 
            // 「WM_QUIT」メッセージを受け取ったらループを抜ける
            if (msg.message == WM_QUIT) {
+               ApplicationLifecycle::Record(
+                   "wm_quit_received", msg.hwnd, msg.message, msg.wParam, msg.lParam);
                break;
            }
        }
@@ -381,7 +409,9 @@ void Application::MainLoop()
    ImGui::DestroyContext();
 
    // ゲーム終了処理
+   ApplicationLifecycle::Record("shutdown_begin", m_hWnd);
    GameRuntime::Shutdown();
+   ApplicationLifecycle::Record("shutdown_completed", m_hWnd);
 }
 
 //-----------------------------------------------------------------------------
@@ -389,12 +419,35 @@ void Application::MainLoop()
 //-----------------------------------------------------------------------------
 LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    switch (uMsg)
+    {
+    case WM_CLOSE:
+        ApplicationLifecycle::Record("wm_close_received", hWnd, uMsg, wParam, lParam);
+        break;
+    case WM_DESTROY:
+        ApplicationLifecycle::Record("wm_destroy_received", hWnd, uMsg, wParam, lParam);
+        break;
+    case WM_SYSCOMMAND:
+        if ((wParam & 0xfff0) == SC_CLOSE)
+            ApplicationLifecycle::Record("sc_close_received", hWnd, uMsg, wParam, lParam);
+        break;
+    case WM_QUERYENDSESSION:
+        ApplicationLifecycle::Record("wm_queryendsession_received", hWnd, uMsg, wParam, lParam);
+        break;
+    case WM_ENDSESSION:
+        ApplicationLifecycle::Record("wm_endsession_received", hWnd, uMsg, wParam, lParam);
+        break;
+    default:
+        break;
+    }
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
         return true;
 
     switch (uMsg)
     {
     case WM_DESTROY:// ウィンドウ破棄のメッセージ
+        ApplicationLifecycle::Record("quit_requested_from_destroy", hWnd, WM_QUIT, 0, 0);
         PostQuitMessage(0);// 「WM_QUIT」メッセージを送る　→　アプリ終了
         break;
 
@@ -402,8 +455,11 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     {
         int res = MessageBoxW(NULL, L"終了しますか？", L"確認", MB_OKCANCEL);
         GameRuntime::ResetFrameTiming();
+        ApplicationLifecycle::Record("wm_close_result", hWnd, uMsg, wParam, lParam, res);
         if (res == IDOK) {
-            DestroyWindow(hWnd);  // 「WM_DESTROY」メッセージを送る
+            ApplicationLifecycle::Record("close_destroy_requested", hWnd, uMsg, wParam, lParam);
+            const BOOL destroyed = DestroyWindow(hWnd);  // 「WM_DESTROY」メッセージを送る
+            ApplicationLifecycle::Record("close_destroy_result", hWnd, uMsg, wParam, lParam, destroyed);
         }
     }
     break;
@@ -411,7 +467,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
     case WM_ACTIVATE:
         if (wParam == WA_INACTIVE) {
             // フルスクリーン表示かつメッセージボックス非表示なら
-            if (m_IsFullscreen &&
+            if (m_IsFullscreen && !m_TestHiddenWindow &&
                 !(lParam != 0 && ImGui::GetCurrentContext() != nullptr &&
                   ImGui::FindViewportByPlatformHandle(reinterpret_cast<void*>(lParam)) != nullptr))
             {

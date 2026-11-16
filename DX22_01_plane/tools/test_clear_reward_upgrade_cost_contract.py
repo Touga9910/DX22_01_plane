@@ -33,20 +33,21 @@ class ClearRewardUpgradeCostContractTests(unittest.TestCase):
         self.assertIn("m_RunController->SpendMoney(cost)", paid)
 
     def test_human_autoplay_and_mcp_share_the_paid_path(self) -> None:
-        game = source("Game.cpp")
-        autoplay = source("GameAutoPlay.cpp")
-        bridge = source("GameMcpBridge.cpp")
+        game = source("GameClearRewardFlow.cpp")
+        autoplay = source("BalanceAutoPlayerRewards.cpp")
+        mcp_commands = source("GameMcpEconomyCommands.cpp")
+        mcp_inventory = source("GameMcpInventoryState.cpp")
 
         self.assertIn("ApplyClearRewardUpgrade(", game)
         self.assertIn("ApplyClearRewardUpgrade(upgradeTarget", autoplay)
         self.assertIn("save_for_upgrade", autoplay)
-        self.assertIn("game.ApplyClearRewardUpgrade(", bridge)
-        self.assertIn("clear_reward_upgrade_affordable", bridge)
+        self.assertIn("game.ApplyClearRewardUpgrade(", mcp_commands)
+        self.assertIn("clear_reward_upgrade_affordable", mcp_inventory)
 
     def test_logs_and_ui_expose_the_cost(self) -> None:
-        game = source("Game.cpp")
-        autoplay = source("GameAutoPlay.cpp")
-        bridge = source("GameMcpBridge.cpp")
+        game = source("GameClearRewardFlow.cpp")
+        autoplay = source("BalanceAutoPlayerRewards.cpp")
+        bridge = source("GameMcpEconomyCommands.cpp")
         ui = source("UiText.h")
 
         self.assertIn('rewardDetails["upgrade_cost"]', game)

@@ -1,0 +1,241 @@
+﻿作成日：2026年11月16日
+長大コードの責務分割・判断理由・検証結果
+
+対象：DX22_01_plane / Visual Studio 2022 / C++20 / x64
+
+1. 実施結果
+
+構成、状態の所有者、呼び出し順、既存の分割方針、テスト、ビルド設定を
+確認したうえで、責務混在が特に大きかったGame.cppとGamePresentation.cppを
+中心に分割した。
+
+  Game.cpp：4,205行 → 518行
+  GamePresentation.cpp：5,568行 → 388行
+
+新規の本体実装33ファイル、専用ヘッダー4ファイルをプロジェクトと
+Visual Studioのフィルターに登録した。Gameの公開APIと状態の所有構造は
+維持しており、Game.hに変更はない。
+
+2. 実装前に定めた目的と成功条件
+
+プレイヤーに見える変更：既存の画面、操作、戦闘結果を維持する。
+守る柱：選択・狙い・連鎖を支えるゲームルールの再現性を保つ。
+取得前後・強化前後の狙い：今回の整理によって変化させない。
+危険と対策：更新、乱数、イベント、描画の順序を変えると連鎖や演出が変わる
+ため、既存処理の移動と順序を保つ抽出を基本にする。
+成功条件：責務の所在が名前から追えること、編集時に再コンパイルする範囲を
+狭めること、Debug/Release・関連テスト・実ゲームのショット進行を確認すること。
+
+3. 読み取りで把握した構成
+
+Gameは既に、GameWorld、RunController、BattleController、GameRuntimeState、
+各種ラン状態・保存状態へ所有責任を委譲していた。
+一方で、Game.cppにはそれらの操作のほか、GameRuntimeの入口、診断予測、
+カード画像のGPU管理、カード・ポーズ・報酬の描画まで残っていた。
+
+GamePresentation.cppも、表示の更新・描画の調停に加えて、被弾反応、
+戦闘イベントの解釈、敵UIの配置計算、HUD、チュートリアル保存、分析JSONの
+読込を同じ翻訳単位で扱っていた。
+また、GameクラスのUI用モデル作成関数も表示実装と同居していた。
+
+これらは変更される理由も必要な依存も異なるため、優先して境界を整理した。
+
+4. 分割先と責任
+
+【ゲーム側】
+  Game.cpp：生成・初期化・更新・描画・終了の調停。
+  GameRuntime.cpp：アプリケーション入口、World参照、性能計測の橋渡し。
+  GameFixedPhysics.cpp：固定Tickの実行、追い付き停止、物理計測。
+  GameSceneTransition.cpp：シーン切替前後の保存・戦闘初期化・結果反映。
+  GameWorldAccess.cpp：オブジェクト生成・破棄要求のWorldへの委譲。
+  GameBattleTransition.cpp：次の戦闘・ステージ抽選・配置上書きの適用。
+  GameRouteFlow.cpp：エリア完了、ショップ・休憩退出、ルート遷移。
+  GameClearRewardFlow.cpp：勝利から報酬提示、入力、報酬確定までの進行。
+  GameRunCompletion.cpp：結果・永続進行の確定、最終勝利、敗北終了。
+  GameSessionAccess.cpp：ランの開始・有効化・終了状態への委譲。
+  GameBallSelection.cpp：手札候補の準備、入力許可、選択とプレビュー反映。
+  GamePocketLifecycle.cpp：敵のポケット処理、プレイヤー復帰位置の抽選と復帰。
+  GamePause.cpp：ポーズ要求、中断可否、保存してタイトルへ戻る処理。
+  GameSettingsAccess.cpp：設定値をGame利用側へ返す入口。
+  GameDiagnosticsAccess.cpp：計測・音・演出診断の参照入口。
+  GameDebugForecast.cpp：予測のdirty管理、被ダメージ予測、履歴記録。
+  GameDebugDiagnostics.cpp：予測・履歴・デバッグ情報の画面表示。
+  GameUiBridge.cpp：表示モデルを作り、UIの操作意図をゲーム状態へ反映。
+
+【表示側】
+  GamePresentation.cpp：表示の更新・描画順を調停。オーラと貫通痕も担当。
+  BallCardPresentation.cpp/.h：カード画像の寿命、カードと詳細画面の描画。
+  GameHandPresentation.cpp：手札全体の配置、ホバー、カード選択UI。
+  GamePausePresentation.cpp：設定・ポーズ画面の描画。
+  GameRewardPresentation.cpp：クリア報酬画面の描画。
+  GamePresentationHud.cpp：戦闘HUD、山札、捨て札、デッキ・レリック一覧。
+  GamePresentationEnemyOverlay.cpp：敵のHP・行動予告・状態効果の表示。
+  GamePresentationPlayerOverlay.cpp：プレイヤーの資源アイコンとパワーゲージ。
+  EnemyInfoLayout.cpp/.h：敵情報パネルの衝突回避、予約、点線経路の配置計算。
+  CombatOverlayDrawing.cpp/.h：戦闘アイコン画像の保持と共通描画部品。
+  GamePresentationReactions.cpp：被弾フラッシュ、撃破重複抑止、HP表示値の追従。
+  GamePresentationCombatEvents.cpp：衝突・撃破・被ダメージ等から演出要求を生成。
+  GamePresentationAxisEvents.cpp：4軸資源・能力・ショット結果から演出要求を生成。
+  GamePresentationFeedback.cpp：フラッシュ、範囲、CHAIN、複数撃破、数値、診断、結果。
+  GamePresentationTutorial.cpp：ガイドの描画、進行保存・読込。
+  GamePresentationDashboard.cpp：分析レポートのJSON読込と分析画面。
+  GamePresentationPrimitives.cpp/.h：画面投影、色、資源ラベルの小さな共通処理。
+
+5. 分割の判断理由
+
+・変更理由を境界にした。
+  報酬ルールの修正、ポーズ画面の調整、GPU画像の扱い、診断表示の修正は
+  別々に発生する。それぞれ必要な実装だけを読み、ビルドできる位置へ移した。
+
+・既存の状態所有者を活かした。
+  RunController等が持つ状態を新しいクラスへ複製せず、Gameの既存メンバー
+  関数を責任別の実装へ移した。公開APIや寿命の変更を避けながら、責任の
+  所在をファイル名で辿れるようにした。
+
+・計算と描画を分けた。
+  敵UIの配置計算は、画面位置・安全領域・投影済みの敵の領域だけを入力に
+  できる。EnemyInfoLayoutはGame、カメラ、GPUに依存せず、配置予約を1フレーム
+  単位で保持する。配置を単独のネイティブテストで確認できるようになった。
+
+・長い関数にも意味のある入口を作った。
+  DrawFeedbackは約775行の連続処理から、次の7処理を順に呼ぶ関数にした。
+  DrawScreenFlashes → DrawWorldFeedback → DrawHeavyChainBanner →
+  DrawMultiDefeatBanner → DrawFloatingFeedback → DrawFeedbackDiagnostics →
+  DrawShotSummary。
+  描画順は維持した。敵UI関数からも配置計算とプレイヤー資源表示を抽出した。
+
+・依存の重さも境界として扱った。
+  JSONの読込は主に分析・ガイド側へ、Direct3D/WRL/stb_imageのカード・アイコン
+  資源処理は専用実装へ寄せた。GameMcpBridge.hはJSONの前方宣言ヘッダーを
+  使うようにした。GameBalanceConfig.cppに残っていた不要なRenderer・ImGui等の
+  includeも削除した。Game.hへ重い依存を追加していない。
+
+・同じ状態を持つGPUキャッシュは複製しなかった。
+  カード画像の読込・解放タイミング、戦闘アイコンのキャッシュを維持した。
+  表示部品を分けるために画像を重複読込する構造にはしていない。
+
+6. 挙動維持の確認
+
+移動した既存メンバー関数161定義を変更前の保存内容と照合した。
+156定義は同一トークン列だった。残る5定義は次の呼出境界の整理である。
+
+  Game::Init / Game::Uninit：カード資源の読込・解放を専用入口へ委譲。
+  GamePresentation::Initialize：ガイド保存データ読込を専用関数へ委譲。
+  GamePresentation::DrawFeedback：7つの描画処理へ順序どおり委譲。
+  GamePresentation::DrawEnemyStatusEffects：配置計算とプレイヤー表示を委譲。
+
+配置計算の5処理は名前の変更を除いて本体トークンが一致した。
+演出7処理も、変更前の本体の連続部分と同じ順で一致した。
+GameBalanceConfig.cppの変更は不要なincludeの削除と直接必要なutilityの追加。
+ゲームルール、乱数の呼出順、セーブ形式、バランスデータに変更はない。
+
+照合記録：logs/responsibility_split/preservation.json
+行数記録：logs/responsibility_split/file_metrics.csv
+
+7. ビルド時間の計測
+
+Visual Studio 2022、MSVC 14.44.35207、Debug x64、/MPを使用。
+既存のtools/release_without_compiler_pdb.targetsを読み込むCodex環境用の
+診断構成で比較した。通常のVisual Studioビルド設定は変更していない。
+中間・出力先はResponsibilitySplitDebugへ分離した。
+
+無変更・各差分ビルドはそれぞれ3回の中央値。各差分は対象.cppの更新日時を
+変更して計測した。変更前のポーズ画面と設定参照はGame.cppにあったため、
+同ファイルの差分ビルド値と比較した。
+
+ゲーム全体の調停処理: 10.649秒 → 10.148秒（4.7%短縮）
+表示全体の更新・描画調停: 10.352秒 → 7.700秒（25.6%短縮）
+ポーズ画面の描画: 10.649秒 → 6.085秒（42.9%短縮）
+設定値の参照: 10.649秒 → 6.162秒（42.1%短縮）
+無変更：3.790秒 → 3.636秒
+
+各差分ビルドで再コンパイルされた.cppは1個、無変更では0個である。
+以前の計測資料にあった「無変更でも全ファイルが再コンパイルされる条件」
+にはなっていない。
+
+クリーンビルドは変更前後各1回の参考値：
+  55.569秒 → 63.220秒（13.8%増加）
+  コンパイルされた.cpp：119個 → 152個
+
+差分ビルドの短縮を確認した一方、クリーンビルドは増加した。
+翻訳単位の追加による起動・ヘッダー解析の重複が増加要因として考えられる。
+これは推定であり、コンパイラ内部の時間内訳までは測定していない。
+全体ビルドが高速化したという結論にはしていない。
+
+元データ：logs/responsibility_split/before_incremental.json
+          logs/responsibility_split/after_measurements.json
+          logs/responsibility_split/before_debug_full.json
+
+8. 検証結果
+
+  Debug x64：成功、警告0、エラー0。
+  Release x64：成功、警告0、エラー0。
+  Python契約テスト：160/160成功。
+  ネイティブ単独テスト：12/12成功。
+  実BattleControllerをリンクした統合テスト：成功。
+  プロジェクト・フィルターXML：妥当、追加ファイルは各1回登録。
+  git diff --check：成功。
+
+単独テスト：
+  test_fixed_timestep_runtime
+  test_shared_prediction_runtime
+  test_synchronized_physics_runtime
+  test_ball_synergy_rules
+  test_ball_upgrade_runtime
+  test_progression_profile
+  test_run_map_runtime
+  test_battle_flow_rules
+  test_enemy_attack_feedback
+  test_combat_audio_feedback
+  test_player_aura_effect
+  test_enemy_info_layout
+
+配置テストでは、基準位置、配置予約、フレーム間の独立性、敵自身の領域除外、
+画面端、置けない場合の非表示、同一入力・同一順序の決定性を確認した。
+共通予測・同期物理テストは実プレイと共通の物理規則との一致を確認する。
+統合テストでは6体1フェーズ、6→4・6→6の遷移、最終勝利、途中敗北、
+重複更新の防止を確認した。
+
+テストの保守：
+・Pythonの検査先を、分割後の責任を持つ実装ファイルへ更新した。
+・既存のボール強化テストはplayer_guard追加後も配列順で球種を参照していた
+  ため失敗した。定義IDで検索するようにし、既存の強化・保存・衝突等の
+  検査を維持して成功を確認した。
+・既存の音声テストは5カテゴリ時の総和とfixtureを前提に失敗したため、
+  現在の7カテゴリ、カテゴリ別上限と全体共有上限の関係へ更新した。
+  実装の音声パラメーターは変更していない。
+
+実ゲームのスモークテスト：
+  テスト専用作業フォルダーに資源をコピーして起動した。
+  seed 20261116でタイトル → 新規ラン → ルート選択 → 戦闘 → 球選択 →
+  ショット → 敵攻撃 → ターン終了 → 次の照準まで確認した。
+  物理Tick 312、ターン1への復帰を観測した。
+  通常のセーブデータや実行中のユーザープロセスは使用していない。
+  人間による見た目・操作感の比較、ショップや報酬を含む全ランの実機確認は
+  今回のスモーク範囲に含まれない。
+
+ログ：logs/responsibility_split/after_python.log
+      logs/responsibility_split/native_final.json
+      logs/responsibility_split/integration_test.log
+      logs/responsibility_split/runtime_smoke/result.json
+      logs/responsibility_split/after_release_build.log
+
+9. 範囲と残る改善候補
+
+今回の中心は、最大の2ファイルに混在していたゲーム調停と表示実装である。
+GameMcpBridge.cpp（3,240行）、BalanceLogger.cpp（2,039行）、GameAutoPlay.cpp
+（1,581行）等の大きな実装は残る。
+これらを別途整理する場合も、通信・シリアライズ・ログ集計・AI判断の境界を
+読み取り、保存形式や判断順の回帰を確認しながら進める必要がある。
+
+今回の分割先で最も長い実装はGamePresentationEnemyOverlay.cppの
+859行。敵の行動予告と下部パネルの描画は同じ表示パス内に残している。
+クリーンビルドの短縮には、安定した外部ヘッダーの事前コンパイル等を
+別途計測する余地がある。
+
+追記：2026年11月16日
+上記の責務分割を維持したまま、共有ライブラリヘッダーのPCHを導入した。
+同条件で各3回計測したクリーンビルドの中央値はDebug 63.923→36.930秒、
+Release 82.060→57.084秒。調査理由・設定・測定条件・検証の詳細は
+「1116_クリーンビルド改善の方針と計測結果.txt」を参照。
+本文中の分割直後の測定値は、過去の測定記録として維持している。

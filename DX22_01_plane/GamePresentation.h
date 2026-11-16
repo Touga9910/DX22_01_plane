@@ -323,14 +323,23 @@ private:
 		std::vector<DashboardVersionData> versions;
 	};
 
+	void LoadTutorialProgress();
 	void StartTutorial(bool replay);
 	void CompleteTutorial();
 	void SaveTutorialProgress() const;
 	void DrawTutorial(Game& game);
 	void DrawFeedback(Game& game);
+	void DrawScreenFlashes(Game& game);
+	void DrawWorldFeedback(Game& game);
+	void DrawHeavyChainBanner(Game& game);
+	void DrawMultiDefeatBanner(Game& game);
+	void DrawFloatingFeedback(Game& game);
+	void DrawFeedbackDiagnostics(Game& game);
+	void DrawShotSummary();
 	void UpdatePlayerAura(Game& game, float deltaSeconds);
 	void DrawPlayerAura(Game& game);
 	void DrawEnemyStatusEffects(Game& game);
+	void DrawPlayerResourceBadges(Game& game);
 	void DrawPierceTraces(Game& game);
 	void DrawDashboard();
 	void DrawBattleHud(Game& game);

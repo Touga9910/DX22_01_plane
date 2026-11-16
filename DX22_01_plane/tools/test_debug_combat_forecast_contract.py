@@ -14,14 +14,12 @@ def source(name: str) -> str:
 class DebugCombatForecastContractTests(unittest.TestCase):
     def test_forecast_recalculates_only_while_dirty(self) -> None:
         game = source("Game.cpp")
-        draw = game[
-            game.index("void GameDebugController::DrawDiagnostics(") :
-            game.index("void Game::Draw()")
-        ]
+        draw = source("GameDebugDiagnostics.cpp")
+        forecast = source("GameDebugForecast.cpp")
 
         self.assertIn("m_DebugCombatForecastDirty", draw)
         self.assertIn("RefreshCombatForecast(game);", draw)
-        self.assertIn("if (!m_DebugCombatForecastDirty)", game)
+        self.assertIn("if (!m_DebugCombatForecastDirty)", forecast)
         self.assertNotIn(
             'InvalidateDebugCombatForecast("シーン変更")',
             game[game.index("void Game::Update(") : game.index("void Game::Draw()")],
@@ -40,7 +38,7 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             )
         )
         battle = source("BattleDebugHotReload.cpp")
-        autoplay = source("GameAutoPlay.cpp")
+        battle_start = source("GameBattleStart.cpp")
 
         for reason in (
             "エネミー被ダメージ",
@@ -52,10 +50,10 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             self.assertIn(reason, progression)
         self.assertIn("ApplyHotReloadData", battle)
         self.assertIn("m_Services.InvalidateCombatForecast(", battle)
-        self.assertIn("戦闘開始", autoplay)
+        self.assertIn("戦闘開始", battle_start)
 
     def test_phase_and_damage_breakdown_are_visible(self) -> None:
-        game = source("Game.cpp")
+        game = source("GameDebugDiagnostics.cpp")
         debug = source("GameDebugController.h")
 
         for label in (
@@ -75,7 +73,7 @@ class DebugCombatForecastContractTests(unittest.TestCase):
             self.assertIn(field, debug)
 
     def test_prediction_comparison_history_and_filters_exist(self) -> None:
-        game = source("Game.cpp")
+        game = source("GameDebugDiagnostics.cpp")
         debug = source("GameDebugController.h")
 
         for label in (
@@ -88,14 +86,14 @@ class DebugCombatForecastContractTests(unittest.TestCase):
         ):
             self.assertIn(label, game)
         self.assertIn("ImGui::ProgressBar", game)
-        self.assertIn("RecordDebugPlayerDamage", game)
+        self.assertIn("RecordDebugPlayerDamage", source("GameDebugForecast.cpp"))
         self.assertIn("m_DebugPlayerDamageHistory", debug)
         self.assertIn("m_DebugLastEnemyAttackPredictedDamage", debug)
 
     def test_real_and_preview_damage_share_the_same_formula(self) -> None:
         player_cpp = source("PlayerBall.cpp")
         player = source("PlayerBall.h")
-        game = source("Game.cpp")
+        game = source("GameDebugForecast.cpp")
 
         self.assertIn("static int CalculateIncomingDamage(int damage)", player)
         self.assertIn(

@@ -1,0 +1,203 @@
+作成日：2026年11月16日
+クリーンビルド改善の方針と計測結果
+
+実装前の方針
+
+プレイヤーに見える変化：ゲームの挙動・数値・描画を維持する。
+守る柱：選択・狙い・連鎖を支える既存処理と責務分割を維持する。
+取得前後・強化前後の狙い：ビルド設定の改善で変更しない。
+危険と対策：ヘッダーの共通化で局所マクロやコンパイル条件を変えないよう、
+安定した依存だけを対象とし、条件が異なる翻訳単位を分けて検証する。
+成功条件：同じ条件でクリーンビルドを複数回計測し、分割後の構成を維持した
+まま短縮する。差分ビルド・無変更ビルド・Debug/Releaseも確認する。
+
+1. 結果
+
+責務分割後の構成を維持し、安定したライブラリヘッダーだけを事前コンパイル
+する共有PCHを導入した。ゲームの処理や既存ソースの内容は変更していない。
+x64のDebug/Releaseで既定有効とし、計測用に無効化できる設定も用意した。
+
+同条件のクリーンビルド各3回の中央値：
+
+構成       改善前       改善後       短縮秒数     短縮率
+Debug      63.923秒     36.930秒     26.993秒     42.23%
+Release    82.060秒     57.084秒     24.976秒     30.44%
+
+ここでの「改善前」は責務分割済み・PCH無効、「改善後」は同じ構成・PCH有効。
+前回資料の分割前55.569秒／分割後63.220秒は単回の過去測定として残し、
+今回の削減率には混ぜていない。
+
+2. 遅くなった原因の調査
+
+分割前後のソース、プロジェクト設定、include依存、ビルドログを読み直した。
+分割によりコンパイル対象は119本から152本へ増えた。各翻訳単位では
+同じライブラリヘッダーを個別に前処理・解析するため、ファイルが短くなっても
+クリーンビルドでは重複作業が増える。
+
+静的include到達数の比較（自作.cppのみ、ライブラリ内部は追跡しない）：
+
+ヘッダー             分割前     分割後
+Game.h               25         50
+SimpleMath.h         61         93
+json/json.hpp        49         61
+imgui/imgui.h        18         34
+d3d11.h              57         73
+vector               95         127
+string               101        133
+
+この集計は#if条件を評価しない到達可能性であり、実際の読み込み回数や時間では
+ない。コンパイラの強制includeもモデル化していない。分割で共通ヘッダーに
+到達する翻訳単位が増えたことを確認する構造上の根拠として使用した。
+前回の分割前後とも、ログ上のCL一括呼出しは3回だった。33本増えたことを
+そのまま33回の追加起動時間として説明する根拠はない。
+
+今回の比較では/Bt+でフロントエンド（c1xx）とバックエンド（c2）の
+区間時間を取得し、MSBuildのCL/Link/FXCタスク時間も確認した。
+
+構成       指標                         改善前       改善後
+Debug      CLタスク時間                  57.923秒     31.568秒
+Debug      c1xx区間時間の合計            730.729秒    185.032秒
+Debug      c2区間時間の合計              34.048秒     31.262秒
+Debug      Linkタスク時間                1.393秒      1.170秒
+Release    CLタスク時間                  42.724秒     21.662秒
+Release    c1xx区間時間の合計            673.521秒    153.390秒
+Release    Linkタスク時間                34.826秒     31.146秒
+
+すべて各3回の中央値。c1xx/c2の合計は並列実行の重複を含む経過区間の合計で、
+ビルド全体の実時間やCPU時間ではない。c1xxにはヘッダー解析以外に
+テンプレートの実体化なども含まれるため、全量をヘッダー読み込み時間とは
+扱わない。共有PCHによりDebugのc1xx区間合計が約74.68%減り、CLタスクも
+短縮したことから、共通ヘッダーの反復解析が主要な改善対象だったと判断した。
+Releaseには約31秒のリンク処理が残る。実行時性能を維持するため、既存の
+最適化とLTCGは維持した。
+
+3. どういう考え方で責務分割と両立させたか
+
+処理の責務とコンパイラの共通作業を別の境界として扱った。
+
+・ゲームの進行、物理更新、報酬、ポーズ、描画などは、前回の責務別.cppを維持。
+  個別の実装を追いやすく、局所変更で再コンパイルする範囲も小さく保つ。
+・STL、DirectX、JSONなどの安定したライブラリはBuildPch.hへまとめ、解析結果を
+  複数の.cppで再利用する。ゲームの責務を再び大きな.cppへ戻す必要はない。
+・Game.hやゲーム固有の型はPCHへ入れない。頻繁に変わるゲーム型を入れると、
+  小さな変更でPCHと利用側すべてを再生成するため。
+・ImGui、stb、AssimpはPCHに含めない。外部実装固有のマクロや設定を保つ。
+・個別の最適化・デバッグ条件があるBallShotPrediction.cppとGameBossAI.cppは
+  PCH対象から外し、元の条件のままコンパイルする。
+
+PCH作成1本、利用142本、除外10本の計153本。除外10本はImGuiの7本、
+stb_image.cpp、BallShotPrediction.cpp、GameBossAI.cpp。
+元の152本はすべて引き続き個別にコンパイルしている。
+
+4. 実装と互換性
+
+DX22_01_plane/BuildPch.h
+  共有するライブラリヘッダーのみを記載。既存のmain.h/Renderer.hと同じ
+  _CRT_SECURE_NO_WARNINGSの定義をヘッダー解析前に置いた。
+DX22_01_plane/BuildPch.cpp
+  PCHを一度だけ作成するための翻訳単位。
+DX22_01_plane/DX22_01_plane.vcxproj
+  x64で既定有効。Dx22UseSharedPch=falseで元の非PCHコンパイルへ切替可能。
+  PCHは$(IntDir)BuildPch.pchへ出力し、構成ごとの中間生成物と分離する。
+  利用側は/Yuと/FI、作成側は/Yc。除外側はPCHと強制includeの両方を外す。
+DX22_01_plane/DX22_01_plane.vcxproj.filters
+  新しい2ファイルを既存のCoreフィルターへ登録。
+tools/measure_clean_build.ps1
+  同じ環境・出力先・並列度で有効/無効を切り替える計測スクリプト。
+tools/clean_build_diagnostics.targets
+  計測時だけ/Bt+と既存のPDB回避設定を追加。
+tools/measure_cpp_build.ps1
+  計測メタ情報を現在のPCH構成に更新。
+
+Win32の既定設定、既存の最適化、ゲームの公開API、既存ソースのincludeは維持。
+CP932/UTF-8が混在する既存ファイルへ一律の/utf-8を追加していない。
+PCH互換性とマクロの読取りレビューも別担当で実施し、指摘事項なし。
+
+5. 計測条件と全走行
+
+日付：2026年11月16日
+環境：Windows、Visual Studio 2022 Enterprise、MSVC 14.44.35207、x64ターゲット。
+実際のコンパイラはHostX86/x64。論理プロセッサ数20、MSBuild /m、C++ /MP。
+各走行は/t:Rebuildでオブジェクト、シェーダー、PCHを含めて作り直す。
+PCHの作成時間も改善後の実時間に含む。
+同じDebug/Release別の中間・出力ディレクトリを使い、他のビルドを並行しない。
+OSのファイルキャッシュは消去していないため、コールド起動の測定ではない。
+実時間はcmd起動、VS環境設定、MSBuild全体を含むStopwatchの値。
+
+Codex環境のコンパイラPDB制約を避ける既存の
+tools/release_without_compiler_pdb.targetsを両条件に同じように適用した。
+主なコンパイル情報を/Z7とし、リンクPDBを生成しない診断条件である。
+個別設定のBallShotPrediction.cppは元の/Ziを維持している。
+通常のIDE用PDB設定自体は変更していないため、通常ビルドの絶対時間が
+この値になるとは保証しない。前後比較はこの同一条件で行った。
+
+条件                  1回目        2回目        3回目        中央値
+Debug / PCH無効       68.664秒     63.923秒     62.824秒     63.923秒
+Debug / PCH有効       38.031秒     36.930秒     36.599秒     36.930秒
+Release / PCH無効     82.060秒     81.394秒     83.338秒     82.060秒
+Release / PCH有効     57.084秒     56.965秒     57.964秒     57.084秒
+
+正式比較の12走行はすべて終了コード0、警告0、エラー0。
+元152本のソース集合と実際の/Yc・/Yu・/FIを各ログから照合し、欠落なし。
+PCH無効では作成.cppを含めず、PCH有効で追加した.cppはBuildPch.cppだけ。
+実装中の試行ログは正式比較に混ぜていない。
+
+6. 差分ビルドと依存関係の確認
+
+Debug / PCH有効：
+・無変更Build 3回：3.593、3.479、3.489秒、中央値3.489秒。再コンパイル0本。
+・GamePausePresentation.cppの更新日時だけを変えてBuild 3回：
+  4.247、4.197、4.289秒、中央値4.247秒。各回その.cppだけを再コンパイル。
+・Game.hの更新日時だけを変えてBuild 1回：20.225秒、再コンパイル50本。
+  BuildPch.cppは再コンパイルされず、PCHの更新日時も変わらない。
+・Dx22UseSharedPchを指定しない既定設定での無変更Buildも成功し、再コンパイル0本。
+
+ソース本文は変更せず、局所変更が全体の再ビルドに広がらないことを確認した。
+DebugのPCHは152,240,068バイト（約145MiB）。この中間生成物が追加で必要。
+共通ライブラリ自体を更新した場合はPCHとその利用側を再生成する。
+
+7. 動作確認
+
+・Python unittest：160件成功。
+・PCH有効のDebugでBattleController統合テスト用の全体ビルド成功。
+  6x1、6→4、6→6、最終勝利、途中敗北、重複更新防止の実行テスト成功。
+・PCH有効の実ゲームを隔離ディレクトリで起動し、固定seed 20261116で
+  タイトルから戦闘へ進み、球0・威力4でショット。
+  aiming_direction → balls_moving → enemy_attack → turn_end → aiming_direction、
+  ターン1への復帰を確認した。
+・PCH導入前に保存した同seed・同ショットの結果と、scene、battle_state、
+  battle_result、selected_stage_id、clear_reward_active、player全体、enemies全体が一致。
+  時刻や計測用の診断値を含む全状態の一致までは主張しない。
+・通常のセーブやユーザーの実行中プロセスは使わず、テスト用プロセスを終了。
+・今回の作業開始時の323ファイルのハッシュ記録と照合し、この記録対象で
+  変わったのはプロジェクトとフィルターのみ。既存.cpp/.hの内容は不変。
+
+8. 再計測方法と記録
+
+リポジトリ直下で以下を実行する。Label別にログを保存する。
+同じLabelを再使用するとそのLabelの計測ファイルを上書きする。
+
+.\tools\measure_clean_build.ps1 -Label compare_off_debug -Configuration Debug -UseSharedPch false -Runs 3
+.\tools\measure_clean_build.ps1 -Label compare_on_debug -Configuration Debug -UseSharedPch true -Runs 3
+.\tools\measure_clean_build.ps1 -Label compare_off_release -Configuration Release -UseSharedPch false -Runs 3
+.\tools\measure_clean_build.ps1 -Label compare_on_release -Configuration Release -UseSharedPch true -Runs 3
+
+-Target Buildを追加すれば無変更・差分ビルドを計測できる。
+このスクリプトは上記のVS配置とツールセットを使用する。
+
+証拠ログ（logs配下はGit管理外）：
+logs/clean_build_optimization/before_debug/measurements.json
+logs/clean_build_optimization/after_debug/measurements.json
+logs/clean_build_optimization/before_release/measurements.json
+logs/clean_build_optimization/after_release/measurements.json
+  各ディレクトリにbuild-1.log～build-3.logとCSVも保存。
+logs/clean_build_optimization/summary.json、summary.csv
+  全走行の中央値、範囲、タスク時間、対象ソースとPCH設定の検証結果。
+logs/clean_build_optimization/header_repetition.json
+  分割前後の静的include到達数と解析条件。
+logs/clean_build_optimization/pch_dependency_check.json
+logs/clean_build_optimization/game_sources_unchanged.json
+logs/clean_build_optimization/python_tests.log
+logs/clean_build_optimization/integration_build.log、integration_test.log
+logs/clean_build_optimization/runtime_smoke/result.json
+logs/clean_build_optimization/runtime_smoke/logical_comparison.json

@@ -21,10 +21,11 @@ from shot_planner import load_player_profiles
 
 class ServerSchemaTests(unittest.TestCase):
     def test_bridge_advertised_actions_are_registered_tools(self):
-        bridge_source = (Path(__file__).resolve().parents[2] / "GameMcpBridge.cpp").read_text(encoding="utf-8-sig")
+        bridge_source = (Path(__file__).resolve().parents[2] / "GameMcpAvailableActions.cpp").read_text(encoding="utf-8-sig")
         advertised = set(re.findall(
             r'available_actions"\]\.push_back\(\s*"([a-z_]+)"', bridge_source,
         ))
+        self.assertTrue(advertised, "No advertised actions found in their state owner")
         advertised.update(("validate_stage_layout", "propose_stage_layout"))
         registered = {tool.name for tool in self._list_tools()}
         self.assertTrue(advertised.issubset(registered), advertised - registered)

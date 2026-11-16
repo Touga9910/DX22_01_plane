@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -12,36 +13,42 @@ def read_source(name: str) -> str:
     return (ROOT / name).read_text(encoding="utf-8")
 
 
-def function_body(source: str, signature: str, next_signature: str) -> str:
+def function_body(source: str, signature: str) -> str:
     start = source.index(signature)
-    end = source.index(next_signature, start)
-    return source[start:end]
+    depth = 0
+    # Ignore braces in comments and literals; function order is not a boundary.
+    tokens = r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|[{}]'
+    for match in re.finditer(tokens, source[start:], flags=re.DOTALL):
+        if match.group() == "{":
+            depth += 1
+        elif match.group() == "}":
+            depth -= 1
+            if depth == 0:
+                return source[start:start + match.end()]
+    raise ValueError(f"Unterminated function: {signature}")
 
 
 class DataManagementOptimizationTests(unittest.TestCase):
     def test_balance_events_are_batched_until_a_shot_boundary(self) -> None:
-        source = read_source("BalanceLogger.cpp")
+        events = read_source("BalanceLoggerEvents.cpp")
         player_damage = function_body(
-            source,
+            events,
             "void BalanceLogger::RecordPlayerDamage",
-            "void BalanceLogger::RecordEvent",
         )
         generic_event = function_body(
-            source,
+            events,
             "void BalanceLogger::RecordEvent",
-            "void BalanceLogger::EndShot",
         )
         begin_shot = function_body(
-            source,
+            read_source("BalanceLoggerShot.cpp"),
             "void BalanceLogger::BeginShot",
-            "void BalanceLogger::RecordDamageCollision",
         )
 
         self.assertIn("m_SavePending = true;", player_damage)
         self.assertIn("m_SavePending = true;", generic_event)
-        self.assertNotIn("\n\tSave();", player_damage)
-        self.assertNotIn("\n\tSave();", generic_event)
-        self.assertIn("\n\tSave();", begin_shot)
+        self.assertNotRegex(player_damage, r"\bSave\s*\(")
+        self.assertNotRegex(generic_event, r"\bSave\s*\(")
+        self.assertRegex(begin_shot, r"\bSave\s*\(")
 
     def test_mcp_file_polling_and_state_publish_have_separate_rates(self) -> None:
         with (ROOT / "assets/data/game_mcp_bridge.json").open(

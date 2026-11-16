@@ -1,0 +1,220 @@
+作成日：2026年11月16日
+GameMcpBridgeの責務分割と検証結果
+
+実装前の方針
+
+プレイヤーに見える変化：ゲームの挙動とMCPの通信仕様は維持する。
+守る柱：選択・狙い・連鎖を検証する外部操作と観測の境界を読みやすくする。
+取得前後・強化前後の狙い：今回の分割ではゲームの判断や数値を変更しない。
+危険と対策：状態JSONの配列順・互換別名、操作の検証順・副作用順、コマンドIDの
+扱いを変えない。既存のfriend境界を維持し、原文移動と前後の実ゲーム比較で確認。
+成功条件：責務ごとに実装を分離し、Pythonテスト・実ゲーム通信検証を通す。
+PCHを維持したDebug/Releaseのクリーンビルドを分割前後で各3回計測する。
+
+1. 結果
+
+GameMcpBridge.cppを3,240行から320行へ分割した。元ファイルは設定読込、
+更新間隔の管理、状態・コマンド・結果のファイル交換に絞っている。
+追加は15個の.cppと3個の内部ヘッダー。分割後で最長の実装は401行。
+Game.h、GameMcpBridge.h、GameMcpState.h、GameMcpCommands.h、BuildPch.h/.cppは変更なし。
+
+PCH有効のクリーンビルド各3回の中央値：
+
+構成       分割前       分割後       差分          分割前に対する変化
+Debug      37.809秒     38.598秒     +0.789秒      +2.09%
+Release    59.762秒     42.508秒     -17.254秒     -28.87%
+
+Debugは今回の測定で約2%増加した。範囲は分割前37.762～40.186秒、
+分割後37.734～39.620秒と重なる。3回の測定だけで差を誤差とは断定しない。
+Releaseは最適化を維持したまま約29%短縮した。
+PCH設定を保ち、クリーンビルドを大きく遅くせず責務を分けられたと判断する。
+前回のPCH無効での63.923秒／82.060秒は過去の参考値であり、今回の比較の
+分母には使っていない。今回の表は現在の環境で取り直した前後比較である。
+
+2. 熟読して把握した構成と不変条件
+
+Gameは初期化時にbridgeを作り、毎フレームUpdate、終了時Shutdownを呼ぶ。
+PythonのGameBridgeStoreはgame_state.jsonを読み、単一のpending_command.jsonを
+置き、同じcommand_idのlast_result.jsonを待つ。
+ゲーム側が操作の可否を最終判断する構成は変更していない。
+
+元ファイルで特に長かったのはBuildStateの約1,482行とExecuteCommandの約924行。
+そのほかにGameの非公開状態を読むCapture、限定された書込み窓口、JSON変換、
+ファイルの原子的置換とWindowsの共有違反時の再試行が同居していた。
+
+以下を分割前に確認し、維持する条件とした。
+・状態公開の冒頭でPrunePendingBallAdjustments→Captureを1回ずつ呼ぶ。
+・enemyのtarget_idは元のworld配列のindex。撃破済みを除外して詰め直さない。
+・offer_index、catalog_index、instance_id、JSONのnull・空配列・旧別名を維持する。
+・boss_stateを作ってから操作一覧を作り、最後にdebug/editorの制限を適用する。
+・操作はwrite許可→editor専用操作→editor中の拒否→debug戦闘の制限の順で検証。
+・start_new_runは既存通り、引数検証前に外部制御の自動プレイ無効化を行う。
+・成功時のdecision記録、報酬の費用計算、資源変更、場面遷移の順序を変えない。
+・コマンドIDを実行前に消費し、状態公開→結果書込み→pending削除の順を維持。
+  空・重複IDは実行せず削除、不正JSONは残して次回再読込みする。
+
+3. 分割の判断理由
+
+行数だけで均等に切らず、「何が変わると一緒に修正するか」で境界を選んだ。
+
+・通信の更新間隔やファイル交換を変える場合はGameMcpBridge.cppを見る。
+  ゲームの内部型を直接読む処理はここから外し、Game.hへのincludeも除去した。
+・Game内部からの読取りはGameMcpReadView.cpp、特権操作はGameMcpCommands.cppへ。
+  既存のfriendはこの2つだけを使用し、新しいserializer/handlerへ権限を広げない。
+・状態JSONはBuildStateを組立て順の入口として残し、診断、ラン、盤面、所持品、
+  敵と連鎖、操作一覧へ分ける。同じ公開中のsnapshot・player・enemy配列を共有し、
+  各分野で再取得・並べ替えをしない。
+・コマンドは中央の共通guardを保ち、editor/配置、開始・遷移、ショット、
+  休憩・購入・報酬へ分ける。未対応はstd::nullopt、対応した失敗はok=falseの
+  JSONとして返すため、別のhandlerへ失敗が流れない。
+・共通JSON変換とプロトコル定数はGameMcpJsonへ。球statusの旧8別名と
+  既存のcanonical serializerの共有も維持する。
+・PCHは安定したライブラリだけの構成を維持。ゲーム固有のヘッダーや新しい
+  内部ヘッダーを追加せず、責務別.cppをそれぞれコンパイルする。
+
+ファイル別の責務（行数は今回完了時）：
+
+GameMcpBridge.cpp               320  設定・周期・ファイル交換・結果の相関
+GameMcpReadView.cpp             183  Game内部から読取りsnapshotを作成
+GameMcpCommands.cpp              77  Game内部への名前付きの限定操作
+GameMcpJson.cpp                 173  名前・ベクトル・球データ・結果のJSON変換
+GameMcpStateSerialization.cpp    70  BuildStateの組立て順
+GameMcpDiagnosticsState.cpp     359  物理進行・時間計測・VFX・音の診断出力
+GameMcpRunState.cpp             230  ラン方式・休憩・永続進行・難度・検証設定
+GameMcpWorldState.cpp           189  壁・ポケット・配置override・プレイヤー
+GameMcpInventoryState.cpp       252  球・デッキ・ショップ候補・レリック
+GameMcpCombatState.cpp          401  敵の行動予告・ボス・Break球・ショット連鎖
+GameMcpAvailableActions.cpp     208  場面ごとの操作一覧・debugによる最終制限
+GameMcpCommandDispatch.cpp       61  共通guardとコマンドの振り分け
+GameMcpStageCommands.cpp        332  editor検証・提案と次戦の配置override
+GameMcpRunCommands.cpp          252  ラン開始・経路選択・休憩/報酬後の遷移
+GameMcpBattleCommands.cpp       143  球選択・通常ショット・ボス計画
+GameMcpEconomyCommands.cpp      322  回復・強化・削除・購入・報酬選択
+
+内部ヘッダーはGameMcpJson.h、GameMcpStateSerialization.h、
+GameMcpCommandHandlers.h。プロジェクトとMCPフィルターへ各1回だけ登録した。
+
+4. ビルド時間の測定条件と解釈
+
+分割前後とも同じtools/measure_clean_build.ps1を使い、PCH有効で/t:Rebuild。
+オブジェクト、シェーダー、PCHを毎回作り直し、PCH作成時間も含む。
+各構成・各条件3回。性能測定中は別のビルドや実ゲームを並行実行していない。
+OSファイルキャッシュの消去は行っておらず、コールド起動の測定ではない。
+
+環境：Windows、Visual Studio 2022 Enterprise、MSVC 14.44.35207、x64ターゲット。
+実際のコンパイラはHostX86/x64。論理プロセッサ20、MSBuild /m、C++ /MP。
+構成ごとに前後で同じCleanBuildDebug/CleanBuildReleaseディレクトリを使用。
+実時間はVS環境設定を含むcmd/MSBuild全体のStopwatch計測値。
+/Bt+とMSBuildのタスク時間を記録した。
+既存のrelease_without_compiler_pdb.targetsを両条件に同じように適用し、
+主なコンパイル情報を/Z7、リンクPDBなしとした計測条件である。
+通常のIDE用PDB設定自体は変更していない。
+
+構成・条件            1回目        2回目        3回目        中央値
+Debug 分割前          40.186秒     37.762秒     37.809秒     37.809秒
+Debug 分割後          39.620秒     38.598秒     37.734秒     38.598秒
+Release 分割前        59.762秒     60.578秒     57.566秒     59.762秒
+Release 分割後        42.508秒     42.430秒     42.815秒     42.508秒
+
+全12走行が終了コード0、警告0、エラー0。
+コンパイル対象は153本→168本で、元の153本を欠落なく保持。
+PCH作成1本、PCH利用142本→157本、既存のPCH除外10本を維持したことを
+各走行の実CLコマンドと照合した。新規15本もすべてPCHを利用する。
+
+タスク時間の中央値：
+                     Debug前     Debug後     Release前   Release後
+CL                   32.315秒    32.853秒    22.246秒    22.648秒
+Link                  1.181秒     1.248秒    33.312秒    15.590秒
+FXC                   0.838秒     0.927秒     0.827秒     0.843秒
+c1xx区間時間の合計   190.208秒   207.835秒   161.629秒   175.765秒
+
+翻訳単位の増加によりフロントエンドの区間合計は増えたが、PCHによる共通解析の
+再利用を維持し、CLタスク全体の差は約0.4～0.5秒だった。
+c1xx区間合計は並列実行の重複を含むため、全体の実時間やCPU時間ではない。
+Release短縮の主要な観測点はリンク時間。既存の/O2、/GL、LTCGは維持した。
+巨大なBuildStateを分けて最適化の処理負担が変化した可能性はあるが、リンク内部の
+最適化工程を詳細に計測していないため、その内訳までは断定しない。
+
+差分ビルドも確認した。GameMcpEconomyCommands.cppの内容を変えず更新日時を
+変えたBuildは5.231秒で、再コンパイルはその1本だけ。PCHの時刻とサイズは不変。
+無変更Buildは3.720、3.719、3.554秒、中央値3.719秒で、再コンパイル0本。
+さらに別の中間・出力先でDx22UseSharedPch=falseのDebugビルドも成功。
+PCHを使わず167本をコンパイルし、警告0・エラー0だった。PCHでinclude不足を
+隠していないことの確認であり、この走行は上記の時間比較には含めていない。
+
+5. 原文の保存と動作検証
+
+分割前の原文と325ファイルのハッシュを保存してから作業した。
+記録対象の既存ファイルで変わったのはGameMcpBridge.cppとプロジェクト・
+フィルターだけ。Gameや物理・報酬などの実装、公開ヘッダー、PCHは不変。
+既存テスト6ファイルは、契約を確認する参照先を各責務の所有ファイルへ更新した。
+privateアクセス禁止の検証は、特権窓口とserializer/handlerを分けて維持した。
+
+独立担当による機械照合：154項目すべて成功。
+・30個の移動snippetと18個のコマンド分岐が元原文と一致。
+・15個の状態生成sectionを展開すると、10,293 C++ tokenが順序を含め一致。
+・対象範囲の欠落・重複は0。変数の引数化、pointer/vectorの受渡し、
+  副作用のないisBallUnlockedラムダの移動だけを正規化して照合した。
+
+最終コードに対する関連テスト：201件成功。
+・toolsの既存Pythonテスト160件
+・GameBridgeStoreのファイル通信テスト6件
+・球情報と互換JSONのテスト4件
+・MCP server schemaテスト31件
+schemaテストはsandbox内でasyncioのローカルsocket初期化が待機したため、
+通常環境で再実行して全件成功。最終4suiteにはtimeout・強制終了なし。
+
+実ゲームの前後比較：各4セッション、46件のコマンド応答、10地点の状態を保存。
+・通常ラン：不正seed/方式/配置、配置のqueue/clear、場面違いの操作拒否、
+  固定seed 20261116でラン開始→経路選択→戦闘→球選択→威力4のショット。
+・write禁止：editor操作と未知操作をゲーム側が拒否することを確認。
+・editor：開く前の拒否、開いた後の一般操作拒否、不正/正常layoutの検証、
+  stale revision拒否、正常な提案。提案後も画面での採用前にファイル変更しない。
+・phase方式：旧run_mode=phase_testの互換引数とroute進行方式の適用を確認。
+・空/重複command_idは再実行しない。不正JSONを保持し、修正後に処理できる。
+・結果のcommand_id、state_sequence、応答後のpending削除も各操作で確認。
+
+46応答は時刻・ID・sequenceを除いて同一。10地点の全JSONキー・型・配列構造が
+一致し、ゲーム状態も以下の明示的な比較条件で一致した（計36確認）。
+・時計、フレーム依存の診断カウンター・処理時間は値の完全一致の対象外。
+  これらもJSON構造は比較し、生のsnapshotを別途保存している。
+・ショットのtelemetryに含まれる実測処理時間3項目も値の比較から除く。
+・起動直後はPlayerDeckがrandom_deviceで初期化され、固定seedを設定する前の
+  デッキ順が実行ごとに違う。各indexが実際の配列位置と一致することを確認した上で、
+  instance_idで揃えて球の全内容を比較。ラン開始後は配列順も正規化せず比較した。
+
+通常のセーブ・実行中プロセスは使わず、assets/shaderをコピーした隔離場所で
+起動したテスト用プロセスだけを終了した。実際のショップ購入や報酬選択を含む
+全ランの通しプレイ、人間による操作感・見た目の判定は今回の範囲外。
+
+6. 既存の不整合と検証の限界
+
+広いgame_mcp suiteの試行で、test_ball_aim_guidanceのplayer_guardに対応する
+BALL_AIM_GUIDANCEがない既存の失敗を検出した。分割前のbridge原文のままでも
+再現することを記録し、今回の責務分割とは別の内容として未修正。
+したがって「リポジトリの全テスト成功」とはしていない。
+また、配置上限は既存通り16だが、拒否メッセージ内が12と記載されている点も、
+通信挙動の変更を避けて維持した。
+
+7. 記録と再現方法
+
+分割前後の生ビルドログ・JSON・CSV：
+logs/clean_build_optimization/mcp_before_debug/
+logs/clean_build_optimization/mcp_before_release/
+logs/clean_build_optimization/mcp_after_debug/
+logs/clean_build_optimization/mcp_after_release/
+
+集計と証拠（logs配下はGit管理外）：
+logs/mcp_responsibility_split/build_summary.json、build_summary.csv
+logs/mcp_responsibility_split/extraction_validation.json
+logs/mcp_responsibility_split/contract_test_results.json、final_*.log
+logs/mcp_responsibility_split/before_runtime/、after_runtime/
+logs/mcp_responsibility_split/runtime_comparison.json
+logs/mcp_responsibility_split/incremental_validation.json
+logs/mcp_responsibility_split/no_pch_verification.log、opt_out_validation.json
+
+リポジトリ直下でPCH有効のクリーンビルドを再計測する例：
+.\tools\measure_clean_build.ps1 -Label mcp_check_debug -Configuration Debug -UseSharedPch true -Runs 3
+.\tools\measure_clean_build.ps1 -Label mcp_check_release -Configuration Release -UseSharedPch true -Runs 3
+同じLabelの計測ファイルは上書きされる。比較する場合は変更前のソースでも
+同じ条件で測定する。今回の原文・プロジェクトの控えはログ側に保存している。

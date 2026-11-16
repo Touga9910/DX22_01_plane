@@ -6,6 +6,41 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+AUTO_PLAYER_SOURCES = (
+    "BalanceAutoPlayer.cpp",
+    "BalanceAutoPlayerScenes.cpp",
+    "BalanceAutoPlayerShots.cpp",
+    "BalanceAutoPlayerRewards.cpp",
+    "BalanceAutoPlayerBuildChoices.cpp",
+    "BalanceAutoPlayerPending.cpp",
+)
+
+MCP_STATE_SOURCES = (
+    "GameMcpStateSerialization.cpp",
+    "GameMcpDiagnosticsState.cpp",
+    "GameMcpRunState.cpp",
+    "GameMcpWorldState.cpp",
+    "GameMcpInventoryState.cpp",
+    "GameMcpCombatState.cpp",
+    "GameMcpAvailableActions.cpp",
+)
+
+MCP_COMMAND_SOURCES = (
+    "GameMcpCommandDispatch.cpp",
+    "GameMcpStageCommands.cpp",
+    "GameMcpRunCommands.cpp",
+    "GameMcpBattleCommands.cpp",
+    "GameMcpEconomyCommands.cpp",
+)
+
+# ReadView and Commands own privileged access; serializers and handlers do not.
+MCP_CONSUMER_SOURCES = (
+    "GameMcpBridge.cpp",
+    "GameMcpJson.cpp",
+    *MCP_STATE_SOURCES,
+    *MCP_COMMAND_SOURCES,
+)
+
 
 def source(name: str) -> str:
     return (ROOT / name).read_text(encoding="utf-8-sig")
@@ -52,7 +87,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
     def test_ball_physics_world_uses_explicit_runtime_context(self):
         physics_header = source("BallPhysicsWorld.h")
         physics_source = source("BallPhysicsWorld.cpp")
-        game_source = source("Game.cpp")
+        game_source = source("GameFixedPhysics.cpp")
 
         self.assertNotIn("class Game;", physics_header)
         self.assertNotIn("Step(Game&", physics_header)
@@ -164,7 +199,6 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
     def test_autoplay_state_and_decisions_are_owned_by_balance_auto_player(self) -> None:
         game = source("Game.h")
         runtime = source("GameBalanceRuntime.h")
-        autoplay = source("BalanceAutoPlayer.h") + source("GameAutoPlay.cpp")
 
         self.assertIn("BalanceAutoPlayer autoPlayer", runtime)
         self.assertNotIn("BalanceAutoPlayer m_BalanceAutoPlayer", game)
@@ -179,16 +213,17 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         ):
             self.assertNotIn(old_member, game)
 
-        for decision in (
-            "bool BalanceAutoPlayer::Update(Game& game)",
-            "void BalanceAutoPlayer::SelectBall(Game& game)",
-            "bool BalanceAutoPlayer::FireShot(Game& game)",
-            "void BalanceAutoPlayer::ApplyReward(Game& game)",
+        for name, decision in (
+            ("BalanceAutoPlayer.cpp", "bool BalanceAutoPlayer::Update(Game& game)"),
+            ("BalanceAutoPlayerShots.cpp", "void BalanceAutoPlayer::SelectBall(Game& game)"),
+            ("BalanceAutoPlayerShots.cpp", "bool BalanceAutoPlayer::FireShot(Game& game)"),
+            ("BalanceAutoPlayerRewards.cpp", "void BalanceAutoPlayer::ApplyReward(Game& game)"),
         ):
-            self.assertIn(decision, autoplay)
+            with self.subTest(source=name):
+                self.assertIn(decision, source(name))
 
-        self.assertIn("game.ApplyBalanceAutoBallSelection", autoplay)
-        self.assertIn("game.MarkBalanceAutoRewardChosen", autoplay)
+        self.assertIn("game.ApplyBalanceAutoBallSelection", source("BalanceAutoPlayerShots.cpp"))
+        self.assertIn("game.MarkBalanceAutoRewardChosen", source("BalanceAutoPlayerRewards.cpp"))
 
     def test_balance_system_state_is_owned_by_controllers(self) -> None:
         game = source("Game.h")
@@ -244,7 +279,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             source("GameDebugController.h")
             + source("GameDebugMode.cpp")
             + source("GameStageEditor.cpp")
-            + source("Game.cpp")
+            + source("GameDebugForecast.cpp")
+            + source("GameDebugDiagnostics.cpp")
         )
 
         self.assertIn("std::unique_ptr<GameDebugController> m_DebugController", game)
@@ -277,7 +313,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         game_header = source("Game.h")
         game_source = source("Game.cpp")
         presentation_header = source("GamePresentation.h")
-        presentation = presentation_header + game_source
+        presentation = (presentation_header + source("GamePausePresentation.cpp")
+                        + source("GameHandPresentation.cpp") + source("GameRewardPresentation.cpp"))
 
         self.assertIn("std::unique_ptr<GamePresentation> m_GamePresentation", game_header)
         for workflow in (
@@ -287,7 +324,10 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         ):
             self.assertIn(workflow, presentation)
         self.assertNotIn("friend class GamePresentation", game_header)
-        self.assertNotIn("game.m_", source("GamePresentation.cpp"))
+        for path in ROOT.glob("Game*Presentation*.cpp"):
+            implementation = path.read_text(encoding="utf-8-sig")
+            self.assertNotIn("game.m_", implementation, path.name)
+            self.assertNotIn('#include "PlayerDeck.h"', implementation, path.name)
         self.assertIn("PausePresentationModel", presentation_header)
         self.assertIn("BallSelectionPresentationModel", presentation_header)
         self.assertIn("ClearRewardPresentationModel", presentation_header)
@@ -312,8 +352,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
 
     def test_automated_shot_sources_share_the_validated_game_boundary(self) -> None:
         game = source("Game.h") + source("GameBossAI.cpp")
-        autoplay = source("GameAutoPlay.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        autoplay = source("BalanceAutoPlayerShots.cpp")
+        mcp = source("GameMcpBattleCommands.cpp")
 
         self.assertIn("bool Game::TryFireAutomatedShot(", game)
         self.assertIn("GetBattleState() != BattleState::AimingDirection", game)
@@ -353,52 +393,52 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
 
     def test_mcp_state_serialization_uses_a_read_only_snapshot(self) -> None:
         game = source("Game.h")
-        bridge = source("GameMcpBridge.cpp")
+        build_state = source("GameMcpStateSerialization.cpp")
+        read_view = source("GameMcpReadView.cpp")
         boundary = source("GameMcpState.h")
-        build_state = bridge[
-            bridge.index("nlohmann::json GameMcpBridge::BuildState"):
-            bridge.index("void GameMcpBridge::PublishState")
-        ]
 
         self.assertIn("struct GameMcpReadSnapshot", boundary)
         self.assertIn("static GameMcpReadSnapshot Capture(const Game& game)", boundary)
         self.assertIn("friend class GameMcpReadView", game)
-        self.assertIn("GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)", bridge)
+        self.assertIn("GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)", read_view)
         self.assertIn("GameMcpReadView::Capture(game)", build_state)
-        self.assertNotIn("game.m_", build_state)
-        self.assertIn('state["balance_validation"]', build_state)
-        self.assertIn('state["stage_layout_control"]', build_state)
+        for name in MCP_STATE_SOURCES:
+            with self.subTest(source=name):
+                self.assertNotIn("game.m_", source(name))
+        self.assertIn('state["balance_validation"]', source("GameMcpRunState.cpp"))
+        self.assertIn('state["stage_layout_control"]', source("GameMcpWorldState.cpp"))
         self.assertIn('state["debug_mode"]', build_state)
 
     def test_mcp_writes_use_named_commands_instead_of_bridge_friend_access(self) -> None:
         game = source("Game.h")
-        bridge = source("GameMcpBridge.cpp")
+        commands = source("GameMcpCommands.cpp")
         boundary = source("GameMcpCommands.h")
-        execute_command = bridge[
-            bridge.index("nlohmann::json GameMcpBridge::ExecuteCommand"):
-            bridge.index("void GameMcpBridge::ProcessPendingCommand")
-        ]
 
         self.assertNotIn("friend class GameMcpBridge", game)
         self.assertIn("friend class GameMcpCommands", game)
         self.assertIn("class GameMcpCommands final", boundary)
-        self.assertNotIn("game.m_", execute_command)
-        for command in (
-            "InspectStageLayout",
-            "ProposeStageLayout",
-            "QueueNextStageOverride",
-            "ClearNextStageOverride",
-            "PrunePendingBallAdjustments",
-            "DisableAutoPlayForExternalControl",
-            "HasValidationVariant",
-            "ApplyExtraMoneyReward",
+        for name in MCP_COMMAND_SOURCES:
+            with self.subTest(source=name):
+                self.assertNotIn("game.m_", source(name))
+        for command, consumer in (
+            ("InspectStageLayout", "GameMcpStageCommands.cpp"),
+            ("ProposeStageLayout", "GameMcpStageCommands.cpp"),
+            ("QueueNextStageOverride", "GameMcpStageCommands.cpp"),
+            ("ClearNextStageOverride", "GameMcpStageCommands.cpp"),
+            ("PrunePendingBallAdjustments", "GameMcpStateSerialization.cpp"),
+            ("DisableAutoPlayForExternalControl", "GameMcpRunCommands.cpp"),
+            ("HasValidationVariant", "GameMcpRunCommands.cpp"),
+            ("ApplyExtraMoneyReward", "GameMcpEconomyCommands.cpp"),
         ):
-            self.assertIn(f"GameMcpCommands::{command}", bridge)
+            self.assertIn(f"GameMcpCommands::{command}", commands)
+            self.assertIn(f"GameMcpCommands::{command}", source(consumer))
 
-        self.assertIn("game.ApplyBalanceAutoBallSelection(offerIndex)", execute_command)
-        self.assertIn("FindDeckBallIndex(game, instanceId)", execute_command)
-        self.assertIn("game.NotifyBallAcquired(selectedBallId)", execute_command)
-        self.assertIn("game.MarkBalanceAutoRewardChosen(", execute_command)
+        battle = source("GameMcpBattleCommands.cpp")
+        economy = source("GameMcpEconomyCommands.cpp")
+        self.assertIn("game.ApplyBalanceAutoBallSelection(offerIndex)", battle)
+        self.assertIn("FindDeckBallIndex(game, instanceId)", economy)
+        self.assertIn("game.NotifyBallAcquired(selectedBallId)", economy)
+        self.assertIn("game.MarkBalanceAutoRewardChosen(", economy)
 
     def test_debug_controller_uses_typed_snapshot_and_host_commands(self) -> None:
         game = source("Game.h")
@@ -439,7 +479,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         runtime = source("GameBalanceRuntime.h")
         runtime_source = source("GameBalanceConfig.cpp")
         debug = source("GameDebugMode.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        mcp_read = source("GameMcpReadView.cpp")
+        mcp_commands = source("GameMcpCommands.cpp")
 
         self.assertIn("std::unique_ptr<GameBalanceRuntime> m_BalanceRuntime", game)
         for dependency in (
@@ -469,15 +510,18 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("CaptureAutomationSnapshot() const", runtime)
         self.assertIn("CaptureReadSnapshot(", runtime)
         self.assertIn("GameBalanceRuntime::CaptureReadSnapshot(", runtime_source)
-        for external_boundary in (debug, mcp):
+        for external_boundary in (
+            debug, mcp_read, mcp_commands,
+            *(source(name) for name in MCP_CONSUMER_SOURCES),
+        ):
             self.assertNotIn("m_BalanceRuntime->autoPlayer", external_boundary)
             self.assertNotIn("m_BalanceRuntime->validation", external_boundary)
             self.assertNotIn("m_BalanceRuntime->scaling", external_boundary)
 
         self.assertIn("CaptureAutomationSnapshot()", debug)
-        self.assertIn("CaptureReadSnapshot(", mcp)
-        self.assertIn("SetAutoPlayEnabled(false)", mcp)
-        self.assertIn("HasValidationVariant(variantId)", mcp)
+        self.assertIn("CaptureReadSnapshot(", mcp_read)
+        self.assertIn("SetAutoPlayEnabled(false)", mcp_commands)
+        self.assertIn("HasValidationVariant(variantId)", mcp_commands)
 
     def test_non_battle_scenes_do_not_depend_on_game_header(self) -> None:
         for scene_name in (
@@ -499,8 +543,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
 
     def test_route_sources_share_one_validated_command(self) -> None:
         stage_select = source("StageSelectScene.cpp")
-        autoplay = source("GameAutoPlay.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        autoplay = source("BalanceAutoPlayerScenes.cpp")
+        mcp = source("GameMcpRunCommands.cpp")
         boundary = source("GameSceneAccess.cpp")
 
         self.assertIn("RunRouteCommands::Choose(", stage_select)
@@ -659,7 +703,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
     def test_game_header_hides_clear_reward_flow_state(self) -> None:
         game = source("Game.h")
         reward = source("GameRewardState.h") + source("GameRewardState.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        mcp = source("GameMcpEconomyCommands.cpp")
 
         self.assertIn("std::unique_ptr<GameRewardState> m_RewardState", game)
         for hidden_member in (
@@ -688,7 +732,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             + source("GameEncounterBalance.cpp")
         )
         config = source("GameBalanceConfig.cpp")
-        autoplay = source("GameAutoPlay.cpp")
+        battle_start = source("GameBattleStart.cpp")
 
         self.assertIn(
             "std::unique_ptr<GameEncounterBalance> m_EncounterBalance",
@@ -707,7 +751,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("void GameEncounterBalance::Load", encounter)
         self.assertIn("GameEncounterBalance::Evaluate", encounter)
         self.assertIn("m_EncounterBalance->Load(filePath)", config)
-        self.assertIn("m_EncounterBalance->Evaluate", autoplay)
+        self.assertIn("m_EncounterBalance->Evaluate", battle_start)
 
     def test_ball_offer_selection_uses_shared_validated_state(self) -> None:
         game = source("Game.h")
@@ -715,10 +759,10 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             source("GameBallSelectionState.h")
             + source("GameBallSelectionState.cpp")
         )
-        core = source("Game.cpp")
+        core = source("GameBallSelection.cpp")
         autoplay = source("GameAutoPlay.cpp")
         boss = source("GameBossAI.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        mcp = source("GameMcpReadView.cpp")
 
         self.assertIn(
             "std::unique_ptr<GameBallSelectionState> m_BallSelectionState",
@@ -738,7 +782,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         game = source("Game.h")
         pause = source("GamePauseState.h") + source("GamePauseState.cpp")
         core = source("Game.cpp")
-        presentation = source("GamePresentation.cpp")
+        presentation = source("GameUiBridge.cpp")
 
         self.assertIn("std::unique_ptr<GamePauseState> m_PauseState", game)
         for hidden_member in (
@@ -779,8 +823,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("int Game::GetMidBossRelicOfferCount() const", access)
 
         for consumer_name in (
-            "GameAutoPlay.cpp",
-            "GameMcpBridge.cpp",
+            *AUTO_PLAYER_SOURCES,
+            *MCP_CONSUMER_SOURCES,
             "GamePresentation.cpp",
         ):
             consumer = source(consumer_name)
@@ -794,8 +838,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
             source("GameStageOverrideState.h")
             + source("GameStageOverrideState.cpp")
         )
-        core = source("Game.cpp")
-        mcp = source("GameMcpBridge.cpp")
+        core = source("GameBattleTransition.cpp")
+        mcp = source("GameMcpCommands.cpp")
         debug = source("GameDebugMode.cpp")
 
         self.assertNotIn('#include "StageData.h"', game)

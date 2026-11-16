@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Optional measurement configuration. Production optimization is unchanged. -->
+  <Import Project="$(MSBuildThisFileDirectory)release_without_compiler_pdb.targets" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalOptions>/Bt+ %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

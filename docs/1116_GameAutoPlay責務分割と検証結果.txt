@@ -1,0 +1,233 @@
+作成日：2026年11月16日
+GameAutoPlayの責務分割と検証結果
+
+実装前の方針
+
+プレイヤーに見える変化：自動プレイの判断、乱数、待ち時間、ゲームの挙動を維持する。
+守る柱：選択・狙い・連鎖を検証する自動操作と、共通の戦闘開始処理を読みやすくする。
+取得前後・強化前後の狙い：球・レリック・経路・報酬の評価値や優先順位は変更しない。
+危険と対策：場面分岐、decision frame、乱数の消費位置、Game更新の早期終了、
+戦闘開始とログの順序を維持し、原文照合と固定seedの自動プレイで前後比較する。
+成功条件：責務ごとに分け、関連テストと実ゲーム確認を通す。
+PCH有効のDebug/Releaseクリーンビルドを前後各3回計測し、高速化の維持を確認する。
+
+1. 結果と構成の理解
+
+GameAutoPlay.cppを1,581行から97行へ分割した。
+長いUpdateは296行から178行、FireShotは214行から79行へ整理した。
+追加は7個の.cppと1個の内部ヘッダー。分割後の実装で最長は302行。
+ビルド時間の全走行と比較は第5節へ記載する。
+
+元ファイルには、異なる所有者・変更理由の処理が混在していた。
+・BalanceAutoPlayerの設定、入力切替、待ちフレーム、場面別判断。
+・球、標的、経路、報酬、レリック、購入・削除・強化の候補評価。
+・Game内部を操作する既存の狭いGame公開メソッド。
+・全プレイ方式で使うOnBattleStageStarted。controller、連鎖、統計、表示、ログの開始。
+
+Game::UpdateはautoPlayer.Updateがtrueを返すとそのフレームを早期終了する。
+したがって単なる「操作したか」の返り値へ意味を変えたり、操作が失敗した場面で
+falseに直したりすると、通常更新の回数や順序が変わる。判断待ちフレームも各分岐に
+入ったときだけ進むため、共通のフレーム冒頭へ移動できないことを確認した。
+
+2. 分割の判断理由
+
+同じ理由で修正する処理をまとめ、状態は既存のBalanceAutoPlayerに残した。
+乱数、run count、decision frame、pendingの球IDを新しい所有者へ複製していない。
+
+ファイル                            行数  責務
+GameAutoPlay.cpp                     97  Game側の照会・選択・報酬・pending操作の境界
+BalanceAutoPlayer.cpp               259  設定、入力切替、Updateの判断順と待ちフレーム
+BalanceAutoPlayerScenes.cpp         147  経路、休憩所、ショップでの操作
+BalanceAutoPlayerShots.cpp          302  球の選択、標的評価、照準・発射
+BalanceAutoPlayerRewards.cpp        155  報酬選択と費用・獲得イベントの記録
+BalanceAutoPlayerBuildChoices.cpp   299  回復、レリック、購入・削除・強化候補の評価
+BalanceAutoPlayerPending.cpp        147  pending球の通知・照会・検索・削除・prune
+GameBattleStart.cpp                 267  共通の戦闘開始・連鎖reset・統計とstage log
+
+BalanceAutoPlayerPolicy.hは14行の内部宣言で、従来の定数とGetAutoBallValueを共有する。
+Gameや描画の実装をこのヘッダーに含めず、MCP用helperへの依存も増やしていない。
+
+Updateではdecision gateを中央に残し、経路・休憩所・ショップの操作部分だけを
+private helperへ移した。場面の優先順とGame更新を止める返り値を一箇所で追える。
+FireShotでは、world取得・player確認の後に標的探索をanonymous helperへ移し、
+標的・方向・距離・pocket risk・撃破可能性を小さな値型で返す。
+乱数の消費と発射は元のFireShotに残し、探索と実行の境界を明確にした。
+
+OnBattleStageStartedはautoplay専用ではないため、GameBattleStartへ独立させた。
+初期化の適用順を一箇所で追うため、controller開始からログ開始までの一連の
+順序はこの関数内に維持している。
+
+BalanceAutoPlayer.hはStageSelectSceneの前方宣言とprivate helper3個だけを追加。
+公開API、fieldの型・順序・初期値、Game.hは維持し、friendを追加していない。
+元ファイルで使っていなかったRenderer、MCP bridge、EnemyAttackComponent、
+ImGui/backendの直接includeは除去した。関連する型からの間接依存まで
+すべて解消したという意味ではない。
+
+3. 維持した挙動
+
+・debug/editor判定→F8/F9→enabled判定の順。SetEnabledは待ちframeだけをresetする。
+・Title→Result→StageSelect→Rest→Shop→ClearReward→照準中battleの分岐順。
+・TitleではStartNewRun→runCount加算→Select。seed決定は加算前runCountを参照する。
+・Resultのstop requestはdelayやrestart設定より先に処理し、停止後requestを解除する。
+・routeはfinal boss→回復→shop可→強化→battle→midboss→先頭候補の順。
+・restは回復成功を優先して強化へfallback、最後に退出。shopはrelic→削除→購入。
+・報酬はレリック資金→提示内未所持球→有料強化→不足資金→extra moneyの順。
+  offer/catalog/instance ID、費用、通知・MarkChosen・ログ順は不変。
+・候補評価の > / < と候補の走査順を保ち、同点では先に見つかった候補を採用する。
+・球選択前と発射前のboss評価2回を維持。選択後の状態で改めて評価する。
+・通常の有効標的が決まった後だけ、同じmt19937とfloat分布でjitterを一度生成する。
+  標的なし／boss経路では消費せず、jitter=0や発射失敗時の従来の呼出も変えない。
+・pending登録へenabled guardを追加せず、未使用のprivate検索も削除しない。
+・戦闘開始のbudget→controller→phase event→連鎖reset→統計・表示→stage logを維持。
+  phase_startedをBeginStageの後へ移動する等のログ整理も行わない。
+
+4. 検証
+
+変更前の353ファイルのハッシュと原文・ヘッダー・プロジェクトを保存してから作業。
+Gameの操作境界と共有の戦闘開始処理を読み、テストとPython consumerの参照も確認した。
+
+独立担当の統合監査は外側165項目、Update/FireShotの38項目がすべて成功。
+元33メソッドのうち31は原文完全一致。Updateの1,244 token、FireShotの1,198 tokenは
+helperを展開して対応する変数名を正規化すると、処理順まで原文と一致した。
+共有評価関数・定数値、公開API、field、XML登録、PCH設定、includeも照合した。
+日本語を含むファイルはUTF-8 BOMと既存のexecution_character_set指定を維持し、
+プロジェクト全体の文字コードオプションは変更していない。
+
+既存のsource契約テスト5ファイルを新しい責務の所有先へ更新した。
+関連するtools suiteは最終source配置で160件すべて成功、error/timeoutなし。
+広いMCP suiteやリポジトリ全テストをすべて実行したという意味ではない。
+
+実ゲームは、MCPによる手動ショットではなくC++ autoplay自体をenabledにして検証。
+本番assetsは変更せず、ケースごとの空の隔離CWDへassets/shaderをコピーした。
+validationでseed 20261116を固定し、C++がTitleからラン開始する。
+MCPでは状態を読み、次の盤面を指定するset_next_stage_layoutを2回だけ送る。
+start_new_run、経路選択、球選択、発射をMCPからは送っていない。
+
+検証用に1体のeasy盤面→1体のfatal盤面をqueueし、次を前後で比較した。
+・controller_type=autoplay、run seedと派生seed、1runだけの実行。
+・C++による経路選択、標準球→強化済み重球の選択、方向・速度・威力。
+・初戦clear→15 Moneyの有料強化、所持金60→45、同じ球・報酬・資源のイベント列。
+・2戦目は最初のターンにpocketで2、敵攻撃で48のHPを失い、実際のgame_overへ。
+・stop_after_current_run=trueではResultで停止し、stop requestを解除。
+・falseかつmax_runs=1ではTitleへ戻って停止し、2run目を開始しない。
+・停止後の観測中もsceneとenabledが安定し、テスト用processだけを終了する。
+
+2ケースとも、設定hashと停止状態、正規化した全runログの値・JSON型・キー・
+配列順が厳密一致した。数値許容差や配列の並べ替えは使っていない。
+時計・実測処理時間・コンパイル日時は型を保って正規化し、指定のaddress fieldに
+あるpointer相当の大きな数値だけを出現順に置換する。その他のIDや乱数出力は比較対象。
+生ログ・state traceも残した。state traceはフレームを揃えた全値比較ではない。
+
+初回の分割後terminal_stopは、fatal盤面のqueue後に終了コード0で途中終了した。
+ログ上はapplication_exitで、原因は特定していない。ソースを変えず、同一exe・
+設定でafter_retryを実行すると終端まで通り、変更前ログと一致した。
+maximum_runsも前後とも成功。初回失敗を削除せず、比較JSONのattemptsへ保持し、
+成功したretryを明示選択している。「全試行成功」とはしていない。
+
+未実行の範囲：shop/rest、boss計画、midboss relic、phase方式、F8/F9入力、debug、
+別の報酬分岐、多seed・同点の網羅、通常セーブや人間の操作感。
+これらの本文・優先順は原文照合で確認したが、今回の短い実ゲームでは通っていない。
+
+5. PCH有効のビルド時間
+
+採用した前後各3回の中央値：
+
+構成                    分割前       分割後       時間差        変化率
+Debug（初回比較）       73.577秒     72.373秒     -1.204秒      -1.64%
+Release（追加対照）     41.705秒     42.856秒     +1.151秒      +2.76%
+
+PCHを維持し、今回の分割によるビルド時間の変化は小さかった。
+小標本のため差を統計的な誤差とは断定せず、Releaseでは約2.8%の増加として記録する。
+
+今回の変更前から、過去の作業の約40秒台と異なる長い時間が観測されていた。
+さらに初回Releaseは88.778→43.242秒と大きく変化したが、未変更の元実装を
+追加対照で測ると約42秒になった。このため初回の半減を責務分割の効果として
+採用していない。実行環境・負荷変動の詳細な原因は特定していない。
+
+追加対照は、元GameAutoPlay.cppと元のプロジェクト構成を一時プロジェクトへ
+切り替え、同じ現在の期間で旧実装3回→分割後3回を計測した。
+作業中のソースは書き戻していない。public APIとfieldが同じ現在のヘッダーを
+両条件で共有するため、旧実装側にも未使用のprivate宣言3個だけは存在する。
+Source/Includeの基準ディレクトリ、TargetName、PCH、最適化、出力先を揃えた。
+一時project/solutionは終了後に削除し、通常の現行projectで3回Rebuildしている。
+
+全走行（実時間、各3回）：
+条件                         1回目        2回目        3回目        中央値
+Debug 分割前                 73.577秒     73.407秒     80.387秒     73.577秒
+Debug 分割後                 72.373秒     74.139秒     67.206秒     72.373秒
+Release 初回分割前           89.316秒     86.215秒     88.778秒     88.778秒
+Release 初回分割後           43.545秒     43.242秒     42.558秒     43.242秒
+Release 追加対照の旧実装     42.280秒     41.702秒     41.705秒     41.705秒
+Release 追加対照の分割後     42.443秒     42.946秒     42.856秒     42.856秒
+
+計測条件：2026年11月16日、Windows、Visual Studio 2022 Enterprise、
+MSVC 14.44.35207、x64ターゲット、実コンパイラHostX86/x64、論理プロセッサ20。
+MSBuild /m、C++ /MP、同じ計測用PDB回避設定と/Bt+を前後へ適用。
+主なコンパイル情報は/Z7、リンクPDBなし。IDE用PDB設定は変更しない。
+/O2、/GL、LTCGや既存の個別コンパイル条件も変更していない。
+/t:Rebuildでオブジェクト、シェーダー、PCHを毎回作成し直し、PCH作成時間も含む。
+cmd・VS環境設定・MSBuild全体のStopwatch実時間。OSファイルキャッシュ消去はなし。
+性能測定中は別のビルドや実ゲームを並行実行していない。
+
+18走行すべて成功。初回12走行は警告0・エラー0。
+追加対照6走行は同じ中間ディレクトリを2つのprojectで使うMSB8028のみが出た。
+C++警告・エラーはなく、各走行で全.cppとPCHの再生成をログから照合している。
+終了後、対照用のlastbuildstateを退避・除去し、現行Releaseの無変更Buildが
+警告0・エラー0・再コンパイル0本であることを確認した。
+
+コンパイル対象は元176本を保持して183本へ。
+PCH作成1本、利用165本→172本、既存の除外10本を実CLコマンドで確認した。
+各走行のsource集合・/Yc・/Yu・/FI・c1xx/c2サンプル数に欠落・重複なし。
+BuildPch.h/.cppと既存のPCH設定は不変。
+
+採用した組のタスク時間中央値：
+                    Debug前     Debug後     Release対照前  Release対照後
+CL                  67.029秒    65.972秒    22.108秒       22.801秒
+Link                 2.197秒     1.360秒    15.355秒       15.543秒
+FXC                  1.021秒     0.856秒     0.833秒        0.879秒
+c1xx区間時間合計   632.313秒   611.444秒   176.014秒      181.493秒
+
+c1xx区間合計は並列実行の重複を含み、CPU時間やビルド全体の実時間とは異なる。
+環境変動があるため、数秒の差から特定のinclude削除の効果等は断定しない。
+
+局所変更の確認：BuildChoices.cppの本文を変えず更新日時だけを変更したDebug Buildは
+4.769秒、その1本だけ再コンパイル。PCHの時刻・サイズは不変だった。
+Debugの無変更Buildは3.638、3.699、3.612秒、中央値3.638秒で再コンパイル0本。
+Releaseは同じ時刻更新分1本の検証後、無変更Build3.721秒・再コンパイル0本を確認。
+
+PCHなしでも関係する8.cppを別の静的lib projectでコンパイルし、警告0・エラー0。
+強制includeも使わず、PCHがinclude不足を隠していないことを確認した。
+これはcompile確認であり、ゲームのリンク・実行は全体ビルドと実ゲームで検証した。
+
+6. 記録と再現
+
+主な証拠（logs配下はGit管理外）：
+logs/autoplay_responsibility_split/autoplay_extraction_validation.json
+logs/autoplay_responsibility_split/final_python_tests.json、final_tools_contracts.log
+logs/autoplay_responsibility_split/before/、after/、after_retry/
+logs/autoplay_responsibility_split/runtime_comparison_initial.json
+logs/autoplay_responsibility_split/runtime_comparison.json、runtime_coverage.json
+logs/autoplay_responsibility_split/before_runtime_timing.json
+logs/autoplay_responsibility_split/build_summary.json、build_summary.csv
+logs/autoplay_responsibility_split/release_control_setup.json
+logs/autoplay_responsibility_split/no_pch_compile.log、no_pch_compile_validation.json
+logs/autoplay_responsibility_split/incremental_validation.json
+
+ビルドの生ログ・JSON・CSVはlogs/clean_build_optimization内の
+autoplay_before_debug / autoplay_before_release / autoplay_after_debug / autoplay_after_release。
+追加対照はautoplay_control_before_release / autoplay_control_after_release。
+
+リポジトリ直下で再計測する例：
+.\tools\measure_clean_build.ps1 -Label autoplay_check_debug -Configuration Debug -UseSharedPch true -Runs 3
+.\tools\measure_clean_build.ps1 -Label autoplay_check_release -Configuration Release -UseSharedPch true -Runs 3
+同じLabelの計測結果は上書きされる。前後比較は元ソースでも同一条件で実行する。
+原文とプロジェクトの控えは今回のlogディレクトリへ保存済み。
+
+7. 途中終了に関する後続調査（2026年11月16日）
+
+詳細は「1116_自動プレイ途中終了の原因調査と検証結果.txt」を参照。
+元の終了は通常のアプリ終了処理へ至ったと絞れたが、当時の終了要求元は未特定。
+別に、検証ハーネスの初回hide後に画面設定適用で再表示・前面復帰する問題を実測し、
+Debug限定の明示的な非表示検証モードと、責務を分離した終了診断ログを追加した。
+修正後の終端2ケースの走行ログは本資料の分割前の参照と正規化後に完全一致し、PCH設定も維持した。
+元の失敗記録はそのまま残し、表示の問題を元の終了の確定原因とは扱っていない。

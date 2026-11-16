@@ -6,6 +6,7 @@
 #include <vector>
 
 class Game;
+class StageSelectScene;
 struct PlayerBallData;
 
 // バランス検証用の自動プレイヤー。
@@ -63,6 +64,9 @@ public:
     void PrunePendingBalls(const Game& game);
 
 private:
+    void ApplyRouteChoice(Game& game, StageSelectScene* stageSelect);
+    void ApplyRestSiteAction(Game& game);
+    void ApplyShopAction(Game& game);
     void SelectBall(Game& game);
     bool FireShot(Game& game);
     void ApplyReward(Game& game);

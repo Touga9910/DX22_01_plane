@@ -1,0 +1,28 @@
+作成日：2026年11月17日
+MCP単体importとasyncio自己pipe待機の切分け結果
+
+結論
+現在の実行環境では、Python標準ライブラリsocket.socketpairがループバック接続のacceptで待機し続ける。同じ経路を使うasyncioのイベントループ作成も、Fake Bossテストのtool coroutineに入る前に待機した。FastMCPのimport自体を停止原因とは断定しない。
+
+観測結果
+venv home interpreterの起動は0.093秒、同interpreterと既存venv依存でのFastMCP importは1.250秒、実venvの通常siteによるFastMCP importは1.297秒、ローカルserver.py importは1.390秒で正常終了した。実行cwd、sys.path、Pythonバージョンは各raw logへ記録した。venv設定ファイルには3.12.13とあるが、実行時に報告されたPythonは3.12.14だった。この差を停止原因とはしていない。
+
+BossMcpContractの最小1件
+対象はtest_bank_only_direct_request_returns_retryable_plan。実行前にBossStoreがdeepcopyと配列への固定応答だけを使うFakeであること、create_serverがcollectorを起動しないことを読んだ。probe内では実GameBridgeStoreの構築とFastMCP.run系、live runtimeファイルへのアクセスを禁止した。
+
+strict guardではasyncio自身のsocket.bindまで拒否し、probe由来の1件のERRORになった。これをMCP本体の失敗には数えない。
+
+次のprobeでは、標準socket.pyのsocketpairから呼ばれるephemeral loopback bind/connectだけを許可した。Fake server作成は約0.046秒で完了したが、asyncio.runの初期化中に12秒watchdogが自分を終了した。stackはsocket.py:295 accept、627 _fallback_socketpair、proactor_events.py:787 _make_self_pipeである。外向けの接続、MCP HTTP server起動、実ゲームへの命令は観測していない。
+
+MCPを使わない独立再現
+最後にvenv/site-packages/MCPを読み込まないhome interpreterの標準socket.socketpairだけを実行した。同じacceptで12秒のself-watchdogが終了し、stdlibだけでも再現した。特定のtoken、sandbox policy、ネットワーク設定、ACL、firewall等のどれが原因かは未特定である。
+
+所有と終了
+8件の自己Python probeはすべてPopen handleのwaitが完了した。手動terminate/killは0回。watchdog対象は直接起動したhome interpreter自身で、Boss/standaloneのPopen PIDとinterpreter PIDは一致した。実venvのlauncher PIDとinterpreter PIDは異なるため両方を記録した。ゲーム、他Python、他windowの列挙・終了は行っていない。
+
+既存テストとの区別
+pure MCP metadata対象20件PASS、必要なtools全308件PASSは別の検証結果として保持する。今回、full MCP suite再試行、依存install、productionのevent-loop変更、sandbox昇格、loopback例外設定は行っていない。C++終了原因や過去の全MCP試行へ一般化しない。
+
+保全と保存先
+保全422ファイル、進行中native50のsource identity 12件とexe SHAを照合して一致した。frozen package、bridge_store.py、exe、C++、データは変更していない。
+各PID、終了コード、段階、raw stack、hashはlogs/autoplay_exit_repetition/mcp_import_probe/diagnosis.jsonと各.log、再現手順はlogs/autoplay_exit_repetition/probe_mcp_import.pyに保存した。

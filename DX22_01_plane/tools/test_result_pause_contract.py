@@ -38,7 +38,7 @@ class ResultPauseContractTests(unittest.TestCase):
 
     def test_finite_run_endpoint_contract(self) -> None:
         game_types = source("GameTypes.h")
-        game = source("Game.cpp")
+        game = source("GameRouteFlow.cpp") + source("GameRunCompletion.cpp")
         run_progress = source("RunProgressController.h")
         routes = source("StageSelectScene.cpp")
         save_manager = source("GameSaveManager.cpp")
@@ -92,7 +92,8 @@ class ResultPauseContractTests(unittest.TestCase):
 
     def test_escape_opens_pause_instead_of_closing_the_window(self) -> None:
         application = source("Application.cpp")
-        game = source("Game.cpp")
+        game = (source("Game.cpp") + source("GamePause.cpp")
+                + source("GamePausePresentation.cpp"))
 
         self.assertNotIn("PostMessage(hWnd, WM_CLOSE, wParam, lParam)", application)
         self.assertIn("Input::GetKeyTrigger(VK_ESCAPE)", game)
@@ -101,7 +102,7 @@ class ResultPauseContractTests(unittest.TestCase):
         self.assertIn("ランのセーブデータは1個だけです", game)
 
     def test_pause_dimmer_is_behind_the_pause_window(self) -> None:
-        game = source("Game.cpp")
+        game = source("GamePausePresentation.cpp")
 
         self.assertNotIn("GetForegroundDrawList()->AddRectFilled", game)
         self.assertIn('ImGui::Begin("##PauseDimmer"', game)
@@ -112,7 +113,9 @@ class ResultPauseContractTests(unittest.TestCase):
 
     def test_pause_settings_are_persisted_and_applied(self) -> None:
         settings = source("SettingsManager.cpp")
-        presentation = source("GamePresentation.cpp")
+        presentation = (source("GamePresentation.cpp")
+                        + source("GamePresentationFeedback.cpp")
+                        + source("GamePresentationCombatEvents.cpp"))
         application = source("Application.cpp")
 
         for key in (

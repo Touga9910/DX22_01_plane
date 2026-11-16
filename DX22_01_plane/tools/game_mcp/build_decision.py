@@ -64,6 +64,7 @@ BALL_METADATA: dict[str, dict[str, Any]] = {
 # resources include the cross-axis gains implemented by the support balls.
 BALL_ROLES: dict[str, dict[str, tuple[str, ...]]] = {
     "player_standard": {"roles": ("Support",), "supports": ("standard",)},
+    "player_guard": {"roles": ("Support",), "supports": ()},
     "player_heavy": {"roles": ("Generator",), "generates": ("heavy",)},
     "player_chain_impact": {"roles": ("Finisher",), "consumes": ("heavy",)},
     "player_collision_boost": {

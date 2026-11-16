@@ -1,0 +1,227 @@
+作成日：2026年11月16日
+BalanceLoggerの責務分割と検証結果
+
+実装前の方針
+
+プレイヤーに見える変化：ゲームの挙動・数値・ログ形式を維持する。
+守る柱：選択・狙い・連鎖の結果を観測する記録処理を読みやすくする。
+取得前後・強化前後の狙い：今回の分割ではゲームの判断や成長を変更しない。
+危険と対策：集計順、未観測値のnull、同一targetの重複排除、保存タイミングを
+変えない。公開APIと状態を保ち、固定イベント列の出力JSONを前後で比較する。
+成功条件：長いEndShot自体も責務別の処理へ分け、関連テストを通す。
+PCH有効のDebug/Releaseクリーンビルドを前後各3回計測し、高速化の維持を確認する。
+
+1. 結果
+
+BalanceLogger.cppを2,039行から244行へ分割した。
+最大だったEndShotも536行から146行へ短縮し、単に別ファイルへ移すだけでなく、
+イベント集計と結果のJSON反映を内部helperへ分けた。
+追加は実装8本、内部ヘッダー2本。分割後の実装で最長は353行。
+公開BalanceLogger.h、Gameの実装、両telemetry collector、PCHは変更していない。
+
+PCH有効のクリーンビルド各3回の中央値：
+
+構成       分割前       分割後       増加秒数      増加率
+Debug      39.046秒     39.536秒     0.490秒       1.25%
+Release    43.061秒     43.446秒     0.385秒       0.89%
+
+今回の測定では両構成とも少し増加したが、PCHによる高速化の水準はほぼ維持した。
+短縮したとはしていない。Debugの範囲は分割前37.810～40.140秒、
+分割後38.812～39.910秒で重なる。Releaseは分割前43.046～43.266秒、
+分割後43.237～43.574秒だった。各3回のため、差を統計的な誤差とは断定しない。
+過去のPCH無効時の数値は今回の増加率の分母に混ぜていない。
+
+2. 熟読して把握した構成
+
+Game側はラン開始、ステージ開始、ショット開始でloggerへ初期値を渡し、
+物理・敵・球種効果がRecord*へ観測事実を送る。loggerはゲームの挙動を決めず、
+ショット／ステージ／ランの境界で集計・保存する。
+GameMcpCombatStateは最新ショット4種のJSONを読み、Pythonの解析・比較・収集処理は
+保存されたschema version 4のログを読む。
+
+元EndShotは次のすべてを一つの関数で行っていた。
+・衝突数とダメージの確定、スコア算出
+・物理と攻撃collectorを確定し、JSONへ変換
+・shot_eventsから球種スタック、反射、盤面効果、防止ダメージを集計
+・AI予測と実績をdecision_logへ書く
+・各球種のスタックと最新MCP向け情報を更新
+・ステージへショットを追加し、状態を解除して保存
+
+このうちイベントの意味を読む計算と、永続化する状態の更新は変更理由が異なる。
+またRecord*は直前の衝突種別や反射timelineを共有するため、観測APIごとに別の
+状態を持たせる分割は不適切と判断した。
+
+3. 分割の判断理由と構成
+
+一つのBalanceLoggerが状態を所有する設計と公開APIを維持し、実装を責務別に分けた。
+ヘッダーを変更しないことで、利用側へ新しい内部型を広げず、既存の呼び方も保つ。
+
+ファイル                         行数  責務
+BalanceLogger.cpp                244  singleton、ラン開始・終了、現在stageの取得
+BalanceLoggerStage.cpp           243  stageの開始・終了とステージ全体の要約
+BalanceLoggerShot.cpp            245  shot開始、確定の処理順、スコア算出
+BalanceLoggerEvents.cpp          353  Record*観測API、衝突文脈とtimelineの更新
+BalanceLoggerShotEvents.cpp      262  shot_eventsから集計値を作る計算
+BalanceLoggerShotResults.cpp     217  decision_logとheavy/pierceの結果反映
+BalanceLoggerTelemetryJson.cpp   341  physics/pierce/bounceのJSON変換と丸め処理
+BalanceLoggerStorage.cpp         125  保存、時刻、run ID
+BalanceLoggerConfiguration.cpp   135  metadata、設定snapshot、ファイルfingerprint
+
+内部ヘッダー：
+・BalanceLoggerShotSummary.h（68行）
+  ShotEventSummaryにイベント集計値とtarget別の防止量をまとめる。
+  ShotCompletionFactsは既に確定したダメージ・撃破数などの値だけを渡す。
+  ReflectionStackSummaryは計算後の反射スタックとfizzleを返す。
+  大量の引数や新しい内部JSONキーで処理同士を結び付けず、必要な値を型で渡す。
+・BalanceLoggerTelemetryJson.h（41行）
+  共有するJSON変換と丸め処理だけを宣言する。共通のpierce集計変換は
+  実装ファイル内のanonymous namespaceへ残す。
+
+EndShotは「基本結果確定→collector確定→イベント集計→decision反映→stack反映
+→bounce変換→latest更新→stage追加→状態解除→Save」を追える入口にした。
+保存・metadataの変更、球種集計の変更、JSON形式の変更を別々の実装で読める。
+PCHへゲーム固有のヘッダーは追加せず、各.cppを独立してコンパイルする。
+
+4. 維持した不変条件
+
+・当たったがダメージを観測していない場合はnull。衝突なし／既知の0と区別する。
+  stage内に不明なshotがあるとstage集計をnullにする既存仕様も維持。
+・collision_effectはplayer衝突数＋enemy衝突数×2。スコア式と小数2桁の丸めは不変。
+・防止ダメージは同じtarget内の最大値を採り、次ターンと将来のチャージを別に集計。
+・heavy旧イベントのfallback、pierceの上限、反射スタック上限のnullを維持。
+・壁と攻撃のtimeline順、target index、physics stable indexを作り直さない。
+  empowered bonusは次の該当targetで一度だけ消費し、特殊ダメージは直前の攻撃を修飾。
+・RecordPierceAttackはcollectorへ転送してからactive判定する順序を維持。
+・BeginRun/BeginStageでlatest4種を消去し、BeginShotでは前shotのlatestを保持する。
+・RecordEvent/RecordPlayerDamageはdirtyにするだけ。BeginShot前に前回分をflushする。
+・EndStageはactive shotを先に確定してstage参照を取り直し、EndRunは保存後に解除する。
+・Saveは成功したときだけdirtyを解除。一時ファイルの書込み、既存ファイルの削除、
+  renameという従来の方式・失敗時処理も変更しない。
+・run IDはlocal time、記録日時はUTC。managed_filesの順、FNV-1a64、欠損file表現は不変。
+
+5. ビルド時間の測定条件と全走行
+
+2026年11月16日、Windows / Visual Studio 2022 Enterprise / MSVC 14.44.35207。
+x64ターゲット、実コンパイラHostX86/x64、論理プロセッサ20、MSBuild /m、C++ /MP。
+同じtools/measure_clean_build.ps1で、各構成の同じ中間・出力先を使用した。
+/t:Rebuildでオブジェクト、シェーダー、PCHを毎回作り直し、PCH作成時間も含む。
+VS環境設定を含むcmd/MSBuild全体の実時間。OSファイルキャッシュは消去していない。
+性能測定中は別のビルドや実ゲームを並行実行していない。
+
+既存のrelease_without_compiler_pdb.targetsを前後に同じ条件で適用した。
+主なコンパイル情報を/Z7、リンクPDBなしとする計測条件で、IDE用設定は変更なし。
+既存の個別コンパイル設定、最適化、LTCGも維持した。
+実装中の失敗試行と差分Buildは、正式なクリーン比較に含めていない。
+
+構成・条件          1回目        2回目        3回目        中央値
+Debug 分割前        40.140秒     39.046秒     37.810秒     39.046秒
+Debug 分割後        38.812秒     39.536秒     39.910秒     39.536秒
+Release 分割前      43.266秒     43.061秒     43.046秒     43.061秒
+Release 分割後      43.237秒     43.446秒     43.574秒     43.446秒
+
+正式12走行は終了コード0、警告0、エラー0。
+元168本を保持して176本へ増加。PCH作成1本、利用157本→165本、除外10本を
+各走行の実CLコマンドから照合し、欠落・重複・設定逸脱なし。
+
+タスク時間の中央値：
+                    Debug前     Debug後     Release前   Release後
+CL                  33.498秒    33.327秒    22.891秒    23.020秒
+Link                 1.249秒     1.418秒    15.805秒    15.978秒
+FXC                  0.858秒     1.003秒     0.892秒     0.848秒
+c1xx区間時間合計   206.997秒   231.342秒   178.837秒   182.820秒
+
+翻訳単位が増えた分、フロントエンドの区間合計は増えているが、並列処理とPCHの
+再利用を保ち、CLタスク時間の差は小さかった。区間合計は並列実行の重複を含み、
+全体実時間やCPU時間とは異なる。今回の小さな差を特定工程だけの原因とは断定しない。
+
+差分Build：BalanceLoggerConfiguration.cppの内容を変えず更新日時だけを変更。
+5.508秒でその1本だけを再コンパイルし、PCHの時刻とサイズは変化しなかった。
+無変更Buildは3.765、3.792、3.614秒、中央値3.765秒。再コンパイル0本。
+
+6. 原文照合と固定イベント列の検証
+
+変更前の343ファイルのハッシュと原文を保存した。記録対象の既存ファイルで
+変わったのはBalanceLogger.cppとプロジェクト・フィルターだけ。
+公開BalanceLogger.h、Game/MCP、collector、BuildPch.h/.cppは内容不変。
+既存Pythonテスト2ファイルは、契約を確認する参照先を正しい所有ファイルへ更新。
+
+独立担当の統合監査：外側157項目、EndShot58項目が成功。
+全30メソッドのうち29は原文完全一致。EndShotはhelper展開と引数・field名の
+対応を正規化した2,943 C++ tokenが順序を含め一致した。
+serializerと丸め処理5関数も原文一致。include、登録、文字コードも確認した。
+統合中の断片BOM混入を修正し、日本語コメントを含むShot.cppは元と同じ
+UTF-8 BOM付きにした。ゲーム全体の文字コードオプションは変更していない。
+
+公開APIを呼ぶnative fixtureをtools/test_balance_logger.cpp/.vcxprojに追加した。
+元1TUと新9TUを同じ設定で別々にリンクし、空の隔離CWDで実行。
+両方ともPCHなしでビルド成功、警告0・エラー0、各243確認が成功した。
+
+手計算できる値と境界条件を含む9ケース：
+・schemaと設定fingerprint、helloの既知FNV、欠損file、managed_files順
+・イベントは即保存せずBeginShot境界でflush
+・未観測ダメージnullと観測済み0、空ステージ
+・反射前後の分類、empoweredの一度だけの消費、特殊ダメージの追記
+・generic combatとtracked attackの対象範囲の区別
+・同一targetの防止量最大値、heavy旧形式、pierce上限、反射消費
+・EndStageによる自動EndShot、二重End防止、restart/abandoned
+・不正／欠損registryのfallback、次BeginRunでのmetadata再読込
+
+保存した9ケースのログと5ショット分のlatest4種を前後比較した。
+run ID、実行日時、経過時間、コンパイル日時だけを型を保って正規化し、
+残りの全値、JSONキー・型、配列順が一致。fixtureの物理処理時間は固定入力なので
+値の比較から除いていない。集計を別言語で再実装した比較ではない。
+
+7. 実ゲームとPython consumerの検証
+
+元の実行ファイルを保存し、前後それぞれ隔離したassets/shaderで起動した。
+固定seed 20261116でラン開始→経路選択→球0→威力4のショットを実行。
+次ターンの照準へ戻ることを確認し、実際の保存ログを前後比較した。
+時計・コンパイル日時・実測物理処理時間を正規化して全ログが一致した。
+保存shotとMCP最新4種も一致し、プレイヤー・敵・戦闘結果も一致（17確認）。
+通常のセーブやユーザーのプロセスは使わず、テスト用プロセスだけを終了した。
+
+Python検証は196件中195件成功、error/timeoutなし。
+・toolsの既存テスト160件：すべて成功
+・MCP球情報4件：すべて成功
+・固定バランス収集32件：31件成功、1件は下記の既存不整合
+解析、バランス比較、schemaや保存頻度を含む関連契約を確認した。
+
+残る不整合：player_guardがPythonのBUILD_TARGET_BALLS/BALL_ABILITY_EVENTSにない。
+該当テストはplayer_status.jsonの球IDとこの2つの定義を直接比較するもので、
+BalanceLoggerのC++を呼ばない。テスト・collector・assetの3ファイルが
+Git HEAD/index/作業中内容で一致し、HEADにも同じ不足があることを確認した。
+変更前実ゲーム用にコピーしたassetとも一致。今回は範囲外として未修正。
+したがってリポジトリ全テスト成功とはしていない。
+
+人間による見た目・操作感の判定、全ランの通しプレイ、保存失敗の障害注入は
+今回の検証範囲外。保存失敗時の処理は原文一致として確認している。
+
+8. 記録と再計測
+
+正式ビルドログ・JSON・CSV：
+logs/clean_build_optimization/logger_before_debug/
+logs/clean_build_optimization/logger_before_release/
+logs/clean_build_optimization/logger_after_debug/
+logs/clean_build_optimization/logger_after_release/
+
+証拠（logs配下はGit管理外）：
+logs/logger_responsibility_split/build_summary.json、build_summary.csv
+logs/logger_responsibility_split/logger_extraction_validation.json
+logs/logger_responsibility_split/before_native/fixture_cases.json
+logs/logger_responsibility_split/after_native/fixture_cases.json
+logs/logger_responsibility_split/native_comparison.json
+logs/logger_responsibility_split/runtime_comparison.json
+logs/logger_responsibility_split/python_test_results.json、final_*.log
+logs/logger_responsibility_split/preexisting_contract_failure.json
+logs/logger_responsibility_split/incremental_validation.json
+
+リポジトリ直下でPCH有効のクリーンビルドを再計測する例：
+.\tools\measure_clean_build.ps1 -Label logger_check_debug -Configuration Debug -UseSharedPch true -Runs 3
+.\tools\measure_clean_build.ps1 -Label logger_check_release -Configuration Release -UseSharedPch true -Runs 3
+同じLabelを使うと計測ファイルは上書きされる。前後比較は変更前ソースでも
+同じ条件で測定する。今回の原文・プロジェクトの控えはログ側に保存済み。
+
+native fixtureはtest_balance_logger.vcxprojをDebug/x64でビルドし、新しい空の
+作業ディレクトリで実行する。assets/logs等が既にある場所では実行を拒否する。
+LoggerMonolithSourceを指定すると元1TUへ切替可能。今回の前後実行用スクリプトは
+logs/logger_responsibility_split/verify_native.ps1に保存した。

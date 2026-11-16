@@ -1,0 +1,48 @@
+作成日：2026年11月16日
+
+終了要求元の観測範囲とデスクトップ検証
+
+目的
+ゲームの選択・狙い・連鎖と見た目は変更せず、終了要求をどこから出したかを説明できる診断を補う。取得物やショットの狙いは変わらず、自動勝利や能力調整も追加しない。成功条件は、既存の終了操作を保ったまま内部の要求箇所と受信・終了完了の順序を区別できることとする。
+
+受信ログから分かる範囲
+MSGとWNDPROCには送信元PIDの項目がない。GetWindowThreadProcessIdは対象ウィンドウを作ったPID/TIDであり、送信者ではない。InSendMessageExは別threadからのSendMessage系かを調べるflagsまでを返す。現ログのforeground_pidも、その時点の前面processを示すだけで送信者とは断定できない。
+検証runnerのnonceとPID/TID・時刻が一致すれば記録済みの要求との対応は強くなるが、任意のOSメッセージ送信者を認証するものではない。過去の途中終了には当時の送信側記録がなく、送信元は未確定のままとする。
+
+内部の観測点
+GamePresentation.cppの既存終了ボタンで、PostMessageの前後にmain_menu_exit_requested / main_menu_exit_post_resultを追加した。Application.cppでは確認IDOKからDestroyWindowを呼ぶ前後にclose_destroy_requested / close_destroy_result、WM_DESTROYからPostQuitMessageを呼ぶ直前にquit_requested_from_destroyを追加した。戻り値がある2 APIはBOOLをresultへ渡す。
+既存のボタン条件、メッセージ引数、確認dialog、ResetFrameTiming、break、ImGui処理順は維持した。formatとfile I/OはApplicationLifecycle内に置き、UI側にはイベント通知だけを追加した。v1_sourceとのソース比較、UTF-8 BOM・CRLF・pragmaの維持、git diff --checkを確認した。この担当ではビルドや実ゲーム検証をしていない。
+
+標準ETW providerの読取り結果
+現OS build 26200.9974で、Microsoft-Windows-Win32kのmanifest metadata 369イベントをTDHで取得した。QueuePostMessage（59）、SendMessage開始（60）、RetrievePostMessage（61）、RetrievePseudoMessage（64）があり、60にはpidReceiver/tidReceiver、59などにはhwnd・message・WParam・LParam・pqmsgがある。User32の5イベントはOS shutdown/logoff用で、一般のゲームメッセージ送信traceではなかった。provider独自filterの宣言は双方0件だった。
+これはmetadataの確認であり、実イベントは収集していない。ETW headerのProcessIdはイベント生成processであり、ゲームPIDによるscope filterが未知の外部送信側を残すとは限らない。kernel providerへのPID scope filterにも制約がある。受信PID/HWNDのpayload filterやpqmsg相関は候補だが、hwnd=0のWM_QUITを対象ゲームだけに限定し、送信者まで追えるとは未実証である。今後調べる場合も既知nonceの短い対照試験が先に必要となる。global capture、provider有効化、権限変更は行っていない。
+
+private desktop短probeの実結果
+private_startup_01はCreateDesktopWがerror 5（Access denied）を返し、status=unavailableで終了した。子PIDはなく、ゲーム起動は0回。作成されたdesktopもないため、private HDESKのCloseDesktopは対象なしである。input desktopは前後ともDefaultで、観測用に開いたhandleのclose、workerの復帰・終了、要求traceの保存は成功した。どのtoken/ACL等が拒否の原因かは特定しておらず、Windows機能自体の非対応とも判断しない。管理者昇格やDefaultへのvisible fallbackは行っていない。
+したがって、この環境でprivate desktop上のD3D・viewport・メッセージ動作を検証したとは扱わない。別desktopでは入力・前面状態と他desktopからのメッセージ到達条件も変わるため、仮に実行できても元のDefault上でvisible/foregroundだった条件との同一性は主張できない。
+実装候補は明示STARTUPINFOW.lpDesktopと専用workerであり、現在のPython STARTUPINFO.copyは追加したlpDesktop属性を引き継がない。EnumDesktopWindowsで指定desktopを列挙し、所有PID/TID/classを毎回確認する設計とした。controller threadのdesktop制約を守り、終了後にthreadを外すか終えてから作成したHDESKを閉じる。借用したGetThreadDesktopのhandleは閉じない。
+
+当時の自agentのコマンド履歴
+20:48～21:37 JSTに重なる3 turnのcommandExecution 38件を全文確認した。ゲーム起動、WM_CLOSE/WM_QUITの投稿、他PIDの終了操作は見つからなかった。唯一のkill候補は、そのコマンド内で作成したPython unittest childのtimeout用process.kill()であり、保存結果はPID 40792・160件成功・3.329秒・timed_out_and_killed=falseだった。従って、この分岐も実行されていない。未保存のinline command本文もJSONへ残した。
+この監査は当該threadのcommandExecutionとturn時刻の範囲であり、OS全体の送信者追跡ではない。reasoning項目やその本文は参照・保存・引用していない。
+
+資料
+logs/autoplay_exit_repetition/request_origin_capabilities.json
+logs/autoplay_exit_repetition/private_desktop/private_startup_01/probe_result.json
+logs/autoplay_exit_repetition/private_startup_01.log
+logs/autoplay_exit_repetition/original_build_analysis_command_history.json
+logs/autoplay_responsibility_split/final_python_tests.json
+
+Microsoft一次資料（仕様の確認。イベントID/fieldsの列挙自体は上記ローカルmetadataによる）
+MSG: https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-msg
+InSendMessageEx: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-insendmessageex
+ETW header ProcessId: https://learn.microsoft.com/en-us/windows/win32/api/evntcons/ns-evntcons-event_header
+ETW filters: https://learn.microsoft.com/en-us/windows/win32/api/evntprov/ns-evntprov-event_filter_descriptor
+TDH metadata: https://learn.microsoft.com/en-us/windows/win32/api/tdh/nf-tdh-tdhgetmanifesteventinformation
+Desktops: https://learn.microsoft.com/en-us/windows/win32/winstation/desktops
+CreateDesktopW: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createdesktopw
+STARTUPINFOW: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfow
+EnumDesktopWindows: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdesktopwindows
+PostThreadMessageW: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postthreadmessagew
+Thread desktop connection: https://learn.microsoft.com/en-us/windows/win32/winstation/thread-connection-to-a-desktop
+CloseDesktop: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-closedesktop

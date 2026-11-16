@@ -1,0 +1,58 @@
+作成日：2026年11月17日
+最終更新日：2026年11月17日
+描画Flush対照と通常版の保全（4群40run完了）
+
+目的と分母
+hidden50／legacy20の同じ公開区間でkernel handlesが概ねnative run当たり6個増える形を観測したが、object種別や生成元・解放欠落は未特定。描画後Flushの有無だけを変えたx64 Debug実験exeで短い対照を行った。元の一度のexit原因、leak、productionへのFlush採用とは結び付けない。native起動・進行・期限管理はrootのみが担当し、この実験のprocess／native runは通常版の反復分母と別管理する。
+反復の拡張は結果の方向に依らないprotocol.jsonの事前条件に従った。先行成功・close0かつ次case全体900秒＋20秒が05:50JSTまでに収まる場合だけ、OFF10→ON10にON10_repeat→OFF10_repeatを加えると実施前に宣言し、完了した群だけを集計した。
+この条件を満たした4群が全て完了した。合計4process／40 terminal native run、partial0、2522.266秒、resource170sample。以後の新たなnative起動は行わない。
+
+安全buildと通常版保全
+初回はdeveloper環境のcmd呼出しが失敗し、source編集・CL開始前に停止した。canonical byte／mtime不変、compile0の失敗記録をsetup_failure_build_report.jsonへ保持した。同一実験でASCII cmd helperによる環境呼出しを修正し、05:00:47JSTに安全条件を満たしたbuildが完成した。
+元source、obj、PCH、EXE、DLL、projectをbaselineへcopy2で保全し、hardlinkを使わない独立IntDir／OutDirを使用。tlog／ilk／lastbuildstateを実験IntDirへ持ち込まない。CLはApplication.cpp 1TUのみ1.266秒、/Yuで既存PCHコピーを利用、/Yc生成0。PCH hash／mtime不変。LibLinkOnlyは184objを使い2.844秒、両段階のwarning／error0。
+Application.cppの追加は_DEBUGで囲んだMainLoop内local boolean、DrawEnd後のFlush、起動時markerだけ。DX22_TEST_FLUSH_AFTER_FRAMEが厳密に1のときだけ有効とし、既定off。header／project／PCH／Python sourceは変更しない。Release用の追加処理はpreprocessorで除外され、Release buildは行っていない。
+Application.cppはCL直後・Link前に原byte／BOM／mtimeへ復元した。原source SHA256はf1e793b0a35b784a69d1986df719e295491e26c9e4e4fad851bb779a3c18983d、mtime_nsは1794840419255753800。以後このCPPを編集していない。
+独立保全監査38checks PASS。before／after／current591対象のsha／bytes／mtime一致、canonicalInt202／Out13の追加・欠落0。184obj、Debug／ReleaseのPCH、project／compiler設定、sourcepackage13、v1／v2 archiveと通常版EXEの保持も確認した。通常版EXEは15701746ff162466b5aeeb108afc7c08b5f802d9c7711801d0c6d6a8b419ed6cのまま。
+
+実験exeと条件
+実験exe：logs/autoplay_exit_repetition/renderer_flush_experiment/variant_out/DX22_01_plane.exe
+実験exe SHA256：2b59cc6c6e78f9e08174e7e89958bb7e848eb9416641907f647474f9e31fa0ce
+全実験群で同じexeを使用し、test_frame_flush_mode markerのresult0／1と対象PIDで実際のmodeを確認する。
+共通条件はcontrolled／maximum_runs、legacy_rehide、seed20261116、decision150、publish6、resource観測on、native10、既定render設定。OFF／ONは異なるprocessであり、順序・host負荷・短期試行の影響を完全に制御した性能測定ではない。
+
+完了した実測
+flush_off10：ordinary_success、630.922秒、PID31924、resource42sample。markerはresult0で1件、exe hash一致。独立native監査で10 terminal／0 partial、全走行JSONの既存clock／address正規化後一致、reset、停止、nonce対応cleanup、close0を確認した。
+同じSelect公開→easy Battle公開区間にはrun1を除き6sample（run2／3／4／5／9／10）。run6～8は欠測で補間しない。handlesは369→415、min369／max415／median382。PrivateCommitはfirst192770048／last194887680／min190693376／max194887680／median192856064 bytes。WorkingSetはfirst190849024／last195842048／min190849024／max195842048／median191547392 bytes。割当値は全て原trace rowと一致した。
+OFFのquery wrapper時間は42件でfirst0.2791ms／last0.3424ms／min0.1732ms／max1.1594ms／median0.31125ms。fsync等を含む総観測負荷ではない。
+flush_on10：ordinary_success、633.188秒、PID17200、resource43sample。markerはresult1で1件、OFFと同じexe hash。区間解析の全所有・件数・公開境界checksもtrue。run1除外後は6sample（run2／3／7／8／9／10）、run4～6は欠測。handlesは370→412、min370／max412／median397。PrivateCommitはfirst193531904／last194039808／min190599168／max196870144／median193898496 bytes。WorkingSetはfirst220647424／last194445312／min190664704／max220868608／median196292608 bytes。割当値は全て原trace rowと一致した。
+ONのquery wrapper時間は43件でfirst0.1586ms／last0.4470ms／min0.1586ms／max0.6796ms／median0.31560ms。
+初回OFF／ONの必須条件・source13・exe・configuration hashは全項目一致。独立initial_pair監査は両群のnative10／reset／全走行JSON一致／mode／nonce終了／close0を確認した。共通観測runは2／3／9／10、端点2→10の8native-stepでOFFは+46 handles（5.75／step）、ONは+42（5.25／step）。sample時刻端点の経過は495.609秒と495.735秒。この短い初回対照では両群に増加が残り、4個の差を有効な抑制効果や原因の証明とは扱わない。
+旧legacy20/pub6とOFF初回の共通run2／3／4／5では、両方369→385（+16／3step）。旧群はEXEとrun数が異なるため補助文脈であり、主OFF／ON対照へ混ぜない。
+flush_on10_repeat：ordinary_success、635.719秒、PID27800、resource43sample。markerはresult1で1件、同exe／全区間checks true、原row全一致。run2以後は7sample（run2／3／4／6／7／8／9）、欠測run5／10。handlesは369→409、min369／max409／median391。PrivateCommitはfirst191897600／last194351104／min188948480／max195719168／median193970176 bytes。WorkingSetはfirst219738112／last222347264／min217042944／max223289344／median221110272 bytes。query wrapperはfirst0.1482ms／last0.3314ms／min0.1482ms／max0.5380ms／median0.29850ms。
+flush_off10_repeat：ordinary_success、622.437秒、PID33096、resource42sample。markerはresult0で1件、同exe／全区間checks true、原row全一致。run2以後は4sample（run2／3／4／5）、run6～10は欠測。handlesはrun2→5で370→385、min370／max385／median375。これはrun10までの端点ではない。PrivateCommitはfirst192512000／last193916928／min192204800／max193916928／median193079296 bytes。WorkingSetはfirst219680768／last221179904／min219680768／max221179904／median220413952 bytes。query wrapperはfirst0.1456ms／last0.2422ms／min0.1456ms／max0.8337ms／median0.26400ms。
+
+逆順pairのONrepeat／OFFrepeatでは共通観測runが2／3／4に限られる。run2→4の2native-stepでONrepeatは369→379（+10／2=5.0）、OFFrepeatは370→379（+9／2=4.5）。sample時刻端点は120.234秒と120.140秒。初回pairのrun2→10と比較範囲が異なるため、これらの率を合算・平均してmode効果を作らない。全4群に共通する観測runは2／3だけで、長期の同run比較には足りない。
+初回はONの増加がOFFより4個少なく、逆順の短い範囲ではOFFがONより1個少なかった。両modeで増加が残り、この短く疎な対照から一定の抑制効果を確認したとは結論づけない。解放不足site／GPU内部保持／元exit原因の特定とproduction採用は未成立のまま。
+全4群で必須条件・source13・同exe・configuration hashが一致し、marker順は0／1／1／0。独立監査の全cohort checksもPASS。cross_gameplay監査では、通常版legacy20と実験40の計60 native JSONが既存clock／address正規化後に全て一致した。EXE／最大run数の差は別に保持しており、この60件を診断40件の分母へ混ぜない。
+初回comparison_2cohort.json、3群comparison_3cohort.json、4群comparison_4cohort.jsonを保持する。最終独立auditの参照を取り込んだ確定出力はcomparison_4cohort_finalaudit.json。source復元後・全native完了後の最新保全監査も38checks PASSで、通常版・obj・PCH・sourcepackageの保持を再確認した。
+
+解析規則と限界
+analyze_resource_samples.pyの既存18合成テストとルールを変更しない。最終manifest/result、件数・PID/image/作成時刻・時計・全公開境界の整合後、run1を除外しrun2以後の同公開区間だけを記述集計する。snapshotはquery瞬間の厳密なscene証明ではなく、境界近傍のsampleも勝手に補正・除外しない。欠測と境界距離を残す。
+主比較は同じ実験exeのOFF／ON。旧legacy20/pub6は試行長とEXEが異なる補助文脈として別に扱う。共通して測れたrunが2つ未満なら、同run端点の差分率を無理に作らない。handles／memory増減はleak判定や元exitの原因特定にならない。
+Flushは非同期でありresource bindingを外す処理ではない。結果が陰性でもD3D内部保持を否定できず、陽性でもtiming変更等との分離は未完。根拠のないClearState／Flushの通常版追加は行わない。
+
+証拠（logs/autoplay_exit_repetition/renderer_flush_experiment配下）
+1117_実施前方針.txt／protocol.json
+setup_failure_build_report.json／build_report.json／compile.log／link.log
+Application.variant.cpp／baseline／canonical_before.json／canonical_after.json
+off_independent_audit.json／initial_pair_independent_audit.json／three_cohort_independent_audit.json／independent_audit.json
+cross_gameplay_audit.json（通常版20＋診断40の出力一致、binary差は別管理）
+comparison_2cohort.json（compare_flush_controls.pyで再実行可能）
+comparison_3cohort.json（3群完了時点）
+comparison_4cohort.json／comparison_4cohort_finalaudit.json（全4群）
+validation/campaigns/flush_off10/summary.json
+validation/trials/flush_off10/trial_0001_legacy_rehide_maximum_runs/maximum_runs/resource_samples_analysis.json
+validation/trials/flush_on10/trial_0001_legacy_rehide_maximum_runs/maximum_runs/resource_samples_analysis.json
+validation/trials/flush_on10_repeat/trial_0001_legacy_rehide_maximum_runs/maximum_runs/resource_samples_analysis.json
+validation/trials/flush_off10_repeat/trial_0001_legacy_rehide_maximum_runs/maximum_runs/resource_samples_analysis.json
+最終保全：logs/autoplay_exit_repetition/final_post_renderer_preservation_20261116T204535871770Z.json

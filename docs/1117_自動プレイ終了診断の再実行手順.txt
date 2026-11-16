@@ -1,0 +1,71 @@
+作成日：2026年11月17日
+自動プレイ終了診断の再実行手順
+
+目的と前提
+実際のC++自動プレイの進行と、終了要求・受信・終了完了を照合する。
+実行ファイルを指定して、assets/shader/saves/runtimeを新しい専用folderに用意する。
+元のゲームデータを書き換えず、別の起動中ゲームに対する入力・終了操作を行わない。
+Debugの明示的hidden modeを使う。これは画面表示の制御であり、keyboard/gamepad入力の完全隔離ではない。
+ゲームの狙い・物理・球/報酬選択はC++側が実行する。
+
+実行位置
+DX22_01_plane.sln、x64、docs、DX22_01_planeフォルダがあるrepository root。
+以下はPowerShellの1行command。venvが用意済みならそのPythonを使う。
+Debug exeに必要なDLLは、exeと同じ既存の出力先に置いたままにする。
+
+2戦の制御条件：両停止動作を1回ずつ（計2 process）
+& .\DX22_01_plane\tools\game_mcp\.venv\Scripts\python.exe .\DX22_01_plane\tools\verify_autoplay.py --exe .\x64\CleanBuildDebug\DX22_01_plane.exe --label check_001 --output-root .\logs\autoplay_validation --trials 2
+
+この条件ではMCPでeasy/fatalの次戦layoutだけを予約する。
+Title開始、ルート、球、発射、報酬、Result/Titleでの停止はC++自動プレイに任せる。
+terminal_stopはResultでautoplay/stop要求が解除されて停止、maximum_runsはTitleへ戻りautoplay停止を確認する。
+各試行のrun logに実game_over・両戦のshot・autoplayによる報酬選択があることも検査する。
+
+通常データ：プレイ命令0件の観測
+& .\DX22_01_plane\tools\game_mcp\.venv\Scripts\python.exe .\DX22_01_plane\tools\verify_autoplay.py --exe .\x64\CleanBuildDebug\DX22_01_plane.exe --label ordinary_001 --output-root .\logs\autoplay_validation --scenario ordinary --decision-frames 20 --publish-frames 6 --trials 2
+
+通常データ条件はenemy/player/layout/reward等をbyte同一でコピーする。
+コピー側のvalidationを無効にし、外部balance loopを停止、既定AI configを退避する。
+実行control・読み取りMCP・消音・windowed設定だけを用意し、MCPのプレイ命令は送らない。
+自然なgame_overまたは最終boss後のcompletedを待つため、保証される戦数やshop/rest/boss遭遇はない。
+既定timeoutは1 native runあたり1200秒。終端前の時間切れはfixture_timeoutで、途中終了と区別する。
+
+条件を変える場合
+--seeds 20261116 0 4294967295：uint32のseedを順に使う。
+--conditions hidden legacy_rehide：hidden専用経路と、通常表示経路を観測のたび対象窓だけ再hideする経路を交互に使う。
+--cases maximum_runs --native-runs 3 --trials 1：同じprocessで3 native runを実行する。
+制御2戦ではvalidationがseedを固定。通常データでは(seed + runの0始まり番号) mod 2^32となる。
+--publish-frames 6：状態公開のframe間隔。制御条件の既定判断間隔は150 frame、通常データは20以上を指定できる。
+--render-hz 30 / 60 / 144：既存Debug設定の要求Hz。実FPSは負荷やPresent待ちで変わるため、要求Hzを達成した意味ではない。
+未指定時はchild側のDX22_TEST_RENDER_HZを除去してDebugの通常既定を使う。親環境や他の環境変数は変更しない。
+--observe-resources：既定は無効。自分が起動して保持するPopen handleを借用し、PID・image・作成時刻を照合後だけ15秒間隔でmemory・CPU time・kernel handle数を読む。
+別PIDのopenやhandleの手動closeはしない。CPython Windowsのprivate handleが使えない場合は取得不可として記録し、ゲームの進行・終了とは別欄で扱う。
+--case-timeout 600：1 process試行の進行監視上限。最大10800秒。複数run全体を収める値を指定する。
+--stop-before-utc 2026-11-17T05:50:00+09:00：この調査で使った期限の例。次の試行のtimeout全体と20秒の余裕を残せない場合は開始しない。
+期限付き再実行では自分の予定日時へ変更する。実行中試行の停止時刻を保証するOS timerではない。
+labelは毎回新しくし、同じlabelの出力へ上書きしない。
+
+記録の読み方
+campaigns/<label>/summary.json：計画、exe/source hash、実行済み試行、停止理由。
+campaigns/<label>/source/：実際に使った検証sourceの控え。
+trials/<label>/trial_.../<case>/result.json：進行・終了診断の分類結果。
+同folderのmanifest.json：設定変更、元data hash、プレイ命令、milestone、run log、cleanup。
+request_events.jsonl：検証側の意図した要求を、送信前のflush/fsyncと送信後の結果で記録。
+pid/target_pidは対象ゲーム、controller_pid/controller_tidはこの記録を作ったPythonのprocess/threadであり、未知の送信者情報ではない。
+logs/application_lifecycle.jsonl：C++側の受信、内部要求箇所、shutdownの診断。
+states.jsonl.gz：sequenceが変わった実MCP状態。logs/balance/run_*.json：実C++走行ログ。
+任意のresources_sample/resources_unavailableはrequest_events.jsonlへ保存し、manifest/resultのresourcesに定数メモリで集計した結果を置く。
+query_duration_msはidentity/counterのquery wrapper時間で、fsyncや観測全体の負荷を含まない。起動直後の値や異なる場面の増減だけでleakとは判定しない。
+
+ordinary_successは、進行内容、既知cleanupのnonce両値・PID/TID・要求phase・時計対応、exit0、終了完了順序を満たす。
+成功条件確認後にだけ、自分が起動したprocessの所有窓/threadを再確認し、識別子付きWM_QUITで後片付けする。
+cleanup前にnative shutdownを観測した場合は重ねてquitを送らず、既に始まっていた終了を保持する。
+終了要求やログの不整合、強制終了、観測失敗は成功に含めない。いずれかの試行失敗またはclose記録でcampaignは止まる。
+manifestのelapsed_secondsはfixture準備後のゲーム実行・観測・cleanup時間で、build性能の値ではない。
+
+参照比較
+--reference-root .\logs\autoplay_responsibility_split\before は、過去の両case参照が存在するときだけ指定する。
+制御条件、1 native run、seed/decision同一、publish1、render未指定または60に限る。
+走行JSONは時刻とpointerだけを既存規則で正規化し、HP・選択・seed・配列順などの差を消さずに全体比較する。
+通常データ・異なるseed/Hz/公開間隔・複数native runは、この過去参照との一致対象に混ぜない。
+記録済みcleanupとの対応は、任意のWindowsメッセージ送信者PIDを認証・取得する機能ではない。

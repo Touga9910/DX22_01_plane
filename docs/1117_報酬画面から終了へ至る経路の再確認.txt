@@ -1,0 +1,41 @@
+作成日：2026年11月17日
+
+報酬画面から終了へ至る経路の再確認（読取り調査）
+
+結論
+報酬提示後2.347秒で正常終了した元試行について、報酬処理・Escape・フォーカス変化から直接WM_CLOSE/WM_QUITを発行する追加経路は見つからなかった。OSの閉じる操作や未知の外部メッセージは否定できないが、当時の送信元・確認dialogの記録がなく、原因とは断定しない。C++変更、ビルド、実ゲーム操作は行っていない。
+
+原失敗の状態との照合
+after/terminal_stopの最初の報酬stateはsequence=482、最後の観測は500で、どちらもscene=battle、game_state=clear_reward、autoplay_enabled=true、clear_reward_active=trueだった。run JSONの最後の報酬関連イベントはclear_reward_offeredで、clear_reward_choiceは存在しない。
+GamePresentation::IsBattleSceneは現在sceneへのBattleSceneのdynamic_castで判定する。既存の終了ボタンは!battleSceneの場合だけ描画・評価されるため、上記の報酬状態から終了ボタンを直接活性化する経路とは整合しない。この条件はv1_sourceにもある。
+
+入力ごとの到達条件
+・報酬画面のEnter/Spaceと確認ボタンは、報酬獲得または次ルートへの遷移だけを行う。自動プレイ中もこの手動確認は必ずしも遮断されないが、成功すればclear_reward_choiceが記録される。元ログのchoiceなしとは整合しない。報酬UIに終了項目はない。
+・Escapeによるpauseは!autoplayEnabled条件で無効になる。pause内の終了に見える操作もタイトルへ戻る処理で、process終了ではない。
+・タイトル・Select・Resultなど非BattleではImGuiのkeyboard/gamepad navigationが有効で、終了ボタンにnav focusがあるとEnter/Space/Pad Aで活性化し得る。終了ボタン自体にはauto中の無効化条件がない。ただし元試行の最後のBattle状態から直接このボタンを操作する条件には当たらない。
+・OS枠の閉じる操作やAlt-F4などのsystem closeは、sceneに関係なくSC_CLOSE/WM_CLOSEへ到達し得る。既存WM_CLOSEはMessageBoxW(NULL, ..., MB_OKCANCEL)を出し、IDOKのときだけDestroyWindow→WM_DESTROY→PostQuitMessageへ進む。既に確認が出ていればEnterで既定のOKを承認し得る。EscapeはCancelとなる。確認を開始する要求が先に必要であり、Enter単体がゲーム内でWM_CLOSEを生成するコードはない。
+・フォーカス喪失では、Applicationは条件付きの最小化とDefWindowProc、ImGui backendはfocus通知を行う。quit APIへ直接進む分岐はない。InputはGetKeyboardStateを使い、その状態は呼出threadのkeyboard message処理と関係するため、他アプリの全キーを無条件に読むGetAsyncKeyStateと同一視しない。XInputとImGui gamepad navigationには任意のquit発行分岐は見つからなかった。
+
+その他の終了経路の検索
+製品C++/headerに対するquit/exit/terminate API検索では、既知のMenu PostMessage、WM_CLOSEからのDestroyWindow、WM_DESTROYからのPostQuitMessage以外の発行箇所は見つからなかった。GameRuntime::ShutdownはApplicationのUninitから呼ばれ、MainLoopの通常breakはWM_QUIT受信である。InitApp失敗でもmainは0を返すが、既に報酬へ到達した今回を説明する経路ではない。
+ImGui backendの別のDestroyWindowも確認した。対象はHwndOwned=trueの副viewportで、main viewportはfalse。副viewportのWM_CLOSEはPlatformRequestCloseを立てる処理で、PostQuitMessageは呼ばない。
+未捕捉例外やCRT abortを正常exit0とGame::Uninitのapplication_exit記録の原因とする根拠はない。一方、メモリ破壊、バイナリ外の動作、未収集の外部要求、先にqueueされたメッセージまでは静的調査だけで除外できない。
+
+Applicationイベントログの取得可否
+rootが元終了付近のApplication Error / Windows Error Reporting / Application Hang、ID 1000/1001/1002をGet-WinEventで照会したが、UnauthorizedAccessExceptionでstatus=unavailableだった。昇格せず打ち切っている。matching_target_eventsが空でも「該当記録なし」とは解釈しない。
+
+主な根拠
+DX22_01_plane/GamePresentation.cpp: Draw / IsBattleScene
+DX22_01_plane/GameClearRewardFlow.cpp: UpdateClearReward
+DX22_01_plane/GameRewardPresentation.cpp: DrawClearReward
+DX22_01_plane/Game.cpp: Update / Draw / Uninit
+DX22_01_plane/GamePause.cpp: SaveAndReturnToTitle
+DX22_01_plane/Application.cpp: MainLoop / WndProc
+DX22_01_plane/imgui/imgui_impl_win32.cpp: viewport破棄・focus・gamepad処理
+logs/autoplay_responsibility_split/after/terminal_stop/last_observed_state.json
+logs/autoplay_exit_repetition/original_application_events.json
+
+Microsoft一次資料
+MessageBox（既定buttonとEscape）: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messageboxw
+WM_SYSCOMMAND（system closeとDefWindowProc）: https://learn.microsoft.com/en-us/windows/win32/menurc/wm-syscommand
+GetKeyboardState（threadごとのkeyboard messageとの関係）: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardstate

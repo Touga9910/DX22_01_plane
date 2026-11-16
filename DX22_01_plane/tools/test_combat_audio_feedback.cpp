@@ -69,6 +69,9 @@ int main()
 	{
 		const CombatSeCategory category =
 			static_cast<CombatSeCategory>(index);
+		assert(CombatAudioRules::Get(category).maximumVoices > 0);
+		assert(CombatAudioRules::Get(category).maximumVoices <=
+			CombatAudioRules::MaximumVoices);
 		voiceTotal += CombatAudioRules::Get(category).maximumVoices;
 		for (const auto strength : {
 			CollisionPresentationRules::Strength::Weak,
@@ -86,7 +89,9 @@ int main()
 			assert(pitch <= CombatAudioRules::MaximumPitch);
 		}
 	}
-	assert(voiceTotal == CombatAudioRules::MaximumVoices);
+	// Category budgets share a global pool. Adding a category does not raise
+	// the global simultaneous-voice limit.
+	assert(voiceTotal >= CombatAudioRules::MaximumVoices);
 	assert(CombatAudioRules::SanitizeSpeed(
 		std::numeric_limits<float>::quiet_NaN()) == 0.0f);
 	assert(CombatAudioRules::SanitizeSpeed(-5.0f) == 0.0f);
@@ -176,7 +181,8 @@ int main()
 	std::filesystem::create_directories(combatAssets);
 	for (const char* filename : {
 		"direct_impact.wav", "enemy_impact.wav", "enemy_defeat.wav",
-		"chain_milestone.wav", "wall_impact.wav" })
+		"chain_milestone.wav", "wall_impact.wav",
+		"player_hurt.wav", "shield_block.wav" })
 	{
 		WriteTestWav(combatAssets / filename);
 	}
@@ -202,8 +208,8 @@ int main()
 		const AudioFeedbackDiagnostics& wavDiagnostics =
 			wavBackend.Diagnostics();
 		assert(wavDiagnostics.requests == 5);
-		assert(wavDiagnostics.loadedAssetFiles == 5);
-		assert(wavDiagnostics.missingAssetFiles == 6);
+		assert(wavDiagnostics.loadedAssetFiles == 7);
+		assert(wavDiagnostics.missingAssetFiles == 4);
 		assert(wavDiagnostics.chainStageRequests[0] == 1);
 		if (deviceReady)
 		{

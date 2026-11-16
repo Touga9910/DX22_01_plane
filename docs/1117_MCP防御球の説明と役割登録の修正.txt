@@ -1,0 +1,41 @@
+作成日：2026年11月17日
+MCP防御球の説明・役割補完：変更前方針
+
+1. プレイヤーに見える変化
+実データに存在する防御球 player_guard の狙い方と役割をMCPの候補・デッキ・カタログへ表示する。ゲームの数値や挙動は変更しない。
+
+2. 強める柱
+選択と狙いを支える。直接攻撃力とこのターンの被害抑制を比較し、+2では敵同士を当てる角度を選ぶための実装済み情報を補う。
+
+3. 取得前後・強化前後で変わる狙い
++0/+1/+2でショット開始時シールド3/4/5、追突力0/1/1、直接攻撃力1固定。開始時シールドは命中不要。+2だけは生存敵同士の有効衝突ごとに追加シールド1を得る。通常命中・壁反射と追加発動条件を混同しない。
+
+4. 数値だけ・自動勝利・外見だけになる危険と変更範囲
+シールド量を超える被害やターン終了時の消滅があるため、生存を保証する説明にしない。Guardは共有軸資源を生成・消費する球とは分類せず、従来unknown fallbackと同じSupport/空supportsを明示する。BALL_METADATAや推薦重みは変えず、C++・データ・exe・autoplay_validation・bridge_storeは保全する。
+
+5. 成功条件と確認方法
+既存test_ball_aim_guidanceとtest_build_decisionを対象として実行し、実データの全18球の説明・役割が揃うことを確認する。変更前後のASTからplayer_guardの1項目だけを除けば既存辞書と処理全体が一致し、BALL_METADATAが不変であることを確認する。guardの説明は開始時付与、+2生存敵同士衝突、盾消費・ターン終了、強化値をC++/JSONと照合し、凍結対象のhashを再照合する。
+
+根拠
+assets/data/player_status.json:16–21：攻撃力、追突力、各シールド量。
+GameShotStart.cpp:89,104–107：既存盾をリセットし、選択球のshotShieldを付与。
+BallCollisionComponent.cpp:255,326–332：物理衝突が成立しBallsMoving中、生存敵同士の場合に通知。
+GameReflectionSynergy.cpp:160–163：両敵の戦闘参加条件を確認してenemyCollisionShieldを付与。
+GameDamageAndDefeat.cpp:43–75、PlayerBall.cpp:299–308：盾によるダメージ吸収。
+GamePlayerBallLifecycle.cpp:116–122：次球準備時の残盾消滅。
+PlayerBallText.h:67：既存のゲーム内防御球説明。
+制作基準資料：各実装の意図/構想的要素/0909_製作における行動指針とジャンル選択理由.txt（実在する移動後パス）。
+
+修正後の結果
+
+実データの18球に対して、MCPの説明と役割が17球分だったため、欠けていたplayer_guardだけを補完した。
+
+ball_aim_guidance.pyには、命中不要のショット開始時シールド、+2での生存敵同士の有効衝突による追加、ターン終了時の消滅、攻撃力と追突力の各強化値を記載した。低い直接攻撃力と被害軽減を比較し、+2では敵同士を当てる狙いを選ぶ説明にした。盾が生存を保証する、壁反射や自球の命中で追加盾が発動する、残量を次ターンへ保存できる、といった説明は加えていない。
+
+build_decision.pyにはSupport/空supportsの役割を明記した。これは変更前のunknown fallbackと同じ値であり、BALL_METADATA、推薦点数、共有軸資源の生成・消費には変更を加えていない。
+
+既存test_ball_aim_guidanceは3件、test_build_decisionは17件、計20件が成功した。変更前後のASTを比較し、2辞書から追加したplayer_guard各1項目を除けば、既存項目・処理全体が一致した。全18球のID集合が両辞書と一致し、役割が旧fallbackと同一、BALL_METADATA不変、BOMと改行方式の保持を確認した。
+
+変更前に保存した422ファイルのhashを照合し、C++・header・project・PCH source・実データ・autoplay_validation・bridge_store・exeはすべて不変だった。依存追加、full MCP suite再試行、nativeゲーム起動、ビルドは行っていない。
+
+根拠のsource/行/hash、強化段階の値、対象テストログ、差分限定と保全結果はlogs/autoplay_exit_repetition/guard_metadata_fix/validation.jsonに保存した。実装前の方針と実装後の結果の原本も同フォルダに残している。制作基準資料はAGENTS記載名を検索し、実在する構想的要素サブフォルダの資料を参照した。

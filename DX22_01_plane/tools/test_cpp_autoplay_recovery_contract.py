@@ -43,7 +43,7 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
         self.assertIn("velocity = acceleration = Vector3::Zero", source("BallPhysicsRules.h"))
 
     def test_autoplay_scores_kills_and_pocket_risk(self) -> None:
-        autoplay = source("GameAutoPlay.cpp")
+        autoplay = source("BalanceAutoPlayerShots.cpp")
 
         for contract in (
             "isKillable ? 180.0f",
@@ -55,17 +55,21 @@ class CppAutoPlayRecoveryContractTests(unittest.TestCase):
             self.assertIn(contract, autoplay)
 
     def test_autoplay_uses_relics_unique_balls_and_upgrades(self) -> None:
-        autoplay = source("GameAutoPlay.cpp")
-
+        choices = source("BalanceAutoPlayerBuildChoices.cpp")
         for contract in (
             "BalanceAutoPlayer::FindRelicToBuy",
-            '"save_for_relic"',
             "BalanceAutoPlayer::FindMissingCatalogBall",
-            '"fill_missing_ball_type"',
             "BalanceAutoPlayer::FindUpgradeTarget",
+        ):
+            self.assertIn(contract, choices)
+
+        rewards = source("BalanceAutoPlayerRewards.cpp")
+        for contract in (
+            '"save_for_relic"',
+            '"fill_missing_ball_type"',
             '"concentrate_primary_ball"',
         ):
-            self.assertIn(contract, autoplay)
+            self.assertIn(contract, rewards)
 
 
 if __name__ == "__main__":

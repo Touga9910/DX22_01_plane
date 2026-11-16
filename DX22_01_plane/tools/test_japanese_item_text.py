@@ -55,13 +55,13 @@ class JapaneseItemTextTests(unittest.TestCase):
         self.assertEqual(text.count("RelicUtf8(u8"), 11 * 2)
 
     def test_ball_text_is_used_by_each_player_facing_item_screen(self) -> None:
-        for file_name in ("Game.cpp", "ShopScene.cpp", "RestSiteScene.cpp"):
+        for file_name in ("GameRewardPresentation.cpp", "ShopScene.cpp", "RestSiteScene.cpp"):
             text = (ROOT / file_name).read_text(encoding="utf-8")
             self.assertIn('include "PlayerBallText.h"', text)
             self.assertIn("PlayerBallText::GetDescription", text)
 
     def test_ball_card_dynamic_status_uses_explicit_utf8_format_strings(self) -> None:
-        presentation = (ROOT / "Game.cpp").read_text(
+        presentation = (ROOT / "BallCardPresentation.cpp").read_text(
             encoding="utf-8-sig"
         )
         self.assertIn('PlayerBallText::Utf8(u8"攻撃 %d  /  追突 %d")', presentation)
@@ -82,14 +82,14 @@ class JapaneseItemTextTests(unittest.TestCase):
             "StageSelectScene.cpp",
             "ShopScene.cpp",
             "RestSiteScene.cpp",
-            "Game.cpp",
+            "GameRewardPresentation.cpp",
             "GameSaveSystem.cpp",
         ):
             text = (ROOT / file_name).read_text(encoding="utf-8-sig")
             self.assertIn('include "UiText.h"', text)
 
     def test_combat_feedback_uses_japanese_labels(self) -> None:
-        presentation = (ROOT / "GamePresentation.cpp").read_text(encoding="utf-8")
+        presentation = (ROOT / "GamePresentationCombatEvents.cpp").read_text(encoding="utf-8")
 
         for old_label in (
             '"BREAK!"',

@@ -117,23 +117,31 @@ int main()
         assert(rejected);
     }
 
-    const auto& standard = loaded.ballDefinitions[0];
-    const auto& heavy = loaded.ballDefinitions[1];
-    const auto& pierce = loaded.ballDefinitions[2];
-    const auto& bounce = loaded.ballDefinitions[3];
-    const auto& anchor = loaded.ballDefinitions[4];
-	const auto& cushion = loaded.ballDefinitions[5];
-	const auto& chainImpact = loaded.ballDefinitions[6];
-	const auto& refractivePierce = loaded.ballDefinitions[7];
-	const auto& stopShield = loaded.ballDefinitions[8];
-	const auto& pierceFinisher = loaded.ballDefinitions[9];
-	const auto& ricochetFinisher = loaded.ballDefinitions[10];
-	const auto& anchorFinisher = loaded.ballDefinitions[11];
-	const auto& collisionBoost = loaded.ballDefinitions[12];
-	const auto& lightweight = loaded.ballDefinitions[13];
-	const auto& minionFinisher = loaded.ballDefinitions[14];
-	const auto& reflectionSetup = loaded.ballDefinitions[15];
-	const auto& originAnchor = loaded.ballDefinitions[16];
+    const auto ballById = [&loaded](const char* id) -> const PlayerBallData&
+    {
+        const auto found = std::find_if(
+            loaded.ballDefinitions.begin(), loaded.ballDefinitions.end(),
+            [id](const PlayerBallData& ball) { return ball.definitionId == id; });
+        assert(found != loaded.ballDefinitions.end());
+        return *found;
+    };
+    const auto& standard = ballById("player_standard");
+    const auto& heavy = ballById("player_heavy");
+    const auto& pierce = ballById("player_pierce");
+    const auto& bounce = ballById("player_bounce");
+    const auto& anchor = ballById("player_anchor");
+	const auto& cushion = ballById("player_cushion_charge");
+	const auto& chainImpact = ballById("player_chain_impact");
+	const auto& refractivePierce = ballById("player_refractive_pierce");
+	const auto& stopShield = ballById("player_stop_shield");
+	const auto& pierceFinisher = ballById("player_pierce_finisher");
+	const auto& ricochetFinisher = ballById("player_ricochet_finisher");
+	const auto& anchorFinisher = ballById("player_anchor_finisher");
+	const auto& collisionBoost = ballById("player_collision_boost");
+	const auto& lightweight = ballById("player_lightweight");
+	const auto& minionFinisher = ballById("player_minion_finisher");
+	const auto& reflectionSetup = ballById("player_reflection_setup");
+	const auto& originAnchor = ballById("player_origin_anchor");
 	assert(standard.category == BallCategory::Standard);
 	assert(heavy.category == BallCategory::Heavy);
 	assert(pierce.category == BallCategory::Pierce);

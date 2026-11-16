@@ -59,12 +59,12 @@ class SaveSystemContractTests(unittest.TestCase):
         save_system = source("GameSaveSystem.cpp")
 
         self.assertIn("Input::GetKeyTrigger(VK_F6)", game)
-        self.assertIn("SaveRunCheckpoint(sceneType, false, false)", game)
+        self.assertIn("SaveRunCheckpoint(sceneType, false, false)", source("GameSceneTransition.cpp"))
         self.assertIn("UiText::BattleAutosaveNotice", save_system)
 
     def test_title_exposes_continue_and_terminal_results_remove_save(self) -> None:
         title = source("TitleScene.cpp")
-        game = source("Game.cpp")
+        game = source("GameRunCompletion.cpp")
 
         self.assertIn("UiText::ContinueRun", title)
         self.assertIn("LoadSavedRun()", title)

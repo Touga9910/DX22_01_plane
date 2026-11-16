@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "json/json.hpp"
+#include "json/json_fwd.hpp"
 
 class Game;
 

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -151,6 +151,18 @@
       <AdditionalDependencies>winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+  <PropertyGroup Label="SharedLibraryHeaders">
+    <Dx22UseSharedPch Condition="'$(Dx22UseSharedPch)'=='' and '$(Platform)'=='x64'">true</Dx22UseSharedPch>
+    <Dx22UseSharedPch Condition="'$(Dx22UseSharedPch)'==''">false</Dx22UseSharedPch>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Dx22UseSharedPch)'=='true' and '$(Platform)'=='x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>BuildPch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)BuildPch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles>BuildPch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
@@ -215,6 +227,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="ApplicationLifecycle.cpp" />
     <ClCompile Include="AssimpPerse.cpp" />
     <ClCompile Include="BallComponent.cpp" />
     <ClCompile Include="BallCollisionComponent.cpp" />
@@ -332,6 +345,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="ApplicationLifecycle.h" />
     <ClInclude Include="AssimpPerse.h" />
     <ClInclude Include="BallComponent.h" />
     <ClInclude Include="BallCollisionComponent.h" />
@@ -518,6 +532,103 @@
     <None Include="tools\game_mcp\start_game_mcp.cmd" />
     <None Include="tools\game_mcp\start_secure_tunnel.cmd" />
     <None Include="tools\game_mcp\test_bridge_store.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BallCardPresentation.cpp" />
+    <ClInclude Include="BallCardPresentation.h" />
+    <ClCompile Include="CombatOverlayDrawing.cpp" />
+    <ClInclude Include="CombatOverlayDrawing.h" />
+    <ClCompile Include="GameBallSelection.cpp" />
+    <ClCompile Include="GameBattleTransition.cpp" />
+    <ClCompile Include="GameClearRewardFlow.cpp" />
+    <ClCompile Include="GameDebugDiagnostics.cpp" />
+    <ClCompile Include="GameDebugForecast.cpp" />
+    <ClCompile Include="GameDiagnosticsAccess.cpp" />
+    <ClCompile Include="GameFixedPhysics.cpp" />
+    <ClCompile Include="GameHandPresentation.cpp" />
+    <ClCompile Include="GamePause.cpp" />
+    <ClCompile Include="GamePausePresentation.cpp" />
+    <ClCompile Include="GamePocketLifecycle.cpp" />
+    <ClCompile Include="GamePresentationAxisEvents.cpp" />
+    <ClCompile Include="GamePresentationCombatEvents.cpp" />
+    <ClCompile Include="GamePresentationDashboard.cpp" />
+    <ClCompile Include="GamePresentationEnemyOverlay.cpp" />
+    <ClCompile Include="GamePresentationFeedback.cpp" />
+    <ClCompile Include="GamePresentationHud.cpp" />
+    <ClCompile Include="GamePresentationPrimitives.cpp" />
+    <ClInclude Include="GamePresentationPrimitives.h" />
+    <ClCompile Include="GamePresentationReactions.cpp" />
+    <ClCompile Include="GamePresentationTutorial.cpp" />
+    <ClCompile Include="GameRewardPresentation.cpp" />
+    <ClCompile Include="GameRouteFlow.cpp" />
+    <ClCompile Include="GameRunCompletion.cpp" />
+    <ClCompile Include="GameRuntime.cpp" />
+    <ClCompile Include="GameSceneTransition.cpp" />
+    <ClCompile Include="GameSessionAccess.cpp" />
+    <ClCompile Include="GameSettingsAccess.cpp" />
+    <ClCompile Include="GameUiBridge.cpp" />
+    <ClCompile Include="GameWorldAccess.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="EnemyInfoLayout.cpp" />
+    <ClInclude Include="EnemyInfoLayout.h" />
+    <ClCompile Include="GamePresentationPlayerOverlay.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BuildPch.h" />
+    <ClCompile Include="BuildPch.cpp" Condition="'$(Dx22UseSharedPch)'=='true' and '$(Platform)'=='x64'">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <ForcedIncludeFiles />
+    </ClCompile>
+  </ItemGroup>
+  <!-- Preserve vendor macros and the two sources' individual optimization/debug settings. -->
+  <ItemGroup Condition="'$(Dx22UseSharedPch)'=='true' and '$(Platform)'=='x64'">
+    <ClCompile Update="imgui\*.cpp;stb_image.cpp;BallShotPrediction.cpp;GameBossAI.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles />
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GameMcpAvailableActions.cpp" />
+    <ClCompile Include="GameMcpBattleCommands.cpp" />
+    <ClCompile Include="GameMcpCombatState.cpp" />
+    <ClCompile Include="GameMcpCommandDispatch.cpp" />
+    <ClInclude Include="GameMcpCommandHandlers.h" />
+    <ClCompile Include="GameMcpCommands.cpp" />
+    <ClCompile Include="GameMcpDiagnosticsState.cpp" />
+    <ClCompile Include="GameMcpEconomyCommands.cpp" />
+    <ClCompile Include="GameMcpInventoryState.cpp" />
+    <ClCompile Include="GameMcpJson.cpp" />
+    <ClInclude Include="GameMcpJson.h" />
+    <ClCompile Include="GameMcpReadView.cpp" />
+    <ClCompile Include="GameMcpRunCommands.cpp" />
+    <ClCompile Include="GameMcpRunState.cpp" />
+    <ClCompile Include="GameMcpStageCommands.cpp" />
+    <ClCompile Include="GameMcpStateSerialization.cpp" />
+    <ClInclude Include="GameMcpStateSerialization.h" />
+    <ClCompile Include="GameMcpWorldState.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BalanceLoggerConfiguration.cpp" />
+    <ClCompile Include="BalanceLoggerEvents.cpp" />
+    <ClCompile Include="BalanceLoggerShot.cpp" />
+    <ClCompile Include="BalanceLoggerShotEvents.cpp" />
+    <ClCompile Include="BalanceLoggerShotResults.cpp" />
+    <ClInclude Include="BalanceLoggerShotSummary.h" />
+    <ClCompile Include="BalanceLoggerStage.cpp" />
+    <ClCompile Include="BalanceLoggerStorage.cpp" />
+    <ClCompile Include="BalanceLoggerTelemetryJson.cpp" />
+    <ClInclude Include="BalanceLoggerTelemetryJson.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="BalanceAutoPlayer.cpp" />
+    <ClCompile Include="BalanceAutoPlayerBuildChoices.cpp" />
+    <ClCompile Include="BalanceAutoPlayerPending.cpp" />
+    <ClCompile Include="BalanceAutoPlayerRewards.cpp" />
+    <ClCompile Include="BalanceAutoPlayerScenes.cpp" />
+    <ClCompile Include="BalanceAutoPlayerShots.cpp" />
+    <ClCompile Include="GameBattleStart.cpp" />
+    <ClInclude Include="BalanceAutoPlayerPolicy.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

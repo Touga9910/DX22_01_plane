@@ -39,6 +39,7 @@ private:
     static uint32_t    m_WindowedWidth;
     static uint32_t    m_WindowedHeight;
     static bool        m_IsFullscreen;
+    static bool        m_TestHiddenWindow;
 
     static bool InitApp(); //初期化
     static void UninitApp(); //終了処理

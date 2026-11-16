@@ -196,7 +196,7 @@ $result = [ordered]@{
     msbuild_parallel = '/m (maximum nodes auto)'
     compiler_parallel = '/MP via MultiProcessorCompilation=true'
     logical_processors = [Environment]::ProcessorCount
-    precompiled_header = 'Not configured'
+    precompiled_header = 'Shared library PCH on x64: BuildPch.h (Dx22UseSharedPch opt-out)'
     solution = 'DX22_01_plane.sln'
     project = 'DX22_01_plane/DX22_01_plane.vcxproj'
     headers = $Headers

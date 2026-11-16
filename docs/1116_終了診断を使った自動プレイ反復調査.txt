@@ -1,0 +1,185 @@
+作成日：2026年11月16日
+最終更新日：2026年11月17日
+終了診断を使った自動プレイ反復調査
+
+この整理は11月17日05時52分の最終結果。通常版の基準実行と、描画Flush対照の実験版を別分母で報告する。
+1 process試行は起動から終了まで、1 native runはC++自動プレイの一周を示す。ゲームオーバーも完了runへ含む。
+過去の経過はlogs/autoplay_exit_repetition/1116_終了診断反復調査の時系列記録.txt、1117_終了診断反復調査の01時20分整理.txtに保存した。
+
+1. 結論
+
+進行中の終了要求を注入しない61 process試行、182 native runを完了し、予期しない途中終了は0件だった。
+全61試行で、検証側cleanupのnonce両値・PID/TID・fixture_finally phase・同一uptime時計と、C++側のWM_QUIT受信が対応した。
+exit0、WM_QUIT→shutdown_begin→shutdown_completed→application_completedも全件で確認した。
+元の一度の終了要求元は未特定のままで、再発しないことや発生確率は推定していない。
+
+記録された実行・観測・cleanup時間は合計20,463.407秒。fixture準備とbuild時間は含まない。
+native結果はgame_over181、completed1、部分run0。報酬画面は205到達・205選択、観測時間は2,282.413秒。
+分割前の参照と比較可能な33試行は、時刻・pointerだけの既存正規化後に走行JSON全体が一致した。
+seed・公開間隔・通常データ・native run数等の条件が異なる28試行は、その参照比較から除外した。
+
+2. 元の終了から分かった範囲
+
+元の1件は11月16日21時07分55秒、起動50.875秒でexit0。
+Battle/clear_reward、autoplay=true、HP50/50、1戦clear、run result=application_exitだった。
+報酬提示後2.347秒で終了し、choiceイベントはない。元fixture自身のcleanupはalready_exitedだった。
+コード上の通常経路はWM_QUIT取得→GameRuntime::Shutdown→Game::Uninitだが、当時の受信・送信ログはない。
+WM_CLOSE承認→DestroyWindow→PostQuitMessageか、直接WM_QUITか、最初の要求元は区別できない。
+
+報酬処理のEnter/Spaceは獲得または次ルートへ進むだけで、終了APIを呼ばない。
+そのBattle状態では!BattleSceneの共通終了ボタンも描画・評価されない。
+OSのX/Alt+F4→終了確認OKは到達し得るが、当時それが行われた証拠はない。
+保存された親・補助agentの111 commandにゲーム終了送信は見つからず、未記録の要求まで否定していない。
+Windows ApplicationイベントログはUnauthorizedAccessで取得不可。記録なしと解釈していない。
+
+先の調査で再現・修正したのは、初回hide後に画面設定のSWP_SHOWWINDOWで再表示する競合だった。
+Debugの明示的hidden modeで表示復活を防いだが、これが元の終了原因だったとは確認していない。
+hidden modeはkeyboard/gamepad入力の完全隔離ではない。legacy_rehideも元の初回hideだけの条件と完全同一ではない。
+
+3. 反復条件と実際に通った経路
+
+v1での29 process/31 run：nonce smoke、24回のhidden/legacy×両停止条件、新CLI smoke、通常データ1run、同一process3run。
+v2参照・seed群18 process/18 run：両停止条件2回と、8seed×両停止条件16回。
+元と同じmain exe名の同一process50run、観測付き参照2回、通常データ同一process3run、観測付き50run。
+さらに通常viewport＋継続hide・pub6の同一process20run、要求30/144Hz・pub6の8 processを完了した。
+全14 cohortは逐次実行し、試行ごとに新しいassets/shader/saves/runtimeを用意した。
+
+制御2戦はeasy→fatal。MCPでは次戦layoutだけを予約し、Title・route・ball・shot・reward判断はC++自動プレイが実行する。
+基準seed20261116・decision150・publish1。seed群は20261116/20261117/0/1/42/20260727/20260807/4294967295。
+terminal_stopはResultでautoplay/stop要求解除、maximum_runsはTitleへ戻りautoplay停止を検証し、1秒の安定確認後だけcleanupする。
+通常データは敵・player・layout・reward等のJSON14件を同一byteでコピーし、validationを無効、MCPwrite=false、プレイ命令0件。
+コピー側だけ外部balance loopを無効、既定AI configを退避し、外部AI・自動調整を実行しない。
+
+通常データの追加3runはseed4294967294→4294967295→0を実際に確認し、ゲームオーバー・クリア・ゲームオーバーとなった。
+戦数8/9/7、shot数51/52/45、報酬選択7/8/6。開始HP/MaxHP/Money50・deck13/upgrade0へ毎回resetされた。
+クリアrunはnormal7+midboss1+boss1、final_boss_reached/defeated=true、phase=completed、boss_001を記録した。
+初回通常データ1runも7戦・50shot・休憩2・shop1を通っている。勝率や面白さの判定には使っていない。
+
+観測なし50runは5,854.516秒、観測付き50runは5,795.204秒。両者のcopied config・全run JSON・初期deckは一致した。
+通常表示経路20run/pub6は1,237.688秒、通常3run/pub6は694.032秒。
+これらは実行確認の所要時間であり、host負荷等を制御した性能比較やbuild時間ではない。
+要求30/144Hzの実測完了shot窓は各8窓/344frame。観測FPS範囲は21.799～23.013/21.450～24.339だった。
+CPU計測・VSync込み、GPU未計測、shot窓のみであり、要求Hz達成や全実行平均・性能差とは解釈しない。
+
+4. 反映した変更と責務の判断
+
+C++はApplication.cppとGamePresentation.cppの既存終了箇所へ5イベントを追加した。
+menu PostMessage前後、確認OK後のDestroyWindow前後、WM_DESTROYのPostQuitMessage直前を区別する。
+UI/Applicationは事実の通知、format/file I/Oは既存ApplicationLifecycleとし、自動プレイ判断へ終了制御を混ぜない。
+既存のボタン条件、message引数、確認dialog、ImGui処理順、break、乱数、球・報酬、物理は変更していない。
+直接quitとWM_CLOSE Cancel→OKの明示注入2試験で件数・順序を確認した。この2件は再発試験の分母から除外。
+menuボタンそのもののlive clickは未実施、静的確認までである。
+
+Pythonは環境fixtures、進行scenarios/ordinary、所有processと要求process_session、純粋照合lifecycle、
+限定的比較normalization、resource queryのprocess_resources、調停capture/campaignへ分けた。
+条件設定・操作・判定・比較・queryを分け、実ゲームなしでも所有境界・誤判定条件を検証できるようにした。
+CLIはDX22_01_plane/tools/verify_autoplay.pyで、logs内の過去scriptのimportを必要としない。
+nonce両値・PID/TID・phase・時計対応、exit0と完了marker順序を必須とし、件数だけで終了元を判定しない。
+request traceのpid/target_pidはゲーム、controller_pid/controller_tidは記録側Pythonを示す。
+これは未知のWindows送信者PIDを取得・認証した意味ではない。foreground_pidも送信者ではない。
+render未指定時は子側だけoverrideを除去して通常既定に固定し、親環境を変更しない。
+campaignはexe/source hashを固定し控えを保存。失敗またはclose記録で継続を止め、再試行で失敗を消さない。
+
+5. 追加して分かったハンドル増加（生成元は未特定）
+
+別processからのOpenProcess(0x1000)はerror5で取得不可だった。
+そこで既に自分が作ったPopenのhandleを借用し、PID/image/作成時刻一致後だけ15秒間隔でqueryする任意機能を追加した。
+Open/Duplicate/Closeや入力を持たず、取得不能と記録失敗を分ける。弱参照callbackと固定集計で計測側の蓄積も避けた。
+実13 processで計569sampleのPID/creation/targetとCPU累計の整合を確認した。
+query_duration_msはidentity/counter wrapperの時間で、fsyncや観測全体の負荷ではない。
+
+制御50runのSelect公開→Battle公開という近似区間で、run2以後47sample/49runを比較した（欠測9/39）。
+カーネルhandle数はrun2の364→run50の648、中央値510。run40→50でも58増え、後半のplateauは観測しなかった。
+同区間PrivateCommitは187424768～205340672 bytes、WorkingSetは187867136～220246016 bytesで上下した。
+境界近くの一時山を含み、query瞬間のsceneを厳密に証明する値ではない。端からの距離も保存している。
+
+共通run2→17では、旧pub1は+86 handles/1727.391秒、新legacy/pub6は+85/916.219秒だった。
+run当たり約5.7個で近いが、表示等の条件が混ざるため因果は未確定。
+Title120秒放置は0run/0command/全1423stateがTitle。初期化前を除く8sampleは358→361、sample間105.078秒で+3だった。
+この短い1回の対照から時間依存・run依存・leakを断定していない。
+
+scene/world/componentの破棄、ComPtr/unique_ptr、Assimp局所Importer、file/stream closeを確認したが、増加に一致する欠落siteは未特定。
+消音時のAudioFeedbackは一度のgraph/固定voice pool初期化、450要求すべてmuted・played0・最大active0で、run別voice生成を支持しない。
+独立random_device対照はwarmup後1000回でhandles不変。ゲームとCRT等が完全同一ではなく、これだけで全面除外しない。
+RendererはPresent戻り値未記録・scene時ClearState/Flushなしだが、GPU内部保持を未観測のため、Flush未呼出を欠陥としない。
+元の終了は最大1runの試行中で、今回の連続runでの増加と結び付けるデータは得られていない。
+元の一度のexitの原因やleakの特定とは区別し、根拠なくproductionへ解放処理を追加していない。別exeの対照結果は8節へ記載する。
+
+6. 責務分割・PCHとテスト
+
+開始時に記録したC++/header388件のうちApp/Menuの許可した2.cppだけが変更、他386件はbyte同一。
+project/filter/BuildPchと、x64 Debug/ReleaseのPCH hash・size・mtimeは開始時・v2記録と同一。
+全native試行完了後の独立保全38項目がPASS。canonical591入力・184obj、出力の追加/欠落0、通常版exe/v1 archiveを維持しgit diff --checkも成功した。
+差分buildはx64 Debug6.126秒/Release14.509秒、各2.cpp、warning/error0、既存PCH利用・再生成0。
+x64のPCH生成1・利用173・除外10構成を維持。Win32へ同じ設定を適用した意味ではない。
+これはclean buildの新しい前後計測ではなく、clean build性能が更に向上したとする値には使わない。
+
+関連tools標準discoveryは331件PASS。nonce/phase/PID/TID/時計不一致、外部quit競合、壊れたログ、
+shutdown途中crash、所有者変化、投稿拒否、timeout、記録失敗、コピー元不変、意味を消さない正規化、CLI期限/環境境界を検証した。
+resourceの21境界テストはこの331件に含む。独立集計analyzer33件、resource区間analyzer18件もPASS。
+private desktopはCreateDesktopW error5/game0で未検証。Windowsイベントlog照会も権限不足で未取得。
+
+7. 付随する修正と実行環境
+
+MCPのplayer_guard説明と役割登録漏れを各辞書1項目、計10行で補完した。
+実C++/dataの発動条件・強化値・盾消滅に合わせ、Support/空supportsは旧fallbackと同値で推薦重みは不変。対象20 tests PASS。
+MCP full suiteは全成功と扱っていない。この実行環境ではstdlib socketpairがaccept待機し、MCPなしでも自己watchdog12秒で再現した。
+FastMCP/local server import自体は約1.3秒で正常。具体的token/network/ACL等の原因は未特定で、production loopや権限例外は変更していない。
+
+8. 描画Flushの独立対照（通常版61/182とは別）
+
+通常版のsource/obj/PCH/exeを保全し、独立IntDir/OutDirにDebug実験exeを作成した。
+Application.cpp 1本のみ1.266秒、既存コピーPCHの/Yu利用・/Yc生成0、184objのlinkは2.844秒。warning/error0。
+一時編集したApplication.cppはCL直後に原byte/BOM/mtimeへ復元。project/header/通常版のbuild出力は変更していない。
+実験exe SHA-256は2b59cc6c6e78f9e08174e7e89958bb7e848eb9416641907f647474f9e31fa0ce。
+_DEBUGのlocal flag DX22_TEST_FLUSH_AFTER_FRAMEを厳密に1にしたときだけ、DrawEnd後にFlushする。
+起動時test_frame_flush_modeを対象PIDとresult0/1で確認し、同じexeでOFF→ON→ON→OFFの順に各10runを実行した。
+全群controlled/maximum_runs、legacy_rehide、seed20261116、decision150、publish6、resource観測on。
+
+群                       秒        native完了   resource sample
+flush_off10                630.922       10             42
+flush_on10                 633.188       10             43
+flush_on10_repeat          635.719       10             43
+flush_off10_repeat         622.437       10             42
+
+4 process/40 native run、合計2,522.266秒、170sample。部分run・予期しないclose/quit・cleanup異常0。
+全4群のseed/reset/Title停止/nonce終了・source13/同exe固定を独立確認し、監査controllerも自然終了した。
+通常版legacy20を含む全60raw走行JSONを、既存のclock/address正規化のみで再読比較し、全体差0。
+通常版20runと実験版10runの入力差はbalance_autoplay.jsonのmax_runs20→10だけであり、差は保存した。
+この補助比較は過去参照の適格33件へ加算していない。
+
+対照1の共通観測runは[2, 3, 9, 10]。端点run2→10の8stepで、
+flush_off10は369→415（+46）、flush_on10は370→412（+42）。
+対照2の共通観測runは[2, 3, 4]。端点run2→4の2stepで、
+flush_on10_repeatは369→379（+10）、flush_off10_repeatは370→379（+9）。
+
+どちらのmodeでも増加を観測した。特に逆順対照の共通端点は2stepと短く、補間や有意差判定はしていない。
+短期・順序・process/host差、公開境界の近似と欠測を残す。Flushで増加が解消したとは確認できなかった。
+FlushはGPU完了待ちやbinding解除の計測ではなく、陰性でもD3D内部保持を全面否定できない。
+ONのpresent時間にはFlush呼出しCPU時間も入るため、GPU時間や厳密な性能比較として扱わない。
+元の終了要求元の特定や、通常版へFlushを追加する根拠は得られず、実験source/exeはlogs側だけに保持した。
+詳細：docs/1117_描画Flush対照と通常版の保全.txt
+
+9. 証拠と再実行
+
+再実行：docs/1117_自動プレイ終了診断の再実行手順.txt
+元終了：docs/1116_自動プレイ途中終了の原因調査と検証結果.txt
+要求元の観測範囲：docs/1116_終了要求元の観測範囲とデスクトップ検証.txt
+入力経路：docs/1117_報酬画面から終了へ至る経路の再確認.txt
+保持データ/今回の数値：docs/1117_自動プレイ連続実行時の保持データ調査.txt、1117_連続自動プレイのリソース観測と静的寿命確認.txt
+MCP補完/実行環境：docs/1117_MCP防御球の説明と役割登録の修正.txt、1117_MCPテスト実行環境の自己接続待機調査.txt
+
+主証拠はlogs/autoplay_exit_repetition配下：
+final_reporting_rollup.json / final_reporting_cohorts.csv / final_baseline_20261117/
+各campaigns/<label>/summary.json・source/、trials/<label>/...、audit_sessions/
+resource50_independent_audit.json / ordinary_wrap3_independent_audit.json / ordinary_wrap3_coverage.json
+各resource_samples_analysis.json / resource_interval_pub1_pub6_comparison.json
+resource_adoption.json / resource_adoption_all_tools_tests.log / final_post_renderer_preservation_20261116T204535871770Z.json
+原要求履歴original_*_command_history.json / original_application_events.json
+タイトル対照idle_controls/title120_pub1_01/・title_idle120_independent_audit.json
+MCP guard_metadata_fix/validation.json / mcp_import_probe/diagnosis.json
+現main exe SHA-256：15701746ff162466b5aeeb108afc7c08b5f802d9c7711801d0c6d6a8b419ed6c
+
+描画対照：renderer_flush_experiment/comparison_4cohort_finalaudit.json / independent_audit.json / cross_gameplay_audit.json
+controller終了：renderer_flush_experiment/root_native_sessions_completion.json（各exec sessionの終了実結果、OS一覧による推定ではない）
+独立監査controller終了：renderer_flush_experiment/audit_session_completion.json

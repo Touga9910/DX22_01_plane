@@ -17,34 +17,17 @@
 #include "json/json.hpp"
 #include "GameDebugController.h"
 #include "RunProgressController.h"
-#include "Renderer.h"
 #include "BalanceLogger.h"
-#include "GameMcpBridge.h"
-#include "BallPhysicsComponent.h"
 #include "BallPhysicsWorld.h"
-#include "input.h"
 
-#include "PlayerBall.h"  // DrawImGui呼び出しに必要
-#include "EnemyBall.h"   // DrawImGui呼び出しに必要
-#include "EnemyAttackComponent.h"
-#include "BallComponent.h"
 #include "PlayerBallDataLoader.h"
-#include "StageDataLoader.h"
-#include "EnemyData.h"
-#include "TableConfig.h"
-
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_dx11.h"
-#include "imgui/imgui_impl_win32.h"
 
 #include <algorithm>
-#include <cmath>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <limits>
 #include <random>
 #include <stdexcept>
+#include <utility>
 
 GameBalanceAutomationSnapshot
 GameBalanceRuntime::CaptureAutomationSnapshot() const
