@@ -86,7 +86,7 @@ bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 	if (id == "player_anchor" || id == "player_stop_shield" ||
 		id == "player_anchor_finisher")
 		return IsAchievementUnlocked(AchievementId::MidBoss);
-	return id == "player_standard" || id == "player_heavy" ||
+	return id == "player_guard" || id == "player_standard" || id == "player_heavy" ||
 		id == "player_chain_impact" ||
 		id == "player_collision_boost" ||
 		id == "player_lightweight" ||

@@ -41,7 +41,7 @@ int main()
     const auto loaded = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {});
 	assert(loaded.defaultRunStatus.maxHp > 0);
 	assert(loaded.defaultRunStatus.currentHp == loaded.defaultRunStatus.maxHp);
-	assert(loaded.ballDefinitions.size() == 17);
+	assert(loaded.ballDefinitions.size() == 18);
 	assert(std::none_of(
 		loaded.ballDefinitions.begin(), loaded.ballDefinitions.end(),
 		[](const PlayerBallData& ball)

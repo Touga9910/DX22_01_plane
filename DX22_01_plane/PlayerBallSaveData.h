@@ -9,7 +9,7 @@
 namespace PlayerBallSaveData
 {
 	using nlohmann::json;
-	inline constexpr int UpgradeModelVersion = 6;
+	inline constexpr int UpgradeModelVersion = 7;
 
 	// ボール1個分の実行時データをセーブ用JSONへ変換
 	// プレイヤーボールではdefenseを保存せず、現行の強化モデル番号を出力
@@ -75,7 +75,15 @@ namespace PlayerBallSaveData
 			throw std::runtime_error(UiText::InvalidSaveData);
 		for (const char* field : { "attack", "mass", "radius", "restitution", "friction", "abilities" })
 			if (!value.at("status").contains(field)) throw std::runtime_error(UiText::InvalidSaveData);
-		ball.status = ReadPlayerBallStatus(value.at("status"));
+        if (upgradeModelVersion >= 7)
+        {
+            for (const char* field : { "impactAttack", "shotShield", "enemyCollisionShield" })
+            {
+                if (!value.at("status").contains(field))
+                    throw std::runtime_error(UiText::InvalidSaveData);
+            }
+        }
+        ball.status = ReadPlayerBallStatus(value.at("status"));
 		if (!IsValidPlayerBallStatus(ball.status))
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);

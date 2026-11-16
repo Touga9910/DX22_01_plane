@@ -39,6 +39,8 @@ namespace PlayerBallText
 
     inline const char* GetName(const std::string& id)
     {
+        if (id == "player_guard") return Utf8(u8"防御球");
+
         if (id == "player_standard") return Utf8(u8"スタンダード球");
         if (id == "player_heavy") return Utf8(u8"ヘビー球");
         if (id == "player_pierce") return Utf8(u8"貫通球");
@@ -62,6 +64,8 @@ namespace PlayerBallText
     // 詳細ウィンドウやマウスオーバーで表示する説明。改修済みの実効果を反映。
     inline const char* GetDescription(const std::string& id)
     {
+        if (id == "player_guard") return Utf8(u8"ショット時にシールド3（+1で4、+2で5）を得る。追突力は0→1→1。+2では敵同士の有効衝突ごとにシールド1を得る。シールドはそのターン終了で消える。");
+
         if (id == "player_standard") return Utf8(u8"特殊効果を持たない基本球。強化ごとに攻撃力が上昇する。");
         if (id == "player_heavy") return Utf8(u8"敵を強く吹き飛ばす重量球。敵の移動距離から重量スタックを生成し、強化で攻撃力・質量・押し出し性能が上がる。");
         if (id == "player_pierce") return Utf8(u8"敵を貫通してスタックと貫通痕を作る。強化で攻撃力と貫通後の速度維持率が上がる。");
@@ -96,6 +100,8 @@ namespace PlayerBallText
 
     inline const char* GetRoles(const std::string& id)
     {
+        if (id == "player_guard") return Utf8(u8"[防御]");
+
         if (id == "player_heavy" || id == "player_pierce" || id == "player_refractive_pierce" || id == "player_cushion_charge" || id == "player_anchor") return Utf8(u8"[生成]");
         if (id == "player_stop_shield") return Utf8(u8"[生成] [防御補助]");
         if (id == "player_chain_impact" || id == "player_pierce_finisher" || id == "player_ricochet_finisher" || id == "player_anchor_finisher") return Utf8(u8"[利用] [決着]");
@@ -117,7 +123,13 @@ namespace PlayerBallText
         };
         const std::string& id = ball.definitionId;
 
-        if (id == "player_standard")
+        if (id == "player_guard")
+        {
+            text << Utf8(u8"ショット時シールド+") << s.shotShield << Utf8(u8"（このターン限り）。");
+            if (s.enemyCollisionShield > 0)
+                text << Utf8(u8"\n敵同士の衝突でシールド+") << s.enemyCollisionShield << Utf8(u8"。");
+        }
+        else if (id == "player_standard")
             text << Utf8(u8"特殊効果のない基本球。\n強化すると攻撃力が上がる。");
         else if (id == "player_heavy")
 			text << Utf8(u8"敵を強く吹き飛ばす。\n敵の移動距離で重量スタック生成+")
@@ -200,9 +212,12 @@ namespace PlayerBallText
     inline std::string GetStats(const PlayerBallData& ball, const BallStatus& s)
     {
         std::ostringstream text;
-        text << Utf8(u8"攻撃") << s.attack;
+        text << Utf8(u8"攻撃") << s.attack << Utf8(u8" / 追突") << s.impactAttack;
         const std::string& id = ball.definitionId;
-        if (id == "player_heavy")
+        if (id == "player_guard")
+            text << Utf8(u8" / ショット盾+") << s.shotShield
+                 << Utf8(u8" / 敵同士衝突の盾+") << s.enemyCollisionShield;
+        else if (id == "player_heavy")
             text << Utf8(u8" / 質量") << std::fixed << std::setprecision(1) << s.mass
 				 << Utf8(u8" / 伝達×") << std::setprecision(2) << s.knockbackTransfer
 				 << Utf8(u8" / 生成+") << 1 + s.eventStackGenerationBonus;

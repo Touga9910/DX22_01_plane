@@ -64,7 +64,7 @@ class JapaneseItemTextTests(unittest.TestCase):
         presentation = (ROOT / "Game.cpp").read_text(
             encoding="utf-8-sig"
         )
-        self.assertIn('PlayerBallText::Utf8(u8"攻撃力：%d")', presentation)
+        self.assertIn('PlayerBallText::Utf8(u8"攻撃 %d  /  追突 %d")', presentation)
         self.assertNotIn('sprintf_s(text, "\\u653b\\u6483', presentation)
         self.assertNotIn('sprintf_s(text, "\\u91cd\\u3055', presentation)
 

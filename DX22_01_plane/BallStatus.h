@@ -19,6 +19,9 @@ struct BallAbilities
 // HPはこの構造体では管理せず、プレイヤーはラン状態、敵は敵データ側で管理
 struct BallStatus
 {
+	int impactAttack = 1;               // Enemy-enemy base damage for both targets this shot
+	int shotShield = 0;                 // Shield granted when this ball is fired
+	int enemyCollisionShield = 0;       // Shield per accepted living enemy-enemy collision
 	int attack = 1;                     // 基本攻撃力
 	// 敵データ互換用の防御力。プレイヤーデータの読み込み・保存では常に0として扱う
 	int defense = 0;
@@ -106,6 +109,9 @@ struct BallStatus
 // 引数は値渡しのため、呼び出し元のBallStatus自体は直接変更しない
 inline BallStatus NormalizeBallStatus(BallStatus status)
 {
+	status.impactAttack = std::clamp(status.impactAttack, 0, 100000);
+	status.shotShield = std::clamp(status.shotShield, 0, 1000);
+	status.enemyCollisionShield = std::clamp(status.enemyCollisionShield, 0, 1000);
 	status.mass = (std::max)(0.0001f, status.mass);
 	status.radius = (std::max)(0.0f, status.radius);
 	status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);

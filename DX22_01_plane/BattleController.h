@@ -207,7 +207,6 @@ private:
     void ProcessTurnEnd();
     void PlanNextTurn();
     void PlanPhaseTurn();
-    void RemoveDefeatedPhaseEnemies();
     bool TryAdvancePhase();
     bool TryAdvancePhase(int livingEnemyCount);
     bool IsPhaseVictoryForLivingCount(int livingEnemyCount) const;

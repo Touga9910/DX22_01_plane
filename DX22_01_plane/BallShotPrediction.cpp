@@ -191,15 +191,6 @@ namespace
 
         bool CheckPocket(Ball& ball, const Vector3& start)
         {
-            if (ball.defeated)
-            {
-                bool retained = false;
-                for (const auto& pocket : pockets)
-                    retained = BallPhysicsRules::RetainOutsidePocket(
-                        ball.physics, start, pocket) || retained;
-                if (retained) AddPoint(ball, true);
-                return false;
-            }
             for (const auto& pocket : pockets)
             {
                 if (!BallPhysicsRules::PocketHit(start, ball.physics.position, ball.physics.status.radius, pocket)) continue;
@@ -217,7 +208,7 @@ namespace
                         ball.physics.position = Vector3(0, -1000, 0);
                     }
                 }
-                else if (ball.physics.enemy)
+                else if (!ball.enemyId.empty())
                 {
 					ball.hp = 0;
 					ball.defeated = true;
@@ -325,7 +316,7 @@ namespace
 
 		void Damage(Ball& target, int amount, const Vector3& source, bool directional = true)
 		{
-			if (!target.physics.enemy || target.defeated) return;
+			if (!target.physics.enemy || target.defeated || amount <= 0) return;
 			const bool wasDefeated = target.defeated;
 			if (directional)
 			{
@@ -342,7 +333,11 @@ namespace
             target.hp = (std::max)(0, target.hp - applied);
             target.defeated = target.hp == 0;
             result.damage += before - target.hp;
-			if (!wasDefeated && target.defeated) HandleDefeatAnchors(target);
+			if (!wasDefeated && target.defeated)
+            {
+                HandleDefeatAnchors(target);
+                target.physics.enemy = false;
+            }
             // EnemyBall::TakeDamage intentionally preserves velocity after lethal contact.
         }
 
@@ -508,13 +503,15 @@ namespace
 				}
 				if (combatEnemyPair)
 				{
+					result.stopShieldGranted = (std::min)(100000,
+                        result.stopShieldGranted + result.shotStatus.enemyCollisionShield);
 					AnchorStackRules::ShareEnemyStacks(
 						a.anchorStacks,
 						b.anchorStacks,
 						result.shotStatus.anchorStackMax);
 				}
 				auto damage = BallPhysicsRules::ContactDamage(a.physics, b.physics, Attack(a), Attack(b),
-                    a.defeated, b.defeated, result.shot);
+                    a.defeated, b.defeated, result.shot, result.shotStatus.impactAttack);
 				int pinballDamageStage = 0;
 				if (combatEnemyPair)
 				{
@@ -797,7 +794,7 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
         }
         ball.attack = ball.physics.status.attack + input.relicAttackBonus +
             player.GetAuraStatusEffects().GetAttackModifier();
-		result.stopShieldGranted = 0;
+		result.stopShieldGranted = result.shotStatus.shotShield;
         world.AddPoint(ball, true);
         found = true;
     }
@@ -880,7 +877,7 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
                     ball.physics.status, ball.physics.status.friction, ball.stopCount,
                     exitingPierce ? &exitDirection : nullptr);
             }
-            if (ball.physics.enemy || ball.physics.minion ||
+            if (!ball.enemyId.empty() || ball.physics.minion ||
 				ball.physics.breakBall || ball.nuisanceBall)
                 BallPhysicsRules::EnemyFriction(ball.physics.velocity, ball.physics.status.friction);
         }
@@ -933,6 +930,7 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
         scalar(s.anchorBrakeMultiplier); scalar(s.anchorStopSpeedSquared); add(s.anchorKnockbackImmune);
         scalar(s.cushionChargeSpeedMultiplier);
 		add(s.stopShieldPerStack); add(s.stopShieldCapacity);
+        add(s.impactAttack); add(s.shotShield); add(s.enemyCollisionShield);
 		scalar(s.chainImpactRadius); add(s.abilities.refractAfterPierce);
 		add(s.traceDurability); scalar(s.traceUseAngleTolerance); scalar(s.traceUseDistance); scalar(s.traceWidth);
 		add(s.tracePierceMaxUsesBonus); scalar(s.tracePierceSpeedRetentionBonus); scalar(s.traceNonPierceSpeedMultiplier);

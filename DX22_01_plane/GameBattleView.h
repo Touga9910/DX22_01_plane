@@ -15,6 +15,7 @@ public:
     static int CushionRegionCount();
     static bool IsCushionChargeActive(int region);
     static int CurrentShotCollisionAttackBonus();
+    static int CurrentShotImpactAttack();
     static int PierceMaximumUses();
     static float PierceSpeedRetention();
 	static int ScaleEnemyCollisionDamage(int damage);

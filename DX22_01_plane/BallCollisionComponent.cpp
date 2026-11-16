@@ -348,7 +348,8 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	}
     LiveShotRules liveShotRules;
     auto damage = BallPhysicsRules::ContactDamage(first, second, GetAttack(), other->GetAttack(),
-        myEnemy && myEnemy->IsDefeated(), otherEnemy && otherEnemy->IsDefeated(), liveShotRules);
+        myEnemy && myEnemy->IsDefeated(), otherEnemy && otherEnemy->IsDefeated(), liveShotRules,
+        GameBattleView::CurrentShotImpactAttack());
 	int damageToThis = damage.first, damageToOther = damage.second;
 	if (isEnemyEnemyCollision)
 	{
@@ -715,30 +716,6 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 	{
 		return false;
 	}
-	// Defeated enemies are retained as physical balls. Resolve the pocket rim
-	// physically instead of leaving the body inside an ignored trigger: an
-	// unresolved overlap would otherwise schedule TOI=0 up to 256 times/tick.
-	if (m_BallComponent->IsDefeated())
-	{
-		auto body = CapturePhysicsBody();
-		bool retained = false;
-		for (Pocket* pocket : pockets)
-		{
-			if (pocket == nullptr || pocket->GetGameObject() == nullptr ||
-				!pocket->GetGameObject()->IsActive())
-			{
-				continue;
-			}
-			retained = BallPhysicsRules::RetainOutsidePocket(
-				body, movementStart, pocket->GetSphere()) || retained;
-		}
-		if (retained)
-		{
-			CommitPhysicsBody(body);
-		}
-		return false;
-	}
-
     for (Pocket* pocket : pockets)
     {
         if (pocket == nullptr || pocket->GetGameObject() == nullptr ||

@@ -115,6 +115,12 @@ void Game::CaptureCurrentPlayerStatus()
 
 bool Game::PrepareNextPlayerBall()
 {
+	if (m_BattleState->playerShield > 0)
+	{
+		RecordBalanceEvent("player_shield_expired", {{ "amount", m_BattleState->playerShield }});
+		m_BattleState->playerShield = 0;
+		InvalidateDebugCombatForecast("ターン終了シールド消滅");
+	}
 	DiscardCurrentPlayerBall();
 	DirectX::SimpleMath::Vector3 returnPosition;
 	if (AnchorStackRules::ConsumeReturnPosition(

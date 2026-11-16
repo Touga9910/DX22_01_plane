@@ -19,6 +19,27 @@ namespace
 {
     constexpr int kBountyRewardMoney = 5;
 }
+void Game::GrantPlayerShield(int amount, const char* source)
+{
+    const int before = m_BattleState->playerShield;
+    m_BattleState->playerShield = std::clamp(before + (std::max)(0, amount), 0, 100000);
+    const int gained = m_BattleState->playerShield - before;
+    if (gained <= 0) return;
+    InvalidateDebugCombatForecast("シールド獲得");
+    RecordBalanceEvent("player_shield_gained", {
+        { "source", source }, { "amount", gained },
+        { "shield", m_BattleState->playerShield } });
+    const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+    const PlayerBall* player = players.empty() ? nullptr : players.front();
+    const auto position = player != nullptr ? player->GetPosition()
+        : DirectX::SimpleMath::Vector3::Zero;
+    PublishGameEvent(AxisAbilityResolvedEvent{
+        AxisResourceKind::Anchor, AxisAbilityAction::AnchorShieldGranted,
+        position, position, gained, m_BattleState->playerShield, 0.0f,
+        false, false, reinterpret_cast<std::uintptr_t>(player),
+        reinterpret_cast<std::uintptr_t>(player), source });
+}
+
 int Game::AbsorbPlayerShieldDamage(int damage)
 {
 	const int incoming = (std::max)(0, damage);

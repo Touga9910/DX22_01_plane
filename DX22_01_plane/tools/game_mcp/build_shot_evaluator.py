@@ -158,6 +158,8 @@ def wall_contact(start, direction, walls):
 
 
 def collision_damage(raw, enemy, source):
+    if raw <= 0:
+        return 0
     incoming = unit(sub(source, pos(enemy["position"])))
     if -incoming[1] >= 0.5:
         raw = max(1, math.ceil(raw * float(enemy.get("frontal_damage_multiplier", 1))))
@@ -824,7 +826,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         contact = last_contact
     else:
         # Estimate one pushed enemy collision, using actual mass/transfer and
-        # each enemy's attack. Never credit an unlimited cascade.
+        # the shot ball's impactAttack for both targets. Never credit an unlimited cascade.
         target_stats = {"friction": target.get("friction", 0.02)}
         push_reach = stopping_distance(push_speed, target_stats)
         pushed_distance = push_reach
@@ -852,8 +854,8 @@ def score_candidate(state, ball, target, stats, path, power, profile):
             distance, other = secondary
             impact = add(center, mul(normal, distance))
             impact_bonus = contacts if relic_owned(state, 2) else 0
-            damage(other, float(target.get("attack", 1)) + impact_bonus, impact)
-            damage(target, float(other.get("attack", 1)) + impact_bonus, pos(other["position"]))
+            damage(other, float(stats.get("impactAttack", 1)) + impact_bonus, impact)
+            damage(target, float(stats.get("impactAttack", 1)) + impact_bonus, pos(other["position"]))
             chain_collisions = 1
             contacts += 1
         if path["kind"] == "pocket":
@@ -864,10 +866,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                 return None
             if secondary and secondary[0] < distance:
                 return None  # Another enemy blocks this simple pocket estimate.
-            ratio = float(target.get("pocket_damage_ratio", 0))
-            pocket_damage = math.ceil(float(target.get("max_hp", hp[target["target_id"]])) * ratio)
-            if target.get("pocket_finisher_eligible"):
-                pocket_damage = hp[target["target_id"]]
+            pocket_damage = hp[target["target_id"]]  # Every enemy pocket is a defeat.
             key = target["target_id"]
             damage_by_id[key] = min(hp[key], damage_by_id[key] + pocket_damage)
             controlled.add(key)
@@ -1071,7 +1070,8 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         max(1, float(e.get("attack", 1)) - defense) for e in enemies
         if e.get("can_attack_this_turn", True))
     incoming_damage = max(0.0, incoming_before_prevention - prevented)
-    predicted_shield = 0
+    predicted_shield = max(0, _whole(stats.get("shotShield"))) + (
+        chain_collisions * max(0, _whole(stats.get("enemyCollisionShield"))))
     if definition == "player_stop_shield":
         stacks = _anchor_stacks_by_target(state).get(target["target_id"], 0)
         consumed = min(stacks, _whole(stats.get("anchorEnemyConsumeLimit", 5), 5))
@@ -1079,8 +1079,8 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         shield_capacity = _whole(stats.get("stopShieldCapacity"))
         if consumed > 0 and shield_per_stack > 0:
             predicted_shield = consumed * shield_per_stack
-        # Preserve the game's shield cap and any currently carried shield.
-        existing_shield = _number(state.get("player", {}).get("shield", 0))
+        # Apply the current shot's shield cap; previous-turn shield never carries.
+        existing_shield = 0  # Previous-turn shields expire before the next shot.
         predicted_shield = max(
             0, min(predicted_shield, shield_capacity - existing_shield)
         )

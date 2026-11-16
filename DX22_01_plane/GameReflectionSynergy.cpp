@@ -159,6 +159,8 @@ int Game::NotifyEnemyEnemySynergyCollision(
 	if (first == nullptr || second == nullptr ||
 		!first->CanParticipateInCombat() ||
 		!second->CanParticipateInCombat()) return 0;
+	if (const auto* ball = m_RunController->Deck().GetCurrent())
+		GrantPlayerShield(ball->status.enemyCollisionShield, ball->definitionId.c_str());
 	const int anchorMaximum = m_RunDefaults->PlayerBallStatus().anchorStackMax;
 	const auto anchorShare = AnchorStackRules::ShareEnemyStacks(
 		first->MutableAnchorStacks(),

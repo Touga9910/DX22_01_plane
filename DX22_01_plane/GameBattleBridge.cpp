@@ -62,6 +62,12 @@ bool GameBattleView::IsCushionChargeActive(int region)
 	return CushionChargeRules::TotalStacks(charges) > 0;
 }
 
+int GameBattleView::CurrentShotImpactAttack()
+{
+    const auto* ball = Game::GetInstance()->GetCurrentPlayerBallData();
+    return ball != nullptr ? ball->status.impactAttack : 1;
+}
+
 int GameBattleView::CurrentShotCollisionAttackBonus()
 {
     return Game::GetInstance()->GetCurrentShotCollisionAttackBonus();

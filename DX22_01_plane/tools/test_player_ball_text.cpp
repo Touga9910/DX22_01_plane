@@ -67,7 +67,7 @@ int main()
 		"assets/data/player_status.json",
 		{},
 		{});
-	assert(loaded.ballDefinitions.size() == 17);
+	assert(loaded.ballDefinitions.size() == 18);
 
 	for (const PlayerBallData& definition : loaded.ballDefinitions)
 	{

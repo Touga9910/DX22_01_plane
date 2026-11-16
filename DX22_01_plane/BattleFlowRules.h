@@ -48,6 +48,11 @@ namespace BattleFlowRules
         return noLivingEnemies || turnsUntilNextPhase <= 0;
     }
 
+    constexpr bool IsLegacyVictory(bool enemiesHaveExisted, int livingEnemyCount)
+    {
+        return enemiesHaveExisted && livingEnemyCount == 0;
+    }
+
     constexpr bool IsPhaseVictory(
         bool phaseBattle,
         int currentPhase,

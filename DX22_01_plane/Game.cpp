@@ -565,7 +565,6 @@ namespace
 	struct BallCardInteraction
 	{
 		bool select = false;
-		bool toggleHold = false;
 		bool openDetails = false;
 	};
 
@@ -676,10 +675,8 @@ namespace
 			ImVec2(size.x, size.y));
 		const bool cardHovered = ImGui::IsItemHovered();
 		interaction.select = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-		interaction.openDetails = selected && cardHovered &&
+		interaction.openDetails = cardHovered &&
 			ImGui::IsMouseClicked(ImGuiMouseButton_Right);
-		interaction.toggleHold =
-			!selected && cardHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
 
 		const ImVec2 footerPosition(position.x, cardMax.y - footerHeight);
 		if (cardHovered)
@@ -870,7 +867,7 @@ namespace
 		drawList->PushClipRect(descriptionMinimum, descriptionMaximum, true);
 
 		const float attackTextY = descriptionMinimum.y + descriptionPadding;
-		sprintf_s(text, PlayerBallText::Utf8(u8"攻撃力：%d"), attack);
+		sprintf_s(text, PlayerBallText::Utf8(u8"攻撃 %d  /  追突 %d"), attack, ball.status.impactAttack);
 		addText(
 			fontSize * 0.76f * readableScale,
 			ImVec2(descriptionTextLeft, attackTextY),
@@ -906,9 +903,7 @@ namespace
 			footerBackground,
 			cornerRadius,
 			ImDrawFlags_RoundCornersBottom);
-		const char* footerText = selected
-			? PlayerBallText::Utf8(u8"左:決定 / 右:詳細")
-			: (held ? "HOLD" : PlayerBallText::Utf8(u8"手札"));
+		const char* footerText = PlayerBallText::Utf8(u8"左:決定 / 右:詳細");
 		const float footerFontSize = fontSize * 0.78f * readableScale;
 		const ImVec2 footerTextSize = font->CalcTextSizeA(
 			footerFontSize,
@@ -991,6 +986,8 @@ namespace
 				};
 
 			// 共通の表示用語
+			term("追突力", "このショット中に敵球同士が衝突したとき、両方の敵に与える基本ダメージ。追加効果と敵の軽減は別途適用します。");
+			term("シールド", "このターン中だけHPの代わりにダメージを受ける追加耐久。敵の攻撃後、ターン終了時に消えます。");
 			term("攻撃力", "敵への通常攻撃で使用する基本攻撃力。強化や一部の追加効果で増加します。");
 
 			// 重量軸
@@ -1885,6 +1882,7 @@ void Game::Update(double elapsedSeconds)
 	if (battleResult != BattleResult::None)
 	{
 		m_Instance->m_LastBattleResult = battleResult;
+		m_Instance->m_BattleState->playerShield = 0;
 	}
 
 	switch (battleResult)
@@ -2384,7 +2382,6 @@ void GameDebugController::DrawDiagnostics(Game& game)
 
 	}
 
-
 }
 
 void Game::Draw()
@@ -2451,7 +2448,6 @@ void Game::Draw()
 }
 
 // Pause UIを描画
-
 
 
 
@@ -2733,7 +2729,6 @@ void Game::Uninit()
 
 	// オブジェクトの終了処理は所有者であるGameWorldへ委譲
 	m_Instance->m_RuntimeState->World().Clear();
-
 
 	// 入力処理を終了
 	Input::Release();
@@ -3027,15 +3022,13 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 		enemy->Defeat();
 		m_BattleState->controller.NotifyEnemyPocketDefeated();
 	}
-	NotifyPocketFeedback(
-		pocketPosition,
-		false,
-		true,
-		hpBefore,
-		enemy);
+	if (newlyDefeated)
+	{
+		NotifyPocketFeedback(pocketPosition, false, true, hpBefore, enemy);
+	}
 	enemy->RemoveFromFieldAfterPocket();
 	RecordBalanceEvent(
-		"enemy_pocket_defeat",
+		newlyDefeated ? "enemy_pocket_defeat" : "enemy_corpse_pocket_removed",
 		{
 			{ "enemy_id", enemy->GetEnemyId() },
 			{ "stage_type", ToString(m_BattleState->controller.GetStageType()) },
@@ -3869,7 +3862,7 @@ void Game::UpdateBallSelection(float deltaSeconds)
 		return;
 	}
 
-	for (int index = 0; index < offerCount && index < 4; index++)
+	for (int index = 0; index < offerCount && index < 7; index++)
 	{
 		if (Input::GetKeyTrigger('1' + index))
 		{
@@ -3879,15 +3872,6 @@ void Game::UpdateBallSelection(float deltaSeconds)
 		}
 	}
 
-	constexpr int HOLD_KEYS[] = { 'Q', 'W', 'E', 'R' };
-	for (int index = 0; index < offerCount && index < 4; index++)
-	{
-		if (!Input::GetKeyTrigger(HOLD_KEYS[index]))
-		{
-			continue;
-		}
-		m_BallSelectionState->ToggleHold(index, offerCount);
-	}
 }
 
 // Selected Ball Previewを適用
@@ -3926,7 +3910,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 	}
 	const float easedHiddenRatio = hiddenRatio * hiddenRatio *
 		(3.0f - 2.0f * hiddenRatio);
-	// 左下・右下の山札表示ぶんを空け、持ち札とHOLDは中央にまとめる。
+	// 左下・右下の山札表示ぶんを空け、手札は中央にまとめる。
 	const float horizontalPadding = std::clamp(
 		viewport->WorkSize.x * 0.105f,
 		70.0f,
@@ -4059,10 +4043,7 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 			}
 			intent.confirmSelection = true;
 		}
-		if (interaction.toggleHold && !selected)
-		{
-			intent.selectedHoldIndex = held ? -1 : index;
-		}
+
 	};
 
 	for (int index = 0; index < offerCount; ++index)
