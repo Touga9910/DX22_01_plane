@@ -316,6 +316,9 @@
     <ClInclude Include="Shader.h">
       <Filter>ヘッダー ファイル\04_Rendering\Shader</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerAuraEffect.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="GamePresentation.h">
       <Filter>ヘッダー ファイル\05_UI</Filter>
     </ClInclude>
@@ -1201,6 +1204,9 @@
     </ClCompile>
     <ClCompile Include="utility.cpp">
       <Filter>ソース ファイル\00_Application\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerAuraEffect.cpp">
+      <Filter>ソース ファイル\04_Rendering</Filter>
     </ClCompile>
     <ClCompile Include="GamePresentation.cpp">
       <Filter>ソース ファイル\05_UI</Filter>

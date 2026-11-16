@@ -278,6 +278,7 @@
     <ClCompile Include="GameSceneDebugName.cpp" />
     <ClCompile Include="ProgressionProfile.cpp" />
     <ClCompile Include="GamePresentation.cpp" />
+    <ClCompile Include="PlayerAuraEffect.cpp" />
     <ClCompile Include="AudioFeedback.cpp" />
     <ClCompile Include="CollisionVfxSystem.cpp" />
     <ClCompile Include="GameSaveManager.cpp" />
@@ -386,6 +387,7 @@
     <ClInclude Include="GameSceneCommands.h" />
     <ClInclude Include="GameView.h" />
     <ClInclude Include="GamePresentation.h" />
+    <ClInclude Include="PlayerAuraEffect.h" />
     <ClInclude Include="GameSaveManager.h" />
     <ClInclude Include="PlayerBall.h" />
     <ClInclude Include="Ground.h" />

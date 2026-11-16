@@ -920,6 +920,7 @@ bool GamePresentation::BeginDefeatReaction(
 void GamePresentation::Update(Game& game, float deltaSeconds)
 {
 	const float presentationDelta = std::clamp(deltaSeconds, 0.0f, 0.10f);
+	UpdatePlayerAura(game, presentationDelta);
 	m_PresentationTimeSeconds += presentationDelta;
     if (m_AttackFlightAge >= 0.0f) m_AttackFlightAge += presentationDelta;
 	if (Input::GetKeyTrigger(VK_F1))
@@ -1060,6 +1061,7 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 
 void GamePresentation::Draw(Game& game)
 {
+	DrawPlayerAura(game);
     if (m_AttackFlightAge >= 0.0f)
     {
         const float t = std::clamp(m_AttackFlightAge / static_cast<float>(EnemyAttackTiming::FlightSeconds), 0.0f, 1.0f);
@@ -3007,6 +3009,7 @@ void GamePresentation::DrawRelicList(Game& game)
 
 void GamePresentation::OnBattleStarted(Game&)
 {
+	m_PlayerAura.Reset();
     m_AttackFlightAge = -1.0f;
 	ClearHitReactions();
 	m_CollisionVfx.Reset();
@@ -3884,6 +3887,44 @@ void GamePresentation::DrawTutorial(Game& game)
 		ImGui::TextDisabled("（戦闘開始後に操作できます）");
 	}
 	ImGui::End();
+}
+
+void GamePresentation::UpdatePlayerAura(Game& game, float deltaSeconds)
+{
+	if (!IsBattleScene(game) || game.GetBattleState() == BattleState::Finished ||
+		game.GetBattleState() == BattleState::Inactive) { m_PlayerAura.Reset(); return; }
+	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+	const auto* player = players.empty() ? nullptr : players.front();
+	if (player == nullptr || player->IsDefeated() || player->IsPocketed())
+	{
+		m_PlayerAura.Reset();
+		return;
+	}
+	const auto position = player->GetPosition();
+	const auto* ball = game.GetCurrentPlayerBallData();
+	const auto color = ball != nullptr ? PlayerBallText::GetColor(*ball)
+		: std::array<float, 3>{0.25f, 0.63f, 1.0f};
+	m_PlayerAura.Update({position.x, position.y, position.z}, player->GetBall()->GetRadius(),
+		color, reinterpret_cast<std::uintptr_t>(player), deltaSeconds);
+}
+
+void GamePresentation::DrawPlayerAura(Game& game)
+{
+	if (!IsBattleScene(game) || !m_PlayerAura.IsActive() ||
+		game.GetBattleState() == BattleState::Finished || game.GetBattleState() == BattleState::Inactive) return;
+	const auto players = GameRuntime::World().GetComponents<PlayerBall>();
+	const auto* player = players.empty() ? nullptr : players.front();
+	if (player == nullptr || player->IsDefeated() || player->IsPocketed()) return;
+	const auto position = player->GetPosition();
+	const Matrix inverseView = Camera::GetInstance().GetViewMatrix().Invert();
+	const Vector3 right = Vector3::TransformNormal(Vector3::UnitX, inverseView);
+	ImVec2 center, edge;
+	if (!TryProjectToScreen(position, center) ||
+		!TryProjectToScreen(position + right * player->GetBall()->GetRadius(), edge)) return;
+	const float radius = std::hypot(edge.x - center.x, edge.y - center.y);
+	m_PlayerAura.Draw({position.x, position.y, position.z}, radius,
+		[](const PlayerAuraEffect::Position& p, ImVec2& screen)
+		{ return TryProjectToScreen(Vector3(p.x, p.y, p.z), screen); });
 }
 
 void GamePresentation::DrawFeedback(Game& game)

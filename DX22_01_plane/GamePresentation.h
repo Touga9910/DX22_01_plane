@@ -2,6 +2,7 @@
 
 #include "CollisionVfxSystem.h"
 #include "CombatPresentationRules.h"
+#include "PlayerAuraEffect.h"
 
 #include "SettingsManager.h"
 
@@ -327,6 +328,8 @@ private:
 	void SaveTutorialProgress() const;
 	void DrawTutorial(Game& game);
 	void DrawFeedback(Game& game);
+	void UpdatePlayerAura(Game& game, float deltaSeconds);
+	void DrawPlayerAura(Game& game);
 	void DrawEnemyStatusEffects(Game& game);
 	void DrawPierceTraces(Game& game);
 	void DrawDashboard();
@@ -358,6 +361,7 @@ private:
 	int m_PreviousBattleState = -1;
 	bool m_DashboardOpen = false;
 	float m_ImpactFlashLifetime = 0.0f;
+	PlayerAuraEffect m_PlayerAura;
 	float m_DamageFlashLifetime = 0.0f;
 	float m_HitSummaryLifetime = 0.0f;
 	float m_CameraShakeLifetime = 0.0f;
