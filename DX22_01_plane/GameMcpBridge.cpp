@@ -1121,6 +1121,8 @@ nlohmann::json GameMcpBridge::BuildState(
 			{ "enemy_defeat", audioCategory(CombatSeCategory::EnemyDefeat) },
 			{ "chain_milestone", audioCategory(CombatSeCategory::ChainMilestone) },
 			{ "wall_impact", audioCategory(CombatSeCategory::WallImpact) },
+            { "player_hurt", audioCategory(CombatSeCategory::PlayerHurt) },
+            { "shield_block", audioCategory(CombatSeCategory::ShieldBlock) },
 		} },
 		{ "timing", {
 			{ "last_update_ms", audio.lastUpdateMilliseconds },

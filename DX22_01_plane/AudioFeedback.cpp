@@ -21,6 +21,8 @@ namespace
 		"assets/audio/combat/enemy_defeat.wav",
 		"assets/audio/combat/chain_milestone.wav",
 		"assets/audio/combat/wall_impact.wav",
+        "assets/audio/combat/player_hurt.wav",
+        "assets/audio/combat/shield_block.wav",
 	}};
 	constexpr std::array<const char*, 4> ChainStageAssetPaths = {{
 		"assets/audio/combat/chain_3.wav",
@@ -167,6 +169,13 @@ void AudioFeedback::Update(double elapsedSeconds, float seVolume)
 		m_Diagnostics.maximumUpdateMilliseconds,
 		milliseconds);
 	++m_Diagnostics.updateCount;
+}
+
+void AudioFeedback::OnPlayerImpact(int hpDamage, int shieldAbsorbed)
+{
+    if (hpDamage <= 0 && shieldAbsorbed <= 0) return;
+    Request({ hpDamage > 0 ? CombatSeCategory::PlayerHurt : CombatSeCategory::ShieldBlock,
+        CollisionPresentationRules::Strength::Medium, 0.0f, 0, true });
 }
 
 void AudioFeedback::OnShotFired(const ShotFiredEvent&)
@@ -388,10 +397,10 @@ void AudioFeedback::GenerateTestTone(CombatSeCategory category)
 		clip.format.nSamplesPerSec * clip.format.nBlockAlign;
 
 	const std::size_t index = CombatAudioRules::Index(category);
-	const std::array<float, 5> frequencies = { 150.0f, 260.0f, 520.0f,
-		690.0f, 210.0f };
-	const std::array<float, 5> durations = { 0.11f, 0.07f, 0.16f,
-		0.19f, 0.065f };
+	const std::array<float, 7> frequencies = { 150.0f, 260.0f, 520.0f,
+		690.0f, 210.0f, 110.0f, 880.0f };
+	const std::array<float, 7> durations = { 0.11f, 0.07f, 0.16f,
+		0.19f, 0.065f, 0.12f, 0.10f };
 	const int sampleCount = static_cast<int>(
 		durations[index] * static_cast<float>(clip.format.nSamplesPerSec));
 	clip.samples.resize(static_cast<std::size_t>(sampleCount) * 2);

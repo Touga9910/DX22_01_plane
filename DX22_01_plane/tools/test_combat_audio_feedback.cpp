@@ -203,7 +203,7 @@ int main()
 			wavBackend.Diagnostics();
 		assert(wavDiagnostics.requests == 5);
 		assert(wavDiagnostics.loadedAssetFiles == 5);
-		assert(wavDiagnostics.missingAssetFiles == 4);
+		assert(wavDiagnostics.missingAssetFiles == 6);
 		assert(wavDiagnostics.chainStageRequests[0] == 1);
 		if (deviceReady)
 		{

@@ -34,6 +34,10 @@ struct BattleControllerHooks
     std::function<void(int playerHp, int aliveEnemies, int defeatedEnemies)>
         endShotLog;
 
+    // Attack launch and impact are separated; HP/shield resolve only on impact.
+    std::function<void(const EnemyBall&, const PlayerBall&)> enemyAttackLaunched;
+    std::function<int()> playerShield;
+    std::function<void(int hpDamage, int shieldAbsorbed)> enemyAttackImpact;
     // 敵攻撃時
     std::function<int()> beginEnemyAttackForecast;
     std::function<void(int predictedDamage, int actualDamage)>
@@ -80,7 +84,7 @@ public:
     void Reset();
 
     // 通常フレーム側の戦闘進行。
-    void Update();
+    void Update(double elapsedSeconds = 1.0 / 60.0);
 
     // 1 FixedStep終了後にGameから呼ぶ。
     // trueを返した場合は、そのフレームの物理catch-upを終了
@@ -192,6 +196,12 @@ private:
     int m_CurrentPhase = 0;
     int m_TotalPhases = 0;
     int m_TurnsUntilNextPhase = 0;
+    std::size_t m_EnemyAttackCursor = 0;
+    bool m_EnemyAttackStarted = false;
+    bool m_EnemyAttackLaunched = false;
+    double m_EnemyAttackDelay = 0.0;
+    int m_EnemyAttackPredicted = 0;
+    int m_EnemyAttackHpBefore = 0;
     int m_DefeatedEnemyCount = 0;
     int m_PocketDefeatedEnemyCount = 0;
     BattlePocketRules m_PocketRules{};

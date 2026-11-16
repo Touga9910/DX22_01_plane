@@ -155,6 +155,7 @@
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
     <ClInclude Include="BattleFlowRules.h" />
+    <ClInclude Include="EnemyAttackTiming.h" />
     <ClInclude Include="BattleTypes.h" />
     <ClInclude Include="EnemyActionPlanner.h" />
     <ClInclude Include="EnemyChargeRules.h" />

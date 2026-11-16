@@ -14,6 +14,8 @@ enum class CombatSeCategory
 	EnemyDefeat,
 	ChainMilestone,
 	WallImpact,
+    PlayerHurt,
+    ShieldBlock,
 	Count,
 };
 
@@ -58,6 +60,8 @@ public:
 		{ 0.060f, 0.92f, 0.72f, 1.00f, 1.02f, 1.00f, 0.98f, 3, 90 },
 		{ 0.080f, 0.96f, 0.78f, 1.00f, 1.04f, 1.00f, 0.96f, 4, 100 },
 		{ 0.045f, 0.45f, 0.16f, 0.62f, 1.05f, 1.01f, 0.98f, 2, 25 },
+        { 0.04f, 0.85f, 0.6f, 1.0f, 1, 1, 1, 2, 100 },
+        { 0.04f, 0.72f, 0.5f, 0.9f, 1, 1, 1, 2, 100 },
 	}};
 
 	static constexpr std::size_t Index(CombatSeCategory category)
@@ -158,6 +162,8 @@ public:
 		case CombatSeCategory::EnemyDefeat: return "enemy_defeat";
 		case CombatSeCategory::ChainMilestone: return "chain_milestone";
 		case CombatSeCategory::WallImpact: return "wall_impact";
+        case CombatSeCategory::PlayerHurt: return "player_hurt";
+        case CombatSeCategory::ShieldBlock: return "shield_block";
 		default: return "unknown";
 		}
 	}

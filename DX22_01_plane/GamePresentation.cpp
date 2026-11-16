@@ -1,4 +1,5 @@
 ﻿#include "GamePresentation.h"
+#include "EnemyAttackTiming.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -920,6 +921,7 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 {
 	const float presentationDelta = std::clamp(deltaSeconds, 0.0f, 0.10f);
 	m_PresentationTimeSeconds += presentationDelta;
+    if (m_AttackFlightAge >= 0.0f) m_AttackFlightAge += presentationDelta;
 	if (Input::GetKeyTrigger(VK_F1))
 	{
 		if (m_TutorialActive)
@@ -1058,6 +1060,23 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 
 void GamePresentation::Draw(Game& game)
 {
+    if (m_AttackFlightAge >= 0.0f)
+    {
+        const float t = std::clamp(m_AttackFlightAge / static_cast<float>(EnemyAttackTiming::FlightSeconds), 0.0f, 1.0f);
+        const Vector3 position = m_AttackStart + (m_AttackTarget - m_AttackStart) * t;
+        ImVec2 center, edge;
+        if (TryProjectToScreen(position, center) &&
+            TryProjectToScreen(position + Vector3(1.4f, 0, 0), edge))
+        {
+            const float radius = (std::max)(5.0f, std::abs(edge.x - center.x));
+            auto* draw = ImGui::GetForegroundDrawList();
+            draw->AddCircleFilled(center, radius * 1.35f, IM_COL32(255, 148, 110, 32));
+            draw->AddCircleFilled(center, radius, IM_COL32(255, 190, 150, 115));
+            draw->AddCircle(center, radius, IM_COL32(255, 230, 210, 190), 24, 1.5f);
+            draw->AddCircleFilled(ImVec2(center.x-radius*.25f, center.y-radius*.25f),
+                radius*.28f, IM_COL32(255, 255, 255, 150));
+        }
+    }
 	DrawFeedback(game);
 	if (GameUi::showDebugger && IsBattleScene(game))
 	{
@@ -2988,6 +3007,7 @@ void GamePresentation::DrawRelicList(Game& game)
 
 void GamePresentation::OnBattleStarted(Game&)
 {
+    m_AttackFlightAge = -1.0f;
 	ClearHitReactions();
 	m_CollisionVfx.Reset();
 	m_CombatReactionDiagnostics = {};
@@ -3382,6 +3402,34 @@ void GamePresentation::OnPocketFeedback(
 	}
 }
 
+void GamePresentation::OnEnemyAttackLaunched(const Vector3& start, const Vector3& target)
+{
+    m_AttackStart = start;
+    m_AttackTarget = target;
+    m_AttackFlightAge = 0.0f;
+}
+
+void GamePresentation::OnEnemyAttackImpact(int hpDamage, int shieldAbsorbed)
+{
+    m_AttackFlightAge = -1.0f;
+    m_LastAttackShieldAbsorbed = hpDamage > 0 ? shieldAbsorbed : 0;
+    std::erase_if(m_Feedback, [](const FloatingFeedback& f) { return f.playerHudMessage; });
+    if (hpDamage > 0 || shieldAbsorbed <= 0) return;
+    m_DamageFlashLifetime = 0.0f;
+    // Full block: no red flash. HP damage keeps the existing red-hit reaction.
+    if (Game::GetInstance()->IsCameraShakeEnabled())
+    {
+        m_CameraShakeLifetime = 0.16f;
+        m_CameraShakeStrength = 0.7f;
+    }
+    FloatingFeedback feedback;
+    feedback.text = "BLOCK  " + std::to_string(shieldAbsorbed);
+    feedback.playerHudMessage = true;
+    feedback.totalLifetime = feedback.lifetime = 0.65f;
+    feedback.color = IM_COL32(100, 205, 255, 255);
+    m_Feedback.push_back(std::move(feedback));
+}
+
 void GamePresentation::OnPlayerDamage(
 	int damage,
 	const std::string& source)
@@ -3396,6 +3444,9 @@ void GamePresentation::OnPlayerDamage(
 		FloatingFeedback feedback;
 		feedback.worldPosition = Vector3::Zero;
 		feedback.text = "プレイヤー  -" + std::to_string(damage) + " HP";
+        if (m_LastAttackShieldAbsorbed > 0)
+            feedback.text += " / BLOCK " + std::to_string(m_LastAttackShieldAbsorbed);
+        m_LastAttackShieldAbsorbed = 0;
 		feedback.playerHudMessage = true;
 		feedback.totalLifetime = 1.1f;
 		feedback.lifetime = feedback.totalLifetime;

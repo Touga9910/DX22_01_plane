@@ -72,6 +72,7 @@ public:
 		int existingHeavyChainCount);
 	void OnEnemyDamage(const EnemyDamageEvent& event);
 	void OnWallImpact(const WallImpactEvent& event);
+    void OnPlayerImpact(int hpDamage, int shieldAbsorbed);
 
 	const AudioFeedbackDiagnostics& Diagnostics() const noexcept
 	{

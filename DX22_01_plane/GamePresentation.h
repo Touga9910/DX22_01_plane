@@ -157,6 +157,9 @@ public:
 		int damage,
 		std::uintptr_t targetKey,
 		const std::string& targetEnemyId);
+    void OnEnemyAttackLaunched(const DirectX::SimpleMath::Vector3& start,
+        const DirectX::SimpleMath::Vector3& target);
+    void OnEnemyAttackImpact(int hpDamage, int shieldAbsorbed);
 	void OnPlayerDamage(int damage, const std::string& source);
 	void OnChargeInterrupted(
 		const DirectX::SimpleMath::Vector3& worldPosition,
@@ -373,6 +376,9 @@ private:
 	std::vector<FloatingFeedback> m_Feedback;
 	std::vector<EnemyHpVisual> m_EnemyHpVisuals;
 	std::vector<EnemyInfoLayoutVisual> m_EnemyInfoLayouts;
+    DirectX::SimpleMath::Vector3 m_AttackStart{}, m_AttackTarget{};
+    float m_AttackFlightAge = -1.0f;
+    int m_LastAttackShieldAbsorbed = 0;
 	CollisionVfxSystem m_CollisionVfx;
 	unsigned long long m_PresentationFrame = 0;
 	float m_PresentationTimeSeconds = 0.0f;

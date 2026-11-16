@@ -1853,7 +1853,7 @@ void Game::Update(double elapsedSeconds)
 		finishSection(worldLateUpdateStarted);
 	m_Instance->RemoveDestroyedGameObjects();
 	const auto battleControllerStarted = startSection();
-	m_Instance->m_BattleState->controller.Update();
+	m_Instance->m_BattleState->controller.Update(elapsedSeconds);
 	updateTiming.battleControllerMilliseconds =
 		finishSection(battleControllerStarted);
 	if (measureUpdate)

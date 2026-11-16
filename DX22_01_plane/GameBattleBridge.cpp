@@ -1,4 +1,6 @@
 ﻿#include "Game.h"
+#include "GamePresentation.h"
+#include "AudioFeedback.h"
 
 #include "GameRuntime.h"
 #include "GameRuntimeState.h"
@@ -630,6 +632,18 @@ void Game::InitializeBattleSceneFactory()
 void Game::InitializeBattleController()
 {
 	BattleControllerHooks hooks{};
+    hooks.playerShield = [this]() { return GetPlayerShield(); };
+    hooks.enemyAttackLaunched = [this](const EnemyBall& enemy, const PlayerBall& player)
+    {
+        if (m_GamePresentation && !IsBalanceAutoPlayEnabled())
+            m_GamePresentation->OnEnemyAttackLaunched(enemy.GetPosition(), player.GetPosition());
+    };
+    hooks.enemyAttackImpact = [this](int hpDamage, int absorbed)
+    {
+        if (m_GamePresentation && !IsBalanceAutoPlayEnabled())
+            m_GamePresentation->OnEnemyAttackImpact(hpDamage, absorbed);
+        if (m_AudioFeedback) m_AudioFeedback->OnPlayerImpact(hpDamage, absorbed);
+    };
 
 	hooks.restorePocketedPlayer =
 		[this]()

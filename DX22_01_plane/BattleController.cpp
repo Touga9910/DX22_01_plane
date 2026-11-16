@@ -8,6 +8,7 @@
 #include "GameObject.h"
 #include "GameWorld.h"
 #include "PlayerBall.h"
+#include "EnemyAttackTiming.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -192,7 +193,7 @@ void BattleController::NotifyEnemyPocketDefeated()
     ++m_PocketDefeatedEnemyCount;
 }
 
-void BattleController::Update()
+void BattleController::Update(double elapsedSeconds)
 {
     if (!m_Active ||
         m_World == nullptr ||
@@ -217,6 +218,7 @@ void BattleController::Update()
         break;
 
     case BattleState::EnemyAttack:
+        m_EnemyAttackDelay = EnemyAttackTiming::Advance(m_EnemyAttackDelay, elapsedSeconds);
         ProcessEnemyAttack();
         break;
 
@@ -530,18 +532,17 @@ void BattleController::ProcessEnemyAttack()
     PlayerBall* player = players.front();
     player->RefreshNuisanceDebuffs();
 
-    int predictedDamage = 0;
-    if (m_Hooks.beginEnemyAttackForecast)
+    if (m_EnemyAttackDelay > 0.0) return;
+    if (!m_EnemyAttackStarted)
     {
-        predictedDamage =
-            m_Hooks.beginEnemyAttackForecast();
+        m_EnemyAttackStarted = true;
+        m_EnemyAttackPredicted = m_Hooks.beginEnemyAttackForecast
+            ? m_Hooks.beginEnemyAttackForecast() : 0;
+        m_EnemyAttackHpBefore = player->GetHP();
     }
-
-    const int hpBeforeEnemyAttack =
-        player->GetHP();
-
-    for (EnemyBall* enemy : enemies)
+    for (; m_EnemyAttackCursor < enemies.size(); ++m_EnemyAttackCursor)
     {
+        EnemyBall* enemy = enemies[m_EnemyAttackCursor];
         if (enemy == nullptr ||
             !enemy->CanParticipateInCombat() ||
             enemy->IsStunned())
@@ -585,6 +586,15 @@ void BattleController::ProcessEnemyAttack()
             continue;
         }
 
+        if (m_Hooks.enemyAttackLaunched && !m_EnemyAttackLaunched)
+        {
+            m_EnemyAttackLaunched = true;
+            m_EnemyAttackDelay = EnemyAttackTiming::FlightSeconds;
+            m_Hooks.enemyAttackLaunched(*enemy, *player);
+            return;
+        }
+        m_EnemyAttackLaunched = false;
+        const int shieldBefore = m_Hooks.playerShield ? m_Hooks.playerShield() : 0;
         const int hpBefore = player->GetHP();
 
         attack->Attack(
@@ -601,6 +611,9 @@ void BattleController::ProcessEnemyAttack()
         const int damage =
             (std::max)(0, hpBefore - hpAfter);
 
+        if (m_Hooks.enemyAttackImpact)
+            m_Hooks.enemyAttackImpact(damage, (std::max)(0, shieldBefore -
+                (m_Hooks.playerShield ? m_Hooks.playerShield() : 0)));
         if (m_Hooks.notifyPlayerDamage)
         {
             m_Hooks.notifyPlayerDamage(
@@ -621,17 +634,23 @@ void BattleController::ProcessEnemyAttack()
         {
             break;
         }
+        if (m_Hooks.enemyAttackLaunched)
+        {
+            ++m_EnemyAttackCursor;
+            m_EnemyAttackDelay = EnemyAttackTiming::GapSeconds;
+            return;
+        }
     }
 
     const int actualDamage =
         (std::max)(
             0,
-            hpBeforeEnemyAttack - player->GetHP());
+            m_EnemyAttackHpBefore - player->GetHP());
 
     if (m_Hooks.endEnemyAttackForecast)
     {
         m_Hooks.endEnemyAttackForecast(
-            predictedDamage,
+            m_EnemyAttackPredicted,
             actualDamage);
     }
 
@@ -945,6 +964,12 @@ void BattleController::SetState(BattleState state, const char* reason)
         return;
     }
 
+    if (state == BattleState::EnemyAttack)
+    {
+        m_EnemyAttackCursor = 0;
+        m_EnemyAttackStarted = m_EnemyAttackLaunched = false;
+        m_EnemyAttackDelay = 0.0;
+    }
     const BattleState previous = m_State;
     m_State = state;
     m_StateHistory.push_back(state);

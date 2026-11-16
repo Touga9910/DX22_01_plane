@@ -1,0 +1,9 @@
+{
+  "generator": "tools/generate_player_impact_se.py",
+  "license": "Project-original deterministic PCM synthesis; no third-party audio",
+  "status": "Temporary cues; human audition pending",
+  "files": {
+    "player_hurt.wav": "HP damage, including partial shield block",
+    "shield_block.wav": "Full shield block; no HP damage"
+  }
+}

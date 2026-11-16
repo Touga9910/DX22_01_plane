@@ -445,6 +445,9 @@
     <ClInclude Include="BattleFlowRules.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
+    <ClInclude Include="EnemyAttackTiming.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
+    </ClInclude>
     <ClInclude Include="EnemyActionPlanner.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Battle</Filter>
     </ClInclude>
