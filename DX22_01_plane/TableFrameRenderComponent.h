@@ -9,8 +9,8 @@
 #include <memory>
 #include <vector>
 
-// 枠のメッシュとGPUリソースを所有する。現在の連続レール形状には
-// ポケット中心を埋め込まず、Pocketを独立したコンポーネントとして扱う。
+// 台の外枠・クッション・ポケット内壁の描画メッシュとGPUリソースを所有する。
+// 描画形状はTableVisualMesh、反射壁と入球判定は従来の独立コンポーネントで管理。
 class TableFrameRenderComponent final : public Component
 {
 public:
@@ -27,25 +27,6 @@ private:
     void BuildMesh();
 	void BuildChargeIndicators();
 	void AddChargeQuad(float xMin, float zMin, float xMax, float zMax, float y);
-    void AddQuad(
-        float xMin,
-        float zMin,
-        float xMax,
-        float zMax,
-        float y,
-        const DirectX::SimpleMath::Color& color);
-    void AddSurfaceQuad(
-        const DirectX::SimpleMath::Vector3& topLeft,
-        const DirectX::SimpleMath::Vector3& topRight,
-        const DirectX::SimpleMath::Vector3& bottomLeft,
-        const DirectX::SimpleMath::Vector3& bottomRight,
-        const DirectX::SimpleMath::Color& color);
-    void AddPocketDisc(
-        const DirectX::SimpleMath::Vector3& center,
-        float radius,
-        float y,
-        const DirectX::SimpleMath::Color& color);
-
     std::vector<VERTEX_3D> m_Vertices;
     std::vector<unsigned int> m_Indices;
 	std::vector<VERTEX_3D> m_ChargeVertices;

@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "GameRuntime.h"
 #include "Renderer.h"
+#include "TableVisualMesh.h"
 #include "TransformComponent.h"
 
 #include <cassert>
@@ -11,38 +12,21 @@ using namespace DirectX::SimpleMath;
 
 void GroundRenderComponent::Awake()
 {
-    constexpr int sizeX = 1;
-    constexpr int sizeZ = 1;
-
-    m_Vertices.resize(6 * sizeX * sizeZ);
-
-    for (int z = 0; z < sizeZ; ++z)
+    // Ground keeps its existing field-size transform. Normalize the render-only
+    // cut-out mesh here so neither the field bounds nor gameplay coordinates move.
+    const auto felt = TableVisualMesh::BuildFelt();
+    m_Vertices.clear();
+    m_Vertices.reserve(felt.size());
+    for (const auto& source : felt)
     {
-        for (int x = 0; x < sizeX; ++x)
-        {
-            const int n = z * sizeX * 6 + x * 6;
-
-            m_Vertices[n + 0].position = Vector3(-0.5f + x - sizeX / 2, 0.0f, 0.5f - z + sizeZ / 2);
-            m_Vertices[n + 1].position = Vector3(0.5f + x - sizeX / 2, 0.0f, 0.5f - z + sizeZ / 2);
-            m_Vertices[n + 2].position = Vector3(-0.5f + x - sizeX / 2, 0.0f, -0.5f - z + sizeZ / 2);
-            m_Vertices[n + 3].position = Vector3(-0.5f + x - sizeX / 2, 0.0f, -0.5f - z + sizeZ / 2);
-            m_Vertices[n + 4].position = Vector3(0.5f + x - sizeX / 2, 0.0f, 0.5f - z + sizeZ / 2);
-            m_Vertices[n + 5].position = Vector3(0.5f + x - sizeX / 2, 0.0f, -0.5f - z + sizeZ / 2);
-
-            m_Vertices[n + 0].uv = Vector2(0.0f, 0.0f);
-            m_Vertices[n + 1].uv = Vector2(1.0f, 0.0f);
-            m_Vertices[n + 2].uv = Vector2(0.0f, 1.0f);
-            m_Vertices[n + 3].uv = Vector2(0.0f, 1.0f);
-            m_Vertices[n + 4].uv = Vector2(1.0f, 0.0f);
-            m_Vertices[n + 5].uv = Vector2(1.0f, 1.0f);
-
-            for (int vertexIndex = 0; vertexIndex < 6; ++vertexIndex)
-            {
-                VERTEX_3D& vertex = m_Vertices[n + vertexIndex];
-                vertex.color = Color(1.0f, 1.0f, 1.0f, 1.0f);
-                vertex.normal = Vector3::UnitY;
-            }
-        }
+        VERTEX_3D vertex{};
+        const float x = source.position.x / TableConfig::GetFieldWidth();
+        const float z = source.position.z / TableConfig::GetFieldDepth();
+        vertex.position = Vector3(x, 0.0f, z);
+        vertex.uv = Vector2(x + 0.5f, 0.5f - z);
+        vertex.color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+        vertex.normal = Vector3::UnitY;
+        m_Vertices.push_back(vertex);
     }
 
     m_VertexBuffer.Create(m_Vertices);

@@ -202,6 +202,9 @@
     <ClInclude Include="TableConfig.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
     </ClInclude>
+    <ClInclude Include="TableVisualMesh.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
+    </ClInclude>
     <ClInclude Include="TableGeometry.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Stage</Filter>
     </ClInclude>

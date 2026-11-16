@@ -5,6 +5,7 @@
 #include "GameRuntime.h"
 #include "Renderer.h"
 #include "TableGeometry.h"
+#include "TableVisualMesh.h"
 #include "TransformComponent.h"
 
 #include <algorithm>
@@ -86,7 +87,7 @@ void TableFrameRenderComponent::BuildChargeIndicators()
 	const float outerHalfDepth = TableConfig::TABLE_OUTER_DEPTH * 0.5f;
 	const float fieldHalfWidth = TableConfig::GetFieldWidth() * 0.5f;
 	const float fieldHalfDepth = TableConfig::GetFieldDepth() * 0.5f;
-	const float y = TableConfig::RAIL_TOP_OFFSET + 0.025f;
+	const float y = TableVisualMesh::RailHeight + 0.025f;
 	constexpr float gap = 0.7f;
 
 	// 0..3:上長辺、4..7:下長辺。各辺を4等分する。
@@ -143,268 +144,19 @@ void TableFrameRenderComponent::BuildMesh()
 {
     m_Vertices.clear();
     m_Indices.clear();
-    m_PocketCenters.clear();
+    const auto centers = TableConfig::GetPocketCenters();
+    m_PocketCenters.assign(centers.begin(), centers.end());
 
-    const float outerHalfWidth = TableConfig::TABLE_OUTER_WIDTH * 0.5f;
-    const float outerHalfDepth = TableConfig::TABLE_OUTER_DEPTH * 0.5f;
-    const float fieldHalfWidth = TableConfig::GetFieldWidth() * 0.5f;
-    const float fieldHalfDepth = TableConfig::GetFieldDepth() * 0.5f;
-    const float cornerMouth =
-        TableConfig::CORNER_POCKET_MOUTH_HALF_WIDTH;
-    const float sideMouth = TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH;
-    const float y = TableConfig::RAIL_TOP_OFFSET;
-    const Color cushionColor(0.025f, 0.30f, 0.17f, 1.0f);
-    const Color pocketColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-    // Build one continuous cushion ring. Its inner edge follows the circular
-    // pocket liners, so the holes are actual mesh cut-outs rather than black
-    // discs painted over rectangular rails.
-    constexpr int curveSteps = 12;
-    std::vector<float> xSamples{ -outerHalfWidth, outerHalfWidth };
-    const std::array<float, 3> pocketX{
-        -fieldHalfWidth, 0.0f, fieldHalfWidth
-    };
-    const std::array<float, 3> pocketRadii{
-        cornerMouth, sideMouth, cornerMouth
-    };
-    for (std::size_t pocketIndex = 0;
-        pocketIndex < pocketX.size(); ++pocketIndex)
+    const auto mesh = TableVisualMesh::BuildFrame();
+    m_Vertices.reserve(mesh.size());
+    m_Indices.reserve(mesh.size());
+    for (const auto& source : mesh)
     {
-        for (int step = -curveSteps; step <= curveSteps; ++step)
-        {
-            xSamples.push_back(
-                pocketX[pocketIndex] +
-                pocketRadii[pocketIndex] *
-                static_cast<float>(step) /
-                static_cast<float>(curveSteps));
-        }
-    }
-    std::sort(xSamples.begin(), xSamples.end());
-    xSamples.erase(std::unique(xSamples.begin(), xSamples.end()), xSamples.end());
-
-    const auto topCutoutEdge = [&](float x)
-    {
-        float edge = fieldHalfDepth;
-        for (std::size_t pocketIndex = 0;
-            pocketIndex < pocketX.size(); ++pocketIndex)
-        {
-            const float dx = x - pocketX[pocketIndex];
-            const float radius = pocketRadii[pocketIndex];
-            if (std::abs(dx) <= radius)
-            {
-                edge = (std::max)(edge,
-                    fieldHalfDepth + std::sqrt((std::max)(
-                        0.0f, radius * radius - dx * dx)));
-            }
-        }
-        return edge;
-    };
-
-    for (std::size_t index = 0; index + 1 < xSamples.size(); ++index)
-    {
-        const float x0 = xSamples[index];
-        const float x1 = xSamples[index + 1];
-        const float top0 = topCutoutEdge(x0);
-        const float top1 = topCutoutEdge(x1);
-        AddSurfaceQuad(
-            Vector3(x0, y, outerHalfDepth),
-            Vector3(x1, y, outerHalfDepth),
-            Vector3(x0, y, top0),
-            Vector3(x1, y, top1),
-            cushionColor);
-        AddSurfaceQuad(
-            Vector3(x0, y, -top0),
-            Vector3(x1, y, -top1),
-            Vector3(x0, y, -outerHalfDepth),
-            Vector3(x1, y, -outerHalfDepth),
-            cushionColor);
-    }
-
-    std::vector<float> zSamples{ -fieldHalfDepth, fieldHalfDepth };
-    for (const float pocketZ : { -fieldHalfDepth, fieldHalfDepth })
-    {
-        for (int step = -curveSteps; step <= curveSteps; ++step)
-        {
-            const float z = pocketZ + cornerMouth *
-                static_cast<float>(step) /
-                static_cast<float>(curveSteps);
-            if (z >= -fieldHalfDepth && z <= fieldHalfDepth)
-            {
-                zSamples.push_back(z);
-            }
-        }
-    }
-    std::sort(zSamples.begin(), zSamples.end());
-    zSamples.erase(std::unique(zSamples.begin(), zSamples.end()), zSamples.end());
-
-    const auto sideCutoutDepth = [&](float z)
-    {
-        float depth = 0.0f;
-        for (const float pocketZ : { -fieldHalfDepth, fieldHalfDepth })
-        {
-            const float dz = z - pocketZ;
-            if (std::abs(dz) <= cornerMouth)
-            {
-                depth = (std::max)(depth,
-                    std::sqrt((std::max)(0.0f,
-                        cornerMouth * cornerMouth - dz * dz)));
-            }
-        }
-        return depth;
-    };
-
-    for (std::size_t index = 0; index + 1 < zSamples.size(); ++index)
-    {
-        const float z0 = zSamples[index];
-        const float z1 = zSamples[index + 1];
-        const float depth0 = sideCutoutDepth(z0);
-        const float depth1 = sideCutoutDepth(z1);
-        AddSurfaceQuad(
-            Vector3(-outerHalfWidth, y, z1),
-            Vector3(-fieldHalfWidth - depth1, y, z1),
-            Vector3(-outerHalfWidth, y, z0),
-            Vector3(-fieldHalfWidth - depth0, y, z0),
-            cushionColor);
-        AddSurfaceQuad(
-            Vector3(fieldHalfWidth + depth1, y, z1),
-            Vector3(outerHalfWidth, y, z1),
-            Vector3(fieldHalfWidth + depth0, y, z0),
-            Vector3(outerHalfWidth, y, z0),
-            cushionColor);
-    }
-
-    for (const Vector3& center : TableConfig::GetPocketCenters())
-    {
-        m_PocketCenters.push_back(center);
-        const bool sidePocket = std::abs(center.x) < 0.001f;
-        AddPocketDisc(
-            center,
-            sidePocket ? sideMouth : cornerMouth,
-            y + 0.01f,
-            pocketColor);
-    }
-}
-
-void TableFrameRenderComponent::AddSurfaceQuad(
-    const Vector3& topLeft,
-    const Vector3& topRight,
-    const Vector3& bottomLeft,
-    const Vector3& bottomRight,
-    const Color& color)
-{
-    const unsigned int startIndex =
-        static_cast<unsigned int>(m_Vertices.size());
-
-    VERTEX_3D vertices[4]{};
-    vertices[0].position = topLeft;
-    vertices[1].position = topRight;
-    vertices[2].position = bottomLeft;
-    vertices[3].position = bottomRight;
-    vertices[0].uv = Vector2(0.0f, 0.0f);
-    vertices[1].uv = Vector2(1.0f, 0.0f);
-    vertices[2].uv = Vector2(0.0f, 1.0f);
-    vertices[3].uv = Vector2(1.0f, 1.0f);
-    for (VERTEX_3D& vertex : vertices)
-    {
-        vertex.color = color;
-        vertex.normal = Vector3::UnitY;
+        VERTEX_3D vertex{};
+        vertex.position = Vector3(source.position.x, source.position.y, source.position.z);
+        vertex.normal = Vector3(source.normal.x, source.normal.y, source.normal.z);
+        vertex.color = Color(source.color.r, source.color.g, source.color.b, 1.0f);
+        m_Indices.push_back(static_cast<unsigned int>(m_Vertices.size()));
         m_Vertices.push_back(vertex);
     }
-
-    m_Indices.push_back(startIndex);
-    m_Indices.push_back(startIndex + 1);
-    m_Indices.push_back(startIndex + 2);
-    m_Indices.push_back(startIndex + 2);
-    m_Indices.push_back(startIndex + 1);
-    m_Indices.push_back(startIndex + 3);
-}
-
-void TableFrameRenderComponent::AddPocketDisc(
-    const Vector3& center,
-    float radius,
-    float y,
-    const Color& color)
-{
-    constexpr int segments = 24;
-    constexpr float twoPi = 6.28318530717958647692f;
-    for (int segment = 0; segment < segments; segment++)
-    {
-        const float angle0 = twoPi * static_cast<float>(segment) /
-            static_cast<float>(segments);
-        const float angle1 = twoPi * static_cast<float>(segment + 1) /
-            static_cast<float>(segments);
-        const unsigned int startIndex =
-            static_cast<unsigned int>(m_Vertices.size());
-
-        VERTEX_3D centerVertex{};
-        VERTEX_3D edge0{};
-        VERTEX_3D edge1{};
-        centerVertex.position = Vector3(center.x, y, center.z);
-        edge0.position = Vector3(
-            center.x + std::cos(angle0) * radius,
-            y,
-            center.z + std::sin(angle0) * radius);
-        edge1.position = Vector3(
-            center.x + std::cos(angle1) * radius,
-            y,
-            center.z + std::sin(angle1) * radius);
-        centerVertex.normal = edge0.normal = edge1.normal = Vector3::UnitY;
-        centerVertex.color = edge0.color = edge1.color = color;
-        centerVertex.uv = Vector2(0.5f, 0.5f);
-        edge0.uv = Vector2(0.0f, 0.0f);
-        edge1.uv = Vector2(1.0f, 0.0f);
-        m_Vertices.push_back(centerVertex);
-        m_Vertices.push_back(edge0);
-        m_Vertices.push_back(edge1);
-        m_Indices.push_back(startIndex);
-        m_Indices.push_back(startIndex + 2);
-        m_Indices.push_back(startIndex + 1);
-    }
-}
-
-void TableFrameRenderComponent::AddQuad(
-    float xMin,
-    float zMin,
-    float xMax,
-    float zMax,
-    float y,
-    const Color& color)
-{
-    if (xMin >= xMax || zMin >= zMax)
-    {
-        return;
-    }
-
-    const unsigned int startIndex =
-        static_cast<unsigned int>(m_Vertices.size());
-
-    VERTEX_3D topLeft{};
-    VERTEX_3D topRight{};
-    VERTEX_3D bottomLeft{};
-    VERTEX_3D bottomRight{};
-
-    topLeft.position = Vector3(xMin, y, zMax);
-    topRight.position = Vector3(xMax, y, zMax);
-    bottomLeft.position = Vector3(xMin, y, zMin);
-    bottomRight.position = Vector3(xMax, y, zMin);
-
-    topLeft.uv = Vector2(0.0f, 0.0f);
-    topRight.uv = Vector2(1.0f, 0.0f);
-    bottomLeft.uv = Vector2(0.0f, 1.0f);
-    bottomRight.uv = Vector2(1.0f, 1.0f);
-
-    topLeft.color = topRight.color = bottomLeft.color = bottomRight.color = color;
-    topLeft.normal = topRight.normal = bottomLeft.normal = bottomRight.normal = Vector3::UnitY;
-
-    m_Vertices.push_back(topLeft);
-    m_Vertices.push_back(topRight);
-    m_Vertices.push_back(bottomLeft);
-    m_Vertices.push_back(bottomRight);
-
-    m_Indices.push_back(startIndex + 0);
-    m_Indices.push_back(startIndex + 1);
-    m_Indices.push_back(startIndex + 2);
-    m_Indices.push_back(startIndex + 2);
-    m_Indices.push_back(startIndex + 1);
-    m_Indices.push_back(startIndex + 3);
 }

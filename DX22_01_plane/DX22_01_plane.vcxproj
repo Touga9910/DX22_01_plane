@@ -445,6 +445,7 @@
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="TableConfig.h" />
+    <ClInclude Include="TableVisualMesh.h" />
     <ClInclude Include="TableGeometry.h" />
     <ClInclude Include="TagComponent.h" />
     <ClInclude Include="TableFrame.h" />

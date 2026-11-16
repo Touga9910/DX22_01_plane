@@ -10,12 +10,12 @@
 #include <memory>
 #include <vector>
 
-// 単位地面メッシュと、描画に必要なGPUリソースを所有
+// ポケット入口を切り欠いた正規化クロスメッシュとGPUリソースを所有
 // TransformComponentのワールド行列を使用してフィールドへ描画
 class GroundRenderComponent final : public Component
 {
 public:
-    // 単位平面の頂点・インデックス、シェーダー、テクスチャ、マテリアルを生成
+    // クロスの頂点・インデックス、シェーダー、テクスチャ、マテリアルを生成
     void Awake() override;
 
     // カメラとTransformが有効な場合に、保持しているGPUリソースを使って地面を描画
