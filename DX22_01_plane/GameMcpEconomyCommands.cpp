@@ -189,7 +189,6 @@ std::optional<nlohmann::json> GameMcpCommandHandlers::TryEconomy(
 	if (action == "choose_reward")
 	{
 		if (!game.IsClearRewardActive() ||
-			game.IsClearRewardChosen() ||
 			game.IsMidBossRelicSelectionActive())
 		{
 			return CommandResult(
@@ -200,6 +199,8 @@ std::optional<nlohmann::json> GameMcpCommandHandlers::TryEconomy(
 		const int moneyBefore = game.GetPlayerMoney();
 		const std::string reward =
 			arguments.value("reward", std::string());
+		if (game.IsClearRewardChosen() && reward != "new_ball")
+			return CommandResult(false, "The bonus reward has already been received.");
 		bool applied = false;
 		int chargedUpgradeCost = 0;
 		int selectedOfferIndex = -1;

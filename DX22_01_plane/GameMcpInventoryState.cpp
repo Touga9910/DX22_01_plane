@@ -197,7 +197,7 @@ void AppendInventory(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::
 		offer["offer_index"] = offerIndex;
 		offer["catalog_index"] = catalogIndex;
 		offer["price"] = game.GetClearRewardBallCost();
-        offer["affordable"] = game.GetPlayerMoney() >= game.GetClearRewardBallCost() && !game.IsClearRewardBallAcquired() && !game.IsClearRewardChosen();
+        offer["affordable"] = game.GetPlayerMoney() >= game.GetClearRewardBallCost() && !game.IsClearRewardBallAcquired();
         state["clear_reward_ball_offers"].push_back(std::move(offer));
 	}
 

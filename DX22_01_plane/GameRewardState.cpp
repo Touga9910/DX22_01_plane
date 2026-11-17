@@ -124,8 +124,8 @@ void GameRewardState::MarkChosen(
 	m_SelectedRewardIndex = rewardIndex;
 	m_SelectedRewardBallIndex = rewardBallIndex;
 	m_Message = std::move(message);
-    // Buying the optional ball leaves the separate bonus choice available.
-    m_Chosen = rewardIndex != 0;
+    // Buying a ball must preserve a bonus already received earlier.
+    if (rewardIndex != 0) m_Chosen = true;
     if (rewardIndex == 0)
     {
         m_BallAcquired = true;

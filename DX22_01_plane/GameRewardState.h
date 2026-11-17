@@ -10,6 +10,8 @@ class GameRewardState final
 public:
 	bool IsActive() const;
 	bool IsChosen() const;
+	// Chosen tracks the bonus; buying the optional ball is an independent step.
+	bool IsReadyToContinue() const { return m_Chosen && m_BallAcquired; }
 	bool IsBallAcquired() const { return m_BallAcquired; }
 	void MarkBallAcquired() { m_BallAcquired = true; }
 	bool IsMidBossRelicSelectionActive() const;

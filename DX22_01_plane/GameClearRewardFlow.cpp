@@ -62,7 +62,7 @@ const PlayerBallData* Game::GetClearRewardBallOffer(int offerIndex) const
 bool Game::AddClearRewardBallOffer(int offerIndex)
 {
     const int cost = GetClearRewardBallCost();
-    if (!IsClearRewardActive() || IsClearRewardChosen() ||
+    if (!IsClearRewardActive() ||
         IsClearRewardBallAcquired() || IsMidBossRelicSelectionActive() ||
         m_RunController->Status().money < cost) return false;
     if (!m_RunController->Deck().AddCatalogBall(GetClearRewardBallOfferCatalogIndex(offerIndex))) return false;
@@ -294,7 +294,7 @@ void Game::UpdateClearReward()
 		return;
 	}
 
-	if (m_RewardState->IsChosen())
+	if (m_RewardState->IsReadyToContinue())
 	{
 		if (confirmed)
 		{
@@ -341,6 +341,8 @@ void Game::UpdateClearReward()
 	}
 
 	bool rewardApplied = false;
+	if (m_RewardState->IsChosen() && m_RewardState->SelectedRewardIndex() != 0)
+		return; // Bonus already received; a ball may still be purchased.
 	nlohmann::json rewardDetails =
 	{
 		{ "money_before", m_RunController->Status().money },
@@ -429,12 +431,11 @@ void Game::UpdateClearReward()
 		rewardDetails["money_after"] = m_RunController->Status().money;
 		rewardDetails["controller"] = "human";
 		RecordBalanceEvent("clear_reward_choice", rewardDetails);
-        if (ballOnly)
-            m_RewardState->ApplyPresentationSelection(m_RewardState->SelectedRelicOfferIndex(), 2, 0);
-		else
-		{
-			m_RewardState->MarkChosen();
+		if (!ballOnly) m_RewardState->MarkChosen();
+		if (m_RewardState->IsReadyToContinue())
 			ContinueAfterClearReward();
-		}
+		else
+			m_RewardState->ApplyPresentationSelection(
+				m_RewardState->SelectedRelicOfferIndex(), ballOnly ? 2 : 0, 0);
 	}
 }

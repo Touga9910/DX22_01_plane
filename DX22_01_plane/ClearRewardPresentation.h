@@ -18,7 +18,7 @@ struct ClearRewardPresentationModel
 	int playerCurrentHp = 0;
 	int playerMaxHp = 0;
 	bool midBossRelicSelectionActive = false;
-	bool clearRewardChosen = false;
+	bool clearRewardChosen = false; // bonus received; optional ball may still be bought
 	bool rewardBallAcquired = false;
 	int rewardBallCost = 25;
 	int selectedRelicOfferIndex = 0;

@@ -17,23 +17,8 @@
 namespace
 {
     constexpr const char* PurchasePopup = "ボールの購入###reward_purchase_confirm";
+    constexpr const char* DetailPopup = "ボール詳細###reward_ball_details";
     constexpr const char* UpgradePopup = "強化するボールを選択###reward_upgrade_targets";
-
-    void BallDetailsOnHover(const PlayerBallData& ball)
-    {
-        const auto* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowSize(ImVec2((std::min)(720.0f, viewport->WorkSize.x - 24),
-            (std::min)(490.0f, viewport->WorkSize.y - 24)));
-        if (ImGui::BeginTooltip())
-        {
-            BallCardPresentation::DrawBallDetailPopup(ball, ball.status.attack);
-            // The shared detail renderer positions the cursor for a close
-            // button. This tooltip has no button, but must still commit that
-            // layout position before EndTooltip (required by current ImGui).
-            ImGui::Dummy(ImVec2(0.0f, 0.0f));
-            ImGui::EndTooltip();
-        }
-    }
 }
 
 ClearRewardPresentationIntent ClearRewardUi::Draw(
@@ -51,9 +36,10 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
     const bool purchased = model.rewardBallAcquired && !relics;
     const bool keyboardConfirm = !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) &&
         (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_Space, false));
-    const std::string status = relics ? "レリックを1つ選んでください。" : purchased
+    const std::string status = relics ? "レリックを1つ選んでください。" : chosen && !purchased
+        ? "追加報酬は受取済み。ボールを購入するか、スキップで見送れます。" : purchased
         ? "ボール購入済み。強化かゴールドを選ぶとマップへ戻ります。"
-        : "ボールは任意購入です。強化かゴールドを選ぶとマップへ戻ります。";
+        : "ボール購入と追加報酬は、どちらを先に選んでも受け取れます。";
     ui.Text(status.c_str(), 220, 169, 1008, 30, 22);
     ui.Text("所持金", 555, 201, 100, 30, 21, Gold);
     GoldUi::Draw(ImGui::GetWindowDrawList(), ui.At(660, 199), model.playerMoney,
@@ -70,7 +56,8 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         ImGui::PushID(index);
         const bool clicked = ui.Hit("reward_card", x, 235, 330, 287);
         const bool hovered = ImGui::IsItemHovered();
-        if (!chosen && exists && !purchased &&
+        const bool showDetails = !relics && ball && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right);
+        if ((!relics || !chosen) && exists && !purchased &&
             (clicked || (!relics && keyboardConfirm && selected)))
         {
             if (relics) intent.selectedRelicOfferIndex = index;
@@ -83,13 +70,18 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
             }
         }
         ImGui::PopID();
-        if (!relics && !chosen && !purchased && exists &&
+        if (showDetails)
+        {
+            pendingPurchaseOfferIndex = index;
+            ImGui::OpenPopup(DetailPopup);
+        }
+        if (!relics && !purchased && exists &&
             (clicked || (keyboardConfirm && selected))) ImGui::OpenPopup(PurchasePopup);
         if (purchased)
             ImageRegion(ImGui::GetWindowDrawList(), "assets/UI/Run/reward_background.png",
                 ui.At(x - 16, 217), ui.At(x + 346, 537),
                 ImVec2((x - 16) / 1448, 217.0f / 1086), ImVec2((x + 346) / 1448, 537.0f / 1086), true);
-        else ui.Highlight(x, 235, 330, 287, selected, hovered && !chosen, exists);
+        else ui.Highlight(x, 235, 330, 287, selected, hovered, exists);
         if (relics && relic)
         {
             ui.Text("R", x + 120, 251, 90, 94, 48, Gold);
@@ -108,7 +100,6 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
             const float width = GoldUi::Width(model.rewardBallCost, 38 * ui.scale, 30 * ui.scale);
             GoldUi::Draw(draw, ui.At(x + 165 - width / (2 * ui.scale), 451), model.rewardBallCost,
                 38 * ui.scale, 30 * ui.scale, purchased ? IM_COL32(55, 55, 55, 255) : Ink, purchased);
-            if (hovered && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) BallDetailsOnHover(*ball);
         }
         else ui.Text("候補がありません", x + 24, 360, 282, 48, 25, Ink);
     }
@@ -145,7 +136,7 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
     if (model.extraMoneyAmount != 10)
         ui.Text(("獲得：" + std::to_string(model.extraMoneyAmount)).c_str(), 825, 804, 400, 29, 22, Gold);
     ui.Text(relics ? "レリックを選択して受け取ってください。" :
-        "ボール詳細：マウスオーバー ／ 購入は任意 ／ 追加報酬はどちらか1つ", 310, 891, 838, 39, 22);
+        "詳細：右クリック ／ 左クリックで購入確認 ／ 追加報酬はどちらか1つ", 310, 891, 838, 39, 22);
 
     // Replace the baked green button with a red, gold-framed skip plate.
     auto* draw = ImGui::GetWindowDrawList();
@@ -170,13 +161,28 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.57f, 0.34f, 0.65f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 12);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2);
+    // Same fixed, interactive detail panel as the battle hand. The close
+    // button consumes the final cursor position left by the shared renderer.
+    const auto* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowSize(ImVec2((std::min)(780.0f, viewport->WorkSize.x - 32.0f),
+        (std::min)(452.0f, viewport->WorkSize.y - 32.0f)), ImGuiCond_Appearing);
+    ImGui::SetNextWindowPos(ui.At(724, 530), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (ImGui::BeginPopupModal(DetailPopup, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings))
+    {
+        const int index = pendingPurchaseOfferIndex;
+        const auto* ball = index >= 0 && index < static_cast<int>(model.newBallOffers.size()) ? model.newBallOffers[index] : nullptr;
+        if (ball) BallCardPresentation::DrawBallDetailPopup(*ball, ball->status.attack);
+        if (ImGui::Button("閉じる", ImVec2(-1.0f, 38.0f))) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+
     ImGui::SetNextWindowPos(ui.At(724, 530), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2((std::min)(520.0f, ImGui::GetMainViewport()->WorkSize.x - 24), 0), ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal(PurchasePopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
     {
         const int index = pendingPurchaseOfferIndex;
         const auto* ball = index >= 0 && index < static_cast<int>(model.newBallOffers.size()) ? model.newBallOffers[index] : nullptr;
-        const bool canBuy = ball && !chosen && !purchased && model.playerMoney >= model.rewardBallCost;
+        const bool canBuy = ball && !purchased && model.playerMoney >= model.rewardBallCost;
         ImGui::TextUnformatted(ball ? PlayerBallText::GetName(ball->definitionId) : "候補がありません");
         ImGui::TextUnformatted("このボールを購入しますか？");
         GoldUi::Draw(ImGui::GetWindowDrawList(), ImGui::GetCursorScreenPos(), model.rewardBallCost, 32, 24);
@@ -238,7 +244,7 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         if (ImGui::Button("戻る", ImVec2(180, 42))) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
-    intent.modalOpen = ImGui::IsPopupOpen(PurchasePopup) || ImGui::IsPopupOpen(UpgradePopup);
+    intent.modalOpen = ImGui::IsPopupOpen(PurchasePopup) || ImGui::IsPopupOpen(UpgradePopup) || ImGui::IsPopupOpen(DetailPopup);
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(5);
     return intent;
