@@ -155,6 +155,7 @@ void PlayerBall::FixedUpdate()
 
 void PlayerBall::Draw(Camera* cam)
 {
+	if (GameBattleView::ClearRewardActive()) return;
 	if (m_RenderComponent == nullptr && GetGameObject() != nullptr)
 		m_RenderComponent = GetGameObject()->GetComponent<BallRenderComponent>();
 	if (IsDefeated() || cam == nullptr || m_Ball == nullptr ||

@@ -30,7 +30,8 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         model.selectedRewardBallIndex, false,
     };
     Canvas ui("clear_reward_art", 1448, 1086, IM_COL32(0, 0, 0, 72));
-    ui.Art("assets/UI/Run/reward_background.png", 0, 0, 1448, 1086, IM_COL32_WHITE, false);
+    ui.Art("assets/UI/Lounge/reward_background.png", 0, 0, 1448, 1086, IM_COL32_WHITE, false);
+    ui.Text("バトル報酬", 190, 91, 1050, 58, 36);
     const bool relics = model.midBossRelicSelectionActive;
     const bool chosen = model.clearRewardChosen;
     const bool purchased = model.rewardBallAcquired && !relics;
@@ -78,7 +79,7 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         if (!relics && !purchased && exists &&
             (clicked || (keyboardConfirm && selected))) ImGui::OpenPopup(PurchasePopup);
         if (purchased)
-            ImageRegion(ImGui::GetWindowDrawList(), "assets/UI/Run/reward_background.png",
+            ImageRegion(ImGui::GetWindowDrawList(), "assets/UI/Lounge/reward_background.png",
                 ui.At(x - 16, 217), ui.At(x + 346, 537),
                 ImVec2((x - 16) / 1448, 217.0f / 1086), ImVec2((x + 346) / 1448, 537.0f / 1086), true);
         else ui.Highlight(x, 235, 330, 287, selected, hovered, exists);
@@ -93,12 +94,12 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
             BallCardPresentation::DrawBallIcon(*ball, ui.At(x + 111, 250), ui.Size(108, 108), purchased);
             auto* draw = ImGui::GetWindowDrawList();
             draw->AddRectFilled(ui.At(x + 16, 368), ui.At(x + 314, 414),
-                purchased ? IM_COL32(92, 92, 92, 255) : IM_COL32(89, 48, 99, 255), 10 * ui.scale);
+                purchased ? IM_COL32(92, 92, 92, 255) : IM_COL32(68, 40, 31, 255), 10 * ui.scale);
             const std::string name = std::string(PlayerBallText::GetName(ball->definitionId)) + " +" + std::to_string(ball->upgradeLevel);
             ui.Text(name.c_str(), x + 22, 371, 286, 40, 26,
                 purchased ? IM_COL32_WHITE : Cream);
             const float width = GoldUi::Width(model.rewardBallCost, 38 * ui.scale, 30 * ui.scale);
-            GoldUi::Draw(draw, ui.At(x + 165 - width / (2 * ui.scale), 451), model.rewardBallCost,
+            GoldUi::Draw(draw, ui.At(x + 247 - width / (2 * ui.scale), 451), model.rewardBallCost,
                 38 * ui.scale, 30 * ui.scale, purchased ? IM_COL32(55, 55, 55, 255) : Ink, purchased);
         }
         else ui.Text("候補がありません", x + 24, 360, 282, 48, 25, Ink);
@@ -107,7 +108,7 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
     const bool upgradeAvailable = std::any_of(model.upgradeTargets.begin(), model.upgradeTargets.end(),
         [&](const auto& item) { return item.ball && item.upgradeCost >= 0 && item.upgradeCost <= model.playerMoney; });
     ui.Text(relics ? "レリックを1つ選択" : "追加報酬（強化・ゴールドから1つ）", 458, 599, 532, 43, 25);
-    ui.Art("assets/UI/Run/reward_upgrade.png", 190, 672, 470, 127);
+    ui.Art("assets/UI/Lounge/reward_upgrade.png", 190, 672, 470, 127);
     const bool upgradeClicked = ui.Hit("upgrade_reward", 190, 672, 470, 127);
     const bool upgradeHovered = ImGui::IsItemHovered();
     if (!chosen && !relics && upgradeAvailable &&
@@ -127,14 +128,15 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
     ui.Highlight(190, 672, 470, 127, false, upgradeHovered && !chosen, upgradeAvailable && !relics && !chosen);
     if (upgradeHovered && !upgradeAvailable && !relics)
         ImGui::SetTooltip("強化できるボール、または強化に必要なゴールドがありません。");
-    ui.Art("assets/UI/Run/reward_money.png", 788, 672, 470, 127);
+    ui.Art("assets/UI/Lounge/reward_money.png", 788, 672, 470, 127);
     if (ui.Hit("money_reward", 788, 672, 470, 127) && !chosen && !relics)
     { intent.selectedRewardIndex = 2; intent.confirm = true; }
     if (keyboardConfirm && intent.selectedRewardIndex == 2 && !chosen && !relics)
         intent.confirm = true;
     ui.Highlight(788, 672, 470, 127, false, ImGui::IsItemHovered() && !chosen, !relics && !chosen);
-    if (model.extraMoneyAmount != 10)
-        ui.Text(("獲得：" + std::to_string(model.extraMoneyAmount)).c_str(), 825, 804, 400, 29, 22, Gold);
+    ui.Text("ボールを強化", 390, 689, 260, 35, 24);
+    ui.Text("15 / 30 ゴールド", 390, 736, 260, 30, 19, Gold);
+    ui.Text(("ゴールド +"+std::to_string(model.extraMoneyAmount)).c_str(), 968, 710, 270, 40, 25);
     ui.Text(relics ? "レリックを選択して受け取ってください。" :
         "詳細：右クリック ／ 左クリックで購入確認 ／ 追加報酬はどちらか1つ", 310, 891, 838, 39, 22);
 

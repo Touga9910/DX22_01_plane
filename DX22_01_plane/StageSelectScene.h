@@ -22,6 +22,8 @@ private:
 	bool m_ShowWholeMap = false;
 	int m_SelectedNode = 0;
 	bool m_MouseConfirmed = false;
+	float m_RouteFlight = -1.0f;
+	int m_FlyingRoute = -1;
 
 	void Init(); // 初期化
 	void Uninit(); // 終了処理

@@ -199,7 +199,7 @@ class BalanceConfigurationTests(unittest.TestCase):
         )
 
         self.assertIn(
-            'ChooseRoute(m_SelectedNode, "human");',
+            'ChooseRoute(route, "human");',
             stage_select_source,
         )
         self.assertIn(
