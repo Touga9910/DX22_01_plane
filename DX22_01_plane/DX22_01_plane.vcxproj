@@ -169,6 +169,8 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="RouteVisualPath.h" />
+    <ClInclude Include="RewardFieldLayout.h" />
     <ClInclude Include="BallCcdGeometry.h" />
     <ClInclude Include="BattleController.h" />
     <ClInclude Include="BattleFlowRules.h" />

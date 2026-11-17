@@ -1,5 +1,9 @@
 ﻿#include "Game.h"
 #include "GamePresentation.h"
+#include "GamePresentationPrimitives.h"
+#include "TableConfig.h"
+#include "imgui/imgui.h"
+#include <array>
 #include "GameSettingsRuntime.h"
 #include "GameRewardState.h"
 #include "GameBallSelectionState.h"
@@ -109,6 +113,21 @@ void Game::DrawClearRewardUI()
 	}
 
 	ClearRewardPresentationModel model{};
+    // Project an inset cloth rectangle and fit every reward control inside it.
+    std::array<RewardFieldLayout::Point,4> cloth{};
+    const float x=TableConfig::GetFieldWidth()*0.5f-5.0f;
+    const float z=TableConfig::GetFieldDepth()*0.5f-5.0f;
+    const DirectX::SimpleMath::Vector3 corners[]={{-x,TableConfig::FIELD_HEIGHT,z},
+        {x,TableConfig::FIELD_HEIGHT,z},{x,TableConfig::FIELD_HEIGHT,-z},{-x,TableConfig::FIELD_HEIGHT,-z}};
+    bool projected=true;
+    for(int i=0;i<4;++i)
+    {
+        ImVec2 point;
+        if (!GamePresentationPrimitives::TryProjectToScreen(corners[i],point)) { projected=false; break; }
+        cloth[i]={point.x,point.y};
+    }
+    if(projected) model.fieldBounds=RewardFieldLayout::Fit(cloth);
+
 	model.stageRewardMoney = m_RunController->GetCurrentStageRewardMoney();
 	model.playerMoney = m_RunController->Status().money;
 	model.playerCurrentHp = m_RunController->Status().currentHp;

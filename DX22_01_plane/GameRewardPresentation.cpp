@@ -30,6 +30,11 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         model.selectedRewardBallIndex, false,
     };
     Canvas ui("clear_reward_art", 1448, 1086, IM_COL32(0, 0, 0, 72));
+    if (model.fieldBounds.valid)
+    {
+        ui.origin = ImVec2(model.fieldBounds.left, model.fieldBounds.top);
+        ui.scale = (std::min)(model.fieldBounds.width / 1448.0f, model.fieldBounds.height / 1086.0f);
+    }
     ui.Art("assets/UI/Lounge/reward_background.png", 0, 0, 1448, 1086, IM_COL32_WHITE, false);
     ui.Text("バトル報酬", 190, 91, 1050, 58, 36);
     const bool relics = model.midBossRelicSelectionActive;

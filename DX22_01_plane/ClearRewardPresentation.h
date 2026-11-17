@@ -1,4 +1,5 @@
 #pragma once
+#include "RewardFieldLayout.h"
 #include <string>
 #include <vector>
 
@@ -13,6 +14,7 @@ struct ClearRewardBallView
 
 struct ClearRewardPresentationModel
 {
+	RewardFieldLayout::Bounds fieldBounds;
 	int stageRewardMoney = 0;
 	int playerMoney = 0;
 	int playerCurrentHp = 0;

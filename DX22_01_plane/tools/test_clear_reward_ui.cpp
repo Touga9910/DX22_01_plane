@@ -13,6 +13,7 @@
 namespace
 {
     int grayRegions=0,grayIcons=0,details=0,detailHovered=0;
+    bool checkFieldBounds=false;
     ImVec2 detailTermCenter;
     ClearRewardPresentationModel model;
     int pending=-1;
@@ -56,7 +57,10 @@ namespace
 namespace IllustratedUi
 {
     void Image(ImDrawList* draw,const char*,ImVec2 lo,ImVec2 hi,ImU32 tint,bool,bool)
-    { draw->AddRectFilled(lo,hi,tint); }
+    {
+        if(checkFieldBounds) assert(lo.x>=200 && lo.y>=150 && hi.x<=1100.01f && hi.y<=825.01f);
+        draw->AddRectFilled(lo,hi,tint);
+    }
     void ImageRegion(ImDrawList* draw,const char*,ImVec2 lo,ImVec2 hi,ImVec2,ImVec2,bool gray)
     { grayRegions+=gray; draw->AddRectFilled(lo,hi,IM_COL32(100,100,100,255)); }
 }
@@ -215,6 +219,10 @@ int main()
     intent=Click(720,1000);
     assert(intent.confirm && !intent.skip);
     Frame();
+    model.midBossRelicSelectionActive=false;
+    model.fieldBounds={200,150,900,675,true};
+    checkFieldBounds=true;
+    Frame(); Frame();
     ImGui::DestroyContext();
     std::cout << "Reward order, persistent right-click details, purchase, bonus and skip passed\n";
 }

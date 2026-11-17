@@ -2,6 +2,7 @@
 #include "StageSelectScene.h"
 #include "GameRuntime.h"
 #include "IllustratedUi.h"
+#include "RouteVisualPath.h"
 #include "Input.h"
 #include "RunRouteCommands.h"
 #include "RunRouteView.h"
@@ -197,6 +198,19 @@ void StageSelectScene::DrawUI()
     auto position=[&](const RunMapNode& node)
     { return ImVec2(origin.x+(180+350*node.lane)*ui.scale,
         origin.y+(45+(rows-1-(node.floor-map.StartArea()))*rowHeight)*ui.scale); };
+    // Generate in canonical map coordinates, then transform for scrolling/zoom.
+    auto curveFor=[&](const RunMapNode& from,const RunMapNode& to)
+    {
+        auto curve=RouteVisualPath::Curve(map.Seed(),from.id,to.id,
+            {350.0f*from.lane,-115.0f*(from.floor-map.StartArea())},
+            {350.0f*to.lane,-115.0f*(to.floor-map.StartArea())});
+        for(auto& point:curve)
+        {
+            point.x=origin.x+(180+point.x)*ui.scale;
+            point.y=origin.y+(45+(rows-1)*rowHeight+point.y*rowHeight/115.0f)*ui.scale;
+        }
+        return curve;
+    };
     auto* draw=ImGui::GetWindowDrawList();
     std::vector<bool> reachable(map.Nodes().size());
     for (const auto& node:map.Nodes()) reachable[node.id]=map.Reachable(node.id);
@@ -204,8 +218,11 @@ void StageSelectScene::DrawUI()
     {
         const auto* next=map.Node(id); if (!next) continue;
         const bool used=map.Visited(node.id)&&map.Visited(id);
-        draw->AddLine(position(node),position(*next),used ? Gold :
-            reachable[id] ? IM_COL32(220,218,193,160) : IM_COL32(120,125,118,55),ui.scale*(used?2.5f:1.5f));
+        const auto curve=curveFor(node,*next);
+        const ImU32 color=used ? Gold : reachable[id] ? IM_COL32(220,218,193,210) : IM_COL32(120,125,118,85);
+        for (const auto& dash:RouteVisualPath::Dashes(curve,ui.scale))
+            draw->AddLine(ImVec2(dash.from.x,dash.from.y),ImVec2(dash.to.x,dash.to.y),color,
+                (std::max)(1.5f,ui.scale*(used?5.0f:3.8f)));
     }
     RunMapNode start;
     start.floor=m_RouteNodes.empty()?map.StartArea()-1:map.Node(m_RouteNodes.front())->floor-1;
@@ -240,7 +257,12 @@ void StageSelectScene::DrawUI()
         const auto target=position(*map.Node(m_RouteNodes[m_FlyingRoute]));
         const float t=std::clamp(m_RouteFlight/0.45f,0.0f,1.0f);
         const float ease=t*t*(3-2*t);
-        cue=ImVec2(cueStart.x+(target.x-cueStart.x)*ease,cueStart.y+(target.y-cueStart.y)*ease);
+        const auto curve=curveFor(current?*current:start,*map.Node(m_RouteNodes[m_FlyingRoute]));
+        const float sample=ease*64;
+        const int i=(std::min)(63,static_cast<int>(sample));
+        const float fraction=sample-i;
+        cue=ImVec2(curve[i].x+(curve[i+1].x-curve[i].x)*fraction,
+            curve[i].y+(curve[i+1].y-curve[i].y)*fraction);
         if(t>=1) draw->AddCircle(target,diameter*ui.scale*(0.5f+(m_RouteFlight-0.45f)*3),Gold,48,2*ui.scale);
     }
     const float r=diameter*ui.scale*0.5f;

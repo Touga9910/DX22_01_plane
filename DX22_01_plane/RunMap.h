@@ -55,6 +55,7 @@ class RunMap
     }
 
 public:
+    std::uint32_t Seed() const { return m_Seed; }
     // 指定Seedから3レーン構成のランマップを生成し、進行状態を初期化
     // 通常エリアの後ろには、ボス準備ノードと最終ボスノードが必ず追加される。
     void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15)
