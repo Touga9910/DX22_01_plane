@@ -320,9 +320,11 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         for workflow in (
             "PausePresentationIntent GamePresentation::DrawPause(",
             "BallSelectionPresentationIntent GamePresentation::DrawBallSelection(",
-            "ClearRewardPresentationIntent GamePresentation::DrawClearReward(",
         ):
             self.assertIn(workflow, presentation)
+        self.assertIn("ClearRewardPresentationIntent DrawClearReward(", presentation_header)
+        self.assertIn("return ClearRewardUi::Draw(model,", presentation_header)
+        self.assertIn("ClearRewardPresentationIntent ClearRewardUi::Draw(", presentation)
         self.assertNotIn("friend class GamePresentation", game_header)
         for path in ROOT.glob("Game*Presentation*.cpp"):
             implementation = path.read_text(encoding="utf-8-sig")

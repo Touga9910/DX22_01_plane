@@ -1,6 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClInclude Include="ClearRewardPresentation.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="GoldUi.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="SettingsManager.h">
       <Filter>ヘッダー ファイル\00_Application\Setting</Filter>
     </ClInclude>
@@ -872,6 +878,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="IllustratedUiCanvas.cpp">
+      <Filter>ソース ファイル\05_UI</Filter>
+    </ClCompile>
     <ClCompile Include="Application.cpp">
       <Filter>ソース ファイル\00_Application</Filter>
     </ClCompile>

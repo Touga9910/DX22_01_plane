@@ -45,7 +45,7 @@ bool Game::ApplyClearRewardUpgrade(
 	int& chargedCost)
 {
 	chargedCost = 0;
-	if (!IsClearRewardActive())
+	if (!IsClearRewardActive() || IsClearRewardChosen() || IsMidBossRelicSelectionActive())
 	{
 		return false;
 	}

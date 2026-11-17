@@ -58,7 +58,10 @@ class JapaneseItemTextTests(unittest.TestCase):
         for file_name in ("GameRewardPresentation.cpp", "ShopScene.cpp", "RestSiteScene.cpp"):
             text = (ROOT / file_name).read_text(encoding="utf-8")
             self.assertIn('include "PlayerBallText.h"', text)
-            self.assertIn("PlayerBallText::GetDescription", text)
+            if file_name == "GameRewardPresentation.cpp":
+                self.assertIn("BallCardPresentation::DrawBallDetailPopup", text)
+            else:
+                self.assertIn("PlayerBallText::GetDescription", text)
 
     def test_ball_card_dynamic_status_uses_explicit_utf8_format_strings(self) -> None:
         presentation = (ROOT / "BallCardPresentation.cpp").read_text(

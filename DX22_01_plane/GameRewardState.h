@@ -51,6 +51,10 @@ public:
 
 	void RequestConfirmation();
 	bool ConsumeConfirmationRequest();
+	void RequestSkip() { m_SkipRequested = true; }
+	bool ConsumeSkipRequest();
+	void SetModalOpen(bool open) { m_ModalOpen = open; }
+	bool IsModalOpen() const { return m_ModalOpen; }
 
 private:
 	bool m_Active = false;
@@ -61,6 +65,8 @@ private:
 	bool m_Chosen = false;
 	bool m_BallAcquired = false;
 	bool m_ConfirmationRequested = false;
+	bool m_SkipRequested = false;
+	bool m_ModalOpen = false;
 	bool m_MidBossRelicSelectionActive = false;
 	int m_SelectedRelicOfferIndex = 0;
 };

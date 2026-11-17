@@ -1,6 +1,7 @@
 ﻿#include "BallCardPresentation.h"
 #include "PlayerBallData.h"
 #include "PlayerBallText.h"
+#include "IllustratedUi.h"
 #include "Renderer.h"
 #include "imgui/imgui.h"
 #include "stb_image.h"
@@ -320,8 +321,17 @@ void LoadResources() { GetBallCardArtResources().Load(); }
 
 void ResetResources() { GetBallCardArtResources().Reset(); }
 
-void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVec2& size)
+void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVec2& size, bool grayscale)
 {
+    if (grayscale && ball.category != BallCategory::Standard)
+    {
+        const char* path = ball.category == BallCategory::Heavy ? "assets/UI/Cards/card_heavy.png" :
+            ball.category == BallCategory::Pierce ? "assets/UI/Cards/card_pierce.png" :
+            ball.category == BallCategory::Bounce ? "assets/UI/Cards/card_reflect.png" : "assets/UI/Cards/card_anchor_green.png";
+        IllustratedUi::Image(ImGui::GetWindowDrawList(), path, position,
+            ImVec2(position.x + size.x, position.y + size.y), IM_COL32_WHITE, true, true);
+        return;
+    }
     auto& art = GetBallCardArtResources();
     art.Load();
     auto* draw = ImGui::GetWindowDrawList();
@@ -329,12 +339,13 @@ void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVe
         DrawTextureContain(draw, *icon, position, ImVec2(position.x + size.x, position.y + size.y));
     else
     {
-        const auto color = PlayerBallText::GetColor(ball);
+        auto color = PlayerBallText::GetColor(ball);
+        if (grayscale) color = {0.6f, 0.6f, 0.6f};
         const ImVec2 center(position.x + size.x * 0.5f, position.y + size.y * 0.5f);
         const float radius = (std::min)(size.x, size.y) * 0.43f;
-        draw->AddCircleFilled(center, radius + 3, IM_COL32(40, 26, 47, 255));
+        draw->AddCircleFilled(center, radius + 3, grayscale ? IM_COL32(35, 35, 35, 255) : IM_COL32(40, 26, 47, 255));
         draw->AddCircleFilled(center, radius, ImGui::ColorConvertFloat4ToU32(ImVec4(color[0], color[1], color[2], 1)));
-        draw->AddCircle(center, radius, IM_COL32(255, 233, 170, 255), 0, 2);
+        draw->AddCircle(center, radius, grayscale ? IM_COL32(220, 220, 220, 255) : IM_COL32(255, 233, 170, 255), 0, 2);
         draw->AddCircleFilled(ImVec2(center.x - radius * 0.3f, center.y - radius * 0.35f),
             radius * 0.23f, IM_COL32(255, 255, 255, 220));
     }

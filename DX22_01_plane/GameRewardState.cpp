@@ -61,6 +61,9 @@ void GameRewardState::ClearBallOffers()
 
 void GameRewardState::ResetForRun()
 {
+	m_ConfirmationRequested = false;
+	m_SkipRequested = false;
+	m_ModalOpen = false;
 	m_BallAcquired = false;
 	m_MidBossRelicSelectionActive = false;
 	m_BallOfferCatalogIndices.clear();
@@ -73,6 +76,8 @@ void GameRewardState::Prepare(const std::string& message)
 	m_Chosen = false;
 	m_BallAcquired = false;
 	m_ConfirmationRequested = false;
+	m_SkipRequested = false;
+	m_ModalOpen = false;
 	m_Message = message;
 	m_MidBossRelicSelectionActive = false;
 }
@@ -90,6 +95,9 @@ void GameRewardState::Deactivate()
 void GameRewardState::Exit()
 {
 	m_Active = false;
+	m_ConfirmationRequested = false;
+	m_SkipRequested = false;
+	m_ModalOpen = false;
 	m_BallOfferCatalogIndices.clear();
 }
 
@@ -211,4 +219,9 @@ void GameRewardState::RequestConfirmation()
 bool GameRewardState::ConsumeConfirmationRequest()
 {
 	return std::exchange(m_ConfirmationRequested, false);
+}
+
+bool GameRewardState::ConsumeSkipRequest()
+{
+	return std::exchange(m_SkipRequested, false);
 }

@@ -11,7 +11,9 @@ namespace IllustratedUi
 
     void ResetResources();
     void Image(ImDrawList* draw, const char* path, ImVec2 lo, ImVec2 hi,
-        ImU32 tint = IM_COL32_WHITE, bool trimPadding = true);
+        ImU32 tint = IM_COL32_WHITE, bool trimPadding = true, bool grayscale = false);
+    void ImageRegion(ImDrawList* draw, const char* path, ImVec2 lo, ImVec2 hi,
+        ImVec2 uvMin, ImVec2 uvMax, bool grayscale = false);
 
     struct Canvas
     {

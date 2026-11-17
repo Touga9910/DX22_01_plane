@@ -9,6 +9,7 @@
 #include "PlayerBallData.h"
 #include "PlayerBallText.h"
 #include "GameUi.h"
+#include "GoldUi.h"
 #include "imgui/imgui.h"
 
 #pragma execution_character_set("utf-8")
@@ -185,15 +186,15 @@ void GamePresentation::DrawBattleHud(Game& game)
 		const float debugWidth = ImGui::GetFrameHeight() +
 			ImGui::GetStyle().ItemInnerSpacing.x +
 			ImGui::CalcTextSize(debugVisibleLabel).x;
-		const char* moneyText = compact ? "$%d" : PresentationUtf8(u8"所持金 %d");
-		char moneyLabel[64]{};
-		sprintf_s(moneyLabel, moneyText, game.GetPlayerMoney());
-		const float rightWidth = ImGui::CalcTextSize(moneyLabel).x +
+		const float moneyWidth = GoldUi::Width(game.GetPlayerMoney(), 26.0f, ImGui::GetFontSize());
+		const float rightWidth = moneyWidth +
 			relicWidth + deckWidth + settingsWidth + debugWidth +
 			ImGui::GetStyle().ItemSpacing.x * 4.0f;
 		ImGui::SameLine((std::max)(ImGui::GetCursorPosX() + 8.0f,
 			workSize.x - rightWidth - 10.0f));
-		ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.28f, 1.0f), "%s", moneyLabel);
+		GoldUi::Draw(ImGui::GetWindowDrawList(), ImGui::GetCursorScreenPos(),
+			game.GetPlayerMoney(), 26.0f, ImGui::GetFontSize());
+		ImGui::Dummy(ImVec2(moneyWidth, 28.0f));
 		ImGui::SameLine();
 		char relicButton[64]{};
 		sprintf_s(relicButton,

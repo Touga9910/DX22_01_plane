@@ -258,8 +258,17 @@ void Game::CompleteCurrentStage()
 
 void Game::UpdateClearReward()
 {
-	const bool confirmed = m_RewardState->ConsumeConfirmationRequest() ||
-		Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE);
+	if (!IsClearRewardActive()) return;
+	const bool confirmed = m_RewardState->ConsumeConfirmationRequest();
+	if (m_RewardState->ConsumeSkipRequest() && !IsMidBossRelicSelectionActive())
+	{
+		RecordBalanceEvent("clear_reward_skipped", {
+			{ "ball_acquired", IsClearRewardBallAcquired() },
+			{ "controller", "human" },
+		});
+		ContinueAfterClearReward();
+		return;
+	}
 	if (m_RewardState->IsMidBossRelicSelectionActive())
 	{
 		const int offerCount = GetMidBossRelicOfferCount();
@@ -278,7 +287,7 @@ void Game::UpdateClearReward()
 		{
 			m_RewardState->SelectNextRelic(offerCount);
 		}
-		if (confirmed)
+		if (confirmed || Input::GetKeyTrigger(VK_RETURN) || Input::GetKeyTrigger(VK_SPACE))
 		{
 			AcquireMidBossRelicOffer(m_RewardState->SelectedRelicOfferIndex());
 		}
@@ -293,40 +302,41 @@ void Game::UpdateClearReward()
 		}
 		return;
 	}
-
-	if (Input::GetKeyTrigger(VK_UP) || Input::GetKeyTrigger(VK_W))
-	{
-		m_RewardState->SelectPreviousReward(kClearRewardCount);
-	}
-	if (Input::GetKeyTrigger(VK_DOWN) || Input::GetKeyTrigger(VK_S))
-	{
-		m_RewardState->SelectNextReward(kClearRewardCount);
-	}
-
-	int targetCount = 0;
-	if (m_RewardState->SelectedRewardIndex() == 0)
-	{
-		targetCount = GetClearRewardBallOfferCount();
-	}
-	else if (m_RewardState->SelectedRewardIndex() == 1)
-	{
-		targetCount = m_RunController->Deck().GetRewardTargetCount();
-	}
-
-	if (targetCount > 0)
-	{
-		if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A))
-		{
-			m_RewardState->SelectPreviousBall(targetCount);
-		}
-		if (Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D))
-		{
-			m_RewardState->SelectNextBall(targetCount);
-		}
-	}
+	// Arrow keys must not change the pending purchase/upgrade behind a modal.
+	if (m_RewardState->IsModalOpen() && !confirmed) return;
 
 	if (!confirmed)
 	{
+		if (Input::GetKeyTrigger(VK_UP) || Input::GetKeyTrigger(VK_W))
+		{
+			m_RewardState->SelectPreviousReward(kClearRewardCount);
+		}
+		if (Input::GetKeyTrigger(VK_DOWN) || Input::GetKeyTrigger(VK_S))
+		{
+			m_RewardState->SelectNextReward(kClearRewardCount);
+		}
+
+		int targetCount = 0;
+		if (m_RewardState->SelectedRewardIndex() == 0)
+		{
+			targetCount = GetClearRewardBallOfferCount();
+		}
+		else if (m_RewardState->SelectedRewardIndex() == 1)
+		{
+			targetCount = m_RunController->Deck().GetRewardTargetCount();
+		}
+
+		if (targetCount > 0)
+		{
+			if (Input::GetKeyTrigger(VK_LEFT) || Input::GetKeyTrigger(VK_A))
+			{
+				m_RewardState->SelectPreviousBall(targetCount);
+			}
+			if (Input::GetKeyTrigger(VK_RIGHT) || Input::GetKeyTrigger(VK_D))
+			{
+				m_RewardState->SelectNextBall(targetCount);
+			}
+		}
 		return;
 	}
 
@@ -421,6 +431,10 @@ void Game::UpdateClearReward()
 		RecordBalanceEvent("clear_reward_choice", rewardDetails);
         if (ballOnly)
             m_RewardState->ApplyPresentationSelection(m_RewardState->SelectedRelicOfferIndex(), 2, 0);
-        else m_RewardState->MarkChosen();
+		else
+		{
+			m_RewardState->MarkChosen();
+			ContinueAfterClearReward();
+		}
 	}
 }

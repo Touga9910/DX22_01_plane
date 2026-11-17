@@ -3,6 +3,7 @@
 #include "CollisionVfxSystem.h"
 #include "CombatPresentationRules.h"
 #include "PlayerAuraEffect.h"
+#include "ClearRewardPresentation.h"
 
 #include "SettingsManager.h"
 
@@ -75,40 +76,6 @@ struct BallSelectionPresentationIntent
 	bool confirmSelection = false;
 };
 
-struct ClearRewardBallView
-{
-	const PlayerBallData* ball = nullptr;
-	int upgradeCost = -1;
-};
-
-struct ClearRewardPresentationModel
-{
-	int stageRewardMoney = 0;
-	int playerMoney = 0;
-	int playerCurrentHp = 0;
-	int playerMaxHp = 0;
-	bool midBossRelicSelectionActive = false;
-	bool clearRewardChosen = false;
-	bool rewardBallAcquired = false;
-	int rewardBallCost = 25;
-	int selectedRelicOfferIndex = 0;
-	int selectedRewardIndex = 0;
-	int selectedRewardBallIndex = 0;
-	int extraMoneyAmount = 0;
-	std::string rewardMessage;
-	std::vector<const RelicDefinition*> relicOffers;
-	std::vector<const PlayerBallData*> newBallOffers;
-	std::vector<ClearRewardBallView> upgradeTargets;
-};
-
-struct ClearRewardPresentationIntent
-{
-	int selectedRelicOfferIndex = 0;
-	int selectedRewardIndex = 0;
-	int selectedRewardBallIndex = 0;
-	bool confirm = false;
-};
-
 // プレイヤー向けのチュートリアル、戦闘フィードバック、バランス可視化を扱う。
 // 自動ランの決定性を保つため、ゲームルールから分離する。
 class GamePresentation final
@@ -121,7 +88,8 @@ public:
 	BallSelectionPresentationIntent DrawBallSelection(
 		const BallSelectionPresentationModel& model);
 	ClearRewardPresentationIntent DrawClearReward(
-		const ClearRewardPresentationModel& model);
+		const ClearRewardPresentationModel& model)
+	{ return ClearRewardUi::Draw(model, m_RewardPurchaseOfferIndex); }
 	bool IsBattleInteractionBlocked() const noexcept
 	{
 		return m_DeckListOpen || m_RelicListOpen || m_DashboardOpen;
@@ -373,6 +341,7 @@ private:
 	bool m_DashboardOpen = false;
 	float m_ImpactFlashLifetime = 0.0f;
 	PlayerAuraEffect m_PlayerAura;
+	int m_RewardPurchaseOfferIndex = -1;
 	float m_DamageFlashLifetime = 0.0f;
 	float m_HitSummaryLifetime = 0.0f;
 	float m_CameraShakeLifetime = 0.0f;

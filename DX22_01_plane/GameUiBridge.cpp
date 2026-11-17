@@ -151,4 +151,6 @@ void Game::DrawClearRewardUI()
 	{
 		m_RewardState->RequestConfirmation();
 	}
+	if (intent.skip) m_RewardState->RequestSkip();
+	m_RewardState->SetModalOpen(intent.modalOpen);
 }
