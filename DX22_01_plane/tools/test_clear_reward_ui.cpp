@@ -55,7 +55,14 @@ namespace IllustratedUi
 namespace BallCardPresentation
 {
     void DrawBallIcon(const PlayerBallData&,const ImVec2&,const ImVec2&,bool gray) { grayIcons+=gray; }
-    void DrawBallDetailPopup(const PlayerBallData&,int) { ++details; ImGui::TextUnformatted("detail card"); }
+    void DrawBallDetailPopup(const PlayerBallData&,int)
+    {
+        ++details;
+        ImGui::TextUnformatted("detail card");
+        // The real detail renderer leaves the cursor at the next close-button
+        // position. The caller must submit an item there before ending a window.
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 12.0f);
+    }
 }
 
 int main()

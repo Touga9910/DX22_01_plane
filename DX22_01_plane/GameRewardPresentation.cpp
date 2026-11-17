@@ -27,6 +27,10 @@ namespace
         if (ImGui::BeginTooltip())
         {
             BallCardPresentation::DrawBallDetailPopup(ball, ball.status.attack);
+            // The shared detail renderer positions the cursor for a close
+            // button. This tooltip has no button, but must still commit that
+            // layout position before EndTooltip (required by current ImGui).
+            ImGui::Dummy(ImVec2(0.0f, 0.0f));
             ImGui::EndTooltip();
         }
     }
