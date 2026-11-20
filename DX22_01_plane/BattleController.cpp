@@ -9,6 +9,7 @@
 #include "GameWorld.h"
 #include "PlayerBall.h"
 #include "EnemyAttackTiming.h"
+#include "BalanceLogger.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -472,6 +473,17 @@ void BattleController::CompleteShot()
         m_Hooks.applyEndOfShotEffects(player);
     }
 
+    bool bossEncounter = false, bossAlive = false;
+    for (auto* enemy : enemies) if (enemy)
+    {
+        bossEncounter = bossEncounter || enemy->IsArmorBoss() || enemy->IsBossMinion();
+        bossAlive = bossAlive || (enemy->IsArmorBoss() && enemy->CanParticipateInCombat());
+    }
+    const bool bossEncounterCleared = BossEncounterRules::EncounterCleared(bossEncounter,bossAlive);
+    for (auto* enemy : enemies)
+        if (enemy && enemy->IsBossMinion() && (enemy->IsDefeated() || bossEncounterCleared))
+            enemy->RetireBossMinion();
+
     if (m_Hooks.endShotLog)
     {
         m_Hooks.endShotLog(
@@ -500,7 +512,7 @@ void BattleController::CompleteShot()
         }
     }
 
-    if (AreAllEnemiesDefeated())
+    if (bossEncounterCleared || AreAllEnemiesDefeated())
     {
         FinishBattle(BattleResult::Victory);
         return;
@@ -597,6 +609,12 @@ void BattleController::ProcessEnemyAttack()
         const int shieldBefore = m_Hooks.playerShield ? m_Hooks.playerShield() : 0;
         const int hpBefore = player->GetHP();
 
+        if (enemy->IsArmorBoss())
+            BalanceLogger::GetInstance().RecordEvent("boss_attack_executed",
+                {{"intent",BossEncounterRules::Name(enemy->BossTurn().intent)},
+                 {"damage_before_shield",BossEncounterRules::BossDamage(enemy->BossTurn(),enemy->GetBossState())},
+                 {"shield_before",shieldBefore}});
+
         attack->Attack(
             player,
             enemy->GetPlannedDamageMultiplier());
@@ -617,9 +635,8 @@ void BattleController::ProcessEnemyAttack()
         if (m_Hooks.notifyPlayerDamage)
         {
             m_Hooks.notifyPlayerDamage(
-                action == EnemyActionType::ChargeAttack
-                    ? "enemy_charge_attack"
-                    : "enemy_attack",
+                enemy->IsArmorBoss() && enemy->BossTurn().intent==BossEncounterRules::Intent::Strong
+                    ? "boss_strong_attack" : action == EnemyActionType::ChargeAttack ? "enemy_charge_attack" : "enemy_attack",
                 damage,
                 enemy->GetEnemyId(),
                 hpBefore,
@@ -679,6 +696,26 @@ void BattleController::ProcessTurnEnd()
             if (enemy != nullptr) enemy->AdvanceTurnGimmicks();
         }
     }
+
+    if (m_World)
+        for (auto* boss : m_World->GetComponents<EnemyBall>())
+            if (boss && boss->IsArmorBoss() && boss->CanParticipateInCombat())
+            {
+                int living = 0;
+                for (auto* minion : m_World->GetComponents<EnemyBall>())
+                    if (minion->IsBossMinion() && minion->CanParticipateInCombat()) ++living;
+                const auto before = boss->BossTurn();
+                const int count = BossEncounterRules::EndEnemyTurn(boss->BossTurn(),boss->GetBossState(),living);
+                const bool advance = !before.advanceSummonConsumed && boss->BossTurn().advanceSummonConsumed;
+                if (advance)
+                    BalanceLogger::GetInstance().RecordEvent("boss_advance_supply",
+                        {{"cycle",before.summonCycle},{"living_before",living},{"requested",count},
+                         {"break_shots_remaining",boss->GetBossState().shotsRemaining}});
+                if (before.summonCycle != boss->BossTurn().summonCycle)
+                    BalanceLogger::GetInstance().RecordEvent("boss_supply_cycle_completed",
+                        {{"cycle",before.summonCycle},{"advance_consumed",before.advanceSummonConsumed},{"requested",count}});
+                if (count > 0 && m_Hooks.spawnBossMinions) m_Hooks.spawnBossMinions(count,advance);
+            }
 
     if (IsPhasePrototype())
     {
@@ -840,6 +877,29 @@ void BattleController::PlanNextTurn()
 
     const std::vector<EnemyBall*> enemies =
         m_World->GetComponents<EnemyBall>();
+    EnemyBall* boss = nullptr;
+    for (auto* enemy : enemies)
+        if (enemy && enemy->IsArmorBoss() && enemy->CanParticipateInCombat()) boss = enemy;
+    if (boss)
+    {
+        std::vector<int> living;
+        for (auto* enemy : enemies)
+            if (enemy->IsBossMinion() && enemy->CanParticipateInCombat() && !enemy->IsStunned())
+                living.push_back(enemy->GetBossMinionSerial());
+        const auto assigned = BossEncounterRules::Attackers(living,boss->BossTurn().turn);
+        EnemyActionTurnPlan plan{};
+        for (auto* enemy : enemies)
+        {
+            bool attacks = false;
+            if (enemy == boss) attacks = BossEncounterRules::BossDamage(boss->BossTurn(),boss->GetBossState())>0;
+            else if (enemy->IsBossMinion()) attacks = std::find(assigned.begin(),assigned.end(),enemy->GetBossMinionSerial())!=assigned.end();
+            if (!enemy->CanParticipateInCombat() || enemy->IsStunned()) attacks = false;
+            enemy->SetPlannedAction(attacks ? EnemyActionType::NormalAttack : EnemyActionType::Wait,0,1.0f);
+            plan.actions.push_back({reinterpret_cast<std::uintptr_t>(enemy),enemy->GetPlannedAction(),0});
+        }
+        if (m_Hooks.enemyActionPlanConfirmed) m_Hooks.enemyActionPlanConfirmed(plan);
+        return;
+    }
     std::vector<EnemyBall*> participatingEnemies;
     std::vector<EnemyActionCandidate> candidates;
     candidates.reserve(enemies.size());

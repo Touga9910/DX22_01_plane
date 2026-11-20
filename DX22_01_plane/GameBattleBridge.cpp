@@ -18,6 +18,7 @@
 #include "BallShotPrediction.h"
 #include "BallComponent.h"
 #include "BallFactory.h"
+#include "BossPocketRules.h"
 #include "BalanceLogger.h"
 #include "BattleScene.h"
 #include "BattleSceneServices.h"
@@ -702,6 +703,13 @@ void Game::InitializeBattleController()
 			CapturePlayerStatusFrom(player);
 		};
 
+    hooks.spawnBossMinions = [this](int count, bool advance)
+    {
+        const auto spawned = SpawnBossMinions(count,false,advance);
+        if (auto* scene = dynamic_cast<BattleScene*>(GetCurrentScene()))
+            for (auto* enemy : spawned) scene->TrackSpawnedObject(enemy->GetGameObject());
+        RecordBalanceEvent("boss_minions_summoned", {{"requested",count},{"spawned",spawned.size()},{"advance",advance}});
+    };
 	hooks.spawnPhaseEnemies =
 		[this](
 			const std::vector<EnemySpawnData>& spawns,
@@ -1057,4 +1065,54 @@ void Game::NotifyBattleShotCancelled()
 void Game::NotifyBattlePlayerDefeated()
 {
 	m_BattleState->controller.NotifyPlayerDefeated();
+}
+
+std::vector<EnemyBall*> Game::SpawnBossMinions(int count, bool initialFormation, bool advanceFormation)
+{
+    using DirectX::SimpleMath::Vector3;
+    EnemyBall* boss = nullptr;
+    int living = 0;
+    for (auto* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+    {
+        if (enemy->IsArmorBoss() && enemy->CanParticipateInCombat()) boss = enemy;
+        if (enemy->IsBossMinion() && enemy->CanParticipateInCombat()) ++living;
+    }
+    std::vector<EnemyBall*> spawned;
+    if (!boss) return spawned;
+    count = (std::min)(count, BossEncounterRules::MaximumMinions-living);
+    std::vector<Collision::Sphere> pockets;
+    for (auto* pocket : GameRuntime::World().GetComponents<Pocket>()) pockets.push_back(pocket->GetSphere());
+    const Vector3 preferred[] = {{-3,1,7},{20,1,6},{-20,1,12},{-28,1,-6},{28,1,22}};
+    for (int i=0;i<count;++i)
+    {
+        std::vector<BossPocketRules::Obstacle> obstacles;
+        for (auto* ball : GameRuntime::World().GetComponents<BallComponent>())
+            if (ball->GetGameObject()->IsActive()) obstacles.push_back({ball->GetPosition(),ball->GetRadius()});
+        const auto slot = BossEncounterRules::InitialMinionPositions[i % BossEncounterRules::InitialMinions];
+        const auto advanceSlot = BossEncounterRules::AdvanceMinionPositions[boss->BossTurn().nextMinionSerial%2];
+        const auto position = initialFormation
+            ? BossPocketRules::FindSpawnPosition(Vector3(slot.x,TableConfig::FIELD_HEIGHT,slot.z),
+                BossEncounterRules::MinionRadius,obstacles,pockets)
+            : advanceFormation ? BossPocketRules::FindSpawnPosition(Vector3(advanceSlot.x,TableConfig::FIELD_HEIGHT,advanceSlot.z),
+                BossEncounterRules::MinionRadius,obstacles,pockets)
+            : BossPocketRules::FindReturnPosition(preferred[boss->BossTurn().nextMinionSerial%5],
+                BossEncounterRules::MinionRadius,obstacles,pockets);
+        if (!position) break;
+        EnemyData data;
+        data.id = BossEncounterRules::MinionId;
+        data.maxHp = BossEncounterRules::MinionHp;
+        data.status.attack = BossEncounterRules::MinionAttack;
+        data.status.defense = 0;
+        data.status.mass = BossEncounterRules::MinionMass;
+        data.status.radius = BossEncounterRules::MinionRadius;
+        data.status.restitution = 0.8f;
+        data.status.friction = 0.02f;
+        data.scale = Vector3(BossEncounterRules::MinionRadius);
+        data.initPosition = *position;
+        data.rewardMoney = data.rewardExp = 0;
+        auto* minion = BallFactory::CreateEnemy(*this,data);
+        minion->SetBossMinionSerial(boss->BossTurn().nextMinionSerial++);
+        spawned.push_back(minion);
+    }
+    return spawned;
 }

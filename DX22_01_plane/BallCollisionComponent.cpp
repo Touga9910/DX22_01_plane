@@ -268,6 +268,14 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 	if (otherPlayer != nullptr && second.pierceUses == secondPierceUsesBefore &&
 		directionChanged(secondVelocityBefore, second.velocity))
 		GameBattleEvents::PlayerDirectionChange(second.position);
+    // Living escorts and their in-shot wrecks use the same one-use impact rule.
+    if (myEnemy && otherEnemy)
+    {
+        if (myEnemy->IsBossMinion() && otherEnemy->IsArmorBoss() && !otherEnemy->IsDefeated())
+        { myEnemy->ConsumeBossMinion(*otherEnemy); return; }
+        if (otherEnemy->IsBossMinion() && myEnemy->IsArmorBoss() && !myEnemy->IsDefeated())
+        { otherEnemy->ConsumeBossMinion(*myEnemy); return; }
+    }
     // Neutral contacts do not deal direct contact damage or consume damage relics.
     // A player's chain-impact ability may still use the neutral as its blast center.
     if (first.breakBall || second.breakBall)

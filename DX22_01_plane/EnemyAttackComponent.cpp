@@ -19,6 +19,7 @@ int EnemyAttackComponent::CalculateDamage(float damageMultiplier) const
     {
         return 0;
     }
+    if (m_Enemy->IsArmorBoss()) return BossEncounterRules::BossDamage(m_Enemy->BossTurn(),m_Enemy->GetBossState());
     return (std::max)(0, static_cast<int>(std::lround(
         static_cast<float>(m_Enemy->GetAttack()) *
         (std::max)(0.0f, damageMultiplier))));

@@ -10,6 +10,8 @@
 #include "RunController.h"
 #include "PlayerRunStatus.h"
 #include "TableConfig.h"
+#include "BossPocketRules.h"
+#include "Pocket.h"
 #include "json/json.hpp"
 
 #pragma execution_character_set("utf-8")
@@ -27,8 +29,9 @@ bool Game::AreAllEnemiesDefeated() const
 
 bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 {
-	return enemy != nullptr && !enemy->IsDefeated() &&
-		!enemy->IsPocketed();
+    return enemy != nullptr && !enemy->IsDefeated() && !enemy->IsPocketed() &&
+        (!enemy->IsArmorBoss() || (enemy->GetBossState().IsBroken() &&
+            enemy->GetHP() <= BossCombatRules::PocketDamage(enemy->GetMaxHP())));
 }
 
 int Game::GetPlayerPocketDamageAmount() const
@@ -48,6 +51,36 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 	const int hpBefore = enemy->GetHP();
 	const int maxHp = enemy->GetMaxHP();
 	const Vector3 pocketPosition = enemy->GetPosition();
+    if (newlyDefeated && enemy->IsArmorBoss())
+    {
+        std::vector<BossPocketRules::Obstacle> obstacles;
+        for (const auto* ball : GameRuntime::World().GetComponents<BallComponent>())
+            if (ball && ball != enemy->GetBall() && ball->GetGameObject() && ball->GetGameObject()->IsActive())
+                obstacles.push_back({ball->GetPosition(), ball->GetRadius()});
+        std::vector<Collision::Sphere> pockets;
+        for (const auto* pocket : GameRuntime::World().GetComponents<Pocket>())
+            if (pocket && pocket->GetGameObject() && pocket->GetGameObject()->IsActive())
+                pockets.push_back(pocket->GetSphere());
+        const auto position = BossPocketRules::FindReturnPosition(pocketPosition, enemy->GetRadius(), obstacles, pockets);
+        if (!position)
+        {
+            enemy->GetBall()->GetMutableVelocity() = Vector3::Zero;
+            enemy->GetBall()->GetMutableAcceleration() = Vector3::Zero;
+            return;
+        }
+        const auto result = enemy->ResolveBossPocket();
+        if (!enemy->IsDefeated())
+        {
+            enemy->GetBall()->ResetAtPosition(*position);
+            if (result.applied)
+            {
+                RecordBalanceEvent("boss_pocket_returned", {{"boss_id", enemy->GetEnemyId()},
+                    {"position_x", position->x}, {"position_z", position->z}});
+                NotifyPocketFeedback(pocketPosition, false, false, result.damage, enemy);
+            }
+            return;
+        }
+    }
 	if (newlyDefeated)
 	{
 		enemy->Defeat();

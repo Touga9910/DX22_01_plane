@@ -33,7 +33,7 @@ DEFAULT_BUILD_PROFILES_PATH = (
 )
 DEFAULT_BALANCE_LOG_DIRECTORY = Path(__file__).resolve().parents[2] / "logs" / "balance"
 COMPARISON_BUILDS = ("standard", "heavy", "pierce", "bounce", "anchor")
-COMPARISON_SEEDS = tuple(range(1001, 1021))
+COMPARISON_SEEDS = tuple(range(1001, 1011))
 COMPARISON_REFERENCE_COHORT = "cohort_20260921_mcp_intermediate_standard"
 MCP_CONNECTION_MAX_ATTEMPTS = 5
 MCP_CONNECTION_RETRY_BASE_SECONDS = 0.25
@@ -240,7 +240,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--valid-runs-per-build",
         type=int,
-        default=20,
+        default=10,
         help=(
             "Required accepted runs for each comparison build. For paired "
             "comparison this must equal the number of comparison seeds."
@@ -594,6 +594,7 @@ async def play_current_run(
     route_selection_history: list[dict[str, Any]] = []
     shop_action_history: list[dict[str, Any]] = []
     shop_attempted_actions: set[str] = set()
+    rejected_rewards: Counter[tuple[Any, ...]] = Counter()
 
     for _ in range(maximum_steps):
         state = await get_state(session)
@@ -900,6 +901,16 @@ async def play_current_run(
                     history_entry["accepted"] = False
                     history_entry["error"] = reward_result
                     transient_errors += 1
+                    failure_key = (
+                        history_entry["progress"], reward_arguments["reward"],
+                        reward_arguments.get("offer_index"),
+                        reward_arguments.get("catalog_index"),
+                        reward_arguments.get("instance_id"),
+                    )
+                    rejected_rewards[failure_key] += 1
+                    if rejected_rewards[failure_key] >= 3:
+                        return {"completed": False, "reason": "repeated_reward_rejection",
+                                "shots": shots_fired, "details": history_entry}
                 reward_selection_history.append(history_entry)
                 continue
 
@@ -2619,9 +2630,16 @@ async def collect_comparison_suite(args: argparse.Namespace) -> None:
             "Existing all_runs.jsonl has duplicate or unexpected seed/build pairs"
         )
 
-    seen_logs = {
-        path.resolve() for path in args.balance_log_directory.glob("run_*.json")
-    }
+    # A resumed run already has a log file, but it is still eligible once its
+    # result is finalized. Only finalized historical logs count as seen.
+    seen_logs = set()
+    for path in args.balance_log_directory.glob("run_*.json"):
+        try:
+            previous_log = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if _as_dict(previous_log.get("run_result")).get("result"):
+            seen_logs.add(path.resolve())
     request_metadata = {
         "seeds": list(seeds),
         "build_profiles": list(builds),

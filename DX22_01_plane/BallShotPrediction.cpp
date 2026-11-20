@@ -1,4 +1,4 @@
-#include "BallShotPrediction.h"
+﻿#include "BallShotPrediction.h"
 #include "AnchorStackRules.h"
 #include "BallCollisionComponent.h"
 #include "BallComponent.h"
@@ -14,6 +14,7 @@
 #include "PlayerBall.h"
 #include "PlayerBallData.h"
 #include "Pocket.h"
+#include "BossPocketRules.h"
 #include "TableFrame.h"
 
 #include <bit>
@@ -77,6 +78,11 @@ namespace
                 ball.physics.enemy = enemy->CanParticipateInCombat();
                 ball.physics.boss = enemy->IsArmorBoss();
                 ball.bossState = enemy->GetBossState();
+                ball.bossTurn = enemy->BossTurn();
+                ball.bossMinion = enemy->IsBossMinion();
+                ball.plannedAttackDamage = enemy->CanParticipateInCombat() && !enemy->IsStunned() &&
+                    (enemy->GetPlannedAction()==EnemyActionType::NormalAttack || enemy->GetPlannedAction()==EnemyActionType::ChargeAttack)
+                    ? static_cast<int>(std::lround(enemy->GetAttack()*enemy->GetPlannedDamageMultiplier())) : 0;
                 ball.enemyId = enemy->GetEnemyId();
                 ball.pocketed = enemy->IsPocketed();
                 ball.frontalMultiplier = enemy->GetFrontalDamageMultiplier();
@@ -207,6 +213,36 @@ namespace
                         ball.pocketed = true;
                         ball.physics.position = Vector3(0, -1000, 0);
                     }
+                }
+                else if (ball.physics.boss && !wasDefeated)
+                {
+                    std::vector<BossPocketRules::Obstacle> obstacles;
+                    for (const auto& other : result.balls)
+                        if (&other != &ball && other.active)
+                            obstacles.push_back({other.physics.position, other.physics.status.radius});
+                    const auto position = BossPocketRules::FindReturnPosition(ball.physics.position,
+                        ball.physics.status.radius, obstacles, pockets);
+                    if (!position)
+                    {
+                        ball.physics.velocity = ball.acceleration = Vector3::Zero;
+                        return true;
+                    }
+                    const auto effect = BossCombatRules::ResolvePocket(ball.bossState, ball.hp, ball.maxHp);
+                    ball.hp -= effect.damage;
+                    result.damage += effect.damage;
+                    result.bossPocketDamage += effect.damage;
+                    result.bossPocketCount += effect.applied ? 1 : 0;
+                    ball.defeated = ball.hp == 0;
+                    if (!ball.defeated)
+                    {
+                        ball.physics.position = *position;
+                        ball.physics.velocity = ball.acceleration = Vector3::Zero;
+                        ball.physics.pierceUses = 0;
+                        ball.physics.pierced.clear();
+                        ball.physics.touching.clear();
+                        return true;
+                    }
+                    HandleDefeatAnchors(ball);
                 }
                 else if (!ball.enemyId.empty())
                 {
@@ -418,6 +454,22 @@ namespace
                     RecordPreviewReflection(a, &b);
                     RecordPreviewReflection(b, &a);
                 }
+                if ((a.bossMinion && b.physics.boss && !b.defeated) || (b.bossMinion && a.physics.boss && !a.defeated))
+                {
+                    Ball& minion = a.bossMinion ? a : b;
+                    Ball& boss = a.physics.boss ? a : b;
+                    if (!minion.defeated) { minion.defeated=true; HandleDefeatAnchors(minion); }
+                    const auto effect = BossEncounterRules::MinionImpact(boss.bossState,boss.hp);
+                    boss.hp -= effect.damage;
+                    result.damage += effect.damage; result.bossFixedDamage += effect.damage; ++result.breakBallHits;
+                    boss.defeated = boss.hp==0;
+                    if (boss.defeated) { HandleDefeatAnchors(boss); boss.physics.enemy=false; }
+                    minion.hp=0; minion.physics.enemy=false; minion.active=false;
+                    minion.physics.position=Vector3(0,-1000,0);
+                    minion.physics.velocity=minion.acceleration=Vector3::Zero;
+                    minion.physics.pierceUses=0; minion.physics.pierced.clear(); minion.physics.touching.clear();
+                    return;
+                }
                 if (a.physics.breakBall || b.physics.breakBall)
                 {
                     const Vector3 aPosition = a.physics.position;
@@ -428,7 +480,14 @@ namespace
                         const int before = boss.hp;
                         boss.hp = (std::max)(0, before - BossCombatRules::BreakBallDamage);
                         boss.defeated = boss.hp == 0;
-						if (boss.defeated) HandleDefeatAnchors(boss);
+                        if (boss.defeated)
+                        {
+                            HandleDefeatAnchors(boss);
+                            // HitBreakBall retains the corpse as a physical
+                            // sphere, but runtime no longer treats it as a
+                            // pierce/forced-exit enemy target.
+                            boss.physics.enemy = false;
+                        }
                         result.damage += before - boss.hp;
                         result.bossFixedDamage += before - boss.hp;
                         ++result.breakBallHits;
@@ -711,15 +770,63 @@ namespace
         }
     };
 
+    std::pair<bool,int> BossCompletion(const std::vector<Ball>& balls)
+    {
+        bool encounter = false, livingCore = false;
+        for (const auto& ball : balls)
+        {
+            encounter = encounter || ball.physics.boss || ball.bossMinion;
+            livingCore = livingCore || (ball.physics.boss && ball.active && !ball.defeated && !ball.pocketed);
+        }
+        const bool cleared = BossEncounterRules::EncounterCleared(encounter,livingCore);
+        int retiring = 0;
+        for (const auto& ball : balls)
+            if (ball.bossMinion && ball.active && (ball.defeated || cleared)) ++retiring;
+        return {cleared,retiring};
+    }
+
+    bool BossRecoveryAnnouncement(const std::vector<Ball>& balls)
+    {
+        for (const auto& ball : balls)
+        {
+            if (!ball.physics.boss || !ball.active || ball.defeated || ball.pocketed) continue;
+            auto turn = ball.bossTurn;
+            auto armor = ball.bossState;
+            return BossEncounterRules::CompleteShot(turn,armor) &&
+                turn.intent == BossEncounterRules::Intent::Strong;
+        }
+        return false;
+    }
+
+    std::pair<bool,int> BossAdvanceSupply(const std::vector<Ball>& balls)
+    {
+        int living = 0;
+        for (const auto& ball : balls)
+            if (ball.bossMinion && ball.active && !ball.defeated && !ball.pocketed) ++living;
+        for (const auto& ball : balls)
+        {
+            if (!ball.physics.boss || !ball.active || ball.defeated || ball.pocketed) continue;
+            auto turn = ball.bossTurn;
+            auto armor = ball.bossState;
+            const bool used = turn.advanceSummonConsumed;
+            BossEncounterRules::CompleteShot(turn,armor);
+            const int count = BossEncounterRules::EndEnemyTurn(turn,armor,living);
+            const bool advance = !used && turn.advanceSummonConsumed;
+            return {advance,advance ? count : 0};
+        }
+        return {false,0};
+    }
+
     nlohmann::json BallJson(const Ball& ball)
     {
         auto vector = [](const Vector3& v) { return nlohmann::json::array({v.x, v.y, v.z}); };
         return {{"id", ball.physics.id}, {"player", ball.physics.player}, {"enemy_id", ball.enemyId},
             {"position", vector(ball.physics.position)}, {"velocity", vector(ball.physics.velocity)},
             {"hp", ball.hp}, {"active", ball.active}, {"defeated", ball.defeated}, {"pocketed", ball.pocketed},
-            {"boss", ball.physics.boss}, {"break_ball", ball.physics.breakBall}, {"break_ball_used", ball.breakBallUsed},
+            {"boss", ball.physics.boss}, {"boss_minion",ball.bossMinion}, {"break_ball", ball.physics.breakBall}, {"break_ball_used", ball.breakBallUsed},
             {"armor", ball.bossState.armor}, {"break_shots_remaining", ball.bossState.shotsRemaining},
-            {"break_started_this_shot", ball.bossState.startedThisShot}};
+            {"break_started_this_shot", ball.bossState.startedThisShot},
+            {"pocket_resolved_this_shot", ball.bossState.pocketResolvedThisShot}};
     }
 
 	nlohmann::json CushionJson(const CushionChargeRules::State& charges)
@@ -890,7 +997,16 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
         });
         stoppedTicks = stopped ? stoppedTicks + 1 : 0;
         if (step.limitReached) break;
-        if (world.gameOver || stoppedTicks >= 11) { result.complete = true; break; }
+        if (world.gameOver || stoppedTicks >= 11)
+        {
+            // BattleController::CompleteShot normalizes residual sub-threshold
+            // motion before exposing the next aiming state.
+            if (!world.gameOver)
+                for (auto& ball : result.balls)
+                    ball.physics.velocity = ball.acceleration = Vector3::Zero;
+            result.complete = true;
+            break;
+        }
         if (result.substeps >= MaxTotalSubsteps) break;
     }
     for (const auto& ball : result.balls) world.AddPoint(ball, true);
@@ -899,6 +1015,16 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
 		result.shotStatus.abilities.heavyDistanceStacks
 			? result.shotStatus.eventStackGenerationBonus : 0);
 	result.heavyCollisionCount = result.heavyCollisions.stackCount;
+    if (result.complete)
+    {
+        const auto completion = BossCompletion(result.balls);
+        result.bossEncounterCleared = completion.first;
+        result.bossMinionsRetiredAfterShot = completion.second;
+        result.bossRecoveryStrongAttackAnnounced = BossRecoveryAnnouncement(result.balls);
+        const auto supply = BossAdvanceSupply(result.balls);
+        result.bossAdvanceSupplyAttemptedIfTurnContinues = supply.first;
+        result.bossAdvanceSupplyRequestedIfTurnContinues = supply.second;
+    }
     result.milliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
     return result;
 }
@@ -916,6 +1042,10 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
         add(ball.physics.boss); add(ball.physics.breakBall); add(ball.breakBallUsed);
 		add(ball.anchorStacks);
         add(ball.bossState.armor); add(ball.bossState.shotsRemaining); add(ball.bossState.startedThisShot);
+        add(ball.bossState.pocketResolvedThisShot);
+        add(ball.bossMinion); add(ball.plannedAttackDamage);
+        add(static_cast<std::uint64_t>(ball.bossTurn.intent)); add(ball.bossTurn.turn); add(ball.bossTurn.interruptedThisShot);
+        add(ball.bossTurn.advanceSummonConsumed); add(ball.bossTurn.summonCycle); add(ball.bossTurn.nextMinionSerial);
         vector(ball.physics.position); vector(ball.physics.velocity);
         const auto& s = ball.physics.status;
         scalar(s.radius); scalar(s.mass); scalar(s.restitution); scalar(s.friction); scalar(s.knockbackTransfer);
@@ -991,6 +1121,11 @@ void BallShotPrediction::WriteVerificationPrediction(const Input& input, const P
     for (const auto& ball : result.balls) balls.push_back(BallJson(ball));
     const nlohmann::json data = {{"physics_model", BallPhysicsWorld::ModelName}, {"complete", result.complete},
         {"path_truncated", result.pathTruncated}, {"path_points", result.path.size()},
+        {"boss_encounter_cleared",result.bossEncounterCleared},
+        {"boss_recovery_strong_attack_announced",result.bossRecoveryStrongAttackAnnounced},
+        {"boss_advance_supply_attempted_if_turn_continues",result.bossAdvanceSupplyAttemptedIfTurnContinues},
+        {"boss_advance_supply_requested_if_turn_continues",result.bossAdvanceSupplyRequestedIfTurnContinues},
+        {"boss_minions_retired_after_shot",result.bossMinionsRetiredAfterShot},
         {"reflection_path_indices", result.reflectionPathIndices},
         {"preview_one_reflection_points", result.PreviewPointCount(1)},
         {"preview_one_reflection_limited", result.PreviewReachesLimit(1)},
@@ -1018,8 +1153,16 @@ void BallShotPrediction::WriteVerificationActual(const Input& input)
 {
     if (!VerificationEnabled()) return;
     nlohmann::json balls = nlohmann::json::array();
-    for (const auto& ball : Capture(input)) balls.push_back(BallJson(ball));
+    const auto captured = Capture(input);
+    for (const auto& ball : captured) balls.push_back(BallJson(ball));
+    const auto completion = BossCompletion(captured);
+    const auto supply = BossAdvanceSupply(captured);
     const nlohmann::json data = {{"balls", balls},
+        {"boss_encounter_cleared",completion.first},
+        {"boss_recovery_strong_attack_announced",BossRecoveryAnnouncement(captured)},
+        {"boss_advance_supply_attempted_if_turn_continues",supply.first},
+        {"boss_advance_supply_requested_if_turn_continues",supply.second},
+        {"boss_minions_retired_after_shot",completion.second},
         {"cushions", CushionJson(input.cushionCharges)},
 		{"cushion_boost_consumed", input.cushionBoostConsumed},
 		{"heavy_stacks", input.heavyCollisions.stackCount},

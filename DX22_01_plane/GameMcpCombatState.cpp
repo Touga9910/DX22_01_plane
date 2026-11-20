@@ -1,4 +1,4 @@
-#include "GameMcpStateSerialization.h"
+﻿#include "GameMcpStateSerialization.h"
 #include "GameMcpJson.h"
 #include "Game.h"
 #include "json/json.hpp"
@@ -71,7 +71,7 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
 			(enemy->GetPlannedAction() == EnemyActionType::NormalAttack ||
 			 enemy->GetPlannedAction() == EnemyActionType::ChargeAttack);
 		const int plannedAttackDamage = attacksThisTurn
-			? static_cast<int>(std::ceil(
+			? enemy->IsArmorBoss() ? BossEncounterRules::BossDamage(enemy->BossTurn(),enemy->GetBossState()) : static_cast<int>(std::ceil(
 				static_cast<float>(enemy->GetAttack()) *
 				enemy->GetPlannedDamageMultiplier()))
 			: 0;
@@ -219,14 +219,28 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
                 {"armor", boss.armor}, {"max_armor", BossCombatRules::MaxArmor},
                 {"is_broken", boss.IsBroken()}, {"break_shots_remaining", boss.shotsRemaining},
                 {"break_started_this_shot", boss.startedThisShot}, {"pocket_immune", false},
+                {"pocket_rule", boss.IsBroken() ? "max_hp_damage_and_return" : "armor_damage_and_return"},
+                {"pocket_armor_damage", 1}, {"pocket_damage_percent", BossCombatRules::PocketDamagePercent},
+                {"pocket_damage", boss.IsBroken() ? BossCombatRules::PocketDamage(enemy->GetMaxHP()) : 0},
+                {"pocket_effect_limit_per_shot", 1}, {"pocket_resolved_this_shot", boss.pocketResolvedThisShot},
+                {"pocket_instant_defeat", false},
                 {"direct_damage_multiplier", boss.IsBroken() ? 1.0f : 0.25f},
                 {"damage_order", "directional_then_defense_then_armor_ceil_min1"},
-                {"break_ball_refreshes_break", false}, {"trigger_shot_consumes_break", false}};
+                {"break_ball_refreshes_break", false}, {"trigger_shot_consumes_break", false},
+                {"intent", BossEncounterRules::Name(enemy->BossTurn().intent)},
+                {"advance_summon_consumed",enemy->BossTurn().advanceSummonConsumed},
+                {"summon_cycle",enemy->BossTurn().summonCycle},
+                {"planned_damage", BossEncounterRules::BossDamage(enemy->BossTurn(),boss)},
+                {"minion_initial_count",3},{"minion_limit",4},{"minion_attack_limit",2},
+                {"minion_impact_damage",4},{"break_interrupts_boss_attack",true}};
         }
 		state["enemies"].push_back({
 			{ "target_id",
 				enemyTargetId },
 			{ "enemy_id", enemy->GetEnemyId() },
+            { "boss_minion", enemy->IsBossMinion() },
+            { "boss_minion_serial", enemy->GetBossMinionSerial() },
+            { "wreck_until_shot_end", enemy->IsBossMinion() && enemy->IsDefeated() },
 			{ "can_charge", enemy->CanUseCharge() },
 			{ "charge_state", ToString(enemy->GetChargeState()) },
 			{ "planned_action", ToString(enemy->GetPlannedAction()) },
@@ -363,6 +377,9 @@ void AppendSynergies(Game& game, const std::vector<EnemyBall*>& enemies, nlohman
 		state["ball_synergies"]["enemy_anchor_stacks"].push_back({
 			{ "target_id", targetId },
 			{ "enemy_id", enemy->GetEnemyId() },
+            { "boss_minion", enemy->IsBossMinion() },
+            { "boss_minion_serial", enemy->GetBossMinionSerial() },
+            { "wreck_until_shot_end", enemy->IsBossMinion() && enemy->IsDefeated() },
 			{ "stacks", enemy->GetAnchorStacks() },
 		});
 		if (enemy->GetPendingKnockbackMultiplier() > 1.0f)
@@ -371,6 +388,9 @@ void AppendSynergies(Game& game, const std::vector<EnemyBall*>& enemies, nlohman
 				["lightweight_targets"].push_back({
 					{ "target_id", targetId },
 					{ "enemy_id", enemy->GetEnemyId() },
+            { "boss_minion", enemy->IsBossMinion() },
+            { "boss_minion_serial", enemy->GetBossMinionSerial() },
+            { "wreck_until_shot_end", enemy->IsBossMinion() && enemy->IsDefeated() },
 					{ "knockback_multiplier",
 						enemy->GetPendingKnockbackMultiplier() },
 				});
@@ -381,6 +401,9 @@ void AppendSynergies(Game& game, const std::vector<EnemyBall*>& enemies, nlohman
 				["lightweight_targets"].push_back({
 					{ "target_id", targetId },
 					{ "enemy_id", enemy->GetEnemyId() },
+            { "boss_minion", enemy->IsBossMinion() },
+            { "boss_minion_serial", enemy->GetBossMinionSerial() },
+            { "wreck_until_shot_end", enemy->IsBossMinion() && enemy->IsDefeated() },
 					{ "knockback_multiplier",
 						enemy->GetNextKnockbackMultiplier() },
 				});

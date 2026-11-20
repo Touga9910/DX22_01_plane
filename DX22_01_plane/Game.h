@@ -428,6 +428,7 @@ public:
 	void StartNextBattle();
 	void StartNextBattle(StageType stageType);
 	void OnBattleStageStarted(const StageData& stage);
+    std::vector<EnemyBall*> SpawnBossMinions(int count, bool initialFormation = false, bool advanceFormation = false);
 	// MCPで上書きされた現在のステージ情報を返す。
 	const StageData* GetCurrentStageOverride() const;
 

@@ -72,6 +72,90 @@
       "actual_result": null,
       "balance_config_hash": "42c2682b16cff45ec34e9e45e0eec4d50336b56f99c80e8f20c521a14aef3c1a",
       "git_commit": "4d11fef50d82e630d3a4dd3c20a50a3169d2d099"
+    },
+    {
+      "version": "B0007",
+      "changed_at": "2026-11-18T03:58:42Z",
+      "target": "Armor boss pocket combat rules",
+      "before": "Full-health Armor boss dies immediately when pocketed",
+      "after": "Armor pocket removes one Armor; Break pocket deals ceil(25 percent max HP); survivors return safely; effect once per shot",
+      "reason": "Prevent the one-shot boss pocket route found in 100 fixed-seed runs while preserving pocket tactics and Armor/Break chains",
+      "expected_impact": "Boss battles use Armor and Break; pocket finishers remain possible at low HP; ordinary enemy pocket rules unchanged",
+      "actual_result": "Isolated boss fights won in Standard7/Heavy5/Pierce8/Bounce7/Anchor15 shots; 44 boss shot comparisons and 6 ordinary regression cases passed. Opening Armor pocket and 15-HP Break pocket verified. Not a population balance measurement.",
+      "balance_config_hash": "49e23c653c38985a565eba388eb19a3a889d32d3c900ea89217685422d7313ce",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0008",
+      "changed_at": "2026-11-18T11:14:31Z",
+      "target": "Boss AI shield scoring only",
+      "before": "Raw shield grant adds 0.8 times urgency in addition to safety",
+      "after": "Raw shield bonus zero; actual damage prevention valued once by safety",
+      "reason": "Separate defensive value from unused shield capacity and killing-shot rewards",
+      "expected_impact": "More situational Guard selection; unchanged Guard and boss rules; compare 100 paired runs with B0007",
+      "actual_result": null,
+      "balance_config_hash": "df56c429aaa1b83584031720f2ef8faf6c582eba591bc89b2ac3b42bd7db4fc9",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0009",
+      "changed_at": "2026-11-19T03:30:34Z",
+      "target": "Final boss with three escorts and shared intent rules",
+      "before": "Single Armor boss and reusable neutral break balls",
+      "after": "Initial 3 escorts, capped summons, consumable wreck impacts, telegraphed attacks and Break interruption",
+      "reason": "Make ball choice, aiming and chains central to final boss combat",
+      "expected_impact": "Compare 100 paired runs with B0008; Guard unchanged",
+      "actual_result": null,
+      "balance_config_hash": "4f3550331fb883884437725a304cc51333c0d37aa3a6c5602f9f878cb138a18e",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0010",
+      "changed_at": "2026-11-19T07:28:40Z",
+      "target": "Boss initial minion formation",
+      "before": "Pocket-return placement clustered three minions beside the core; opening Break 44/44",
+      "after": "Authored asymmetric initial positions (-32,-18),(32,-10),(-44,22) with safe local fallback; summon placement unchanged",
+      "reason": "Remove universal opening Break through initial placement and collision routes",
+      "expected_impact": "Opening Break depends on aim and build; preserve Armor2, two following Break shots, Guard and AI scoring",
+      "actual_result": "Matched 50 seed/build pairs, all pre-boss outcomes and entry HP/deck/relics identical. Opening Break 44/44 to 0/44, first Break all shot 2. Run wins 44/50 unchanged, boss damage 2.68 to 2.64, core kill shots 7.14 to 6.50, Guard share 18.2% to 37.1%. Preserved Armor2/Break2/Guard. Existing post-pocket-core cleanup issue exposed in 5 battles; reported separately.",
+      "balance_config_hash": "20670ecb1c8b3768cdb5917e08fa294cf9876f52ae578058e37ea3c65b1ba2d5",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0011",
+      "changed_at": "2026-11-19T09:05:11Z",
+      "target": "Boss pocket finisher completion",
+      "before": "Pocket-destroyed core skipped escort retirement and required extra shots",
+      "after": "Shared encounter-cleared rule resolves removed core, retires escorts at shot end, and informs prediction and boss AI",
+      "reason": "End the battle on core defeat even when the core object has already been removed",
+      "expected_impact": "No extra shot or escort attack after core death; Armor2, Break2, Guard, initial layout and B0010 archive retained",
+      "actual_result": "Reproduced B0010 pocket-kill bug with 4 surviving escorts. Fixed 5 axes x normal-fire/boss-AI (10 pocket kills): all clear in the same shot, no enemy turn or stale-plan replay. 93 final live/prediction shots, 11 MCP contract tests and native rules tests passed. Armor2/Break2/Guard data and all 118 B0010 result files unchanged.",
+      "balance_config_hash": "d8e60a302b73b276a98d44e88f4979bd80f9c59985ab8b60520f2913cb20c370",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0012",
+      "changed_at": "2026-11-19T11:47:39Z",
+      "target": "Break recovery intent only",
+      "before": "Recovery resets the next intent to normal attack 2",
+      "after": "Recovery interrupts its own enemy phase and announces strong attack 4 for the following player shot",
+      "reason": "Give a visible response opportunity after Break without changing Armor2, Break2, Guard, formation or pocket rewards",
+      "expected_impact": "More meaningful post-Break defense and interruption; compare 50 matched seed/build pairs with B0011",
+      "actual_result": "50 matched seed/build pairs, pre-boss and entry conditions identical. Boss wins 44/44 unchanged; run wins 44/50 unchanged. Mean boss HP damage 2.523 -> 3.045, core kill shots 6.500 -> 6.295, Guard 108/286 -> 110/277 (37.8% -> 39.7%). Strong attacks: Break interruptions 5 -> 0, executions 6 -> 30 (28 on Guard), kill cancellations 1 -> 4. All 44 prefixes through first recovery identical; no post-core extra shot, residual escort or damage. Native rules, Python32 tests and 95 live/prediction shots passed. No collection crash, retry or exclusion; 117 B0011 archive files unchanged. Only recovery intent changed; protected balance maintained.",
+      "balance_config_hash": "ee6002d67ed2e1ae52336f1caaacb7cbc7958b9234137040969f6d0ce89bb7e7",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0013",
+      "changed_at": "2026-11-20T00:14:26Z",
+      "target": "Prepaid minion supply before the last Break shot",
+      "before": "Only summon after strong attack; final Break shot has zero or one minion",
+      "after": "Before Break remaining 1 input, supply up to two living minions once per strong-attack cycle; skip prepaid later summon; no refund on re-Break",
+      "reason": "Provide material and a preparation shot for re-Break while preserving Armor2, Break2, Guard, initial formation, pocket rewards and AI scoring",
+      "expected_impact": "More feasible interruption routes; compare 50 matched runs with B0012",
+      "actual_result": "50 matched seed/build pairs. Run wins 44/50 and boss wins 44/44 unchanged. Boss mean HP damage 3.045 -> 4.477; core kill shots 6.295 -> 6.159; Guard 110/277 -> 106/271 (39.7% -> 39.1%). Strong Break interruptions 0 -> 2, executions 30 -> 29, kill cancellations 4 -> 6. Both interruptions used Heavy on Standard/Anchor builds. 44 prepaid claims, 54 requested/spawned, 5 later summons skipped; no duplicate or wrong-timing supply. First-supply prefixes identical in 44 battles, post-core extras/residuals/damage zero. Native rules, Python36 tests, 100 scoped live/prediction shots passed. B0012 archive117 files unchanged; no collection crashes/retries/exclusions. Unrelated pre-existing Guard self-pocket prediction discrepancy documented separately and unchanged.",
+      "balance_config_hash": "4a68bbfbdbc45e2d96b523eff5e07154175cde815f54f99fc2791b8e6e910b29",
+      "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
     }
   ]
 }

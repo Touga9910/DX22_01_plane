@@ -354,6 +354,17 @@ class BuildCollectorDecisionTests(unittest.TestCase):
 
 
 class ComparisonCollectionTests(unittest.TestCase):
+    def test_repeated_rejected_reward_stops_instead_of_looping_forever(self) -> None:
+        profiles, _ = load_build_profiles(Path(__file__).with_name("build_profiles.json"))
+        state = {"scene": "battle", "player": {"progress": 3, "money": 20},
+                 "available_actions": ["choose_reward"],
+                 "build_decision": {"clear_reward": {"recommended": {
+                     "reward": "new_ball", "offer_index": 0}}}}
+        with patch("collect_fixed_balance_runs.get_state", AsyncMock(return_value=state)), patch("collect_fixed_balance_runs.call", AsyncMock(return_value={"ok": False})) as send:
+            result = asyncio.run(play_current_run(object(), "intermediate", "pierce", profiles["pierce"], profiles, "test", 100, 1))
+        self.assertEqual(result["reason"], "repeated_reward_rejection")
+        self.assertEqual(send.await_count, 3)
+
     def test_reads_current_player_level_response_shape(self) -> None:
         self.assertEqual(
             response_player_level({

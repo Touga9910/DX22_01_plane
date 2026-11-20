@@ -451,6 +451,23 @@ class BuildDecisionTests(unittest.TestCase):
                     "missing_core_part",
                 )
 
+    def test_clear_reward_filters_unaffordable_core_before_ranking(self) -> None:
+        core = {**ball(0, "player_pierce"), "offer_index": 0, "price": 25, "affordable": False}
+        cheaper = {**ball(1, "player_standard"), "offer_index": 1, "price": 20, "affordable": True}
+        state = {"player": {"money": 20}, "deck_balls": [], "clear_reward_ball_offers": [core, cheaper]}
+        result = evaluate_clear_reward(state, self.profiles, "pierce")
+        self.assertEqual([choice["offer_index"] for choice in result["new_ball_choices"]], [1])
+        state["player"]["money"] = 19
+        result = evaluate_clear_reward(state, self.profiles, "pierce")
+        self.assertEqual(result["recommended"]["reward"], "extra_money")
+
+    def test_clear_reward_price_boundary_and_explicit_unavailability(self) -> None:
+        core = {**ball(0, "player_pierce"), "offer_index": 0, "price": 25}
+        state = {"player": {"money": 25}, "deck_balls": [], "clear_reward_ball_offers": [core]}
+        self.assertEqual(evaluate_clear_reward(state, self.profiles, "pierce")["recommended"]["reward"], "new_ball")
+        core["affordable"] = False
+        self.assertEqual(evaluate_clear_reward(state, self.profiles, "pierce")["recommended"]["reward"], "extra_money")
+
     def test_clear_reward_upgrade_requires_level_based_money(self) -> None:
         level_zero = ball(
             0,

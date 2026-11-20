@@ -1,4 +1,5 @@
-#include "BattleSceneObjectFactory.h"
+﻿#include "BattleSceneObjectFactory.h"
+#include "Game.h"
 
 #include "BallFactory.h"
 #include "BattleSceneServices.h"
@@ -81,40 +82,21 @@ void BattleSceneObjectFactory::CreateStageObjects(
         sceneObjects.emplace_back(enemy->GetGameObject());
     }
 
-    m_Services.NotifyStageStarted(stage);
-    const bool hasArmorBoss = std::any_of(
-        stage.enemies.begin(),
-        stage.enemies.end(),
-        [](const EnemySpawnData& spawn)
-        {
-            return spawn.enemyData.id == "enemy_boss_core";
-        });
-    if (!hasArmorBoss)
+    StageData actualStage = stage;
+    const bool hasBoss = std::any_of(stage.enemies.begin(), stage.enemies.end(),
+        [](const EnemySpawnData& spawn) { return spawn.enemyData.id == "enemy_boss_core"; });
+    if (hasBoss)
     {
-        return;
-    }
-
-    const bool usePlacedPositions =
-        m_Services.IsDebugMode() || stage.hasBreakBallLayout;
-    const auto placedPositions = m_Services.IsDebugMode()
-        ? m_Services.DebugBreakBallPositions()
-        : stage.breakBallPositions;
-    const int count = usePlacedPositions
-        ? static_cast<int>(placedPositions.size())
-        : 2;
-    for (int index = 0; index < count; ++index)
-    {
-        BreakBall* neutral = BallFactory::CreateBreakBall(game, index);
-        sceneObjects.emplace_back(neutral->GetGameObject());
-        if (usePlacedPositions)
+        for (auto* minion : game.SpawnBossMinions(BossEncounterRules::InitialMinions,true))
         {
-            neutral->PlaceAt(placedPositions[static_cast<std::size_t>(index)]);
-        }
-        else
-        {
-            neutral->Reposition();
+            sceneObjects.push_back(minion->GetGameObject());
+            EnemySpawnData spawn;
+            spawn.enemyData = minion->GetEnemyData();
+            spawn.position = minion->GetPosition();
+            actualStage.enemies.push_back(spawn);
         }
     }
+    m_Services.NotifyStageStarted(actualStage);
 }
 
 void BattleSceneObjectFactory::BeginSimulation(PlayerBall& player) const

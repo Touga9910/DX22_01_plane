@@ -1029,8 +1029,17 @@ def evaluate_clear_reward(
         if "clear_reward_ball_offers" in state
         else "catalog_balls"
     )
+    reward_offer_state = dict(state)
+    # Reward balls may be paid offers. Filter before scoring so an unavailable
+    # core part cannot hide a lower-scored, affordable candidate.
+    reward_offer_state[new_ball_source] = [
+        ball for ball in _as_list(state.get(new_ball_source))
+        if isinstance(ball, dict)
+        and ball.get("affordable", True) is not False
+        and money >= max(0, int(ball.get("price", 0)))
+    ]
     catalog = evaluate_ball_choices(
-        state,
+        reward_offer_state,
         profiles,
         preferred_profile_id,
         source=new_ball_source,

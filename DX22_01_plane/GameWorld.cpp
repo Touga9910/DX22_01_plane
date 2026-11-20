@@ -119,7 +119,18 @@ bool GameWorld::Contains(const GameObject* gameObject) const
 // 指定したComponentが現在のゲーム空間に属しているかを返す。
 bool GameWorld::Contains(const Component* component) const
 {
-	return component != nullptr && Contains(component->GetGameObject());
+	// Callers may retain an address after its component has been destroyed.
+	// Establish ownership without ever dereferencing the supplied address.
+	if (component == nullptr) return false;
+	for (const auto& gameObject : m_Objects)
+	{
+		if (gameObject->IsDestroyRequested()) continue;
+		for (const auto& owned : gameObject->m_Components)
+		{
+			if (owned.get() == component) return true;
+		}
+	}
+	return false;
 }
 
 // 指定したタグを持つGameObjectをゲーム空間全体から取得する。

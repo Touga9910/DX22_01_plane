@@ -52,6 +52,7 @@ struct BattleControllerHooks
     std::function<void(
         const std::vector<EnemySpawnData>&, int, unsigned int, int)>
         spawnPhaseEnemies;
+    std::function<void(int,bool)> spawnBossMinions;
 
     // 敵行動計画とCharge妨害の観測結果。ログ・表示はHook先の責務。
     std::function<void(const EnemyActionTurnPlan&)>

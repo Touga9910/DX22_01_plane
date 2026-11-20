@@ -1,4 +1,5 @@
 #include "../BossCombatRules.h"
+#include "../BossPocketRules.h"
 #include "../ContinuousBallStepper.h"
 #include "../TableGeometry.h"
 #include <cassert>
@@ -59,6 +60,40 @@ int main(int argc, char** argv)
     assert(!s.EndShot() && s.shotsRemaining==1);
     s.BeginShot(); assert(s.EndShot() && !s.IsBroken() && s.armor==2);
     s.BeginShot(); assert(!s.EndShot() && s.armor==2);
+
+    // Opening pocket strips Armor, never the full-health boss's HP.
+    State pocketState;
+    auto pocket = ResolvePocket(pocketState, 60, 60);
+    assert(pocket.applied && pocket.armorRemoved == 1 && pocket.damage == 0);
+    assert(pocketState.armor == 1 && !pocketState.IsBroken());
+    assert(!ResolvePocket(pocketState, 60, 60).applied); // same-shot bounce cannot farm
+    pocketState.BeginShot();
+    pocket = ResolvePocket(pocketState, 60, 60);
+    assert(pocket.breakStarted && pocket.damage == 0 && pocketState.IsBroken());
+    assert(!pocketState.EndShot() && pocketState.shotsRemaining == 2);
+    pocketState.BeginShot();
+    pocket = ResolvePocket(pocketState, 60, 60);
+    assert(pocket.damage == 15 && !pocket.breakStarted);
+    assert(!ResolvePocket(pocketState, 45, 60).applied);
+    assert(!pocketState.EndShot() && pocketState.shotsRemaining == 1);
+    pocketState.BeginShot();
+    assert(ResolvePocket(pocketState, 12, 60).damage == 12); // real pocket finisher
+    assert(pocketState.EndShot() && pocketState.armor == MaxArmor);
+    State chain;
+    chain.HitBreakBall(); chain.HitBreakBall();
+    assert(ResolvePocket(chain, 52, 60).damage == 15); // break then pocket in one chain
+    assert(PocketDamage(61) == 16 && PocketDamage(1) == 1);
+
+    std::vector<Collision::Sphere> pockets;
+    for (const auto& center : TableConfig::GetPocketCenters()) pockets.push_back({center, 3});
+    const Vector3 entry(0, TableConfig::FIELD_HEIGHT, 36);
+    const auto returned = BossPocketRules::FindReturnPosition(entry, 6, {}, pockets);
+    assert(returned && returned->z < entry.z);
+    std::vector<BossPocketRules::Obstacle> occupied{{*returned, 6}};
+    const auto alternate = BossPocketRules::FindReturnPosition(entry, 6, occupied, pockets);
+    assert(alternate && (*alternate-*returned).Length() >= 12.5f);
+    occupied.push_back({Vector3::Zero, 1000});
+    assert(!BossPocketRules::FindReturnPosition(entry, 6, occupied, pockets));
 
     // Every build pushes neutral balls; pierce charges remain available for enemies.
     for (int build=0; build<5; ++build)

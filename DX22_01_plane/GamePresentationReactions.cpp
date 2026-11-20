@@ -10,14 +10,29 @@
 
 using DirectX::SimpleMath::Vector3;
 
+namespace
+{
+	EnemyBall* FindLiveHitTarget(std::uintptr_t key)
+	{
+		if (key == 0) return nullptr;
+		EnemyBall* target = nullptr;
+		// Resolve from owned, typed components; never cast/dereference a stale key.
+		GameRuntime::World().ForEachComponent<EnemyBall>([&](EnemyBall* enemy)
+		{
+			if (reinterpret_cast<std::uintptr_t>(enemy) == key) target = enemy;
+		});
+		return target;
+	}
+}
+
 void GamePresentation::ClearHitReactions()
 {
 	for (HitReaction& reaction : m_HitReactions)
 	{
 		if (reaction.active && reaction.targetKey != 0)
 		{
-			EnemyBall* target = reinterpret_cast<EnemyBall*>(reaction.targetKey);
-			if (GameRuntime::World().Contains(target))
+			EnemyBall* target = FindLiveHitTarget(reaction.targetKey);
+			if (target != nullptr)
 				target->SetPresentationHitFlash(0.0f);
 		}
 		reaction = {};
@@ -37,9 +52,9 @@ void GamePresentation::BeginHitReaction(
 		return;
 	}
 	Game* game = Game::GetInstance();
-	EnemyBall* target = reinterpret_cast<EnemyBall*>(targetKey);
+	EnemyBall* target = FindLiveHitTarget(targetKey);
 	if (game == nullptr || !game->IsEnemyHitFlashEnabled() ||
-		targetKey == 0 || !GameRuntime::World().Contains(target))
+		target == nullptr)
 	{
 		++m_CombatReactionDiagnostics.hitFlashesSkipped;
 		return;
@@ -72,8 +87,8 @@ void GamePresentation::BeginHitReaction(
 			{
 				return left.lifetime < right.lifetime;
 			});
-		EnemyBall* replaced = reinterpret_cast<EnemyBall*>(slot->targetKey);
-		if (slot->targetKey != 0 && GameRuntime::World().Contains(replaced))
+		EnemyBall* replaced = FindLiveHitTarget(slot->targetKey);
+		if (replaced != nullptr)
 			replaced->SetPresentationHitFlash(0.0f);
 	}
 
@@ -103,12 +118,10 @@ void GamePresentation::UpdateHitReactions(Game& game, float deltaSeconds)
 	for (HitReaction& reaction : m_HitReactions)
 	{
 		if (!reaction.active) continue;
-		EnemyBall* target = reinterpret_cast<EnemyBall*>(reaction.targetKey);
-		if (!enabled || reaction.targetKey == 0 ||
-			!GameRuntime::World().Contains(target))
+		EnemyBall* target = FindLiveHitTarget(reaction.targetKey);
+		if (!enabled || target == nullptr)
 		{
-			if (reaction.targetKey != 0 &&
-				GameRuntime::World().Contains(target))
+			if (target != nullptr)
 				target->SetPresentationHitFlash(0.0f);
 			reaction = {};
 			continue;

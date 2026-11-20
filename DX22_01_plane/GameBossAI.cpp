@@ -68,10 +68,15 @@ json BossShotPlanner::Evaluate(Game& game)
     if (key == m_BossShotCacheKey && !m_BossShotCache.empty()) return m_BossShotCache;
     const auto started = std::chrono::steady_clock::now();
     const Vector3 start = player->GetPosition(), bossPosition = boss->GetPosition();
-    std::vector<BreakBall*> neutrals;
+    struct Target { Vector3 position; float radius; std::string id; };
+    std::vector<Target> neutrals;
     std::vector<Vector3> initialNeutrals;
-    for (auto* neutral : GameRuntime::World().GetComponents<BreakBall>())
-        if (neutral->GetGameObject()->IsActive()) { neutrals.push_back(neutral); initialNeutrals.push_back(neutral->GetBall()->GetPosition()); }
+    for (auto* minion : GameRuntime::World().GetComponents<EnemyBall>())
+        if (minion->IsBossMinion() && minion->CanParticipateInCombat())
+        {
+            neutrals.push_back({minion->GetPosition(),minion->GetRadius(),"boss_minion:"+std::to_string(minion->GetBossMinionSerial())});
+            initialNeutrals.push_back(minion->GetPosition());
+        }
     const float initialOpportunity = Opportunity(start,bossPosition,initialNeutrals);
     json choices = json::array(), offerChoices = json::array();
     std::map<std::string,json> equivalentOffers;
@@ -106,26 +111,26 @@ json BossShotPlanner::Evaluate(Game& game)
         const Vector3 side = Vector3(-Unit(bossPosition-start).z,0,Unit(bossPosition-start).x);
         for (float offset : {0.0f,-4.0f,4.0f})
             for (float power : {2.0f,4.0f,6.0f,8.0f}) add(bossPosition+side*offset,power,"boss","direct");
-        for (auto* neutral : neutrals)
+        for (const auto& neutral : neutrals)
         {
-            const Vector3 n = neutral->GetBall()->GetPosition(), push = Unit(bossPosition-n);
-            const std::string id = "break_ball:"+std::to_string(neutral->GetIndex());
+            const Vector3 n = neutral.position, push = Unit(bossPosition-n);
+            const std::string id = neutral.id;
             for (float power : {2.0f,4.0f,6.0f}) add(n,power,id,"neutral_center");
-            for (float angle : {-0.3f,-0.15f,0.0f,0.15f,0.3f})
+            for (float angle : {-0.2f,0.0f,0.2f})
             {
                 Vector3 direction(push.x*std::cos(angle)-push.z*std::sin(angle),0,push.x*std::sin(angle)+push.z*std::cos(angle));
-                const Vector3 contact = n-direction*(status.radius+neutral->GetBall()->GetRadius());
+                const Vector3 contact = n-direction*(status.radius+neutral.radius);
                 if (Unit(contact-start).Dot(direction) > 0.15f)
                     for (float power : {2.0f,4.0f,6.0f}) add(contact,power,id,"neutral_push");
             }
-            const Vector3 setup = n-push*(status.radius+neutral->GetBall()->GetRadius()+7.0f);
+            const Vector3 setup = n-push*(status.radius+neutral.radius+7.0f);
             const Vector3 lateral(-push.z,0,push.x);
             for (float offset : {0.0f,-9.0f,9.0f})
             {
                 const Vector3 destination = setup+lateral*offset;
                 const float brake = status.friction*(status.abilities.anchor ? status.anchorBrakeMultiplier : 1.0f);
                 const float power = std::sqrt(2.0f*brake*Flat(destination-start).Length()+0.03f);
-                for (float scale : {0.8f,1.0f,1.2f}) add(destination,power*scale,id,"setup");
+                add(destination,power,id,"setup");
             }
         }
         // Mirrors generate rail candidates; the shared solver checks actual rail gaps.
@@ -152,36 +157,45 @@ json BossShotPlanner::Evaluate(Game& game)
             {
                 if (ball.physics.player) endPlayer = &ball;
                 if (ball.physics.boss) endBoss = &ball;
-                if (ball.physics.breakBall && ball.active) remainingNeutrals.push_back(ball.physics.position);
+                if (ball.bossMinion && ball.active && !ball.defeated) remainingNeutrals.push_back(ball.physics.position);
             }
             if (!endPlayer || !endBoss) continue;
             const int damage = boss->GetHP()-endBoss->hp;
-            const int direct = (std::max)(0,damage-prediction.bossFixedDamage);
+            const int direct = (std::max)(0,damage-prediction.bossFixedDamage-prediction.bossPocketDamage);
             const int armor = (std::max)(0,boss->GetBossState().armor-endBoss->bossState.armor);
             const bool startedBreak = !boss->GetBossState().IsBroken() && endBoss->bossState.IsBroken();
-            const bool kill = endBoss->defeated;
+            const bool kill = prediction.bossEncounterCleared;
             const float opportunity = !endPlayer->pocketed && !endPlayer->defeated ?
                 Opportunity(endPlayer->physics.position,endBoss->physics.position,remainingNeutrals) : 0;
             const float hpLoss = static_cast<float>((std::max)(0,player->GetHP()-endPlayer->hp));
-            float incoming = 0;
+            int minionAttack = 0;
             for (const auto& ball : prediction.balls)
-                if (ball.physics.enemy && !ball.defeated && !ball.pocketed)
-					incoming += (std::max)(1, ball.attack);
-			incoming = (std::max)(0.0f, incoming - static_cast<float>(prediction.stopShieldGranted));
+                if (ball.bossMinion && ball.active && !ball.defeated && !ball.pocketed)
+                    minionAttack += ball.plannedAttackDamage;
+            const float incoming = static_cast<float>(BossEncounterRules::IncomingDamage(
+                endBoss->bossTurn,endBoss->bossState,!kill,minionAttack,prediction.stopShieldGranted,
+                endBoss->plannedAttackDamage>0));
             const float urgency = player->GetHP() <= 10 ? 3.0f : 1.0f;
             const float followup = static_cast<float>((std::max)(0,prediction.shot.playerEnemyContacts-1));
             json metrics = {{"direct_damage",direct},{"fixed_damage",prediction.bossFixedDamage},
-                {"armor_removed",armor},{"break_started",startedBreak},{"neutral_boss_hits",prediction.breakBallHits},
+                {"pocket_damage",prediction.bossPocketDamage},{"pocket_count",prediction.bossPocketCount},
+                {"armor_removed",armor},{"break_started",startedBreak},{"neutral_boss_hits",prediction.breakBallHits},{"minion_boss_hits",prediction.breakBallHits},
                 {"next_push_opportunity_estimate",opportunity},{"opportunity_improvement",opportunity-initialOpportunity},
                 {"player_hp_loss",hpLoss},{"expected_enemy_turn_damage",incoming},
                 {"pierce_followup_contacts",status.abilities.pierce ? followup : 0},
                 {"enemy_chain_contacts",prediction.shot.enemyEnemyContacts},{"wall_contacts",prediction.shot.wallContacts},
 				{"chain_impact_hits",prediction.chainImpactHits},{"stop_shield",prediction.stopShieldGranted},
 				{"charged_cushions",CushionChargeRules::PendingNextShotCount(prediction.cushionCharges)},
-                {"anchor_stopped",prediction.shot.anchorStopped},{"boss_killed",kill}};
+                {"anchor_stopped",prediction.shot.anchorStopped},{"boss_killed",kill},
+                {"encounter_cleared",prediction.bossEncounterCleared},
+                {"recovery_strong_attack_announced",prediction.bossRecoveryStrongAttackAnnounced},
+                {"advance_supply_attempted_if_turn_continues",prediction.bossAdvanceSupplyAttemptedIfTurnContinues},
+                {"advance_supply_requested_if_turn_continues",prediction.bossAdvanceSupplyRequestedIfTurnContinues},
+                {"minions_retired_after_shot",prediction.bossMinionsRetiredAfterShot}};
             json breakdown = {
                 {"direct_damage",direct*(boss->GetBossState().IsBroken() ? 1.25f : 1.0f)},
                 {"fixed_damage",prediction.bossFixedDamage*1.0f},{"armor",armor*3.0f},
+                {"pocket_damage",prediction.bossPocketDamage*1.0f},
                 {"start_break",startedBreak ? 6.0f : 0.0f},{"kill",kill ? 100.0f : 0.0f},
                 {"setup",(opportunity-initialOpportunity)*5.0f+opportunity},
                 {"safety",-(hpLoss*4.0f+incoming)*urgency},
@@ -191,7 +205,8 @@ json BossShotPlanner::Evaluate(Game& game)
                 {"heavy_push",offer->definitionId=="player_heavy" ? prediction.breakBallHits*0.3f : 0.0f},
                 {"anchor_position",status.abilities.anchor ? opportunity*0.5f : 0.0f},
 				{"chain_impact",prediction.chainImpactHits*1.5f},
-				{"stop_shield",prediction.stopShieldGranted*urgency*0.8f},
+				// Actual prevented damage is already valued by safety; excess shield has no value.
+				{"stop_shield",0.0f},
 				{"refractive_pierce",status.abilities.refractAfterPierce && prediction.shot.playerEnemyContacts>1 ? followup*0.6f : 0.0f},
                 {"bounce",offer->category==BallCategory::Bounce && prediction.shot.wallContacts>0 ? direct*0.1f : 0.0f},
                 {"cushion_setup",offer->definitionId=="player_cushion_charge" ?
@@ -214,7 +229,7 @@ json BossShotPlanner::Evaluate(Game& game)
     }
     std::stable_sort(choices.begin(),choices.end(),[](const json& a,const json& b) { return a["score"].get<float>()>b["score"].get<float>(); });
     m_BossShotCacheKey = key;
-    m_BossShotCache = {{"model","boss_shared_ccd_v1"},{"state_key",stateKey},{"deterministic",true},
+    m_BossShotCache = {{"model","boss_shared_ccd_v4_escorts"},{"state_key",stateKey},{"deterministic",true},
         {"recommended",choices.empty()?json(nullptr):choices[0]},{"choices",choices},{"offer_choices",offerChoices},
         {"evaluated",evaluated},{"incomplete_rejected",incomplete},{"maximum_candidates_per_offer",MaximumCandidatesPerOffer},
         {"milliseconds",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count()},

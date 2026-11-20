@@ -3,6 +3,7 @@
 #include "BallPhysicsRules.h"
 #include "ShotRelicRules.h"
 #include "BossCombatRules.h"
+#include "BossEncounterRules.h"
 #include "CushionChargeRules.h"
 #include "HeavyCollisionRules.h"
 #include "PierceTraceRules.h"
@@ -34,6 +35,9 @@ namespace BallShotPrediction
         bool active = true, defeated = false, pocketed = false, playerSimulation = true;
         int stopCount = 0;
         BossCombatRules::State bossState;
+        BossEncounterRules::TurnState bossTurn;
+        bool bossMinion = false;
+        int plannedAttackDamage = 0;
         bool breakBallUsed = false;
         bool nuisanceBall = false;
     };
@@ -62,6 +66,14 @@ namespace BallShotPrediction
         bool complete = false, pathTruncated = false;
         int ticks = 0, substeps = 0, damage = 0;
         int bossFixedDamage = 0, breakBallHits = 0;
+        int bossPocketDamage = 0, bossPocketCount = 0;
+        // Physics endpoint remains unchanged. These describe the following
+        // shot-end transition, before any enemy attack or next player shot.
+        bool bossEncounterCleared = false;
+        int bossMinionsRetiredAfterShot = 0;
+        bool bossRecoveryStrongAttackAnnounced = false;
+        bool bossAdvanceSupplyAttemptedIfTurnContinues = false;
+        int bossAdvanceSupplyRequestedIfTurnContinues = 0;
 		int chainImpactHits = 0;
         int stopShieldGranted = 0;
 		BallStatus shotStatus{};

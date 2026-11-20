@@ -6,6 +6,7 @@
 #include "GameRuntime.h"
 #include "GameWorld.h"
 #include "PlayerBall.h"
+#include "EnemyBall.h"
 #include "PlayerBallData.h"
 #include "PlayerBallText.h"
 #include "GameUi.h"
@@ -83,6 +84,53 @@ bool DrawPileButton(
 }
 }
 
+namespace
+{
+void DrawBossEncounterPanel(Game& game, const ImGuiViewport* viewport, float hudHeight)
+{
+    EnemyBall* boss = nullptr;
+    int minionDamage = 0, living = 0;
+    for (auto* enemy : GameRuntime::World().GetComponents<EnemyBall>())
+    {
+        if (enemy->IsArmorBoss() && enemy->CanParticipateInCombat()) boss = enemy;
+        if (enemy->IsBossMinion() && enemy->CanParticipateInCombat())
+        {
+            ++living;
+            if (enemy->GetPlannedAction()==EnemyActionType::NormalAttack && !enemy->IsStunned()) ++minionDamage;
+        }
+    }
+    if (!boss) return;
+    const char* intent = PresentationUtf8(u8"通常攻撃");
+    switch (boss->BossTurn().intent)
+    {
+    case BossEncounterRules::Intent::Prepare: intent=PresentationUtf8(u8"構え → 次は強攻撃4"); break;
+    case BossEncounterRules::Intent::Strong: intent=PresentationUtf8(u8"強攻撃！ Breakで中断"); break;
+    case BossEncounterRules::Intent::Summon: intent=PresentationUtf8(u8"召集：取り巻きを2体補充"); break;
+    default: break;
+    }
+    const auto& armor = boss->GetBossState();
+    const int damage = BossEncounterRules::BossDamage(boss->BossTurn(),armor);
+    const auto* ball = game.GetCurrentPlayerBallData();
+    const int shield = ball ? ball->status.shotShield : 0;
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x+viewport->WorkSize.x-470,
+        viewport->WorkPos.y+hudHeight+6),ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.88f);
+    ImGui::SetNextWindowSize(ImVec2(450,0),ImGuiCond_Always);
+    if (ImGui::Begin("##boss_encounter_intent",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings))
+    {
+        ImGui::TextColored(ImVec4(1,0.65f,0.2f,1),"BOSS HP %d/%d   Armor %d/2   BREAK %d",boss->GetHP(),boss->GetMaxHP(),armor.armor,armor.shotsRemaining);
+        ImGui::TextWrapped(PresentationUtf8(u8"予告：%s   本体%d + 取り巻き%d"),armor.IsBroken() ? PresentationUtf8(u8"BREAK中：本体攻撃なし") : intent,damage,minionDamage);
+        if (armor.IsBroken())
+            ImGui::TextWrapped("%s",PresentationUtf8(u8"BREAK復帰後：次のショットに強攻撃4（再BREAKで中断）"));
+        if (armor.shotsRemaining==1 && boss->BossTurn().advanceSummonConsumed)
+            ImGui::TextWrapped("%s",PresentationUtf8(u8"前借り補充済み：取り巻きを残して次の中断を準備"));
+        ImGui::Text(PresentationUtf8(u8"合計%d / 球の停止シールド%d / 取り巻き%d体"),damage+minionDamage,shield,living);
+        ImGui::TextWrapped("%s",PresentationUtf8(u8"黄色の敵・残骸を本体へ：Armor-1 / 固定4ダメージ"));
+    }
+    ImGui::End();
+}
+}
+
 void GamePresentation::DrawBattleHud(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -100,6 +148,7 @@ void GamePresentation::DrawBattleHud(Game& game)
 	const float hudHeight = BattleViewportLayout::Calculate(
 		workSize.x, workSize.y).hudHeight;
 	const ImVec2 hudPosition(workPosition.x, workPosition.y);
+    DrawBossEncounterPanel(game,viewport,hudHeight);
 	const ImU32 panelBackground = IM_COL32(8, 16, 25, 210);
 	const ImU32 panelBorder = IM_COL32(83, 110, 138, 220);
 

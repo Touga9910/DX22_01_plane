@@ -213,6 +213,8 @@
     <ClInclude Include="BallShotPrediction.h" />
     <ClInclude Include="BallTrajectoryPreview.h" />
     <ClInclude Include="BossCombatRules.h" />
+    <ClInclude Include="BossEncounterRules.h" />
+    <ClInclude Include="BossPocketRules.h" />
     <ClInclude Include="EnemyGimmickRules.h" />
     <ClInclude Include="EnemyBoardAbilityRules.h" />
     <ClInclude Include="PocketReturnRules.h" />

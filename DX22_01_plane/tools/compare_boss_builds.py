@@ -34,7 +34,7 @@ def main(args):
                 for content in result:
                     if hasattr(content,'text'): return json.loads(content.text)['result']
                 raise AssertionError(result)
-            total_fixed=total_direct=breaks=0; planning_ms=[]; types=[]
+            total_fixed=total_direct=total_pocket=breaks=0; planning_ms=[]; types=[]
             status='shot_limit'
             for index in range(1,args.max_shots+1):
                 if args.controller=='mcp': evaluation=mcp_call('evaluate_boss_shots',{})
@@ -63,20 +63,27 @@ def main(args):
                 h.write(shot/'frames.json',frames);h.write(shot/'final.json',state)
                 for kind in ('expected','actual'):shutil.copy2(folder/f'runtime/shot_prediction_{kind}.json',shot/f'{kind}.json')
                 verification=b.compare(shot)
-                actual=h.read(shot/'actual.json'); endboss=next(x for x in actual['balls'] if x['boss']);endplayer=next(x for x in actual['balls'] if x['player'])
+                actual=h.read(shot/'actual.json'); endboss=next((x for x in actual['balls'] if x['boss']),None);endplayer=next(x for x in actual['balls'] if x['player'])
+                if endboss is None:
+                    endboss=next(x for x in h.read(shot/'expected.json')['balls'] if x['boss'])
+                    assert endboss['hp']==0 and endboss['defeated'] and not endboss['active']
+                    log=h.read(next((folder/'logs/balance').glob('run_*.json')))
+                    assert any(e['event_type']=='enemy_pocket_defeat' and
+                               e['details']['enemy_id']=='enemy_boss_core' for e in log['events'])
                 before=h.read(shot/'before.json')
-                assert before['boss_state']['hp']-endboss['hp']==choice['metrics']['direct_damage']+choice['metrics']['fixed_damage'],choice
+                assert before['boss_state']['hp']-endboss['hp']==choice['metrics']['direct_damage']+choice['metrics']['fixed_damage']+choice['metrics'].get('pocket_damage',0),choice
                 assert before['player']['current_hp']-endplayer['hp']==choice['metrics']['player_hp_loss'],choice
                 h.write(shot/'verification.json',verification)
                 total_fixed+=choice['metrics']['fixed_damage'];total_direct+=choice['metrics']['direct_damage'];breaks+=choice['metrics']['break_started']
+                total_pocket+=choice['metrics'].get('pocket_damage',0)
                 print(case,index,choice['contact_kind'],'boss',endboss['hp'],'armor',endboss['armor'],'hp',state['player']['current_hp'],'plan_ms',round(evaluation['milliseconds']),flush=True)
                 if endboss['hp']==0:status='win';break
                 if state['scene']=='result' or state['player']['current_hp']==0:status='loss';break
-                if index>=8 and len(set(types[-8:]))==1 and sum(h.read(folder/f'shot_{j:02d}/evaluation.json')['recommended']['metrics']['direct_damage']+h.read(folder/f'shot_{j:02d}/evaluation.json')['recommended']['metrics']['fixed_damage'] for j in range(index-7,index+1))==0:
+                if index>=8 and len(set(types[-8:]))==1 and sum(h.read(folder/f'shot_{j:02d}/evaluation.json')['recommended']['metrics']['direct_damage']+h.read(folder/f'shot_{j:02d}/evaluation.json')['recommended']['metrics']['fixed_damage']+h.read(folder/f'shot_{j:02d}/evaluation.json')['recommended']['metrics'].get('pocket_damage',0) for j in range(index-7,index+1))==0:
                     status='stalled';break
             summary=dict(build=build,upgrade_parameters_level=args.level,controller=args.controller,status=status,shots=index,
                 final_hp=state['player']['current_hp'],boss_hp=endboss['hp'],direct_damage=total_direct,fixed_damage=total_fixed,breaks=breaks,
-                fixed_damage_ratio=total_fixed/max(1,total_fixed+total_direct),planning_ms_mean=sum(planning_ms)/len(planning_ms),planning_ms_max=max(planning_ms),
+                pocket_damage=total_pocket,fixed_damage_ratio=total_fixed/max(1,total_fixed+total_direct+total_pocket),planning_ms_mean=sum(planning_ms)/len(planning_ms),planning_ms_max=max(planning_ms),
                 kinds={kind:types.count(kind) for kind in set(types)},fixture='HP50, boss60/Armor2, five identical balls, no relics, seed20260904',
                 note='Upgrade parameters copied into fixture definitions. Deterministic single-condition result, not a population win rate.')
             h.write(folder/'summary.json',summary);results.append(summary)

@@ -147,6 +147,8 @@ public:
 	void RecordEnemyDamage(
 		const std::string& enemyId,
 		int damage);
+    void RecordNonCollisionEnemyDamage(const std::string& source,
+        const std::string& enemyId, int damage);
 	void RecordEvent(
 		const std::string& eventType,
 		const nlohmann::json& details = nlohmann::json::object());

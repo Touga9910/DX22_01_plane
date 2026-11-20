@@ -9,6 +9,7 @@
 #include "TableFrame.h"
 #include "TableConfig.h"
 #include "Pocket.h"
+#include "BossCombatRules.h"
 #include "PlayerBall.h"
 #include "PlayerBallData.h"
 #include "BallComponent.h"
@@ -109,6 +110,13 @@ void AppendTable(Game& game, const GameMcpReadSnapshot& snapshot, const std::vec
 			} },
 		} },
 		{ "enemy", {
+			{ "armor_boss_exception", {
+                { "instant_defeat", false },
+                { "armor_pocket_damage", 1 },
+                { "break_pocket_max_hp_percent", BossCombatRules::PocketDamagePercent },
+                { "effect_limit_per_shot", 1 },
+                { "survivor_returns", true },
+            } },
 			{ "instant_defeat", snapshot.pocketRules.enemyInstantDefeat },
 			{ "high_hp_result", "instant_defeat" },
 			{ "returns_per_turn", 0 },

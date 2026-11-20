@@ -106,6 +106,8 @@ void EnemyBall::Init(const EnemyData& data)
 	m_NextKnockbackMultiplier = 1.0f;
 	m_PendingKnockbackMultiplier = 1.0f;
     m_BossState = {};
+    m_BossTurn = {};
+    m_BossMinionSerial = -1;
     m_IsPocketed = false;
     m_PocketEntryPosition = Vector3::Zero;
     m_CollisionStage = 0;
@@ -138,7 +140,11 @@ void EnemyBall::Init(const EnemyData& data)
     );
 
     Color enemyTint(0.95f, 0.18f, 0.16f, 1.0f);
-    if (m_EnemyData.id == "enemy_strong")
+    if (IsBossMinion())
+    {
+        enemyTint = Color(1.0f, 0.77f, 0.15f, 1.0f);
+    }
+    else if (m_EnemyData.id == "enemy_strong")
     {
         enemyTint = Color(1.0f, 0.34f, 0.10f, 1.0f);
     }
@@ -1068,9 +1074,11 @@ void EnemyBall::HitBreakBall(int ballId)
 {
     if (!IsArmorBoss() || IsDefeated()) return;
     const int hpBefore = GetHP(), armorBefore = m_BossState.armor;
-    const bool started = m_BossState.HitBreakBall();
+    const int attackBefore = BossEncounterRules::BossDamage(m_BossTurn,m_BossState);
+    const auto effect = BossEncounterRules::MinionImpact(m_BossState, hpBefore);
+    const bool started = effect.breakStarted;
     const Vector3 velocity = GetVelocity();
-    SetHP((std::max)(0, hpBefore - BossCombatRules::BreakBallDamage));
+    SetHP(hpBefore - effect.damage);
     if (GetHP() == 0)
     {
         Defeat();
@@ -1078,19 +1086,64 @@ void EnemyBall::HitBreakBall(int ballId)
     }
     const int damage = hpBefore - GetHP();
     auto& logger = BalanceLogger::GetInstance();
-    logger.RecordEnemyDamage(GetEnemyId(), damage);
-    logger.RecordEvent("boss_break_ball_hit", {{"ball_id", ballId}, {"boss_id", GetEnemyId()},
+    logger.RecordNonCollisionEnemyDamage("boss_minion",GetEnemyId(),damage);
+    logger.RecordEvent("boss_minion_impact", {{"minion_serial", ballId}, {"boss_id", GetEnemyId()},
         {"armor_before", armorBefore}, {"armor_after", m_BossState.armor},
         {"boss_damage", damage}, {"hp_before", hpBefore}, {"hp_after", GetHP()}});
     if (started) logger.RecordEvent("boss_break_started", {{"boss_id", GetEnemyId()},
         {"break_shots_remaining", m_BossState.shotsRemaining}, {"trigger_shot_excluded", true}});
+    if (started) logger.RecordEvent("boss_attack_interrupted", {{"intent",BossEncounterRules::Name(m_BossTurn.intent)},
+        {"planned_damage",attackBefore},{"source","minion"}});
     GameBattleEvents::CombatFeedback(
 		GetPosition(), damage, IsDefeated(), false, this);
 }
 
 void EnemyBall::EndBossShot()
 {
-    if (IsArmorBoss() && !IsDefeated() && m_BossState.EndShot())
+    if (IsArmorBoss() && !IsDefeated() && BossEncounterRules::CompleteShot(m_BossTurn, m_BossState))
         BalanceLogger::GetInstance().RecordEvent("boss_break_ended",
             {{"boss_id", GetEnemyId()}, {"armor", m_BossState.armor}});
+}
+
+BossCombatRules::PocketResult EnemyBall::ResolveBossPocket()
+{
+    if (!IsArmorBoss() || !CanParticipateInCombat()) return {};
+    const int hpBefore = GetHP(), armorBefore = m_BossState.armor;
+    const int attackBefore = BossEncounterRules::BossDamage(m_BossTurn,m_BossState);
+    const auto result = BossCombatRules::ResolvePocket(m_BossState, hpBefore, GetMaxHP());
+    SetHP(hpBefore - result.damage);
+    if (GetHP() == 0) Defeat();
+    auto& logger = BalanceLogger::GetInstance();
+    if (result.damage > 0)
+        logger.RecordNonCollisionEnemyDamage("boss_pocket", GetEnemyId(), result.damage);
+    if (result.applied)
+        logger.RecordEvent("boss_pocket_resolved", {{"boss_id", GetEnemyId()},
+            {"armor_before", armorBefore}, {"armor_after", m_BossState.armor},
+            {"hp_before", hpBefore}, {"hp_after", GetHP()}, {"damage", result.damage},
+            {"break_started", result.breakStarted}});
+    if (result.breakStarted)
+        logger.RecordEvent("boss_break_started", {{"boss_id", GetEnemyId()},
+            {"source", "pocket"}, {"break_shots_remaining", m_BossState.shotsRemaining},
+            {"trigger_shot_excluded", true}});
+    if (result.breakStarted) logger.RecordEvent("boss_attack_interrupted", {{"intent",BossEncounterRules::Name(m_BossTurn.intent)},
+        {"planned_damage",attackBefore},{"source","pocket"}});
+    return result;
+}
+
+void EnemyBall::RetireBossMinion()
+{
+    if (!IsBossMinion() || !m_Ball) return;
+    m_Ball->Defeat();
+    m_Ball->ResetAtPosition(Vector3(0,-1000,0));
+    GetGameObject()->SetActive(false);
+}
+
+void EnemyBall::ConsumeBossMinion(EnemyBall& boss)
+{
+    if (!IsBossMinion() || !GetGameObject()->IsActive() || boss.IsDefeated()) return;
+    BalanceLogger::GetInstance().RecordEvent("boss_minion_consumed", {
+        {"serial",m_BossMinionSerial},{"was_wreck",IsDefeated()}});
+    if (!IsDefeated()) Defeat();
+    boss.HitBreakBall(m_BossMinionSerial);
+    RetireBossMinion();
 }

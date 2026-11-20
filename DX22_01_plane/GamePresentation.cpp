@@ -277,7 +277,9 @@ void GamePresentation::Draw(Game& game)
 						if (boss.startedThisShot && game.GetBattleState() == BattleState::BallsMoving)
 							ImGui::TextUnformatted("このショットの残り ＋ 次の2ショットが有効");
 					}
-					else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケット無効");
+					else ImGui::TextUnformatted("通常ダメージ25%（切り上げ・最低1） / ポケットでArmor -1");
+                    ImGui::Text("BREAK中のポケット：最大HPの%d%%ダメージ（切り上げ）", BossCombatRules::PocketDamagePercent);
+                    ImGui::TextUnformatted("生存時は盤面内へ復帰 / ポケット効果は1ショット1回");
 					ImGui::TextUnformatted("黄色の球をボスへ押し込もう：Armor -1 / HP -4");
 					ImGui::TextUnformatted("黄色の球は命中・落下後、ショット終了時に再配置");
 					for (auto* neutral :

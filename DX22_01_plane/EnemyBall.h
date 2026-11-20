@@ -4,6 +4,7 @@
 #include "BattleTypes.h"
 #include "EnemyData.h"
 #include "BossCombatRules.h"
+#include "BossEncounterRules.h"
 
 #include <string>
 #include <optional>
@@ -54,10 +55,15 @@ public:
         EnemyActionType action,
         int budgetCost,
         float chargeDamageMultiplier);
-    EnemyActionType GetPlannedAction() const { return m_PlannedAction; }
+    EnemyActionType GetPlannedAction() const
+    {
+        if (IsArmorBoss() && (m_BossState.IsBroken() || m_BossTurn.interruptedThisShot)) return EnemyActionType::Wait;
+        return m_PlannedAction;
+    }
     int GetPlannedActionCost() const { return m_PlannedActionCost; }
     float GetPlannedDamageMultiplier() const
     {
+        if (IsArmorBoss()) return BossEncounterRules::BossDamage(m_BossTurn, m_BossState) / 2.0f;
         return m_PlannedAction == EnemyActionType::ChargeAttack
             ? m_PlannedChargeDamageMultiplier
             : 1.0f;
@@ -110,6 +116,14 @@ public:
 		if (CanParticipateInCombat()) m_NextKnockbackMultiplier = 1.0f;
 	}
     bool IsArmorBoss() const { return m_EnemyData.id == "enemy_boss_core"; }
+    bool IsBossMinion() const { return m_EnemyData.id == BossEncounterRules::MinionId; }
+    int GetBossMinionSerial() const { return m_BossMinionSerial; }
+    void SetBossMinionSerial(int serial) { m_BossMinionSerial = serial; }
+    const EnemyData& GetEnemyData() const { return m_EnemyData; }
+    BossEncounterRules::TurnState& BossTurn() { return m_BossTurn; }
+    const BossEncounterRules::TurnState& BossTurn() const { return m_BossTurn; }
+    void ConsumeBossMinion(EnemyBall& boss);
+    void RetireBossMinion();
     const BossCombatRules::State& GetBossState() const { return m_BossState; }
     void SetDebugBossState(int armor, int breakShots)
     {
@@ -120,10 +134,11 @@ public:
     }
     void BeginBossShot()
     {
-        if (IsArmorBoss() && CanParticipateInCombat()) m_BossState.BeginShot();
+        if (IsArmorBoss() && CanParticipateInCombat()) { m_BossState.BeginShot(); m_BossTurn.interruptedThisShot = false; }
     }
     void EndBossShot();
     void HitBreakBall(int ballId);
+    BossCombatRules::PocketResult ResolveBossPocket();
     int AdjustCollisionDamage(int damage, const DirectX::SimpleMath::Vector3& sourcePosition) const;
     void RegisterCollisionForStage(std::uintptr_t otherBallId);
     int GetCollisionStage() const { return m_CollisionStage; }
@@ -282,6 +297,8 @@ private:
     DirectX::SimpleMath::Vector3 m_PocketEntryPosition =
         DirectX::SimpleMath::Vector3::Zero;
     BossCombatRules::State m_BossState;
+    BossEncounterRules::TurnState m_BossTurn;
+    int m_BossMinionSerial = -1;
     DirectX::SimpleMath::Color m_BaseTint =
         DirectX::SimpleMath::Color(1.0f, 1.0f, 1.0f, 1.0f);
 	float m_PresentationHitFlash = 0.0f;

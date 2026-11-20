@@ -124,7 +124,8 @@ void BalanceLogger::EndShot(
 		: json(nullptr);
 	m_PendingShot["total_enemy_damage"] =
 		playerEnemyDamageKnown && enemyEnemyDamageKnown
-		? json(m_PlayerEnemyDamage + m_EnemyEnemyDamage)
+		? json(m_PlayerEnemyDamage + m_EnemyEnemyDamage +
+            m_PendingShot.value("non_collision_enemy_damage", 0))
 		: json(nullptr);
 	m_PendingShot["total_damage_collision_count"] =
 		m_PlayerEnemyHitCount + m_EnemyEnemyHitCount;

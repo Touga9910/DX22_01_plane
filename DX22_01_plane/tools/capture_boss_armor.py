@@ -14,12 +14,13 @@ import capture_fixed_timestep as h
 ROOT = h.PROJECT/'tools/runtime_tests/boss_armor/captures'
 h.ROOT = ROOT
 h.BASELINE = h.PROJECT/'assets'  # prepare() copies BASELINE/data
+EXE = Path(os.environ.get('DX22_BOSS_TEST_EXE', str(h.PROJECT.parent/'x64/Debug/DX22_01_plane.exe')))
 
 @contextmanager
-def game(label, case, build, boss=(0,20), configure=None, extra=(), resume=False):
+def game(label, case, build, boss=(0,20), configure=None, extra=(), resume=False, run_seed=20260904, expected_break_balls=2):
     folder=h.prepare(label,case,build)
     if configure: configure(folder)
-    exe=h.PROJECT.parent/'x64/Debug/DX22_01_plane.exe'
+    exe=EXE
     env=dict(os.environ, DX22_TEST_PREDICTION='1', DX22_TEST_RENDER_HZ=os.environ.get('DX22_TEST_RENDER_HZ','60'))
     with (folder/'process.log').open('w',encoding='utf-8') as log:
         process=subprocess.Popen([str(exe)],cwd=folder,env=env,stdout=log,stderr=log,creationflags=subprocess.CREATE_NO_WINDOW)
@@ -47,15 +48,15 @@ def game(label, case, build, boss=(0,20), configure=None, extra=(), resume=False
                 finally:
                     user.ShowWindow(window[0],0); user.SetForegroundWindow(previous)
             else:
-                h.command(folder,process,'start_new_run',run_seed=20260904,controller_profile='boss_armor_fixture',build_profile=build)
+                h.command(folder,process,'start_new_run',run_seed=run_seed,controller_profile='boss_armor_fixture',build_profile=build)
                 enemies=[dict(enemy_id='enemy_boss_core',x=boss[0],z=boss[1])]+list(extra)
                 h.command(folder,process,'set_next_stage_layout',layout_id=case,stage_type='boss',difficulty=3,par=7,enemies=enemies)
                 h.command(folder,process,'choose_destination',route_index=0)
             initial=h.wait_for(lambda:s if 'fire_shot' in (s:=h.read(folder/'runtime/game_mcp/game_state.json')).get('available_actions',[]) else None,process)
             h.write(folder/'initial.json',initial)
-            assert len(initial['break_balls'])==2
+            assert len(initial['break_balls'])==expected_break_balls
             assert initial['boss_state']['armor']==2 and initial['boss_state']['hp']==60
-            assert initial['enemies'][0]['pocket_finisher_eligible']
+            assert not initial['enemies'][0]['pocket_finisher_eligible']
             yield folder,process,initial
         finally:
             if process.poll() is None:
@@ -69,15 +70,28 @@ def compare(folder):
     assert expected['complete'] and expected['world_unchanged'] and not expected['path_truncated'],expected
     for name in ('player_enemy_contacts','enemy_enemy_contacts'): assert expected[name]==actual[name],(name,expected,actual)
     eb={b['id']:b for b in expected['balls']}; ab={b['id']:b for b in actual['balls']}
-    assert eb.keys()==ab.keys()
+    removed=set(eb)-set(ab)
+    assert not (set(ab)-set(eb))
+    # A lethal pocket destroys the runtime actor before the final capture;
+    # the predictor retains an inactive tombstone for AI kill evaluation.
+    assert all(eb[key]['boss'] and eb[key]['defeated'] and eb[key]['hp']==0 and
+               not eb[key]['active'] and eb[key]['pocket_resolved_this_shot'] for key in removed)
     error=0
+    player_returned=False
     for key,ball in eb.items():
+        if key in removed: continue
+        returned=ball['player'] and ball['pocketed'] and not ball['defeated'] and not ab[key]['pocketed']
+        player_returned=player_returned or returned
         for name in ('position','velocity'):
+            if returned: continue # Random player respawn is a turn effect, not shot physics.
             for a,b in zip(ball[name],ab[key][name]):
                 error=max(error,abs(a-b)); assert abs(a-b)<1e-5,(name,ball,ab[key])
-        for name in ('hp','active','defeated','pocketed','boss','break_ball','break_ball_used','armor','break_shots_remaining','break_started_this_shot'):
+        for name in ('hp','active','defeated','pocketed','boss','break_ball','break_ball_used','armor','break_shots_remaining','break_started_this_shot','pocket_resolved_this_shot'):
+            if returned and name in ('active','pocketed'): continue
             assert ball[name]==ab[key][name],(name,ball,ab[key])
-    return dict(matched=True,max_error=error,milliseconds=expected['milliseconds'],ticks=expected['ticks'])
+    return dict(matched=True,max_error=error,milliseconds=expected['milliseconds'],ticks=expected['ticks'],
+                random_player_respawn_position_not_simulated=player_returned,
+                pocket_defeated_boss_removed=len(removed))
 
 def shot(folder,process,index,direction,power):
     capture=folder/f'shot_{index:02d}'; capture.mkdir()

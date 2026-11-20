@@ -132,6 +132,7 @@ void BalanceLogger::EndStage(
 	int totalPlayerEnemyDamage = 0;
 	int totalEnemyEnemyDamage = 0;
 	int totalPlayerDamageTaken = 0;
+    int totalNonCollisionEnemyDamage = 0;
 	bool stageEnemyDamageKnown = true;
 	double totalShotScore = 0.0;
 
@@ -170,6 +171,7 @@ void BalanceLogger::EndStage(
 		}
 		totalShotScore +=
 			shot.value("shot_score", 0.0);
+        totalNonCollisionEnemyDamage += shot.value("non_collision_enemy_damage", 0);
 	}
 	for (const json& damageEvent : (*stage)["damage_events"])
 	{
@@ -217,10 +219,11 @@ void BalanceLogger::EndStage(
 		{
 			"total_enemy_damage",
 			stageEnemyDamageKnown
-				? json(totalPlayerEnemyDamage + totalEnemyEnemyDamage)
+				? json(totalPlayerEnemyDamage + totalEnemyEnemyDamage + totalNonCollisionEnemyDamage)
 				: json(nullptr)
 		},
 		{ "player_damage_taken", totalPlayerDamageTaken },
+        { "non_collision_enemy_damage", totalNonCollisionEnemyDamage },
 		{ "no_hit_shot_count", noHitShotCount },
 		{
 			"no_hit_shot_rate",

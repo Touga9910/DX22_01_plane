@@ -277,6 +277,16 @@ void BalanceLogger::RecordEnemyDamage(
 		});
 }
 
+void BalanceLogger::RecordNonCollisionEnemyDamage(
+    const std::string& source, const std::string& enemyId, int damage)
+{
+    if (!m_ShotActive || damage <= 0) return;
+    m_PendingShot["non_collision_enemy_damage"] =
+        m_PendingShot.value("non_collision_enemy_damage", 0) + damage;
+    m_PendingShot["enemy_damage_events"].push_back({
+        {"source", source}, {"enemy_id", enemyId}, {"damage", damage}});
+}
+
 void BalanceLogger::RecordPlayerDamage(
 	const std::string& source,
 	int damage,

@@ -107,7 +107,7 @@
       "textureDirectory": "assets/model/GolfBall",
       "status": {
         "maxHp": 60,
-        "attack": 1,
+        "attack": 2,
         "defense": 0,
         "mass": 18.0,
         "radius": 6.0,
@@ -211,7 +211,11 @@
           "enabled": true,
           "initialDelayTurns": 2,
           "respawnDelayTurns": 3,
-          "spawnOffset": [12.0, 0.0, 0.0],
+          "spawnOffset": [
+            12.0,
+            0.0,
+            0.0
+          ],
           "radius": 2.0,
           "mass": 1.0,
           "restitution": 0.8,
@@ -250,7 +254,13 @@
       "rewardMoney": 14,
       "rewardExp": 10,
       "gimmick": {
-        "collisionDamageMultipliers": [3.0, 2.0, 1.0, 0.75, 0.5],
+        "collisionDamageMultipliers": [
+          3.0,
+          2.0,
+          1.0,
+          0.75,
+          0.5
+        ],
         "collisionCountGraceTicks": 6
       }
     },
@@ -266,16 +276,27 @@
         "radius": 2.5,
         "restitution": 0.82,
         "friction": 0.02,
-        "abilities": { "split": false, "pierce": false }
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
       },
-      "scale": { "x": 2.5, "y": 2.5, "z": 2.5 },
+      "scale": {
+        "x": 2.5,
+        "y": 2.5,
+        "z": 2.5
+      },
       "rewardMoney": 12,
       "rewardExp": 8,
       "gimmick": {
         "boardAbility": {
           "type": "swarm_amplifier",
           "radius": 12.5,
-          "attackByStage": [1, 2, 3],
+          "attackByStage": [
+            1,
+            2,
+            3
+          ],
           "maximumAttack": 3
         }
       }
@@ -292,9 +313,16 @@
         "radius": 2.5,
         "restitution": 0.88,
         "friction": 0.02,
-        "abilities": { "split": false, "pierce": false }
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
       },
-      "scale": { "x": 2.5, "y": 2.5, "z": 2.5 },
+      "scale": {
+        "x": 2.5,
+        "y": 2.5,
+        "z": 2.5
+      },
       "rewardMoney": 13,
       "rewardExp": 9,
       "gimmick": {
@@ -318,9 +346,16 @@
         "radius": 2.6,
         "restitution": 0.74,
         "friction": 0.024,
-        "abilities": { "split": false, "pierce": false }
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
       },
-      "scale": { "x": 2.6, "y": 2.6, "z": 2.6 },
+      "scale": {
+        "x": 2.6,
+        "y": 2.6,
+        "z": 2.6
+      },
       "rewardMoney": 14,
       "rewardExp": 10,
       "gimmick": {
@@ -330,6 +365,31 @@
           "damageReduction": 1
         }
       }
+    },
+    {
+      "id": "enemy_boss_minion",
+      "modelFilePath": "assets/model/GolfBall/golf_ball.obj",
+      "textureDirectory": "assets/model/GolfBall",
+      "status": {
+        "maxHp": 3,
+        "attack": 1,
+        "defense": 0,
+        "mass": 1.0,
+        "radius": 2.4,
+        "restitution": 0.8,
+        "friction": 0.02,
+        "abilities": {
+          "split": false,
+          "pierce": false
+        }
+      },
+      "scale": {
+        "x": 2.4,
+        "y": 2.4,
+        "z": 2.4
+      },
+      "rewardMoney": 0,
+      "rewardExp": 0
     }
   ]
 }

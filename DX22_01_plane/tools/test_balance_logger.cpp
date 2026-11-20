@@ -185,6 +185,27 @@ namespace
         SaveCase("schema_and_batching", path, json::array({ latest }), checkpoint);
     }
 
+    void TestPocketDamageAttribution(BalanceLogger& logger)
+    {
+        const fs::path path = BeginRun(logger);
+        BeginStage(logger);
+        BeginShot(logger);
+        logger.RecordDamageCollision(BalanceCollisionType::PlayerEnemy, 1, 0);
+        logger.RecordNonCollisionEnemyDamage("boss_pocket", "enemy_boss_core", 15);
+        logger.EndShot(50, 1, 0);
+        const json shot = ReadLog(path).at("stages")[0].at("shots")[0];
+        Check(shot.at("player_enemy_damage") == 1, "Pocket damage is not direct contact damage");
+        Check(shot.at("non_collision_enemy_damage") == 15 && shot.at("total_enemy_damage") == 16,
+            "Shot total includes pocket damage once");
+        Check(shot.at("enemy_damage_events").back().at("source") == "boss_pocket", "Pocket source is recorded");
+        logger.EndStage("clear", 50, 50, 0);
+        const json result = ReadLog(path).at("stages")[0].at("stage_result");
+        Check(result.at("total_enemy_damage") == 16 && result.at("non_collision_enemy_damage") == 15,
+            "Stage total includes pocket damage once");
+        logger.EndRun("completed", 50, 50, 1);
+        SaveCase("pocket_damage_attribution", path);
+    }
+
     void TestUnknownAndZeroDamage(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger);
@@ -378,6 +399,7 @@ int main()
         Check(!logger.IsRunActive() && !logger.IsStageActive() && !logger.IsShotActive(), "Singleton starts inactive");
         logger.RecordEvent("ignored_before_run");
         TestSchemaAndBatchedWrites(logger);
+        TestPocketDamageAttribution(logger);
         TestUnknownAndZeroDamage(logger);
         TestTimelineAndTacticalAggregation(logger);
         TestAutomaticShotEndAndEmptyStage(logger);
