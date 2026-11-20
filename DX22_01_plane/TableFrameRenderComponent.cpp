@@ -66,7 +66,7 @@ void TableFrameRenderComponent::Draw()
         0,
         0);
 
-	if (m_ChargeMaterial != nullptr)
+	if (m_ShowChargeIndicators && m_ChargeMaterial != nullptr)
 	{
 		m_ChargeVertexBuffer.SetGPU();
 		m_ChargeIndexBuffer.SetGPU();

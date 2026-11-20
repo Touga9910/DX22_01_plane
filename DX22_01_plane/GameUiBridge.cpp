@@ -28,6 +28,7 @@ void Game::DrawPauseUI()
 	model.confirmReturnToTitle =
 		m_PauseState->IsReturnToTitleConfirmationActive();
 	model.battleScene = GetCurrentSceneType() == SceneType::Battle;
+    model.titleScene = GetCurrentSceneType() == SceneType::Title;
 	model.clearRewardActive = IsClearRewardActive();
 	const PausePresentationIntent intent = m_GamePresentation->DrawPause(model);
 

@@ -350,6 +350,7 @@
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Texture2D.cpp" />
     <ClCompile Include="Texture2DFactory.cpp" />
+    <ClCompile Include="TitleTable.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="utility.cpp" />
   </ItemGroup>
@@ -486,6 +487,9 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Texture2DFactory.h" />
+    <ClInclude Include="TitleTable.h" />
+    <ClInclude Include="TitleSequence.h" />
+    <ClInclude Include="RenderViewOverride.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="UiText.h" />
     <ClInclude Include="TransformComponent.h" />

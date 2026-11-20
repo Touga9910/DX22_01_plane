@@ -414,6 +414,7 @@ public:
 	int GetHeavyPhysicsChainPresentationCount() const;
 	const AudioFeedbackDiagnostics& GetAudioFeedbackDiagnostics() const;
 	float GetSeVolume() const;
+    void PlayTitleCue(bool shot, float strength);
 	const FrameTimingSnapshot& GetFrameTimingSnapshot() const;
 	AimingPerformanceSnapshot GetAimingPerformanceSnapshot() const;
 

@@ -6,8 +6,13 @@
 #include "GameView.h"
 #include "GameUi.h"
 #include "Input.h"
-#include "SceneObjectFactory.h"
-#include "Texture2D.h"
+#include "TitleTable.h"
+#include "GameObject.h"
+#include "IllustratedUi.h"
+#include <filesystem>
+#include <algorithm>
+#include <cmath>
+#include <Windows.h>
 #include "UiText.h"
 #include "ProgressionProfile.h"
 #include "imgui/imgui.h"
@@ -29,96 +34,155 @@ void TitleScene::Init()
 {
 	m_CanContinue = GameView::CaptureTitle().validRunSave;
 	m_SaveSummary = GameView::RunSaveSummary();
-	//背景画像オブジェクトを作成
-	Texture2D* pt = SceneObjectFactory::CreateTexture2D();
-	pt->SetTexture("assets/texture/background1.png");
-	pt->SetPosition(0.0f, 0.0f, 0.0f);
-	pt->SetRotation(0.0f, 0.0f, 0.0f);
-	pt->SetScale(1280.0f, 720.0f, 0.0f);
-	m_SceneGameObjects.emplace_back(pt->GetGameObject());
-
-	Texture2D* pt2 = SceneObjectFactory::CreateTexture2D();
-	pt2->SetTexture("assets/texture/titlerogo.png");
-	pt2->SetPosition(0.0f, 100.0f, 0.0f);
-	pt2->SetRotation(0.0f, 0.0f, 0.0f);
-	pt2->SetScale(700.0f, 150.0f, 0.0f);
-	m_SceneGameObjects.emplace_back(pt2->GetGameObject());
+    auto* object=GameRuntime::CreateObject("TitleTable");
+    m_Table=object->AddComponent<TitleTable>();
+    m_SceneGameObjects.push_back(object);
+    m_Logo=std::filesystem::exists("assets/UI/Title/logo.png");
 }
 
 // 更新
 void TitleScene::Update()
 {
-	// 実績画面を開いている間は、背面のタイトルメニューへキー入力を渡さない。
-	if (m_ShowProgression)
-	{
-		return;
-	}
-
-	const bool confirmed = m_Menu.UpdateVertical(3, false);
-	if (m_Menu.WasMoved())
-	{
-		m_ConfirmNewRun = false;
-	}
-
-	// エンターキーを押してステージセレクトへ
-	if (confirmed)
-	{
-		switch (m_Menu.GetIndex())
-		{
-		case 0:
-			if (m_CanContinue && !m_ConfirmNewRun)
-			{
-				m_ConfirmNewRun = true;
-				m_Message = UiText::OverwriteConfirm;
-				return;
-			}
-			GameSceneCommands::StartNewRun();
-			GameSceneCommands::ChangeScene(SceneType::Select);
-			return;
-		case 1:
-			if (!m_CanContinue)
-			{
-				m_Message = m_SaveSummary;
-				return;
-			}
-			if (GameSceneCommands::LoadSavedRun())
-			{
-				return;
-			}
-			m_Message = GameView::SaveLoadMessage();
-			return;
-		case 2:
-			GameSceneCommands::OpenDebugMode();
-			return;
-		default:
-			break;
-		}
-	}
+    const auto now=std::chrono::steady_clock::now();
+    const float dt=std::clamp(std::chrono::duration<float>(now-m_LastTick).count(),0.0f,.1f);
+    m_LastTick=now;
+    m_HoverFlash=(std::max)(0.0f,m_HoverFlash-dt);
+    if(m_QuitFade>=0) { m_QuitFade+=dt; if(m_QuitFade>.45f) PostQuitMessage(0); return; }
+    if(m_Sequence.Active())
+    {
+        if(Input::GetKeyTrigger(VK_SPACE)||Input::GetKeyTrigger(VK_ESCAPE)||Input::GetKeyTrigger(VK_RETURN))m_Sequence.Skip();
+        m_Sequence.Advance(dt,m_Table->RackHit());
+        m_Table->Step(dt,m_Sequence.phase==TitleSequence::Phase::Break||m_Sequence.phase==TitleSequence::Phase::Fade);
+        if(m_Sequence.ConsumeStart())
+        {
+            m_Table->Release();
+            GameSceneCommands::StartNewRun();
+            GameSceneCommands::ChangeScene(SceneType::Select);
+        }
+        return;
+    }
+    m_Table->Step(dt,false);
+    if(m_ShowProgression||m_ShowQuit||ImGui::IsPopupOpen(nullptr,ImGuiPopupFlags_AnyPopupId))return;
+    const bool confirmed=m_Menu.UpdateVertical(4,false);
+    if(m_Menu.WasMoved()){m_ConfirmNewRun=false;m_HoverFlash=.35f;GameSceneCommands::PlayTitleCue(false,.3f);}
+    if(!confirmed)return;
+    switch(m_Menu.GetIndex())
+    {
+    case 0:
+        if(m_CanContinue&&!m_ConfirmNewRun){m_ConfirmNewRun=true;m_Message=UiText::OverwriteConfirm;return;}
+        m_Sequence.Begin();GameSceneCommands::PlayTitleCue(false,1);return;
+    case 1:
+        if(m_CanContinue)
+        {
+            m_Table->Release();
+            if(!GameSceneCommands::LoadSavedRun()){m_Table->Awake();m_Message=GameView::SaveLoadMessage();}
+        }
+        return;
+    case 2: GameSceneCommands::OpenTitleSettings();return;
+    case 3: m_ShowQuit=true;return;
+    }
 }
 
 void TitleScene::DrawUI()
 {
-	if (m_ShowProgression) { DrawProgressionUI(); return; }
-	GameUi::PrepareWindow("title", ImVec2(390, 285), ImVec2(500, 405));
-	ImGui::Begin(UiText::TitleWindow, nullptr, ImGuiWindowFlags_NoCollapse);
-	if (ImGui::Button(m_ConfirmNewRun ? "上書きして新しく始める" : UiText::NewRun, ImVec2(-1, 40)))
-		m_Menu.Confirm(0, 3);
-	if (m_ConfirmNewRun && ImGui::Button("キャンセル", ImVec2(-1, 32)))
-	{
-		m_ConfirmNewRun = false;
-		m_Message.clear();
-	}
-	ImGui::BeginDisabled(!m_CanContinue);
-	if (ImGui::Button(UiText::ContinueRun, ImVec2(-1, 40))) m_Menu.Confirm(1, 3);
-	ImGui::EndDisabled();
-	if (ImGui::Button("デバッグモード：デッキ・戦闘設定", ImVec2(-1, 40))) m_Menu.Confirm(2, 3);
-	if (ImGui::Button("アセンション・実績", ImVec2(-1, 40))) m_ShowProgression = true;
-	ImGui::Text("次の通常ラン：アセンション%d", GameView::Progression().selectedAscension);
-	ImGui::TextWrapped("%s", m_SaveSummary.c_str());
-	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
-	ImGui::TextDisabled("ボタンをクリックして進めます。");
-	ImGui::TextDisabled("%s", UiText::ManualSaveHint);
-	ImGui::End();
+    using namespace IllustratedUi;
+    Canvas ui("title_lounge",1600,900,IM_COL32(0,0,0,0));
+    auto* d=ImGui::GetWindowDrawList();
+    const auto* vp=ImGui::GetMainViewport();
+    const float w=vp->WorkSize.x,h=vp->WorkSize.y;
+    ui.scale=(std::min)(w*.35f/560.0f,h/900.0f);
+    ui.origin=ImVec2(vp->WorkPos.x,vp->WorkPos.y+(h-900*ui.scale)*.5f);
+    d->AddRectFilled(vp->WorkPos,ImVec2(vp->WorkPos.x+w*.35f,vp->WorkPos.y+h),IM_COL32(7,12,23,255));
+    d->AddRectFilledMultiColor(ImVec2(vp->WorkPos.x+w*.35f,vp->WorkPos.y),ImVec2(vp->WorkPos.x+w*.43f,vp->WorkPos.y+h),IM_COL32(7,12,23,220),0,0,IM_COL32(7,12,23,220));
+    if(m_Logo) ui.Art("assets/UI/Title/logo.png",42,108,492,112);
+    else {ui.Text("CAROMINO",42,108,492,112,64,Gold,false);}
+    ui.Text("BILLIARDS × ROGUELIKE",48,222,472,40,23,Cream,false);
+    const char* names[]={m_ConfirmNewRun?"START (overwrite)":"START","CONTINUE","SETTINGS","QUIT"};
+    ImVec2 linkStart=ui.At(240,373);
+    if(!m_Sequence.Active()&&m_QuitFade<0)
+    {
+        for(int i=0;i<4;++i)
+        {
+            const float y=335+i*88.0f;
+            const bool enabled=i!=1||m_CanContinue;
+            const bool clicked=ui.Hit(names[i],48,y,452,72);
+            const bool hovered=ImGui::IsItemHovered();
+            if(i==1&&hovered)ImGui::SetTooltip("%s\n%s",UiText::ContinueRun,m_SaveSummary.c_str());
+            if(enabled&&hovered&&(ImGui::GetIO().MouseDelta.x!=0||ImGui::GetIO().MouseDelta.y!=0)&&m_Menu.GetIndex()!=i)
+            {m_Menu.SetIndex(i,4);m_HoverFlash=.35f;GameSceneCommands::PlayTitleCue(false,.3f);m_ConfirmNewRun=false;}
+            const bool selected=m_Menu.GetIndex()==i;
+            if(selected)
+            {
+                d->AddRectFilled(ui.At(44,y),ui.At(504,y+72),IM_COL32(213,177,96,26),8*ui.scale);
+                d->AddCircleFilled(ui.At(62,y+36),4*ui.scale,Gold);
+                linkStart=ui.At(465,y+36);
+            }
+            ui.Text(names[i],86,y+10,400,52,35,!enabled?IM_COL32(95,101,110,255):selected?Gold:Cream,false);
+            if(enabled&&clicked&&!m_ShowProgression&&!m_ShowQuit)m_Menu.Confirm(i,4);
+        }
+        ui.Text(m_Message.c_str(),48,705,465,66,18,Cream,false);
+        if(ui.Hit("progression",48,784,240,36)&&!m_ShowQuit)m_ShowProgression=true;
+        ui.Text("アセンション・実績",48,784,250,36,19,Cream,false);
+        if(ui.Hit("title_debug",320,784,180,36)&&!m_ShowQuit)GameSceneCommands::OpenDebugMode();
+        ui.Text("DEBUG",320,784,180,36,18,Cream,false);
+    }
+    else ui.Text("START",86,345,400,52,40,Gold,false);
+    ui.Text("CAROMINO / DEVELOPMENT",48,849,470,30,16,Cream,false);
+    // Four axis motifs: projected glows and a small, deterministic particle field.
+    const ImU32 colors[]={IM_COL32(250,179,76,70),IM_COL32(190,230,255,70),IM_COL32(184,108,245,70),IM_COL32(73,225,204,70)};
+    for(int i=1;i<=4;++i)
+    {
+        auto p=m_Table->ScreenBall(i*3);
+        if(m_Sequence.phase==TitleSequence::Phase::Break)
+        {
+            const auto previous=m_Table->PreviousScreenBall(i*3);
+            d->AddLine(ImVec2(previous.x,previous.y),ImVec2(p.x,p.y),colors[i-1],3*ui.scale);
+        }
+        d->AddCircleFilled(ImVec2(p.x,p.y), (10+std::sin(m_Table->Age()+i)*2)*ui.scale,colors[i-1]);
+    }
+    for(int i=0;i<14;++i)
+    {
+        const float t=m_Table->Age()*.12f+i*2.3f;
+        d->AddCircleFilled(ImVec2(vp->WorkPos.x+w*(.46f+.48f*(i/14.0f)),vp->WorkPos.y+h*(.25f+.48f*(.5f+.5f*std::sin(t)))),1.5f*ui.scale,colors[i%4]);
+    }
+    auto cue=m_Table->ScreenBall(0);ImVec2 destination(cue.x,cue.y);
+    const bool linking=m_Sequence.phase==TitleSequence::Phase::Link;
+    if(!m_ShowProgression&&!m_ShowQuit&&!m_Sequence.Active())
+    {
+        d->AddLine(linkStart,destination,IM_COL32(224,196,127,40),ui.scale);
+        if(m_HoverFlash>0)d->AddCircle(destination,15*ui.scale,Gold,32,2*ui.scale);
+    }
+    if(linking)
+    {
+        const float t=std::clamp(m_Sequence.time/.7f,0.0f,1.0f);
+        const auto start=ui.At(215,371);
+        const ImVec2 p(start.x+(destination.x-start.x)*t,start.y+(destination.y-start.y)*t);
+        d->AddLine(start,p,IM_COL32(255,218,137,140),3*ui.scale);
+        d->AddCircleFilled(p,16*ui.scale,IM_COL32(255,218,137,100));
+        d->AddText(ImGui::GetFont(),26*ui.scale,p,Gold,"START");
+    }
+    if(m_Sequence.Active())
+    {
+        ui.Text("SPACE / ESC / ENTER : SKIP",650,832,800,40,22);
+        ImGui::SetCursorScreenPos(vp->WorkPos);
+        if(ImGui::InvisibleButton("skip_title",vp->WorkSize))m_Sequence.Skip();
+        if(m_Table->RackHit()&&m_Sequence.phase==TitleSequence::Phase::Break)
+        {
+            const float a=(std::max)(0.0f,1.0f-m_Sequence.time/1.2f);
+            d->AddCircle(destination,(22+80*(1-a))*ui.scale,IM_COL32(200,230,255,static_cast<int>(100*a)),48,2*ui.scale);
+        }
+    }
+    const float fade=m_QuitFade>=0?std::clamp(m_QuitFade/.45f,0.0f,1.0f):m_Sequence.phase==TitleSequence::Phase::Fade?std::clamp(m_Sequence.time/.65f,0.0f,1.0f):m_Sequence.Active()&&m_Sequence.phase!=TitleSequence::Phase::Link&&m_Sequence.phase!=TitleSequence::Phase::Break?1.0f:0;
+    if(fade>0) d->AddRectFilled(vp->WorkPos,ImVec2(vp->WorkPos.x+w,vp->WorkPos.y+h),IM_COL32(0,0,0,static_cast<int>(255*fade)));
+    if(m_ShowProgression)DrawProgressionUI();
+    if(m_ShowQuit&&!ImGui::IsPopupOpen("終了確認"))ImGui::OpenPopup("終了確認");
+    if(ImGui::BeginPopupModal("終了確認",nullptr,ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::TextUnformatted("Carominoを終了しますか？");
+        if(ImGui::Button("終了する")){m_QuitFade=0;m_ShowQuit=false;ImGui::CloseCurrentPopup();}
+        ImGui::SameLine();if(ImGui::Button("戻る")){m_ShowQuit=false;ImGui::CloseCurrentPopup();}
+        ImGui::EndPopup();
+    }
 }
 
 void TitleScene::DrawProgressionUI()
@@ -162,6 +226,7 @@ void TitleScene::DrawProgressionUI()
 // 終了処理
 void TitleScene::Uninit()
 {
+    if(m_Table)m_Table->Release();
 	// このシーンのオブジェクトを削除する
 	for (GameObject* gameObject : m_SceneGameObjects) {
 		GameRuntime::DestroyObject(gameObject);

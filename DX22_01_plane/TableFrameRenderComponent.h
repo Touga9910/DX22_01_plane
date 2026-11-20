@@ -16,6 +16,7 @@ class TableFrameRenderComponent final : public Component
 public:
     void Awake() override;
     void Draw() override;
+    void SetChargeIndicatorsEnabled(bool enabled) { m_ShowChargeIndicators=enabled; }
 
     const std::vector<DirectX::SimpleMath::Vector3>&
         GetLocalPocketCenters() const
@@ -24,6 +25,7 @@ public:
     }
 
 private:
+    bool m_ShowChargeIndicators=true;
     void BuildMesh();
 	void BuildChargeIndicators();
 	void AddChargeQuad(float xMin, float zMin, float xMax, float zMax, float y);

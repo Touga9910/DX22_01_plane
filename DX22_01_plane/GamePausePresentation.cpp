@@ -201,20 +201,20 @@ PausePresentationIntent GamePresentation::DrawPause(
 		intent.applyDisplay = true;
 	}
 
-	ImGui::SeparatorText("ランを中断");
+	if (!model.titleScene) ImGui::SeparatorText("ランを中断");
 	if (model.debugMode)
 	{
 		if (ImGui::Button("デバッグを終了してタイトルへ", ImVec2(-1, 40)))
 			intent.requestDebugExit = true;
 	}
-	else if (!model.confirmReturnToTitle)
+	else if (!model.titleScene && !model.confirmReturnToTitle)
 	{
 		if (ImGui::Button("セーブしてタイトルへ戻る", ImVec2(-1.0f, 40.0f)))
 		{
 			intent.requestReturnConfirmation = true;
 		}
 	}
-	else
+	else if (!model.titleScene)
 	{
 		ImGui::TextWrapped(
 			"ランのセーブデータは1個だけです。現在のセーブを上書きしてタイトルへ戻ります。");

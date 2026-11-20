@@ -67,6 +67,14 @@ void Camera::Update(const Vector3& targetPos)
 //=======================================
 void Camera::SetCamera(int mode)
 {
+    if (mode == 0 && RenderViewOverride::current)
+    {
+        auto view = RenderViewOverride::current->view;
+        auto projection = RenderViewOverride::current->projection;
+        Renderer::SetViewMatrix(&view);
+        Renderer::SetProjectionMatrix(&projection);
+        return;
+    }
 	//3Dカメラ設定
 	if (mode == 0)
 	{

@@ -1,9 +1,11 @@
-#include "GameSceneCommands.h"
+﻿#include "GameSceneCommands.h"
 #include "GameView.h"
 #include "RunRouteCommands.h"
 #include "RunRouteView.h"
 
 #include "Game.h"
+#include "AudioFeedback.h"
+#include "GameEvent.h"
 #include "RunMap.h"
 #include "StageData.h"
 #include "json/json.hpp"
@@ -292,4 +294,25 @@ bool GameSceneCommands::RestUpgradeBall(int index)
 void GameSceneCommands::LeaveRestSite()
 {
     Game::GetInstance()->LeaveRestSite();
+}
+
+void GameSceneCommands::OpenTitleSettings()
+{
+    Game::GetInstance()->RequestPauseToggle();
+}
+
+void Game::PlayTitleCue(bool shot, float strength)
+{
+    if(!m_AudioFeedback)return;
+    if(shot)m_AudioFeedback->OnShotFired(ShotFiredEvent{"player_standard",0});
+    else {CollisionImpactEvent event{};event.relativeApproachSpeed=strength;m_AudioFeedback->OnCollisionImpact(event,0);}
+}
+void GameSceneCommands::PlayTitleCue(bool shot, float strength)
+{
+    Game::GetInstance()->PlayTitleCue(shot,strength);
+}
+
+bool GameSceneCommands::TitleShakeEnabled()
+{
+    return Game::GetInstance()->IsCameraShakeEnabled();
 }

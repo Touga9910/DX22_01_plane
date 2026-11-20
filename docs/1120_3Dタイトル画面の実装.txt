@@ -1,0 +1,56 @@
+作成日：2026年11月20日
+
+実装前の判断
+表示：左35%のロゴ・メニューと右65%の3D台。STARTの光が白球へ届いた後だけ発射する。
+柱：選択・狙い・連鎖を起動時に伝える。球の取得や強化に変更はない。
+危険：タイトルの物理・カメラ・番号球が本編へ漏れることを避ける。戦闘オブジェクトを生成しない。
+確認：純粋な遷移状態をテストし、Windows未実行範囲と不足演出を区別する。commit/pushしない。
+調査：Game::Init→TitleScene、SceneCommandsで新規ラン/セーブ再開。BallRenderComponentが番号FBX・反射、Ground/TableFrameRenderComponentが台、BallPhysicsRulesが衝突計算を所有。共通Cameraは描画時に呼ばれるため、タイトル描画の間のみ独立ビューを注入する。従来の背景画像タイトルは置き換える。既存実績・デバッグ入口は補助ボタンとして残す。
+
+実装
+TitleScene：ロゴ/4項目、セーブ上書き確認、再開、既存設定、終了確認、補助入口とUIの光。
+TitleTable：私有GameObjectの台/球を描画。16球を共有のBallPhysicsRules::Pair/Wallで固定1/60・8分割更新。待機時は物理更新しない。戦闘BallComponent/AIは一切作らない。タイトル物理はポケットで消えない閉じた外周で反射する。
+TitleSequence：待機→文字の光の移動0.7秒→ブレイク→フェード0.65秒→一度だけ開始。衝突未発生でもタイムアウトで停止を回避。SPACE/ESC/ENTERと右側クリックでスキップ。
+RenderViewOverride：タイトル描画中だけビュー/投影/視点を供給。Cameraはスコープ外では既存挙動のまま。右65%のビューポートと本編カメラのGPU行列を描画後に復元。
+タイトルの台は既存のGround/TableFrameメッシュと素材、球はBallRenderComponentのFBX/番号/反射を再利用。番号の予約を遷移前に解放。TitleScene破棄時にも解放する。
+設定は既存のポーズ画面/SettingsRuntimeを使用し、タイトルからはラン保存ボタンを隠す。本編の設定画面・戦闘挙動は従来の分岐を維持。
+音は既存AudioFeedbackへ直接要求し、ホバー/決定/打球/最初のラック衝突を暫定接続。新しい音声グラフや戦闘イベント・ログは生成しない。
+カメラ微動、4軸色の投影グロー、漂う粒子、短い色付き軌跡、衝突リングと微小シェイクを追加。シェイクは既存の有効設定に従う。
+
+検証
+C++ TitleSequenceテストをLinuxでビルド・実行。待機、連打、通常完了、各段階のスキップ、衝突タイムアウト、一回だけの開始を確認。
+Python tools全331件中329件成功。残る2件は既存の敵攻撃値期待値とBattleSceneObjectFactory依存契約の失敗。
+プロジェクトXMLと新規ソースのUTF-8 BOM、個別/utf-8を追加していないこと、git diff --checkを検証。
+Windows SDK/MSVC/DirectX11実行環境がないため、本体ビルドと3D動作は未確認。特にFBXの表示、台の収まり、文字→白球の連動、連続反射、設定の往復、CONTINUE直後の番号描画、終了時の破棄をWindowsで確認する必要がある。
+
+不足と差し替え
+真のスポットライト、3D発光/ブルーム、風切り/フェード専用SEは未実装。既存の方向光/反射と2D投影グローで代用。リング・シェイク・音量・テンポの実機調整が残る。
+ロゴはassets/UI/Title/logo.pngが存在すれば利用し、なければCAROMINOの仮テキスト。起動し直して差し替えを反映する。
+台/球の背景素材は従来のGroundRenderComponent/TableFrameRenderComponent/BallRenderComponentが参照するものを再利用。タイトルだけ別素材にする場合はTitleTableにタイトル用設定を追加し、共有アセットの上書きは避ける。
+SEはGameSceneCommands::PlayTitleCue / Game::PlayTitleCueから既存AudioFeedbackへ接続。専用音の追加は既存SE管理に新しい非戦闘カテゴリを用意する段階で行う。
+ローカル作業のみ。新規bat、commit、pushは行っていない。
+
+変更・追加ファイル一覧
+DX22_01_plane/Camera.cpp
+DX22_01_plane/Camera.h
+DX22_01_plane/DX22_01_plane.vcxproj
+DX22_01_plane/DX22_01_plane.vcxproj.filters
+DX22_01_plane/Game.h
+DX22_01_plane/GamePause.cpp
+DX22_01_plane/GamePausePresentation.cpp
+DX22_01_plane/GamePresentation.h
+DX22_01_plane/GameSceneAccess.cpp
+DX22_01_plane/GameSceneCommands.h
+DX22_01_plane/GameUiBridge.cpp
+DX22_01_plane/TableFrameRenderComponent.cpp
+DX22_01_plane/TableFrameRenderComponent.h
+DX22_01_plane/TitleScene.cpp
+DX22_01_plane/TitleScene.h
+DX22_01_plane/RenderViewOverride.h
+DX22_01_plane/TitleSequence.h
+DX22_01_plane/TitleTable.cpp
+DX22_01_plane/TitleTable.h
+DX22_01_plane/tools/test_title_sequence.cpp
+"docs/1120_3D\343\202\277\343\202\244\343\203\210\343\203\253\347\224\273\351\235\242\343\201\256\345\256\237\350\243\205.txt"
+
+追加確認：16:9、ウルトラワイド、正方形の寸法でロゴ・メニューが左35%に収まる計算を確認。STARTスキップは画面クリックでも可能。

@@ -1,6 +1,7 @@
 #pragma once
 
 #include	<SimpleMath.h>
+#include "RenderViewOverride.h"
 //#include "input.h"
 
 //-----------------------------------------------------------------------------
@@ -53,7 +54,7 @@ public:
 	/// </summary>
 	void UpdateViewMatrix();
 
-	DirectX::SimpleMath::Vector3 GetPosition() { return m_Position; }
+	DirectX::SimpleMath::Vector3 GetPosition() { return RenderViewOverride::current ? RenderViewOverride::current->eye : m_Position; }
 	DirectX::SimpleMath::Vector3 GetTarget() const{	return m_Target; }
 	DirectX::SimpleMath::Matrix GetViewMatrix() const { return m_ViewMatrix; }
 

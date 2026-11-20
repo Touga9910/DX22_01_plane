@@ -11,6 +11,9 @@ public:
     static void StartNewRun();
     static bool LoadSavedRun();
     static void OpenDebugMode();
+    static void OpenTitleSettings();
+    static void PlayTitleCue(bool shot, float strength);
+    static bool TitleShakeEnabled();
     static void SetSelectedAscension(int level);
 
     static void RollShopBallOffers();

@@ -149,6 +149,9 @@
     <ClInclude Include="ResultScene.h">
       <Filter>ヘッダー ファイル\01_Scene\System</Filter>
     </ClInclude>
+    <ClInclude Include="TitleTable.h" />
+    <ClInclude Include="TitleSequence.h" />
+    <ClInclude Include="RenderViewOverride.h" />
     <ClInclude Include="TitleScene.h">
       <Filter>ヘッダー ファイル\01_Scene\System</Filter>
     </ClInclude>
@@ -996,6 +999,7 @@
     <ClCompile Include="StageSelectScene.cpp">
       <Filter>ソース ファイル\01_Scene\Progression</Filter>
     </ClCompile>
+    <ClCompile Include="TitleTable.cpp" />
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル\01_Scene\System</Filter>
     </ClCompile>

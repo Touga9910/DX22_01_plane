@@ -5,6 +5,7 @@
 #include "StageSelectScene.h"
 #include "RestSiteScene.h"
 #include "ShopScene.h"
+#include "TitleScene.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -40,7 +41,8 @@ void Game::ResumeAndDismissPause()
 
 bool Game::CanPause() const
 {
-	return IsRunSessionActive() &&
+	const auto* title=dynamic_cast<TitleScene*>(GetCurrentScene());
+    return (title && title->AllowsPause()) || IsRunSessionActive() &&
 		(dynamic_cast<BattleScene*>(GetCurrentScene()) != nullptr ||
 		 dynamic_cast<StageSelectScene*>(GetCurrentScene()) != nullptr ||
 		 dynamic_cast<RestSiteScene*>(GetCurrentScene()) != nullptr ||

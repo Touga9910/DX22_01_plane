@@ -44,6 +44,7 @@ struct PausePresentationModel
 	bool confirmReturnToTitle = false;
 	bool battleScene = false;
 	bool clearRewardActive = false;
+    bool titleScene = false;
 };
 
 struct PausePresentationIntent
