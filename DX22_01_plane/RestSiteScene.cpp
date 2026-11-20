@@ -4,12 +4,7 @@
 #include "GameRuntime.h"
 #include "GameSceneCommands.h"
 #include "GameView.h"
-#include "GameUi.h"
 #include "Input.h"
-#include "PlayerBallText.h"
-#include "PlayerBallUI.h"
-#include "SceneObjectFactory.h"
-#include "Texture2D.h"
 #include "UiText.h"
 #include "imgui/imgui.h"
 
@@ -27,14 +22,12 @@ RestSiteScene::~RestSiteScene()
 
 void RestSiteScene::Init()
 {
-	Texture2D* background = SceneObjectFactory::CreateTexture2D();
-	background->SetTexture("assets/texture/background1.png");
-	background->SetScale(1280.0f, 720.0f, 0.0f);
-	m_SceneGameObjects.emplace_back(background->GetGameObject());
+
 }
 
 void RestSiteScene::Update()
 {
+	if (m_UiState.modalOpen) return;
 	const bool confirmed = m_Menu.UpdateVertical(3);
 
 	const RestSiteViewSnapshot view = GameView::CaptureRestSite();
@@ -104,45 +97,19 @@ void RestSiteScene::Update()
 
 void RestSiteScene::DrawUI()
 {
-	GameUi::PrepareWindow("rest", ImVec2(300, 100), ImVec2(680, 520));
-	const RestSiteViewSnapshot view = GameView::CaptureRestSite();
-	ImGui::Begin(view.bossPreparation ? "最終準備" : UiText::RestWindow, nullptr, ImGuiWindowFlags_NoCollapse);
-	if (view.bossPreparation) ImGui::TextUnformatted("この休憩の後、最終ボスへ進みます。");
-	ImGui::Text("HP %d / %d", view.playerCurrentHp, view.playerMaxHp);
-	ImGui::TextUnformatted(UiText::ChooseRestAction);
-	ImGui::BeginDisabled(m_ActionUsed || !view.canRestHeal);
-	const std::string heal = "回復する (最大HPの" + std::to_string(view.restHealPercent) + "% / " + std::to_string(view.restHealAmount) + " HP)";
-	if (ImGui::Button(heal.c_str(), ImVec2(-1, 36))) m_Menu.Confirm(0, 3);
-	ImGui::EndDisabled();
-	if (ImGui::RadioButton("ボールを強化", m_Menu.GetIndex() == 1)) m_Menu.SetIndex(1, 3);
-	ImGui::BeginChild("upgrade_targets", ImVec2(0, -95), ImGuiChildFlags_Borders);
-	for (int index = 0; index < view.deckBallCount; ++index)
-	{
-		const auto* ball = GameView::DeckBall(index);
-		if (ball == nullptr) continue;
-		ImGui::PushID(index);
-		if (PlayerBallUI::Select(*ball, index == m_SelectedBall))
-		{
-			m_SelectedBall = index;
-			m_Menu.SetIndex(1, 3);
-		}
-		if (index == m_SelectedBall)
-		{
-			ImGui::TextWrapped("%s", PlayerBallText::GetDescription(ball->definitionId));
-			ImGui::TextWrapped("%s", PlayerBallText::GetUpgradePreview(*ball).c_str());
-			ImGui::BeginDisabled(m_ActionUsed || !ball->CanUpgrade());
-			if (ImGui::Button("この個体を強化する", ImVec2(-1, 34))) m_Menu.Confirm(1, 3);
-			ImGui::EndDisabled();
-		}
-		ImGui::Separator();
-		ImGui::PopID();
-	}
-	ImGui::EndChild();
-	if (!m_Message.empty()) ImGui::TextWrapped("%s", m_Message.c_str());
-	ImGui::BeginDisabled(!m_ActionUsed && view.availableRestBenefit);
-	if (ImGui::Button("次へ進む", ImVec2(-1, 36))) m_Menu.Confirm(2, 3);
-	ImGui::EndDisabled();
-	ImGui::End();
+    const auto view=GameView::CaptureRestSite();
+    LoungeServiceUi::RestModel model;
+    model.hp=view.playerCurrentHp; model.maxHp=view.playerMaxHp;
+    model.money=GameView::CaptureShop().playerMoney;
+    model.healAmount=view.restHealAmount; model.healPercent=view.restHealPercent;
+    model.canHeal=view.canRestHeal; model.availableBenefit=view.availableRestBenefit;
+    model.bossPreparation=view.bossPreparation; model.used=m_ActionUsed;
+    model.selectedAction=m_Menu.GetIndex(); model.message=m_Message;
+    for(int index=0;index<view.deckBallCount;++index) model.deck.push_back(GameView::DeckBall(index));
+    const auto intent=LoungeServiceUi::DrawRest(model,m_UiState);
+    if(intent.action<0) return;
+    if(intent.action==1) m_SelectedBall=intent.index;
+    m_Menu.Confirm(intent.action,3);
 }
 
 

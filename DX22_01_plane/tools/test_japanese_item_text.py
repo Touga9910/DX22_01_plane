@@ -55,13 +55,16 @@ class JapaneseItemTextTests(unittest.TestCase):
         self.assertEqual(text.count("RelicUtf8(u8"), 11 * 2)
 
     def test_ball_text_is_used_by_each_player_facing_item_screen(self) -> None:
-        for file_name in ("GameRewardPresentation.cpp", "ShopScene.cpp", "RestSiteScene.cpp"):
-            text = (ROOT / file_name).read_text(encoding="utf-8")
+        for file_name in ("GameRewardPresentation.cpp", "LoungeServicePresentation.cpp"):
+            text = (ROOT / file_name).read_text(encoding="utf-8-sig")
             self.assertIn('include "PlayerBallText.h"', text)
-            if file_name == "GameRewardPresentation.cpp":
-                self.assertIn("BallCardPresentation::DrawBallDetailPopup", text)
-            else:
-                self.assertIn("PlayerBallText::GetDescription", text)
+            self.assertIn("BallCardPresentation::DrawBallDetailPopup", text)
+        lounge = (ROOT / "LoungeServicePresentation.cpp").read_text(encoding="utf-8-sig")
+        self.assertIn("PlayerBallText::GetDescription", lounge)
+        self.assertIn("PlayerBallText::GetUpgradePreview", lounge)
+        for scene, renderer in (("ShopScene.cpp", "DrawShop"), ("RestSiteScene.cpp", "DrawRest")):
+            self.assertIn("LoungeServiceUi::" + renderer,
+                          (ROOT / scene).read_text(encoding="utf-8-sig"))
 
     def test_ball_card_dynamic_status_uses_explicit_utf8_format_strings(self) -> None:
         presentation = (ROOT / "BallCardPresentation.cpp").read_text(

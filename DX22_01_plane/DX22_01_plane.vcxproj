@@ -472,6 +472,7 @@
     <ClInclude Include="BallPhysicsWorld.h" />
     <ClInclude Include="SynchronizedBallStepper.h" />
     <ClInclude Include="ShopScene.h" />
+    <ClInclude Include="LoungeServicePresentation.h" />
     <ClInclude Include="SettingsManager.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="stb_image.h" />
@@ -575,6 +576,7 @@
     <ClCompile Include="GamePresentationReactions.cpp" />
     <ClCompile Include="GamePresentationTutorial.cpp" />
     <ClCompile Include="GameRewardPresentation.cpp" />
+    <ClCompile Include="LoungeServicePresentation.cpp" />
     <ClCompile Include="GameRouteFlow.cpp" />
     <ClCompile Include="GameRunCompletion.cpp" />
     <ClCompile Include="GameRuntime.cpp" />

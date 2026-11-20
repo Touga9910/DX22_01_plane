@@ -136,6 +136,7 @@
     <ClInclude Include="RestSiteScene.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
     </ClInclude>
+    <ClInclude Include="LoungeServicePresentation.h"><Filter>ヘッダー ファイル</Filter></ClInclude>
     <ClInclude Include="ShopScene.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
     </ClInclude>
@@ -1365,6 +1366,7 @@
     <ClCompile Include="GamePresentationReactions.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClCompile Include="GamePresentationTutorial.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClCompile Include="GameRewardPresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
+    <ClCompile Include="LoungeServicePresentation.cpp"><Filter>ソース ファイル\05_UI</Filter></ClCompile>
     <ClCompile Include="GameRouteFlow.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
     <ClCompile Include="GameRunCompletion.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>
     <ClCompile Include="GameRuntime.cpp"><Filter>ソース ファイル\00_Application\Core</Filter></ClCompile>

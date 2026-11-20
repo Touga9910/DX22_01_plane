@@ -2,6 +2,7 @@
 
 #include "Scene.h"
 #include "MenuSelection.h"
+#include "LoungeServicePresentation.h"
 
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@ private:
 
 	std::vector<GameObject*> m_SceneGameObjects;
 	MenuSelection m_Menu;
+	LoungeServiceUi::State m_UiState;
 	int m_SelectedBuyBall = 0;
 	int m_SelectedRemoveBall = 0;
 	int m_SelectedRelic = 0;
