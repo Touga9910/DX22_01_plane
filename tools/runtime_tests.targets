@@ -1,0 +1,21 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Resolve test dependencies from the checkout, including legacy projects. -->
+  <PropertyGroup>
+    <Dx22TestRoot>$(MSBuildThisFileDirectory)..\</Dx22TestRoot>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(Dx22TestRoot)DX22_01_plane;$(Dx22TestRoot)third_party\DirectXTK\include;$(Dx22TestRoot)third_party\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DebugInformationFormat Condition="'$(Dx22TestEmbeddedDebugInfo)'=='true'">OldStyle</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(Dx22TestRoot)third_party\DirectXTK\lib\x64\Debug;$(Dx22TestRoot)third_party\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation Condition="'$(Dx22TestEmbeddedDebugInfo)'=='true'">false</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)native_test_bootstrap.cpp" />
+  </ItemGroup>
+</Project>

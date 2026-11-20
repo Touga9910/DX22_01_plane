@@ -35,6 +35,7 @@ DEFAULT_BALANCE_LOG_DIRECTORY = Path(__file__).resolve().parents[2] / "logs" / "
 COMPARISON_BUILDS = ("standard", "heavy", "pierce", "bounce", "anchor")
 COMPARISON_SEEDS = tuple(range(1001, 1011))
 COMPARISON_REFERENCE_COHORT = "cohort_20260921_mcp_intermediate_standard"
+SUPPORT_BALLS = ("player_guard",)  # Universal support, not an axis-completion target.
 MCP_CONNECTION_MAX_ATTEMPTS = 5
 MCP_CONNECTION_RETRY_BASE_SECONDS = 0.25
 BUILD_TARGET_BALLS = {
@@ -116,6 +117,7 @@ BUILD_MECHANIC_EVENTS = {
 # activated rather than "the collector did not know how to measure it".
 BALL_ABILITY_EVENTS = {
     "player_standard": (),
+    "player_guard": ("player_shield_gained",),
     "player_heavy": ("heavy_distance_stacks_generated",),
     "player_chain_impact": ("chain_impact_triggered",),
     "player_collision_boost": ("heavy_collision_boost_armed",),

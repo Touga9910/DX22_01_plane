@@ -38,8 +38,11 @@ void GameObject::Update()
         return;
     }
 
-    for (const auto& component : m_Components)
+    // Callbacks may append components; defer new entries to the next pass.
+    const std::size_t count = m_Components.size();
+    for (std::size_t index = 0; index < count; ++index)
     {
+        Component* component = m_Components[index].get();
         if (m_DestroyRequested)
         {
             break;
@@ -69,8 +72,11 @@ void GameObject::LateUpdate()
         return;
     }
 
-    for (const auto& component : m_Components)
+    // Callbacks may append components; defer new entries to the next pass.
+    const std::size_t count = m_Components.size();
+    for (std::size_t index = 0; index < count; ++index)
     {
+        Component* component = m_Components[index].get();
         if (m_DestroyRequested)
         {
             break;
@@ -91,8 +97,11 @@ void GameObject::Draw()
         return;
     }
 
-    for (const auto& component : m_Components)
+    // Callbacks may append components; defer new entries to the next pass.
+    const std::size_t count = m_Components.size();
+    for (std::size_t index = 0; index < count; ++index)
     {
+        Component* component = m_Components[index].get();
         if (m_DestroyRequested)
         {
             break;
@@ -118,8 +127,11 @@ void GameObject::FixedUpdate()
 		return;
 	}
 
-	for (const auto& component : m_Components)
+	// Callbacks may append components; defer new entries to the next pass.
+	const std::size_t count = m_Components.size();
+	for (std::size_t index = 0; index < count; ++index)
 	{
+	    Component* component = m_Components[index].get();
 		if (m_DestroyRequested)
 		{
 			break;

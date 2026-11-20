@@ -111,6 +111,7 @@ private:
 	bool StartBattle(Game& game);
 	void DrawStageEditor(Game& game);
 	void TestStageEditorLayout();
+	void RequestReplay();
 
 	bool m_DebugMode = false;
 	bool m_DebugEditorOpen = false;
@@ -125,6 +126,11 @@ private:
 	std::string m_DebugMessage;
 	StageLayoutEditor m_StageEditor;
 	std::optional<StageData> m_DebugStageOverride;
+	std::optional<StageData> m_DebugActiveStage;
+	bool m_DebugUseStageLayout = true;
+	int m_DebugDeckDragCatalog = -1;
+	int m_DebugDeckDragSlot = -1;
+	int m_DebugEnemyDragCatalog = -1;
 
 	CombatForecastSnapshot m_DebugCombatForecast{};
 	bool m_DebugCombatForecastDirty = true;

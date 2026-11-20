@@ -15,6 +15,7 @@ from collect_fixed_balance_runs import (
     BALL_ABILITY_EVENTS,
     BUILD_MECHANIC_EVENTS,
     BUILD_TARGET_BALLS,
+    SUPPORT_BALLS,
     aggregate_build_records,
     call,
     catalog_candidate,
@@ -50,8 +51,22 @@ class BuildCollectorDecisionTests(unittest.TestCase):
             for definition_ids in BUILD_TARGET_BALLS.values()
             for definition_id in definition_ids
         }
-        self.assertEqual(runtime_ids, tracked_ids)
+        self.assertEqual(runtime_ids, tracked_ids | set(SUPPORT_BALLS))
+        self.assertTrue(tracked_ids.isdisjoint(SUPPORT_BALLS))
         self.assertEqual(runtime_ids, set(BALL_ABILITY_EVENTS))
+
+    def test_guard_shield_resolutions_are_measured_as_universal_support(self) -> None:
+        from collect_fixed_balance_runs import _ball_ability_activation_counts
+
+        gained = {"event_type": "player_shield_gained", "details": {"amount": 3}}
+        counts = _ball_ability_activation_counts([
+            {"ball_id": "player_guard", "shot_events": [gained, gained]},
+            {"ball_id": "player_guard", "shot_events": []},
+            {"ball_id": "player_standard", "shot_events": [gained]},
+        ])
+        self.assertEqual(counts["player_guard"], 2)
+        self.assertEqual(counts["player_standard"], 0)
+        self.assertNotIn("player_guard", {ball for balls in BUILD_TARGET_BALLS.values() for ball in balls})
 
     def test_mechanic_event_names_match_runtime_contract(self) -> None:
         all_events = {

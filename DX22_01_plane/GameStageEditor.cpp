@@ -46,7 +46,6 @@ namespace
 float GameDebugController::StageEditorPlayerRadius() const
 {
     float radius = 2.4f;
-    for (const auto& ball : m_DebugBallCatalog) radius = (std::max)(radius, ball.status.radius);
     for (const auto& ball : m_DebugSetup.deck) radius = (std::max)(radius, ball.status.radius);
     return radius;
 }
@@ -54,25 +53,13 @@ float GameDebugController::StageEditorPlayerRadius() const
 // Test Stage Editor Layout の処理を実行する。
 void GameDebugController::TestStageEditorLayout()
 {
+    if (m_StageEditor.dragging) { m_DebugMessage = "ドラッグを終了してから適用してください。"; return; }
     const auto report = StageLayoutEditor::Inspect(m_StageEditor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
     if (!report["valid"].get<bool>()) { m_DebugMessage = "配置のエラーを解消してから試遊してください。"; return; }
-    StageData stage = StageLayoutEditor::Decode(
-        m_StageEditor.draft, m_DebugEnemyCatalog);
-    const auto loadedStages = StageDataLoader::LoadAll(
-        "assets/data/stage_01.json", "assets/data/enemy_data.json");
-    const auto loaded = std::find_if(
-        loadedStages.begin(), loadedStages.end(),
-        [&stage](const StageData& candidate) { return candidate.id == stage.id; });
-    if (loaded != loadedStages.end() &&
-        loaded->combatMode == CombatMode::PhasePrototype)
-    {
-        stage = *loaded;
-        m_DebugStageOverride = stage;
-    }
-    else
-    {
-        m_DebugStageOverride.reset();
-    }
+    const StageData stage = m_StageEditor.BuildPlaytestStage(m_DebugEnemyCatalog);
+    m_DebugStageOverride = stage;
+    m_DebugUseStageLayout = true;
+    m_DebugSetup.enemyValidation.enabled = false;
     m_DebugSetup.enemies.clear();
     for (const auto& e : stage.enemies) m_DebugSetup.enemies.push_back({e, e.enemyData.maxHp});
     m_DebugSetup.breakBallPositions.clear();
@@ -143,6 +130,14 @@ void GameDebugController::DrawStageEditor(Game&)
         }
         if (ImGui::Checkbox("敵の追加モード", &editor.placing) && editor.placing)
             editor.placingBreakBall = false;
+        ImGui::Button("敵をドラッグして追加");
+        if (ImGui::IsItemActivated()) m_DebugEnemyDragCatalog = editor.palette;
+        if (ImGui::BeginDragDropSource())
+        {
+            ImGui::SetDragDropPayload("DEBUG_ENEMY_CATALOG", &editor.palette, sizeof(editor.palette));
+            ImGui::TextUnformatted(EnemyLabel(m_DebugEnemyCatalog[editor.palette].id));
+            ImGui::EndDragDropSource();
+        }
     }
     if (type == 2)
         ImGui::TextWrapped("最終ボスの取り巻きは本編と同じルールで自動生成されます。旧ブレイクボール座標は使用しません。");
@@ -161,6 +156,29 @@ void GameDebugController::DrawStageEditor(Game&)
     auto screen = [&](float x, float z) { return ImVec2(origin.x + (x + hw) * scale, origin.y + (hd - z) * scale); };
     auto* draw = ImGui::GetWindowDrawList();
     ImGui::InvisibleButton("stage_canvas", ImVec2(width, height));
+    int droppedEnemy = -1;
+    if (ImGui::IsMouseReleased(0) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+        droppedEnemy = m_DebugEnemyDragCatalog;
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const auto* payload = ImGui::AcceptDragDropPayload("DEBUG_ENEMY_CATALOG"))
+            droppedEnemy = *static_cast<const int*>(payload->Data);
+        ImGui::EndDragDropTarget();
+    }
+    if (droppedEnemy >= 0 && droppedEnemy < static_cast<int>(m_DebugEnemyCatalog.size()) && editor.draft["enemies"].size() < 32)
+    {
+        const auto& mouse = ImGui::GetIO().MousePos;
+        float x = (mouse.x - origin.x) / scale - hw, z = hd - (mouse.y - origin.y) / scale;
+        if (editor.snap) { x = std::round(x / 2) * 2; z = std::round(z / 2) * 2; }
+        const float radius = m_DebugEnemyCatalog[droppedEnemy].status.radius + .01f;
+        auto added = editor.draft;
+        added["enemies"].push_back({{"enemy_id", m_DebugEnemyCatalog[droppedEnemy].id},
+            {"x", std::clamp(x, -hw + radius, hw - radius)},
+            {"z", std::clamp(z, -hd + radius, hd - radius)}});
+        editor.Replace(added);
+        editor.selected = static_cast<int>(added["enemies"].size()) - 1;
+    }
+    if (ImGui::IsMouseReleased(0)) m_DebugEnemyDragCatalog = -1;
     draw->AddRectFilled(origin, ImVec2(origin.x + width, origin.y + height), IM_COL32(20, 74, 64, 255));
     for (float x = -60; x <= 60; x += 10) draw->AddLine(screen(x, -hd), screen(x, hd), IM_COL32(80, 120, 110, 100));
     for (float z = -30; z <= 30; z += 10) draw->AddLine(screen(-hw, z), screen(hw, z), IM_COL32(80, 120, 110, 100));
@@ -216,12 +234,10 @@ void GameDebugController::DrawStageEditor(Game&)
         auto& entry = editor.draft["enemies"][editor.selected];
         const float r = radiusFor(entry) + .01f;
         if (editor.snap) { mx = std::round(mx / 2) * 2; mz = std::round(mz / 2) * 2; }
-        if (ImGui::IsMouseDown(0))
-        {
-            entry["x"] = std::clamp(mx, -hw + r, hw - r);
-            entry["z"] = std::clamp(mz, -hd + r, hd - r);
-        }
-        else
+        // Include the release position even if the final move/release share a frame.
+        entry["x"] = std::clamp(mx, -hw + r, hw - r);
+        entry["z"] = std::clamp(mz, -hd + r, hd - r);
+        if (!ImGui::IsMouseDown(0))
         {
             editor.dragging = false; auto moved = editor.draft; editor.draft = editor.dragStart; change(moved);
         }
@@ -361,7 +377,7 @@ void GameDebugController::DrawStageEditor(Game&)
         if (!editor.proposal.is_null() && editor.proposalRevision != editor.revision) ImGui::TextUnformatted("編集後の古いAI案です。最新の配置で再提案してください。");
     }
     ImGui::BeginDisabled(!report["valid"].get<bool>() || editor.dragging);
-    if (ImGui::Button("この配置で試遊")) TestStageEditorLayout();
+    if (ImGui::Button("配置とデッキを適用して最初から開始")) TestStageEditorLayout();
     ImGui::SameLine();
     bool existing = std::any_of(m_DebugStages.begin(), m_DebugStages.end(), [&](const auto& s) { return s.id == editor.draft["id"].get<std::string>(); });
     if (ImGui::Button(existing ? "同名ステージに上書き保存" : "新しいステージとして保存"))

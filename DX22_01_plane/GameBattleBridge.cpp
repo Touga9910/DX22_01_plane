@@ -48,6 +48,12 @@ bool GameBattleView::AcceptsHumanInput()
 		game->IsShotPreparationInputEnabled();
 }
 
+bool GameBattleView::AcceptsDebugMovement()
+{
+	const Game* game = Game::GetInstance();
+	return game->IsDebugMode() && !game->IsBalanceAutoPlayEnabled();
+}
+
 bool GameBattleView::ClearRewardActive()
 {
     return Game::GetInstance()->IsClearRewardActive();
@@ -588,6 +594,11 @@ public:
 	void NotifyStageStarted(const StageData& stage) const override
 	{
 		m_Game.OnBattleStageStarted(stage);
+	}
+
+	std::vector<EnemyBall*> SpawnInitialBossMinions() const override
+	{
+		return m_Game.SpawnBossMinions(BossEncounterRules::InitialMinions, true);
 	}
 
 	bool IsDebugMode() const override

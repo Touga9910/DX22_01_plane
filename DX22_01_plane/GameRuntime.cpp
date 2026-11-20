@@ -40,7 +40,9 @@ void GameRuntime::RecordFrameTiming(
 		updateMilliseconds,
 		state == BattleState::AimingDirection ||
 		state == BattleState::AimingPower);
-	if (game.IsFrameTimeMeasurementEnabled())
+	if (game.IsFrameTimeMeasurementEnabled() &&
+		LocalPerformanceLogger::IsAimingSequencePending(
+			game.m_RuntimeState->CompletedAimingSequence()))
 	{
 		const AimingPerformanceSnapshot snapshot =
 			game.m_RuntimeState->CaptureAimingPerformance();

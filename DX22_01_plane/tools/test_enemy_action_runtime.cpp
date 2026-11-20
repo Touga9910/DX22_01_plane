@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <unordered_set>
+#include "test_checks.h"
 
 namespace
 {
@@ -60,9 +61,10 @@ int main()
 	assert(EnemyBoardAbilityRules::ApplyProtectionReduction(0, 1) == 0);
 
     EnemyActionPlanner planner;
-    const std::filesystem::path configPath =
-        std::filesystem::path(__FILE__).parent_path().parent_path() /
-        "assets/data/enemy_action_rules.json";
+    // The runner supplies copied assets in its private working directory.
+    // __FILE__ is UTF-8 with /utf-8; converting its Japanese checkout path via
+    // filesystem::path's system code page can throw before the test starts.
+    const std::filesystem::path configPath = "assets/data/enemy_action_rules.json";
     assert(planner.LoadConfig(configPath.string()));
     assert(planner.Config().maximumBudget == 5);
     assert(planner.Config().normalAttackCost == 2);

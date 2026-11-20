@@ -29,7 +29,8 @@ def main() -> int:
     parser.add_argument("--scenario", choices=["controlled", "ordinary"], default="controlled",
                         help="Two queued battles, or unchanged ordinary gameplay data with observation only")
     parser.add_argument("--cases", nargs="+", choices=list(CASES), default=list(CASES))
-    parser.add_argument("--conditions", nargs="+", choices=["hidden", "legacy_rehide"], default=["hidden"])
+    parser.add_argument("--conditions", nargs="+", choices=["hidden", "visible", "legacy_rehide"], default=["hidden"],
+                        help="Use visible for Release, which has no Debug-only hidden-window override")
     parser.add_argument("--seeds", nargs="+", type=int, default=[20261116])
     parser.add_argument("--decision-frames", type=int, default=150)
     parser.add_argument("--publish-frames", type=int, default=1)

@@ -48,11 +48,15 @@ namespace
 	}
 }
 
+bool LocalPerformanceLogger::IsAimingSequencePending(std::uint64_t sequence)
+{
+	return sequence != 0 && sequence != g_LastHandledSequence;
+}
+
 bool LocalPerformanceLogger::IsAimingSnapshotPending(
 	const AimingPerformanceSnapshot& snapshot)
 {
-	return snapshot.active && snapshot.complete && snapshot.sequence != 0 &&
-		snapshot.sequence != g_LastHandledSequence;
+	return snapshot.active && snapshot.complete && IsAimingSequencePending(snapshot.sequence);
 }
 
 void LocalPerformanceLogger::TryWriteAimingSnapshot(

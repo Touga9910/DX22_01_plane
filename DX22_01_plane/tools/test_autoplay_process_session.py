@@ -117,6 +117,14 @@ class AutoplayProcessSessionTests(unittest.TestCase):
         path = self.folder / "request_events.jsonl"
         return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
 
+    def test_visible_condition_observes_without_hiding_the_game(self):
+        self.session.condition = "visible"
+        self.binding.rows[0]["visible"] = True
+        observed = self.session.observe()
+        self.assertTrue(observed[0]["visible"])
+        self.assertEqual(self.session.visible_samples, 1)
+        self.assertEqual(self.binding.hides, [])
+
     def test_trace_distinguishes_the_controller_from_the_game(self):
         with patch.object(process_session.os, "getpid", return_value=73001), \
                 patch.object(process_session.threading, "get_native_id", return_value=83001):
@@ -369,7 +377,7 @@ class AutoplayProcessSessionTests(unittest.TestCase):
         self.assertEqual(len(self.binding.posts), 1)
 
     def test_launch_configures_isolated_cwd_and_condition_without_a_native_launch(self):
-        for condition in ("hidden", "legacy_rehide"):
+        for condition in ("hidden", "visible", "legacy_rehide"):
             with self.subTest(condition=condition):
                 session = Session(self.folder / condition, condition, binding=self.binding)
                 with patch.dict(os.environ, {"DX22_TEST_HIDDEN_WINDOW": "inherited"}), patch.object(process_session.subprocess, "Popen", return_value=self.child) as popen:

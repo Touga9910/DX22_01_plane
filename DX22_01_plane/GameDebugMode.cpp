@@ -209,6 +209,9 @@ void GameDebugController::Open(Game& game)
                 m_DebugSetup.enemies.push_back({spawn, spawn.enemyData.maxHp});
     }
     m_DebugEditorOpen = true;
+    m_DebugDeckDragCatalog = m_DebugDeckDragSlot = m_DebugEnemyDragCatalog = -1;
+    // Recover old detached/off-screen editor positions when opening the panel.
+    GameUi::windowRevisions["debug_mode_editor"] = GameUi::layoutRevision - 1;
     if (m_StageEditor.draft.is_null() && !m_DebugStages.empty())
     {
         try
@@ -237,8 +240,7 @@ bool GameDebugController::StartBattle(Game& game)
     stage.id = "debug_battle";
     if (m_DebugStageOverride.has_value())
     {
-        stage = std::move(m_DebugStageOverride.value());
-        m_DebugStageOverride.reset();
+        stage = *m_DebugStageOverride;
     }
     else if (m_DebugSetup.enemyValidation.enabled)
     {
@@ -278,6 +280,8 @@ bool GameDebugController::StartBattle(Game& game)
                 stage.stageType = StageType::MidBoss;
         }
     }
+    m_DebugStageOverride.reset();
+    m_DebugActiveStage = stage;
     // 描画中にSceneを破棄しない。再戦でも前の球を破棄してから初期状態を作る。
     if (m_DebugMode) game.ChangeScene(SceneType::Title);
     m_DebugPreviousRun = GameDebugHost::CaptureRunSnapshot(game);
@@ -291,6 +295,13 @@ bool GameDebugController::StartBattle(Game& game)
     m_DebugMessage = "設定した条件で戦闘を開始しました。";
     Game::ResetFrameTiming();
     return true;
+}
+
+void GameDebugController::RequestReplay()
+{
+    m_DebugSetup = m_DebugActiveSetup;
+    m_DebugStageOverride = m_DebugActiveStage;
+    m_DebugRequest = 1;
 }
 
 // Debug Battle Playerを適用
@@ -365,6 +376,16 @@ void GameDebugController::FinishBattle(Game& game, bool victory)
 // Debug Modeを更新
 bool GameDebugController::Update(Game& game)
 {
+    // Handle this before the editor's early return so it also works while paused.
+    if (ImGui::IsKeyPressed(ImGuiKey_F3, false) && (m_DebugMode || GameDebugHost::CanOpenEditor(game)))
+    {
+        if (m_DebugEditorOpen && m_DebugMode && !m_DebugBattleFinished)
+        {
+            m_DebugEditorOpen = false;
+            GameDebugHost::SetPaused(game, false);
+        }
+        else Open(game);
+    }
     const int request = std::exchange(m_DebugRequest, 0);
     if (request == 1) { StartBattle(game); Game::ResetFrameTiming(); return true; }
     if (request == 2)
@@ -408,6 +429,8 @@ bool GameDebugController::LoadPreset()
         std::ifstream file(PresetPath); nlohmann::json value; file >> value;
         auto next = DebugBattleSetup::FromJson(value, m_DebugBallCatalog, m_DebugEnemyCatalog);
         m_DebugSetup = std::move(next); // 検証に失敗したときは編集中の条件を維持
+        m_DebugStageOverride.reset();
+        m_DebugUseStageLayout = false;
         m_DebugMessage = "デバッグ条件を読み込みました。「この条件で戦闘開始」で適用します。";
         return true;
     }
@@ -418,49 +441,72 @@ bool GameDebugController::LoadPreset()
 // Debug Modeを描画
 void GameDebugController::Draw(Game& game)
 {
-    static bool stageTabActive = true;
     if (m_DebugMode && !m_DebugEditorOpen)
     {
         GameUi::PrepareWindow("debug_mode_controls", ImVec2(740, 20), ImVec2(450, 130));
         ImGui::Begin("デバッグ戦闘", nullptr, ImGuiWindowFlags_NoCollapse);
         ImGui::TextUnformatted("通常セーブ・通常ランの集計から独立しています。");
-        if (ImGui::Button("条件を編集（一時停止）")) Open(game);
+        if (ImGui::Button("配置・デッキを編集（F3）")) Open(game);
         ImGui::SameLine();
-        if (ImGui::Button("同じ条件で再戦")) { m_DebugSetup = m_DebugActiveSetup; m_DebugRequest = 1; }
+        if (ImGui::Button("同じ条件で再戦")) RequestReplay();
         if (ImGui::Button("デバッグを終了")) m_DebugRequest = 2;
         ImGui::End();
     }
     if (!m_DebugEditorOpen) return;
     GameUi::PrepareWindow("debug_mode_editor", ImVec2(50, 20), ImVec2(1120, 660));
     ImGui::Begin("デバッグモード：戦闘条件", nullptr, ImGuiWindowFlags_NoCollapse);
-    ImGui::TextWrapped("デッキや配置を設定して1戦を試せます。編集内容は次の戦闘開始時に反映します。");
-    if (ImGui::Button(stageTabActive ? "編集中のステージで試遊" : "この条件で戦闘開始", ImVec2(205, 36)))
+    ImGui::TextWrapped("編集中は戦闘を一時停止します。配置とデッキをまとめて適用し、HP・ターン・乱数を開始条件に戻して再開します。");
+    ImGui::Checkbox("ステージエディターの配置を使用", &m_DebugUseStageLayout);
+    ImGui::SameLine();
+    ImGui::TextDisabled("OFF：敵編成・配置タブの手動条件／比較検証を使用");
+    if (ImGui::Button("適用してステージを最初から開始", ImVec2(290, 36)))
     {
-        if (stageTabActive) TestStageEditorLayout(); else m_DebugRequest = 1;
+        if (m_DebugUseStageLayout) TestStageEditorLayout();
+        else { m_DebugStageOverride.reset(); m_DebugRequest = 1; }
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(!m_DebugMode || m_DebugBattleFinished);
     if (ImGui::Button("編集中の条件を適用せず再開", ImVec2(260, 36))) { m_DebugEditorOpen = false; GameDebugHost::SetPaused(game, false); Game::ResetFrameTiming(); }
     ImGui::EndDisabled(); ImGui::SameLine();
     if (ImGui::Button("タイトルへ戻る", ImVec2(180, 36))) m_DebugRequest = 2;
-    ImGui::BeginDisabled(stageTabActive);
     if (ImGui::Button("デバッグ条件を保存")) SavePreset(); ImGui::SameLine();
     if (ImGui::Button("デバッグ条件を読み込む")) LoadPreset();
-    ImGui::EndDisabled();
+    ImGui::TextDisabled("条件プリセットはデッキと手動敵編成用です。配置のファイル保存はステージエディターで行います。");
     if (!m_DebugMessage.empty()) ImGui::TextWrapped("%s", m_DebugMessage.c_str());
     const auto error = m_DebugSetup.Validate();
     if (!error.empty()) ImGui::TextColored(ImVec4(1, .45f, .3f, 1), "%s", error.c_str());
     if (ImGui::BeginTabBar("debug_setup_tabs"))
     {
-        stageTabActive = false;
         if (ImGui::BeginTabItem("ステージエディター"))
         {
-            stageTabActive = true;
             DrawStageEditor(game);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("デッキ"))
         {
+            int catalogDrop = -1, deckDrop = -1, dropTarget = -1, removeIndex = -1;
+            auto acceptDeckDrop = [&](int target)
+            {
+                // Include fast drags whose final move and release arrive in one frame.
+                if (ImGui::IsMouseReleased(0) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+                {
+                    catalogDrop = m_DebugDeckDragCatalog;
+                    deckDrop = m_DebugDeckDragSlot;
+                    dropTarget = target;
+                }
+                if (!ImGui::BeginDragDropTarget()) return;
+                if (const auto* payload = ImGui::AcceptDragDropPayload("DEBUG_BALL_CATALOG"))
+                {
+                    catalogDrop = *static_cast<const int*>(payload->Data);
+                    dropTarget = target;
+                }
+                if (const auto* payload = ImGui::AcceptDragDropPayload("DEBUG_DECK_SLOT"))
+                {
+                    deckDrop = *static_cast<const int*>(payload->Data);
+                    dropTarget = target;
+                }
+                ImGui::EndDragDropTarget();
+            };
             ImGui::Text("%d / 64個（登録%d種類・1個だけでも実験できます）",
                 static_cast<int>(m_DebugSetup.deck.size()),
                 static_cast<int>(m_DebugBallCatalog.size()));
@@ -491,6 +537,18 @@ void GameDebugController::Draw(Game& game)
                         ImGui::BeginDisabled(m_DebugSetup.deck.size() >= 64);
                         if (ImGui::Button(BallLabel(definition.definitionId)))
                             m_DebugSetup.deck.push_back(definition);
+                        if (ImGui::IsItemActivated())
+                        {
+                            m_DebugDeckDragCatalog = static_cast<int>(&definition - m_DebugBallCatalog.data());
+                            m_DebugDeckDragSlot = -1;
+                        }
+                        if (ImGui::BeginDragDropSource())
+                        {
+                            const int index = static_cast<int>(&definition - m_DebugBallCatalog.data());
+                            ImGui::SetDragDropPayload("DEBUG_BALL_CATALOG", &index, sizeof(index));
+                            ImGui::Text("追加：%s", BallLabel(definition.definitionId));
+                            ImGui::EndDragDropSource();
+                        }
                         ImGui::EndDisabled();
                         ImGui::PopID();
                     }
@@ -498,12 +556,38 @@ void GameDebugController::Draw(Game& game)
                 }
                 ImGui::EndTabBar();
             }
-            ImGui::TextDisabled("上の球名で追加。各行を開いて強化・性能を編集できます。");
+            ImGui::TextWrapped("球一覧から下へドラッグして追加。デッキの行をドラッグして並べ替え、削除エリアへドロップして削除できます。各行を開くと性能を編集できます。");
+            ImGui::Button("ここへドロップして末尾に追加・移動", ImVec2(380, 32));
+            acceptDeckDrop(static_cast<int>(m_DebugSetup.deck.size()));
+            ImGui::SameLine();
+            ImGui::Button("ここへドロップして削除", ImVec2(260, 32));
+            if (ImGui::IsMouseReleased(0) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+                removeIndex = m_DebugDeckDragSlot;
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const auto* payload = ImGui::AcceptDragDropPayload("DEBUG_DECK_SLOT"))
+                    removeIndex = *static_cast<const int*>(payload->Data);
+                ImGui::EndDragDropTarget();
+            }
+            ImGui::BeginChild("debug_deck_entries", ImVec2(0, 0), ImGuiChildFlags_Borders);
             for (size_t i = 0; i < m_DebugSetup.deck.size();)
             {
                 auto& ball = m_DebugSetup.deck[i]; ImGui::PushID(static_cast<int>(i));
                 bool remove = ImGui::SmallButton("削除"); ImGui::SameLine();
 				const bool open = ImGui::TreeNode("ball", "#%d %s +%d  攻撃%d", static_cast<int>(i + 1), BallLabel(ball.definitionId), ball.upgradeLevel, ball.status.attack);
+                if (ImGui::IsItemActivated())
+                {
+                    m_DebugDeckDragSlot = static_cast<int>(i);
+                    m_DebugDeckDragCatalog = -1;
+                }
+                if (ImGui::BeginDragDropSource())
+                {
+                    const int index = static_cast<int>(i);
+                    ImGui::SetDragDropPayload("DEBUG_DECK_SLOT", &index, sizeof(index));
+                    ImGui::Text("#%d %s", index + 1, BallLabel(ball.definitionId));
+                    ImGui::EndDragDropSource();
+                }
+                acceptDeckDrop(static_cast<int>(i));
                 if (open)
                 {
                     int level = ball.upgradeLevel;
@@ -516,8 +600,27 @@ void GameDebugController::Draw(Game& game)
                     ImGui::TreePop();
                 }
                 ImGui::PopID();
-                if (remove) m_DebugSetup.deck.erase(m_DebugSetup.deck.begin() + i); else ++i;
+                if (remove) removeIndex = static_cast<int>(i);
+                ++i;
             }
+            ImGui::EndChild();
+            // Apply after drawing: vector mutations would invalidate the current row reference.
+            auto& deck = m_DebugSetup.deck;
+            if (removeIndex >= 0 && removeIndex < static_cast<int>(deck.size()))
+                deck.erase(deck.begin() + removeIndex);
+            else if (dropTarget >= 0 && dropTarget <= static_cast<int>(deck.size()))
+            {
+                if (catalogDrop >= 0 && catalogDrop < static_cast<int>(m_DebugBallCatalog.size()) && deck.size() < 64)
+                    deck.insert(deck.begin() + dropTarget, m_DebugBallCatalog[catalogDrop]);
+                else if (deckDrop >= 0 && deckDrop < static_cast<int>(deck.size()))
+                {
+                    auto moved = deck[deckDrop];
+                    deck.erase(deck.begin() + deckDrop);
+                    if (deckDrop < dropTarget) --dropTarget;
+                    deck.insert(deck.begin() + dropTarget, std::move(moved));
+                }
+            }
+            if (ImGui::IsMouseReleased(0)) m_DebugDeckDragCatalog = m_DebugDeckDragSlot = -1;
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("HP・所持金・レリック"))

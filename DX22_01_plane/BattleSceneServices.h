@@ -31,6 +31,7 @@ public:
         EnemyBall* enemy,
         std::size_t index) const = 0;
     virtual void NotifyStageStarted(const StageData& stage) const = 0;
+    virtual std::vector<EnemyBall*> SpawnInitialBossMinions() const = 0;
     virtual bool IsDebugMode() const = 0;
     virtual const std::vector<DirectX::SimpleMath::Vector3>&
         DebugBreakBallPositions() const = 0;

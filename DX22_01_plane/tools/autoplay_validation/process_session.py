@@ -102,8 +102,8 @@ class Session:
     """
     def __init__(self, folder: Path, condition: str, *, cleanup_timeout: float = 10,
                  kill_timeout: float = 5, binding: Any = None, observe_resources: bool = False) -> None:
-        if condition not in ("hidden", "legacy_rehide"):
-            raise ValueError("condition must be hidden or legacy_rehide")
+        if condition not in ("hidden", "visible", "legacy_rehide"):
+            raise ValueError("condition must be hidden, visible or legacy_rehide")
         if cleanup_timeout <= 0 or kill_timeout <= 0:
             raise ValueError("cleanup timeouts must be positive")
         self.folder = Path(folder).resolve()
@@ -168,7 +168,7 @@ class Session:
         if os.name == "nt":
             startup = subprocess.STARTUPINFO()
             startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startup.wShowWindow = 0
+            startup.wShowWindow = 1 if self.condition == "visible" else 0
             options.setdefault("startupinfo", startup)
             options.setdefault("creationflags", subprocess.CREATE_NO_WINDOW)
         launch_requested = self.record("launch_requested", phase="launch", condition=self.condition,

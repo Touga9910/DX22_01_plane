@@ -34,6 +34,8 @@ StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
     for (const auto& e : stage.enemies)
     {
         Json enemy = {{"enemy_id", e.enemyId}, {"x", e.position.x}, {"z", e.position.z}};
+        if (e.attackInterval > 0) enemy["attack_interval"] = e.attackInterval;
+        if (e.spawnGroup > 0) enemy["spawn_group"] = e.spawnGroup;
         const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
         if (!effects.empty()) enemy["status_effects"] = effects;
         if (e.enemyData.nuisanceBall.enabled)
@@ -99,6 +101,11 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
         float x = e.at("x").get<float>(), z = e.at("z").get<float>();
         if (!std::isfinite(x) || !std::isfinite(z)) throw std::runtime_error("座標が有限値ではありません。");
         spawn.enemyData = *found;
+        for (const char* field : {"attack_interval", "spawn_group"})
+            if (e.contains(field) && (!e[field].is_number_integer() || e[field].get<double>() < 0 || e[field].get<double>() > 9999))
+                throw std::runtime_error(std::string(field) + " は0～9999の整数です。");
+        spawn.attackInterval = e.value("attack_interval", 0);
+        spawn.spawnGroup = e.value("spawn_group", 0);
         spawn.position = {x, TableConfig::FIELD_HEIGHT, z};
         spawn.enemyData.initPosition = spawn.position;
         if (e.contains("status_effects"))
@@ -217,6 +224,25 @@ void StageLayoutEditor::Load(const std::filesystem::path& path, const StageData&
 {
     auto bytes = ReadSource(path); Replace(Encode(stage)); sourceBytes = std::move(bytes);
     proposal = nullptr; undo.clear(); redo.clear(); ++revision;
+    m_SourceStage = stage;
+    dragging = false;
+}
+StageData StageLayoutEditor::BuildPlaytestStage(const std::vector<EnemyData>& catalog) const
+{
+    StageData stage = Decode(draft, catalog);
+    if (m_SourceStage && m_SourceStage->id == stage.id)
+    {
+        stage.prototypeOnly = m_SourceStage->prototypeOnly;
+        stage.combatMode = m_SourceStage->combatMode;
+        stage.phaseBattle = m_SourceStage->phaseBattle;
+        // The canvas edits the opening formation. Keep later waves and timing.
+        if (stage.combatMode == CombatMode::PhasePrototype)
+        {
+            if (stage.phaseBattle.phases.empty()) stage.phaseBattle.phases.emplace_back();
+            stage.phaseBattle.phases.front().enemies = stage.enemies;
+        }
+    }
+    return stage;
 }
 void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vector<EnemyData>& catalog, float playerRadius)
 {
@@ -240,6 +266,8 @@ void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vecto
     for (const auto& e : stage.enemies)
     {
         Json enemy = {{"enemyId", e.enemyId}, {"position", {e.position.x, e.position.y, e.position.z}}};
+        if (e.attackInterval > 0) enemy["attackInterval"] = e.attackInterval;
+        if (e.spawnGroup > 0) enemy["spawnGroup"] = e.spawnGroup;
         const Json effects = WriteStatusEffects(e.enemyData.initialStatusEffects);
         if (!effects.empty()) enemy["statusEffects"] = effects;
         if (e.enemyData.nuisanceBall.enabled)

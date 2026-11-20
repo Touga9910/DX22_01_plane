@@ -7,6 +7,7 @@
 class LocalPerformanceLogger final
 {
 public:
+	static bool IsAimingSequencePending(std::uint64_t sequence);
 	static bool IsAimingSnapshotPending(
 		const AimingPerformanceSnapshot& snapshot);
 	static void TryWriteAimingSnapshot(

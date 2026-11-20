@@ -99,7 +99,7 @@ class DataManagementOptimizationTests(unittest.TestCase):
 
     def test_trajectory_preview_is_throttled_while_aiming(self) -> None:
         header = read_source("PlayerBall.h")
-        source = read_source("PlayerBall.cpp")
+        source = read_source("PlayerBallAim.cpp")
 
         self.assertIn("m_PreviewRefreshFramesRemaining", header)
         self.assertIn("kPreviewRefreshCooldownFrames", source)

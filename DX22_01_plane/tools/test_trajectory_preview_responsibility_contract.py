@@ -7,7 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 class TrajectoryPreviewResponsibilityContract(unittest.TestCase):
     def test_player_display_uses_lightweight_preview(self):
-        player = (ROOT / "PlayerBall.cpp").read_text(
+        player = (ROOT / "PlayerBallTrajectory.cpp").read_text(
             encoding="utf-8", errors="ignore"
         )
         start = player.index("void PlayerBall::GeneratePreTrajectory")
@@ -38,7 +38,7 @@ class TrajectoryPreviewResponsibilityContract(unittest.TestCase):
         self.assertNotIn("ShotRelicRules", preview)
 
     def test_cache_uses_lightweight_world_signature(self):
-        player = (ROOT / "PlayerBall.cpp").read_text(
+        player = (ROOT / "PlayerBallAim.cpp").read_text(
             encoding="utf-8", errors="ignore"
         )
         self.assertIn("GameShotPrediction::PreviewWorldKey", player)

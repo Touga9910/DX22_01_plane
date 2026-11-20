@@ -31,8 +31,11 @@ public:
     void Replace(const Json& value);
     void Undo(bool forward);
     void Load(const std::filesystem::path& path, const StageData& stage);
+    StageData BuildPlaytestStage(const std::vector<EnemyData>& catalog) const;
     void Save(const std::filesystem::path& path, const std::vector<EnemyData>& catalog, float playerRadius);
     void Propose(const Json& value, std::uint64_t expected, const std::vector<EnemyData>& catalog, float playerRadius);
     bool Accept();
     Json Snapshot(const std::vector<EnemyData>& catalog, float playerRadius) const;
+private:
+    std::optional<StageData> m_SourceStage;
 };

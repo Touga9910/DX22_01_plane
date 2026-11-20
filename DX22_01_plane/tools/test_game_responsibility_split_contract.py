@@ -101,7 +101,8 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("BallPhysicsWorld::Step(physicsContext)", game_source)
 
     def test_player_ball_uses_typed_gameplay_boundaries(self):
-        player_ball = source("PlayerBall.cpp")
+        player_ball = "\n".join(source(name) for name in (
+            "PlayerBall.cpp", "PlayerBallAim.cpp", "PlayerBallTrajectory.cpp"))
         battle_bridge = source("GameBattleBridge.cpp")
 
         self.assertNotIn('#include "Game.h"', player_ball)

@@ -405,11 +405,13 @@ class BuildShotTests(unittest.TestCase):
             _, read = await server.call_tool("get_game_state", {})
             recommended = read["result"]["build_shot_choices"]["recommended"]
             _, fired = await server.call_tool("fire_shot", {"target_id": recommended["target_id"]})
-            return recommended, fired["result"]
-        recommended, fired = asyncio.run(exercise())
+            return recommended, read["result"]["build_shot_choices"]["candidate_generation"], fired["result"]
+        recommended, generation, fired = asyncio.run(exercise())
         self.assertTrue(fired["ok"])
         self.assertEqual(store.action, "fire_shot")
-        self.assertEqual(fired["shot_plan"]["build_evaluation"], recommended)
+        expected = {**recommended, "candidate_generation": generation}
+        self.assertEqual(fired["shot_plan"]["build_evaluation"], expected)
+        self.assertEqual(store.arguments["telemetry"]["build_evaluation"], expected)
         self.assertIn("score_breakdown", store.arguments["telemetry"]["build_evaluation"])
 
 

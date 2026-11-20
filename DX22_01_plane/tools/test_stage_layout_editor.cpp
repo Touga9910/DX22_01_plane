@@ -85,6 +85,42 @@ int main()
     Json untouched = {{"id", "untouched"}, {"stageType", "normal"}, {"difficulty", 1}, {"enemies", Json::array()}, {"future_field", 42}};
     Json root = {{"future_root", "keep"}, {"stages", {untouched}}};
     { std::ofstream file(path); file << root.dump(2); }
+    // Applying the editor must keep the battle rules while replacing the opening layout.
+    StageData phased = StageLayoutEditor::Decode(layout, catalog);
+    phased.combatMode = CombatMode::PhasePrototype;
+    phased.prototypeOnly = true;
+    phased.phaseBattle.turnsPerPhase = 3;
+    phased.phaseBattle.defaultAttackInterval = 4;
+    phased.phaseBattle.spawnSeed = 987;
+    phased.enemies[0].attackInterval = 5;
+    phased.enemies[0].spawnGroup = 2;
+    phased.phaseBattle.phases = {{phased.enemies}, {{phased.enemies.back()}}};
+    StageLayoutEditor phaseEditor;
+    phaseEditor.Load(path, phased);
+    auto phaseDraft = phaseEditor.draft;
+    phaseDraft["enemies"][0]["x"] = -34;
+    phaseDraft["enemies"].erase(1);
+    phaseEditor.Replace(phaseDraft);
+    const StageData appliedPhase = phaseEditor.BuildPlaytestStage(catalog);
+    assert(appliedPhase.id == phased.id && appliedPhase.combatMode == CombatMode::PhasePrototype);
+    assert(appliedPhase.prototypeOnly && appliedPhase.preserveLayout);
+    assert(appliedPhase.enemies.size() == 3 && appliedPhase.enemies.front().position.x == -34);
+    assert(appliedPhase.enemies.front().attackInterval == 5 && appliedPhase.enemies.front().spawnGroup == 2);
+    assert(appliedPhase.phaseBattle.turnsPerPhase == 3 && appliedPhase.phaseBattle.defaultAttackInterval == 4);
+    assert(appliedPhase.phaseBattle.spawnSeed == 987 && appliedPhase.phaseBattle.phases.size() == 2);
+    assert(appliedPhase.phaseBattle.phases.front().enemies.size() == 3);
+    assert(appliedPhase.phaseBattle.phases.front().enemies.front().position.x == -34);
+    assert(appliedPhase.phaseBattle.phases[1].enemies.front().position.x == phased.enemies.back().position.x);
+    phaseDraft["id"] = "new_stage";
+    phaseEditor.Replace(phaseDraft);
+    assert(phaseEditor.BuildPlaytestStage(catalog).combatMode == CombatMode::Legacy);
+    phaseEditor.Undo(false);
+    assert(phaseEditor.BuildPlaytestStage(catalog).combatMode == CombatMode::PhasePrototype);
+    for (const char* field : {"attack_interval", "spawn_group"})
+    {
+        bad = layout; bad["enemies"][0][field] = -1; invalid(bad);
+        bad["enemies"][0][field] = 1.5; invalid(bad);
+    }
     StageLayoutEditor editor;
     editor.Load(path, StageLayoutEditor::Decode(layout, catalog));
     auto changed = layout; changed["enemies"][0]["x"] = -34;
@@ -130,5 +166,5 @@ int main()
     assert(savedBoss.hasBreakBallLayout && savedBoss.breakBallPositions.size() == 2);
     assert(savedBoss.breakBallPositions[0].x == -12 && savedBoss.breakBallPositions[1].z == -12);
     assert(StageLayoutEditor::Encode(savedBoss) == bossEditor.draft);
-    std::cout << "PASS: status effects, automatic boss escorts, geometry, ignored legacy layout preservation, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
+    std::cout << "PASS: phase playtest edits and metadata, status effects, automatic boss escorts, geometry, ignored legacy layout preservation, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
 }

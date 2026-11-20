@@ -56,8 +56,12 @@ void GameWorld::RemoveDestroyed()
 // 有効なGameObjectのフレーム更新を実行する。
 void GameWorld::Update()
 {
-	for (const auto& gameObject : m_Objects)
+	// Components may append objects; never retain a vector iterator across callbacks.
+	// Defer newly created objects to the next pass of this kind.
+	const std::size_t count = m_Objects.size();
+	for (std::size_t index = 0; index < count; ++index)
 	{
+		GameObject* gameObject = m_Objects[index].get();
 		gameObject->Update();
 	}
 }
@@ -65,8 +69,12 @@ void GameWorld::Update()
 // 有効なGameObjectの固定時間更新を実行する。
 void GameWorld::FixedUpdate()
 {
-	for (const auto& gameObject : m_Objects)
+	// Components may append objects; never retain a vector iterator across callbacks.
+	// Defer newly created objects to the next pass of this kind.
+	const std::size_t count = m_Objects.size();
+	for (std::size_t index = 0; index < count; ++index)
 	{
+		GameObject* gameObject = m_Objects[index].get();
 		gameObject->FixedUpdate();
 	}
 }
@@ -74,8 +82,12 @@ void GameWorld::FixedUpdate()
 // 有効なGameObjectの後処理更新を実行する。
 void GameWorld::LateUpdate()
 {
-	for (const auto& gameObject : m_Objects)
+	// Components may append objects; never retain a vector iterator across callbacks.
+	// Defer newly created objects to the next pass of this kind.
+	const std::size_t count = m_Objects.size();
+	for (std::size_t index = 0; index < count; ++index)
 	{
+		GameObject* gameObject = m_Objects[index].get();
 		gameObject->LateUpdate();
 	}
 }
@@ -83,8 +95,12 @@ void GameWorld::LateUpdate()
 // 有効なGameObjectの描画を実行する。
 void GameWorld::Draw()
 {
-	for (const auto& gameObject : m_Objects)
+	// Components may append objects; never retain a vector iterator across callbacks.
+	// Defer newly created objects to the next pass of this kind.
+	const std::size_t count = m_Objects.size();
+	for (std::size_t index = 0; index < count; ++index)
 	{
+		GameObject* gameObject = m_Objects[index].get();
 		gameObject->Draw();
 	}
 }

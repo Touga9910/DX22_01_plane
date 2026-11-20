@@ -90,6 +90,16 @@ class AutoplayLifecycleTests(unittest.TestCase):
         self.assertEqual(len(result["evidence"]["matched_requests"]), 1)
         self.assertFalse(result["evidence"]["unmatched_quit"])
 
+    def test_visible_release_condition_keeps_shutdown_attribution_requirements(self) -> None:
+        self.data["condition"] = "visible"
+        self.data["visible_window_samples"] = 3
+        for row in self.data["native"]:
+            row["hidden_window"] = False
+            row["visible"] = True
+        self.assertEqual(self.classify()["outcome"], "ordinary_success")
+        self.data["native"][0]["wparam"] += 1
+        self.assert_unattributed()
+
     def test_receive_can_precede_send_end_record(self) -> None:
         self.data["native"][0]["uptime_ms"] = 102
         result = self.classify()

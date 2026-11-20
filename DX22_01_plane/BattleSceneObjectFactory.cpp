@@ -1,5 +1,4 @@
 ﻿#include "BattleSceneObjectFactory.h"
-#include "Game.h"
 
 #include "BallFactory.h"
 #include "BattleSceneServices.h"
@@ -87,7 +86,7 @@ void BattleSceneObjectFactory::CreateStageObjects(
         [](const EnemySpawnData& spawn) { return spawn.enemyData.id == "enemy_boss_core"; });
     if (hasBoss)
     {
-        for (auto* minion : game.SpawnBossMinions(BossEncounterRules::InitialMinions,true))
+        for (auto* minion : m_Services.SpawnInitialBossMinions())
         {
             sceneObjects.push_back(minion->GetGameObject());
             EnemySpawnData spawn;

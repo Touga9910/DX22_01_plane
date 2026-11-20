@@ -400,7 +400,8 @@ class BalanceConfigurationTests(unittest.TestCase):
             "enemy_strong": 2,
             "enemy_tank": 1,
             "enemy_striker": 3,
-            "enemy_boss_core": 1,
+            # Armor boss's published normal/strong attacks are 2/4 (B0014).
+            "enemy_boss_core": 2,
         }
         for enemy_id, attack in expected_attacks.items():
             self.assertEqual(

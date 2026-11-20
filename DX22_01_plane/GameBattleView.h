@@ -11,6 +11,7 @@ class GameBattleView final
 public:
     static BattleState State();
     static bool AcceptsHumanInput();
+    static bool AcceptsDebugMovement();
     static bool ClearRewardActive();
     static int CushionRegionCount();
     static bool IsCushionChargeActive(int region);

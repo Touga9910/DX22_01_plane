@@ -13,4 +13,11 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
+  <!-- Per-source metadata (e.g. BallShotPrediction.cpp) overrides defaults.
+       This file is explicitly imported after all source items are defined. -->
+  <ItemGroup>
+    <ClCompile Update="@(ClCompile)">
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+    </ClCompile>
+  </ItemGroup>
 </Project>

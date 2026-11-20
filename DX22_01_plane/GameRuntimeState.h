@@ -143,6 +143,11 @@ public:
 	void RecordTrajectoryPreviewRefresh();
 	void RecordMaximumPowerPreviewCacheReuse();
 	AimingPerformanceSnapshot CaptureAimingPerformance() const;
+	std::uint64_t CompletedAimingSequence() const
+	{
+		return m_AimingTimingActive && m_AimingTimingSampleCount == AimingTimingCapacity
+			? m_AimingTimingSequence : 0;
+	}
 	void RecordFrameTiming(
 		double frameMilliseconds,
 		double updateMilliseconds,
