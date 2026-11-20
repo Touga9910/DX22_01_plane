@@ -11,9 +11,11 @@ int main()
     {
         const auto b=Fit(quad);
         assert(b.valid && b.width>0 && b.height>0);
+        const auto old=Fit(quad,1448,1086);
+        assert(b.width/CanvasWidth > old.width/1448.0f * 1.10f);
         for(float x:{b.left,b.left+b.width})for(float y:{b.top,b.top+b.height})assert(Inside(quad,{x,y}));
         // Entire logical canvas includes every reward item from header to skip.
-        assert(std::abs(b.width/b.height-1448.0f/1086)<0.0001f);
+        assert(std::abs(b.width/b.height-CanvasWidth/CanvasHeight)<0.0001f);
     }
     assert(!Fit({}).valid);
     auto first=RouteVisualPath::Curve(123,4,7,{0,0},{0,115});

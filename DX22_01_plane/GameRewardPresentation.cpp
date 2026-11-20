@@ -29,14 +29,21 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         model.selectedRelicOfferIndex, model.selectedRewardIndex,
         model.selectedRewardBallIndex, false,
     };
-    Canvas ui("clear_reward_art", 1448, 1086, IM_COL32(0, 0, 0, 72));
+    Canvas ui("clear_reward_art", RewardFieldLayout::CanvasWidth, RewardFieldLayout::CanvasHeight, IM_COL32(0, 0, 0, 72));
     if (model.fieldBounds.valid)
     {
         ui.origin = ImVec2(model.fieldBounds.left, model.fieldBounds.top);
-        ui.scale = (std::min)(model.fieldBounds.width / 1448.0f, model.fieldBounds.height / 1086.0f);
+        ui.scale = (std::min)(model.fieldBounds.width / RewardFieldLayout::CanvasWidth, model.fieldBounds.height / RewardFieldLayout::CanvasHeight);
     }
-    ui.Art("assets/UI/Lounge/reward_background.png", 0, 0, 1448, 1086, IM_COL32_WHITE, false);
-    ui.Text("バトル報酬", 190, 91, 1050, 58, 36);
+    // Draw a quiet lounge panel within the fitted cloth, including its shadow.
+    auto* panel = ImGui::GetWindowDrawList();
+    panel->AddRectFilled(ui.At(100, 60), ui.At(1354, 966), IM_COL32(0, 0, 0, 100), 18 * ui.scale);
+    panel->AddRectFilled(ui.At(94, 52), ui.At(1348, 958), IM_COL32(48, 31, 24, 248), 18 * ui.scale);
+    panel->AddRect(ui.At(94, 52), ui.At(1348, 958), IM_COL32(155, 124, 76, 255), 18 * ui.scale, 0, 2 * ui.scale);
+    panel->AddRectFilled(ui.At(106, 64), ui.At(1336, 946), IM_COL32(12, 32, 27, 250), 12 * ui.scale);
+    panel->AddRect(ui.At(106, 64), ui.At(1336, 946), IM_COL32(88, 100, 72, 255), 12 * ui.scale);
+    panel->AddLine(ui.At(220, 223), ui.At(1228, 223), IM_COL32(155, 124, 76, 110), ui.scale);
+    ui.Text("バトル報酬", 190, 91, 1050, 58, 40);
     const bool relics = model.midBossRelicSelectionActive;
     const bool chosen = model.clearRewardChosen;
     const bool purchased = model.rewardBallAcquired && !relics;
@@ -83,11 +90,11 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
         }
         if (!relics && !purchased && exists &&
             (clicked || (keyboardConfirm && selected))) ImGui::OpenPopup(PurchasePopup);
-        if (purchased)
-            ImageRegion(ImGui::GetWindowDrawList(), "assets/UI/Lounge/reward_background.png",
-                ui.At(x - 16, 217), ui.At(x + 346, 537),
-                ImVec2((x - 16) / 1448, 217.0f / 1086), ImVec2((x + 346) / 1448, 537.0f / 1086), true);
-        else ui.Highlight(x, 235, 330, 287, selected, hovered, exists);
+        // Reuse only each card's artwork, rather than a tall transparent canvas.
+        ImageRegion(ImGui::GetWindowDrawList(), "assets/UI/Lounge/reward_background.png",
+            ui.At(x - 16, 217), ui.At(x + 346, 537),
+            ImVec2((x - 16) / 1448, 217.0f / 1086), ImVec2((x + 346) / 1448, 537.0f / 1086), purchased);
+        if (!purchased) ui.Highlight(x, 235, 330, 287, selected, hovered, exists);
         if (relics && relic)
         {
             ui.Text("R", x + 120, 251, 90, 94, 48, Gold);
@@ -112,9 +119,9 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
 
     const bool upgradeAvailable = std::any_of(model.upgradeTargets.begin(), model.upgradeTargets.end(),
         [&](const auto& item) { return item.ball && item.upgradeCost >= 0 && item.upgradeCost <= model.playerMoney; });
-    ui.Text(relics ? "レリックを1つ選択" : "追加報酬（強化・ゴールドから1つ）", 458, 599, 532, 43, 25);
-    ui.Art("assets/UI/Lounge/reward_upgrade.png", 190, 672, 470, 127);
-    const bool upgradeClicked = ui.Hit("upgrade_reward", 190, 672, 470, 127);
+    ui.Text(relics ? "レリックを1つ選択" : "追加報酬（強化・ゴールドから1つ）", 458, 553, 532, 43, 27);
+    ui.Art("assets/UI/Lounge/reward_upgrade.png", 190, 612, 470, 127);
+    const bool upgradeClicked = ui.Hit("upgrade_reward", 190, 612, 470, 127);
     const bool upgradeHovered = ImGui::IsItemHovered();
     if (!chosen && !relics && upgradeAvailable &&
         (upgradeClicked || (keyboardConfirm && intent.selectedRewardIndex == 1)))
@@ -130,36 +137,36 @@ ClearRewardPresentationIntent ClearRewardUi::Draw(
                 { intent.selectedRewardBallIndex = i; break; }
         ImGui::OpenPopup(UpgradePopup);
     }
-    ui.Highlight(190, 672, 470, 127, false, upgradeHovered && !chosen, upgradeAvailable && !relics && !chosen);
+    ui.Highlight(190, 612, 470, 127, false, upgradeHovered && !chosen, upgradeAvailable && !relics && !chosen);
     if (upgradeHovered && !upgradeAvailable && !relics)
         ImGui::SetTooltip("強化できるボール、または強化に必要なゴールドがありません。");
-    ui.Art("assets/UI/Lounge/reward_money.png", 788, 672, 470, 127);
-    if (ui.Hit("money_reward", 788, 672, 470, 127) && !chosen && !relics)
+    ui.Art("assets/UI/Lounge/reward_money.png", 788, 612, 470, 127);
+    if (ui.Hit("money_reward", 788, 612, 470, 127) && !chosen && !relics)
     { intent.selectedRewardIndex = 2; intent.confirm = true; }
     if (keyboardConfirm && intent.selectedRewardIndex == 2 && !chosen && !relics)
         intent.confirm = true;
-    ui.Highlight(788, 672, 470, 127, false, ImGui::IsItemHovered() && !chosen, !relics && !chosen);
-    ui.Text("ボールを強化", 390, 689, 260, 35, 24);
-    ui.Text("15 / 30 ゴールド", 390, 736, 260, 30, 19, Gold);
-    ui.Text(("ゴールド +"+std::to_string(model.extraMoneyAmount)).c_str(), 968, 710, 270, 40, 25);
+    ui.Highlight(788, 612, 470, 127, false, ImGui::IsItemHovered() && !chosen, !relics && !chosen);
+    ui.Text("ボールを強化", 390, 629, 260, 35, 24);
+    ui.Text("15 / 30 ゴールド", 390, 676, 260, 30, 19, Gold);
+    ui.Text(("ゴールド +"+std::to_string(model.extraMoneyAmount)).c_str(), 968, 650, 270, 40, 25);
     ui.Text(relics ? "レリックを選択して受け取ってください。" :
-        "詳細：右クリック ／ 左クリックで購入確認 ／ 追加報酬はどちらか1つ", 310, 891, 838, 39, 22);
+        "詳細：右クリック ／ 左クリックで購入確認 ／ 追加報酬はどちらか1つ", 220, 769, 1008, 39, 24);
 
     // Replace the baked green button with a red, gold-framed skip plate.
     auto* draw = ImGui::GetWindowDrawList();
-    const ImVec2 outer[] = {ui.At(522, 950), ui.At(926, 950), ui.At(948, 972), ui.At(948, 1040),
-        ui.At(926, 1062), ui.At(522, 1062), ui.At(500, 1040), ui.At(500, 972)};
+    const ImVec2 outer[] = {ui.At(522, 824), ui.At(926, 824), ui.At(948, 846), ui.At(948, 914),
+        ui.At(926, 936), ui.At(522, 936), ui.At(500, 914), ui.At(500, 846)};
     draw->AddConvexPolyFilled(outer, 8, Gold);
-    const ImVec2 inner[] = {ui.At(525, 955), ui.At(923, 955), ui.At(942, 975), ui.At(942, 1037),
-        ui.At(923, 1057), ui.At(525, 1057), ui.At(506, 1037), ui.At(506, 975)};
+    const ImVec2 inner[] = {ui.At(525, 829), ui.At(923, 829), ui.At(942, 849), ui.At(942, 911),
+        ui.At(923, 931), ui.At(525, 931), ui.At(506, 911), ui.At(506, 849)};
     draw->AddConvexPolyFilled(inner, 8, IM_COL32(139, 29, 48, 255));
-    ui.Text(relics ? "受け取る" : "スキップ", 526, 963, 396, 81, 36);
-    if (ui.Hit("skip_reward", 500, 950, 448, 112))
+    ui.Text(relics ? "受け取る" : "スキップ", 526, 837, 396, 81, 36);
+    if (ui.Hit("skip_reward", 500, 824, 448, 112))
     {
         if (relics) intent.confirm = true;
         else intent.skip = true;
     }
-    ui.Highlight(500, 950, 448, 112, false, ImGui::IsItemHovered());
+    ui.Highlight(500, 824, 448, 112, false, ImGui::IsItemHovered());
 
     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.12f, 0.065f, 0.17f, 1));
     ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(Gold));

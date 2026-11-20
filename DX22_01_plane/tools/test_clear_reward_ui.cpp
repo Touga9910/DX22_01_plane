@@ -62,7 +62,10 @@ namespace IllustratedUi
         draw->AddRectFilled(lo,hi,tint);
     }
     void ImageRegion(ImDrawList* draw,const char*,ImVec2 lo,ImVec2 hi,ImVec2,ImVec2,bool gray)
-    { grayRegions+=gray; draw->AddRectFilled(lo,hi,IM_COL32(100,100,100,255)); }
+    {
+        if(checkFieldBounds) assert(lo.x>=200 && lo.y>=150 && hi.x<=1100.01f && hi.y<=825.01f);
+        grayRegions+=gray; draw->AddRectFilled(lo,hi,IM_COL32(100,100,100,255));
+    }
 }
 namespace BallCardPresentation
 {
@@ -108,7 +111,7 @@ int main()
 
     ImGui::CreateContext();
     auto& io=ImGui::GetIO();
-    io.IniFilename=nullptr; io.DisplaySize=ImVec2(1448,1086); io.DeltaTime=1.0f/60;
+    io.IniFilename=nullptr; io.DisplaySize=ImVec2(RewardFieldLayout::CanvasWidth,RewardFieldLayout::CanvasHeight); io.DeltaTime=1.0f/60;
     unsigned char* pixels=nullptr; int width=0,height=0;
     io.Fonts->GetTexDataAsRGBA32(&pixels,&width,&height);
     PlayerBallData balls[3];
@@ -145,26 +148,26 @@ int main()
     assert(grayRegions==3 && grayIcons==3);
     intent=Click(320,320);
     assert(!intent.confirm && !intent.modalOpen); // duplicate purchase blocked
-    intent=Click(1000,730);
+    intent=Click(1000,670);
     assert(intent.confirm && intent.selectedRewardIndex==2); // gold is immediate
 
-    intent=Click(400,730);
+    intent=Click(400,670);
     assert(intent.modalOpen && !intent.confirm);
     intent=PopupButton("強化するボールを選択###reward_upgrade_targets",true);
     assert(!intent.confirm && !intent.modalOpen); // cancel costs nothing
-    intent=Click(400,730);
+    intent=Click(400,670);
     assert(intent.modalOpen);
     intent=PopupButton("強化するボールを選択###reward_upgrade_targets",false);
     assert(intent.confirm && intent.selectedRewardIndex==1 && intent.selectedRewardBallIndex==0);
 
     // Bonus-first flow: disable only the bonus, keeping purchase and details usable.
     model.playerMoney=60; model.rewardBallAcquired=false; model.clearRewardChosen=false;
-    intent=Click(1000,730);
+    intent=Click(1000,670);
     assert(intent.confirm && intent.selectedRewardIndex==2);
     model.clearRewardChosen=true;
-    intent=Click(1000,730);
+    intent=Click(1000,670);
     assert(!intent.confirm);
-    intent=Click(400,730);
+    intent=Click(400,670);
     assert(!intent.modalOpen && !intent.confirm); // no second bonus
     intent=Click(320,320);
     assert(intent.modalOpen); // purchase remains possible after the bonus
@@ -180,12 +183,12 @@ int main()
 
     // Upgrade-first uses the same independent completion rule as gold-first.
     model.clearRewardChosen=false; model.rewardBallAcquired=false;
-    intent=Click(400,730);
+    intent=Click(400,670);
     assert(intent.modalOpen && !intent.confirm);
     intent=PopupButton("強化するボールを選択###reward_upgrade_targets",false);
     assert(intent.confirm && intent.selectedRewardIndex==1);
     model.clearRewardChosen=true;
-    intent=Click(1000,730);
+    intent=Click(1000,670);
     assert(!intent.confirm); // cannot also collect gold after choosing upgrade
     intent=Click(320,320);
     assert(intent.modalOpen);
@@ -198,9 +201,9 @@ int main()
     intent=PopupButton("ボールの購入###reward_purchase_confirm",false);
     assert(!intent.confirm && intent.modalOpen); // Yes disabled when unaffordable
     PopupButton("ボールの購入###reward_purchase_confirm",true);
-    intent=Click(400,730);
+    intent=Click(400,670);
     assert(!intent.confirm && !intent.modalOpen);
-    intent=Click(720,1000);
+    intent=Click(720,874);
     assert(intent.skip && !intent.confirm && model.clearRewardChosen); // bonus retained
     Frame();
     model.selectedRewardIndex=0;
@@ -216,13 +219,34 @@ int main()
     model.relicOffers={&relic};
     intent=Click(320,320);
     assert(!intent.confirm && !intent.modalOpen);
-    intent=Click(720,1000);
+    intent=Click(720,874);
     assert(intent.confirm && !intent.skip);
     Frame();
     model.midBossRelicSelectionActive=false;
     model.fieldBounds={200,150,900,675,true};
     checkFieldBounds=true;
     Frame(); Frame();
+    auto* rewardWindow=ImGui::FindWindowByName("clear_reward_art");
+    assert(rewardWindow && rewardWindow->Active);
+    // The first quad dims the viewport. Every subsequent vertex belongs to
+    // the panel or reward controls and must remain inside the fitted field.
+    for (int i=4;i<rewardWindow->DrawList->VtxBuffer.Size;++i)
+    {
+        const auto p=rewardWindow->DrawList->VtxBuffer[i].pos;
+        assert(p.x>=199.0f && p.x<=1101.0f && p.y>=149.0f && p.y<=826.0f);
+    }
+    const float scale=900.0f/RewardFieldLayout::CanvasWidth;
+    auto scaledClick=[&](float x,float y,int button=0) {
+        return Click(200+x*scale,150+y*scale,button);
+    };
+    model.playerMoney=60; model.clearRewardChosen=false; model.rewardBallAcquired=false;
+    intent=scaledClick(320,320);
+    assert(intent.modalOpen && !intent.confirm && pending==0);
+    PopupButton("ボールの購入###reward_purchase_confirm",true);
+    intent=scaledClick(1000,670);
+    assert(intent.confirm && intent.selectedRewardIndex==2);
+    intent=scaledClick(720,874);
+    assert(intent.skip && !intent.confirm);
     ImGui::DestroyContext();
     std::cout << "Reward order, persistent right-click details, purchase, bonus and skip passed\n";
 }

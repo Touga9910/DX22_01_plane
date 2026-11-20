@@ -5,6 +5,8 @@
 
 namespace RewardFieldLayout
 {
+    constexpr float CanvasWidth = 1448.0f;
+    constexpr float CanvasHeight = 970.0f;
     struct Point { float x=0,y=0; };
     struct Bounds { float left=0,top=0,width=0,height=0; bool valid=false; };
     inline bool Inside(const std::array<Point,4>& quad, Point p)
@@ -18,7 +20,7 @@ namespace RewardFieldLayout
         }
         return !(positive&&negative);
     }
-    inline Bounds Fit(const std::array<Point,4>& quad, float width=1448, float height=1086)
+    inline Bounds Fit(const std::array<Point,4>& quad, float width=CanvasWidth, float height=CanvasHeight)
     {
         Point center{};
         float minX=quad[0].x,maxX=minX,minY=quad[0].y,maxY=minY;
