@@ -4,6 +4,7 @@
 
 // Validated state-changing entry points used by non-battle scenes. UI code no
 // longer reaches into the Game orchestrator to mutate run state directly.
+struct CollisionImpactEvent;
 class GameSceneCommands final
 {
 public:
@@ -14,6 +15,9 @@ public:
     static void OpenTitleSettings();
     static void PlayTitleCue(bool shot, float strength);
     static bool TitleShakeEnabled();
+    static void PlayTitleCollision(const CollisionImpactEvent& event);
+    static bool TitleEffectsEnabled();
+    static int TitleEffectDensity();
     static void SetSelectedAscension(int level);
 
     static void RollShopBallOffers();

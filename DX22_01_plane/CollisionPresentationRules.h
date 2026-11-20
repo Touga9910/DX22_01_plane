@@ -35,6 +35,19 @@ public:
 		return Strength::Weak;
 	}
 
+    struct Shake { float lifetime=0, strength=0; };
+    struct Offset { float x=0,z=0; };
+    static Shake ImpactShake(Strength strength,bool secondary)
+    {
+        if(strength==Strength::Weak)return {};
+        return {strength==Strength::Strong?.16f:.10f,
+            strength==Strength::Strong?(secondary?.72f:.88f):(secondary?.30f:.42f)};
+    }
+    static Offset ShakeOffset(float phase,float lifetime,float strength)
+    {
+        const float fade=std::clamp(lifetime/.24f,0.0f,1.0f);
+        return {std::sin(phase)*strength*fade,std::cos(phase*1.31f)*strength*fade};
+    }
 	static int ChainTier(int chainCount)
 	{
 		if (chainCount >= 15) return 4;

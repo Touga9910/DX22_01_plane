@@ -29,6 +29,7 @@ class GameMcpCommands;
 class GameMcpReadView;
 class GamePresentation;
 class AudioFeedback;
+struct CollisionImpactEvent;
 struct AudioFeedbackDiagnostics;
 struct CollisionVfxDiagnostics;
 struct CombatReactionDiagnostics;
@@ -415,6 +416,7 @@ public:
 	const AudioFeedbackDiagnostics& GetAudioFeedbackDiagnostics() const;
 	float GetSeVolume() const;
     void PlayTitleCue(bool shot, float strength);
+    void PlayTitleCollision(const CollisionImpactEvent& event);
 	const FrameTimingSnapshot& GetFrameTimingSnapshot() const;
 	AimingPerformanceSnapshot GetAimingPerformanceSnapshot() const;
 

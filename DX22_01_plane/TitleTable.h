@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Component.h"
-#include "BallPhysicsRules.h"
+#include "TitlePhysicsWorld.h"
+#include "CollisionVfxSystem.h"
 #include <array>
 #include <memory>
 class GameObject;
@@ -12,15 +13,20 @@ public:
     void Release();
     void Draw() override;
     void Step(float dt,bool released);
-    DirectX::SimpleMath::Vector2 ScreenBall(int index) const;
-    bool RackHit() const{return m_Hit;}
-    DirectX::SimpleMath::Vector2 PreviousScreenBall(int i)const{return m_Previous[i];}
+    void DrawEffects(ImDrawList* draw);
+    bool Project(const DirectX::SimpleMath::Vector3& world, ImVec2& screen)const;
+    bool RackHit() const{return m_Physics.hit;}
     float Age()const{return m_Age;}
 private:
     std::unique_ptr<GameObject> m_Table,m_Frame;
     std::array<std::unique_ptr<GameObject>,16> m_Visual;
-    std::array<BallPhysicsRules::Body,16> m_Balls;
-    mutable std::array<DirectX::SimpleMath::Vector2,16> m_Screen{},m_Previous{};
-    float m_Accumulator=0,m_Age=0,m_ImpactAge=-1;
-    bool m_Released=false,m_Hit=false;
+    TitlePhysicsWorld m_Physics;
+    CollisionVfxSystem m_Vfx;
+    unsigned long long m_EffectFrame=0;
+    DirectX::SimpleMath::Matrix m_View{},m_Projection{};
+    std::array<float,4> m_Viewport{};
+    float m_RenderWidth=1,m_RenderHeight=1;
+    bool m_ProjectionValid=false;
+    float m_Accumulator=0,m_Age=0,m_ShakePhase=0,m_ShakeLifetime=0,m_ShakeStrength=0,m_ShakeCooldown=0;
+    bool m_Released=false;
 };

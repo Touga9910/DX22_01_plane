@@ -330,15 +330,9 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 	if (strength != CollisionPresentationRules::Strength::Weak &&
 		game->IsCameraShakeEnabled() && m_CameraShakeCooldown <= 0.0f)
 	{
-		const float requestedStrength =
-			strength == CollisionPresentationRules::Strength::Strong
-			? (secondary ? 0.72f : 0.88f)
-			: (secondary ? 0.30f : 0.42f);
-		m_CameraShakeLifetime = (std::max)(
-			m_CameraShakeLifetime,
-			strength == CollisionPresentationRules::Strength::Strong
-			? 0.16f
-			: 0.10f);
+        const auto shake=CollisionPresentationRules::ImpactShake(strength,secondary);
+        const float requestedStrength=shake.strength;
+        m_CameraShakeLifetime=(std::max)(m_CameraShakeLifetime,shake.lifetime);
 		m_CameraShakeStrength = std::clamp(
 			(std::max)(m_CameraShakeStrength, requestedStrength),
 			0.0f,

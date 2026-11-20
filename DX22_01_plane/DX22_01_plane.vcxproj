@@ -487,6 +487,8 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Texture2D.h" />
     <ClInclude Include="Texture2DFactory.h" />
+    <ClInclude Include="TitlePhysicsWorld.h" />
+    <ClInclude Include="ShotPowerRules.h" />
     <ClInclude Include="TitleTable.h" />
     <ClInclude Include="TitleSequence.h" />
     <ClInclude Include="RenderViewOverride.h" />

@@ -141,15 +141,8 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 			0.0f,
 			m_CameraShakeLifetime - presentationDelta);
 		m_CameraShakePhase += 1.65f;
-		const float fade = std::clamp(
-			m_CameraShakeLifetime / 0.24f,
-			0.0f,
-			1.0f);
-		Camera::GetInstance().SetTarget(Vector3(
-			std::sin(m_CameraShakePhase) * m_CameraShakeStrength * fade,
-			0.0f,
-			std::cos(m_CameraShakePhase * 1.31f) *
-			m_CameraShakeStrength * fade));
+        const auto shake=CollisionPresentationRules::ShakeOffset(m_CameraShakePhase,m_CameraShakeLifetime,m_CameraShakeStrength);
+        Camera::GetInstance().SetTarget(Vector3(shake.x,0,shake.z));
 	}
 	else
 	{

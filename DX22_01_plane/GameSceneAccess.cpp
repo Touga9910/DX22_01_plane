@@ -316,3 +316,17 @@ bool GameSceneCommands::TitleShakeEnabled()
 {
     return Game::GetInstance()->IsCameraShakeEnabled();
 }
+
+void Game::PlayTitleCollision(const CollisionImpactEvent& event)
+{
+    if(!m_AudioFeedback)return;
+    if(event.collisionKind==CombatCollisionKind::Wall)
+        m_AudioFeedback->OnWallImpact(WallImpactEvent{event.worldPosition,event.relativeApproachSpeed,0});
+    else m_AudioFeedback->OnCollisionImpact(event,0);
+}
+void GameSceneCommands::PlayTitleCollision(const CollisionImpactEvent& event)
+{ Game::GetInstance()->PlayTitleCollision(event); }
+bool GameSceneCommands::TitleEffectsEnabled()
+{ return Game::GetInstance()->IsCollisionImpactEffectsEnabled(); }
+int GameSceneCommands::TitleEffectDensity()
+{ return Game::GetInstance()->GetDecorativeRingAmount(); }

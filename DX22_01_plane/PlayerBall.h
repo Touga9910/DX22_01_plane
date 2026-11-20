@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "ShotPowerRules.h"
 
 #include "BallComponent.h"
 #include "BallTrajectoryPreview.h"
@@ -333,8 +334,8 @@ private:
 	float m_AimAngle = 0.0f;
 	float m_ShotPower = 5.0f;
 
-	const float m_MinShotPower = 1.0f;
-	const float m_MaxShotPower = 8.0f;
+	const float m_MinShotPower = ShotPowerRules::Minimum;
+	const float m_MaxShotPower = ShotPowerRules::Maximum;
 	const float m_PowerStep = 0.1f;
 
 	bool m_IsPowerDragging = false;
