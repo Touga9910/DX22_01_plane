@@ -576,7 +576,9 @@
     <ClCompile Include="GamePresentationReactions.cpp" />
     <ClCompile Include="GamePresentationTutorial.cpp" />
     <ClCompile Include="GameRewardPresentation.cpp" />
-    <ClCompile Include="LoungeServicePresentation.cpp" />
+    <ClCompile Include="LoungeServicePresentation.cpp">
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="GameRouteFlow.cpp" />
     <ClCompile Include="GameRunCompletion.cpp" />
     <ClCompile Include="GameRuntime.cpp" />

@@ -38,3 +38,11 @@ Linuxのプレビュー生成ではtools/capture_lounge_services.cpp、LoungeSer
 ・Python tools全331件中329件成功。残る2件は前回から確認済みの既存失敗（敵攻撃値の期待値とBattleSceneObjectFactoryのGame依存契約）で、今回の変更による新規失敗はない。
 ・C++操作テスト成功、プロジェクトXML検証成功、git diff --check成功。
 ・プレビューを確認し、案内文とボタンが下端のポケット・枠に重ならない位置へ調整した。
+
+
+文字コードエラー修正（2026年11月20日）
+実装前の判断：プレイヤー向けの見た目・性能・狙い方は変更せず、日本語ラベルを含む新規UIのWindowsビルドを復旧する。既存ファイルの文字コードへの影響を避け、追加cppのみをBOM付きUTF-8と個別/utf-8指定で読み込ませる。成功条件はBOMとプロジェクト指定の確認、既存の日本語表示テストと本番UI操作テストの成功。
+原因：LoungeServicePresentation.cppがBOMなしUTF-8で、主プロジェクトにソースの/utf-8指定がなく、CP932として読み込まれていた。execution_character_setのpragmaは実行時文字コードの指定であり、ソース読み取りの指定を代替しない。
+修正：当該cppをBOM付きUTF-8に保存し、ClCompile項目へ全構成共通の/utf-8を付与。既存AdditionalOptionsは継承する。
+確認：BOM・UTF-8デコード・XML設定の検証、日本語表示Pythonテスト6件、本番UIのC++操作テストが成功。バランスハッシュは不変。
+Windows/MSVCによる本体ビルドはこの環境では未実施。Develop更新後に再ビルドして確認する。
