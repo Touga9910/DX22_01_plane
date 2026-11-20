@@ -687,33 +687,7 @@ void GameDebugController::Draw(Game& game)
             ImGui::SliderInt("ボス Break残りショット", &m_DebugSetup.breakShots, 0, 2);
             if (m_DebugSetup.breakShots > 0) m_DebugSetup.armor = 0;
             else { m_DebugSetup.armor = (std::max)(1, m_DebugSetup.armor); ImGui::SliderInt("ボス Armor", &m_DebugSetup.armor, 1, 2); }
-            ImGui::SeparatorText("ブレイクボール");
-            ImGui::TextDisabled("ボス戦の開始時と、使用後の再配置で優先する位置です。");
-            ImGui::BeginDisabled(m_DebugSetup.breakBallPositions.size() >= 16);
-            if (ImGui::Button("ブレイクボールを追加"))
-            {
-                const float x = m_DebugSetup.breakBallPositions.size() % 2 == 0 ? -4.0f : 4.0f;
-                m_DebugSetup.breakBallPositions.push_back(
-                    {x, TableConfig::FIELD_HEIGHT, 10.0f});
-            }
-            ImGui::EndDisabled();
-            ImGui::SameLine();
-            ImGui::Text("%d / 16個", static_cast<int>(m_DebugSetup.breakBallPositions.size()));
-            for (size_t i = 0; i < m_DebugSetup.breakBallPositions.size();)
-            {
-                auto& position = m_DebugSetup.breakBallPositions[i];
-                ImGui::PushID(static_cast<int>(i));
-                const bool remove = ImGui::SmallButton("削除");
-                ImGui::SameLine();
-                ImGui::Text("ブレイクボール #%d", static_cast<int>(i + 1));
-                ImGui::SliderFloat("X##break_ball", &position.x, -65, 65);
-                ImGui::SliderFloat("Z##break_ball", &position.z, -33, 33);
-                position.y = TableConfig::FIELD_HEIGHT;
-                ImGui::PopID();
-                if (remove) m_DebugSetup.breakBallPositions.erase(
-                    m_DebugSetup.breakBallPositions.begin() + i);
-                else ++i;
-            }
+            ImGui::TextWrapped("ボスの取り巻きは本編ルールで自動生成されます（旧ブレイクボール配置は不使用）。");
             for (size_t i = 0; i < m_DebugSetup.enemies.size();)
             {
                 auto& enemy = m_DebugSetup.enemies[i]; ImGui::PushID(static_cast<int>(i));

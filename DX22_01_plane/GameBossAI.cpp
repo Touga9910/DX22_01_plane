@@ -173,7 +173,7 @@ json BossShotPlanner::Evaluate(Game& game)
                 if (ball.bossMinion && ball.active && !ball.defeated && !ball.pocketed)
                     minionAttack += ball.plannedAttackDamage;
             const float incoming = static_cast<float>(BossEncounterRules::IncomingDamage(
-                endBoss->bossTurn,endBoss->bossState,!kill,minionAttack,prediction.stopShieldGranted,
+                endBoss->bossTurn,endBoss->bossState,!kill,minionAttack,prediction.playerShieldRemaining,
                 endBoss->plannedAttackDamage>0));
             const float urgency = player->GetHP() <= 10 ? 3.0f : 1.0f;
             const float followup = static_cast<float>((std::max)(0,prediction.shot.playerEnemyContacts-1));
@@ -184,7 +184,8 @@ json BossShotPlanner::Evaluate(Game& game)
                 {"player_hp_loss",hpLoss},{"expected_enemy_turn_damage",incoming},
                 {"pierce_followup_contacts",status.abilities.pierce ? followup : 0},
                 {"enemy_chain_contacts",prediction.shot.enemyEnemyContacts},{"wall_contacts",prediction.shot.wallContacts},
-				{"chain_impact_hits",prediction.chainImpactHits},{"stop_shield",prediction.stopShieldGranted},
+				{"chain_impact_hits",prediction.chainImpactHits},{"stop_shield",prediction.playerShieldRemaining},
+                {"shield_granted",prediction.stopShieldGranted},{"shield_absorbed",prediction.playerShieldAbsorbed},
 				{"charged_cushions",CushionChargeRules::PendingNextShotCount(prediction.cushionCharges)},
                 {"anchor_stopped",prediction.shot.anchorStopped},{"boss_killed",kill},
                 {"encounter_cleared",prediction.bossEncounterCleared},

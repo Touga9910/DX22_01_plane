@@ -199,6 +199,9 @@
     <ClInclude Include="ShotCombatRules.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Relic</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerShieldRules.h">
+      <Filter>ヘッダー ファイル\02_Gameplay\Relic</Filter>
+    </ClInclude>
     <ClInclude Include="Pocket.h">
       <Filter>ヘッダー ファイル\02_Gameplay\Pocket</Filter>
     </ClInclude>

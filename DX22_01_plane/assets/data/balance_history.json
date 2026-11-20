@@ -156,6 +156,18 @@
       "actual_result": "50 matched seed/build pairs. Run wins 44/50 and boss wins 44/44 unchanged. Boss mean HP damage 3.045 -> 4.477; core kill shots 6.295 -> 6.159; Guard 110/277 -> 106/271 (39.7% -> 39.1%). Strong Break interruptions 0 -> 2, executions 30 -> 29, kill cancellations 4 -> 6. Both interruptions used Heavy on Standard/Anchor builds. 44 prepaid claims, 54 requested/spawned, 5 later summons skipped; no duplicate or wrong-timing supply. First-supply prefixes identical in 44 battles, post-core extras/residuals/damage zero. Native rules, Python36 tests, 100 scoped live/prediction shots passed. B0012 archive117 files unchanged; no collection crashes/retries/exclusions. Unrelated pre-existing Guard self-pocket prediction discrepancy documented separately and unchanged.",
       "balance_config_hash": "4a68bbfbdbc45e2d96b523eff5e07154175cde815f54f99fc2791b8e6e910b29",
       "git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8"
+    },
+    {
+      "version": "B0014",
+      "changed_at": "2026-11-20T04:38:49Z",
+      "target": "Guard自己ポケットの予測整合性",
+      "before": "予測はシールドを無視してHPを減らし、ボスAIは獲得シールド全量で敵攻撃を軽減",
+      "after": "実プレイと共通の吸収計算を使用し、ボスAIは自己ポケット後の残量で評価",
+      "reason": "Guardの自己ポケット予測と実HPの差を解消する",
+      "expected_impact": "Guard自己ポケット候補のHP・安全性評価が実ゲームに近づく。球性能と敵性能は変更しない",
+      "actual_result": null,
+      "balance_config_hash": "8431aa8f49802758cba51bd11c7be069b66c1871b1c260f3532e4d0168f29cee",
+      "git_commit": "dfb53da721cd001db600711ea1584cb04e2c5069"
     }
   ]
 }

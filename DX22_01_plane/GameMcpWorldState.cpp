@@ -38,13 +38,6 @@ namespace
 				{ "radius", spawn.enemyData.status.radius },
 			});
 		}
-		const auto positions = stage.hasBreakBallLayout
-			? stage.breakBallPositions
-			: (stage.stageType == StageType::Boss
-				? DefaultBossBreakBallPositions()
-				: std::vector<DirectX::SimpleMath::Vector3>{});
-		for (const auto& position : positions)
-			breakBalls.push_back(VectorToJson(position));
 
 		return {
 			{ "layout_id", stage.id },
@@ -54,6 +47,8 @@ namespace
 			{ "par", stage.par },
 			{ "enemies", std::move(enemies) },
 			{ "break_balls", std::move(breakBalls) },
+            { "legacy_break_ball_layout_ignored", stage.hasBreakBallLayout },
+            { "boss_minions_auto_spawned", stage.stageType == StageType::Boss },
 		};
 	}
 }

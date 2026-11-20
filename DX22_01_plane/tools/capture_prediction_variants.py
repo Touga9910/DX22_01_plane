@@ -15,6 +15,9 @@ def main():
     harness.CASES += [(f'upgraded_{name}', ball, enemies, direction, 4)
                       for name, ball, enemies, direction, _ in originals]
     harness.CASES += [
+        ('guard_pocket_base', 'guard', [(28,20),(45,-15),(-35,-18)], (0,1), 8),
+        ('guard_pocket_plus1', 'guard', [(28,20),(45,-15),(-35,-18)], (0,1), 8),
+        ('guard_pocket_plus2', 'guard', [(28,20),(45,-15),(-35,-18)], (0,1), 8),
         ('fatal_pocket', 'standard', [(28,20),(45,-15),(-35,-18)], (0,1), 8),
         ('frontal_guard', 'standard', [(0,18),(0,28),(30,-15)], (0,1), 4),
         ('pocket_damage', 'heavy', [(0,29),(30,0),(-30,0)], (0,1), 6),
@@ -31,6 +34,12 @@ def main():
             for definition in player['balls']:
                 if definition['id'] == f'player_{ball}':
                     for upgrade in definition['upgrades']:
+                        definition['status'].update(upgrade)
+        if case.startswith('guard_pocket_'):
+            level = 1 if case.endswith('plus1') else 2 if case.endswith('plus2') else 0
+            for definition in player['balls']:
+                if definition['id'] == 'player_guard':
+                    for upgrade in definition.get('upgrades', [])[:level]:
                         definition['status'].update(upgrade)
         if case == 'fatal_pocket':
             player['currentHp'] = 1

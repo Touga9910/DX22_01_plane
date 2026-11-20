@@ -1,4 +1,5 @@
 ﻿#include "Game.h"
+#include "PlayerShieldRules.h"
 #include "GameRuntime.h"
 #include "GameRuntimeState.h"
 #include "GameWorld.h"
@@ -43,8 +44,8 @@ void Game::GrantPlayerShield(int amount, const char* source)
 int Game::AbsorbPlayerShieldDamage(int damage)
 {
 	const int incoming = (std::max)(0, damage);
-	const int absorbed = (std::min)(m_BattleState->playerShield, incoming);
-	m_BattleState->playerShield -= absorbed;
+	const int hpDamage = PlayerShieldRules::Absorb(m_BattleState->playerShield, incoming);
+	const int absorbed = incoming - hpDamage;
 	if (absorbed > 0)
 	{
 		InvalidateDebugCombatForecast("停止時シールド消費");
@@ -71,7 +72,7 @@ int Game::AbsorbPlayerShieldDamage(int damage)
 			"player_stop_shield",
 		});
 	}
-	return incoming - absorbed;
+	return hpDamage;
 }
 
 int Game::ScaleEnemyCollisionDamage(int damage) const

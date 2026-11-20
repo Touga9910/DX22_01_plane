@@ -1,4 +1,5 @@
 ﻿#include "BallShotPrediction.h"
+#include "PlayerShieldRules.h"
 #include "AnchorStackRules.h"
 #include "BallCollisionComponent.h"
 #include "BallComponent.h"
@@ -205,7 +206,10 @@ namespace
 				const bool wasDefeated = ball.defeated;
                 if (ball.physics.player)
                 {
-                    ball.hp = (std::max)(0, ball.hp - playerPocketDamage);
+                    const int hpDamage = PlayerShieldRules::Absorb(
+                        result.playerShieldRemaining, playerPocketDamage);
+                    result.playerShieldAbsorbed += (std::max)(0, playerPocketDamage) - hpDamage;
+                    ball.hp = (std::max)(0, ball.hp - hpDamage);
                     ball.defeated = ball.hp == 0;
                     gameOver = ball.defeated;
                     if (!ball.defeated)
@@ -562,8 +566,10 @@ namespace
 				}
 				if (combatEnemyPair)
 				{
-					result.stopShieldGranted = (std::min)(100000,
-                        result.stopShieldGranted + result.shotStatus.enemyCollisionShield);
+					const int beforeShield = result.playerShieldRemaining;
+                    result.playerShieldRemaining = std::clamp(beforeShield +
+                        (std::max)(0, result.shotStatus.enemyCollisionShield), 0, 100000);
+                    result.stopShieldGranted += result.playerShieldRemaining - beforeShield;
 					AnchorStackRules::ShareEnemyStacks(
 						a.anchorStacks,
 						b.anchorStacks,
@@ -657,9 +663,10 @@ namespace
 						const int shieldGain = AnchorStackRules::CalculateShield(
 							consumed.consumed,
 							result.shotStatus.stopShieldPerStack);
-						result.stopShieldGranted = (std::min)(
-							result.shotStatus.stopShieldCapacity,
-							result.stopShieldGranted + shieldGain);
+						const int beforeShield = result.playerShieldRemaining;
+                        result.playerShieldRemaining = (std::min)(
+                            result.shotStatus.stopShieldCapacity, beforeShield + shieldGain);
+                        result.stopShieldGranted += result.playerShieldRemaining - beforeShield;
 					}
 					if (result.shot.ballId == "player_anchor_finisher" &&
 						targetEnemy != nullptr && targetEnemy->anchorStacks > 0 &&
@@ -901,7 +908,8 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
         }
         ball.attack = ball.physics.status.attack + input.relicAttackBonus +
             player.GetAuraStatusEffects().GetAttackModifier();
-		result.stopShieldGranted = result.shotStatus.shotShield;
+		result.stopShieldGranted = std::clamp(result.shotStatus.shotShield, 0, 100000);
+        result.playerShieldRemaining = result.stopShieldGranted;
         world.AddPoint(ball, true);
         found = true;
     }
@@ -1139,6 +1147,8 @@ void BallShotPrediction::WriteVerificationPrediction(const Input& input, const P
 		{"cushion_boost_consumed", result.cushionBoostConsumed},
 		{"chain_impact_hits", result.chainImpactHits},
 		{"stop_shield_granted", result.stopShieldGranted},
+        {"player_shield_remaining", result.playerShieldRemaining},
+        {"player_shield_absorbed", result.playerShieldAbsorbed},
 		{"heavy_stacks", result.heavyCollisions.stackCount},
 		{"heavy_stacks_gained_this_turn",
 			result.heavyCollisions.gainedThisTurn},

@@ -1,0 +1,35 @@
+作成日：2026年11月20日
+
+実装前の判断
+プレイヤーに見える変化：Guardの自己ポケット予測でシールド吸収を反映し、エディターでは旧ブレイクボール配置を要求しない。
+強める柱：狙い。実プレイと予測を一致させ、自己ポケットの危険を正しく判断できるようにする。
+取得・強化前後の狙い：Guardのショット時シールドと敵同士衝突による追加シールドを、ポケットのHP損失予測へ時系列で反映する。
+危険：余剰シールドをAIが過大評価しないよう、獲得量と残量を分ける。球の性能やボスの難度は変更しない。
+成功条件：共有シールド計算の境界値テスト、予測残量とAI/MCP参照の静的検証、既存テスト。Windows実機でGuard自己ポケットとボスエディター試遊を別途確認する。
+旧ステージのbreakBallsデータは互換性のため保持するが、現行本編では取り巻きが自動生成されるため編集・幾何判定・試遊には利用しない。
+
+実装結果
+・PlayerShieldRules.hへ吸収計算を共通化。実プレイと自己ポケット予測から利用する。
+・予測のシールド獲得量・吸収量・残量を分離。敵同士衝突と錨変換で得るシールドも時系列で残量へ反映する。
+・ボスAIの次ターン被ダメージ評価とMCP向け指標は残量を使用する。
+・エディターのブレイク球必須条件、既定2球の補完、旧座標の幾何判定と編集UIを撤去。試遊は本編の取り巻き自動生成へ委譲する。
+・旧breakBallsは保存互換用として維持。MCPのステージ情報では旧配置を実際に出現する球として返さず、不使用フラグを追加する。
+・変更後の比較を区別するためB0014を登録。過去の履歴と検証データは保持した。50ランのバランス比較は未実施。
+
+検証結果
+・C++の共有吸収計算テスト成功。Guard 0/+1/+2、吸収不足、連続攻撃、ポケット後の追加獲得、0/負ダメージを確認。
+・toolsのPythonテスト331件中329件成功。game_mcpの217件中215件成功。
+・失敗4件は修正前dfb53daの展開コピーでも同じ失敗を確認：
+  test_effective_hp_targets_with_progression_scaling
+  test_battle_scene_delegates_setup_creation_and_hot_reload
+  test_mcp_server_publishes_and_executes_the_same_ball_evaluation
+  test_all_runtime_balls_have_usage_and_ability_measurement_contracts
+・バランス版ハッシュ検証成功。追加Pythonの構文確認とgit diff --check成功。
+・Windowsの本体ビルド、実機プレイ、エディターC++テストはこのLinux環境では未実施。
+
+Windowsで残る確認
+1. 最新Developをビルドする。
+2. tools/test_stage_layout_editor.vcxprojをビルドし、DX22_01_planeを作業ディレクトリとして実行する。
+3. python tools/capture_prediction_variants.py --label B0014_guard_editor_1120 を実行し、新規guard_pocket_base / plus1 / plus2の予測と実HPをtools/verify_shared_prediction.pyの既存手順で比較する。既存の収集先と別のlabelを使う。
+4. ステージエディターで最終ボスを読み込み、旧ブレイク球なしでも保存・試遊できること、取り巻きが本編と同じルールで生成されることを確認する。
+5. 既存のbreakBalls入りステージを保存し直しても旧座標が保持され、盤面には旧中立球が出現しないことを確認する。

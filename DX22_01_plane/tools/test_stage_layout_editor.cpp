@@ -13,13 +13,11 @@ int main()
     const auto authoredBoss = std::find_if(existingStages.begin(), existingStages.end(),
         [](const StageData& stage) { return stage.stageType == StageType::Boss; });
     assert(authoredBoss != existingStages.end());
-    // Exercise the legacy fallback without requiring production stage data to
-    // remain forever unauthored.  Current bosses explicitly store their two
-    // break-ball positions, while older saves/stages omit that layout.
+    // Current bosses use automatic escorts; legacy coordinates remain round-trippable.
     StageData legacyBoss = *authoredBoss;
     legacyBoss.hasBreakBallLayout = false;
     legacyBoss.breakBallPositions.clear();
-    assert(StageLayoutEditor::Encode(legacyBoss)["break_balls"].size() == 2);
+    assert(StageLayoutEditor::Encode(legacyBoss)["break_balls"].empty());
     Json layout = {{"id", "editor_test"}, {"stage_type", "normal"}, {"difficulty", 3}, {"par", 4}, {"break_balls", Json::array()}, {"enemies", {
         {{"enemy_id", "enemy_normal"}, {"x", -30}, {"z", 12}, {"status_effects", {
             {{"type", "attack_up"}, {"magnitude", 2}},
@@ -68,10 +66,16 @@ int main()
     assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true);
     bad["enemies"][1]["enemy_id"] = "enemy_boss_core"; invalid(bad);
     bad = layout; bad["stage_type"] = "boss"; bad["enemies"][0]["enemy_id"] = "enemy_boss_core";
-    bad["break_balls"] = Json::array(); invalid(bad);
-    bad["break_balls"] = {{{"x", 70}, {"z", 0}}}; invalid(bad);
-    bad["break_balls"] = {{{"x", -4}, {"z", 10}}, {{"x", -4}, {"z", 10}}}; invalid(bad);
-    bad["break_balls"] = {{{"x", -30}, {"z", 12}}}; invalid(bad); // boss overlap
+    bad["break_balls"] = Json::array();
+    assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true);
+    auto noLegacyLayout = bad; noLegacyLayout.erase("break_balls");
+    assert(StageLayoutEditor::Inspect(noLegacyLayout, catalog, 3)["valid"] == true);
+    bad["break_balls"] = {{{"x", 70}, {"z", 0}}};
+    assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true); // ignored legacy geometry
+    bad["break_balls"] = {{{"x", -4}, {"z", 10}}, {{"x", -4}, {"z", 10}}};
+    assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true); // ignored legacy geometry
+    bad["break_balls"] = {{{"x", -30}, {"z", 12}}};
+    assert(StageLayoutEditor::Inspect(bad, catalog, 3)["valid"] == true); // ignored legacy geometry
     bad = layout; bad["break_balls"] = {{{"x", -4}, {"z", 10}}}; invalid(bad); // normal stage
     bad = layout; bad["enemies"] = Json::array();
     for (int i = 0; i < 33; ++i) bad["enemies"].push_back(layout["enemies"][0]); invalid(bad);
@@ -126,5 +130,5 @@ int main()
     assert(savedBoss.hasBreakBallLayout && savedBoss.breakBallPositions.size() == 2);
     assert(savedBoss.breakBallPositions[0].x == -12 && savedBoss.breakBallPositions[1].z == -12);
     assert(StageLayoutEditor::Encode(savedBoss) == bossEditor.draft);
-    std::cout << "PASS: status effects, legacy boss display, geometry, boss break-ball layout, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
+    std::cout << "PASS: status effects, automatic boss escorts, geometry, ignored legacy layout preservation, IDs, boss rules, AI revision/acceptance, undo, atomic save, preservation, reload, conflict guard\n";
 }

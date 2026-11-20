@@ -45,11 +45,7 @@ StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
         }
         result["enemies"].push_back(std::move(enemy));
     }
-    const auto positions = stage.hasBreakBallLayout
-        ? stage.breakBallPositions
-        : (stage.stageType == StageType::Boss
-            ? DefaultBossBreakBallPositions()
-            : std::vector<DirectX::SimpleMath::Vector3>{});
+    const auto& positions = stage.breakBallPositions;
     for (const auto& position : positions)
         result["break_balls"].push_back({{"x", position.x}, {"z", position.z}});
     return result;
@@ -72,12 +68,7 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
         throw std::runtime_error("現在の通常ステージ抽選に対応する難易度は1～3です。");
     stage.preserveLayout = true;
     stage.hasBreakBallLayout = value.contains("break_balls");
-    if (!stage.hasBreakBallLayout && stage.stageType == StageType::Boss)
-    {
-        stage.hasBreakBallLayout = true;
-        stage.breakBallPositions = DefaultBossBreakBallPositions();
-    }
-    else if (stage.hasBreakBallLayout)
+    if (stage.hasBreakBallLayout)
     {
         const auto& breakBalls = value.at("break_balls");
         if (!breakBalls.is_array() || breakBalls.size() > 16)
@@ -93,8 +84,6 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
             stage.breakBallPositions.push_back({x, TableConfig::FIELD_HEIGHT, z});
         }
     }
-    if (stage.stageType == StageType::Boss && stage.breakBallPositions.empty())
-        throw std::runtime_error("最終ボスステージにはブレイクボールを1個以上配置してください。");
     if (stage.stageType != StageType::Boss && !stage.breakBallPositions.empty())
         throw std::runtime_error("ブレイクボールは最終ボスステージだけに配置できます。");
     const auto& enemies = value.at("enemies");
@@ -202,31 +191,8 @@ StageLayoutEditor::Json StageLayoutEditor::Inspect(const Json& value, const std:
                     std::abs(a.position.x * b.position.z - a.position.z * b.position.x) / (std::max)(playerDistance, bDistance) < (std::min)(r, b.enemyData.status.radius)) ++lines;
             }
         }
-        constexpr float breakRadius = 2.5f;
-        for (size_t i = 0; i < stage.breakBallPositions.size(); ++i)
-        {
-            const auto& position = stage.breakBallPositions[i];
-            const std::string prefix = "ブレイク#" + std::to_string(i + 1) + " ";
-            if (std::abs(position.x) + breakRadius >= hw ||
-                std::abs(position.z) + breakRadius >= hd)
-                report["errors"].push_back(prefix + "が壁に接触・はみ出しています。");
-            if (std::hypot(position.x, position.z) <= breakRadius + playerRadius)
-                report["errors"].push_back(prefix + "が通常の自球開始位置と重なっています。");
-            for (const auto& pocket : TableConfig::GetPocketCenters())
-                if (std::hypot(position.x - pocket.x, position.z - pocket.z) <=
-                    breakRadius + TableConfig::POCKET_RADIUS)
-                    report["errors"].push_back(prefix + "がポケットに近すぎます。");
-            for (const auto& enemy : stage.enemies)
-                if (std::hypot(position.x - enemy.position.x, position.z - enemy.position.z) <=
-                    breakRadius + enemy.enemyData.status.radius)
-                    report["errors"].push_back(prefix + "が敵球と重なっています。");
-            for (size_t other = 0; other < i; ++other)
-                if (std::hypot(position.x - stage.breakBallPositions[other].x,
-                    position.z - stage.breakBallPositions[other].z) <= breakRadius * 2.0f)
-                    report["errors"].push_back(prefix + "が他のブレイクボールと重なっています。");
-        }
         report["valid"] = report["errors"].empty();
-        report["metrics"] = {{"enemy_count", stage.enemies.size()}, {"break_ball_count", stage.breakBallPositions.size()},
+        report["metrics"] = {{"enemy_count", stage.enemies.size()}, {"break_ball_count", 0}, {"legacy_break_ball_count", stage.breakBallPositions.size()},
             {"total_base_hp", hp}, {"minimum_player_gap", closestPlayer},
             {"minimum_enemy_gap", stage.enemies.size() > 1 ? Json(closestGap) : Json(nullptr)}, {"nearby_collision_pairs", chains}, {"pierce_aligned_pairs", lines},
             {"note", "幾何的な目安。貫通は開始位置からの同方向の並び、重量は表面間8以内の組数。勝率・実際の衝突やアンカーの有効性は試遊で確認してください。"}};
@@ -320,6 +286,7 @@ StageLayoutEditor::Json StageLayoutEditor::Snapshot(const std::vector<EnemyData>
     for (const auto& e : catalog) definitions.push_back({{"enemy_id", e.id}, {"radius", e.status.radius}, {"hp", e.maxHp}, {"mass", e.status.mass}});
     return {{"revision", revision}, {"draft", draft}, {"report", Inspect(draft, catalog, playerRadius)}, {"proposal", proposal},
         {"proposal_is_current", !proposal.is_null() && proposalRevision == revision}, {"catalog", definitions},
-        {"bounds", {{"half_width", TableConfig::GetFieldWidth() * .5f}, {"half_depth", TableConfig::GetFieldDepth() * .5f}, {"player_x", 0}, {"player_z", 0}, {"player_radius", playerRadius}, {"break_ball_radius", 2.5f}, {"pocket_radius", TableConfig::POCKET_RADIUS}, {"pockets", pockets}}},
+        {"bounds", {{"half_width", TableConfig::GetFieldWidth() * .5f}, {"half_depth", TableConfig::GetFieldDepth() * .5f}, {"player_x", 0}, {"player_z", 0}, {"player_radius", playerRadius},  {"pocket_radius", TableConfig::POCKET_RADIUS}, {"pockets", pockets}}},
+        {"boss_layout_rule", "最終ボスにはArmor球1体を配置。取り巻きは自動生成。break_ballsは旧データ保持専用で配置には使用しません。"},
         {"workflow", "validate_stage_layout → propose_stage_layout(expected_revision) → 画面でAI案を採用 → 試遊／保存。AIはファイルを直接変更しません。"}};
 }

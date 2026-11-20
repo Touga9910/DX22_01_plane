@@ -76,6 +76,8 @@ namespace BallShotPrediction
         int bossAdvanceSupplyRequestedIfTurnContinues = 0;
 		int chainImpactHits = 0;
         int stopShieldGranted = 0;
+        int playerShieldRemaining = 0;
+        int playerShieldAbsorbed = 0;
 		BallStatus shotStatus{};
 		PierceTraceRules::State pierceTraces{};
 		HeavyCollisionRules::State heavyCollisions{};

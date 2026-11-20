@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "current_version": "B0013",
-  "current_config_hash": "4a68bbfbdbc45e2d96b523eff5e07154175cde815f54f99fc2791b8e6e910b29",
-  "registered_at": "2026-11-20T00:14:26Z",
-  "registered_git_commit": "4f8fa04ffd723999ebdaf6a3fc1c0efb37b740c8",
+  "current_version": "B0014",
+  "current_config_hash": "8431aa8f49802758cba51bd11c7be069b66c1871b1c260f3532e4d0168f29cee",
+  "registered_at": "2026-11-20T04:38:49Z",
+  "registered_git_commit": "dfb53da721cd001db600711ea1584cb04e2c5069",
   "history_file": "assets/data/balance_history.json",
   "managed_files": [
     "assets/data/difficulty_profiles.json",
@@ -43,7 +43,8 @@
     "BallCollisionComponent.cpp",
     "BallShotPrediction.cpp",
     "GameBattleBridge.cpp",
-    "BattleSceneObjectFactory.cpp"
+    "BattleSceneObjectFactory.cpp",
+    "PlayerShieldRules.h"
   ],
   "detection_scope_note": "JSON balance data and dedicated rule files are hash-managed. Inline gameplay constants outside these files require manual review before a balance change is merged. UI, VFX, audio, telemetry and dashboard files are intentionally excluded."
 }

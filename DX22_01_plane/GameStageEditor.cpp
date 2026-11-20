@@ -9,8 +9,6 @@
 
 namespace
 {
-    constexpr int BreakBallSelection(int index) { return -index - 2; }
-    constexpr int SelectedBreakBall(int selection) { return selection <= -2 ? -selection - 2 : -1; }
 
     const char* StatusEffectLabel(StatusEffectType type)
     {
@@ -77,7 +75,7 @@ void GameDebugController::TestStageEditorLayout()
     }
     m_DebugSetup.enemies.clear();
     for (const auto& e : stage.enemies) m_DebugSetup.enemies.push_back({e, e.enemyData.maxHp});
-    m_DebugSetup.breakBallPositions = stage.breakBallPositions;
+    m_DebugSetup.breakBallPositions.clear();
     m_DebugSetup.playerPosition = {0, TableConfig::FIELD_HEIGHT, 0};
     m_DebugRequest = 1;
 }
@@ -127,8 +125,6 @@ void GameDebugController::DrawStageEditor(Game&)
     if (ImGui::Combo("種別", &type, types, 3))
     {
         next["stage_type"] = type == 0 ? "normal" : type == 1 ? "midBoss" : "boss";
-        if (type == 2 && (!next.contains("break_balls") || next["break_balls"].empty()))
-            next["break_balls"] = {{{"x", -4.0f}, {"z", 10.0f}}, {{"x", 4.0f}, {"z", 10.0f}}};
         if (type != 2) next["break_balls"] = Json::array();
         editor.placingBreakBall = false;
         change(next);
@@ -148,13 +144,10 @@ void GameDebugController::DrawStageEditor(Game&)
         if (ImGui::Checkbox("敵の追加モード", &editor.placing) && editor.placing)
             editor.placingBreakBall = false;
     }
-    ImGui::BeginDisabled(type != 2 || editor.draft["break_balls"].size() >= 16);
-    if (ImGui::Checkbox("ブレイクボールの追加モード", &editor.placingBreakBall) && editor.placingBreakBall)
-        editor.placing = false;
-    ImGui::EndDisabled();
-    if (type != 2) editor.placingBreakBall = false;
+    if (type == 2)
+        ImGui::TextWrapped("最終ボスの取り巻きは本編と同じルールで自動生成されます。旧ブレイクボール座標は使用しません。");
     ImGui::Checkbox("2単位のグリッドに吸着", &editor.snap);
-    ImGui::TextWrapped("青：敵球 / 黄：ブレイクボール / 白：自球開始位置。球をドラッグして移動できます。");
+    ImGui::TextWrapped("青：敵球 / 白：自球開始位置。球をドラッグして移動できます。");
     ImGui::TextWrapped("追加モード中は、空いている場所をクリックして配置します。黄色の輪はAI案です。");
     ImGui::TextWrapped("既存ステージの読み込み・新規作成は、現在の下書きを置き換えます。必要な配置は先に保存してください。");
     ImGui::EndChild(); ImGui::SameLine();
@@ -191,27 +184,7 @@ void GameDebugController::DrawStageEditor(Game&)
         draw->AddText(ImVec2(position.x - 4, position.y - 7), IM_COL32(0, 0, 0, 255), number);
         if (std::hypot(mx - x, mz - z) < r + 1) enemyHit = i;
     }
-    constexpr float breakBallRadius = 2.5f;
-    int breakBallHit = -1;
-    for (int i = 0; i < static_cast<int>(editor.draft["break_balls"].size()); ++i)
-    {
-        const auto& ball = editor.draft["break_balls"][i];
-        const float x = ball["x"], z = ball["z"];
-        const auto position = screen(x, z);
-        const bool selected = editor.selected == BreakBallSelection(i);
-        draw->AddCircleFilled(position, breakBallRadius * scale,
-            selected ? IM_COL32(255, 145, 35, 255) : IM_COL32(255, 215, 35, 255));
-        draw->AddCircle(position, breakBallRadius * scale,
-            selected ? IM_COL32_WHITE : IM_COL32(110, 75, 0, 255), 24, selected ? 3.0f : 2.0f);
-        const auto label = "B" + std::to_string(i + 1);
-        draw->AddText(ImVec2(position.x - 7, position.y - 7), IM_COL32(20, 20, 10, 255), label.c_str());
-        if (std::hypot(mx - x, mz - z) < breakBallRadius + 1) breakBallHit = i;
-    }
-    if (hovered && breakBallHit >= 0)
-        ImGui::SetTooltip("ブレイクボール #%d（%.1f, %.1f）", breakBallHit + 1,
-            editor.draft["break_balls"][breakBallHit]["x"].get<float>(),
-            editor.draft["break_balls"][breakBallHit]["z"].get<float>());
-    else if (hovered && enemyHit >= 0)
+    if (hovered && enemyHit >= 0)
         ImGui::SetTooltip("#%d %s", enemyHit + 1, EnemyLabel(editor.draft["enemies"][enemyHit]["enemy_id"].get<std::string>()));
     if (!editor.proposal.is_null()) for (size_t i = 0; i < editor.proposal["enemies"].size(); ++i)
     {
@@ -222,34 +195,13 @@ void GameDebugController::DrawStageEditor(Game&)
         draw->AddText(ImVec2(position.x + r * scale, position.y), IM_COL32(255, 225, 70, 255), label.c_str());
         if (hovered && std::hypot(mx - x, mz - z) < r + 1) ImGui::SetTooltip("AI #%d %s", static_cast<int>(i + 1), EnemyLabel(e["enemy_id"].get<std::string>()));
     }
-    if (!editor.proposal.is_null() && editor.proposal.contains("break_balls"))
-        for (size_t i = 0; i < editor.proposal["break_balls"].size(); ++i)
-        {
-            const auto& ball = editor.proposal["break_balls"][i];
-            const auto position = screen(ball["x"].get<float>(), ball["z"].get<float>());
-            draw->AddCircle(position, breakBallRadius * scale, IM_COL32(255, 120, 230, 255), 24, 2.5f);
-            const auto label = "AI B" + std::to_string(i + 1);
-            draw->AddText(ImVec2(position.x + breakBallRadius * scale, position.y),
-                IM_COL32(255, 120, 230, 255), label.c_str());
-        }
     if (hovered && ImGui::IsMouseClicked(0))
     {
-        editor.selected = breakBallHit >= 0 ? BreakBallSelection(breakBallHit) : enemyHit;
-        if (breakBallHit >= 0 || enemyHit >= 0)
+        editor.selected = enemyHit;
+        if (enemyHit >= 0)
         {
             editor.dragging = true;
             editor.dragStart = editor.draft;
-        }
-        else if (editor.placingBreakBall && editor.draft["stage_type"] == "boss" &&
-            editor.draft["break_balls"].size() < 16)
-        {
-            auto added = editor.draft;
-            if (editor.snap) { mx = std::round(mx / 2) * 2; mz = std::round(mz / 2) * 2; }
-            const float r = breakBallRadius + .01f;
-            added["break_balls"].push_back({{"x", std::clamp(mx, -hw + r, hw - r)},
-                {"z", std::clamp(mz, -hd + r, hd - r)}});
-            editor.Replace(added);
-            editor.selected = BreakBallSelection(static_cast<int>(added["break_balls"].size()) - 1);
         }
         else if (editor.placing && !m_DebugEnemyCatalog.empty() && editor.draft["enemies"].size() < 32)
         {
@@ -261,11 +213,8 @@ void GameDebugController::DrawStageEditor(Game&)
     }
     if (editor.dragging && editor.selected != -1)
     {
-        const int breakIndex = SelectedBreakBall(editor.selected);
-        auto& entry = breakIndex >= 0
-            ? editor.draft["break_balls"][breakIndex]
-            : editor.draft["enemies"][editor.selected];
-        const float r = breakIndex >= 0 ? breakBallRadius + .01f : radiusFor(entry) + .01f;
+        auto& entry = editor.draft["enemies"][editor.selected];
+        const float r = radiusFor(entry) + .01f;
         if (editor.snap) { mx = std::round(mx / 2) * 2; mz = std::round(mz / 2) * 2; }
         if (ImGui::IsMouseDown(0))
         {
@@ -278,8 +227,6 @@ void GameDebugController::DrawStageEditor(Game&)
         }
     }
     if (editor.selected >= static_cast<int>(editor.draft["enemies"].size())) editor.selected = -1;
-    const int selectedBreakBall = SelectedBreakBall(editor.selected);
-    if (selectedBreakBall >= static_cast<int>(editor.draft["break_balls"].size())) editor.selected = -1;
     if (editor.selected >= 0)
     {
         ImGui::Text("選択中 #%d : %s", editor.selected + 1, EnemyLabel(editor.draft["enemies"][editor.selected]["enemy_id"].get<std::string>()));
@@ -392,37 +339,13 @@ void GameDebugController::DrawStageEditor(Game&)
             auto edited = editor.draft; auto copy = edited["enemies"][editor.selected]; copy["x"] = copy["x"].get<float>() + 8; edited["enemies"].push_back(copy); editor.Replace(edited); editor.selected = static_cast<int>(edited["enemies"].size()) - 1;
         }
     }
-    else if (SelectedBreakBall(editor.selected) >= 0)
-    {
-        const int index = SelectedBreakBall(editor.selected);
-        const auto& ball = editor.draft["break_balls"][index];
-        ImGui::Text("選択中 B%d : ブレイクボール (%.1f, %.1f)",
-            index + 1, ball["x"].get<float>(), ball["z"].get<float>());
-        if (ImGui::Button("選択したブレイクボールを削除"))
-        {
-            auto edited = editor.draft;
-            edited["break_balls"].erase(index);
-            editor.Replace(edited);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("選択したブレイクボールを複製") &&
-            editor.draft["break_balls"].size() < 16)
-        {
-            auto edited = editor.draft;
-            auto copy = edited["break_balls"][index];
-            copy["x"] = copy["x"].get<float>() + 8.0f;
-            edited["break_balls"].push_back(copy);
-            editor.Replace(edited);
-            editor.selected = BreakBallSelection(static_cast<int>(edited["break_balls"].size()) - 1);
-        }
-    }
     auto report = StageLayoutEditor::Inspect(editor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
     for (const auto& error : report["errors"]) ImGui::TextColored(ImVec4(1, .5f, .3f, 1), "%s", error.get<std::string>().c_str());
     if (report["metrics"].contains("total_base_hp"))
     {
         const auto& metrics = report["metrics"];
-        ImGui::Text("敵%d体 / ブレイク%d個 / 基礎HP合計%d / 貫通の並び%d組 / 近接%d組（目安）",
-            static_cast<int>(editor.draft["enemies"].size()), metrics["break_ball_count"].get<int>(),
+        ImGui::Text("配置敵%d体 / 旧ブレイク%d個（不使用） / 基礎HP合計%d / 貫通の並び%d組 / 近接%d組（目安）",
+            static_cast<int>(editor.draft["enemies"].size()), metrics["legacy_break_ball_count"].get<int>(),
             metrics["total_base_hp"].get<int>(), metrics["pierce_aligned_pairs"].get<int>(),
             metrics["nearby_collision_pairs"].get<int>());
     }
@@ -447,7 +370,7 @@ void GameDebugController::DrawStageEditor(Game&)
         catch (const std::exception& e) { editor.message = e.what(); }
     }
     ImGui::EndDisabled();
-    ImGui::TextWrapped("保存対象は敵の種類・配置・初期バフ／デバフ、ブレイクボールの初期配置、ステージ情報です。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
+    ImGui::TextWrapped("保存対象は敵の種類・配置・初期バフ／デバフ、ステージ情報です。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
     if (!editor.message.empty()) ImGui::TextWrapped("%s", editor.message.c_str());
     ImGui::EndChild();
 }
