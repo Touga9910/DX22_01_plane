@@ -46,3 +46,9 @@ Linuxのプレビュー生成ではtools/capture_lounge_services.cpp、LoungeSer
 修正：当該cppをBOM付きUTF-8に保存し、ClCompile項目へ全構成共通の/utf-8を付与。既存AdditionalOptionsは継承する。
 確認：BOM・UTF-8デコード・XML設定の検証、日本語表示Pythonテスト6件、本番UIのC++操作テストが成功。バランスハッシュは不変。
 Windows/MSVCによる本体ビルドはこの環境では未実施。Develop更新後に再ビルドして確認する。
+
+
+PCHとの文字コード指定の統一（2026年11月20日）
+修正前の判断：見た目・選択・狙い・球性能は維持し、ファイル個別の/utf-8追加オプションのみを削除する。BOM付きUTF-8は維持し、共有PCHと同じコンパイラ設定を継承する。成功条件は個別指定の除去・BOM維持・プロジェクトXML確認。既存PCHやゲーム処理へ変更を広げない。
+結果：ClCompileの個別AdditionalOptionsを削除。XML・BOM・共有PCH設定の維持とgit diff --checkを確認済み。Windows本体ビルドは未実施。
+更新取り込み後にVisual Studioが再読み込みを求めたら承認し、クリーン／リビルドする。手元でPCH無効化を試していた場合は当該ファイルのPCH設定を親／プロジェクトから継承に戻す。
