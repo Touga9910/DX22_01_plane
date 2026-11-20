@@ -17,14 +17,17 @@
 #include "ShotPowerRules.h"
 #include "imgui/imgui.h"
 using namespace DirectX::SimpleMath;
-TitleTable::~TitleTable()=default;
+TitleTable::~TitleTable(){Release();}
 void TitleTable::Release()
 {
+    m_Ready=false;
+    m_Physics.impact={};
     for(auto& visual:m_Visual)visual.reset();
     m_Table.reset();m_Frame.reset();m_Vfx.ClearActive();m_ProjectionValid=false;
 }
 void TitleTable::Awake()
 {
+    Release();
     m_Physics=TitlePhysicsWorld{};m_ShakePhase=m_ShakeLifetime=m_ShakeStrength=m_ShakeCooldown=0;m_Age=0;m_Released=false;m_Accumulator=0;m_EffectFrame=0;m_Vfx.Reset();
     BallStatus fallback;fallback.radius=2.4f;fallback.mass=2;fallback.restitution=.8f;fallback.friction=.02f;
     const auto data=PlayerBallDataLoader::Load("assets/data/player_status.json",fallback,PlayerRunStatus{});
@@ -73,9 +76,11 @@ void TitleTable::Awake()
     int i=1;
     for(int row=0;row<5;++row) for(int col=0;col<=row;++col)
         m_Physics.balls[i++].position={19+row*spacing*.87f,TableConfig::FIELD_HEIGHT,(col-row*.5f)*spacing};
+    m_Ready=true;
 }
 void TitleTable::Step(float dt,bool released)
 {
+    if(!m_Ready)return;
     m_Age+=dt;++m_EffectFrame;
     m_ShakeCooldown=(std::max)(0.0f,m_ShakeCooldown-dt);
     m_ShakeLifetime=GameSceneCommands::TitleShakeEnabled()?(std::max)(0.0f,m_ShakeLifetime-dt):0;

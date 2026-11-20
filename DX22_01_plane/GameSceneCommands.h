@@ -5,12 +5,14 @@
 // Validated state-changing entry points used by non-battle scenes. UI code no
 // longer reaches into the Game orchestrator to mutate run state directly.
 struct CollisionImpactEvent;
+class Scene;
 class GameSceneCommands final
 {
 public:
     static void ChangeScene(SceneType sceneType);
     static void StartNewRun();
     static bool LoadSavedRun();
+    static bool IsCurrentScene(const Scene* scene);
     static void OpenDebugMode();
     static void OpenTitleSettings();
     static void PlayTitleCue(bool shot, float strength);

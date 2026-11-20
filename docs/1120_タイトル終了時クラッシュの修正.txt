@@ -1,0 +1,25 @@
+作成日：2026年11月20日
+
+目的と判断
+プレイヤーに見える変化は、タイトル画面から終了した際の読み取りアクセス違反を防ぐこと。
+選択・狙い・連鎖を支える安定性の修正であり、球の性能や狙い方は変更しない。
+数値や演出を追加せず、所有関係と終了順序だけを是正する。
+成功条件は、シーンがWorldより先に終了し、解放済みコンポーネントを再参照しないこと。
+
+原因
+提示された呼び出し履歴では、Worldの破棄後にGameのデストラクターからタイトルシーンが終了し、既に解放されたTitleTableへReleaseを呼び出していた。
+
+変更
+Game::Uninitでシーン終了→World破棄→Renderer終了→Game削除の順序にする。
+TitleSceneの更新・描画・終了ではWorld.ContainsでTitleTableの生存を確認する。
+TitleTableはOnDestroyとデストラクターで私有オブジェクトを解放し、コールバックと準備フラグを解除する。
+セーブ再開失敗時は元のシーンが現存する場合だけ復旧する。
+球の描画高さと物理関連の保留中の変更は、このコミットには含めない。
+
+検証
+終了順序・所有確認・解放処理の契約テスト3件成功。修正前a79e2b7では3件とも失敗することを確認。
+実際のGameWorld/GameObject/Componentを使い、2000回の破棄、古いポインターとアクセス不可アドレスの照会をAddressSanitizer/UndefinedBehaviorSanitizer付きで検証し、エラーなし。
+Linux検査には既存SimpleMath、DirectXMathと作業領域内のWindows型・CRT互換ヘッダーを使用。
+Python toolsは334件中332件成功。既存の敵攻撃値期待値とBattleSceneObjectFactory依存契約の2件は失敗が残る。
+git diff --check成功。バランス版B0014は変更なし。
+Windows本体のビルド、タイトルからの終了、CONTINUE操作の実機検証は未実施。

@@ -8,6 +8,7 @@
 #include "Input.h"
 #include "TitleTable.h"
 #include "GameObject.h"
+#include "GameWorld.h"
 #include "IllustratedUi.h"
 #include <filesystem>
 #include <algorithm>
@@ -43,6 +44,7 @@ void TitleScene::Init()
 // 更新
 void TitleScene::Update()
 {
+    if(!GameRuntime::World().Contains(m_Table))return;
     const auto now=std::chrono::steady_clock::now();
     const float dt=std::clamp(std::chrono::duration<float>(now-m_LastTick).count(),0.0f,.1f);
     m_LastTick=now;
@@ -75,7 +77,10 @@ void TitleScene::Update()
         if(m_CanContinue)
         {
             m_Table->Release();
-            if(!GameSceneCommands::LoadSavedRun()){m_Table->Awake();m_Message=GameView::SaveLoadMessage();}
+            const auto* previousScene=this;
+            const bool loaded=GameSceneCommands::LoadSavedRun();
+            if(!loaded&&GameSceneCommands::IsCurrentScene(previousScene))
+            {m_Table->Awake();m_Message=GameView::SaveLoadMessage();}
         }
         return;
     case 2: GameSceneCommands::OpenTitleSettings();return;
@@ -85,6 +90,7 @@ void TitleScene::Update()
 
 void TitleScene::DrawUI()
 {
+    if(!GameRuntime::World().Contains(m_Table))return;
     using namespace IllustratedUi;
     Canvas ui("title_lounge",1600,900,IM_COL32(0,0,0,0));
     auto* d=ImGui::GetWindowDrawList();
@@ -188,7 +194,8 @@ void TitleScene::DrawProgressionUI()
 // 終了処理
 void TitleScene::Uninit()
 {
-    if(m_Table)m_Table->Release();
+    if(GameRuntime::World().Contains(m_Table))m_Table->Release();
+    m_Table=nullptr;
 	// このシーンのオブジェクトを削除する
 	for (GameObject* gameObject : m_SceneGameObjects) {
 		GameRuntime::DestroyObject(gameObject);

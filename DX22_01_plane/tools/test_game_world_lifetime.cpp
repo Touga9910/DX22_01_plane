@@ -1,6 +1,10 @@
 #include "../GameWorld.h"
 #include "../GameObject.h"
+#ifdef _WIN32
 #include <Windows.h>
+#else
+#include <sys/mman.h>
+#endif
 #include <cassert>
 #include <iostream>
 
@@ -8,7 +12,9 @@ struct Marker final : Component {};
 
 int main()
 {
+	#ifdef _WIN32
 	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+	#endif
 	GameWorld world;
 	assert(!world.Contains(static_cast<const Component*>(nullptr)));
 	auto* object = world.Create("lifetime");
@@ -35,9 +41,18 @@ int main()
 	struct LiveOwnerProbe final : Component {};
 	LiveOwnerProbe unattached;
 	assert(!other.Contains(&unattached));
+	#ifdef _WIN32
 	void* inaccessible = VirtualAlloc(nullptr, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
 	assert(inaccessible != nullptr);
+	#else
+	void* inaccessible = mmap(nullptr,4096,PROT_NONE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+	assert(inaccessible != MAP_FAILED);
+	#endif
 	assert(!other.Contains(reinterpret_cast<const Component*>(inaccessible)));
+	#ifdef _WIN32
 	VirtualFree(inaccessible, 0, MEM_RELEASE);
+	#else
+	munmap(inaccessible,4096);
+	#endif
 	std::cout << "GameWorld lifetime regression passed (2000 destruction cycles and inaccessible address)\n";
 }

@@ -330,3 +330,8 @@ bool GameSceneCommands::TitleEffectsEnabled()
 { return Game::GetInstance()->IsCollisionImpactEffectsEnabled(); }
 int GameSceneCommands::TitleEffectDensity()
 { return Game::GetInstance()->GetDecorativeRingAmount(); }
+
+bool GameSceneCommands::IsCurrentScene(const Scene* scene)
+{
+    return Game::GetInstance()->GetCurrentScene()==scene;
+}

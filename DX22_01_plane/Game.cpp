@@ -497,6 +497,9 @@ void Game::Uninit()
 			m_Instance->m_RunController->Progress().GetClearedBattleCount());
 	}
 
+	// Release scene-owned observers and GPU resources while the world is alive.
+	m_Instance->m_RuntimeState->ResetScene();
+
 	// カメラの終了処理
 	m_Instance->m_Camera.Uninit();
 

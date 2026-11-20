@@ -10,6 +10,7 @@ class TitleTable final:public Component
 public:
     ~TitleTable() override;
     void Awake() override;
+    void OnDestroy() override { Release(); }
     void Release();
     void Draw() override;
     void Step(float dt,bool released);
@@ -29,4 +30,5 @@ private:
     bool m_ProjectionValid=false;
     float m_Accumulator=0,m_Age=0,m_ShakePhase=0,m_ShakeLifetime=0,m_ShakeStrength=0,m_ShakeCooldown=0;
     bool m_Released=false;
+    bool m_Ready=false;
 };
