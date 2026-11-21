@@ -194,6 +194,8 @@
     <ClInclude Include="BossShotPlanner.h" />
     <ClInclude Include="DynamicBalanceController.h" />
     <ClInclude Include="GameDebugController.h" />
+    <ClInclude Include="DebugRunPreset.h" />
+    <ClInclude Include="DebugRunSetup.h" />
     <ClInclude Include="RunController.h" />
     <ClInclude Include="ContinuousBallStepper.h" />
     <ClInclude Include="BallPhysicsRules.h" />
@@ -281,6 +283,7 @@
     </ClCompile>
     <ClCompile Include="GameBalanceConfig.cpp" />
     <ClCompile Include="GameDebugMode.cpp" />
+    <ClCompile Include="DebugRunPreset.cpp" />
     <ClCompile Include="GameStageEditor.cpp" />
     <ClCompile Include="StageLayoutEditor.cpp" />
     <ClCompile Include="GameMcpBridge.cpp" />

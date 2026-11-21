@@ -57,6 +57,7 @@ nlohmann::json GameMcpBridge::BuildState(Game& game, bool running) const
 	AppendAvailableActions(game, snapshot, player, state);
 	state["debug_mode"] = {
 		{"active", snapshot.debug.active},
+		{"run_active", game.IsDebugRunMode()},
 		{"editor_open", snapshot.debug.editorOpen},
 		{"finished", snapshot.debug.finished},
 	};

@@ -28,6 +28,10 @@
     <ClCompile Include="..\StageDataLoader.cpp" />
     <ClCompile Include="..\PlayerDeck.cpp" />
     <ClCompile Include="..\ProgressionProfile.cpp" />
+    <ClCompile Include="..\RunProgressController.cpp" />
+    <ClCompile Include="..\RunController.cpp" />
+    <ClCompile Include="..\StageSelector.cpp" />
+    <ClCompile Include="..\DebugRunPreset.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

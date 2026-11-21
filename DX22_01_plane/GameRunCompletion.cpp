@@ -122,14 +122,14 @@ void Game::CompleteFinalBossRun()
 		m_RunController->Status().maxHp,
 		m_RunController->Progress().GetClearedBattleCount());
 	FinalizeRunResult(true);
-	GameSaveManager::Remove();
+	if (!IsDebugMode()) GameSaveManager::Remove();
 	ChangeScene(SceneType::Result);
 }
 
 void Game::ProcessGameOver()
 {
 	m_RewardState->Exit();
-	if (IsDebugMode()) { FinishDebugBattle(false); return; }
+	if (IsDebugMode() && !IsDebugRunMode()) { FinishDebugBattle(false); return; }
 	DiscardCurrentPlayerBall();
 
 	const std::vector<EnemyBall*> enemies =
@@ -150,7 +150,7 @@ void Game::ProcessGameOver()
 		m_RunController->Status().maxHp,
 		m_RunController->Progress().GetClearedBattleCount());
 	FinalizeRunResult(false);
-	GameSaveManager::Remove();
+	if (!IsDebugMode()) GameSaveManager::Remove();
 
 	ChangeScene(SceneType::Result);
 }

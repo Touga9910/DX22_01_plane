@@ -258,6 +258,7 @@ public:
 	void OpenDebugMode();
 	// デバッグモードが有効かを返す。
 	bool IsDebugMode() const;
+	bool IsDebugRunMode() const;
 	void ApplyDebugBattlePlayer(PlayerBall* player);
 	void ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index);
 	const std::vector<DirectX::SimpleMath::Vector3>& GetDebugBreakBallPositions() const;

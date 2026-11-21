@@ -556,6 +556,12 @@
     <ClInclude Include="GameDebugController.h">
       <Filter>ヘッダー ファイル\02_Gameplay</Filter>
     </ClInclude>
+    <ClInclude Include="DebugRunPreset.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugRunSetup.h">
+      <Filter>ヘッダー ファイル\02_Gameplay</Filter>
+    </ClInclude>
     <ClInclude Include="EnemyBoardAbilityRules.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -1192,6 +1198,9 @@
       <Filter>ソース ファイル\07_RunSystem\Statistics</Filter>
     </ClCompile>
     <ClCompile Include="GameDebugMode.cpp">
+      <Filter>ソース ファイル\08_Tools\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugRunPreset.cpp">
       <Filter>ソース ファイル\08_Tools\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GameStageEditor.cpp">

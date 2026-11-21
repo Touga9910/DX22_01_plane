@@ -195,7 +195,7 @@ void RestrictDebugActions(Game& game, const GameMcpReadSnapshot& snapshot, nlohm
 		state["available_actions"] = {
 			"validate_stage_layout", "propose_stage_layout" };
 	}
-	else if (snapshot.debug.active)
+	else if (snapshot.debug.active && !game.IsDebugRunMode())
 	{
 		auto allowed = nlohmann::json::array();
 		for (const auto& action : state["available_actions"])

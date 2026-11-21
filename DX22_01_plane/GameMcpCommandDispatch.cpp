@@ -27,7 +27,7 @@ nlohmann::json GameMcpBridge::ExecuteCommand(
 	}
 	if (game.IsDebugEditorOpen())
 		return CommandResult(false, "Debug setup is open. Resume or start the battle from its window.");
-	if (game.IsDebugMode() && action != "select_ball" && action != "fire_shot" &&
+	if (game.IsDebugMode() && !game.IsDebugRunMode() && action != "select_ball" && action != "fire_shot" &&
 		action != "evaluate_boss_shots" && action != "fire_boss_shot")
 		return CommandResult(false, "This action is unavailable in debug battle mode.");
 	const nlohmann::json arguments =

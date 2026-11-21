@@ -1,5 +1,8 @@
 ﻿#include "DebugBattleSetup.h"
 #include "PlayerDeck.h"
+#include "DebugRunSetup.h"
+#include "DebugRunPreset.h"
+#include "RunController.h"
 #include <cassert>
 #include <fstream>
 #include <limits>
@@ -7,7 +10,60 @@
 
 int main()
 {
+    // Jumps keep a connected remaining map, including both final boss transitions.
+    for (int area = 0; area < kNormalRouteAreaGoal; ++area)
+    {
+        for (int destination = 0; destination <= 6; ++destination)
+        {
+            DebugRunSetup run;
+            run.completedAreas = area;
+            run.destination = static_cast<DebugRunDestination>(destination);
+            auto state = run.BuildProgress(12345);
+            assert(state.areaProgress == (destination >= 5 ? 15 : area));
+            assert(state.map.CompletedAreas() == state.areaProgress);
+            assert(RunMap::Restore(state.map.Save()).Save() == state.map.Save());
+            RunProgressController progress;
+            progress.Restore(state);
+            if (destination >= 5)
+            {
+                if (destination == 5) assert(progress.CompleteBossPreparation());
+                assert(progress.BeginFinalBoss());
+                progress.CompleteFinalBoss();
+                assert(progress.GetPhase() == RunPhase::Completed);
+            }
+            else
+            {
+                if (destination == 0) assert(progress.ChooseNode(progress.GetMap().Available().front()));
+                assert(progress.CompleteNormalArea(false, 15, 0) != AreaCompletionResult::Rejected);
+                assert(progress.GetAreaProgress() == area + 1);
+                if (area == 14) assert(progress.IsBossPreparation());
+            }
+        }
+    }
+    RunController economy;
+    economy.Status().money = 10;
+    assert(!economy.SpendMoney(20));
+    economy.SetDebugInfiniteMoney(true);
+    assert(economy.Status().money == 999999);
+    assert(economy.SpendMoney(20) && economy.Status().money == 999999);
+    economy.AddMoney(200);
+    assert(economy.Status().money == 999999);
+    economy.SetDebugInfiniteMoney(false);
+    assert(economy.SpendMoney(20) && economy.Status().money == 999979);
+    economy.ResetRuntimeState({});
+    economy.Status().money = 10;
+    assert(!economy.SpendMoney(20));
     const auto catalog = PlayerBallDataLoader::Load("assets/data/player_status.json", {}, {}).ballDefinitions;
+    economy.Deck().SetCatalog(catalog);
+    economy.Deck().SetDefaultDeck(std::vector<PlayerBallData>(5, catalog.front()));
+    economy.Deck().ResetToDefault();
+    economy.SetDebugInfiniteMoney(true);
+    assert(economy.BuyShopBall(0, 20) && economy.Status().money == 999999);
+    assert(economy.Deck().GetRewardTargetCount() == 6);
+    assert(economy.RemoveShopBall(0, 15) && economy.Status().money == 999999);
+    assert(economy.Deck().GetRewardTargetCount() == 5);
+    assert(economy.BuyRelic(0) && economy.Status().money == 999999);
+    assert(!economy.BuyRelic(0)); // Infinite money does not bypass ownership/offer rules.
     const auto enemies = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
     auto ball = [&](const std::string& id) { return *std::find_if(catalog.begin(), catalog.end(), [&](const auto& b) { return b.definitionId == id; }); };
     auto foe = [&](const std::string& id) {
@@ -34,6 +90,205 @@ int main()
     assert(setup.Validate().empty());
     const auto roundtrip = DebugBattleSetup::FromJson(setup.ToJson(), catalog, enemies);
     assert(roundtrip.ToJson() == setup.ToJson());
+    const auto stages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
+    DebugRunPreset runPreset;
+    runPreset.battle = setup;
+    runPreset.battle.seed = UINT32_MAX;
+    runPreset.run.completedAreas = 7;
+    runPreset.run.destination = DebugRunDestination::Battle;
+    runPreset.run.combatMode = RunCombatMode::PhaseTest;
+    runPreset.run.stageId = "normal_002";
+    runPreset.run.infiniteMoney = true;
+    const auto presetJson = runPreset.ToJson();
+    assert(DebugRunPreset::FromJson(presetJson, catalog, enemies, stages).ToJson() == presetJson);
+    // Comparison is read-only, ignores generated IDs, and retains deck order/counts.
+    auto comparisonCopy = runPreset;
+    auto differences = CompareDebugRunPresets(runPreset, comparisonCopy);
+    auto changedRow = [&](const std::string& key) {
+        for (const auto& row : differences) if (row.key == key) return row.changed;
+        assert(false); return false;
+    };
+    assert(std::none_of(differences.begin(), differences.end(), [](const auto& row) { return row.changed; }));
+    comparisonCopy.battle.deck[0].instanceId += 1000;
+    differences = CompareDebugRunPresets(runPreset, comparisonCopy);
+    assert(!changedRow("deck/0"));
+    comparisonCopy.run.completedAreas = 8;
+    comparisonCopy.run.stageId.clear();
+    comparisonCopy.run.infiniteMoney = false;
+    comparisonCopy.battle.deck[0].upgradeLevel = 2;
+    comparisonCopy.battle.deck[0].status.mass += 1;
+    comparisonCopy.battle.deck[0].upgradeTable[0].attack += 3;
+    comparisonCopy.battle.deck.push_back(comparisonCopy.battle.deck[0]);
+    comparisonCopy.battle.relics[0] = !runPreset.battle.relics[0];
+    differences = CompareDebugRunPresets(runPreset, comparisonCopy);
+    for (const auto* key : {"progress", "stage", "infinite_money", "deck_count", "deck/0",
+        "deck/0/upgrade_level", "deck/0/status/mass", "deck/0/upgrade_table/0/attack", "relic/0"})
+        assert(changedRow(key));
+    assert(!changedRow("seed"));
+    const auto forward = differences;
+    differences = CompareDebugRunPresets(comparisonCopy, runPreset);
+    assert(differences.size() == forward.size());
+    for (size_t i = 0; i < differences.size(); ++i)
+    {
+        // Missing slots use a direction-specific added/removed explanation.
+        if (forward[i].before.find("なし") != std::string::npos || forward[i].after.find("なし") != std::string::npos) continue;
+        assert(differences[i].before == forward[i].after && differences[i].after == forward[i].before);
+    }
+    comparisonCopy = runPreset;
+    comparisonCopy.battle.deck.insert(comparisonCopy.battle.deck.begin(), ball("player_anchor"));
+    const auto ordered = comparisonCopy;
+    std::swap(comparisonCopy.battle.deck.front(), comparisonCopy.battle.deck.back());
+    differences = CompareDebugRunPresets(ordered, comparisonCopy);
+    assert(changedRow("deck/0") && !changedRow("deck_count"));
+    comparisonCopy.battle.deck.clear();
+    differences = CompareDebugRunPresets(runPreset, comparisonCopy);
+    assert(changedRow("deck_count") && changedRow("deck/0"));
+    assert(runPreset.ToJson() == presetJson);
+    // Bad run fields and unavailable stages must fail before caller-owned settings are replaced.
+    auto rejectRun = [&](nlohmann::json bad)
+    {
+        bool rejected = false;
+        try { DebugRunPreset::FromJson(bad, catalog, enemies, stages); } catch (...) { rejected = true; }
+        assert(rejected && runPreset.ToJson() == presetJson);
+    };
+    for (const auto& entry : std::vector<std::pair<std::string, nlohmann::json>>{
+        {"completed_areas", -1}, {"completed_areas", 15}, {"completed_areas", 16},
+        {"completed_areas", 1.5}, {"completed_areas", 4294967296ull},
+        {"destination", "invalid"}, {"combat_mode", "future"},
+        {"infinite_money", 1}, {"stage_id", "deleted_stage"}})
+    {
+        auto bad = presetJson; bad["run"][entry.first] = entry.second; rejectRun(bad);
+    }
+    auto badRun = presetJson; badRun["version"] = 2; rejectRun(badRun);
+    badRun = presetJson; badRun["version"] = 1.0; rejectRun(badRun);
+    badRun = presetJson; badRun["run"]["destination"] = "midboss"; rejectRun(badRun);
+    badRun = presetJson; badRun["run"].erase("infinite_money"); rejectRun(badRun);
+    badRun = presetJson; badRun["battle_setup"]["deck"][0]["definition_id"] = "missing_ball";
+    // Other malformed battle fields are covered below; use empty deck here for a guaranteed invalid start.
+    badRun["battle_setup"]["deck"] = nlohmann::json::array(); rejectRun(badRun);
+    for (int destination = 0; destination <= 6; ++destination)
+    {
+        auto automatic = presetJson;
+        automatic["run"]["stage_id"] = "";
+        const char* ids[] = {"route", "battle", "midboss", "shop", "rest", "boss_preparation", "final_boss"};
+        automatic["run"]["destination"] = ids[destination];
+        automatic["run"]["completed_areas"] = destination >= 5 ? 15 : 0;
+        assert(DebugRunPreset::FromJson(automatic, catalog, enemies, stages).ToJson() == automatic);
+    }
+    const std::filesystem::path runPresetsPath = "tools/runtime_tests/debug_run_presets/presets.json";
+    std::filesystem::create_directories(runPresetsPath.parent_path());
+    { std::ofstream file(runPresetsPath); file << R"({"format":"dx22_debug_run_presets","version":1,"presets":{}})"; }
+    assert(DebugRunPresetStore::List(runPresetsPath).empty());
+    const std::string japaneseName = "\xE6\xA4\x9C\xE8\xA8\xBC";
+    DebugRunPresetStore::Save(runPresetsPath, "first", presetJson);
+    DebugRunPresetStore::Save(runPresetsPath, japaneseName, presetJson);
+    auto changedPreset = presetJson; changedPreset["run"]["infinite_money"] = false;
+    DebugRunPresetStore::Save(runPresetsPath, "first", changedPreset);
+    assert(DebugRunPresetStore::List(runPresetsPath).size() == 2);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "first") == changedPreset);
+    assert(DebugRunPresetStore::Load(runPresetsPath, japaneseName) == presetJson);
+    auto presetBytes = [&]()
+    {
+        std::ifstream file(runPresetsPath, std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    };
+    DebugRunPresetStore::Duplicate(runPresetsPath, "first", "comparison");
+    assert(DebugRunPresetStore::List(runPresetsPath).size() == 3);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "comparison") == changedPreset);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "first") == changedPreset);
+    auto independentCopy = changedPreset;
+    independentCopy["battle_setup"]["deck"][0]["upgrade_level"] = 2;
+    independentCopy["battle_setup"]["relics"][0] = false;
+    independentCopy["run"]["completed_areas"] = 8;
+    DebugRunPresetStore::Save(runPresetsPath, "comparison", independentCopy);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "comparison") == independentCopy);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "first") == changedPreset);
+    DebugRunPresetStore::Duplicate(runPresetsPath, "comparison", japaneseName + "_copy");
+    assert(DebugRunPresetStore::Load(runPresetsPath, japaneseName + "_copy") == independentCopy);
+    const auto copiedBytes = presetBytes();
+    for (const auto& target : std::vector<std::string>{"first", japaneseName, "", "   ", "bad\nname", std::string(129, 'x')})
+    {
+        bool rejectedCopy = false;
+        try { DebugRunPresetStore::Duplicate(runPresetsPath, "first", target); } catch (...) { rejectedCopy = true; }
+        assert(rejectedCopy && presetBytes() == copiedBytes);
+    }
+    bool rejectedCopy = false;
+    try { DebugRunPresetStore::Duplicate(runPresetsPath, "missing", "new_copy"); } catch (...) { rejectedCopy = true; }
+    assert(rejectedCopy && presetBytes() == copiedBytes);
+    DebugRunPresetStore::Delete(runPresetsPath, "comparison");
+    DebugRunPresetStore::Delete(runPresetsPath, japaneseName + "_copy");
+    // Limits must reject the copy without replacing the original file.
+    const auto limitPath = runPresetsPath.parent_path() / "copy_limits.json";
+    nlohmann::json limitStore = {{"format", "dx22_debug_run_presets"}, {"version", 1}, {"presets", nlohmann::json::object()}};
+    for (int i = 0; i < 64; ++i) limitStore["presets"]["entry" + std::to_string(i)] = {{"fixture", i}};
+    auto rejectLimitedCopy = [&]()
+    {
+        const auto bytes = limitStore.dump();
+        { std::ofstream file(limitPath, std::ios::binary); file << bytes; }
+        bool rejected = false;
+        try { DebugRunPresetStore::Duplicate(limitPath, "entry0", "extra"); } catch (...) { rejected = true; }
+        assert(rejected);
+        std::ifstream file(limitPath, std::ios::binary);
+        assert(std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()) == bytes);
+    };
+    rejectLimitedCopy();
+    limitStore["presets"] = {{"entry0", {{"large_fixture", std::string(2 * 1024 * 1024 + 100, 'x')}}}};
+    rejectLimitedCopy();
+    DebugRunPresetStore::Rename(runPresetsPath, "first", "renamed");
+    assert(DebugRunPresetStore::List(runPresetsPath).size() == 2);
+    assert(DebugRunPresetStore::Load(runPresetsPath, "renamed") == changedPreset);
+    assert(DebugRunPresetStore::Load(runPresetsPath, japaneseName) == presetJson);
+    const auto renamedBytes = presetBytes();
+    DebugRunPresetStore::Rename(runPresetsPath, "renamed", "renamed");
+    assert(presetBytes() == renamedBytes);
+    for (const auto& target : std::vector<std::string>{japaneseName, "", "   ", "bad\nname", std::string(129, 'x')})
+    {
+        bool rejectedRename = false;
+        try { DebugRunPresetStore::Rename(runPresetsPath, "renamed", target); } catch (...) { rejectedRename = true; }
+        assert(rejectedRename && presetBytes() == renamedBytes);
+    }
+    bool missingRejected = false;
+    try { DebugRunPresetStore::Rename(runPresetsPath, "missing", "new"); } catch (...) { missingRejected = true; }
+    assert(missingRejected && presetBytes() == renamedBytes);
+    DebugRunPresetStore::Delete(runPresetsPath, "renamed");
+    assert(DebugRunPresetStore::List(runPresetsPath) == std::vector<std::string>{japaneseName});
+    assert(DebugRunPresetStore::Load(runPresetsPath, japaneseName) == presetJson);
+    const auto remainingBytes = presetBytes();
+    missingRejected = false;
+    try { DebugRunPresetStore::Delete(runPresetsPath, "renamed"); } catch (...) { missingRejected = true; }
+    assert(missingRejected && presetBytes() == remainingBytes);
+    DebugRunPresetStore::Rename(runPresetsPath, japaneseName, "last");
+    assert(DebugRunPresetStore::Load(runPresetsPath, "last") == presetJson);
+    DebugRunPresetStore::Delete(runPresetsPath, "last");
+    assert(DebugRunPresetStore::List(runPresetsPath).empty());
+    assert(std::filesystem::exists(runPresetsPath));
+    // Restore the two fixtures for the malformed-file/invalid-name tests below.
+    DebugRunPresetStore::Save(runPresetsPath, "first", changedPreset);
+    DebugRunPresetStore::Save(runPresetsPath, japaneseName, presetJson);
+    bool fileFailure = false;
+    try { DebugRunPresetStore::Save(runPresetsPath, "   ", presetJson); } catch (...) { fileFailure = true; }
+    assert(fileFailure && DebugRunPresetStore::Load(runPresetsPath, "first") == changedPreset);
+    { std::ofstream file(runPresetsPath); file << "{broken"; }
+    fileFailure = false;
+    try { DebugRunPresetStore::Save(runPresetsPath, "new", presetJson); } catch (...) { fileFailure = true; }
+    assert(fileFailure);
+    { std::ifstream file(runPresetsPath); std::string bytes; std::getline(file, bytes); assert(bytes == "{broken"); }
+    for (int operation : {0, 1, 2})
+    {
+        fileFailure = false;
+        try
+        {
+            if (operation == 2) DebugRunPresetStore::Duplicate(runPresetsPath, "first", "new");
+            else if (operation == 1) DebugRunPresetStore::Rename(runPresetsPath, "first", "new");
+            else DebugRunPresetStore::Delete(runPresetsPath, "first");
+        }
+        catch (...) { fileFailure = true; }
+        assert(fileFailure && presetBytes() == "{broken");
+    }
+    { std::ofstream file(runPresetsPath); file << std::string(4 * 1024 * 1024 + 1, ' '); }
+    fileFailure = false;
+    try { DebugRunPresetStore::Load(runPresetsPath, "first"); } catch (...) { fileFailure = true; }
+    assert(fileFailure);
     ProgressionProfile debugProfile;
     roundtrip.ApplyProgressionTo(debugProfile);
     assert(debugProfile.highestUnlockedAscension == 7 &&
@@ -130,5 +385,5 @@ int main()
     setup.armor = 2; setup.breakShots = 0;
     setup.breakBallPositions = {{0, TableConfig::FIELD_HEIGHT, 0}};
     save("setup_break_chain.json");
-    std::cout << "PASS: roundtrip, duplicate identities, 1-ball redraw, " << rejected << " malformed presets, nonfinite values, boss limit, overlap and fixtures\n";
+    std::cout << "PASS: independent preset copies, collision/limit rejection, 105 debug run destinations, final boss transitions, infinite money purchases/reset, roundtrip, duplicate identities, 1-ball redraw, " << rejected << " malformed presets, nonfinite values, boss limit, overlap and fixtures\n";
 }

@@ -64,7 +64,7 @@ void GameDebugController::TestStageEditorLayout()
     for (const auto& e : stage.enemies) m_DebugSetup.enemies.push_back({e, e.enemyData.maxHp});
     m_DebugSetup.breakBallPositions.clear();
     m_DebugSetup.playerPosition = {0, TableConfig::FIELD_HEIGHT, 0};
-    m_DebugRequest = 1;
+    m_DebugRequest = m_DebugRunActive ? 5 : 1;
 }
 
 // Stage Editorを描画する。

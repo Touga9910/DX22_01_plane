@@ -23,6 +23,7 @@ struct RunController::Impl
     std::mt19937 relicRandomEngine{ std::random_device{}() };
     int currentStageRewardMoney = 0;
     bool isStageRewardCollected = false;
+    bool debugInfiniteMoney = false;
 	RunCombatMode combatMode = RunCombatMode::Legacy;
 	PhaseRunProgressionMode phaseProgressionMode =
 		PhaseRunProgressionMode::EncounterCount;
@@ -101,6 +102,7 @@ void RunController::ResetRuntimeState(
     const PlayerRunStatus& defaultStatus)
 {
     m_Impl->status = NormalizePlayerRunStatus(defaultStatus);
+    m_Impl->debugInfiniteMoney = false;
     m_Impl->status.progress = 1;
     m_Impl->status.SetSelectedStageId("");
     m_Impl->status.SetLastStageId("");
@@ -168,12 +170,14 @@ bool RunController::RestHeal()
 
 void RunController::AddMoney(int amount)
 {
+    if (m_Impl->debugInfiniteMoney) { m_Impl->status.money = 999999; return; }
     m_Impl->status.money += (std::max)(0, amount);
     m_Impl->status = NormalizePlayerRunStatus(m_Impl->status);
 }
 
 bool RunController::SpendMoney(int amount)
 {
+    if (m_Impl->debugInfiniteMoney) return true;
     amount = (std::max)(0, amount);
     if (m_Impl->status.money < amount)
     {
@@ -182,6 +186,12 @@ bool RunController::SpendMoney(int amount)
 
     m_Impl->status.money -= amount;
     return true;
+}
+
+void RunController::SetDebugInfiniteMoney(bool enabled)
+{
+    m_Impl->debugInfiniteMoney = enabled;
+    if (enabled) m_Impl->status.money = 999999;
 }
 
 bool RunController::UpgradeBall(int ballIndex)
@@ -208,7 +218,7 @@ bool RunController::BuyShopBall(int catalogIndex, int cost)
         return false;
     }
 
-    m_Impl->status.money -= cost;
+    SpendMoney(cost);
     return true;
 }
 
@@ -222,7 +232,7 @@ bool RunController::RemoveShopBall(int ballIndex, int cost)
         return false;
     }
 
-    m_Impl->status.money -= cost;
+    SpendMoney(cost);
     return true;
 }
 
@@ -305,7 +315,7 @@ bool RunController::BuyRelic(int relicIndex)
         return false;
     }
 
-    m_Impl->status.money -= cost;
+    SpendMoney(cost);
     m_Impl->ownedRelics[static_cast<std::size_t>(relic.type)] = true;
     return true;
 }

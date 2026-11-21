@@ -2,6 +2,8 @@
 
 #include "DebugBattleSetup.h"
 #include "StageLayoutEditor.h"
+#include "DebugRunSetup.h"
+#include "DebugRunPreset.h"
 
 #include <cstdint>
 #include <deque>
@@ -26,6 +28,7 @@ class GameDebugController
 {
 public:
 	bool IsActive() const { return m_DebugMode; }
+	bool IsRunActive() const { return m_DebugMode && m_DebugRunActive; }
 	bool IsEditorOpen() const { return m_DebugEditorOpen; }
 	bool IsBattleFinished() const { return m_DebugBattleFinished; }
 
@@ -112,8 +115,39 @@ private:
 	void DrawStageEditor(Game& game);
 	void TestStageEditorLayout();
 	void RequestReplay();
+	bool StartRun(Game& game);
+	void DrawRunTools(Game& game);
+	void DrawRunPresets(Game& game);
+	void RefreshRunPresets();
+	void SelectRunPreset(const std::string& name);
+	void RenameRunPreset();
+	void DuplicateRunPreset(bool editCopy);
+	void DeleteRunPreset();
+	void DrawRunPresetPreview();
+	void DrawRunPresetComparison();
+	void RefreshRunPresetComparison();
+	void SaveRunPreset(Game& game, bool currentRun);
+	bool LoadRunPreset(bool startRun);
 
 	bool m_DebugMode = false;
+	bool m_DebugRunActive = false;
+	DebugRunSetup m_DebugRunSetup;
+	bool m_DebugRunInfiniteMoneyActive = false;
+	bool m_DebugSelectRunTab = false;
+	char m_DebugRunPresetName[129] = "default";
+	char m_DebugRunPresetRename[129] = {};
+	char m_DebugRunPresetCopyName[129] = {};
+	std::string m_DebugRunPresetSelected;
+	std::string m_DebugRunPresetDeleteTarget;
+	std::optional<DebugRunPreset> m_DebugRunPresetPreview;
+	std::string m_DebugRunPresetPreviewError;
+	std::vector<std::string> m_DebugRunPresetNames;
+	std::string m_DebugRunPresetMessage;
+	bool m_DebugRunPresetCompareOpen = false;
+	bool m_DebugRunPresetCompareChangesOnly = true;
+	std::string m_DebugRunPresetCompareNames[2];
+	std::string m_DebugRunPresetCompareError;
+	std::vector<DebugRunPresetComparisonRow> m_DebugRunPresetCompareRows;
 	bool m_DebugEditorOpen = false;
 	bool m_DebugBattleFinished = false;
 	std::optional<DebugRunSnapshot> m_DebugPreviousRun;

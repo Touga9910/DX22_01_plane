@@ -369,6 +369,7 @@ void Game::StartNewRun(
 			? std::string("not_applicable")
 			: mcpShotPolicy },
 		{ "debug_sandbox", IsDebugMode() },
+		{ "debug_run", IsDebugRunMode() },
 		{ "physics_model", BallPhysicsWorld::ModelName },
 		{ "controller_profile", controllerProfile },
 		{ "build_profile", buildProfile },
@@ -578,7 +579,7 @@ void Game::ApplyEnemyDifficultyScaling(
 		m_BalanceRuntime->baselineEnemyAttackDelta,
 		m_RunController->Status().progress,
 		m_PersistenceRuntime->ActiveAscension(),
-		IsDebugMode());
+		IsDebugMode() && !IsDebugRunMode());
 }
 
 // Balance Auto Full Hp Enemy Survivedを通知する。

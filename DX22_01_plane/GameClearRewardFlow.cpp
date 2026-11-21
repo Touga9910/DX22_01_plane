@@ -92,7 +92,7 @@ void Game::RollClearRewardBallOffers()
 
 void Game::StartClearReward()
 {
-	if (IsDebugMode()) { FinishDebugBattle(true); return; }
+	if (IsDebugMode() && !IsDebugRunMode()) { FinishDebugBattle(true); return; }
 	DiscardCurrentPlayerBall();
 	if (m_BattleState->controller.IsPhasePrototype())
 	{
@@ -180,7 +180,7 @@ void Game::StartClearReward()
 			m_RunController->Status().maxHp,
 			m_RunController->Progress().GetClearedBattleCount());
 		FinalizeRunResult(true);
-		GameSaveManager::Remove();
+		if (!IsDebugMode()) GameSaveManager::Remove();
 		ChangeScene(SceneType::Result);
 		return;
 	}

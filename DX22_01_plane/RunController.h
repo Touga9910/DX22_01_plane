@@ -55,6 +55,7 @@ public:
     bool RestHeal();
     void AddMoney(int amount);
     bool SpendMoney(int amount);
+    void SetDebugInfiniteMoney(bool enabled);
     bool UpgradeBall(int ballIndex);
     bool BuyShopBall(int catalogIndex, int cost);
     bool RemoveShopBall(int ballIndex, int cost);
