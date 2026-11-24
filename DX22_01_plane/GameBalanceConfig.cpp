@@ -280,15 +280,10 @@ void Game::StartNewRun(
 		!m_BalanceRuntime->autoPlayer.IsEnabled() &&
 		!m_BalanceRuntime->validation.IsEnabled())
 		? m_PersistenceRuntime->Profile().selectedAscension : 0;
-	const int hpPenalty = ProgressionProfile::StartingHpPenalty(
-		m_PersistenceRuntime->ActiveAscension());
-	m_RunController->Status().maxHp = (std::max)(1, m_RunController->Status().maxHp - hpPenalty);
-	m_RunController->Status().currentHp = m_RunController->Status().maxHp;
-	m_RunController->RestHealRatio() = (std::max)(
-		0.05f,
-		m_PersistenceRuntime->DefaultRestHealRatio() -
-			ProgressionProfile::RestHealPenalty(
-				m_PersistenceRuntime->ActiveAscension()));
+	auto& status = m_RunController->Status();
+	status.currentHp = ProgressionProfile::StartingHp(
+		status.maxHp, m_PersistenceRuntime->ActiveAscension());
+	m_RunController->RestHealRatio() = m_PersistenceRuntime->DefaultRestHealRatio();
 	m_PersistenceRuntime->Statistics().Reset();
 	BeginRunSession();
 	ResumeAndDismissPause();

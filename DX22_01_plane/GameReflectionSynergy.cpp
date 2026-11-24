@@ -26,9 +26,10 @@ void Game::NotifyPlayerWallCollision(
 
 	(void)cushionRegion;
 	CushionChargeRules::ReflectionConfig config;
-	config.generatesStacks = currentBall->definitionId == "player_cushion_charge";
-	config.generationLimit = status.cushionReflectionLimit;
-	config.stacksPerReflection = status.cushionStackGenerateAmount;
+	config.generatesStacks = currentBall->category == BallCategory::Bounce ||
+		currentBall->definitionId == "player_cushion_charge";
+	config.generationLimit = AxisStackGeneration::ReflectionLimit(currentBall->category, status);
+	config.stacksPerReflection = AxisStackGeneration::ReflectionAmount(currentBall->category, status);
 	config.consumesStacks = currentBall->definitionId == "player_bounce";
 	config.consumptionLimit = status.cushionConsumptionLimit;
 	config.reflectedSpeedMultiplier = status.cushionReflectionSpeedMultiplier;
@@ -45,7 +46,7 @@ void Game::NotifyPlayerWallCollision(
 	const auto result = CushionChargeRules::ApplyValidReflection(
 		m_BattleState->cushionCharges, config, reflectedVelocity);
 	const int stacksAfter = m_BattleState->cushionCharges.stackCount;
-	const int stacksAfterGeneration = stacksBefore + result.generated;
+	const int stacksAfterConsumption = stacksBefore - result.consumed;
 	RecordBalanceEvent("cushion_reflection_resolved", {
 		{ "cushion_region", cushionRegion },
 		{ "position_xz", { playerPosition.x, playerPosition.z } },
@@ -84,6 +85,25 @@ void Game::NotifyPlayerWallCollision(
 			currentBall->definitionId,
 		});
 	}
+	if (result.consumed > 0)
+	{
+		m_BattleState->cushionBoostConsumedThisShot = true;
+		m_BattleState->cushionStrongUsesThisShot =
+			m_BattleState->cushionCharges.consumedThisShot;
+		RecordBalanceEvent("cushion_stacks_consumed", {
+			{ "amount", result.consumed },
+			{ "strong_uses_this_shot", m_BattleState->cushionStrongUsesThisShot },
+		});
+		NotifyAxisResourceChanged(
+			AxisResourceKind::Reflection,
+			AxisResourceOwner::Player,
+			stacksBefore,
+			stacksAfterConsumption,
+			AxisResourceChangeReason::AbilityCost,
+			currentBall->definitionId,
+			false,
+			playerPosition);
+	}
 	if (result.generated > 0)
 	{
 		RecordBalanceEvent("cushion_stacks_generated", {
@@ -92,8 +112,8 @@ void Game::NotifyPlayerWallCollision(
 		NotifyAxisResourceChanged(
 			AxisResourceKind::Reflection,
 			AxisResourceOwner::Player,
-			stacksBefore,
-			stacksAfterGeneration,
+			stacksAfterConsumption,
+			stacksAfter,
 			AxisResourceChangeReason::WallReflection,
 			currentBall->definitionId,
 			false,
@@ -128,25 +148,6 @@ void Game::NotifyPlayerWallCollision(
 				}
 			}
 		}
-	}
-	if (result.consumed > 0)
-	{
-		m_BattleState->cushionBoostConsumedThisShot = true;
-		m_BattleState->cushionStrongUsesThisShot =
-			m_BattleState->cushionCharges.consumedThisShot;
-		RecordBalanceEvent("cushion_stacks_consumed", {
-			{ "amount", result.consumed },
-			{ "strong_uses_this_shot", m_BattleState->cushionStrongUsesThisShot },
-		});
-		NotifyAxisResourceChanged(
-			AxisResourceKind::Reflection,
-			AxisResourceOwner::Player,
-			stacksAfterGeneration,
-			stacksAfter,
-			AxisResourceChangeReason::AbilityCost,
-			currentBall->definitionId,
-			false,
-			playerPosition);
 	}
 }
 

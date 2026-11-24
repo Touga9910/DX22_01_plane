@@ -94,11 +94,9 @@ struct DebugBattleSetup
         profile.achievements = achievements;
     }
 
-    int EffectiveMaxHp() const
+    int DefaultStartingHp() const
     {
-        return (std::max)(
-            1,
-            maxHp - ProgressionProfile::StartingHpPenalty(selectedAscension));
+        return ProgressionProfile::StartingHp(maxHp, selectedAscension);
     }
 
     nlohmann::json ToJson() const

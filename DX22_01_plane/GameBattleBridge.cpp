@@ -396,6 +396,7 @@ BallShotPrediction::Input MakeShotPredictionInput(float launchPower)
 	input.heavyCollisions = game.GetHeavyCollisionState();
     input.playerAnchorStacks = game.GetPlayerAnchorStacks();
 	input.anchorConversionProgress = game.GetAnchorConversionProgress();
+    input.anchorNextGrantBonus = game.GetAnchorStackState().nextAnchorGrantBonus;
     input.cushionBoostConsumed = game.WasCushionBoostConsumedThisShot();
     input.playerEnemyContacts =
         game.GetCurrentShotPlayerEnemyCollisionCount();

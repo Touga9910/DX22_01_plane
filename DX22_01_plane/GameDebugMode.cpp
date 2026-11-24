@@ -136,7 +136,7 @@ void GameDebugHost::CaptureSetup(Game& game, DebugBattleSetup& setup)
     const auto& status = game.m_RunController->Status();
     setup.seed = game.m_BalanceRuntime->CaptureReadSnapshot(
         status.progress, game.m_RunController->Progress().GetClearedBattleCount()).runRandomSeed;
-    setup.maxHp = status.maxHp + ProgressionProfile::StartingHpPenalty(game.GetActiveAscension());
+    setup.maxHp = status.maxHp;
     setup.hp = (std::max)(1, status.currentHp);
     setup.money = status.money;
     setup.deck.clear();
@@ -220,17 +220,13 @@ void GameDebugHost::ApplyRunSettings(
     game.m_RunController->Deck().SetCatalog(unlockedCatalog);
     game.m_RunController->Deck().SetDefaultDeck(setup.deck);
     game.m_RunController->Deck().ResetToDefault();
-    game.m_RunController->Status().maxHp = setup.EffectiveMaxHp();
+    game.m_RunController->Status().maxHp = setup.maxHp;
     game.m_RunController->Status().currentHp = std::clamp(
         setup.hp,
         1,
         game.m_RunController->Status().maxHp);
     game.m_RunController->Status().money = setup.money;
-    game.m_RunController->RestHealRatio() = (std::max)(
-        0.05f,
-        game.m_PersistenceRuntime->DefaultRestHealRatio() -
-            ProgressionProfile::RestHealPenalty(
-                game.m_PersistenceRuntime->ActiveAscension()));
+    game.m_RunController->RestHealRatio() = game.m_PersistenceRuntime->DefaultRestHealRatio();
     game.m_RunController->Relics() = setup.relics;
 }
 
@@ -1300,12 +1296,11 @@ void GameDebugController::Draw(Game& game)
                 "A%d",
                 ImGuiSliderFlags_AlwaysClamp);
             ImGui::Text(
-                "実効最大HP %d / 敵HP x%.2f / 敵攻撃 +%d / 休憩回復 %.0f%%",
-                m_DebugSetup.EffectiveMaxHp(),
+                "通常ランの開始HP %d/%d / 敵HP x%.2f / 敵攻撃 +%d / 休憩回復 %.0f%%",
+                m_DebugSetup.DefaultStartingHp(), m_DebugSetup.maxHp,
                 ProgressionProfile::EnemyHpMultiplier(m_DebugSetup.selectedAscension),
                 ProgressionProfile::EnemyAttackBonus(m_DebugSetup.selectedAscension),
-                (std::max)(0.05f, GameDebugHost::GetDefaultRestHealRatio(game) -
-                    ProgressionProfile::RestHealPenalty(m_DebugSetup.selectedAscension)) * 100.0f);
+                GameDebugHost::GetDefaultRestHealRatio(game) * 100.0f);
             if (m_DebugSetup.selectedAscension == 0)
                 ImGui::BulletText("A0  %s", ProgressionProfile::AscensionRule(0));
             else

@@ -79,13 +79,6 @@ namespace CushionChargeRules
 	{
 		ReflectionResult result;
 		++state.validReflectionsThisShot;
-		if (config.generatesStacks &&
-			state.generatedThisShot < (std::max)(0, config.generationLimit))
-		{
-			result.generated = (std::max)(0, config.stacksPerReflection);
-			state.stackCount += result.generated;
-			++state.generatedThisShot;
-		}
 		if (config.consumesStacks && state.stackCount > 0 &&
 			state.consumedThisShot < (std::max)(0, config.consumptionLimit))
 		{
@@ -94,6 +87,13 @@ namespace CushionChargeRules
 			++state.empoweredHitsRemaining;
 			reflectedVelocity *= (std::max)(1.0f, config.reflectedSpeedMultiplier);
 			result.consumed = 1;
+		}
+		if (config.generatesStacks &&
+			state.generatedThisShot < (std::max)(0, config.generationLimit))
+		{
+			result.generated = (std::max)(0, config.stacksPerReflection);
+			state.stackCount += result.generated;
+			++state.generatedThisShot;
 		}
 		if (!state.setupTriggeredThisShot && state.activeSetupBonus > 0)
 		{

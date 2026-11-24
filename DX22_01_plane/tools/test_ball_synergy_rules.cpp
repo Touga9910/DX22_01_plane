@@ -2,6 +2,7 @@
 #include "../CushionChargeRules.h"
 #include "../HeavyCollisionRules.h"
 #include "../PierceTraceRules.h"
+#include "../PlayerBallData.h"
 #include "../PierceAttackTelemetry.h"
 #include "../ShotPhysicsTelemetry.h"
 
@@ -389,6 +390,20 @@ int main()
 	assert(cushions.stackCount == 53);
 	assert(cushions.validReflectionsThisShot == 25);
 	assert(cushions.generatedThisShot == 25);
+
+    const BallStatus defaultStatus;
+    assert(AxisStackGeneration::HeavyDistance(BallCategory::Heavy, defaultStatus));
+    assert(!AxisStackGeneration::HeavyDistance(BallCategory::Standard, defaultStatus));
+    assert(AxisStackGeneration::AnchorAmount(BallCategory::Anchor, defaultStatus) == 1);
+    assert(AxisStackGeneration::AnchorAmount(BallCategory::Standard, defaultStatus) == 0);
+    CushionChargeRules::State commonReflection{};
+    bounce.generatesStacks = true;
+    bounce.stacksPerReflection = AxisStackGeneration::ReflectionAmount(BallCategory::Bounce, defaultStatus);
+    bounce.generationLimit = AxisStackGeneration::ReflectionLimit(BallCategory::Bounce, defaultStatus);
+    const auto emptyBank = CushionChargeRules::ApplyValidReflection(commonReflection, bounce, velocity);
+    assert(emptyBank.generated == 1 && emptyBank.consumed == 0 && commonReflection.stackCount == 1);
+    const auto followupBank = CushionChargeRules::ApplyValidReflection(commonReflection, bounce, velocity);
+    assert(followupBank.generated == 0 && followupBank.consumed == 1 && commonReflection.stackCount == 0);
 
 	CushionChargeRules::State pinball{};
 	pinball.stackCount = 5;

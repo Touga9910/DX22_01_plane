@@ -128,11 +128,18 @@ std::vector<std::string> ProgressionProfile::RecordRun(const RunResultSnapshot& 
 
 const char* ProgressionProfile::AscensionRule(int level)
 {
-    static const char* rules[] = {"通常ルール", "敵HP +10%", "開始・最大HP -5", "敵攻撃力 +1", "休憩回復 25%→20%",
-        "敵HP +20%（合計）", "敵攻撃力 +2（合計）", "開始・最大HP -10（合計）", "休憩回復 15%", "敵HP +35%（合計）", "敵攻撃力 +3（合計）"};
+    static const char* rules[] = {"通常ルール", "敵HP +10%", "開始HP -5", "敵攻撃力 +1", "開始HP -10（合計）",
+        "敵HP +20%（合計）", "敵攻撃力 +2（合計）", "開始HP -15（合計）", "開始HP -20（合計）", "敵HP +35%（合計）", "敵攻撃力 +3（合計）"};
     return rules[std::clamp(level, 0, MaximumAscension)];
 }
 float ProgressionProfile::EnemyHpMultiplier(int level) { return level >= 9 ? 1.35f : level >= 5 ? 1.20f : level >= 1 ? 1.10f : 1.0f; }
 int ProgressionProfile::EnemyAttackBonus(int level) { return level >= 10 ? 3 : level >= 6 ? 2 : level >= 3 ? 1 : 0; }
-int ProgressionProfile::StartingHpPenalty(int level) { return level >= 7 ? 10 : level >= 2 ? 5 : 0; }
-float ProgressionProfile::RestHealPenalty(int level) { return level >= 8 ? .10f : level >= 4 ? .05f : 0.0f; }
+int ProgressionProfile::StartingHpPenalty(int level)
+{
+    return level >= 8 ? 20 : level >= 7 ? 15 : level >= 4 ? 10 : level >= 2 ? 5 : 0;
+}
+
+int ProgressionProfile::StartingHp(int maxHp, int level)
+{
+    return (std::max)(1, maxHp - StartingHpPenalty(level));
+}

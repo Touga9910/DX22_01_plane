@@ -122,7 +122,7 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 		{
 			result.defaultBallStatus = fallbackBallStatus;
 			result.defaultRunStatus = fallbackRunStatus;
-			result.restHealRatio = 0.25f;
+			result.restHealRatio = 0.30f;
 			result.heavyStackDistancePerStack =
 				HeavyCollisionRules::DefaultDistancePerStack;
 			result.heavyStackGainLimitPerTurn =

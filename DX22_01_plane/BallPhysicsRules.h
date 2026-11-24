@@ -60,6 +60,11 @@ namespace BallPhysicsRules
         return true;
     }
 
+    inline bool HasResidualMotion(const Vector3& velocity)
+    {
+        return velocity.LengthSquared() > 0.0f;
+    }
+
     inline bool PlayerFriction(Vector3& velocity, Vector3& acceleration,
         const BallStatus& status, float friction, int& stopCount, const Vector3* pierceExit = nullptr)
     {
@@ -75,16 +80,14 @@ namespace BallPhysicsRules
             return false;
         }
         const float threshold = status.abilities.anchor ? status.anchorStopSpeedSquared : 0.03f;
-        if (velocity.LengthSquared() < threshold) ++stopCount;
-		else
-		{
-            stopCount = 0;
-            Vector3 deceleration = -velocity;
-            deceleration.Normalize();
-            const float brake = status.abilities.anchor ? status.anchorBrakeMultiplier : 1.0f;
-            acceleration = deceleration * (std::min)(friction * brake, velocity.Length());
-            velocity += acceleration;
-        }
+        const float speedSquared = velocity.LengthSquared();
+        stopCount = speedSquared < threshold ? stopCount + 1 : 0;
+        const float speed = std::sqrt(speedSquared);
+        const float brake = status.abilities.anchor ? status.anchorBrakeMultiplier : 1.0f;
+        const float reduction = (std::min)(friction * brake, speed);
+        const Vector3 previous = velocity;
+        if (speed > 0.0f) velocity *= (speed - reduction) / speed;
+        acceleration = velocity - previous;
         if (stopCount <= 10) return false;
         velocity = acceleration = Vector3::Zero;
         return true;

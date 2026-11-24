@@ -37,7 +37,7 @@ private:
 	ProgressionProfile m_Profile{};
 	int m_ActiveAscension = 0;
 	bool m_PersistentProgressEligible = false;
-	float m_DefaultRestHealRatio = 0.25f;
+	float m_DefaultRestHealRatio = 0.30f;
 	std::vector<std::string> m_LastProgressionUnlocks;
 	bool m_IsRestoringRunSave = false;
 	std::string m_SaveLoadMessage;

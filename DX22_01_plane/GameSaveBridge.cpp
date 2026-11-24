@@ -51,10 +51,7 @@ void Game::RestoreRunSaveSnapshot(GameRunRestoreRequest request)
 		snapshot.phaseProgressionMode);
 
 	m_PersistenceRuntime->ActiveAscension() = snapshot.activeAscension;
-	m_RunController->RestHealRatio() = (std::max)(
-		0.05f,
-		m_PersistenceRuntime->DefaultRestHealRatio() -
-			ProgressionProfile::RestHealPenalty(snapshot.activeAscension));
+	m_RunController->RestHealRatio() = m_PersistenceRuntime->DefaultRestHealRatio();
 	m_RunController->Status() = std::move(snapshot.status);
 	m_RunController->Progress().Restore(std::move(snapshot.progress));
 	m_RunController->Relics() = snapshot.relics;

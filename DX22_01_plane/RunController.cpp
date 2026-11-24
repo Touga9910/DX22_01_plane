@@ -16,7 +16,7 @@ struct RunController::Impl
     std::array<bool, static_cast<std::size_t>(RelicType::Count)> ownedRelics{};
     RunProgressController progress{};
     StageSelector stageSelector{};
-    float restHealRatio = 0.25f;
+    float restHealRatio = 0.30f;
     std::vector<int> shopBallOffers{};
     std::vector<int> shopRelicOffers{};
     std::vector<int> midBossRelicOffers{};

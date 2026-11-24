@@ -142,7 +142,7 @@ void Game::NotifyTraceMovement(
 		m_BattleState->heavyCollisions,
 		reinterpret_cast<std::uintptr_t>(enemy),
 		distance,
-		currentBall->status.abilities.heavyDistanceStacks);
+		AxisStackGeneration::HeavyDistance(currentBall->category, currentBall->status));
 }
 
 int Game::GetPierceMaximumUses() const

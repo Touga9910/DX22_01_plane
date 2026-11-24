@@ -7,6 +7,7 @@
 #include "CushionChargeRules.h"
 #include "HeavyCollisionRules.h"
 #include "PierceTraceRules.h"
+#include "PlayerBallData.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -17,7 +18,6 @@ class BallComponent;
 class Pocket;
 class PlayerBall;
 class TableFrame;
-struct PlayerBallData;
 
 namespace BallShotPrediction
 {
@@ -79,11 +79,13 @@ namespace BallShotPrediction
         int playerShieldRemaining = 0;
         int playerShieldAbsorbed = 0;
 		BallStatus shotStatus{};
+        BallCategory shotCategory = BallCategory::Standard;
 		PierceTraceRules::State pierceTraces{};
 		HeavyCollisionRules::State heavyCollisions{};
 		int heavyCollisionCount = 0;
 		int playerAnchorStacks = 0;
 		int anchorConversionProgress = 0;
+        int anchorNextGrantBonus = 0;
 		int cushionStrongUses = 0;
 		int synergyDamageBonus = 0;
 		bool cushionStrongConsumed = false;
@@ -124,6 +126,7 @@ namespace BallShotPrediction
 		HeavyCollisionRules::State heavyCollisions{};
         int playerAnchorStacks = 0;
 		int anchorConversionProgress = 0;
+        int anchorNextGrantBonus = 0;
         int playerEnemyContacts = 0;
         int enemyEnemyContacts = 0;
         bool hasCurrentBall = false;

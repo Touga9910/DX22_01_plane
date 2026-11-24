@@ -268,7 +268,7 @@ class BalanceConfigurationTests(unittest.TestCase):
         self.assertEqual(player["maxHp"], 50)
         self.assertNotIn("maxHp", player["status"])
         self.assertEqual(player["currentHp"], 50)
-        self.assertEqual(player["restHealRatio"], 0.25)
+        self.assertEqual(player["restHealRatio"], 0.30)
         self.assertEqual(player["heavyStackDistancePerStack"], 40.0)
         self.assertEqual(player["heavyStackGainLimitPerTurn"], 10)
         self.assertNotIn("restHealCooldownBattles", player)
@@ -277,7 +277,7 @@ class BalanceConfigurationTests(unittest.TestCase):
             math.ceil(
                 player["maxHp"] * player["restHealRatio"]
             ),
-            13,
+            15,
         )
         for ball in player["balls"]:
             self.assertNotIn("maxHp", ball["status"])
