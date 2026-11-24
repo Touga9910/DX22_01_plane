@@ -6,6 +6,7 @@
 #pragma execution_character_set("utf-8")
 
 #include <algorithm>
+#include <optional>
 
 using namespace BallCardPresentation;
 
@@ -119,6 +120,8 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		}
 	}
 
+	const int guideIndex = hoveredIndex >= 0 ? hoveredIndex : model.selectedOfferIndex;
+	std::optional<ImVec2> guideAnchor;
 	const auto drawCard = [&](int index)
 	{
 		const PlayerBallData* ball = model.offers[static_cast<std::size_t>(index)];
@@ -139,6 +142,10 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		const ImVec2 cardPosition(
 			slotLeft - (cardSize.x - fixedCardSize.x) * 0.5f,
 			cardBottom - cardSize.y - (hovered ? hoverLift : 0.0f));
+		if (index == guideIndex)
+		{
+			guideAnchor = ImVec2(cardPosition.x + cardSize.x * 0.5f, cardPosition.y);
+		}
 		const BallCardInteraction interaction = DrawBallSelectionCard(
 			*ball,
 			index,
@@ -202,6 +209,11 @@ BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 		if (ImGui::Button("閉じる", ImVec2(-1.0f, 38.0f)))
 			ImGui::CloseCurrentPopup();
 		ImGui::EndPopup();
+	}
+	if (model.selectionInteractive && !intent.confirmSelection && guideAnchor &&
+		!ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+	{
+		DrawTutorialBallChoice(*guideAnchor);
 	}
 
 	ImGui::EndDisabled();

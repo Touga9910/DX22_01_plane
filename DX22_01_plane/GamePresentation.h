@@ -14,12 +14,14 @@
 #include <vector>
 
 class Game;
+struct ImVec2;
 struct CollisionImpactEvent;
 struct AxisResourceChangedEvent;
 struct AxisAbilityResolvedEvent;
 struct EnemyAbilityStateChangedEvent;
 struct ShotResolvedEvent;
 enum class ChargeInterruptReason;
+enum class BattleState;
 struct PlayerBallData;
 struct RelicDefinition;
 
@@ -161,12 +163,9 @@ public:
 private:
 	enum class TutorialStep
 	{
-		Welcome,
-		ChooseAndAim,
-		SetPower,
+		PracticeShot,
 		WatchShot,
 		ReadResult,
-		Complete,
 	};
 
 	struct FloatingFeedback
@@ -316,6 +315,8 @@ private:
 	void CompleteTutorial();
 	void SaveTutorialProgress() const;
 	void DrawTutorial(Game& game);
+	void DrawTutorialBallChoice(ImVec2 cardTopCenter);
+	void DrawTutorialShotHint(BattleState state);
 	void DrawFeedback(Game& game);
 	void DrawScreenFlashes(Game& game);
 	void DrawWorldFeedback(Game& game);
@@ -354,7 +355,7 @@ private:
 	bool m_TutorialCompleted = false;
 	bool m_TutorialActive = false;
 	bool m_TutorialReplay = false;
-	TutorialStep m_TutorialStep = TutorialStep::Welcome;
+	TutorialStep m_TutorialStep = TutorialStep::PracticeShot;
 	int m_PreviousBattleState = -1;
 	bool m_DashboardOpen = false;
 	float m_ImpactFlashLifetime = 0.0f;

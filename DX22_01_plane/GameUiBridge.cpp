@@ -90,7 +90,8 @@ void Game::DrawBallSelectionUI()
 	model.selectedHoldIndex = GetHeldBallOfferIndex();
 	model.handHiddenRatio = m_BallSelectionState->HandHiddenRatio();
 	model.selectionInteractive =
-		m_BallSelectionState->IsSelectionInteractive();
+		m_BallSelectionState->IsSelectionInteractive() &&
+		!IsPaused() && !IsDebugEditorOpen();
 	const int offerCount = GetBallOfferCount();
 	model.offers.reserve(static_cast<std::size_t>(offerCount));
 	model.effectiveAttacks.reserve(static_cast<std::size_t>(offerCount));
