@@ -1,17 +1,20 @@
 #include "common.hlsl"
 
+/// <summary>
+/// 頂点をクリップ空間へ変換し、法線と光源から求めた色と元のUV座標をピクセルシェーダーへ渡す。
+/// </summary>
 PS_IN main(in VS_IN input)
 {
     PS_IN output;
 
-	// 位置================================
+	// 頂点位置の変換
 	// ワールド、ビュー、プロジェクション行列を掛け合わせて座標変換を行う
 	matrix wvp;
 	wvp = mul(World, View);
 	wvp = mul(wvp, Projection);
     output.pos = mul(input.pos, wvp);
 	
-	// 色==================================
+	// 光源を反映した頂点色の計算
 	// 法線ベクトルの変換と正規化を行う
 	// 入力された法線をワールド空間に変換し、正規化する
     float4 normal = float4(input.nrm.xyz, 0.0);	//入力法線をfloat4に変換(w=0)
@@ -28,7 +31,7 @@ PS_IN main(in VS_IN input)
     output.col.xyz += Material.Emission.xyz;	// 自己発光色を加算
     output.col.a = input.col.a * Material.Diffuse.a; // アルファ値にマテリアルの値をかける
 	
-	// テクスチャ==========================
+	// UV座標の受け渡し
 	// テクスチャ座標はそのまま使用
     output.tex = input.tex;
 	

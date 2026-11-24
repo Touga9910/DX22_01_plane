@@ -7,10 +7,6 @@
 typedef enum
 {
 	SOUND_LABEL_BGM000 = 0,		// サンプルBGM
-	//SOUND_LABEL_BGM001,		// BGM
-	//SOUND_LABEL_SE000,		// SE
-	//SOUND_LABEL_SE001,		// SE
-
 	SOUND_LABEL_MAX,			// 登録されているサウンド数。配列サイズとして使用する
 } SOUND_LABEL;
 
@@ -33,9 +29,6 @@ private:
 	PARAM m_param[SOUND_LABEL_MAX] =
 	{
 		{"asset/BGM/sample000.wav", true},	// サンプルBGM。ループ再生する
-		//		{"asset/BGM/○○○.wav", true},		// BGM
-		//		{"asset/SE/○○○.wav", false},  	// SE。ループ再生しない
-		//		{"asset/SE/○○○.wav", false},		// SE。ループ再生しない
 	};
 
 	// -------------------------

@@ -32,6 +32,9 @@ void Ground::Awake()
     }
 }
 
+/// <summary>
+/// 盤面の頂点をワールド座標に変換し、その一覧を返す。
+/// </summary>
 std::vector<VERTEX_3D> Ground::GetVertices()
 {
     std::vector<VERTEX_3D> result;

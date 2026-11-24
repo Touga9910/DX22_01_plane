@@ -1,9 +1,9 @@
 #include	"Shader.h"
 #include	"renderer.h"
 
-//=======================================
-// Shader creation
-//=======================================
+/// <summary>
+/// 指定されたファイルから頂点シェーダー、入力レイアウト、ピクセルシェーダーを作成する。
+/// </summary>
 void Shader::Create(std::string vs, std::string ps)
 {
 	CreateChecked(vs, ps);
@@ -15,7 +15,7 @@ bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
 	m_pPixelShader.Reset();
 	m_pVertexLayout.Reset();
 
-	// Vertex input layout. Keep this synchronized with VERTEX_3D and HLSL input.
+	// 頂点入力レイアウトをVERTEX_3DとHLSLの入力定義に合わせる。
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,		0,	D3D11_APPEND_ALIGNED_ELEMENT,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -26,7 +26,7 @@ bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
 
 	unsigned int numElements = ARRAYSIZE(layout);
 
-	// Create the vertex shader and its input layout from the same bytecode.
+	// 同じバイトコードから頂点シェーダーと入力レイアウトを作成する。
 	HRESULT hr = Renderer::CreateVertexShader(
 		&m_pVertexShader,
 		&m_pVertexLayout,
@@ -44,7 +44,7 @@ bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
 		return false;
 	}
 
-	// Create the pixel shader.
+	// ピクセルシェーダーを作成する。
 
 	hr = Renderer::CreatePixelShader(
 		&m_pPixelShader,
@@ -65,9 +65,9 @@ bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
 	return true;
 }
 
-//=======================================
-// Bind shader objects to the GPU pipeline.
-//=======================================
+/// <summary>
+/// このオブジェクトのシェーダーと頂点入力レイアウトを描画パイプラインに設定する。
+/// </summary>
 void Shader::SetGPU()
 {
 	ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();

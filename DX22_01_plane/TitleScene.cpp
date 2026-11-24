@@ -18,19 +18,25 @@
 #include "ProgressionProfile.h"
 #include "imgui/imgui.h"
 
-// コンストラクタ
+/// <summary>
+/// タイトル画面を初期化する。
+/// </summary>
 TitleScene::TitleScene()
 {
 	Init();
 }
 
-// デストラクタ
+/// <summary>
+/// タイトル画面の終了処理を行う。
+/// </summary>
 TitleScene::~TitleScene()
 {
 	Uninit();
 }
 
-// 初期化
+/// <summary>
+/// セーブとロゴの情報を取得し、タイトル画面に表示するビリヤード台を生成する。
+/// </summary>
 void TitleScene::Init()
 {
 	m_CanContinue = GameView::CaptureTitle().validRunSave;
@@ -41,7 +47,9 @@ void TitleScene::Init()
     m_Logo=std::filesystem::exists("assets/UI/Title/logo.png");
 }
 
-// 更新
+/// <summary>
+/// タイトルの演出を更新し、メニュー入力に応じてランの開始・再開、設定、終了確認を処理する。
+/// </summary>
 void TitleScene::Update()
 {
     if(!GameRuntime::World().Contains(m_Table))return;
@@ -190,7 +198,9 @@ void TitleScene::DrawProgressionUI()
 }
 
 
-// 終了処理
+/// <summary>
+/// ビリヤード台の終了処理を行い、登録したタイトル画面のオブジェクトを削除する。
+/// </summary>
 void TitleScene::Uninit()
 {
     if(GameRuntime::World().Contains(m_Table))m_Table->Release();

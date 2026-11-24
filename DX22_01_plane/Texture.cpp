@@ -3,7 +3,9 @@
 #include	"stb_image.h"
 #include	"renderer.h"
 
-// テクスチャをロード
+/// <summary>
+/// 画像ファイルをRGBAにデコードし、ピクセルシェーダーから参照するためのテクスチャを作成する。
+/// </summary>
 bool Texture::Load(const std::string& filename)
 {
 	bool sts = true;
@@ -26,7 +28,7 @@ bool Texture::Load(const std::string& filename)
 	desc.Height = m_height;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;			// RGBA
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;			// 赤、緑、青、アルファを各8ビットで格納する形式
 	desc.SampleDesc.Count = 1;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -34,7 +36,7 @@ bool Texture::Load(const std::string& filename)
 
 	D3D11_SUBRESOURCE_DATA subResource{};
 	subResource.pSysMem = pixels;
-	subResource.SysMemPitch = desc.Width * 4;			// RGBAは1ピクセルあたり4バイト
+	subResource.SysMemPitch = desc.Width * 4;			// RGBA画像の1行分のバイト数
 	subResource.SysMemSlicePitch = 0;
 
 	ID3D11Device* device = Renderer::GetDevice();
@@ -61,7 +63,9 @@ bool Texture::Load(const std::string& filename)
 	return true;
 }
 
-// テクスチャをメモリからロード
+/// <summary>
+/// メモリ上の画像データをRGBAにデコードし、ピクセルシェーダーから参照するためのテクスチャを作成する。
+/// </summary>
 bool Texture::LoadFromFemory(const unsigned char* Data, int len) {
 
 	bool sts = true;
@@ -85,7 +89,7 @@ bool Texture::LoadFromFemory(const unsigned char* Data, int len) {
 	desc.Height = m_height;
 	desc.MipLevels = 1;
 	desc.ArraySize = 1;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;			// RGBA
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;			// 赤、緑、青、アルファを各8ビットで格納する形式
 	desc.SampleDesc.Count = 1;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -93,7 +97,7 @@ bool Texture::LoadFromFemory(const unsigned char* Data, int len) {
 
 	D3D11_SUBRESOURCE_DATA subResource{};
 	subResource.pSysMem = pixels;
-	subResource.SysMemPitch = desc.Width * 4;			// RGBAは1ピクセルあたり4バイト
+	subResource.SysMemPitch = desc.Width * 4;			// RGBA画像の1行分のバイト数
 	subResource.SysMemSlicePitch = 0;
 
 	ID3D11Device* device = Renderer::GetDevice();
@@ -117,7 +121,9 @@ bool Texture::LoadFromFemory(const unsigned char* Data, int len) {
 	return true;
 }
 
-// テクスチャをGPUにセット
+/// <summary>
+/// テクスチャのリソースビューをピクセルシェーダーのスロット0に設定する。
+/// </summary>
 void Texture::SetGPU()
 {
 	ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();

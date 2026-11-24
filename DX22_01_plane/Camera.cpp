@@ -11,20 +11,24 @@ namespace
 	constexpr float CameraRadius = 50.0f;	//カメラの回転時半径
 }
 
-//コンストラクタ
+/// <summary>
+/// カメラを生成し、各メンバーを宣言時の初期値で初期化する。
+/// </summary>
 Camera::Camera()
 {
 	//必要ならば初期化処理を
 }
 
-//デストラクタ
+/// <summary>
+/// カメラを破棄する。
+/// </summary>
 Camera::~Camera()
 {
 }
 
-//=======================================
-//初期化処理
-//=======================================
+/// <summary>
+/// カメラの初期位置、注視点、水平角と高さを設定する。
+/// </summary>
 void Camera::Init()
 {
 	m_Position = Vector3(0.0f, 20.0f, -50.0f);	// カメラがどの位置にいるのか （X,Y,Z）
@@ -37,19 +41,18 @@ void Camera::Init()
 }
 
 
-//=======================================
-//更新処理
-//=======================================
+/// <summary>
+/// 現在の注視点を基準にカメラの位置を更新し、ビュー行列を再計算する。
+/// </summary>
 void Camera::Update()
 {
-	//オブジェクトとカメラの編集を同時に行わない ＝ どちらかを編集するときはもう片方は触らない
 	RefreshPosition();	// カメラの位置を更新
 	UpdateViewMatrix(); // ビュー行列の更新
 }
 
-//=======================================
-//更新処理(追従)
-//=======================================
+/// <summary>
+/// 指定位置を注視点に設定し、カメラの位置とビュー行列を更新する。
+/// </summary>
 void Camera::Update(const Vector3& targetPos)
 {
 	// 視線はキャラクターに向ける
@@ -62,9 +65,9 @@ void Camera::Update(const Vector3& targetPos)
 	UpdateViewMatrix();
 }
 
-//=======================================
-//描画処理
-//=======================================
+/// <summary>
+/// 2Dまたは3D描画のビュー行列と射影行列を設定し、3D描画では指定された上書き設定を優先する。
+/// </summary>
 void Camera::SetCamera(int mode)
 {
     if (mode == 0 && RenderViewOverride::current)
@@ -122,24 +125,26 @@ void Camera::SetCamera(int mode)
 }
 
 
-//=======================================
-//終了処理
-//=======================================
+/// <summary>
+/// ゲーム終了時のカメラの後処理として呼び出される。
+/// </summary>
 void Camera::Uninit()
 {
 
 }
 
-//=======================================
-//カメラ追従の設定
-//=======================================
+/// <summary>
+/// カメラの位置と注視点から左手系のビュー行列を計算する。
+/// </summary>
 void Camera::UpdateViewMatrix()
 {
 	Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
 	m_ViewMatrix = DirectX::XMMatrixLookAtLH(m_Position, m_Target, up);
 }
 
-//カメラのターゲットを設定
+/// <summary>
+/// 注視点を設定し、その点を見下ろす位置にカメラを移動する。
+/// </summary>
 void Camera::SetTarget(DirectX::SimpleMath::Vector3 target)
 {
 	//カメラの注視点を更新
@@ -148,6 +153,9 @@ void Camera::SetTarget(DirectX::SimpleMath::Vector3 target)
 	RefreshPosition();
 }
 
+/// <summary>
+/// 注視点からの高さを設定し、見下ろしカメラの位置を更新する。
+/// </summary>
 void Camera::SetDistanceY(float dist)
 {
 	m_CameraDistanceY = dist;

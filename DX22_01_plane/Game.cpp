@@ -86,6 +86,9 @@ namespace
 
 Game* Game::m_Instance;
 
+/// <summary>
+/// ゲームの実行状態を初期化し、戦闘シーンを生成する準備をする。
+/// </summary>
 Game::Game()
 	: m_RuntimeState(std::make_unique<GameRuntimeState>())
 	, m_Camera(Camera::GetInstance())
@@ -110,12 +113,18 @@ Game::Game()
 	InitializeBattleSceneFactory();
 }
 
+/// <summary>
+/// 現在のシーンを破棄し、管理中のゲームオブジェクトをすべて解放する。
+/// </summary>
 Game::~Game()
 {
 	m_RuntimeState->ResetScene();
 	DeleteAllGameObjects();
 }
 
+/// <summary>
+/// 描画、入力、カメラなどを初期化し、設定や保存データを読み込んでタイトルシーンを開始する。
+/// </summary>
 void Game::Init()
 {
 	// 静的インスタンスをここで1つだけ生成
@@ -170,6 +179,9 @@ void Game::Init()
 	}
 }
 
+/// <summary>
+/// 入力を読み取り、シーンや固定刻みの物理を更新して戦闘結果を処理する。
+/// </summary>
 void Game::Update(double elapsedSeconds)
 {
 	using TimingClock = std::chrono::steady_clock;
@@ -404,6 +416,9 @@ void Game::UpdateSceneCamera()
 	m_Camera.Update();
 }
 
+/// <summary>
+/// ゲームワールドと各種UIを描画し、シーン遷移時はフェードを重ねる。
+/// </summary>
 void Game::Draw()
 {
 	Renderer::DrawStart();
@@ -481,6 +496,9 @@ void Game::Draw()
 	// Application owns ImGui rendering and presentation, including detached windows.
 }
 
+/// <summary>
+/// 設定の保存とプレイ記録の終了処理を行い、シーンやゲームのリソースを解放する。
+/// </summary>
 void Game::Uninit()
 {
 	if (m_Instance != nullptr)
@@ -541,6 +559,9 @@ void Game::Uninit()
 	delete m_Instance;
 }
 
+/// <summary>
+/// 共有ゲーム管理オブジェクトへのポインターを返す。
+/// </summary>
 Game* Game::GetInstance()
 {
 	return m_Instance;

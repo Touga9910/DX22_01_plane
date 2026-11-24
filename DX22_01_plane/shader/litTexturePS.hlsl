@@ -3,6 +3,9 @@
 Texture2D g_Texture : register(t0);
 SamplerState g_SamplerState : register(s0);
 
+/// <summary>
+/// 頂点色にマテリアルの拡散色を掛け、テクスチャ使用時はサンプル色を使って出力色を求める。
+/// </summary>
 float4 main(in PS_IN input)  : SV_Target
 {	
     float4 color;
@@ -14,14 +17,9 @@ float4 main(in PS_IN input)  : SV_Target
         color = g_Texture.Sample(g_SamplerState, input.tex);
         color *= input.col;
         color.rgb *= Material.Diffuse.rgb;
-        //color = input.col;
     }
     else
     {
-        /*
-        float4 baseColor = g_Texture.Sample(g_SamplerState, input.tex);
-        color = baseColor * input.col * Material.Diffuse;
-        */
         color = input.col * Material.Diffuse;
     }
 

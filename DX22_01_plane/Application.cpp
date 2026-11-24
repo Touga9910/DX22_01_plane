@@ -28,9 +28,9 @@ bool       Application::m_TestHiddenWindow = false;
 // ImGuiのWin32プロシージャハンドラ(マウス対応)
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-//-----------------------------------------------------------------------------
-// コンストラクタ
-//-----------------------------------------------------------------------------
+/// <summary>
+/// 初期の画面寸法とウィンドウ表示時の寸法を保持し、システムタイマーの分解能を1ミリ秒に設定する。
+/// </summary>
 Application::Application(uint32_t width, uint32_t height)
 { 
     m_Height = height;
@@ -101,17 +101,17 @@ void Application::SetDisplayMode(
         "display_mode_applied", m_hWnd, m_WindowedWidth, m_WindowedHeight, fullscreen);
 }
 
-//-----------------------------------------------------------------------------
-// デストラクタ
-//-----------------------------------------------------------------------------
+/// <summary>
+/// アプリケーションの生成時に設定したタイマー分解能を解除する。
+/// </summary>
 Application::~Application()
 { 
     timeEndPeriod(1); // タイマー精度を元に戻す
 }
 
-//-----------------------------------------------------------------------------
-// 実行
-//-----------------------------------------------------------------------------
+/// <summary>
+/// ウィンドウを初期化し、成功した場合はゲームループを実行して、最後に終了処理を行う。
+/// </summary>
 void Application::Run()
 {
     //初期化
@@ -123,9 +123,9 @@ void Application::Run()
     ApplicationLifecycle::Record("application_completed", m_hWnd);
 }
 
-//-----------------------------------------------------------------------------
-// 初期化処理
-//-----------------------------------------------------------------------------
+/// <summary>
+/// ウィンドウクラスを登録してウィンドウを作成し、非表示テスト時を除いて表示してから初期化の成否を返す。
+/// </summary>
 bool Application::InitApp()
 {
     m_TestHiddenWindow = false;
@@ -179,7 +179,6 @@ bool Application::InitApp()
     // ウィンドウを生成
     m_hWnd = CreateWindowExW(
         0,
-        //        WS_EX_TOPMOST,
         ClassName,
         WindowName,
         style,
@@ -214,9 +213,9 @@ bool Application::InitApp()
 
 }
 
-//-----------------------------------------------------------------------------
-// 終了処理
-//-----------------------------------------------------------------------------
+/// <summary>
+/// ウィンドウクラスの登録を解除し、保存しているハンドルをクリアする。
+/// </summary>
 void Application::UninitApp()
 {
     // ウィンドウの登録を解除
@@ -229,9 +228,9 @@ void Application::UninitApp()
     m_hWnd = nullptr;
 }
 
-//-----------------------------------------------------------------------------
-// メインループ
-//-----------------------------------------------------------------------------
+/// <summary>
+/// ウィンドウのメッセージを処理し、設定した頻度でゲームとImGuiを更新・描画して、FPSをタイトルバーに表示する。
+/// </summary>
 void Application::MainLoop()
 {
     MSG msg = {};
@@ -414,9 +413,9 @@ void Application::MainLoop()
    ApplicationLifecycle::Record("shutdown_completed", m_hWnd);
 }
 
-//-----------------------------------------------------------------------------
-// ウィンドウプロシージャ
-//-----------------------------------------------------------------------------
+/// <summary>
+/// ImGuiと連携し、ウィンドウの終了、アクティブ状態、サイズ変更などのメッセージを処理する。
+/// </summary>
 LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)

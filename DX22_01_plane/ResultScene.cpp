@@ -166,19 +166,25 @@ namespace
 	}
 }
 
-// コンストラクタ
+/// <summary>
+/// リザルト画面を初期化する。
+/// </summary>
 ResultScene::ResultScene()
 {
 	Init();
 }
 
-// デストラクタ
+/// <summary>
+/// リザルト画面のオブジェクトを削除する。
+/// </summary>
 ResultScene::~ResultScene()
 {
 	Uninit();
 }
 
-// 初期化
+/// <summary>
+/// 直前のランの結果を取得・分析し、背景とリザルト表示用の画像を用意する。
+/// </summary>
 void ResultScene::Init()
 {
 	m_Result = GameView::LastRunResult();
@@ -193,21 +199,13 @@ void ResultScene::Init()
 	Texture2D* pt2 = SceneObjectFactory::CreateTexture2D();
 	pt2->SetTexture("assets/texture/resultString.png");
 	pt2->SetScale(700.0f, 100.0f, 0.0f);
-	pt2->SetUV(1, 1, 1, 13);//縦1横13分割の、左から1番目上から5番目を指定
+	pt2->SetUV(1, 1, 1, 13);// 13段に分割した画像の最上段を指定
 	m_SceneGameObjects.emplace_back(pt2->GetGameObject());
-
-	/*
-	// 人オブジェクトを作成
-	Texture2D* pt3 = SceneObjectFactory::CreateTexture2D();
-	pt3->SetTexture("assets/texture/golf_jou_man.png");
-	pt3->SetPosition(-300.0f, 0.0f, 0.0f);
-	pt3->SetScale(361.0f, 400.0f, 0.0f);
-	m_SceneGameObjects.emplace_back(pt3->GetGameObject());
-	*/
-
 }
 
-// 更新
+/// <summary>
+/// 入力に応じて分析表示を切り替え、新しいランの開始やタイトル画面への遷移を処理する。
+/// </summary>
 void ResultScene::Update()
 {
 	if (m_ShowAnalysis)
@@ -482,7 +480,9 @@ void ResultScene::DrawAnalysis()
 	ImGui::TextDisabled("Esc・Backspaceでも戻れます");
 }
 
-// 終了処理
+/// <summary>
+/// 登録したリザルト画面のオブジェクトをゲームから削除し、一覧を空にする。
+/// </summary>
 void ResultScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する
@@ -492,7 +492,9 @@ void ResultScene::Uninit()
 	m_SceneGameObjects.clear();
 }
 
-// スコアを設定
+/// <summary>
+/// パーとの差に応じて、スコア表示用画像の切り出し位置を切り替える。
+/// </summary>
 void ResultScene::SetScore(int c)
 {
 	// リザルト文字列オブジェクト

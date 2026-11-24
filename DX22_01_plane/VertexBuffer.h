@@ -14,6 +14,9 @@ template <typename T> class VertexBuffer{
 	ComPtr<ID3D11Buffer> m_VertexBuffer;
 
 public:
+	/// <summary>
+	/// 既存の頂点バッファを解放し、指定された頂点データからCPUで書き換え可能なバッファを作る。
+	/// </summary>
 	void Create(const std::vector<T>& vertices)
 	{
 		//既存のバッファがある場合は解放（再生成に対応）
@@ -34,7 +37,7 @@ public:
 		bd.MiscFlags = 0;
 		bd.StructureByteStride = 0;
 
-		// 3. 初期データの準備（Subresource Data）
+		// 3. バッファに渡す初期データを準備する。
 		D3D11_SUBRESOURCE_DATA initData = {};
 		initData.pSysMem = vertices.data();
 
@@ -43,7 +46,9 @@ public:
 		assert(SUCCEEDED(hr));
 	}
 
-	// GPUにセット
+	/// <summary>
+	/// 頂点型からストライドを求め、頂点バッファを入力アセンブラーのスロット0に設定する。
+	/// </summary>
 	void SetGPU()
 	{
 		// デバイスコンテキスト取得
@@ -55,7 +60,9 @@ public:
 		devicecontext->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &stride, &offset);
 	}
 
-	// 頂点バッファを書き換える
+	/// <summary>
+	/// 頂点バッファが書き込み可能な場合に、指定された頂点データで上書きする。
+	/// </summary>
 	void Modify(const std::vector<T>& vertices)
 	{
 		//頂点データ書き換え

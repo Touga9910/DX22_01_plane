@@ -63,19 +63,25 @@ namespace
 
 }
 
-// コンストラクタ
+/// <summary>
+/// ステージ選択画面を初期化する。
+/// </summary>
 StageSelectScene::StageSelectScene()
 {
 	Init();
 }
 
-// デストラクタ
+/// <summary>
+/// ステージ選択画面のオブジェクトを削除する。
+/// </summary>
 StageSelectScene::~StageSelectScene()
 {
 	Uninit();
 }
 
-// 初期化
+/// <summary>
+/// 選択可能な経路を取得し、選択位置を先頭に設定する。
+/// </summary>
 void StageSelectScene::Init()
 {
 	m_SelectedNode = 0;
@@ -83,7 +89,9 @@ void StageSelectScene::Init()
 
 }
 
-// 更新
+/// <summary>
+/// 入力に応じて経路の選択を切り替え、確定後の移動演出が終わったらその経路に進む。
+/// </summary>
 void StageSelectScene::Update()
 {
 	if (m_RouteFlight >= 0.0f)
@@ -280,7 +288,9 @@ void StageSelectScene::DrawUI()
     ImGui::EndChild();
 }
 
-// 終了処理
+/// <summary>
+/// 登録したステージ選択画面のオブジェクトをゲームから削除し、一覧を空にする。
+/// </summary>
 void StageSelectScene::Uninit()
 {
 	// このシーンのオブジェクトを削除する

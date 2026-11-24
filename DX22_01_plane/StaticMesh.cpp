@@ -1,6 +1,9 @@
 #include	"StaticMesh.h"
 #include	"AssimpPerse.h"
 
+/// <summary>
+/// モデルを読み込み、描画用の頂点、インデックス、サブセット、マテリアル、テクスチャを格納する。
+/// </summary>
 void StaticMesh::Load(std::string filename, std::string texturedirectory)
 {
 	std::vector<AssimpPerse::SUBSET> subsets{};					// サブセット情報

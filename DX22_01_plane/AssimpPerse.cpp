@@ -19,13 +19,17 @@ namespace AssimpPerse
 	std::vector<MATERIAL> g_materials{};				// マテリアル
 	std::vector<std::unique_ptr<Texture>> g_textures;	// ディフューズテクスチャ群
 
-	// ディフューズTxtureコンテナを返す
+	/// <summary>
+	/// マテリアル用のディフューズテクスチャを、所有権を移して返す。
+	/// </summary>
 	std::vector<std::unique_ptr<Texture>> GetTextures()
 	{
 		return std::move(g_textures);
 	}
 
-	// マテリアル情報をassimpを使用して取得する
+	/// <summary>
+	/// Assimpのシーンからマテリアルの色や光沢を読み取り、内蔵または外部のテクスチャを読み込む。
+	/// </summary>
 	void GetMaterialData(const aiScene* pScene, std::string texturedirectory)
 	{
 		// マテリアル数分テクスチャ格納エリアを用意する
@@ -168,6 +172,9 @@ namespace AssimpPerse
 		}
 	}
 
+	/// <summary>
+	/// モデルを左手座標系の三角形メッシュとして読み込み、頂点、インデックス、サブセット、マテリアルを取得する。
+	/// </summary>
 	void GetModelData(std::string filename, std::string texturedirectory)
 	{
 		//データを一度クリア
@@ -308,22 +315,33 @@ namespace AssimpPerse
 		}
 	}
 
-	// サブセット情報
+	/// <summary>
+	/// 各メッシュの描画範囲とマテリアルを示すサブセット情報を返す。
+	/// </summary>
 	std::vector<SUBSET> GetSubsets()
 	{
 		return g_subsets;
 	}
 
+	/// <summary>
+	/// 読み込んだ頂点データをメッシュ単位で返す。
+	/// </summary>
 	std::vector<std::vector<VERTEX>> GetVertices()
 	{
 		return g_vertices; // 頂点データ（メッシュ単位）
 	}
 
+	/// <summary>
+	/// 読み込んだ三角形のインデックスをメッシュ単位で返す。
+	/// </summary>
 	std::vector<std::vector<unsigned int>> GetIndices()
 	{
 		return g_indices; // インデックスデータ（メッシュ単位）
 	}
 
+	/// <summary>
+	/// 読み込んだマテリアルの色、光沢、テクスチャ名を返す。
+	/// </summary>
 	std::vector<MATERIAL> GetMaterials()
 	{
 		return g_materials; // マテリアル

@@ -40,9 +40,9 @@ ID3D11BlendState* Renderer::m_pBlendStateATC{}; // 特定のアルファテス�
 
 
 
-//--------------------------------------------------------------------------------------
-//初期化処理
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// Direct3Dデバイスとスワップチェーンを作成し、描画に必要なバッファとパイプライン状態を初期化する。
+/// </summary>
 HRESULT Renderer::Init()
 {
 	HRESULT hr = S_OK;
@@ -76,12 +76,6 @@ HRESULT Renderer::Init()
 		&m_pDeviceContext); // 作成されたデバイスコンテキストを受け取るポインタ
 	if (FAILED(hr)) return hr;
 
-	/*
-	hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, NULL, 0, 
-		D3D11_SDK_VERSION, &swapChainDesc, &m_pSwapChain, &m_pDevice, &m_FeatureLevel, &m_pDeviceContext);
-	if (FAILED(hr)) return hr;
-	*/
-
 	// レンダーターゲットビュー・デプスステンシルバッファ・デプスステンシルビュー作成
 	hr = CreateRenderAndDepthResources();
 	if (FAILED(hr)) return hr;
@@ -100,10 +94,7 @@ HRESULT Renderer::Init()
 	// ラスタライザステート設定
 	D3D11_RASTERIZER_DESC rasterizerDesc{};
 	rasterizerDesc.FillMode = D3D11_FILL_SOLID; //ソリッド
-	//rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME; //ワイヤーフレーム
 	rasterizerDesc.CullMode = D3D11_CULL_BACK; //ポリゴン裏をカリング
-	//rasterizerDesc.CullMode = D3D11_CULL_FRONT; //ポリゴン表をカリング
-	//rasterizerDesc.CullMode = D3D11_CULL_NONE; //カリングしない(裏も表も表示される)
 	rasterizerDesc.DepthClipEnable = TRUE;
 	rasterizerDesc.MultisampleEnable = FALSE;
 	ID3D11RasterizerState* rs{};
@@ -128,7 +119,6 @@ HRESULT Renderer::Init()
 	if (FAILED(hr)) return hr;
 
 	// ブレンド ステート生成 (アルファ ブレンド用)
-	//BlendDesc.AlphaToCoverageEnable = TRUE;
 	BlendDesc.RenderTarget[0].BlendEnable = TRUE;
 	hr = m_pDevice->CreateBlendState(&BlendDesc, &m_pBlendState[1]);
 	if (FAILED(hr)) return hr;
@@ -237,9 +227,9 @@ HRESULT Renderer::Init()
 	return S_OK;
 }
 
-//--------------------------------------------------------------------------------------
-// レンダーターゲットビュー・デプスステンシルバッファ・デプスステンシルビュー作成
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// スワップチェーンのバックバッファから描画先のビューを作成し、深度バッファとそのビューを用意する。
+/// </summary>
 HRESULT Renderer::CreateRenderAndDepthResources()
 {
 	// レンダーターゲットビュー作成
@@ -280,9 +270,9 @@ HRESULT Renderer::CreateRenderAndDepthResources()
 	return S_OK;
 }
 
-//--------------------------------------------------------------------------------------
-//終了処理
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// デバイスコンテキストの状態を解除し、描画に使用したDirect3Dリソースを解放する。
+/// </summary>
 void Renderer::Uninit()
 {
 	m_pDeviceContext->ClearState();
@@ -311,9 +301,9 @@ void Renderer::Uninit()
 	SAFE_RELEASE(m_pDevice);
 }
 
-//--------------------------------------------------------------------------------------
-//描画開始
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// フレームの描画先と深度バッファを設定し、指定色と初期深度でそれぞれをクリアする。
+/// </summary>
 void Renderer::DrawStart()
 {
 	// 画面塗りつぶし色
@@ -328,35 +318,35 @@ void Renderer::DrawStart()
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
-//--------------------------------------------------------------------------------------
-//描画終了
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// スワップチェーンで描画済みのバックバッファを画面に表示する。
+/// </summary>
 void Renderer::DrawEnd()
 {
 	// ダブルバッファの切り替えを行い画面を更新する
 	m_pSwapChain->Present(1, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// ライトを設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定された平行光源の情報をGPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetLight(LIGHT Light)
 {
 	// ライトの設定をGPU側へ送る
 	m_pDeviceContext->UpdateSubresource(m_pLightBuffer, 0, NULL, &Light, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// マテリアルを設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定されたマテリアルの情報をGPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetMaterial(MATERIAL Material)
 {
 	m_pDeviceContext->UpdateSubresource(m_pMaterialBuffer, 0, NULL, &Material, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// UV情報を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定された拡縮率と移動量からUV変換行列を作り、GPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetUV(float u, float v, float uw, float vh)
 {
 	//UVの行列作成
@@ -368,9 +358,9 @@ void Renderer::SetUV(float u, float v, float uw, float vh)
 
 
 
-//--------------------------------------------------------------------------------------
-// 深度ステンシルの有効・無効を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定に応じて、深度テストと深度値の書き込みを同時に有効化または無効化する。
+/// </summary>
 void Renderer::SetDepthEnable(bool Enable)
 {
 	if (Enable) 
@@ -385,9 +375,9 @@ void Renderer::SetDepthEnable(bool Enable)
 	}
 }
 
-//--------------------------------------------------------------------------------------
-// アルファテストとカバレッジ（ATC）の有効・無効を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定に応じて、アルファ・トゥ・カバレッジ用または通常のブレンドステートを設定する。
+/// </summary>
 void Renderer::SetATCEnable(bool Enable)
 {
 	// ブレンドファクター（透明度などの調整に使用）
@@ -405,9 +395,9 @@ void Renderer::SetATCEnable(bool Enable)
 	}
 }
 
-//--------------------------------------------------------------------------------------
-//
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// ワールド行列とビュー行列を単位行列にし、左上を原点とする2D描画用の平行投影行列を設定する。
+/// </summary>
 void Renderer::SetWorldViewProjection2D()
 {
 	Matrix world = Matrix::Identity;			// 単位行列にする
@@ -432,9 +422,9 @@ void Renderer::SetWorldViewProjection2D()
 	m_pDeviceContext->UpdateSubresource(m_pProjectionBuffer, 0, NULL, &projection, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// ワールド行列を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定されたワールド行列を転置し、GPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetWorldMatrix(Matrix* WorldMatrix)
 {
 	Matrix world;
@@ -444,9 +434,9 @@ void Renderer::SetWorldMatrix(Matrix* WorldMatrix)
 	m_pDeviceContext->UpdateSubresource(m_pWorldBuffer, 0, NULL, &world, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// ビュー行列を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定されたビュー行列を転置し、GPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetViewMatrix(Matrix* ViewMatrix)
 {
 	Matrix view;
@@ -456,9 +446,9 @@ void Renderer::SetViewMatrix(Matrix* ViewMatrix)
 	m_pDeviceContext->UpdateSubresource(m_pViewBuffer, 0, NULL, &view, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// プロジェクション行列を設定
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定された投影行列を転置し、GPUの定数バッファに転送する。
+/// </summary>
 void Renderer::SetProjectionMatrix(Matrix* ProjectionMatrix)
 {
 	Matrix projection;
@@ -468,9 +458,9 @@ void Renderer::SetProjectionMatrix(Matrix* ProjectionMatrix)
 	m_pDeviceContext->UpdateSubresource(m_pProjectionBuffer, 0, NULL, &projection, 0, 0);
 }
 
-//--------------------------------------------------------------------------------------
-// ウィンドウをリサイズして画面の縦横比を維持する
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// ウィンドウサイズに合わせて描画リソースを作り直し、縦横比を維持するビューポートを設定する。
+/// </summary>
 HRESULT Renderer::ResizeWindow(int width, int height)
 {
 	// スワップチェインが存在しない場合は処理しない
@@ -524,9 +514,9 @@ HRESULT Renderer::ResizeWindow(int width, int height)
 	return S_OK;
 }
 
-//--------------------------------------------------------------------------------------
-// シェーダーをファイル拡張子に合わせてコンパイル
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// HLSLソースを優先してコンパイルし、ソースがなければコンパイル済みのバイトコードを読み込む。
+/// </summary>
 HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, void** ppShaderObject, int* pShaderObjectSize)
 {
 	if (!szFileName || !szEntryPoint || !szShaderModel ||
@@ -577,8 +567,8 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 	}
 
 	FILE* fp = nullptr;
-	// HLSL is authoritative while present. Use CSO only in packaged builds
-	// without source, so a stale CSO cannot override a changed input signature.
+	// HLSLソースを優先し、ソースを含まない配布ビルドでCSOを使う。
+	// これにより、古いCSOが更新された頂点入力の定義より優先されるのを防ぐ。
 	int ret = !hlslPath.empty() ? ENOENT : fopen_s(&fp, csoPath.string().c_str(), "rb");
 	if (ret == 0)
 	{
@@ -606,7 +596,7 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 		*ppShaderObject = byteArray;
 		*pShaderObjectSize = size;
 	}
-	//csoファイルがなければhlslファイルをコンパイルする
+	// HLSLソースをコンパイルする。
 	else
 	{
 		HRESULT hr = S_OK;
@@ -651,8 +641,6 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 				MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error", MB_OK);
 			}
 			
-			//if (pErrorBlob) pErrorBlob->Release();
-			//if (pBlob)(pBlob)->Release();
 			SAFE_RELEASE(pErrorBlob);
 			SAFE_RELEASE(pBlob);
 
@@ -663,7 +651,6 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 		if (pErrorBlob) pErrorBlob->Release();
 
 		// コンパイル成功時のバイナリデータを呼び出し元に渡す
-		//*ppShaderObject = (pBlob)->GetBufferPointer();
 		*pShaderObjectSize = (int)(pBlob)->GetBufferSize();
 		unsigned char* byteArray = new unsigned char[*pShaderObjectSize];
 		memcpy(byteArray, pBlob->GetBufferPointer(), *pShaderObjectSize);
@@ -674,9 +661,9 @@ HRESULT Renderer::CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPC
 	return S_OK;
 }
 
-//--------------------------------------------------------------------------------------
-// 頂点シェーダーオブジェクトを生成する
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// シェーダーのバイトコードと頂点要素の定義から、頂点シェーダーと入力レイアウトを作成する。
+/// </summary>
 HRESULT Renderer::CreateVertexShader(ID3D11VertexShader** ppVertexShader, ID3D11InputLayout** ppVertexLayout, D3D11_INPUT_ELEMENT_DESC* pLayout, unsigned int numElements, const char* szFileName)
 {
 	if (!m_pDevice || !ppVertexShader || !ppVertexLayout ||
@@ -710,9 +697,9 @@ HRESULT Renderer::CreateVertexShader(ID3D11VertexShader** ppVertexShader, ID3D11
 	return hr;
 }
 
-//--------------------------------------------------------------------------------------
-// ピクセルシェーダーオブジェクトを生成する
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// シェーダーのバイトコードからピクセルシェーダーを作成する。
+/// </summary>
 HRESULT Renderer::CreatePixelShader(ID3D11PixelShader** ppPixelShader, const char* szFileName)
 {
 	if (!m_pDevice || !ppPixelShader) return E_INVALIDARG;
@@ -731,9 +718,9 @@ HRESULT Renderer::CreatePixelShader(ID3D11PixelShader** ppPixelShader, const cha
 	return hr;
 }
 
-//--------------------------------------------------------------------------------------
-//頂点バッファを作成(CPU書き込み可能)
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定された頂点データを初期値に、CPUから書き換え可能な頂点バッファを作成する。
+/// </summary>
 bool Renderer::CreateVertexBufferWrite(
 	unsigned int stride,				// １頂点当たりバイト数
 	unsigned int vertexnum,				// 頂点数
@@ -762,9 +749,9 @@ bool Renderer::CreateVertexBufferWrite(
 
 	return true;
 }
-//--------------------------------------------------------------------------------------
-//コンスタントバッファを作成
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定のサイズで、GPUが使用する既定の定数バッファを作成する。
+/// </summary>
 bool Renderer::CreateConstantBuffer(
 	unsigned int bytesize,					// コンスタントバッファサイズ
 	ID3D11Buffer** pConstantBuffer) {			// コンスタントバッファ
@@ -786,9 +773,9 @@ bool Renderer::CreateConstantBuffer(
 
 	return true;
 }
-//--------------------------------------------------------------------------------------
-//コンスタントバッファを作成(CPU書き込み可能)
-//--------------------------------------------------------------------------------------
+/// <summary>
+/// 指定のサイズで、CPUから書き換え可能な定数バッファを作成する。
+/// </summary>
 bool Renderer::CreateConstantBufferWrite(
 	unsigned int bytesize,					// コンスタントバッファサイズ
 	ID3D11Buffer** pConstantBuffer) {			// コンスタントバッファ

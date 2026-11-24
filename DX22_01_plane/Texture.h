@@ -17,7 +17,7 @@ class Texture
 
 	int m_width; // •
 	int m_height; // ‚‚³
-	int m_bpp; // BPP
+	int m_bpp; // “Ç‚İ‚ñ‚¾‰æ‘œ‚ÌF¬•ª”
 public:
 	bool Load(const std::string& filename);
 	bool LoadFromFemory(const unsigned char* data,int len);

@@ -17,9 +17,9 @@
 #define fourccDPDS 'sdpd'
 #endif
 
-//=============================================================================
-// 初期化
-//=============================================================================
+/// <summary>
+/// XAudio2を初期化し、登録済みのWAVファイルを読み込んで再生用のバッファとボイスを用意する。
+/// </summary>
 HRESULT Sound::Init()
 {
 	HRESULT hr;
@@ -38,7 +38,6 @@ HRESULT Sound::Init()
 
 	/**** XAudio2を生成する ****/
 	hr = XAudio2Create(&m_pXAudio2, 0);		// 第二引数は､動作フラグ デバッグモードの指定(現在は未使用なので0にする)
-	//hr=XAudio2Create(&g_pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);		// 第三引数は、windowsでは無視
 	if (FAILED(hr)) {
 		CoUninitialize();
 		return -1;
@@ -46,7 +45,6 @@ HRESULT Sound::Init()
 
 	/**** マスタリングボイスを生成する ****/
 	hr = m_pXAudio2->CreateMasteringVoice(&m_pMasteringVoice);			// 今回はＰＣのデフォルト設定に任せている
-	/*, XAUDIO2_DEFAULT_CHANNELS, XAUDIO2_DEFAULT_SAMPLERATE, 0, 0, NULL*/		// 本当６個の引数を持っている
 	if (FAILED(hr)) {
 		if (m_pXAudio2)	m_pXAudio2->Release();
 		CoUninitialize();
@@ -68,7 +66,7 @@ HRESULT Sound::Init()
 			return HRESULT_FROM_WIN32(GetLastError());
 		}
 
-		// ファイル形式を確認する。fourccWAVEまたは「XWMA」でなければならない。
+		// RIFFチャンクからファイル形式を読み取り、WAVE形式か確認する
 		FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkPosition);
 		ReadChunkData(hFile, &filetype, sizeof(DWORD), dwChunkPosition);
 		if (filetype != fourccWAVE)		return S_FALSE;
@@ -98,9 +96,9 @@ HRESULT Sound::Init()
 	return hr;
 }
 
-//=============================================================================
-// 開放処理
-//=============================================================================
+/// <summary>
+/// 音声の再生を止め、バッファ、各ボイス、XAudio2、COMのリソースを解放する。
+/// </summary>
 void Sound::Uninit(void)
 {
 	for (int i = 0; i < SOUND_LABEL_MAX; i++)
@@ -122,9 +120,9 @@ void Sound::Uninit(void)
 	CoUninitialize();
 }
 
-//=============================================================================
-// 再生
-//=============================================================================
+/// <summary>
+/// 指定した音声のソースボイスを作り直し、バッファをキューに入れて再生する。
+/// </summary>
 void Sound::Play(SOUND_LABEL label)
 {
 	IXAudio2SourceVoice*& pSV = m_pSourceVoice[(int)label];
@@ -144,9 +142,9 @@ void Sound::Play(SOUND_LABEL label)
 
 }
 
-//=============================================================================
-// 停止
-//=============================================================================
+/// <summary>
+/// 指定した音声のソースボイスにバッファが残っていれば、再生を停止する。
+/// </summary>
 void Sound::Stop(SOUND_LABEL label)
 {
 	if (m_pSourceVoice[(int)label] == NULL) return;
@@ -159,9 +157,9 @@ void Sound::Stop(SOUND_LABEL label)
 	}
 }
 
-//=============================================================================
-// 一時停止
-//=============================================================================
+/// <summary>
+/// 指定した音声のソースボイスの再生を再開する。
+/// </summary>
 void Sound::Resume(SOUND_LABEL label)
 {
 	IXAudio2SourceVoice*& pSV = m_pSourceVoice[(int)label];
@@ -170,9 +168,9 @@ void Sound::Resume(SOUND_LABEL label)
 
 
 
-//=============================================================================
-// ユーティリティ関数群
-//=============================================================================
+/// <summary>
+/// RIFFファイル内から指定された識別子のチャンクを探し、サイズとデータ開始位置を返す。
+/// </summary>
 HRESULT Sound::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& dwChunkDataPosition)
 {
 	HRESULT hr = S_OK;
@@ -216,6 +214,9 @@ HRESULT Sound::FindChunk(HANDLE hFile, DWORD fourcc, DWORD& dwChunkSize, DWORD& 
 	return S_OK;
 }
 
+/// <summary>
+/// 指定したファイル位置から所定のバイト数を読み込み、出力バッファに格納する。
+/// </summary>
 HRESULT Sound::ReadChunkData(HANDLE hFile, void* buffer, DWORD buffersize, DWORD bufferoffset)
 {
 	HRESULT hr = S_OK;

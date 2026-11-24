@@ -13,17 +13,23 @@ public:
     ~Application();
     void Run();
 
-    // 幅を取得
+    /// <summary>
+    /// アプリケーションに設定されたウィンドウの幅を返す。
+    /// </summary>
     static uint32_t GetWidth() {
         return m_Width;
     }
 
-    // 高さを取得
+    /// <summary>
+    /// アプリケーションに設定されたウィンドウの高さを返す。
+    /// </summary>
     static uint32_t GetHeight() {
         return m_Height;
     }
 
-    // ウインドウハンドルを返す
+    /// <summary>
+    /// アプリケーションが使用するウィンドウのハンドルを返す。
+    /// </summary>
     static HWND GetWindow() {
         return m_hWnd;
     }

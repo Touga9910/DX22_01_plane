@@ -119,14 +119,19 @@ public:
 	static void SetViewMatrix(DirectX::SimpleMath::Matrix* ViewMatrix);
 	static void SetProjectionMatrix(DirectX::SimpleMath::Matrix* ProjectionMatrix);
 
+	/// <summary>
+	/// レンダラーが保持するDirect3Dデバイスを返す。
+	/// </summary>
 	static ID3D11Device* GetDevice( void ){ return m_pDevice; }
+	/// <summary>
+	/// レンダラーが保持するDirect3Dデバイスコンテキストを返す。
+	/// </summary>
 	static ID3D11DeviceContext* GetDeviceContext( void ){ return m_pDeviceContext; }
 
 	static HRESULT CompileShader(const char* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, void** ppShaderObject, int* pShaderObjectSize);
 	static HRESULT CreateVertexShader(ID3D11VertexShader** ppVertexShader, ID3D11InputLayout** ppVertexLayout, D3D11_INPUT_ELEMENT_DESC* pLayout, unsigned int numElements, const char* szFileName);
 	static HRESULT CreatePixelShader(ID3D11PixelShader** PixelShader, const char* FileName);
 
-	//static bool CreateIndexBuffer(unsigned int indexnum, void* indexdata, ID3D11Buffer** pIndexBuffer);
 	static bool CreateVertexBuffer(unsigned int stride, unsigned int vertexnum, void* vertexdata, ID3D11Buffer** pVertexBuffer);
 	static bool CreateVertexBufferWrite(unsigned int stride, unsigned int vertexnum, void* vertexdata, ID3D11Buffer** pVertexBuffer);
 
@@ -137,9 +142,9 @@ public:
 	static void SetMaterial(MATERIAL Material);	//マテリアル追加時に追記
 	static void SetUV(float u, float v, float uw, float vh);
 
-	//=============================================================================
-	// ブレンド ステート設定
-	//=============================================================================
+	/// <summary>
+	/// 指定されたブレンドステート番号が範囲内の場合に、対応する合成設定を適用する。
+	/// </summary>
 	static void SetBlendState(int nBlendState)
 	{
 		if (nBlendState >= 0 && nBlendState < MAX_BLENDSTATE) {

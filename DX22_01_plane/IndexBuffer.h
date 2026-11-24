@@ -15,6 +15,9 @@ class IndexBuffer {
 	ComPtr<ID3D11Buffer> m_IndexBuffer;
 
 public:
+	/// <summary>
+	/// 既存のインデックスバッファを解放し、指定されたインデックスから作り直す。
+	/// </summary>
 	void Create(const std::vector<unsigned int>& indices)
 	{
 		// 既存のバッファがある場合は解放（再生成に対応）
@@ -42,6 +45,9 @@ public:
 		
 	}
 
+	/// <summary>
+	/// インデックスバッファを32ビット符号なし整数形式で入力アセンブラーに設定する。
+	/// </summary>
 	void SetGPU()
 	{
 		// デバイスコンテキスト取得

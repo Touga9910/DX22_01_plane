@@ -1,5 +1,8 @@
 #include "common.hlsl"
 
+/// <summary>
+/// 頂点をクリップ空間へ変換し、UV変換行列を適用した座標と頂点色をピクセルシェーダーへ渡す。
+/// </summary>
 PS_IN main(in VS_IN input)
 {
     PS_IN output;
@@ -18,7 +21,6 @@ PS_IN main(in VS_IN input)
     uv = mul(uv, matrixTex);    //UV座標と移動行列を掛け算
     output.tex = uv.xy;         //掛け算の結果を送信用変数にセット
    
-    //output.tex = input.tex;
     output.col = input.col;
 	
     return output;

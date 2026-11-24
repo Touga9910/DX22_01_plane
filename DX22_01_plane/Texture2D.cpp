@@ -9,6 +9,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 2D描画用の四角形の頂点とインデックスを定義し、バッファとシェーダー、マテリアルを準備する。
+/// </summary>
 void Texture2D::Awake()
 {
 	m_Vertices.resize(4);
@@ -44,6 +47,9 @@ void Texture2D::Awake()
 	m_Material->Create(material);
 }
 
+/// <summary>
+/// 2Dカメラとオブジェクトの変換、UV範囲を設定し、テクスチャを貼った四角形を描画する。
+/// </summary>
 void Texture2D::Draw()
 {
 	Camera* camera = &GameRuntime::MainCamera();
@@ -80,17 +86,26 @@ void Texture2D::Draw()
 		0);
 }
 
+/// <summary>
+/// 指定された画像ファイルを読み込み、描画に使用するテクスチャに設定する。
+/// </summary>
 void Texture2D::SetTexture(const char* imageName)
 {
 	const bool loaded = m_Texture.Load(imageName);
 	assert(loaded);
 }
 
+/// <summary>
+/// X、Y、Zの各座標を指定して、四角形の位置を設定する。
+/// </summary>
 void Texture2D::SetPosition(float x, float y, float z)
 {
 	SetPosition(Vector3(x, y, z));
 }
 
+/// <summary>
+/// 指定された位置ベクトルを変換コンポーネントに設定する。
+/// </summary>
 void Texture2D::SetPosition(const Vector3& position)
 {
 	if (TransformComponent* transform = GetTransform())
@@ -99,11 +114,17 @@ void Texture2D::SetPosition(const Vector3& position)
 	}
 }
 
+/// <summary>
+/// X、Y、Z各軸の回転角を度単位で指定する。
+/// </summary>
 void Texture2D::SetRotation(float x, float y, float z)
 {
 	SetRotation(Vector3(x, y, z));
 }
 
+/// <summary>
+/// 度単位の回転ベクトルをクォータニオンに変換し、変換コンポーネントに設定する。
+/// </summary>
 void Texture2D::SetRotation(const Vector3& rotationDegrees)
 {
 	if (TransformComponent* transform = GetTransform())
@@ -119,11 +140,17 @@ void Texture2D::SetRotation(const Vector3& rotationDegrees)
 	}
 }
 
+/// <summary>
+/// X、Y、Zの各軸に適用する拡縮率を指定する。
+/// </summary>
 void Texture2D::SetScale(float x, float y, float z)
 {
 	SetScale(Vector3(x, y, z));
 }
 
+/// <summary>
+/// 指定された拡縮ベクトルを変換コンポーネントに設定する。
+/// </summary>
 void Texture2D::SetScale(const Vector3& scale)
 {
 	if (TransformComponent* transform = GetTransform())
@@ -132,6 +159,9 @@ void Texture2D::SetScale(const Vector3& scale)
 	}
 }
 
+/// <summary>
+/// テクスチャの分割数と、描画に使う区画のUV番号を設定する。
+/// </summary>
 void Texture2D::SetUV(
 	float numberU,
 	float numberV,

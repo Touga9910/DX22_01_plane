@@ -3,6 +3,9 @@
 
 Input* Input::m_Instance = {};
 
+/// <summary>
+/// 入力管理のインスタンスを生成し、振動の残り時間とマウス座標の初期値を設定する。
+/// </summary>
 void Input::Create()
 {
 	if (m_Instance)return;
@@ -15,6 +18,9 @@ void Input::Create()
 	m_Instance->mousePos_old = m_Instance->mousePos;
 }
 
+/// <summary>
+/// 前フレームの入力を保存し、キーボード、マウス、コントローラーの最新状態と振動の残り時間を更新する。
+/// </summary>
 void Input::Update()
 {
 	for (int i = 0; i < 256; i++) { m_Instance->keyState_old[i] = m_Instance->keyState[i]; }
@@ -40,6 +46,9 @@ void Input::Update()
 	}
 }
 
+/// <summary>
+/// コントローラーの振動を止め、入力管理のインスタンスを解放する。
+/// </summary>
 void Input::Release()
 {
 	//振動を終了させる
@@ -57,21 +66,31 @@ void Input::Release()
 	}
 }
 
-//キー入力
-bool Input::GetKeyPress(int key) //プレス
+/// <summary>
+/// 指定したキーが現在押されているかを返す。
+/// </summary>
+bool Input::GetKeyPress(int key)
 {
 	return m_Instance->keyState[key] & 0x80;
 }
-bool Input::GetKeyTrigger(int key) //トリガー
+/// <summary>
+/// 指定したキーがこのフレームで押されたかを返す。
+/// </summary>
+bool Input::GetKeyTrigger(int key)
 {
 	return (m_Instance->keyState[key] & 0x80) && !(m_Instance->keyState_old[key] & 0x80);
 }
-bool Input::GetKeyRelease(int key) //リリース
+/// <summary>
+/// 指定したキーがこのフレームで離されたかを返す。
+/// </summary>
+bool Input::GetKeyRelease(int key)
 {
 	return !(m_Instance->keyState[key] & 0x80) && (m_Instance->keyState_old[key] & 0x80);
 }
 
-//左アナログスティック
+/// <summary>
+/// 左アナログスティックの横方向と縦方向の入力値を正規化して返す。
+/// </summary>
 DirectX::XMFLOAT2 Input::GetLeftAnalogStick(void)
 {
 	SHORT x = m_Instance->controllerState.Gamepad.sThumbLX; // -32768～32767
@@ -82,7 +101,9 @@ DirectX::XMFLOAT2 Input::GetLeftAnalogStick(void)
 	res.y = y / 32767.0f; //-1～1
 	return res;
 }
-//右アナログスティック
+/// <summary>
+/// 右アナログスティックの横方向と縦方向の入力値を正規化して返す。
+/// </summary>
 DirectX::XMFLOAT2 Input::GetRightAnalogStick(void)
 {
 	SHORT x = m_Instance->controllerState.Gamepad.sThumbRX; // -32768～32767
@@ -94,34 +115,48 @@ DirectX::XMFLOAT2 Input::GetRightAnalogStick(void)
 	return res;
 }
 
-//左トリガー
+/// <summary>
+/// 左トリガーの入力値を0から1の範囲に変換して返す。
+/// </summary>
 float Input::GetLeftTrigger(void)
 {
 	BYTE t = m_Instance->controllerState.Gamepad.bLeftTrigger; // 0～255
 	return t / 255.0f;
 }
-//右トリガー
+/// <summary>
+/// 右トリガーの入力値を0から1の範囲に変換して返す。
+/// </summary>
 float Input::GetRightTrigger(void)
 {
 	BYTE t = m_Instance->controllerState.Gamepad.bRightTrigger; // 0～255
 	return t / 255.0f;
 }
 
-//ボタン入力
-bool Input::GetButtonPress(WORD btn) //プレス
+/// <summary>
+/// 指定したボタンが現在押されているかを返す。
+/// </summary>
+bool Input::GetButtonPress(WORD btn)
 {
 	return (m_Instance->controllerState.Gamepad.wButtons & btn) != 0;
 }
-bool Input::GetButtonTrigger(WORD btn) //トリガー
+/// <summary>
+/// 指定したボタンがこのフレームで押されたかを返す。
+/// </summary>
+bool Input::GetButtonTrigger(WORD btn)
 {
 	return (m_Instance->controllerState.Gamepad.wButtons & btn) != 0 && (m_Instance->controllerState_old.Gamepad.wButtons & btn) == 0;
 }
-bool Input::GetButtonRelease(WORD btn) //リリース
+/// <summary>
+/// 指定したボタンがこのフレームで離されたかを返す。
+/// </summary>
+bool Input::GetButtonRelease(WORD btn)
 {
 	return (m_Instance->controllerState.Gamepad.wButtons & btn) == 0 && (m_Instance->controllerState_old.Gamepad.wButtons & btn) != 0;
 }
 
-//振動
+/// <summary>
+/// コントローラーの両方のモーターを指定した強さで動かし、持続フレーム数を設定する。
+/// </summary>
 void Input::SetVibration(int frame, float powor)
 {
 	// XINPUT_VIBRATION構造体のインスタンスを作成

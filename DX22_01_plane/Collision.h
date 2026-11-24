@@ -1,5 +1,5 @@
 //================================
-// Collision.h　v1.0
+// 衝突判定に使う型と関数の宣言（バージョン1.0）
 //================================
 #pragma once
 
@@ -17,7 +17,6 @@ namespace Collision
 	struct Plane {
 		DirectX::SimpleMath::Vector3 point; // 平面上の1点
 		DirectX::SimpleMath::Vector3 normal; // 平面の法線ベクトル
-		//float d;         // 平面の方程式: ax + by + cz + d = 0 の d
 	};
 
 	// セグメント（有限の長さの線分）
@@ -39,7 +38,7 @@ namespace Collision
 		float radius; // 半径
 	};
 
-	// BOX定義
+	// 軸平行境界ボックスの定義
 	struct AABB {
 		DirectX::SimpleMath::Vector3 min;
 		DirectX::SimpleMath::Vector3 max;

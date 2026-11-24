@@ -1,6 +1,6 @@
 #pragma once
 #include <d3d11.h>  // DirectX11を使うためのヘッダーファイル
-#include <DirectXMath.h> // DirextXの数学関連のヘッダーファイル
+#include <DirectXMath.h> // DirectXの数学関連のヘッダーファイル
 
 #include <Xinput.h> //XInputを使うためのヘッダーファイル
 #pragma comment (lib, "xinput.lib") //XInputを使うために必要
@@ -17,8 +17,8 @@
 #define XINPUT_BACK           0x0020
 #define XINPUT_LEFT_THUMB     0x0040 //左スティック押し込み
 #define XINPUT_RIGHT_THUMB    0x0080 //右スティック押し込み
-#define XINPUT_LEFT_SHOULDER  0x0100 //L
-#define XINPUT_RIGHT_SHOULDER 0x0200 //R
+#define XINPUT_LEFT_SHOULDER  0x0100 // 左ショルダーボタン
+#define XINPUT_RIGHT_SHOULDER 0x0200 // 右ショルダーボタン
 
 #define VK_0 0x30
 #define VK_1 0x31
@@ -78,8 +78,6 @@ private:
 
 public:
 
-	//Input(); //コンストラクタ
-	//~Input(); //デストラクタ
 	static void Create(); //作成
 	static void Update(); //更新
 	static void Release(); //解放
@@ -103,8 +101,8 @@ public:
 	static bool GetButtonRelease(WORD btn); //リリース(押し終わった時)
 
 	//振動(コントローラー)
-	//flame：振動を継続する時間(単位：フレーム)
-	//power：振動の強さ(0～1)
+	// frame：振動を継続する時間（フレーム数）
+	// powor：振動の強さ（0～1）
 	static void SetVibration(int frame = 1, float powor = 1);
 
 	//マウス入力

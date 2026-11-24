@@ -1,5 +1,5 @@
 //================================
-// Collision.cpp　v1.0
+// 衝突判定と幾何計算の実装（バージョン1.0）
 //================================
 #include "Collision.h"
 #include <algorithm>
@@ -8,10 +8,9 @@ using namespace DirectX::SimpleMath;
 
 namespace Collision
 {
-	//==================================
-	// ■CheckHit関数
-	// 線(無限の長さ)と平面(無限の大きさ)の当たり判定
-	//==================================
+	/// <summary>
+	/// 無限直線が平面と交差するか、平面上にあるかを判定する。
+	/// </summary>
 	bool CheckHit(const Line& line, const Plane& plane)
 	{
 		//無限の線が無限の平面にぶつからないのは線と平面が平行な時のみ。
@@ -23,10 +22,9 @@ namespace Collision
 		return false;
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 線分と平面(無限の大きさ)の当たり判定
-	//==================================
+	/// <summary>
+	/// 線分の両端が平面の反対側にあるか、少なくとも一端が平面上にあるかを判定する。
+	/// </summary>
 	bool CheckHit(const Segment& segment, const Plane& plane)
 	{
 		if (Dot((segment.start - plane.point), plane.normal) * Dot((segment.end - plane.point), plane.normal) <= 0)
@@ -36,21 +34,23 @@ namespace Collision
 		return false;
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 線(無限の長さ)とポリゴンの当たり判定
-	//==================================
+	/// <summary>
+	/// 無限直線と三角形が交差するかを判定する。
+	/// </summary>
 	bool CheckHit(const Line& line, const Polygon& polygon)
 	{
 		Vector3 p;
 		return CheckHit(line, polygon, p);
 	}
+	/// <summary>
+	/// 無限直線と三角形が交差するかを判定し、交点を出力する。
+	/// </summary>
 	bool CheckHit(const Line& line, const Polygon& polygon, DirectX::SimpleMath::Vector3& contact)
 	{
 		// 三角形の法線を計算
 		Vector3 normal = GetNormal(polygon);
 
-		// 線と法線が平行である場合
+		// 直線が三角形の平面と平行か確認する
 		float denom = Dot(normal, line.vec);
 		if (fabs(denom) < 1e-6f) {
 			return false; // 交差なし
@@ -65,15 +65,17 @@ namespace Collision
 		return PointInTriangle(contact, polygon);
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 線分とポリゴンの当たり判定
-	//==================================
+	/// <summary>
+	/// 線分と三角形が交差するかを判定する。
+	/// </summary>
 	bool CheckHit(const Segment& segment, const Polygon& polygon)
 	{
 		Vector3 p;
 		return CheckHit(segment, polygon, p);
 	}
+	/// <summary>
+	/// 線分と三角形が交差するかを判定し、交点を出力する。
+	/// </summary>
 	bool CheckHit(const Segment& segment, const Polygon& polygon, Vector3& contact)
 	{
 		Plane plane(polygon.p0, GetNormal(polygon));
@@ -96,10 +98,9 @@ namespace Collision
 
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 球体と平面の当たり判定
-	//==================================
+	/// <summary>
+	/// 球体の中心から平面までの距離と半径を比較し、接触または交差を判定する。
+	/// </summary>
 	bool CheckHit(const Sphere& sphere, const Plane& plane)
 	{
 		// 球体の中心から平面への距離を計算
@@ -109,15 +110,17 @@ namespace Collision
 		return (distance <= sphere.radius);
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 球体とポリゴンの当たり判定
-	//==================================
+	/// <summary>
+	/// 球体と三角形が接触または交差するかを判定する。
+	/// </summary>
 	bool CheckHit(const Sphere& sphere, const Polygon& polygon)
 	{
 		Vector3 p;
 		return CheckHit(sphere, polygon, p);
 	}
+	/// <summary>
+	/// 球体と三角形の接触を面と辺について調べ、接触点を出力する。
+	/// </summary>
 	bool CheckHit(const Sphere& sphere, const Polygon& polygon, Vector3& contact)
 	{
 		Plane plane(polygon.p0, GetNormal(polygon));
@@ -157,15 +160,17 @@ namespace Collision
 		return false;
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// 球体と球体の当たり判定
-	//==================================
+	/// <summary>
+	/// 2つの球体の内部が重なるかを判定する。
+	/// </summary>
 	bool CheckHit(Sphere sphere1, Sphere sphere2)
 	{
 		Vector3 p;
 		return CheckHit(sphere1, sphere2, p);
 	}
+	/// <summary>
+	/// 2つの球体の内部が重なるかを判定し、第2の球体の表面に接触点を求める。
+	/// </summary>
 	bool CheckHit(Sphere sphere1, Sphere sphere2, Vector3& contact)
 	{
 		float len2 = (sphere1.center - sphere2.center).LengthSquared();
@@ -182,10 +187,9 @@ namespace Collision
 		return false;
 	}
 
-	//==================================
-	// ■CheckHit関数
-	// AABBとAABBの当たり判定
-	//==================================
+	/// <summary>
+	/// 各軸の区間を比較し、2つの軸平行境界ボックスが重なるか接しているかを判定する。
+	/// </summary>
 	bool CheckHit(AABB p1, AABB p2) {
 
 		// X座標
@@ -226,19 +230,17 @@ namespace Collision
 
 
 
-	//==================================
-	// ■Dot関数
-	// ベクトルの内積を求める
-	//==================================
+	/// <summary>
+	/// 2つのベクトルの内積を成分の積の和として求める。
+	/// </summary>
 	float Dot(const Vector3& v1, const Vector3& v2)
 	{
 		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 	}
 
-	//==================================
-	// ■Cross関数
-	// ベクトルの外積を求める
-	//==================================
+	/// <summary>
+	/// 2つのベクトルの外積を求める。
+	/// </summary>
 	Vector3 Cross(const Vector3& v1, const Vector3& v2)
 	{
 		return Vector3(
@@ -247,10 +249,9 @@ namespace Collision
 			v1.x * v2.y - v1.y * v2.x);	// z成分
 	}
 
-	//==================================
-	// ■ClosestPointOnSegment関数
-	// 点から線分までの最近地点
-	//==================================
+	/// <summary>
+	/// 点を線分に射影し、線分上で最も近い点を返す。
+	/// </summary>
 	Vector3 ClosestPointOnSegment(const Vector3& point, const Segment& segment)
 	{
 		// 線分のベクトルを計算（終点 - 始点）
@@ -265,13 +266,13 @@ namespace Collision
 		// 点が始点よりも線分の外側
 		if (tt < 0)
 		{
-			// 点と線分の始点の距離を返す
+			// 始点が最近接点になる
 			return segment.start;
 		}
 		// 点が終点よりも線分の外側の場合
 		else if (tt > r2)
 		{
-			// 点と線分の終点との距離を返す
+			// 終点が最近接点になる
 			return segment.end;
 		}
 		// 点が線分の上に投影される場合、線分上の最短距離を計算
@@ -294,15 +295,17 @@ namespace Collision
 		}
 	}
 
-	//==================================
-	// ■DistanceSquaredPointToSegment関数
-	// 点から線分までの距離の2乗
-	//==================================
+	/// <summary>
+	/// 点から線分上の最近接点までの距離の二乗を返す。
+	/// </summary>
 	float DistanceSquaredPointToSegment(const Vector3& point, const Segment& segment)
 	{
 		Vector3 p;
 		return DistanceSquaredPointToSegment(point, segment, p);
 	}
+	/// <summary>
+	/// 線分上の最近接点を出力し、指定した点との距離の二乗を返す。
+	/// </summary>
 	float DistanceSquaredPointToSegment(const Vector3& point, const Segment& segment, Vector3& contact)
 	{
 		contact = ClosestPointOnSegment(point, segment);
@@ -310,15 +313,17 @@ namespace Collision
 		return (point - contact).LengthSquared();
 	}
 
-	//==================================
-	// ■DistancePointToSegment関数
-	// 点から線分までの距離
-	//==================================
+	/// <summary>
+	/// 点から線分上の最近接点までの距離を返す。
+	/// </summary>
 	float DistancePointToSegment(const Vector3& point, const Segment& segment)
 	{
 		Vector3 p;
 		return DistancePointToSegment(point, segment, p);
 	}
+	/// <summary>
+	/// 線分上の最近接点を出力し、指定した点との距離を返す。
+	/// </summary>
 	float DistancePointToSegment(const Vector3& point, const Segment& segment, Vector3& contact)
 	{
 		contact = ClosestPointOnSegment(point, segment);
@@ -326,19 +331,17 @@ namespace Collision
 		return (point - contact).Length();
 	}
 
-	//==================================
-	// ■DistancePointToPlane関数
-	// 点から平面までの距離
-	//==================================
+	/// <summary>
+	/// 点から平面までの距離を求める。
+	/// </summary>
 	float DistancePointToPlane(const Vector3& point, const Plane& plane)
 	{
 		return fabs(Dot((point - plane.point), plane.normal) / Dot(plane.normal, plane.normal));
 	}
 
-	//==================================
-	// ■ProjectPointToPlane関数
-	// 点から平面に下ろした垂線の交点
-	//==================================
+	/// <summary>
+	/// 点を平面に垂直に射影した位置を求める。
+	/// </summary>
 	Vector3 ProjectPointToPlane(const Vector3& point, const Plane& plane)
 	{
 		double t = -Dot((point - plane.point), plane.normal) / Dot(plane.normal, plane.normal);
@@ -347,10 +350,9 @@ namespace Collision
 		return  point + (plane.normal * (float)t);
 	}
 
-	//==================================
-	// ■PointInTriangle関数
-	// 三角形の内部かどうかを判定する
-	//==================================
+	/// <summary>
+	/// 各辺と点との外積を比較し、点が三角形の内側にあるかを判定する。
+	/// </summary>
 	bool PointInTriangle(const Vector3& point, const Polygon& polygon)
 	{
 		// 3辺のベクトル
@@ -383,10 +385,9 @@ namespace Collision
 		return true;
 	}
 
-	//==================================
-	// ■ClosestPointOnTriangle関数
-	// 点と三角形間の最近接点を求める
-	//==================================
+	/// <summary>
+	/// 平面への射影と各辺への距離から、指定した点に最も近い三角形上の点を求める。
+	/// </summary>
 	Vector3 ClosestPointOnTriangle(const Vector3& point, const Polygon& polygon)
 	{
 		Plane plane(polygon.p0, GetNormal(polygon));
@@ -430,9 +431,9 @@ namespace Collision
 		}
 	}
 
-	//==================================
-	// 法線を計算
-	//==================================
+	/// <summary>
+	/// 三角形の2辺の外積から正規化した法線ベクトルを求める。
+	/// </summary>
 	Vector3 GetNormal(const Polygon& polygon)
 	{
 		Vector3 n = Cross((polygon.p1 - polygon.p0), (polygon.p2 - polygon.p0));
@@ -440,9 +441,9 @@ namespace Collision
 		return n;
 	}
 
-	//==================================
-	// 球体を当たった後の地点に動かす
-	//==================================
+	/// <summary>
+	/// 移動方向に沿って接触点から半径だけ離れた球の中心候補を求め、小さい方の移動量と位置を返す。
+	/// </summary>
 	Vector3 moveSphere(const Segment& segment, const float& radius, const Polygon& polygon, const Vector3& contact, float& distance)
 	{
 		// 線分の方向ベクトル
@@ -467,7 +468,7 @@ namespace Collision
 			float t1 = (-b + sqrt_discriminant) / (2.0f * a);
 			float t2 = (-b - sqrt_discriminant) / (2.0f * a);
 
-			// 線分上の解を判定
+			// 2つの解のうち小さい方を移動量として選ぶ
 			if (t1 < t2)
 			{
 				distance = t1;
@@ -482,19 +483,20 @@ namespace Collision
 
 		return segment.start;
 	}
+	/// <summary>
+	/// 接触点から球の中心へ向かう方向に半径分だけ離れた位置を求める。
+	/// </summary>
 	Vector3 moveSphere(const Sphere& sphere, const Polygon& polygon, const Vector3& contact)
 	{
-		//Vector3 normal =  GetNormal(polygon);
-
 		Vector3 v = sphere.center - contact;
 		v.Normalize();
 
 		return contact + v * sphere.radius;
 	}
 
-	//==================================
-	// AABBを設定
-	//==================================
+	/// <summary>
+	/// 中心位置と3軸の寸法から、軸平行境界ボックスの最小座標と最大座標を求める。
+	/// </summary>
 	AABB SetAABB(Vector3 centerposition, float width, float height, float depth)
 	{
 		AABB aabb{};

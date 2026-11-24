@@ -9,6 +9,9 @@ protected:
 	IndexBuffer				m_IndexBuffer;		// インデックスバッファ
 	int						m_IndexNum = 0;		// インデックス数
 public:
+	/// <summary>
+	/// 指定されたメッシュから頂点バッファとインデックスバッファを作成し、インデックス数を記録する。
+	/// </summary>
 	virtual void Init(Mesh& mesh) 
 	{
 		m_VertexBuffer.Create(mesh.GetVertices());
@@ -16,7 +19,9 @@ public:
 		m_IndexNum = static_cast<int>(mesh.GetIndices().size());
 	}
 
-	// 描画前処理
+	/// <summary>
+	/// 三角形リストを描画するため、プリミティブトポロジーと頂点・インデックスバッファを設定する。
+	/// </summary>
 	virtual void BeforeDraw()
 	{
 		ID3D11DeviceContext* devicecontext = Renderer::GetDeviceContext();
@@ -28,7 +33,9 @@ public:
 		m_IndexBuffer.SetGPU();				// インデックスバッファをセット
 	}
 
-	// サブセット描画
+	/// <summary>
+	/// 指定されたインデックス範囲と頂点の基準位置を使って、メッシュの一部を描画する。
+	/// </summary>
 	virtual void DrawSubset(unsigned int indexnum,unsigned int baseindex,unsigned int basevertexindex ) 
 	{
 		Renderer::GetDeviceContext()->DrawIndexed(
@@ -37,7 +44,9 @@ public:
 			basevertexindex);						// 頂点バッファの最初から使う
 	}
 
-	// 描画
+	/// <summary>
+	/// 描画の準備を行い、保持するすべてのインデックスを使ってメッシュを描画する。
+	/// </summary>
 	virtual void Draw() 
 	{
 		BeforeDraw();								// 描画前処理

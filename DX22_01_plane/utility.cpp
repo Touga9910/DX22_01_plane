@@ -5,7 +5,9 @@
 #include	<Windows.h>
 
 namespace utility {
-	// ワイド文字(utf16)をｓ－ｊｉｓに
+	/// <summary>
+	/// UTF-16文字列をWindowsの既定のANSIコードページに変換する。
+	/// </summary>
 	std::string wide_to_multi_winapi(std::wstring const& src)
 	{
 		auto const dest_size = ::WideCharToMultiByte(
@@ -34,7 +36,9 @@ namespace utility {
 		return std::string(dest.begin(), dest.end());
 	}
 
-	// utf-8をワイド文字(utf-16)に
+	/// <summary>
+	/// UTF-8文字列をWindowsのワイド文字列（UTF-16）に変換する。
+	/// </summary>
 	std::wstring utf8_to_wide_winapi(std::string const& src)
 	{
 		auto const dest_size = ::MultiByteToWideChar(
@@ -53,7 +57,9 @@ namespace utility {
 		return std::wstring(dest.begin(), dest.end());
 	}
 
-	// utf8をS-JISに
+	/// <summary>
+	/// UTF-8文字列をUTF-16経由でWindowsの既定のANSIコードページに変換する。
+	/// </summary>
 	std::string utf8_to_multi_winapi(std::string const& src)
 	{
 		auto const wide = utf8_to_wide_winapi(src);

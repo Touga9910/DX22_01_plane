@@ -1,12 +1,16 @@
 #include "Scene.h"
 
-// コンストラクタ
+/// <summary>
+/// 各シーンに共通する基底部分を構築する。
+/// </summary>
 Scene::Scene()
 {
 
 }
 
-// デストラクタ
+/// <summary>
+/// 基底クラスを通じて派生シーンを破棄できるようにする。
+/// </summary>
 Scene::~Scene()
 {
 

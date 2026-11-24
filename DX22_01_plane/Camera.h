@@ -28,12 +28,21 @@ private:
 	Camera();
 	~Camera();
 
+	/// <summary>
+	/// カメラのコピー生成を禁止する。
+	/// </summary>
 	Camera(const Camera&) = delete;
+	/// <summary>
+	/// カメラのコピー代入を禁止する。
+	/// </summary>
 	Camera& operator=(const Camera&) = delete;
 
 
 
 public:
+	/// <summary>
+	/// 共有カメラを初回の呼び出しで生成し、その参照を返す。
+	/// </summary>
 	static Camera& GetInstance()
 	{
 		static Camera instance;
@@ -43,29 +52,35 @@ public:
 	void Init();
 	void Update();
 	/// <summary>
-	/// 追従カメラの更新
+	/// 指定位置を見下ろすようにカメラを更新する。
 	/// </summary>
-	/// <param name="targetPos">対象オブジェクト</param>
+	/// <param name="targetPos">追従対象の位置</param>
 	void Update(const DirectX::SimpleMath::Vector3& targetPos);
 	void SetCamera(int mode = 0);
 	void Uninit();
 	/// <summary>
-	/// カメラ追従のあれこれ
+	/// カメラの位置と注視点からビュー行列を計算する。
 	/// </summary>
 	void UpdateViewMatrix();
 
+	/// <summary>
+	/// 描画時の視点の上書き設定があればその位置を返し、それ以外はカメラの現在位置を返す。
+	/// </summary>
 	DirectX::SimpleMath::Vector3 GetPosition() { return RenderViewOverride::current ? RenderViewOverride::current->eye : m_Position; }
 	DirectX::SimpleMath::Vector3 GetTarget() const{	return m_Target; }
 	DirectX::SimpleMath::Matrix GetViewMatrix() const { return m_ViewMatrix; }
 
 	void SetTarget(DirectX::SimpleMath::Vector3 target);
 
+	/// <summary>
+	/// カメラの現在の水平角を返す。
+	/// </summary>
 	float GetCameraDirection() { return m_CameraDirection; }
 
 	/// <summary>
-	/// カメラの高さを個別に設定する
+	/// 注視点からのカメラの高さを設定する。
 	/// </summary>
-	/// <param name="dist">カメラの距離</param>
+	/// <param name="dist">注視点からの高さ</param>
 	void SetDistanceY(float dist);
 
 	/// <summary>
