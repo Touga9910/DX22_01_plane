@@ -200,7 +200,7 @@ void GamePresentation::DrawTutorialShotHint(BattleState state)
 	const bool pulling = state == BattleState::AimingPower;
 	const char* label = pulling
 		? PresentationUtf8(u8"左ボタンを押したまま手前に引く\n離すとショット")
-		: PresentationUtf8(u8"マウスを動かして狙う\n左ボタンで照準を固定");
+		: PresentationUtf8(u8"マウスを動かして狙う\n左ボタン長押しで照準を固定");
 	const char* reselectLabel = PresentationUtf8(u8"球を選び直す");
 	const ImVec2 primarySize = MouseHintSize(label);
 	const ImVec2 reselectSize = MouseHintSize(reselectLabel);
