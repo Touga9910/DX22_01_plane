@@ -198,7 +198,7 @@
         }
       ],
       "id": "midboss_001",
-      "name": "Stage5",
+      "name": "MidBoss1",
       "par": 6,
       "stageType": "midBoss",
       "combatMode": "phasePrototype",
@@ -239,7 +239,7 @@
         }
       ],
       "id": "midboss_002",
-      "name": "Stage6",
+      "name": "MidBoss2",
       "par": 6,
       "stageType": "midBoss",
       "combatMode": "phasePrototype",
@@ -278,7 +278,7 @@
         }
       ],
       "id": "boss_001",
-      "name": "Stage7",
+      "name": "Boss1",
       "par": 7,
       "preserveLayout": true,
       "stageType": "boss",
@@ -306,7 +306,7 @@
         }
       ],
       "id": "boss_002",
-      "name": "Stage8",
+      "name": "Boss2",
       "par": 7,
       "stageType": "boss",
       "combatMode": "phasePrototype",

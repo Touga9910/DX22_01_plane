@@ -13,6 +13,10 @@ int main()
     const auto* opening = StageDataLoader::FindById(existingStages, "normal_001");
     assert(opening != nullptr && opening->DisplayName() == "Stage1_3*3");
     assert(StageLayoutEditor::DisplayName(StageLayoutEditor::Encode(*opening)) == opening->DisplayName());
+    const auto* midboss = StageDataLoader::FindById(existingStages, "midboss_001");
+    assert(midboss != nullptr && midboss->DisplayName() == "MidBoss1_3*2");
+    const auto* boss = StageDataLoader::FindById(existingStages, "boss_001");
+    assert(boss != nullptr && boss->DisplayName() == "Boss1_1*2");
     const auto* threePhases = StageDataLoader::FindById(existingStages, "phase_prototype_001");
     assert(threePhases != nullptr && threePhases->DisplayName() == threePhases->name + "_6*4*4");
     const auto authoredBoss = std::find_if(existingStages.begin(), existingStages.end(),
