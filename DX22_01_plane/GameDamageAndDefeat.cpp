@@ -20,6 +20,9 @@ namespace
 {
     constexpr int kBountyRewardMoney = 5;
 }
+/// <summary>
+/// 受け取ったシールド量を上限付きで反映し、増加した場合はログと演出を更新する。
+/// </summary>
 void Game::GrantPlayerShield(int amount, const char* source)
 {
     const int before = m_BattleState->playerShield;
@@ -41,6 +44,9 @@ void Game::GrantPlayerShield(int amount, const char* source)
         reinterpret_cast<std::uintptr_t>(player), source });
 }
 
+/// <summary>
+/// シールドから吸収した量を差し引き、HPに届くダメージを返す。
+/// </summary>
 int Game::AbsorbPlayerShieldDamage(int damage)
 {
 	const int incoming = (std::max)(0, damage);
@@ -75,6 +81,9 @@ int Game::AbsorbPlayerShieldDamage(int damage)
 	return hpDamage;
 }
 
+/// <summary>
+/// 蓄積した重衝突効果に応じて敵球同士の衝突ダメージを補正する。
+/// </summary>
 int Game::ScaleEnemyCollisionDamage(int damage) const
 {
 	return HeavyCollisionRules::ScaleEnemyCollisionDamage(
@@ -82,6 +91,9 @@ int Game::ScaleEnemyCollisionDamage(int damage) const
 		damage);
 }
 
+/// <summary>
+/// 戦闘に参加中の直接衝突対象を起点に、周囲への連鎖攻撃を処理する。
+/// </summary>
 void Game::NotifyPlayerChainImpact(
 	EnemyBall* directTarget,
 	int attackDamage,
@@ -96,6 +108,9 @@ void Game::NotifyPlayerChainImpact(
 		directTarget->GetPosition(), directTarget, attackDamage, radius);
 }
 
+/// <summary>
+/// 指定位置から範囲内の敵へ連鎖攻撃を適用し、対応する球固有効果も処理する。
+/// </summary>
 void Game::NotifyPlayerChainImpact(
 	const DirectX::SimpleMath::Vector3& center,
 	const EnemyBall* excludedTarget,
@@ -202,6 +217,9 @@ void Game::NotifyPlayerChainImpact(
 
 // Player Enemy Relic Damage Bonusを消費する。
 
+/// <summary>
+/// 現在のショットでプレイヤー球と敵球の衝突に適用するレリックの加算値を消費する。
+/// </summary>
 int Game::ConsumePlayerEnemyRelicDamageBonus()
 {
     auto rules = CaptureShotRelicRules();
@@ -212,6 +230,9 @@ int Game::ConsumePlayerEnemyRelicDamageBonus()
 
 // Anchor Stoppedを通知する。
 
+/// <summary>
+/// アンカーによる停止を戦闘ルールに記録し、直接衝突した対象を保存する。
+/// </summary>
 void Game::NotifyAnchorStopped(EnemyBall* directTarget)
 {
 	if (directTarget != nullptr && !directTarget->CanParticipateInCombat())
@@ -226,6 +247,9 @@ void Game::NotifyAnchorStopped(EnemyBall* directTarget)
 
 // Pierce Maximum Usesを取得する。
 
+/// <summary>
+/// 敵の撃破を戦闘に反映し、対象と戦闘状況に応じて記録や後続処理を行う。
+/// </summary>
 void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 {
 	if (enemy == nullptr) return;
@@ -355,6 +379,9 @@ void Game::NotifyEnemyDefeated(EnemyBall* enemy)
 
 // Bank Shot Damage Multiplierを消費する。
 
+/// <summary>
+/// ダメージを伴う衝突を種類別にレリックへ記録し、該当する場合はプレイヤー球の能力を更新する。
+/// </summary>
 void Game::NotifyDamageBallCollision(
 	DamageBallCollisionType collisionType)
 {
@@ -367,6 +394,9 @@ void Game::NotifyDamageBallCollision(
 
 // Combat Feedbackを通知する。
 
+/// <summary>
+/// プレイヤーの被ダメージをデバッグ情報に記録し、ダメージイベントを発行する。
+/// </summary>
 void Game::NotifyPlayerDamage(
 	const std::string& source,
 	int damage,

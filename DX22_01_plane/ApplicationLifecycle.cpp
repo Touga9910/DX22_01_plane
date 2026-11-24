@@ -15,6 +15,9 @@ namespace
         bool fullscreen;
     };
 
+    /// <summary>
+    /// 特殊文字をエスケープし、文字列をJSONの値としてファイルに書き込む。
+    /// </summary>
     void WriteJsonString(FILE* file, const char* value) noexcept
     {
         std::fputc('"', file);
@@ -44,6 +47,9 @@ namespace
         std::fputc('"', file);
     }
 
+    /// <summary>
+    /// アプリケーションのイベントとウィンドウ状態をJSON Lines形式でログに追記する。
+    /// </summary>
     void WriteEvent(
         const char* event,
         HWND window,
@@ -116,11 +122,17 @@ namespace
     }
 }
 
+/// <summary>
+/// 非表示ウィンドウで動作するテストモードの状態を設定する。
+/// </summary>
 void ApplicationLifecycle::SetHiddenWindowMode(bool hidden) noexcept
 {
     InterlockedExchange(&s_HiddenWindow, hidden ? 1 : 0);
 }
 
+/// <summary>
+/// 指定されたイベントとウィンドウメッセージの引数および結果をログに記録する。
+/// </summary>
 void ApplicationLifecycle::Record(
     const char* event, HWND window, UINT message, WPARAM wParam,
     LPARAM lParam, LRESULT result) noexcept
@@ -128,6 +140,9 @@ void ApplicationLifecycle::Record(
     WriteEvent(event, window, message, wParam, lParam, result, nullptr);
 }
 
+/// <summary>
+/// 指定されたイベントを画面寸法とフルスクリーン状態とともにログに記録する。
+/// </summary>
 void ApplicationLifecycle::RecordDisplayMode(
     const char* event, HWND window, UINT width, UINT height, bool fullscreen) noexcept
 {

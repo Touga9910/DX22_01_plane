@@ -13,19 +13,25 @@
 #include <exception>
 #include <utility>
 
-// Save Load Messageを設定する。
+/// <summary>
+/// セーブやロードの結果を知らせるメッセージを保存する。
+/// </summary>
 void Game::SetSaveLoadMessage(const std::string& message)
 {
 	m_PersistenceRuntime->SetSaveLoadMessage(message);
 }
 
-// Valid Run Saveを保持しているか判定する。
+/// <summary>
+/// 再開に使用できる有効なランのセーブが存在するかを返す。
+/// </summary>
 bool Game::HasValidRunSave() const
 {
 	return GameSaveManager::Inspect().valid;
 }
 
-// Run Save Summaryを取得する。
+/// <summary>
+/// ファイルの有無と検証結果をもとに、再開データの概要を表示用文字列にまとめる。
+/// </summary>
 std::string Game::GetRunSaveSummary() const
 {
 	const RunSaveInfo info = GameSaveManager::Inspect();
@@ -48,7 +54,9 @@ std::string Game::GetRunSaveSummary() const
 	return summary;
 }
 
-// Run Checkpointを保存する。
+/// <summary>
+/// 現在のランを指定した再開先でチェックポイントに保存し、必要に応じて結果を通知する。
+/// </summary>
 bool Game::SaveRunCheckpoint(
 	SceneType sceneType,
 	bool sceneAlreadyActive,
@@ -103,7 +111,9 @@ bool Game::SaveRunCheckpoint(
 	return saved;
 }
 
-// Current Runを保存する。
+/// <summary>
+/// 現在のシーンと状態から再開先を決め、ランをセーブする。
+/// </summary>
 bool Game::SaveCurrentRun()
 {
 	if (IsDebugMode()) { SetSaveLoadMessage("デバッグ条件は専用画面の「条件を保存」で保存できます。"); return false; }
@@ -128,7 +138,9 @@ bool Game::SaveCurrentRun()
 	return SaveRunCheckpoint(sceneType, true, true);
 }
 
-// Saved Runを読み込む。
+/// <summary>
+/// タイトル画面から有効なセーブを読み込み、ランを再開状態に復元する。
+/// </summary>
 bool Game::LoadSavedRun()
 {
 	if (GetCurrentSceneType() != SceneType::Title)

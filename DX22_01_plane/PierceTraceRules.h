@@ -44,11 +44,17 @@ namespace PierceTraceRules
 		float knockbackMultiplier = 1.0f;
 	};
 
+	/// <summary>
+	/// ショット開始時に、貫通済みの敵の記録を消去する。
+	/// </summary>
 	inline void BeginShot(State& state)
 	{
 		state.piercedEnemiesThisShot.clear();
 	}
 
+	/// <summary>
+	/// それまでに貫通していない敵を記録し、上限まで貫通スタックを加算する。
+	/// </summary>
 	inline bool RecordPierce(
 		State& state,
 		std::uintptr_t enemyId,
@@ -65,6 +71,9 @@ namespace PierceTraceRules
 		return true;
 	}
 
+	/// <summary>
+	/// 指定された上限まで貫通スタックを消費し、実際の消費数を返す。
+	/// </summary>
 	inline int ConsumeStacks(State& state, int amount)
 	{
 		const int available = (std::max)(0, state.stackCount);
@@ -79,6 +88,9 @@ namespace PierceTraceRules
 	// The finisher's 10-15 stack overcharge thresholds are intentionally kept.
 	// IMPORTANT: ConsumeStacks(state, 0) means consume ALL, so callers must
 	// skip consumption when this function returns 0.
+	/// <summary>
+	/// 保有スタック、消費上限、貫通痕の数とフィニッシャー条件から有効な消費数を求める。
+	/// </summary>
 	inline int CalculateEffectiveMinionStackConsume(
 		const State& state,
 		int consumeLimit,
@@ -111,12 +123,18 @@ namespace PierceTraceRules
 	}
 
     // Each group of three stacks starts with a launch from the newest remaining trace.
+    /// <summary>
+    /// 消費するスタック数と貫通痕の数から、発射できるミニオン数を求める。
+    /// </summary>
     inline std::size_t MinionLaunchCount(const State& state, int consumedStacks)
     {
         const auto stacks = static_cast<std::size_t>((std::max)(0, consumedStacks));
         return (std::min)({state.traces.size(), MaxTraceCount, (stacks + 2) / 3});
     }
 
+	/// <summary>
+	/// 貫通痕と消費したスタック数から、ミニオンごとの発射位置と発射条件を組み立てる。
+	/// </summary>
 	inline std::vector<MinionLaunch> BuildMinionLaunches(
 		const State& state,
 		int consumedStacks,
@@ -146,6 +164,9 @@ namespace PierceTraceRules
 		return launches;
 	}
 
+	/// <summary>
+	/// 有効な長さの貫通痕を記録し、上限を超える場合は最も古い貫通痕を入れ替える。
+	/// </summary>
 	inline bool AddTrace(
 		State& state,
 		const Vector3& start,

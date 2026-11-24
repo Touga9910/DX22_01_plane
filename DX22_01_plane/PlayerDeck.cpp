@@ -4,6 +4,9 @@
 #include <random>
 #include <utility>
 
+/// <summary>
+/// 既定のデッキを保持し、収録する球にインスタンスIDを割り当てる。
+/// </summary>
 void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
 {
     // リセット時に戻す基準デッキを保存する
@@ -15,6 +18,9 @@ void PlayerDeck::SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck)
     }
 }
 
+/// <summary>
+/// カタログの定義を保持し、各球の初期ステータスを正規化する。
+/// </summary>
 void PlayerDeck::SetCatalog(const std::vector<PlayerBallData>& catalog)
 {
     m_Catalog = catalog;
@@ -25,11 +31,17 @@ void PlayerDeck::SetCatalog(const std::vector<PlayerBallData>& catalog)
     }
 }
 
+/// <summary>
+/// 球の抽選に使う乱数生成器のシードを設定する。
+/// </summary>
 void PlayerDeck::Seed(std::uint32_t seed)
 {
     m_RandomEngine.seed(seed);
 }
 
+/// <summary>
+/// 山札、捨て札、提示候補、選択中の球を集めてデッキを組み直す。
+/// </summary>
 void PlayerDeck::Reset()
 {
     // 現在ボール・手札・山札・捨て札をすべて回収
@@ -78,6 +90,9 @@ void PlayerDeck::Reset()
     ShuffleDrawPile();
 }
 
+/// <summary>
+/// 現在の候補と選択状態をリセットし、既定のデッキから山札を作り直す。
+/// </summary>
 void PlayerDeck::ResetToDefault()
 {
     m_DrawPile = m_DefaultDeck;
@@ -88,6 +103,9 @@ void PlayerDeck::ResetToDefault()
     ShuffleDrawPile();
 }
 
+/// <summary>
+/// 球の選択前で提示候補が空なら、山札から指定数まで候補を用意する。
+/// </summary>
 bool PlayerDeck::PrepareOffer(int offerSize)
 {
     if (m_CurrentBall.has_value())
@@ -116,6 +134,9 @@ bool PlayerDeck::PrepareOffer(int offerSize)
     return !m_OfferedBalls.empty();
 }
 
+/// <summary>
+/// 指定した候補を現在の球に移し、選ばなかった候補を捨て札に送る。
+/// </summary>
 bool PlayerDeck::SelectOffer(int selectedIndex, int /*legacyHeldIndex*/)
 {
     if (selectedIndex < 0 ||
@@ -146,6 +167,9 @@ bool PlayerDeck::SelectOffer(int selectedIndex, int /*legacyHeldIndex*/)
     return true;
 }
 
+/// <summary>
+/// 選択中の球が使用済みなら、捨て札に移して選択を解除する。
+/// </summary>
 bool PlayerDeck::DiscardCurrentIfUsed()
 {
     // 現在ボールが無い場合は捨て札に送れない
@@ -169,6 +193,9 @@ bool PlayerDeck::DiscardCurrentIfUsed()
     return true;
 }
 
+/// <summary>
+/// 現在の球があるときに、ショットで使用済みとして記録する。
+/// </summary>
 void PlayerDeck::MarkCurrentUsed()
 {
     // 現在ボールがある場合のみ、使用済みとして記録する
@@ -178,12 +205,18 @@ void PlayerDeck::MarkCurrentUsed()
     }
 }
 
+/// <summary>
+/// 現在の球を使用済みとするフラグをクリアする。
+/// </summary>
 void PlayerDeck::ClearCurrentUsed()
 {
     // 現在ボールの使用済みフラグを解除する
     m_IsCurrentBallUsed = false;
 }
 
+/// <summary>
+/// 現在選択中の球への読み取り専用ポインターを返す。
+/// </summary>
 const PlayerBallData* PlayerDeck::GetCurrent() const
 {
     // 現在ボールが無い場合はnullptrを返す
@@ -195,6 +228,9 @@ const PlayerBallData* PlayerDeck::GetCurrent() const
     return &(*m_CurrentBall);
 }
 
+/// <summary>
+/// 現在選択中の球への変更可能なポインターを返す。
+/// </summary>
 PlayerBallData* PlayerDeck::GetCurrent()
 {
     // 現在ボールが無い場合はnullptrを返す
@@ -206,6 +242,9 @@ PlayerBallData* PlayerDeck::GetCurrent()
     return &(*m_CurrentBall);
 }
 
+/// <summary>
+/// 番号に対応する提示候補の球を返し、範囲外なら空を返す。
+/// </summary>
 const PlayerBallData* PlayerDeck::GetOffer(int index) const
 {
     if (index < 0 || index >= static_cast<int>(m_OfferedBalls.size()))
@@ -216,6 +255,9 @@ const PlayerBallData* PlayerDeck::GetOffer(int index) const
     return &m_OfferedBalls[index];
 }
 
+/// <summary>
+/// 選択中の球と各札に分かれている球から、報酬操作の対象数を数える。
+/// </summary>
 int PlayerDeck::GetRewardTargetCount() const
 {
     // どの場所にあるボールも報酬の強化対象に含める。
@@ -232,6 +274,9 @@ int PlayerDeck::GetRewardTargetCount() const
     return count;
 }
 
+/// <summary>
+/// 選択中の球、山札、捨て札、提示候補から報酬対象の番号に対応する球を探す。
+/// </summary>
 const PlayerBallData* PlayerDeck::GetRewardTarget(int index) const
 {
     // 範囲外の負数は無効扱いにする
@@ -275,17 +320,26 @@ const PlayerBallData* PlayerDeck::GetRewardTarget(int index) const
     return nullptr;
 }
 
+/// <summary>
+/// 報酬対象として指定した球に対する変更可能なポインターを返す。
+/// </summary>
 PlayerBallData* PlayerDeck::GetRewardTarget(int index)
 {
     return const_cast<PlayerBallData*>(
         std::as_const(*this).GetRewardTarget(index));
 }
 
+/// <summary>
+/// カタログに登録された球の定義数を返す。
+/// </summary>
 int PlayerDeck::GetCatalogCount() const
 {
     return static_cast<int>(m_Catalog.size());
 }
 
+/// <summary>
+/// カタログの指定位置にある球の定義を返す。
+/// </summary>
 const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
 {
     if (index < 0)
@@ -298,6 +352,9 @@ const PlayerBallData* PlayerDeck::GetCatalogBall(int index) const
         : nullptr;
 }
 
+/// <summary>
+/// カタログから提示に使う球の定義番号を抽選する。
+/// </summary>
 std::vector<int> PlayerDeck::RollCatalogOfferIndices(int offerSize)
 {
     std::vector<int> result;
@@ -319,6 +376,9 @@ std::vector<int> PlayerDeck::RollCatalogOfferIndices(int offerSize)
     return result;
 }
 
+/// <summary>
+/// 同じ定義を重複させず、カタログから提示候補の番号を抽選する。
+/// </summary>
 std::vector<int> PlayerDeck::RollDistinctCatalogOfferIndices(int offerSize)
 {
     const int count = (std::min)(
@@ -337,6 +397,9 @@ std::vector<int> PlayerDeck::RollDistinctCatalogOfferIndices(int offerSize)
     return result;
 }
 
+/// <summary>
+/// カタログの指定球を複製し、固有IDを割り当ててデッキに加える。
+/// </summary>
 bool PlayerDeck::AddCatalogBall(int index)
 {
     const PlayerBallData* catalogBall = GetCatalogBall(index);
@@ -352,6 +415,9 @@ bool PlayerDeck::AddCatalogBall(int index)
     return true;
 }
 
+/// <summary>
+/// デッキの最低枚数を保ちながら、指定された報酬対象の球を取り除く。
+/// </summary>
 bool PlayerDeck::RemoveRewardTarget(int index)
 {
     if (index < 0 ||
@@ -394,6 +460,9 @@ bool PlayerDeck::RemoveRewardTarget(int index)
     return false;
 }
 
+/// <summary>
+/// 全ての札と候補、現在の球、乱数生成器を保存用のスナップショットにまとめる。
+/// </summary>
 PlayerDeckSnapshot PlayerDeck::CaptureSnapshot() const
 {
     return {
@@ -409,6 +478,9 @@ PlayerDeckSnapshot PlayerDeck::CaptureSnapshot() const
     };
 }
 
+/// <summary>
+/// スナップショットの候補番号とIDを検証し、デッキと乱数状態を復元する。
+/// </summary>
 bool PlayerDeck::RestoreSnapshot(PlayerDeckSnapshot snapshot)
 {
     if (snapshot.previousHeldOfferIndex < -1 ||
@@ -431,6 +503,9 @@ bool PlayerDeck::RestoreSnapshot(PlayerDeckSnapshot snapshot)
     return true;
 }
 
+/// <summary>
+/// 山札から球を1個取り出し、山札が空なら捨て札をシャッフルして補充する。
+/// </summary>
 bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)
 {
     // 山札が空になった時点で、捨て札だけをシャッフルして補充
@@ -451,6 +526,9 @@ bool PlayerDeck::DrawOneFromPile(PlayerBallData& result)
     return true;
 }
 
+/// <summary>
+/// 現在の乱数生成器を使って山札の順序をシャッフルする。
+/// </summary>
 void PlayerDeck::ShuffleDrawPile()
 {
     std::shuffle(

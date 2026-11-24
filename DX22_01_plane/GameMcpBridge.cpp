@@ -21,6 +21,9 @@ using namespace GameMcpJson;
 
 namespace
 {
+	/// <summary>
+	/// ファイルからJSONを読み込み、読み込みと解析に成功したかを返す。
+	/// </summary>
 	bool ReadJson(
 		const std::filesystem::path& path,
 		nlohmann::json& output)
@@ -42,6 +45,9 @@ namespace
 		}
 	}
 
+	/// <summary>
+	/// JSONを一時ファイルに書き込み、対象ファイルを原子的に置き換える。
+	/// </summary>
 	bool WriteJsonAtomically(
 		const std::filesystem::path& path,
 		const nlohmann::json& value)
@@ -113,6 +119,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 設定を読み込んでMCPブリッジの入出力先、操作権限、更新周期を初期化する。
+/// </summary>
 bool GameMcpBridge::Initialize(
 	Game& game,
 	const std::string& configPath)
@@ -197,6 +206,9 @@ bool GameMcpBridge::Initialize(
 	return true;
 }
 
+/// <summary>
+/// 設定したフレーム間隔で保留中のコマンドを処理し、ゲーム状態を公開する。
+/// </summary>
 void GameMcpBridge::Update(Game& game)
 {
 	if (!m_Enabled)
@@ -219,6 +231,9 @@ void GameMcpBridge::Update(Game& game)
 	}
 }
 
+/// <summary>
+/// ゲームの停止状態を公開し、MCPブリッジを無効化する。
+/// </summary>
 void GameMcpBridge::Shutdown(Game& game)
 {
 	if (!m_Enabled)
@@ -230,20 +245,32 @@ void GameMcpBridge::Shutdown(Game& game)
 	m_Enabled = false;
 }
 
+/// <summary>
+/// ゲーム状態を公開するJSONファイルのパスを返す。
+/// </summary>
 std::filesystem::path GameMcpBridge::GetStatePath() const
 {
 	return m_BridgeDirectory / "game_state.json";
 }
 
+/// <summary>
+/// 保留中のコマンドを読み込むJSONファイルのパスを返す。
+/// </summary>
 std::filesystem::path GameMcpBridge::GetCommandPath() const
 {
 	return m_BridgeDirectory / "pending_command.json";
 }
 
+/// <summary>
+/// 最後に実行したコマンドの結果を記録するJSONファイルのパスを返す。
+/// </summary>
 std::filesystem::path GameMcpBridge::GetResultPath() const
 {
 	return m_BridgeDirectory / "last_result.json";
 }
+/// <summary>
+/// 連番を進めて最新のゲーム状態をJSONファイルに書き込む。
+/// </summary>
 void GameMcpBridge::PublishState(
 	Game& game,
 	bool running)
@@ -258,6 +285,9 @@ void GameMcpBridge::PublishState(
 			<< std::endl;
 	}
 }
+/// <summary>
+/// 保留中のコマンドを読み込み、実行結果を公開して処理済みファイルを削除する。
+/// </summary>
 void GameMcpBridge::ProcessPendingCommand(Game& game)
 {
 	const std::filesystem::path commandPath =

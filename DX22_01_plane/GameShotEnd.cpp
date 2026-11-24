@@ -22,6 +22,9 @@ namespace
     constexpr int kEmergencyRepairHealAmount = 1;
 }
 
+/// <summary>
+/// ショット終了時に貫通ミニオンを片付け、スタックの生成や次のショットへの効果、条件付きの回復を処理する。
+/// </summary>
 void Game::ApplyEndOfShotRelicEffects(PlayerBall* player)
 {
 	for (PierceMinion* minion :

@@ -26,6 +26,9 @@ using namespace DirectX::SimpleMath;
 
 namespace
 {
+    /// <summary>
+    /// 攻撃元のボールやショットの種別に応じてダメージ種別を決める。
+    /// </summary>
     EnemyDamageKind DamageKindFromSource(
         const BallComponent* source,
         const PlayerBall* sourcePlayer)
@@ -51,6 +54,9 @@ namespace
 		std::uintptr_t key = 0;
 	};
 
+	/// <summary>
+	/// 貫通成立の有無と攻撃元から、接触に対応する貫通攻撃の発生源を決める。
+	/// </summary>
 	PierceTelemetrySource PierceSourceFromContact(
 		const BallComponent* source,
 		const PlayerBall* sourcePlayer,
@@ -82,16 +88,25 @@ namespace
 
     struct LiveShotRules final
     {
+        /// <summary>
+        /// 壁反射によるダメージ倍率を取得し、その適用分を消費する。
+        /// </summary>
         int ConsumeBankShotDamageMultiplier()
         {
             return GameBattleCommands::ConsumeBankShotDamageMultiplier();
         }
 
+        /// <summary>
+        /// プレイヤーから敵へのレリック追加ダメージを取得して消費する。
+        /// </summary>
         int ConsumePlayerEnemyRelicDamageBonus()
         {
             return GameBattleCommands::ConsumePlayerEnemyRelicDamageBonus();
         }
 
+        /// <summary>
+        /// 現在のショットに適用される衝突攻撃力の加算値を返す。
+        /// </summary>
         int GetCurrentShotCollisionAttackBonus() const
         {
             return GameBattleView::CurrentShotCollisionAttackBonus();
@@ -99,6 +114,9 @@ namespace
     };
 }
 
+/// <summary>
+/// 所有オブジェクトの物理コンポーネントを取得し、必要な構成が欠けていれば破棄を要求する。
+/// </summary>
 void BallCollisionComponent::Awake()
 {
 	GameObject* owner = GetGameObject();
@@ -114,11 +132,17 @@ void BallCollisionComponent::Awake()
 	}
 }
 
+/// <summary>
+/// 衝突処理の対象となるボールコンポーネントを登録する。
+/// </summary>
 void BallCollisionComponent::BindBall(BallComponent& ball)
 {
 	m_BallComponent = &ball;
 }
 
+/// <summary>
+/// 所有オブジェクトと関連コンポーネントの状態から衝突計算の対象か確認する。
+/// </summary>
 bool BallCollisionComponent::CanSimulate() const
 {
 	const GameObject* owner = GetGameObject();
@@ -132,6 +156,9 @@ bool BallCollisionComponent::CanSimulate() const
 	return true;
 }
 
+/// <summary>
+/// 活動中のボール一覧を参照し、消えた相手を貫通と接触の記録から除く。
+/// </summary>
 void BallCollisionComponent::ForgetMissingContacts(const std::vector<BallComponent*>& activeBalls)
 {
     const auto missing = [&activeBalls](const BallComponent* other) {
@@ -141,6 +168,9 @@ void BallCollisionComponent::ForgetMissingContacts(const std::vector<BallCompone
     std::erase_if(m_TouchingBalls, missing);
 }
 
+/// <summary>
+/// 移動中のポケット侵入と壁への衝突を処理し、速度や関連する効果を反映する。
+/// </summary>
 void BallCollisionComponent::ResolveEnvironment(
 	const Vector3& movementStart,
 	const std::vector<Collision::Segment>& walls,
@@ -221,6 +251,9 @@ void BallCollisionComponent::ResolveEnvironment(
 	if (CanSimulate()) CheckPocketHitAlongMovement(movementStart, pockets);
 }
 
+/// <summary>
+/// 貫通中の敵を調べ、めり込みから抜ける方向を求める。
+/// </summary>
 bool BallCollisionComponent::TryGetPierceExitDirection(Vector3& direction) const
 {
     if (m_PiercedBalls.empty() || !CanSimulate()) return false;
@@ -236,6 +269,9 @@ bool BallCollisionComponent::TryGetPierceExitDirection(Vector3& direction) const
     return false;
 }
 
+/// <summary>
+/// 2球の衝突応答と押し戻しを適用し、能力やダメージ、撃破に伴う効果を処理する。
+/// </summary>
 void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContact)
 {
 	if (&otherContact == this || !CanSimulate() || !otherContact.CanSimulate()) return;
@@ -671,6 +707,9 @@ void BallCollisionComponent::ResolveBallPair(BallCollisionComponent& otherContac
 			}
 }
 
+/// <summary>
+/// 貫通使用回数と、ショット内の貫通・接触記録を初期化する。
+/// </summary>
 void BallCollisionComponent::ResetShotAbilityState()
 {
 	m_PierceUseCount = 0;
@@ -678,28 +717,43 @@ void BallCollisionComponent::ResetShotAbilityState()
     m_TouchingBalls.clear();
 }
 
+/// <summary>
+/// 紐づけられたボールの現在の位置を返す。
+/// </summary>
 DirectX::SimpleMath::Vector3 BallCollisionComponent::GetPosition() const
 {
 	return m_BallComponent->GetPosition();
 }
 
+/// <summary>
+/// 紐づけられたボールの位置を指定座標に更新する。
+/// </summary>
 void BallCollisionComponent::SetPosition(
 	const DirectX::SimpleMath::Vector3& position)
 {
 	m_BallComponent->SetPosition(position);
 }
 
+/// <summary>
+/// 紐づけられたボールを指定した移動量だけ移動させる。
+/// </summary>
 void BallCollisionComponent::Translate(
 	const DirectX::SimpleMath::Vector3& movement)
 {
 	m_BallComponent->Translate(movement);
 }
 
+/// <summary>
+/// 紐づけられたボールの中心と半径を衝突判定用の球として返す。
+/// </summary>
 Collision::Sphere BallCollisionComponent::GetSphere() const
 {
 	return m_BallComponent->GetSphere();
 }
 
+/// <summary>
+/// 戦闘に参加できるボールの攻撃力を返し、参加できない敵の攻撃力をゼロにする。
+/// </summary>
 int BallCollisionComponent::GetAttack() const
 {
 	if (const EnemyBall* enemy =
@@ -711,11 +765,17 @@ int BallCollisionComponent::GetAttack() const
 	return m_BallComponent->GetAttack();
 }
 
+/// <summary>
+/// 紐づけられたボールが貫通能力を持つかを判定する。
+/// </summary>
 bool BallCollisionComponent::HasPierceAbility() const
 {
 	return m_BallComponent->HasPierceAbility();
 }
 
+/// <summary>
+/// 移動区間と有効なポケットの接触を調べ、最初の接触を処理する。
+/// </summary>
 bool BallCollisionComponent::CheckPocketHitAlongMovement(
 	const Vector3& movementStart,
 	const std::vector<Pocket*>& pockets)
@@ -737,11 +797,17 @@ bool BallCollisionComponent::CheckPocketHitAlongMovement(
 	return false;
 }
 
+/// <summary>
+/// ポケットへの接触をボール側の処理へ引き渡す。
+/// </summary>
 void BallCollisionComponent::OnPocketHit()
 {
 	m_BallComponent->OnPocketHit();
 }
 
+/// <summary>
+/// 位置・速度・ステータス・能力の状態を衝突計算用の構造体にまとめる。
+/// </summary>
 BallPhysicsRules::Body BallCollisionComponent::CapturePhysicsBody() const
 {
     BallPhysicsRules::Body body;
@@ -773,6 +839,9 @@ BallPhysicsRules::Body BallCollisionComponent::CapturePhysicsBody() const
     return body;
 }
 
+/// <summary>
+/// 衝突計算後の位置、速度、貫通回数などをボールの実体へ反映する。
+/// </summary>
 void BallCollisionComponent::CommitPhysicsBody(const BallPhysicsRules::Body& body)
 {
     SetPosition(body.position);

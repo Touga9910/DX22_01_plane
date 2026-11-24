@@ -9,7 +9,13 @@
 using nlohmann::json;
 namespace
 {
+    /// <summary>
+    /// 実績IDを達成状況の配列で使う添字に変換する。
+    /// </summary>
     size_t Index(AchievementId id) { return static_cast<size_t>(id); }
+    /// <summary>
+    /// ランの成績を指定の実績の達成条件と照らし合わせる。
+    /// </summary>
     bool Satisfied(AchievementId id, const RunResultSnapshot& r)
     {
         switch (id)
@@ -26,6 +32,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 永続進行を初期化し、保存ファイルがある場合は実績と進行記録を読み込む。
+/// </summary>
 void ProgressionProfile::Load(const std::filesystem::path& path)
 {
     *this = ProgressionProfile{};
@@ -56,6 +65,9 @@ void ProgressionProfile::Load(const std::filesystem::path& path)
     }
 }
 
+/// <summary>
+/// 実績、到達記録と難度の解放状況をJSONに保存する。
+/// </summary>
 void ProgressionProfile::Save(const std::filesystem::path& path) const
 {
     std::filesystem::create_directories(path.parent_path());
@@ -71,10 +83,16 @@ void ProgressionProfile::Save(const std::filesystem::path& path) const
         throw std::runtime_error("profile replace failed");
 }
 
+/// <summary>
+/// 指定した実績IDが有効で、解放済みかを返す。
+/// </summary>
 bool ProgressionProfile::IsAchievementUnlocked(AchievementId id) const
 {
     return id >= AchievementId::FirstVictory && id < AchievementId::Count && achievements[Index(id)];
 }
+/// <summary>
+/// 指定の球を使用できるか、その球に必要な実績の達成状況から判断する。
+/// </summary>
 bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 {
 	if (id == "player_pierce" || id == "player_refractive_pierce" ||
@@ -94,6 +112,9 @@ bool ProgressionProfile::IsBallUnlocked(const std::string& id) const
 		id == "player_reflection_setup" ||
 		id == "player_origin_anchor";
 }
+/// <summary>
+/// 指定のレリックに必要な実績が解放されているかを判定する。
+/// </summary>
 bool ProgressionProfile::IsRelicUnlocked(RelicType type) const
 {
     if (type == RelicType::CollisionAttackUp) return IsAchievementUnlocked(AchievementId::DamageEight);
@@ -104,6 +125,9 @@ bool ProgressionProfile::IsRelicUnlocked(RelicType type) const
     return true;
 }
 
+/// <summary>
+/// ランの実績と記録をプロフィールに反映し、今回解放した項目を返す。
+/// </summary>
 std::vector<std::string> ProgressionProfile::RecordRun(const RunResultSnapshot& result, int clearedAscension)
 {
     ++totalRuns; highestArea = (std::max)(highestArea, result.areaProgress);
@@ -126,19 +150,34 @@ std::vector<std::string> ProgressionProfile::RecordRun(const RunResultSnapshot& 
     return unlocked;
 }
 
+/// <summary>
+/// 指定したアセンション段階で適用されるルールの表示名を返す。
+/// </summary>
 const char* ProgressionProfile::AscensionRule(int level)
 {
     static const char* rules[] = {"通常ルール", "敵HP +10%", "開始HP -5", "敵攻撃力 +1", "開始HP -10（合計）",
         "敵HP +20%（合計）", "敵攻撃力 +2（合計）", "開始HP -15（合計）", "開始HP -20（合計）", "敵HP +35%（合計）", "敵攻撃力 +3（合計）"};
     return rules[std::clamp(level, 0, MaximumAscension)];
 }
+/// <summary>
+/// アセンション段階に対応する敵の最大HP倍率を返す。
+/// </summary>
 float ProgressionProfile::EnemyHpMultiplier(int level) { return level >= 9 ? 1.35f : level >= 5 ? 1.20f : level >= 1 ? 1.10f : 1.0f; }
+/// <summary>
+/// アセンション段階に対応する敵の攻撃力加算値を返す。
+/// </summary>
 int ProgressionProfile::EnemyAttackBonus(int level) { return level >= 10 ? 3 : level >= 6 ? 2 : level >= 3 ? 1 : 0; }
+/// <summary>
+/// アセンション段階による開始HPの減少量を返す。
+/// </summary>
 int ProgressionProfile::StartingHpPenalty(int level)
 {
     return level >= 8 ? 20 : level >= 7 ? 15 : level >= 4 ? 10 : level >= 2 ? 5 : 0;
 }
 
+/// <summary>
+/// アセンションによる減少量を最大HPから引き、最低1の開始HPを返す。
+/// </summary>
 int ProgressionProfile::StartingHp(int maxHp, int level)
 {
     return (std::max)(1, maxHp - StartingHpPenalty(level));

@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <string>
 
+/// <summary>
+/// 回復、球の強化や削除、購入、報酬選択の外部コマンドを検証して処理する。
+/// </summary>
 std::optional<nlohmann::json> GameMcpCommandHandlers::TryEconomy(
 	Game& game,
 	const std::string& action,

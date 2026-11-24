@@ -4,6 +4,9 @@
 
 namespace IllustratedUi
 {
+/// <summary>
+/// 基準寸法のキャンバスをビューポートに収め、中央に配置する。
+/// </summary>
 Canvas::Canvas(const char* id, float width, float height, ImU32 backdropColor)
 {
     const auto* viewport = ImGui::GetMainViewport();
@@ -24,13 +27,28 @@ Canvas::Canvas(const char* id, float width, float height, ImU32 backdropColor)
         ImVec2(viewport->WorkPos.x + viewport->WorkSize.x, viewport->WorkPos.y + viewport->WorkSize.y),
         backdropColor);
 }
+/// <summary>
+/// キャンバス用のImGuiウィンドウを閉じ、適用したスタイルを戻す。
+/// </summary>
 Canvas::~Canvas() { ImGui::End(); ImGui::PopStyleVar(2); }
+/// <summary>
+/// キャンバス内の座標を画面上の座標に変換する。
+/// </summary>
 ImVec2 Canvas::At(float x, float y) const { return ImVec2(origin.x + x * scale, origin.y + y * scale); }
+/// <summary>
+/// キャンバス上の寸法を表示倍率に合わせて変換する。
+/// </summary>
 ImVec2 Canvas::Size(float w, float h) const { return ImVec2(w * scale, h * scale); }
+/// <summary>
+/// キャンバス内の指定範囲に色や余白オプションを適用して画像を描く。
+/// </summary>
 void Canvas::Art(const char* path, float x, float y, float w, float h, ImU32 tint, bool trimPadding) const
 {
     Image(ImGui::GetWindowDrawList(), path, At(x, y), At(x + w, y + h), tint, trimPadding);
 }
+/// <summary>
+/// 指定範囲に収まるようフォントサイズと折り返しを調整し、テキストを描く。
+/// </summary>
 void Canvas::Text(const char* text, float x, float y, float w, float h,
     float fontSize, ImU32 color, bool centered) const
 {
@@ -50,11 +68,17 @@ void Canvas::Text(const char* text, float x, float y, float w, float h,
     draw->AddText(font, size, p, color, text, nullptr, wrap);
     draw->PopClipRect();
 }
+/// <summary>
+/// キャンバス内の指定範囲に不可視ボタンを置き、クリックされたかを返す。
+/// </summary>
 bool Canvas::Hit(const char* id, float x, float y, float w, float h) const
 {
     ImGui::SetCursorScreenPos(At(x, y));
     return ImGui::InvisibleButton(id, Size(w, h));
 }
+/// <summary>
+/// 項目の有効状態、選択状態、ホバー状態に応じた強調表示を描く。
+/// </summary>
 void Canvas::Highlight(float x, float y, float w, float h, bool selected, bool hovered, bool enabled) const
 {
     auto* draw = ImGui::GetWindowDrawList();

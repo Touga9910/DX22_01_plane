@@ -16,14 +16,41 @@ struct World
     Vector3 interior = Vector3::Zero;
     int hits = 0, wallHits = 0, pocketHits = 0;
     bool abort = false, abortOnPocket = false, ignorePockets = false;
+    /// <summary>
+    /// テスト盤面に置いた球の総数を返す。
+    /// </summary>
     std::size_t Count() const { return balls.size(); }
+    /// <summary>
+    /// 指定された球がテスト盤面上で有効かを返す。
+    /// </summary>
     bool IsActive(std::size_t i) const { return active[i]; }
+    /// <summary>
+    /// 中断指定がなければ物理ステップの継続を許可する。
+    /// </summary>
     bool ShouldContinue() const { return !abort; }
+    /// <summary>
+    /// 指定されたテスト用の球の物理ボディを返す。
+    /// </summary>
     const auto& PhysicsBody(std::size_t i) const { return balls[i]; }
+    /// <summary>
+    /// テスト盤面の壁一覧を返す。
+    /// </summary>
     const auto& Walls() const { return walls; }
+    /// <summary>
+    /// テスト盤面のポケット一覧を返す。
+    /// </summary>
     const auto& PocketSpheres() const { return pockets; }
+    /// <summary>
+    /// サブステップの開始時点で、各球の位置を記録する。
+    /// </summary>
     void BeginSubstep() { starts.clear(); for (auto& ball : balls) starts.push_back(ball.position); }
+    /// <summary>
+    /// 指定されたテスト用の球を速度と経過時間に応じて移動する。
+    /// </summary>
     void Move(std::size_t i, float time) { balls[i].position += balls[i].velocity * time; }
+    /// <summary>
+    /// 球とポケットの接触を処理し、テスト設定に応じて球を無効化するか盤面に残す。
+    /// </summary>
     bool Pocket(std::size_t i, const Vector3& start)
     {
         if (ignorePockets)
@@ -41,13 +68,22 @@ struct World
             }
         return false;
     }
+    /// <summary>
+    /// ポケット進入と壁との衝突を指定された球について処理する。
+    /// </summary>
     void Environment(std::size_t i, const Vector3& start)
     {
         if (!active[i] || Pocket(i,start)) return;
         for (const auto& wall : walls) if (Wall(balls[i],wall,interior)) ++wallHits;
         Pocket(i,start);
     }
+    /// <summary>
+    /// サブステップ開始時の位置を基準に、指定された球と盤面との衝突を処理する。
+    /// </summary>
     void ResolveEnvironment(std::size_t i) { Environment(i, starts[i]); }
+    /// <summary>
+    /// 球同士の衝突とアンカーによる停止を処理し、状態の変わった球を盤面と再判定する。
+    /// </summary>
     void ResolvePair(std::size_t i, std::size_t j)
     {
         const Vector3 ap=balls[i].position, bp=balls[j].position, av=balls[i].velocity, bv=balls[j].velocity;
@@ -60,6 +96,9 @@ struct World
         if(active[i] && (balls[i].position!=ap || balls[i].velocity!=av)) Environment(i,ap);
         if(active[j] && (balls[j].position!=bp || balls[j].velocity!=bv)) Environment(j,bp);
     }
+    /// <summary>
+    /// 指定位置と速度でテスト用の球を作り、有効な球として盤面に追加する。
+    /// </summary>
     void Add(Vector3 position, Vector3 velocity, bool player=false)
     {
         Body b; b.id=balls.size()+1; b.position=position; b.velocity=velocity;
@@ -68,9 +107,18 @@ struct World
     }
 };
 
+/// <summary>
+/// 二つの数値の差が指定された許容値未満かを返す。
+/// </summary>
 bool Near(float a, float b, float tolerance=0.001f) { return std::abs(a-b)<tolerance; }
+/// <summary>
+/// 反復上限に達せず、物理ステップが最後まで進んだことを確認する。
+/// </summary>
 void Complete(const ContinuousBallStepper::Result& r) { assert(!r.limitReached && std::abs(r.advancedFraction-1)<1e-9); }
 
+/// <summary>
+/// 高速衝突、壁反射、連鎖、ポケット、反復上限などの連続衝突判定を検証する。
+/// </summary>
 int main()
 {
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);

@@ -68,15 +68,30 @@ public:
 	//=======================================
 	// 状態管理
 	//=======================================
+	/// <summary>
+	/// プレイヤー球の操作状態を設定する。
+	/// </summary>
 	void SetState(State state) { m_State = state; }
+	/// <summary>
+	/// プレイヤー球の現在の操作状態を返す。
+	/// </summary>
 	State GetState() const { return m_State; }
+	/// <summary>
+	/// 球が盤面上で入力待ちの状態かを判定する。
+	/// </summary>
 	bool IsIdle() const { return !m_IsPocketed && m_State == State::Idle; }
+	/// <summary>
+	/// 球がポケット待機中かを返す。
+	/// </summary>
 	bool IsPocketed() const { return m_IsPocketed; }
 
 	//=======================================
 	// ステータス系
 	//=======================================
 	void TakeDamage(int damage);
+	/// <summary>
+	/// 被ダメージの下限を1にして返す。
+	/// </summary>
 	static int CalculateIncomingDamage(int damage)
 	{
 		return (std::max)(1, damage);
@@ -86,37 +101,91 @@ public:
 	//=======================================
 	// ショット・軌跡系
 	//=======================================
+	/// <summary>
+	/// 指定された発射速度を球に設定する。
+	/// </summary>
 	void Shot(DirectX::SimpleMath::Vector3 velocity) { m_Ball->GetMutableVelocity() = velocity; }
 	void FireAutomatedShot(
 		const DirectX::SimpleMath::Vector3& velocity);
+	/// <summary>
+	/// 実際の移動を記録した軌跡点を消去する。
+	/// </summary>
 	void ClearTrajectory() { m_TrajectoryPositions.clear(); }
 
+	/// <summary>
+	/// 球のステータスを設定し、予測弾道を再計算する状態にする。
+	/// </summary>
 	void SetStatus(const BallStatus& status)
 	{
 		m_Ball->SetStatus(status);
 		m_PreTrajectoryDirty = true;
 	}
+	/// <summary>
+	/// 球の現在のステータスを読み取り専用の参照で返す。
+	/// </summary>
 	const BallStatus& GetStatus() const { return m_Ball->GetStatus(); }
+	/// <summary>
+	/// 球の現在HPを設定する。
+	/// </summary>
 	void SetHP(int hp) { m_Ball->SetHP(hp); }
+	/// <summary>
+	/// 球の最大HPを設定する。
+	/// </summary>
 	void SetMaxHP(int maxHp) { m_Ball->SetMaxHP(maxHp); }
+	/// <summary>
+	/// 球の現在HPを返す。
+	/// </summary>
 	int GetHP() const { return m_Ball->GetHP(); }
+	/// <summary>
+	/// 球の最大HPを返す。
+	/// </summary>
 	int GetMaxHP() const { return m_Ball->GetMaxHP(); }
+	/// <summary>
+	/// 球の攻撃力を返す。
+	/// </summary>
 	int GetAttack() const { return m_Ball->GetAttack(); }
+	/// <summary>
+	/// 球がオーラによって受けている状態効果を返す。
+	/// </summary>
 	const StatusEffectCollection& GetAuraStatusEffects() const
 	{
 		return m_Ball->GetAuraStatusEffects();
 	}
+	/// <summary>
+	/// プレイヤー球が撃破されたかを返す。
+	/// </summary>
 	bool IsDefeated() const { return m_Ball->IsDefeated(); }
+	/// <summary>
+	/// 球の物理コンポーネントが停止状態かを返す。
+	/// </summary>
 	bool IsStopped() const { return m_Ball->IsStopped(); }
+	/// <summary>
+	/// 球の現在の速度を返す。
+	/// </summary>
 	DirectX::SimpleMath::Vector3 GetVelocity() const { return m_Ball->GetVelocity(); }
+	/// <summary>
+	/// 球の現在のワールド座標を返す。
+	/// </summary>
 	DirectX::SimpleMath::Vector3 GetPosition() const { return m_Ball->GetPosition(); }
+	/// <summary>
+	/// 球の移動軌跡を描画に使う点列を返す。
+	/// </summary>
 	const std::vector<TrailPoint>& GetTrailPoints() const noexcept
 	{
 		return m_TrajectoryPositions;
 	}
+	/// <summary>
+	/// マウスでショットの強さを調整中かを返す。
+	/// </summary>
 	bool IsPowerDragging() const noexcept { return m_IsPowerDragging; }
 	void CancelShotPreparationInput();
+	/// <summary>
+	/// 現在のショットの強さを返す。
+	/// </summary>
 	float GetShotPower() const noexcept { return m_ShotPower; }
+	/// <summary>
+	/// ショットの強さを設定範囲内で0から1に換算する。
+	/// </summary>
 	float GetShotPowerRatio() const noexcept
 	{
 		const float range = m_MaxShotPower - m_MinShotPower;
@@ -124,6 +193,9 @@ public:
 			? std::clamp((m_ShotPower - m_MinShotPower) / range, 0.0f, 1.0f)
 			: 0.0f;
 	}
+	/// <summary>
+	/// プレイヤー球が利用する球コンポーネントを返す。
+	/// </summary>
 	BallComponent* GetBall() const { return m_Ball; }
 
 	//=======================================
@@ -144,22 +216,37 @@ private:
 	void Draw(Camera* cam);
 	void Uninit();
 
+	/// <summary>
+	/// 描画コンポーネントにモデルとテクスチャの読み込みを依頼する。
+	/// </summary>
 	void LoadModel(const char* modelFilePath, const char* textureDirectory)
 	{
 		if (m_RenderComponent == nullptr || m_Ball == nullptr) return;
 		m_RenderComponent->LoadModel(modelFilePath, textureDirectory);
 		m_Ball->UpdateRadius();
 	}
+	/// <summary>
+	/// 球の初期位置を設定する。
+	/// </summary>
 	void SetInitialPosition(const DirectX::SimpleMath::Vector3& position)
 	{
 		m_Ball->SetInitialPosition(position);
 	}
+	/// <summary>
+	/// 球のステータスに合わせて物理コンポーネントの半径を更新する。
+	/// </summary>
 	void UpdateRadius() { m_Ball->UpdateRadius(); }
+	/// <summary>
+	/// 指定されたワールド変換を使って球のメッシュを描画する。
+	/// </summary>
 	void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix)
 	{
 		if (m_RenderComponent != nullptr)
 			m_RenderComponent->DrawMesh(worldMatrix);
 	}
+	/// <summary>
+	/// 指定のダメージを球コンポーネントに反映する。
+	/// </summary>
 	void Damage(int damage) { m_Ball->Damage(damage); }
 
 	//=======================================
@@ -219,6 +306,9 @@ private:
 	class PreviewMesh : public Mesh
 	{
 	public:
+		/// <summary>
+		/// 両面から描ける四角形の頂点とインデックスを設定する。
+		/// </summary>
 		void InitQuad()
 		{
 			m_vertices =

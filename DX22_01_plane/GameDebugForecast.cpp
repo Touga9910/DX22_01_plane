@@ -14,6 +14,9 @@
 
 namespace
 {
+	/// <summary>
+	/// 敵の生存状態と行動予定、攻撃コンポーネントから、そのターンに攻撃可能かを返す。
+	/// </summary>
 	bool CanEnemyAttackThisTurn(const EnemyBall* enemy)
 	{
 		if (enemy == nullptr ||
@@ -41,6 +44,9 @@ namespace
 			owner->GetComponent<EnemyAttackComponent>() != nullptr;
 	}
 
+	/// <summary>
+	/// 敵の行動予定をデバッグ表示用のラベルに変換する。
+	/// </summary>
 	const char* EnemyPlanDebugLabel(const EnemyBall& enemy)
 	{
 		switch (enemy.GetPlannedAction())
@@ -53,6 +59,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 戦闘予測に再計算が必要であることを記録し、指定された更新理由を保持する。
+/// </summary>
 void GameDebugController::InvalidateCombatForecast(const char* reason)
 {
 	m_DebugCombatForecastDirty = true;
@@ -62,6 +71,9 @@ void GameDebugController::InvalidateCombatForecast(const char* reason)
 	}
 }
 
+/// <summary>
+/// 再計算が必要な場合に、現在の敵の行動から予測被ダメージの内訳を更新する。
+/// </summary>
 void GameDebugController::RefreshCombatForecast(Game& game)
 {
 	if (!m_DebugCombatForecastDirty)
@@ -152,6 +164,9 @@ void GameDebugController::RefreshCombatForecast(Game& game)
 	m_DebugCombatForecastDirty = false;
 }
 
+/// <summary>
+/// 正の被ダメージを、発生元と前後のHPとともにデバッグ履歴に記録する。
+/// </summary>
 void GameDebugController::RecordPlayerDamage(
 	const std::string& source,
 	const std::string& sourceId,
@@ -179,6 +194,9 @@ void GameDebugController::RecordPlayerDamage(
 	}
 }
 
+/// <summary>
+/// 敵の攻撃開始時に戦闘予測を再計算し、予測被ダメージを返す。
+/// </summary>
 int GameDebugController::BeginEnemyAttackForecast(Game& game)
 {
 	InvalidateCombatForecast("敵攻撃開始");
@@ -186,6 +204,9 @@ int GameDebugController::BeginEnemyAttackForecast(Game& game)
 	return m_DebugCombatForecast.expectedDamage;
 }
 
+/// <summary>
+/// 敵の攻撃前に予測した被ダメージと実際に受けた値を保存する。
+/// </summary>
 void GameDebugController::EndEnemyAttackForecast(
 	int predictedDamage,
 	int actualDamage)
@@ -195,6 +216,9 @@ void GameDebugController::EndEnemyAttackForecast(
 	m_DebugLastEnemyAttackActualDamage = actualDamage;
 }
 
+/// <summary>
+/// 被ダメージ履歴と比較結果を消去し、戦闘予測を更新対象にする。
+/// </summary>
 void GameDebugController::ResetDiagnostics(const char* reason)
 {
 	m_DebugPlayerDamageHistory.clear();
@@ -203,11 +227,17 @@ void GameDebugController::ResetDiagnostics(const char* reason)
 	InvalidateCombatForecast(reason);
 }
 
+/// <summary>
+/// 指定した理由でデバッグ戦闘予測の再計算を要求する。
+/// </summary>
 void Game::InvalidateDebugCombatForecast(const char* reason)
 {
 	m_DebugController->InvalidateCombatForecast(reason);
 }
 
+/// <summary>
+/// 被ダメージとその発生元、前後のHPをデバッグ履歴へ渡す。
+/// </summary>
 void Game::RecordDebugPlayerDamage(
 	const std::string& source,
 	const std::string& sourceId,

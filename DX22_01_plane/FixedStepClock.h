@@ -16,6 +16,9 @@ public:
     // 実時間の経過秒数を受け取り、このフレームで実行すべき固定更新回数を返す
     // 0以下または有限でない値の場合は0を返す
     // 上限を超えた経過時間や実行しきれないtickはDroppedSecondsへ加算する
+    /// <summary>
+    /// 経過時間からこのフレームの固定更新回数を求め、処理上限を超えた時間を破棄時間に加える。
+    /// </summary>
     int Advance(double elapsedSeconds)
     {
         if (!std::isfinite(elapsedSeconds) || elapsedSeconds <= 0.0)
@@ -36,9 +39,18 @@ public:
     }
 
     // ポーズ、シーン切替、新しいショット開始時などに未処理時間を破棄する
+    /// <summary>
+    /// 次の固定更新へ持ち越していた未処理時間を破棄する。
+    /// </summary>
     void Reset() { m_RemainderSeconds = 0.0; }
 
+    /// <summary>
+    /// 固定更新1回分に満たず、次回に持ち越されている秒数を返す。
+    /// </summary>
     double RemainderSeconds() const { return m_RemainderSeconds; }  // 次回以降へ持ち越す未満tickの秒数
+    /// <summary>
+    /// 処理上限により固定更新へ使用しなかった累積秒数を返す。
+    /// </summary>
     double DroppedSeconds() const { return m_DroppedSeconds; }      // 上限処理によって物理更新へ使用しなかった累積秒数
 
 private:

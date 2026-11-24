@@ -12,6 +12,9 @@
 
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// ゲームが初期化済みなら、固定物理ステップの時間計測をリセットする。
+/// </summary>
 void Game::ResetFrameTiming()
 {
 	if (m_Instance != nullptr)
@@ -20,6 +23,9 @@ void Game::ResetFrameTiming()
 	}
 }
 
+/// <summary>
+/// 経過時間に応じて物理ステップを進め、戦闘状態の変化と処理時間を記録する。
+/// </summary>
 void Game::UpdateFixedPhysics(double elapsedSeconds)
 {
 	const int steps =

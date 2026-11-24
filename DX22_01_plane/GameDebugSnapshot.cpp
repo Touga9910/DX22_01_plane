@@ -14,6 +14,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 三次元ベクトルの成分を指定した見出し付きでファイルに書き出す。
+    /// </summary>
     void WriteVector3(
         std::ofstream& file,
         const char* label,
@@ -23,6 +26,9 @@ namespace
             << value.x << ", " << value.y << ", " << value.z << ")\n";
     }
 
+    /// <summary>
+    /// 指定した球の位置、速度、HPなどの診断情報をファイルに書き出す。
+    /// </summary>
     void WriteBallDebugStatus(
         std::ofstream& file,
         const char* typeName,
@@ -39,6 +45,9 @@ namespace
         file << "IsDefeated = " << (ball->IsDefeated() ? "true" : "false") << "\n\n";
     }
 }
+/// <summary>
+/// 現在のシーン、戦闘状態、球の情報などをデバッグ用スナップショットに書き出す。
+/// </summary>
 void Game::SaveDebugSnapshot()
 {
 	std::ofstream file("debug_state_snapshot.txt");

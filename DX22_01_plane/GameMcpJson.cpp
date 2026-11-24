@@ -16,11 +16,17 @@ using namespace GameMcpJson;
 
 namespace GameMcpJson
 {
+	/// <summary>
+	/// 現在の時刻をUNIXエポックからのミリ秒で返す。
+	/// </summary>
 	std::int64_t UnixTimeMilliseconds()
 	{
 		return std::chrono::duration_cast<std::chrono::milliseconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count();
 	}
+	/// <summary>
+	/// 報酬選択や敗北の状態と戦闘フェーズを確認し、MCP用のゲーム状態名を返す。
+	/// </summary>
 	const char* GetGameStateName(const Game& game)
 	{
 		if (game.IsClearRewardActive())
@@ -55,6 +61,9 @@ namespace GameMcpJson
 	}
 
 
+	/// <summary>
+	/// シーンの型に対応するMCP用の画面名を返す。
+	/// </summary>
 	const char* GetSceneName(const Scene* scene)
 	{
 		if (dynamic_cast<const TitleScene*>(scene) != nullptr)
@@ -84,6 +93,9 @@ namespace GameMcpJson
 		return "unknown";
 	}
 
+	/// <summary>
+	/// 三次元ベクトルをx、y、zの各座標を持つJSONに変換する。
+	/// </summary>
 	nlohmann::json VectorToJson(
 		const DirectX::SimpleMath::Vector3& vector)
 	{
@@ -94,6 +106,9 @@ namespace GameMcpJson
 		};
 	}
 
+	/// <summary>
+	/// ステージ種別を通常戦、中ボス戦、ボス戦のMCP用識別子に変換する。
+	/// </summary>
 	const char* StageTypeToMcpString(StageType stageType)
 	{
 		switch (stageType)
@@ -106,6 +121,9 @@ namespace GameMcpJson
 			return "normal";
 		}
 	}
+	/// <summary>
+	/// 自球の状態をJSONに変換し、既存のMCPクライアント向けに能力の互換項目を追加する。
+	/// </summary>
 	nlohmann::json PlayerBallStatusToMcpJson(const BallStatus& status)
 	{
 		// Keep the historical flat ability aliases used by MCP clients while
@@ -122,6 +140,9 @@ namespace GameMcpJson
 		return value;
 	}
 
+	/// <summary>
+	/// 球の識別子、強化情報、現在の状態をMCP用のJSONに変換する。
+	/// </summary>
 	nlohmann::json BallDataToJson(
 		const PlayerBallData& ball,
 		int index)
@@ -138,6 +159,9 @@ namespace GameMcpJson
 		};
 	}
 
+	/// <summary>
+	/// インスタンスIDに対応する球をデッキ内で探し、見つかった位置を返す。
+	/// </summary>
 	int FindDeckBallIndex(
 		const Game& game,
 		std::uint64_t instanceId)
@@ -156,11 +180,17 @@ namespace GameMcpJson
 		}
 		return -1;
 	}
+	/// <summary>
+	/// ランの戦闘モードをMCP用の識別子に変換する。
+	/// </summary>
 	const char* McpRunCombatModeId(RunCombatMode mode)
 	{
 		return mode == RunCombatMode::PhaseTest ? "phase" : "legacy";
 	}
 
+	/// <summary>
+	/// コマンドの成否とメッセージを応答用のJSONにまとめる。
+	/// </summary>
 	nlohmann::json CommandResult(
 		bool ok,
 		const std::string& message)

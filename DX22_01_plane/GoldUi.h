@@ -7,12 +7,18 @@
 // One reusable gold symbol + amount, for prices and owned-money displays.
 namespace GoldUi
 {
+    /// <summary>
+    /// ゴールドのアイコンと金額の文字列を表示するのに必要な幅を求める。
+    /// </summary>
     inline float Width(int amount, float height, float fontSize)
     {
         const std::string number = std::to_string(amount);
         return height * 1.22f + ImGui::GetFont()->CalcTextSizeA(fontSize, FLT_MAX, 0, number.c_str()).x;
     }
 
+    /// <summary>
+    /// ゴールドのアイコンと金額を指定位置へ描画し、必要に応じてアイコンをグレースケールにする。
+    /// </summary>
     inline void Draw(ImDrawList* draw, ImVec2 position, int amount, float height,
         float fontSize, ImU32 textColor = IM_COL32(255, 225, 140, 255), bool grayscale = false)
     {

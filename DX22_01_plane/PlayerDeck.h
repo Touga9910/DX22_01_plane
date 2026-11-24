@@ -32,7 +32,13 @@ public:
     void SetDefaultDeck(const std::vector<PlayerBallData>& defaultDeck);
     void SetCatalog(const std::vector<PlayerBallData>& catalog);
     void Seed(std::uint32_t seed);
+    /// <summary>
+    /// 球の抽選に使う乱数生成器への変更可能な参照を返す。
+    /// </summary>
     std::mt19937& RandomEngine() { return m_RandomEngine; }
+    /// <summary>
+    /// 球の抽選に使う乱数生成器を読み取り専用の参照で返す。
+    /// </summary>
     const std::mt19937& RandomEngine() const { return m_RandomEngine; }
     void Reset();
     void ResetToDefault();
@@ -44,9 +50,18 @@ public:
     // Second argument is ignored for source compatibility with older controllers.
     bool SelectOffer(int selectedIndex, int legacyHeldIndex = -1);
 
+    /// <summary>
+    /// 現在提示している球の候補数を返す。
+    /// </summary>
     int GetOfferCount() const { return static_cast<int>(m_OfferedBalls.size()); }
     const PlayerBallData* GetOffer(int index) const;
+    /// <summary>
+    /// 旧形式の候補保持判定に対して、保持なしを表す既定値を返す。
+    /// </summary>
     bool WasHeldOffer(int) const { return false; } // Legacy read API
+    /// <summary>
+    /// 旧形式の球保持判定に対して、保持球なしを表す既定値を返す。
+    /// </summary>
     bool HasHeldBall() const { return false; } // Legacy read API
 
     // -------------------------
@@ -59,7 +74,13 @@ public:
     // -------------------------
     // 現在ボール
     // -------------------------
+    /// <summary>
+    /// 現在選択中の球があるかを判定する。
+    /// </summary>
     bool HasCurrent() const { return m_CurrentBall.has_value(); }
+    /// <summary>
+    /// 現在の球がショットで使用済みかを返す。
+    /// </summary>
     bool IsCurrentUsed() const { return m_IsCurrentBallUsed; }
 
     const PlayerBallData* GetCurrent() const;
@@ -67,10 +88,22 @@ public:
     // -------------------------
     // 山札・捨て札情報
     // -------------------------
+    /// <summary>
+    /// 山札に残っている球の数を返す。
+    /// </summary>
     int GetDrawPileCount() const { return static_cast<int>(m_DrawPile.size()); }
+    /// <summary>
+    /// 捨て札にある球の数を返す。
+    /// </summary>
     int GetDiscardPileCount() const { return static_cast<int>(m_DiscardPile.size()); }
 
+    /// <summary>
+    /// 現在の山札を読み取り専用の参照で返す。
+    /// </summary>
     const std::vector<PlayerBallData>& GetDrawPile() const { return m_DrawPile; }
+    /// <summary>
+    /// 現在の捨て札を読み取り専用の参照で返す。
+    /// </summary>
     const std::vector<PlayerBallData>& GetDiscardPile() const { return m_DiscardPile; }
 
     // -------------------------

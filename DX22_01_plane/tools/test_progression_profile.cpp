@@ -5,6 +5,9 @@
 #include <fstream>
 #include <iostream>
 
+/// <summary>
+/// 実績、自球の解放、昇格の順序と効果、プロフィール保存と不正ファイルの既定処理を検証する。
+/// </summary>
 int main()
 {
     // GameMcpBridge publishes these player-facing strings through nlohmann::json.

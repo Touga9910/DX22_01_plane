@@ -9,6 +9,9 @@
 
 using namespace GameMcpJson;
 
+/// <summary>
+/// 保留中の球調整を整理し、ゲーム状態と利用可能な操作を公開用のJSONにまとめる。
+/// </summary>
 nlohmann::json GameMcpBridge::BuildState(Game& game, bool running) const
 {
 	GameMcpCommands::PrunePendingBallAdjustments(game);

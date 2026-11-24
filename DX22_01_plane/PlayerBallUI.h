@@ -4,6 +4,9 @@
 
 namespace PlayerBallUI
 {
+    /// <summary>
+    /// 球の色と選択状態を反映したカードを描画し、選択操作の有無を返す。
+    /// </summary>
     inline bool Select(const PlayerBallData& ball, bool selected)
     {
         const auto color = PlayerBallText::GetColor(ball);

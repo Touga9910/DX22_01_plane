@@ -43,6 +43,9 @@ public:
     static GameObject* CreateObject(const std::string& name);
     static void DestroyObject(GameObject* object);
 
+    /// <summary>
+    /// 静的なゲーム実行インターフェースのインスタンス化を禁止する。
+    /// </summary>
     GameRuntime() = delete;
 
 private:

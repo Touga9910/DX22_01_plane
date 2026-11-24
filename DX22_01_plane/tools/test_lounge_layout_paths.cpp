@@ -3,6 +3,9 @@
 #include "../RunMap.h"
 #include <cassert>
 #include <iostream>
+/// <summary>
+/// 斜めから見たフィールドへの収まりと、シードから再現可能なルート線を検証する。
+/// </summary>
 int main()
 {
     using namespace RewardFieldLayout;

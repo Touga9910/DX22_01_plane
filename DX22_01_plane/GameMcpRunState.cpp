@@ -10,6 +10,9 @@ using namespace GameMcpJson;
 
 namespace GameMcpStateSerialization
 {
+/// <summary>
+/// 現在または次回の戦闘モードと、ランに適用された設定をJSONに追加する。
+/// </summary>
 void AppendRunMode(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	const std::string stateScene = state.value("scene", std::string("unknown"));
@@ -34,6 +37,9 @@ void AppendRunMode(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::js
 	state["balance_log_directory"] = "logs/balance";
 }
 
+/// <summary>
+/// 恒久進行の記録と自球の解放状況をJSONに追加する。
+/// </summary>
 void AppendProgression(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	const auto isBallUnlocked = [&snapshot](const std::string& definitionId)
@@ -105,6 +111,9 @@ void AppendProgression(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann
 	};
 }
 
+/// <summary>
+/// ラン中の戦闘進行、結果の集計、最終ボスの撃破状況をJSONに追加する。
+/// </summary>
 void AppendRunProgress(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	const RunResultSnapshot& runStatistics = snapshot.runStatistics;
@@ -130,6 +139,9 @@ void AppendRunProgress(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann
 	};
 }
 
+/// <summary>
+/// 旧動的調整の互換項目と現在のバランス検証設定をJSONに追加する。
+/// </summary>
 void AppendBalance(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	state["dynamic_balance"] = {

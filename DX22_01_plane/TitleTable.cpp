@@ -17,7 +17,13 @@
 #include "ShotPowerRules.h"
 #include "imgui/imgui.h"
 using namespace DirectX::SimpleMath;
+/// <summary>
+/// タイトルのビリヤード台と演出に使うリソースを解放する。
+/// </summary>
 TitleTable::~TitleTable(){Release();}
+/// <summary>
+/// ビリヤード台、球、演出のリソースを解放し、投影情報を無効にする。
+/// </summary>
 void TitleTable::Release()
 {
     m_Ready=false;
@@ -25,6 +31,9 @@ void TitleTable::Release()
     for(auto& visual:m_Visual)visual.reset();
     m_Table.reset();m_Frame.reset();m_Vfx.ClearActive();m_ProjectionValid=false;
 }
+/// <summary>
+/// タイトル演出の台、ラック、手球、物理とエフェクトを初期化する。
+/// </summary>
 void TitleTable::Awake()
 {
     Release();
@@ -84,6 +93,9 @@ void TitleTable::Awake()
         m_Physics.balls[i++].position={19+row*spacing*.87f,TableConfig::FIELD_HEIGHT,(col-row*.5f)*spacing};
     m_Ready=true;
 }
+/// <summary>
+/// タイトル演出の時間と表示を更新し、手球の発射後は球の物理を固定刻みで進める。
+/// </summary>
 void TitleTable::Step(float dt,bool released,float cameraBlend)
 {
     if(!m_Ready)return;
@@ -105,6 +117,9 @@ void TitleTable::Step(float dt,bool released,float cameraBlend)
     while(m_Accumulator>=1.0f/60)
     {m_Accumulator-=1.0f/60;m_Physics.Tick();}
 }
+/// <summary>
+/// タイトルのカメラを設定してビリヤード台と球を描き、演出用の投影情報を保存する。
+/// </summary>
 void TitleTable::Draw()
 {
     auto* context=Renderer::GetDeviceContext();
@@ -148,8 +163,14 @@ void TitleTable::Draw()
 }
 
 namespace { const TitleTable* activeProjector=nullptr;
+    /// <summary>
+    /// 現在のタイトル台の投影処理を使い、ワールド座標を画面座標へ変換する。
+    /// </summary>
     bool ProjectTitle(const Vector3& world,ImVec2& screen){return activeProjector&&activeProjector->Project(world,screen);}
 }
+/// <summary>
+/// タイトル表示の投影情報からワールド座標を画面座標に変換し、投影後の深度を確認する。
+/// </summary>
 bool TitleTable::Project(const Vector3& world,ImVec2& screen)const
 {
     if(!m_ProjectionValid)return false;
@@ -159,6 +180,9 @@ bool TitleTable::Project(const Vector3& world,ImVec2& screen)const
     const auto* vp=ImGui::GetMainViewport();
     screen={vp->Pos.x+p.x/m_RenderWidth*vp->Size.x,vp->Pos.y+p.y/m_RenderHeight*vp->Size.y};return true;
 }
+/// <summary>
+/// タイトル画面の台の表示範囲に、座標を投影したエフェクトを描く。
+/// </summary>
 void TitleTable::DrawEffects(ImDrawList* draw)
 {
     if(!m_ProjectionValid)return;

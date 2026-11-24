@@ -17,16 +17,25 @@
 
 #include <iostream>
 
+/// <summary>
+/// ゲームの実行状態から現在のシーンを取得する。
+/// </summary>
 Scene* Game::GetCurrentScene() const
 {
 	return m_RuntimeState->CurrentScene();
 }
 
+/// <summary>
+/// ゲームの実行状態から現在のシーン種別を取得する。
+/// </summary>
 SceneType Game::GetCurrentSceneType() const
 {
 	return m_RuntimeState->CurrentSceneType();
 }
 
+/// <summary>
+/// タイトル画面でセーブ済みランを読み込むためのフェード遷移を開始する。
+/// </summary>
 bool Game::LoadSavedRunWithFade()
 {
 	if (GetCurrentSceneType() != SceneType::Title) return false;
@@ -34,6 +43,9 @@ bool Game::LoadSavedRunWithFade()
 	return m_RuntimeState->Transition().Request([this]() { LoadSavedRun(); });
 }
 
+/// <summary>
+/// 遷移先のシーン種別を検証し、ゲーム状態に応じた切り替えを行う。
+/// </summary>
 void Game::ChangeScene(SceneType sceneType)
 {
 	if (sceneType < SceneType::Title || sceneType >= SceneType::Max)

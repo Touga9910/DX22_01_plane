@@ -6,6 +6,9 @@
 using json = nlohmann::json;
 using namespace BalanceLogDetail;
 
+/// <summary>
+/// 進行中のステージを必要に応じて閉じ、初期状態とメタデータを記録して計測を開始する。
+/// </summary>
 void BalanceLogger::BeginStage(
 	const std::string& stageId,
 	const std::string& stageType,
@@ -98,6 +101,9 @@ void BalanceLogger::BeginStage(
 	Save();
 }
 
+/// <summary>
+/// 進行中のショットを処理し、ステージの結果と終了時点の状態をまとめて保存する。
+/// </summary>
 void BalanceLogger::EndStage(
 	const std::string& result,
 	int playerHp,

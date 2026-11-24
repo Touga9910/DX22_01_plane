@@ -16,6 +16,9 @@
 #include <stdexcept>
 #include <utility>
 
+/// <summary>
+/// ランのモード、進行、デッキ、乱数などをセーブ用のスナップショットに保存する。
+/// </summary>
 GameRunSaveSnapshot Game::CaptureRunSaveSnapshot() const
 {
 	GameRunSaveSnapshot snapshot{};
@@ -41,6 +44,9 @@ GameRunSaveSnapshot Game::CaptureRunSaveSnapshot() const
 	return snapshot;
 }
 
+/// <summary>
+/// セーブのスナップショットと復帰先の指定に従い、ランの進行状態を復元する。
+/// </summary>
 void Game::RestoreRunSaveSnapshot(GameRunRestoreRequest request)
 {
 	GameRunSaveSnapshot& snapshot = request.snapshot;

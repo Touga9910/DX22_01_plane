@@ -25,6 +25,9 @@ namespace
     struct Texture { int w=0,h=0; std::vector<unsigned char> rgba; ImVec2 uv0{0,0},uv1{1,1}; };
     std::map<ImTextureID,Texture> textures;
     std::map<std::string,ImTextureID> ids;
+    /// <summary>
+    /// 画像を読み込んでテクスチャに登録し、透過部分を除いた描画範囲と再利用用のIDを保持する。
+    /// </summary>
     ImTextureID Load(const char* path,bool gray)
     {
         const std::string key=std::string(path)+(gray?"#gray":"");
@@ -45,6 +48,9 @@ namespace
         t.uv1={static_cast<float>(std::min(t.w,right+3))/t.w,static_cast<float>(std::min(t.h,bottom+3))/t.h};
         const ImTextureID id=textures.size()+1; textures[id]=std::move(t); ids[key]=id; return id;
     }
+    /// <summary>
+    /// ImGuiの描画データをCPU上でラスタライズし、結果をPPM画像に保存する。
+    /// </summary>
     void Capture(const std::filesystem::path& path)
     {
         const auto* data=ImGui::GetDrawData();
@@ -100,6 +106,9 @@ namespace
 }
 namespace IllustratedUi
 {
+    /// <summary>
+    /// 画像の縦横比を保ちながら指定範囲の中央に描画する。
+    /// </summary>
     void Image(ImDrawList* draw,const char* path,ImVec2 lo,ImVec2 hi,ImU32 tint,bool trim,bool gray)
     {
         const auto id=Load(path,gray); const auto& t=textures.at(id);
@@ -112,15 +121,24 @@ namespace IllustratedUi
 }
 namespace BallCardPresentation
 {
+    /// <summary>
+    /// 球種に対応するカード画像を球のアイコンとして描画する。
+    /// </summary>
     void DrawBallIcon(const PlayerBallData& ball,const ImVec2& p,const ImVec2& size,bool gray)
     {
         const char* file=ball.category==BallCategory::Heavy?"card_heavy.png":ball.category==BallCategory::Pierce?"card_pierce.png":ball.category==BallCategory::Bounce?"card_reflect.png":"card_anchor_green.png";
         const std::string path=std::string("assets/UI/Cards/")+file;
         IllustratedUi::Image(ImGui::GetWindowDrawList(),path.c_str(),p,ImVec2(p.x+size.x,p.y+size.y),IM_COL32_WHITE,true,gray);
     }
+    /// <summary>
+    /// 球の名前と説明を詳細画面に表示する。
+    /// </summary>
     void DrawBallDetailPopup(const PlayerBallData& ball,int)
     { ImGui::TextWrapped("%s\n%s",PlayerBallText::GetName(ball.definitionId),PlayerBallText::GetDescription(ball.definitionId)); }
 }
+/// <summary>
+/// 休憩所の各サービス表示をCPUで描画して、指定したディレクトリに画像を出力する。
+/// </summary>
 int main(int argc,char** argv)
 {
     if(argc!=2) { std::cerr<<"Usage: capture_lounge_services OUTPUT_DIRECTORY (run from DX22_01_plane)\n"; return 2; }

@@ -3,6 +3,9 @@
 #include "TransformComponent.h"
 
 // GameObject生成時にTransformComponentを自動追加する
+/// <summary>
+/// 指定名でゲームオブジェクトを作り、位置や姿勢を管理するコンポーネントを追加する。
+/// </summary>
 GameObject::GameObject(const std::string& name)
     : m_Name(name)
 {
@@ -10,11 +13,17 @@ GameObject::GameObject(const std::string& name)
 }
 
 // 各コンポーネントに削除通知を送る
+/// <summary>
+/// 破棄時にコンポーネントの終了処理を呼び出す。
+/// </summary>
 GameObject::~GameObject()
 {
 	Uninit();
 }
 
+/// <summary>
+/// 登録されているコンポーネントを終了させ、二重に終了処理が走らないようにする。
+/// </summary>
 void GameObject::Uninit()
 {
 	if (m_IsFinalized)
@@ -31,6 +40,9 @@ void GameObject::Uninit()
 }
 
 // 有効なコンポーネントを毎フレーム更新する
+/// <summary>
+/// 有効なコンポーネントを必要に応じて開始した後、フレーム更新を呼び出す。
+/// </summary>
 void GameObject::Update()
 {
     if (!m_IsActive || m_DestroyRequested)
@@ -65,6 +77,9 @@ void GameObject::Update()
 }
 
 // 通常のUpdate後にコンポーネントを更新する
+/// <summary>
+/// 有効なコンポーネントのフレーム更新後の処理を呼び出す。
+/// </summary>
 void GameObject::LateUpdate()
 {
     if (!m_IsActive || m_DestroyRequested)
@@ -90,6 +105,9 @@ void GameObject::LateUpdate()
 }
 
 // 描画機能を持つコンポーネントを実行する
+/// <summary>
+/// 有効なコンポーネントの描画処理を呼び出す。
+/// </summary>
 void GameObject::Draw()
 {
     if (!m_IsActive || m_DestroyRequested)
@@ -115,11 +133,17 @@ void GameObject::Draw()
 }
 
 // Sceneへ削除要求を送る
+/// <summary>
+/// ゲームオブジェクトを後続の処理で破棄するように予約する。
+/// </summary>
 void GameObject::Destroy()
 {
     m_DestroyRequested = true;
 }
 
+/// <summary>
+/// 有効なコンポーネントを必要に応じて開始した後、固定時間ステップの更新を呼び出す。
+/// </summary>
 void GameObject::FixedUpdate()
 {
 	if (!m_IsActive || m_DestroyRequested)

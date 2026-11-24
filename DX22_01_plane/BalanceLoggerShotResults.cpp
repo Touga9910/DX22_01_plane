@@ -9,6 +9,9 @@ using json = nlohmann::json;
 
 namespace BalanceLogDetail
 {
+/// <summary>
+/// ショット選択時の判断材料と評価を取り出し、結果のログに追加する。
+/// </summary>
 void AppendShotDecisionLog(
 	json& pendingShot,
 	const ShotEventSummary& summary,
@@ -103,6 +106,9 @@ void AppendShotDecisionLog(
 	};
 }
 
+/// <summary>
+/// ショット中のスタック上限や反射による増減を集計し、結果のログに追加する。
+/// </summary>
 ReflectionStackSummary AppendShotStackTelemetry(
 	json& pendingShot,
 	json& latestPhysics,

@@ -11,17 +11,26 @@
 
 namespace
 {
+	/// <summary>
+	/// 進行度の下限と上限が有効な順序と範囲にあるかを判定する。
+	/// </summary>
 	bool IsValidProgressRange(int minimumProgress, int maximumProgress)
 	{
 		return minimumProgress >= 1 && maximumProgress >= minimumProgress;
 	}
 }
 
+/// <summary>
+/// 通常プレイのバランス設定を既定値で初期化する。
+/// </summary>
 NormalPlayBalance::NormalPlayBalance()
 {
 	ResetToSafeDefaults();
 }
 
+/// <summary>
+/// 敵の行動予算とステージ候補の設定を既定値に戻す。
+/// </summary>
 void NormalPlayBalance::ResetToSafeDefaults()
 {
 	m_LoadedFromData = false;
@@ -53,6 +62,9 @@ void NormalPlayBalance::ResetToSafeDefaults()
 	};
 }
 
+/// <summary>
+/// バランス設定をJSONから読み込み、利用可能な進行度別の行動予算とステージ候補を登録する。
+/// </summary>
 void NormalPlayBalance::Load(const std::string& filePath)
 {
 	ResetToSafeDefaults();
@@ -140,6 +152,9 @@ void NormalPlayBalance::Load(const std::string& filePath)
 	}
 }
 
+/// <summary>
+/// 進行度に対応する敵行動の最大予算を返す。
+/// </summary>
 int NormalPlayBalance::GetEnemyActionMaximumBudget(int progress) const
 {
 	const auto found = std::find_if(
@@ -155,6 +170,9 @@ int NormalPlayBalance::GetEnemyActionMaximumBudget(int progress) const
 		: -1;
 }
 
+/// <summary>
+/// 進行度を含む範囲に設定されたステージ候補群を探す。
+/// </summary>
 const NormalPlayBalance::StagePool*
 NormalPlayBalance::FindStagePool(int progress) const
 {
@@ -169,6 +187,9 @@ NormalPlayBalance::FindStagePool(int progress) const
 	return found != m_StagePools.end() ? &*found : nullptr;
 }
 
+/// <summary>
+/// 進行度に対応する通常ステージ候補の識別子を返す。
+/// </summary>
 std::vector<std::string>
 NormalPlayBalance::GetAllowedNormalStageIds(int progress) const
 {
@@ -176,6 +197,9 @@ NormalPlayBalance::GetAllowedNormalStageIds(int progress) const
 	return pool != nullptr ? pool->stageIds : std::vector<std::string>{};
 }
 
+/// <summary>
+/// 進行度に対応するステージ候補群の識別子を返す。
+/// </summary>
 std::string NormalPlayBalance::GetStagePoolId(int progress) const
 {
 	const StagePool* pool = FindStagePool(progress);

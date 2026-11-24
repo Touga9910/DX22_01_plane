@@ -95,12 +95,18 @@ namespace BallShotPrediction
 		std::unordered_set<std::uintptr_t> uniquePiercedEnemies;
         double milliseconds = 0.0;
 
+        /// <summary>
+        /// 指定した反射回数までの表示に使う軌跡の点数を返す。
+        /// </summary>
         std::size_t PreviewPointCount(std::size_t reflections) const
         {
             return reflectionPathIndices.size() > reflections
                 ? (std::min)(path.size(), reflectionPathIndices[reflections] + 1)
                 : path.size();
         }
+        /// <summary>
+        /// 軌跡が指定の反射回数より先まで記録されているかを返す。
+        /// </summary>
         bool PreviewReachesLimit(std::size_t reflections) const
         {
             return reflectionPathIndices.size() > reflections;

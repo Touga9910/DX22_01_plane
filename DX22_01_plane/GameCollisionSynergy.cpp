@@ -12,6 +12,9 @@
 
 #include <algorithm>
 #include <limits>
+/// <summary>
+/// プレイヤー球と敵球の衝突に適用する連携効果を判定し、ダメージ加算や衝突処理への指示を返す。
+/// </summary>
 PlayerEnemySynergyResult Game::NotifyPlayerEnemySynergyCollision(
 	EnemyBall* enemy,
 	const DirectX::SimpleMath::Vector3& enemyVelocityBefore)

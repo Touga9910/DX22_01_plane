@@ -18,12 +18,18 @@ namespace
     json artifacts = { { "fixture_schema_version", 1 },
         { "cases", json::array() }, { "checks", json::array() } };
 
+    /// <summary>
+    /// 条件の成立を確認し、成功した検査の説明を成果データに加える。
+    /// </summary>
     void Check(bool condition, const std::string& description)
     {
         if (!condition) throw std::runtime_error(description);
         artifacts["checks"].push_back(description);
     }
 
+    /// <summary>
+    /// 必要な親ディレクトリを作成し、テスト用のテキストを指定ファイルに保存する。
+    /// </summary>
     void WriteText(const fs::path& path, const std::string& value)
     {
         if (!path.parent_path().empty()) fs::create_directories(path.parent_path());
@@ -32,11 +38,17 @@ namespace
         if (!file) throw std::runtime_error("Cannot write fixture file: " + path.string());
     }
 
+    /// <summary>
+    /// JSONを整形し、テスト用ファイルに書き込む。
+    /// </summary>
     void WriteJson(const fs::path& path, const json& value)
     {
         WriteText(path, value.dump(2) + '\n');
     }
 
+    /// <summary>
+    /// 指定されたテスト用ファイルの内容を文字列として読み込む。
+    /// </summary>
     std::string ReadText(const fs::path& path)
     {
         std::ifstream file(path, std::ios::binary);
@@ -44,8 +56,14 @@ namespace
         return { std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
     }
 
+    /// <summary>
+    /// 保存されたログファイルを読み込み、JSONに変換する。
+    /// </summary>
     json ReadLog(const fs::path& path) { return json::parse(ReadText(path)); }
 
+    /// <summary>
+    /// 最後のショットの物理連鎖、貫通、反射、戦闘結果をJSONにまとめる。
+    /// </summary>
     json Latest(const BalanceLogger& logger)
     {
         return {
@@ -56,6 +74,9 @@ namespace
         };
     }
 
+    /// <summary>
+    /// 最後のショットに関する全項目が初期化されていることを検査する。
+    /// </summary>
     void CheckLatestCleared(const BalanceLogger& logger)
     {
         const json latest = Latest(logger);
@@ -63,6 +84,9 @@ namespace
             Check(entry.value().is_null(), "Latest reset: " + entry.key());
     }
 
+    /// <summary>
+    /// 最後のショットの測定項目が保存済みログと一致することを検査する。
+    /// </summary>
     json CheckLatestMatchesShot(const BalanceLogger& logger, const json& shot)
     {
         const json latest = Latest(logger);
@@ -78,6 +102,9 @@ namespace
         return latest;
     }
 
+    /// <summary>
+    /// テスト名、保存ログ、ショットの測定値、確認時点の結果を成果データに追加する。
+    /// </summary>
     void SaveCase(const std::string& name, const fs::path& path,
         const json& latestShots = json::array(), const json& checkpoints = json::object())
     {
@@ -85,6 +112,9 @@ namespace
             { "latest_shots", latestShots }, { "checkpoints", checkpoints } });
     }
 
+    /// <summary>
+    /// バランスバージョンと管理対象ファイルのテスト用設定を書き込む。
+    /// </summary>
     void WriteRegistry(const std::string& version = "fixture-1")
     {
         WriteJson("assets/data/balance_version.json", {
@@ -94,6 +124,9 @@ namespace
         });
     }
 
+    /// <summary>
+    /// テスト条件を指定してランの記録を開始し、初期状態を検査してログのパスを返す。
+    /// </summary>
     fs::path BeginRun(BalanceLogger& logger, const json& additions = json::object())
     {
         // Make millisecond-based run IDs distinct without changing logger clocks.
@@ -113,6 +146,9 @@ namespace
         return logger.GetLogPath();
     }
 
+    /// <summary>
+    /// テスト用の敵を指定してステージの記録を開始し、記録状態を検査する。
+    /// </summary>
     void BeginStage(BalanceLogger& logger, const std::string& id = "fixture-stage")
     {
         BalanceEnemySnapshot enemy;
@@ -124,6 +160,9 @@ namespace
         CheckLatestCleared(logger);
     }
 
+    /// <summary>
+    /// 自球と敵のテスト用測定値を設定し、ショットの記録を開始する。
+    /// </summary>
     void BeginShot(BalanceLogger& logger, const json& context = json::object())
     {
         const std::vector<BalanceShotEnemySnapshot> enemies = {
@@ -135,6 +174,9 @@ namespace
         Check(logger.IsShotActive(), "BeginShot flags");
     }
 
+    /// <summary>
+    /// ランのスキーマ、バランス設定、管理対象ファイルの情報が記録されていることを検査する。
+    /// </summary>
     void CheckManagedConfiguration(const json& run)
     {
         Check(run.at("schema_version") == 4 && run.at("data_schema_version") == 4, "Run schema remains version 4");
@@ -150,6 +192,9 @@ namespace
         Check(files[1] == json({ { "path", "assets/data/missing.bin" }, { "exists", false } }), "Missing file has no invented fingerprint");
     }
 
+    /// <summary>
+    /// ログのスキーマとイベントのまとめ書き、ラン終了後に記録されないことを検証する。
+    /// </summary>
     void TestSchemaAndBatchedWrites(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger);
@@ -185,6 +230,9 @@ namespace
         SaveCase("schema_and_batching", path, json::array({ latest }), checkpoint);
     }
 
+    /// <summary>
+    /// ポケットによる敵へのダメージが、ショットとステージの記録に一度だけ加算されることを検証する。
+    /// </summary>
     void TestPocketDamageAttribution(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger);
@@ -206,6 +254,9 @@ namespace
         SaveCase("pocket_damage_attribution", path);
     }
 
+    /// <summary>
+    /// ダメージが不明な場合とゼロの場合が、ログ上で区別されることを検証する。
+    /// </summary>
     void TestUnknownAndZeroDamage(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger);
@@ -232,6 +283,9 @@ namespace
         SaveCase("unknown_and_zero_damage", path, latest);
     }
 
+    /// <summary>
+    /// ショット中の時系列イベントと戦術指標の集計が、保存ログと一致することを検証する。
+    /// </summary>
     void TestTimelineAndTacticalAggregation(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger);
@@ -305,6 +359,9 @@ namespace
         SaveCase("timeline_and_tactical", path, json::array({ latest }));
     }
 
+    /// <summary>
+    /// デバッグログの分離と、ショットの自動終了や空のステージの記録を検証する。
+    /// </summary>
     void TestAutomaticShotEndAndEmptyStage(BalanceLogger& logger)
     {
         const fs::path path = BeginRun(logger, { { "debug_sandbox", true } });
@@ -327,6 +384,9 @@ namespace
         SaveCase("automatic_shot_end_and_empty_stage", path, json::array({ latest }));
     }
 
+    /// <summary>
+    /// ランの再開始と途中で置き換えたステージが、既存の記録と混ざらないことを検証する。
+    /// </summary>
     void TestRestartAndAbandon(BalanceLogger& logger)
     {
         const fs::path previousPath = BeginRun(logger);
@@ -349,6 +409,9 @@ namespace
         SaveCase("restart_current", currentPath);
     }
 
+    /// <summary>
+    /// 設定ファイルが不正な場合に、既定のメタデータと管理対象一覧を使うことを検査する。
+    /// </summary>
     void CheckFallbackConfiguration(const json& run)
     {
         const json expected = {
@@ -364,6 +427,9 @@ namespace
         Check(run.at("balance_version") == "Legacy/Unknown" && run.at("balance_config_hash") == "", "Invalid registry retains legacy metadata defaults");
     }
 
+    /// <summary>
+    /// 設定の不備に対する既定処理と、ラン開始時の設定再読み込みを検証する。
+    /// </summary>
     void TestConfigurationFallbackAndReload(BalanceLogger& logger)
     {
         WriteText("assets/data/balance_version.json", "{");
@@ -384,6 +450,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 隔離された作業場所でロガーのテストを実行し、成功した検査や失敗内容を保存する。
+/// </summary>
 int main()
 {
     bool fixturePrepared = false;

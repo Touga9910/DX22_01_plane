@@ -24,5 +24,8 @@ public:
 	static bool IsCurrentShotBounceCategory();
 	static bool IsPinballTarget(std::uintptr_t targetId);
 
+    /// <summary>
+    /// 戦闘参照用の静的インターフェースをインスタンス化できないようにする。
+    /// </summary>
     GameBattleView() = delete;
 };

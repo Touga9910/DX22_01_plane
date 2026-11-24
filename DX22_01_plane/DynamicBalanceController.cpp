@@ -11,6 +11,9 @@
 #include <fstream>
 #include <iostream>
 
+/// <summary>
+/// 設定JSONから敵の性能補正と進行による補正幅を読み込み、不足や読み込みエラーを記録する。
+/// </summary>
 void DynamicBalanceController::LoadConfig(const std::string& filePath)
 {
 	std::ifstream file(filePath);
@@ -74,6 +77,9 @@ void DynamicBalanceController::LoadConfig(const std::string& filePath)
 	}
 }
 
+/// <summary>
+/// 進行度が開始位置に達している場合に、進行段階と上限から敵のHP加算値を求める。
+/// </summary>
 int DynamicBalanceController::CalculateProgressionHpModifier(int progress) const
 {
 	if (!m_ProgressionScalingEnabled ||
@@ -87,6 +93,9 @@ int DynamicBalanceController::CalculateProgressionHpModifier(int progress) const
 	return (std::min)(m_ProgressionHpMaximumDelta, tier * m_ProgressionHpStep);
 }
 
+/// <summary>
+/// 進行度が開始位置に達している場合に、進行段階と上限から敵の攻撃力加算値を求める。
+/// </summary>
 int DynamicBalanceController::CalculateProgressionAttackModifier(int progress) const
 {
 	if (!m_ProgressionScalingEnabled ||
@@ -102,6 +111,9 @@ int DynamicBalanceController::CalculateProgressionAttackModifier(int progress) c
 		tier * m_ProgressionAttackStep);
 }
 
+/// <summary>
+/// 基準補正、進行度、アセンション、デバッグ時の例外を反映して敵の最大HPと攻撃力を更新する。
+/// </summary>
 void DynamicBalanceController::ApplyToEnemyData(
 	EnemyData& enemyData,
 	float baselineHpMultiplier,

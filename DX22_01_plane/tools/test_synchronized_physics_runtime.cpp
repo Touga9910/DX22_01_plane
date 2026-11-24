@@ -9,7 +9,13 @@
 
 // A one-dimensional elastic table adapter isolates the production time scheduler.
 // Collision response uses the same BallMechanics function as the game.
-struct Velocity1D { float value; float Length() const { return std::abs(value); } };
+struct Velocity1D {
+    float value;
+    /// <summary>
+    /// 一次元の速度成分の絶対値を返す。
+    /// </summary>
+    float Length() const { return std::abs(value); }
+};
 struct Body
 {
     int id;
@@ -28,12 +34,33 @@ struct Table
     bool stopOnImpact = false;
     float observedSpeed = 0;
 
+    /// <summary>
+    /// 同期物理テストの盤面上に登録された球の総数を返す。
+    /// </summary>
     std::size_t Count() const { return balls.size(); }
+    /// <summary>
+    /// 指定されたテスト用の球が有効かを返す。
+    /// </summary>
     bool IsActive(std::size_t i) const { return balls[i].active; }
+    /// <summary>
+    /// 指定されたテスト用の球の半径を返す。
+    /// </summary>
     float Radius(std::size_t i) const { return balls[i].radius; }
+    /// <summary>
+    /// 指定されたテスト用の球の一次元速度を返す。
+    /// </summary>
     Velocity1D Velocity(std::size_t i) const { return {balls[i].velocity}; }
+    /// <summary>
+    /// サブステップ開始時に各球の移動済み情報と衝突確認記録を初期化する。
+    /// </summary>
     void BeginSubstep() { moved.assign(Count(), false); visited.clear(); }
+    /// <summary>
+    /// 衝突後の停止指定と衝突記録を確認し、サブステップを継続できるかを返す。
+    /// </summary>
     bool ShouldContinue() const { return !stopOnImpact || impacts.empty(); }
+    /// <summary>
+    /// 時間幅が移動距離の上限を守っていることを検査し、指定された球を移動する。
+    /// </summary>
     void Move(std::size_t i, float interval)
     {
         float minimumRadius = balls[i].radius;
@@ -46,16 +73,25 @@ struct Table
         balls[i].elapsed += interval;
         moved[i] = true;
     }
+    /// <summary>
+    /// 有効な球がすべて移動してから衝突を処理することを確認する。
+    /// </summary>
     void CheckBarrier() const
     {
         for (std::size_t i = 0; i < Count(); ++i)
             if (IsActive(i)) assert(moved[i]);
     }
+    /// <summary>
+    /// 全球の移動後、ポケット対象として指定した球を無効にする。
+    /// </summary>
     void ResolveEnvironment(std::size_t i)
     {
         CheckBarrier();
         if (balls[i].id == pocketId) balls[i].active = false;
     }
+    /// <summary>
+    /// 同じ組が一度だけ検査されることを確認し、接触している球の衝突を処理する。
+    /// </summary>
     void ResolvePair(std::size_t i, std::size_t j)
     {
         CheckBarrier();
@@ -79,8 +115,14 @@ struct Table
     }
 };
 
+/// <summary>
+/// 二つの数値の差が同期物理テストの許容値未満かを返す。
+/// </summary>
 bool Near(double a, double b) { return std::abs(a - b) < 1.0e-5; }
 
+/// <summary>
+/// 同期サブステップの処理順、衝突連鎖、途中停止と入力制約を検証する。
+/// </summary>
 int main()
 {
     Table free{{{0,-10,1},{1,10,-1}}};

@@ -56,10 +56,19 @@ struct AudioFeedbackDiagnostics final
 class AudioFeedback final
 {
 public:
+	/// <summary>
+	/// メンバーの既定値で戦闘効果音の管理オブジェクトを生成する。
+	/// </summary>
 	AudioFeedback() = default;
 	~AudioFeedback();
 
+	/// <summary>
+	/// 音声リソースの所有権が重複するコピー構築を禁止する。
+	/// </summary>
 	AudioFeedback(const AudioFeedback&) = delete;
+	/// <summary>
+	/// 音声リソースの所有権が重複するコピー代入を禁止する。
+	/// </summary>
 	AudioFeedback& operator=(const AudioFeedback&) = delete;
 
 	bool Initialize(bool allowGeneratedTestTones = false);
@@ -74,6 +83,9 @@ public:
 	void OnWallImpact(const WallImpactEvent& event);
     void OnPlayerImpact(int hpDamage, int shieldAbsorbed);
 
+	/// <summary>
+	/// 効果音の再生状態や再生結果の診断情報を返す。
+	/// </summary>
 	const AudioFeedbackDiagnostics& Diagnostics() const noexcept
 	{
 		return m_Diagnostics;

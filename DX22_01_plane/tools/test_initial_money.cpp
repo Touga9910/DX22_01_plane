@@ -2,6 +2,9 @@
 
 #include <cassert>
 
+/// <summary>
+/// ラン開始時に既定の所持金が設定され、セーブを復元しても開始分が重複しないことを検証する。
+/// </summary>
 int main()
 {
 	GameRunDefaults defaults;

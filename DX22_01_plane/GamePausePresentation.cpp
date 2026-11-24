@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <cmath>
 
+/// <summary>
+/// ポーズ画面を描画し、設定変更や画面操作の選択結果を返す。
+/// </summary>
 PausePresentationIntent GamePresentation::DrawPause(
 	const PausePresentationModel& model)
 {

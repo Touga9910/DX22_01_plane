@@ -34,6 +34,9 @@ struct AutoShotTarget
 	bool bestTargetIsKillable = false;
 };
 
+/// <summary>
+/// 敵の位置、ショット方向、ポケットに落ちる危険性などを評価し、自動ショットの狙いを選ぶ。
+/// </summary>
 AutoShotTarget FindAutoShotTarget(
 	PlayerBall* player,
 	const std::vector<EnemyBall*>& enemies,
@@ -179,6 +182,9 @@ AutoShotTarget FindAutoShotTarget(
 }
 }
 
+/// <summary>
+/// ボス戦の推奨候補や球の評価を使い、ショットに使用する球を自動で選択する。
+/// </summary>
 void BalanceAutoPlayer::SelectBall(Game& game)
 {
     const auto bossChoices = game.EvaluateBossShots();
@@ -221,6 +227,9 @@ void BalanceAutoPlayer::SelectBall(Game& game)
 	game.ApplyBalanceAutoBallSelection(bestIndex);
 }
 
+/// <summary>
+/// ボス戦の推奨候補や盤面から狙いと威力を決め、自動ショットの成否を返す。
+/// </summary>
 bool BalanceAutoPlayer::FireShot(Game& game)
 {
     const auto bossChoices = game.EvaluateBossShots();

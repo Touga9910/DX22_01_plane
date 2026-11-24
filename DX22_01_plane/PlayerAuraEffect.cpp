@@ -1,6 +1,9 @@
 #include "PlayerAuraEffect.h"
 #include "imgui/imgui.h"
 
+/// <summary>
+/// オーラの中心と追従位置を画面座標に投影し、球の周囲にエフェクトを描画する。
+/// </summary>
 void PlayerAuraEffect::Draw(Position current, float projectedRadius, Project project) const
 {
     if (!m_Active || project==nullptr || !std::isfinite(projectedRadius) || projectedRadius<=0) return;

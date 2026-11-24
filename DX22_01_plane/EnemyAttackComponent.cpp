@@ -8,11 +8,17 @@
 #include <algorithm>
 #include <cmath>
 
+/// <summary>
+/// 所有オブジェクトから、攻撃元になる敵球コンポーネントを取得する。
+/// </summary>
 void EnemyAttackComponent::Awake()
 {
     m_Enemy = GetGameObject()->GetComponent<EnemyBall>();
 }
 
+/// <summary>
+/// 敵が戦闘に参加できる場合に、装甲ボスの行動や指定倍率を反映した攻撃ダメージを求める。
+/// </summary>
 int EnemyAttackComponent::CalculateDamage(float damageMultiplier) const
 {
     if (m_Enemy == nullptr || !m_Enemy->CanParticipateInCombat())
@@ -25,6 +31,9 @@ int EnemyAttackComponent::CalculateDamage(float damageMultiplier) const
         (std::max)(0.0f, damageMultiplier))));
 }
 
+/// <summary>
+/// 敵とプレイヤーの戦闘状態を確認し、計算したダメージをプレイヤーに適用する。
+/// </summary>
 void EnemyAttackComponent::Attack(
     PlayerBall* player,
     float damageMultiplier)

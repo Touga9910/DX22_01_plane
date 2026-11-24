@@ -18,11 +18,17 @@
 #include <utility>
 #include <vector>
 
+/// <summary>
+/// 次のショットで使うレリック効果の状態を設定する。
+/// </summary>
 void BattleController::ResetShotState(const ShotRelicRules& rules)
 {
     m_ShotRelicRules = rules;
 }
 
+/// <summary>
+/// 懸賞報酬を初回だけ受け取り済みにし、受け取れたかを返す。
+/// </summary>
 bool BattleController::ClaimBountyReward()
 {
     if (m_BountyRewardClaimed)
@@ -33,6 +39,9 @@ bool BattleController::ClaimBountyReward()
     return true;
 }
 
+/// <summary>
+/// ステージの種別と戦闘方式を読み込み、フェーズ・報酬・敵撃破の状態を初期化する。
+/// </summary>
 void BattleController::BeginStage(const StageData& stage)
 {
     m_StageType = stage.stageType;
@@ -60,6 +69,9 @@ void BattleController::BeginStage(const StageData& stage)
     if (!UsesPhaseAttackTiming()) PlanNextTurn();
 }
 
+/// <summary>
+/// 戦闘の進行状態をログ用の文字列に変換する。
+/// </summary>
 const char* ToString(BattleState state)
 {
     switch (state)
@@ -83,6 +95,9 @@ const char* ToString(BattleState state)
     }
 }
 
+/// <summary>
+/// 戦闘結果をログ用の文字列に変換する。
+/// </summary>
 const char* ToString(BattleResult result)
 {
     switch (result)
@@ -100,6 +115,9 @@ const char* ToString(BattleResult result)
 
 namespace
 {
+    /// <summary>
+    /// 敵ボール一覧に含まれる未撃破の敵を数える。
+    /// </summary>
     int CountAliveEnemies(
         const std::vector<EnemyBall*>& enemies)
     {
@@ -114,6 +132,9 @@ namespace
                 }));
     }
 
+    /// <summary>
+    /// 敵ボール一覧に含まれる撃破済みの敵を数える。
+    /// </summary>
     int CountDefeatedEnemies(
         const std::vector<EnemyBall*>& enemies)
     {
@@ -129,6 +150,9 @@ namespace
     }
 }
 
+/// <summary>
+/// ワールドとイベント処理を登録し、敵行動の設定を読み込んで戦闘状態を初期化する。
+/// </summary>
 void BattleController::Initialize(
     GameWorld& world,
     BattleControllerHooks hooks)
@@ -141,6 +165,9 @@ void BattleController::Initialize(
     Reset();
 }
 
+/// <summary>
+/// 既定の敵行動設定を基に、その行動予算の上限を設定する。
+/// </summary>
 void BattleController::SetEnemyActionMaximumBudget(int maximumBudget)
 {
 	EnemyActionConfig config = m_DefaultEnemyActionConfig;
@@ -151,6 +178,9 @@ void BattleController::SetEnemyActionMaximumBudget(int maximumBudget)
 	m_EnemyActionPlanner.SetConfigForTesting(config);
 }
 
+/// <summary>
+/// ターンと物理ステップのカウントを初期化し、方向選択から戦闘を開始する。
+/// </summary>
 void BattleController::StartBattle()
 {
     m_TurnNumber = 0;
@@ -164,6 +194,9 @@ void BattleController::StartBattle()
     m_EnemyActionPlanner.Reset();
 }
 
+/// <summary>
+/// 戦闘を非活動状態に戻し、ターン、敵行動、結果などの進行情報を初期化する。
+/// </summary>
 void BattleController::Reset()
 {
     m_StateHistory.clear();
@@ -184,16 +217,25 @@ void BattleController::Reset()
     m_PocketDefeatedEnemyCount = 0;
 }
 
+/// <summary>
+/// 敵の累計撃破数を1増やす。
+/// </summary>
 void BattleController::NotifyEnemyDefeated()
 {
     ++m_DefeatedEnemyCount;
 }
 
+/// <summary>
+/// ポケットによる敵の累計撃破数を1増やす。
+/// </summary>
 void BattleController::NotifyEnemyPocketDefeated()
 {
     ++m_PocketDefeatedEnemyCount;
 }
 
+/// <summary>
+/// 現在の戦闘状態に応じて停止後、敵攻撃、ターン終了を処理する。
+/// </summary>
 void BattleController::Update(double elapsedSeconds)
 {
     if (!m_Active ||
@@ -232,6 +274,9 @@ void BattleController::Update(double elapsedSeconds)
     }
 }
 
+/// <summary>
+/// 固定物理ステップを数え、ショット中の停止確認や進行診断を行う。
+/// </summary>
 bool BattleController::OnFixedStepCompleted()
 {
     ++m_FixedStepCount;
@@ -273,6 +318,9 @@ bool BattleController::OnFixedStepCompleted()
         m_AllBallsStoppedTickCount);
 }
 
+/// <summary>
+/// 活動中の戦闘をショット方向の入力待ちに切り替える。
+/// </summary>
 void BattleController::BeginAimingDirection()
 {
     if (!m_Active || IsFinished())
@@ -283,6 +331,9 @@ void BattleController::BeginAimingDirection()
     SetState(BattleState::AimingDirection, "begin_aiming_direction");
 }
 
+/// <summary>
+/// 活動中の戦闘をショット威力の入力待ちに切り替える。
+/// </summary>
 void BattleController::BeginAimingPower()
 {
     if (!m_Active || IsFinished())
@@ -293,6 +344,9 @@ void BattleController::BeginAimingPower()
     SetState(BattleState::AimingPower, "begin_aiming_power");
 }
 
+/// <summary>
+/// 発射を受けてターンを進め、停止判定と敵のショット内状態を初期化する。
+/// </summary>
 void BattleController::NotifyShotFired(bool heavyShot)
 {
     if (!m_Active || IsFinished())
@@ -316,6 +370,9 @@ void BattleController::NotifyShotFired(bool heavyShot)
     SetState(BattleState::BallsMoving, "shot_fired");
 }
 
+/// <summary>
+/// プレイヤーが撃破された通知を受けて戦闘を敗北で終える。
+/// </summary>
 void BattleController::NotifyPlayerDefeated()
 {
     if (!m_Active || IsFinished())
@@ -326,6 +383,9 @@ void BattleController::NotifyPlayerDefeated()
     FinishBattle(BattleResult::Defeat);
 }
 
+/// <summary>
+/// 確定した戦闘結果を返し、保持している結果を消去する。
+/// </summary>
 BattleResult BattleController::ConsumeResult()
 {
     const BattleResult result = m_Result;
@@ -333,6 +393,9 @@ BattleResult BattleController::ConsumeResult()
     return result;
 }
 
+/// <summary>
+/// ワールドの物理コンポーネントを調べ、すべての対象ボールが停止しているかを判定する。
+/// </summary>
 bool BattleController::AreAllBallsStopped() const
 {
     if (m_World == nullptr)
@@ -370,6 +433,9 @@ bool BattleController::AreAllBallsStopped() const
     return true;
 }
 
+/// <summary>
+/// 戦闘方式と生存中の敵を調べ、敵の全滅による勝利条件を満たしたかを判定する。
+/// </summary>
 bool BattleController::AreAllEnemiesDefeated() const
 {
     if (m_World == nullptr)
@@ -396,6 +462,9 @@ bool BattleController::AreAllEnemiesDefeated() const
         !enemies.empty() || m_DefeatedEnemyCount > 0, livingEnemyCount);
 }
 
+/// <summary>
+/// ショット終了後にボールを静止させ、撃破と敵能力を処理して勝利または敵ターンへ進める。
+/// </summary>
 void BattleController::CompleteShot()
 {
     if (m_World == nullptr)
@@ -521,6 +590,9 @@ void BattleController::CompleteShot()
     SetState(BattleState::EnemyAttack, "shot_completed");
 }
 
+/// <summary>
+/// 予定した敵行動を順に実行し、攻撃のダメージと敵ターンの進行を処理する。
+/// </summary>
 void BattleController::ProcessEnemyAttack()
 {
     if (m_World == nullptr)
@@ -687,6 +759,9 @@ void BattleController::ProcessEnemyAttack()
     SetState(BattleState::TurnEnd, "enemy_attack_completed");
 }
 
+/// <summary>
+/// 敵のターン効果とフェーズ進行を処理し、戦闘終了を判定して次の照準段階へ進める。
+/// </summary>
 void BattleController::ProcessTurnEnd()
 {
     if (m_World != nullptr)
@@ -755,6 +830,9 @@ void BattleController::ProcessTurnEnd()
     SetState(BattleState::AimingDirection, "turn_completed");
 }
 
+/// <summary>
+/// フェーズ戦で敵ごとの攻撃タイマーを進め、待機・通常攻撃・チャージの予定を設定する。
+/// </summary>
 void BattleController::PlanPhaseTurn()
 {
     if (m_World == nullptr || !UsesPhaseAttackTiming()) return;
@@ -789,11 +867,17 @@ void BattleController::PlanPhaseTurn()
     }
 }
 
+/// <summary>
+/// 現在生存している敵の数を取得し、次のフェーズへの移行を試みる。
+/// </summary>
 bool BattleController::TryAdvancePhase()
 {
     return TryAdvancePhase(GetLivingEnemyCount());
 }
 
+/// <summary>
+/// 敵の残数と残りターンから次のフェーズへの移行を判定し、移行可能なら敵を追加する。
+/// </summary>
 bool BattleController::TryAdvancePhase(int livingEnemyCount)
 {
     const bool noLivingEnemies = livingEnemyCount <= 0;
@@ -828,6 +912,9 @@ bool BattleController::TryAdvancePhase(int livingEnemyCount)
     return true;
 }
 
+/// <summary>
+/// 指定した生存敵数に対して、現在のフェーズ戦が勝利条件を満たすかを判定する。
+/// </summary>
 bool BattleController::IsPhaseVictoryForLivingCount(
     int livingEnemyCount) const
 {
@@ -838,6 +925,9 @@ bool BattleController::IsPhaseVictoryForLivingCount(
         livingEnemyCount);
 }
 
+/// <summary>
+/// 現在のワールド内にいる未撃破の敵の数を返す。
+/// </summary>
 int BattleController::GetLivingEnemyCount() const
 {
     if (m_World == nullptr) return 0;
@@ -851,11 +941,17 @@ int BattleController::GetLivingEnemyCount() const
         }));
 }
 
+/// <summary>
+/// 今回の戦闘で撃破した敵の累計を返す。
+/// </summary>
 int BattleController::GetDefeatedEnemyCount() const
 {
     return m_DefeatedEnemyCount;
 }
 
+/// <summary>
+/// フェーズ戦の次のフェーズに配置される敵の数を返す。
+/// </summary>
 int BattleController::GetNextPhaseEnemyCount() const
 {
     if (!IsPhasePrototype() || m_CurrentPhase >= m_TotalPhases ||
@@ -868,6 +964,9 @@ int BattleController::GetNextPhaseEnemyCount() const
         static_cast<std::size_t>(m_CurrentPhase)].enemies.size());
 }
 
+/// <summary>
+/// ボス戦の攻撃担当または通常の行動予算に基づき、敵の次ターンの行動を設定する。
+/// </summary>
 void BattleController::PlanNextTurn()
 {
     if (m_World == nullptr)
@@ -951,6 +1050,9 @@ void BattleController::PlanNextTurn()
     }
 }
 
+/// <summary>
+/// 各敵のチャージ中断条件を評価し、発生した中断を反映して通知する。
+/// </summary>
 void BattleController::ResolveChargeInterruptions()
 {
     if (m_World == nullptr)
@@ -977,6 +1079,9 @@ void BattleController::ResolveChargeInterruptions()
     }
 }
 
+/// <summary>
+/// すでにクリア条件を満たした戦闘を検出し、未確定の勝利を確定させる。
+/// </summary>
 bool BattleController::TryRecoverClearedBattle(
     const char* source)
 {
@@ -1002,6 +1107,9 @@ bool BattleController::TryRecoverClearedBattle(
     return true;
 }
 
+/// <summary>
+/// 戦闘結果を確定し、戦闘を終了状態へ切り替える。
+/// </summary>
 void BattleController::FinishBattle(
     BattleResult result)
 {
@@ -1017,6 +1125,9 @@ void BattleController::FinishBattle(
     m_Active = false;
 }
 
+/// <summary>
+/// 戦闘の状態を切り替え、遷移先に必要な進行値を初期化して履歴を記録する。
+/// </summary>
 void BattleController::SetState(BattleState state, const char* reason)
 {
     if (m_State == state && !m_StateHistory.empty())
@@ -1047,6 +1158,9 @@ void BattleController::SetState(BattleState state, const char* reason)
     LogProgressDiagnostic("state_transition");
 }
 
+/// <summary>
+/// 戦闘が停滞したときの調査に使う敵とボールの状態を記録する。
+/// </summary>
 void BattleController::LogProgressDiagnostic(const char* reason) const
 {
     if (m_World == nullptr)

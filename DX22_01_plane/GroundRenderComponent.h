@@ -22,6 +22,9 @@ public:
     void Draw() override;
 
     // 生成済みのローカル頂点一覧を返す
+    /// <summary>
+    /// 描画に使用するローカル座標の頂点一覧を返す。
+    /// </summary>
     const std::vector<VERTEX_3D>& GetLocalVertices() const
     {
         return m_Vertices;

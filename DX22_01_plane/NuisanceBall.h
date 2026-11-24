@@ -10,6 +10,9 @@ class BallComponent;
 class NuisanceBall final : public Component
 {
 public:
+    /// <summary>
+    /// お邪魔ボールのデータと初期位置を保存する。
+    /// </summary>
     NuisanceBall(const NuisanceBallData& data,
         const DirectX::SimpleMath::Vector3& position)
         : m_Data(data), m_Position(position) {}
@@ -19,7 +22,13 @@ public:
     void Draw() override;
     void OnDestroy() override;
 
+    /// <summary>
+    /// お邪魔ボールが付与する弱体効果の一覧を返す。
+    /// </summary>
     const StatusEffectCollection& GetDebuffs() const { return m_Data.debuffs; }
+    /// <summary>
+    /// お邪魔ボールの物理コンポーネントを返す。
+    /// </summary>
     BallComponent* GetBall() const { return m_Ball; }
 
 private:

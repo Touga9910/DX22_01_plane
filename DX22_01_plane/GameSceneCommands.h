@@ -33,5 +33,8 @@ public:
     static bool RestUpgradeBall(int index);
     static void LeaveRestSite();
 
+    /// <summary>
+    /// 静的なシーン操作インターフェースのインスタンス化を禁止する。
+    /// </summary>
     GameSceneCommands() = delete;
 };

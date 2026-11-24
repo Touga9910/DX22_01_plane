@@ -1,6 +1,9 @@
 #include "../TitleSequence.h"
 #include <cassert>
 #include <iostream>
+/// <summary>
+/// タイトル演出の進行、フェード、スキップ、時間切れ後の開始確定を検証する。
+/// </summary>
 int main()
 {
     TitleSequence configured; assert(configured.Begin(.4f));

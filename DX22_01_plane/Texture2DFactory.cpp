@@ -7,6 +7,9 @@
 
 #include <typeinfo>
 
+/// <summary>
+/// 画面UIのタグが付いたオブジェクトを作成し、2Dテクスチャのコンポーネントを追加する。
+/// </summary>
 Texture2D* Texture2DFactory::Create(Game& game)
 {
     GameObject* object =

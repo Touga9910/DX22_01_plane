@@ -8,6 +8,9 @@
 #include <fstream>
 #include <iostream>
 
+/// <summary>
+/// バランス検証の設定、シード、比較条件をJSONファイルから読み込む。
+/// </summary>
 void BalanceValidationController::LoadConfig(
 	const std::string& filePath,
 	const std::string& baselineDifficultyProfile)
@@ -118,6 +121,9 @@ void BalanceValidationController::LoadConfig(
 	}
 }
 
+/// <summary>
+/// ラン開始時に検証条件とシードを選び、今回のランに適用する情報を返す。
+/// </summary>
 BalanceValidationRun BalanceValidationController::OnRunStarted(
 	const std::string& forcedVariant,
 	std::optional<std::uint32_t> forcedSeed)
@@ -191,6 +197,9 @@ BalanceValidationRun BalanceValidationController::OnRunStarted(
 	return result;
 }
 
+/// <summary>
+/// 指定した識別子の検証条件が登録済みかを返す。
+/// </summary>
 bool BalanceValidationController::HasVariant(const std::string& id) const
 {
 	return std::any_of(
@@ -202,6 +211,9 @@ bool BalanceValidationController::HasVariant(const std::string& id) const
 		});
 }
 
+/// <summary>
+/// 現在選択されている検証条件を探して返す。
+/// </summary>
 const BalanceValidationVariant*
 BalanceValidationController::GetCurrentVariant() const
 {
@@ -215,30 +227,45 @@ BalanceValidationController::GetCurrentVariant() const
 	return found != m_Variants.end() ? &*found : nullptr;
 }
 
+/// <summary>
+/// 現在の検証条件が序盤の調整済みステージを使用するかを返す。
+/// </summary>
 bool BalanceValidationController::UsesAdjustedEarlyStages() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
 	return variant != nullptr && variant->adjustedEarlyStages;
 }
 
+/// <summary>
+/// 現在の検証条件が中盤の調整済みステージを使用するかを返す。
+/// </summary>
 bool BalanceValidationController::UsesAdjustedMidStages() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
 	return variant != nullptr && variant->adjustedMidStages;
 }
 
+/// <summary>
+/// 現在の検証条件が通常プレイ用のバランスを使用するかを返す。
+/// </summary>
 bool BalanceValidationController::UsesNormalPlayBalance() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
 	return variant != nullptr && variant->normalPlayBalance;
 }
 
+/// <summary>
+/// 現在の検証条件で戦術AIを使用するかを返す。
+/// </summary>
 bool BalanceValidationController::UsesTacticalAi() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
 	return variant == nullptr || variant->tacticalAi;
 }
 
+/// <summary>
+/// 現在の検証条件に適用される戦術AIのプロファイル名を返す。
+/// </summary>
 const std::string& BalanceValidationController::GetTacticalAiProfile() const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
@@ -246,6 +273,9 @@ const std::string& BalanceValidationController::GetTacticalAiProfile() const
 	return variant != nullptr ? variant->tacticalAiProfile : fallback;
 }
 
+/// <summary>
+/// 進行度と検証条件に応じた攻撃予算を返す。
+/// </summary>
 int BalanceValidationController::GetAttackBudget(int progress) const
 {
 	const BalanceValidationVariant* variant = GetCurrentVariant();
@@ -264,6 +294,9 @@ int BalanceValidationController::GetAttackBudget(int progress) const
 	return -1;
 }
 
+/// <summary>
+/// 進行度と検証条件で使用できる通常ステージの識別子を返す。
+/// </summary>
 std::vector<std::string>
 BalanceValidationController::GetAllowedNormalStageIds(int progress) const
 {

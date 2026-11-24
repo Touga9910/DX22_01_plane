@@ -20,6 +20,9 @@
 
 namespace
 {
+	/// <summary>
+	/// まだ撃破されていない有効な敵の数を数える。
+	/// </summary>
 	int CountAliveEnemies(const std::vector<EnemyBall*>& enemies)
 	{
 		return static_cast<int>(std::count_if(
@@ -32,26 +35,41 @@ namespace
 	}
 }
 
+/// <summary>
+/// セーブやロードの結果をユーザーに知らせるメッセージを返す。
+/// </summary>
 const std::string& Game::GetSaveLoadMessage() const
 {
 	return m_PersistenceRuntime->SaveLoadMessage();
 }
 
+/// <summary>
+/// 永続的な進行データを保持するプレイヤープロファイルを返す。
+/// </summary>
 const ProgressionProfile& Game::GetProgressionProfile() const
 {
 	return m_PersistenceRuntime->Profile();
 }
 
+/// <summary>
+/// 直近の進行更新で解放された要素の識別子一覧を返す。
+/// </summary>
 const std::vector<std::string>& Game::GetLastProgressionUnlocks() const
 {
 	return m_PersistenceRuntime->LastProgressionUnlocks();
 }
 
+/// <summary>
+/// 現在のランに適用されているアセンション段階を返す。
+/// </summary>
 int Game::GetActiveAscension() const
 {
 	return m_PersistenceRuntime->ActiveAscension();
 }
 
+/// <summary>
+/// 取得したレリックとランの成績をまとめ、ランの終了結果を確定する。
+/// </summary>
 void Game::FinalizeRunResult(bool completed)
 {
 	std::vector<RelicType> acquiredRelics;
@@ -73,6 +91,9 @@ void Game::FinalizeRunResult(bool completed)
 	RecordPersistentProgress();
 }
 
+/// <summary>
+/// ランの結果を永続進行へ反映し、新たな解放項目を記録する。
+/// </summary>
 void Game::RecordPersistentProgress()
 {
 	auto& unlocks = m_PersistenceRuntime->LastProgressionUnlocks();
@@ -92,6 +113,9 @@ void Game::RecordPersistentProgress()
 	}
 }
 
+/// <summary>
+/// 有効なランのセーブが存在しない場合、次回用のアセンション段階を設定する。
+/// </summary>
 void Game::SetSelectedAscension(int level)
 {
 	if (HasValidRunSave()) return;
@@ -103,6 +127,9 @@ void Game::SetSelectedAscension(int level)
 	try { profile.Save(); } catch (...) {}
 }
 
+/// <summary>
+/// 最終ボス撃破時にステージ進行と永続結果を確定し、ランを終了する。
+/// </summary>
 void Game::CompleteFinalBossRun()
 {
 	// 最終ボス撃破時のラン完了処理と永続結果を確定
@@ -126,6 +153,9 @@ void Game::CompleteFinalBossRun()
 	ChangeScene(SceneType::Result);
 }
 
+/// <summary>
+/// ゲームオーバー時に報酬と使用中の球を処理し、モードに応じてランの終了を確定する。
+/// </summary>
 void Game::ProcessGameOver()
 {
 	m_RewardState->Exit();

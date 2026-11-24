@@ -22,6 +22,9 @@
 using DirectX::SimpleMath::Vector3;
 using namespace GamePresentationPrimitives;
 
+/// <summary>
+/// 戦闘演出、連鎖と撃破の表示、ショット結果をまとめて描画する。
+/// </summary>
 void GamePresentation::DrawFeedback(Game& game)
 {
 	DrawScreenFlashes(game);
@@ -33,6 +36,9 @@ void GamePresentation::DrawFeedback(Game& game)
 	DrawShotSummary();
 }
 
+/// <summary>
+/// 衝突時の明滅や被弾時の赤い縁取りを画面に描画する。
+/// </summary>
 void GamePresentation::DrawScreenFlashes(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -64,6 +70,9 @@ void GamePresentation::DrawScreenFlashes(Game& game)
 	}
 }
 
+/// <summary>
+/// 連鎖範囲や衝突エフェクトを盤面から画面座標へ投影して描画する。
+/// </summary>
 void GamePresentation::DrawWorldFeedback(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -135,6 +144,9 @@ void GamePresentation::DrawWorldFeedback(Game& game)
 		game.IsCollisionImpactEffectsEnabled() || game.IsDefeatVfxEnabled());
 }
 
+/// <summary>
+/// 重量系の衝突連鎖数と到達した段階をバナーに描画する。
+/// </summary>
 void GamePresentation::DrawHeavyChainBanner(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -293,6 +305,9 @@ void GamePresentation::DrawHeavyChainBanner(Game& game)
 	}
 }
 
+/// <summary>
+/// 一度のショットで複数の敵を撃破したときのバナーを描画する。
+/// </summary>
 void GamePresentation::DrawMultiDefeatBanner(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -393,6 +408,9 @@ void GamePresentation::DrawMultiDefeatBanner(Game& game)
 	}
 }
 
+/// <summary>
+/// ダメージや能力発動などの一時表示を、盤面上またはHUDに描画する。
+/// </summary>
 void GamePresentation::DrawFloatingFeedback(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -687,6 +705,9 @@ void GamePresentation::DrawFloatingFeedback(Game& game)
 	}
 }
 
+/// <summary>
+/// 衝突や反応演出の診断情報をデバッグ表示に描画する。
+/// </summary>
 void GamePresentation::DrawFeedbackDiagnostics(Game& game)
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());
@@ -745,6 +766,9 @@ void GamePresentation::DrawFeedbackDiagnostics(Game& game)
 	}
 }
 
+/// <summary>
+/// 命中、ダメージ、撃破や能力軸の変化をまとめて短時間表示する。
+/// </summary>
 void GamePresentation::DrawShotSummary()
 {
 	ImDrawList* foreground = ImGui::GetForegroundDrawList(ImGui::GetMainViewport());

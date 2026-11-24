@@ -20,38 +20,68 @@ public:
 
     bool Update(Game& game);
 
+    /// <summary>
+    /// 自動プレイが有効かを返す。
+    /// </summary>
     bool IsEnabled() const { return m_Enabled; }
     void SetEnabled(bool enabled);
 
+    /// <summary>
+    /// 現在のランを終えた時点で自動プレイを停止する要求があるかを返す。
+    /// </summary>
     bool IsStopAfterCurrentRunRequested() const
     {
         return m_StopAfterCurrentRunRequested;
     }
 
+    /// <summary>
+    /// 現在のランの終了時に自動プレイを停止するかを設定する。
+    /// </summary>
     void SetStopAfterCurrentRunRequested(bool requested)
     {
         m_StopAfterCurrentRunRequested = requested;
     }
 
+    /// <summary>
+    /// ラン終了時に自動プレイを停止する既定設定を返す。
+    /// </summary>
     bool IsStopAfterCurrentRunDefault() const
     {
         return m_StopAfterCurrentRunDefault;
     }
 
+    /// <summary>
+    /// 自動プレイで記録しているラン数を返す。
+    /// </summary>
     int GetRunCount() const { return m_RunCount; }
+    /// <summary>
+    /// 自動プレイに設定されたラン数の上限を返す。
+    /// </summary>
     int GetMaximumRuns() const { return m_MaximumRuns; }
+    /// <summary>
+    /// 自動プレイ用に保持している乱数シードを返す。
+    /// </summary>
     unsigned int GetRandomSeed() const { return m_RandomSeed; }
 
+    /// <summary>
+    /// 指定したシードで自動プレイ用の乱数生成器を初期化する。
+    /// </summary>
     void SeedRandom(std::uint32_t seed)
     {
         m_RandomEngine.seed(seed);
     }
 
+    /// <summary>
+    /// 後で調整する球の一覧を消去する。
+    /// </summary>
     void ResetPendingBallAdjustments()
     {
         m_PendingBallAdjustments.clear();
     }
 
+    /// <summary>
+    /// 後で調整する球のインスタンスID一覧を返す。
+    /// </summary>
     const std::vector<std::uint64_t>& GetPendingBallAdjustments() const
     {
         return m_PendingBallAdjustments;

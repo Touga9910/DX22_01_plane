@@ -13,6 +13,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 通常エリアの完了を進行状態に反映し、完了やボス準備開始のイベントを記録する。
+/// </summary>
 void Game::CompleteNormalRouteArea(const char* areaType)
 {
 	// 現在の通常エリアを完了し、ラン進行と関連ログを同期
@@ -61,6 +64,9 @@ void Game::CompleteNormalRouteArea(const char* areaType)
 	}
 }
 
+/// <summary>
+/// ランの進行段階に応じて、ボス戦前の休憩所か次の進路選択に進む。
+/// </summary>
 void Game::EnterNextRouteAfterArea()
 {
 	// 現在のランフェーズに応じて次のルート選択先へ遷移
@@ -74,12 +80,18 @@ void Game::EnterNextRouteAfterArea()
 	}
 }
 
+/// <summary>
+/// ショップの利用完了を記録し、次の進路へ遷移する。
+/// </summary>
 void Game::LeaveShop()
 {
 	CompleteNormalRouteArea("shop");
 	EnterNextRouteAfterArea();
 }
 
+/// <summary>
+/// 通常の休憩所やボス戦前の準備を完了し、次の進行先へ遷移する。
+/// </summary>
 void Game::LeaveRestSite()
 {
 	// 休憩所の利用完了を記録して次のルートへ進める。
@@ -103,6 +115,9 @@ void Game::LeaveRestSite()
 	EnterNextRouteAfterArea();
 }
 
+/// <summary>
+/// クリア報酬の選択を終了し、現在の進行段階に応じた進路へ移る。
+/// </summary>
 void Game::ContinueAfterClearReward()
 {
 	m_RewardState->Exit();

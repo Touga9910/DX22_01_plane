@@ -17,6 +17,9 @@ public:
 	void RecordPlayerDamage(int damage);
 	void RecordBallAcquired(const std::string& ballId);
 
+	/// <summary>
+	/// 現在の集計状態を読み取り専用の参照で返す。
+	/// </summary>
 	const RunResultSnapshot& GetState() const { return m_State; }
 	void Restore(const RunResultSnapshot& state);
 	RunResultSnapshot CreateSnapshot(

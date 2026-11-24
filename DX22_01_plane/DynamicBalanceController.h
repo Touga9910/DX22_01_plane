@@ -23,14 +23,41 @@ public:
 
 	int CalculateProgressionHpModifier(int progress) const;
 	int CalculateProgressionAttackModifier(int progress) const;
+	/// <summary>
+	/// 進行度による敵性能の補正を有効にしているかを返す。
+	/// </summary>
 	bool IsProgressionScalingEnabled() const { return m_ProgressionScalingEnabled; }
+	/// <summary>
+	/// 敵のHPに進行補正を加え始める進行度を返す。
+	/// </summary>
 	int GetProgressionHpStart() const { return m_ProgressionHpStart; }
+	/// <summary>
+	/// 敵のHP補正が次の段階に上がる進行間隔を返す。
+	/// </summary>
 	int GetProgressionHpInterval() const { return m_ProgressionHpInterval; }
+	/// <summary>
+	/// 進行段階が一つ上がるごとの敵HP加算値を返す。
+	/// </summary>
 	int GetProgressionHpStep() const { return m_ProgressionHpStep; }
+	/// <summary>
+	/// 進行補正による敵HPの加算上限を返す。
+	/// </summary>
 	int GetProgressionHpMaximumDelta() const { return m_ProgressionHpMaximumDelta; }
+	/// <summary>
+	/// 敵の攻撃力に進行補正を加え始める進行度を返す。
+	/// </summary>
 	int GetProgressionAttackStart() const { return m_ProgressionAttackStart; }
+	/// <summary>
+	/// 敵の攻撃力補正が次の段階に上がる進行間隔を返す。
+	/// </summary>
 	int GetProgressionAttackInterval() const { return m_ProgressionAttackInterval; }
+	/// <summary>
+	/// 進行段階が一つ上がるごとの敵攻撃力加算値を返す。
+	/// </summary>
 	int GetProgressionAttackStep() const { return m_ProgressionAttackStep; }
+	/// <summary>
+	/// 進行補正による敵攻撃力の加算上限を返す。
+	/// </summary>
 	int GetProgressionAttackMaximumDelta() const { return m_ProgressionAttackMaximumDelta; }
 
 private:

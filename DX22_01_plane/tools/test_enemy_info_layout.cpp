@@ -6,17 +6,26 @@
 
 namespace
 {
+    /// <summary>
+    /// 配置の検査に失敗したとき、説明を表示してテストを終了する。
+    /// </summary>
     void Check(bool value, const char* message)
     {
         if (!value) { std::cerr << message << '\n'; std::exit(1); }
     }
 
+    /// <summary>
+    /// 二つの座標のx成分とy成分が一致するかを返す。
+    /// </summary>
     bool Equal(const ImVec2& a, const ImVec2& b)
     {
         return a.x == b.x && a.y == b.y;
     }
 }
 
+/// <summary>
+/// 敵の情報表示が盤面上の予約領域や球を避けて配置され、再現性を保つことを検証する。
+/// </summary>
 int main()
 {
     const EnemyInfoLayout::BodyRegions empty;

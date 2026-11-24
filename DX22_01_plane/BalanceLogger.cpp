@@ -7,17 +7,26 @@
 using json = nlohmann::json;
 using namespace BalanceLogDetail;
 
+/// <summary>
+/// バランス計測ログの共有インスタンスを返す。
+/// </summary>
 BalanceLogger& BalanceLogger::GetInstance()
 {
 	static BalanceLogger instance;
 	return instance;
 }
 
+/// <summary>
+/// メンバーの既定値でバランス計測ログを初期化する。
+/// </summary>
 BalanceLogger::BalanceLogger()
 	: m_BalanceMetadata(LoadBalanceMetadata())
 {
 }
 
+/// <summary>
+/// 既存のランを必要に応じて閉じ、新しいランの識別子と初期状態を用意して計測を開始する。
+/// </summary>
 void BalanceLogger::BeginRun(
 	int playerMaxHp,
 	int playerCurrentHp,
@@ -178,6 +187,9 @@ void BalanceLogger::BeginRun(
 		<< m_LogPath.string() << std::endl;
 }
 
+/// <summary>
+/// 実行中のステージを締め、結果と終了時のプレイヤー状態を計測ログに記録する。
+/// </summary>
 void BalanceLogger::EndRun(
 	const std::string& result,
 	int playerHp,
@@ -229,6 +241,9 @@ void BalanceLogger::EndRun(
 	m_CurrentStageIndex = NoStage;
 }
 
+/// <summary>
+/// ランとステージが有効であれば、現在のステージのJSON記録を返す。
+/// </summary>
 json* BalanceLogger::GetCurrentStage()
 {
 	if (!m_RunActive ||

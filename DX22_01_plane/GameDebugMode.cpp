@@ -29,10 +29,16 @@
 
 namespace
 {
+    /// <summary>
+    /// 指定した球種IDの表示名を取得する。
+    /// </summary>
     const char* BallLabel(const std::string& id)
     {
         return PlayerBallText::GetName(id);
     }
+    /// <summary>
+    /// ステージIDを表示名に変換し、未指定なら自動選択の表示を返す。
+    /// </summary>
     std::string RunStageLabel(const std::vector<StageData>& stages, const std::string& id)
     {
         if (id.empty()) return "進行度から自動選択";
@@ -40,6 +46,9 @@ namespace
         return stage ? stage->DisplayName() : id;
     }
 
+    /// <summary>
+    /// 球の攻撃、防御、質量などの能力値を編集するスライダーを表示する。
+    /// </summary>
     void EditStatus(BallStatus& s, bool includeDefense)
     {
         ImGui::SliderInt("攻撃", &s.attack, 0, 999, "%d", ImGuiSliderFlags_AlwaysClamp);
@@ -66,16 +75,25 @@ namespace
     const std::filesystem::path RunPresetsPath = "saves/debug_run_presets.json";
 }
 
+/// <summary>
+/// タイトル画面でデバッグエディターを開けるかを返す。
+/// </summary>
 bool GameDebugHost::CanOpenEditor(const Game& game)
 {
     return game.GetCurrentSceneType() == SceneType::Title;
 }
 
+/// <summary>
+/// デバッグ用の無限所持金を切り替える。
+/// </summary>
 void GameDebugHost::SetInfiniteMoney(Game& game, bool enabled)
 {
     game.m_RunController->SetDebugInfiniteMoney(enabled);
 }
 
+/// <summary>
+/// 指定した設定と乱数シードでデバッグランを開始する。
+/// </summary>
 void GameDebugHost::StartRun(Game& game, const DebugRunSetup& setup, std::uint32_t seed)
 {
     game.m_StageOverrideState->ClearQueued();
@@ -83,6 +101,9 @@ void GameDebugHost::StartRun(Game& game, const DebugRunSetup& setup, std::uint32
     game.StartNewRun("debug_sandbox", "debug_run", "", "", seed, "", setup.combatMode, PhaseRunProgressionMode::RouteProgress);
 }
 
+/// <summary>
+/// デバッグランの進行先を、指定した進行度と行き先に切り替える。
+/// </summary>
 bool GameDebugHost::JumpRun(Game& game, const DebugRunSetup& setup)
 {
     if (!game.IsDebugRunMode() || !game.IsRunSessionActive()) return false;
@@ -121,11 +142,17 @@ bool GameDebugHost::JumpRun(Game& game, const DebugRunSetup& setup)
     return true;
 }
 
+/// <summary>
+/// デバッグランが進行中で、デバッグ用の移動操作を行えるかを返す。
+/// </summary>
 bool GameDebugHost::CanJumpRun(const Game& game)
 {
     return game.IsDebugRunMode() && game.IsRunSessionActive();
 }
 
+/// <summary>
+/// デバッグランの戦闘を即時勝利として処理し、その操作をログへ記録する。
+/// </summary>
 bool GameDebugHost::WinBattle(Game& game)
 {
     if (!game.IsDebugRunMode() || game.GetCurrentSceneType() != SceneType::Battle || game.IsClearRewardActive()) return false;
@@ -137,6 +164,9 @@ bool GameDebugHost::WinBattle(Game& game)
     return true;
 }
 
+/// <summary>
+/// 現在のプレイヤー状態と乱数シードなどをデバッグ戦闘設定に取り込む。
+/// </summary>
 void GameDebugHost::CaptureSetup(Game& game, DebugBattleSetup& setup)
 {
     game.CaptureCurrentPlayerStatus();
@@ -151,6 +181,9 @@ void GameDebugHost::CaptureSetup(Game& game, DebugBattleSetup& setup)
     setup.relics = game.m_RunController->Relics();
 }
 
+/// <summary>
+/// 現在のデバッグランの進行度と行き先を、再開用の設定に取り込む。
+/// </summary>
 bool GameDebugHost::CaptureRunEntry(const Game& game, DebugRunSetup& setup)
 {
     if (!CanJumpRun(game) || game.IsClearRewardActive()) return false;
@@ -182,6 +215,9 @@ bool GameDebugHost::CaptureRunEntry(const Game& game, DebugRunSetup& setup)
     return true;
 }
 
+/// <summary>
+/// 選択画面へ戻って設定を再適用し、指定ステージでデバッグ戦闘をやり直す。
+/// </summary>
 void GameDebugHost::RestartRunBattle(Game& game, StageData stage)
 {
     game.ChangeScene(SceneType::Select);
@@ -191,6 +227,9 @@ void GameDebugHost::RestartRunBattle(Game& game, StageData stage)
     game.StartNextBattle();
 }
 
+/// <summary>
+/// デバッグラン開始前に保存する進行プロファイルと自動プレイ・検証の設定を取得する。
+/// </summary>
 DebugRunSnapshot GameDebugHost::CaptureRunSnapshot(const Game& game)
 {
     DebugRunSnapshot snapshot;
@@ -200,6 +239,9 @@ DebugRunSnapshot GameDebugHost::CaptureRunSnapshot(const Game& game)
     return snapshot;
 }
 
+/// <summary>
+/// デバッグ進行設定を反映し、自動プレイとバランス検証を無効にする。
+/// </summary>
 void GameDebugHost::PrepareSession(
     Game& game,
     const DebugBattleSetup& setup)
@@ -209,6 +251,9 @@ void GameDebugHost::PrepareSession(
     game.m_BalanceRuntime->SetValidationEnabled(false);
 }
 
+/// <summary>
+/// デバッグラン用の進行、球カタログ、デッキ、HP、所持金、レリックを適用する。
+/// </summary>
 void GameDebugHost::ApplyRunSettings(
     Game& game,
     const DebugBattleSetup& setup,
@@ -237,6 +282,9 @@ void GameDebugHost::ApplyRunSettings(
     game.m_RunController->Relics() = setup.relics;
 }
 
+/// <summary>
+/// 指定した乱数シードとステージを使い、単独のデバッグ戦闘を開始する。
+/// </summary>
 void GameDebugHost::StartBattle(
     Game& game,
     std::uint32_t seed,
@@ -250,6 +298,9 @@ void GameDebugHost::StartBattle(
     game.StartNextBattle(stageType);
 }
 
+/// <summary>
+/// デバッグセッションを終了し、開始前の進行プロファイルと自動プレイ・検証の設定を復元する。
+/// </summary>
 void GameDebugHost::EndSession(
     Game& game,
     const DebugRunSnapshot& snapshot)
@@ -266,16 +317,25 @@ void GameDebugHost::EndSession(
     game.LoadPlayerStatusFromJson();
 }
 
+/// <summary>
+/// 盤面上のプレイヤー球から現在のプレイヤー状態を取り込む。
+/// </summary>
 void GameDebugHost::CaptureCurrentPlayerStatus(Game& game)
 {
     game.CaptureCurrentPlayerStatus();
 }
 
+/// <summary>
+/// デバッグ操作からゲームのポーズ状態を設定する。
+/// </summary>
 void GameDebugHost::SetPaused(Game& game, bool paused)
 {
 	game.SetPaused(paused);
 }
 
+/// <summary>
+/// 外部操作との連携が初期化されていれば、連携側にゲームの更新を渡す。
+/// </summary>
 void GameDebugHost::UpdateExternalBridge(Game& game)
 {
     if (game.m_GameMcpBridge != nullptr)
@@ -284,11 +344,17 @@ void GameDebugHost::UpdateExternalBridge(Game& game)
     }
 }
 
+/// <summary>
+/// 通常の休憩所で適用する既定の回復割合を取得する。
+/// </summary>
 float GameDebugHost::GetDefaultRestHealRatio(const Game& game)
 {
     return game.m_PersistenceRuntime->DefaultRestHealRatio();
 }
 
+/// <summary>
+/// 自動プレイとラン終了時の停止要求をデバッグ表示用の状態にまとめる。
+/// </summary>
 DebugAutomationSnapshot GameDebugHost::CaptureAutomation(const Game& game)
 {
     DebugAutomationSnapshot snapshot;
@@ -304,11 +370,17 @@ DebugAutomationSnapshot GameDebugHost::CaptureAutomation(const Game& game)
     return snapshot;
 }
 
+/// <summary>
+/// デバッグ操作から自動プレイの有効状態を設定する。
+/// </summary>
 void GameDebugHost::SetAutoPlayEnabled(Game& game, bool enabled)
 {
     game.m_BalanceRuntime->SetAutoPlayEnabled(enabled);
 }
 
+/// <summary>
+/// 現在のラン完了時に自動プレイを停止する要求を設定する。
+/// </summary>
 void GameDebugHost::SetStopAfterCurrentRunRequested(
     Game& game,
     bool requested)
@@ -316,12 +388,17 @@ void GameDebugHost::SetStopAfterCurrentRunRequested(
     game.m_BalanceRuntime->SetStopAfterCurrentRunRequested(requested);
 }
 
+/// <summary>
+/// 現在のデバッグ状態をスナップショットに保存する。
+/// </summary>
 void GameDebugHost::SaveSnapshot(Game& game)
 {
     game.SaveDebugSnapshot();
 }
 
-// Debug Modeを開く。
+/// <summary>
+/// 必要な球・敵データなどを読み込み、デバッグエディターを開く。
+/// </summary>
 void GameDebugController::Open(Game& game)
 {
     if (!m_DebugMode && !GameDebugHost::CanOpenEditor(game)) return;
@@ -368,13 +445,17 @@ void GameDebugController::Open(Game& game)
     Game::ResetFrameTiming();
 }
 
-// Debug Run Settingsを適用
+/// <summary>
+/// 現在編集中のデバッグ設定をランへ反映する。
+/// </summary>
 void GameDebugController::ApplyRunSettings(Game& game)
 {
     GameDebugHost::ApplyRunSettings(game, m_DebugSetup, m_DebugBallCatalog);
 }
 
-// Debug Battleを開始
+/// <summary>
+/// デバッグ設定と配置を検証し、指定条件で単独の戦闘を開始する。
+/// </summary>
 bool GameDebugController::StartBattle(Game& game)
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -441,6 +522,9 @@ bool GameDebugController::StartBattle(Game& game)
     return true;
 }
 
+/// <summary>
+/// デバッグ設定を検証して現在の設定を退避し、指定条件のランを開始する。
+/// </summary>
 bool GameDebugController::StartRun(Game& game)
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -465,6 +549,9 @@ bool GameDebugController::StartRun(Game& game)
     return true;
 }
 
+/// <summary>
+/// 直前に実行した配置と設定を復元し、デバッグ戦闘の再開を要求する。
+/// </summary>
 void GameDebugController::RequestReplay()
 {
     m_DebugSetup = m_DebugActiveSetup;
@@ -472,7 +559,9 @@ void GameDebugController::RequestReplay()
     m_DebugRequest = 1;
 }
 
-// Debug Battle Playerを適用
+/// <summary>
+/// 単独のデバッグ戦闘でプレイヤー球を指定の初期位置へ移す。
+/// </summary>
 void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
 {
     if (!m_DebugMode || m_DebugRunActive || !player) return;
@@ -480,7 +569,9 @@ void GameDebugController::ApplyBattlePlayer(PlayerBall* player)
     player->GetBall()->SetInitialPosition(m_DebugSetup.playerPosition);
 }
 
-// Debug Battle Enemyを適用
+/// <summary>
+/// 単独のデバッグ戦闘で対象の敵球に指定の位置と能力値を適用する。
+/// </summary>
 void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
 {
     if (!m_DebugMode || m_DebugRunActive || !enemy) return;
@@ -505,7 +596,9 @@ void GameDebugController::ApplyBattleEnemy(EnemyBall* enemy, std::size_t index)
     enemy->SetDebugBossState(m_DebugSetup.armor, m_DebugSetup.breakShots);
 }
 
-// Debug Modeを終了
+/// <summary>
+/// デバッグの記録を終了し、デバッグセッションと画面の状態をリセットする。
+/// </summary>
 void GameDebugController::End(Game& game)
 {
     if (!m_DebugMode) return;
@@ -523,7 +616,9 @@ void GameDebugController::End(Game& game)
     }
 }
 
-// Debug Battleを終了
+/// <summary>
+/// デバッグ戦闘の勝敗と終了時の数値を記録し、戦闘を終了状態にする。
+/// </summary>
 void GameDebugController::FinishBattle(Game& game, bool victory)
 {
     if (m_DebugBattleFinished) return;
@@ -542,7 +637,9 @@ void GameDebugController::FinishBattle(Game& game, bool victory)
     Game::ResetFrameTiming();
 }
 
-// Debug Modeを更新
+/// <summary>
+/// デバッグのキー入力、開始・終了要求、エディターの状態をフレームごとに処理する。
+/// </summary>
 bool GameDebugController::Update(Game& game)
 {
     // Handle this before the editor's early return so it also works while paused.
@@ -598,7 +695,9 @@ bool GameDebugController::Update(Game& game)
     return false;
 }
 
-// Debug Presetを保存
+/// <summary>
+/// 編集中のデバッグ戦闘設定を検証し、一時ファイルを経由してプリセットに保存する。
+/// </summary>
 void GameDebugController::SavePreset()
 {
     m_DebugMessage = m_DebugSetup.Validate();
@@ -615,7 +714,9 @@ void GameDebugController::SavePreset()
     catch (const std::exception& e) { m_DebugMessage = std::string("保存できませんでした：") + e.what(); }
 }
 
-// Debug Presetを読み込む。
+/// <summary>
+/// 保存済みのデバッグ戦闘プリセットを読み込んで検証し、編集中の設定へ反映する。
+/// </summary>
 bool GameDebugController::LoadPreset()
 {
     try
@@ -633,6 +734,9 @@ bool GameDebugController::LoadPreset()
     return false;
 }
 
+/// <summary>
+/// 保存済みのランプリセット一覧を更新し、一覧から消えた選択を整理する。
+/// </summary>
 void GameDebugController::RefreshRunPresets()
 {
     try
@@ -650,6 +754,9 @@ void GameDebugController::RefreshRunPresets()
     RefreshRunPresetComparison();
 }
 
+/// <summary>
+/// 指定した保存済みランプリセットを選択し、プレビュー用に読み込む。
+/// </summary>
 void GameDebugController::SelectRunPreset(const std::string& name)
 {
     // This only updates the saved-record preview, never the live/draft run setup.
@@ -675,6 +782,9 @@ void GameDebugController::SelectRunPreset(const std::string& name)
     catch (const std::exception& e) { m_DebugRunPresetPreviewError = e.what(); }
 }
 
+/// <summary>
+/// 選択中のランプリセットを改名し、選択と比較の参照先も更新する。
+/// </summary>
 void GameDebugController::RenameRunPreset()
 {
     try
@@ -690,6 +800,9 @@ void GameDebugController::RenameRunPreset()
     catch (const std::exception& e) { m_DebugRunPresetMessage = std::string("名前を変更できませんでした：") + e.what(); }
 }
 
+/// <summary>
+/// 選択中のランプリセットを複製し、比較先を設定して必要に応じて複製を編集する。
+/// </summary>
 void GameDebugController::DuplicateRunPreset(bool editCopy)
 {
     try
@@ -710,6 +823,9 @@ void GameDebugController::DuplicateRunPreset(bool editCopy)
     catch (const std::exception& e) { m_DebugRunPresetMessage = std::string("複製できませんでした：") + e.what(); }
 }
 
+/// <summary>
+/// 指定した保存済みランプリセットを削除し、選択と一覧を更新する。
+/// </summary>
 void GameDebugController::DeleteRunPreset()
 {
     try
@@ -723,6 +839,9 @@ void GameDebugController::DeleteRunPreset()
     catch (const std::exception& e) { m_DebugRunPresetMessage = std::string("削除できませんでした：") + e.what(); }
 }
 
+/// <summary>
+/// 編集中の設定、または進行中のデバッグランの状態をランプリセットに保存する。
+/// </summary>
 void GameDebugController::SaveRunPreset(Game& game, bool currentRun)
 {
     try
@@ -748,6 +867,9 @@ void GameDebugController::SaveRunPreset(Game& game, bool currentRun)
     catch (const std::exception& e) { m_DebugRunPresetMessage = std::string("保存できませんでした：") + e.what(); }
 }
 
+/// <summary>
+/// 選択したランプリセットを検証して読み込み、指定に応じてその条件での開始を要求する。
+/// </summary>
 bool GameDebugController::LoadRunPreset(bool startRun)
 {
     try
@@ -772,6 +894,9 @@ bool GameDebugController::LoadRunPreset(bool startRun)
     return false;
 }
 
+/// <summary>
+/// 選択した2つの保存済みランプリセットを読み込み、表示用の差分を計算する。
+/// </summary>
 void GameDebugController::RefreshRunPresetComparison()
 {
     m_DebugRunPresetCompareRows.clear();
@@ -798,6 +923,9 @@ void GameDebugController::RefreshRunPresetComparison()
     catch (const std::exception& e) { m_DebugRunPresetCompareError = e.what(); }
 }
 
+/// <summary>
+/// 2つの保存済みランプリセットを選択し、差分を確認する比較画面を描画する。
+/// </summary>
 void GameDebugController::DrawRunPresetComparison()
 {
     if (!m_DebugRunPresetCompareOpen) return;
@@ -864,6 +992,9 @@ void GameDebugController::DrawRunPresetComparison()
     ImGui::End();
 }
 
+/// <summary>
+/// 選択中の保存済みランプリセットの内容を、読み込み前のプレビューとして描画する。
+/// </summary>
 void GameDebugController::DrawRunPresetPreview()
 {
     if (m_DebugRunPresetSelected.empty())
@@ -928,6 +1059,9 @@ void GameDebugController::DrawRunPresetPreview()
     ImGui::TextDisabled("選択だけでは編集中の条件や現在のランへ反映しません。");
 }
 
+/// <summary>
+/// 保存済みランプリセットの選択、比較、編集、保存を操作する画面を描画する。
+/// </summary>
 void GameDebugController::DrawRunPresets(Game& game)
 {
     if (ImGui::Button("保存済みプリセットを2つ比較"))
@@ -998,6 +1132,9 @@ void GameDebugController::DrawRunPresets(Game& game)
     if (!m_DebugRunPresetMessage.empty()) ImGui::TextWrapped("%s", m_DebugRunPresetMessage.c_str());
 }
 
+/// <summary>
+/// デバッグランでの進行先、戦闘、勝利判定などを操作する画面を描画する。
+/// </summary>
 void GameDebugController::DrawRunTools(Game& game)
 {
     ImGui::TextWrapped("デッキ・HP・レリックは開始時の条件タブを使用します。ラン中の移動は現在の所持品を維持し、飛ばしたエリアの報酬は付与しません。");
@@ -1050,7 +1187,9 @@ void GameDebugController::DrawRunTools(Game& game)
     DrawRunPresets(game);
 }
 
-// Debug Modeを描画
+/// <summary>
+/// デバッグモードの状態に応じた操作画面と、デバッグ設定を編集する画面を描画する。
+/// </summary>
 void GameDebugController::Draw(Game& game)
 {
     if (m_DebugEditorOpen || m_DebugMode) DrawRunPresetComparison();
@@ -1450,18 +1589,54 @@ void GameDebugController::Draw(Game& game)
 }
 
 // Gameは呼び出し窓口だけを保ち、デバッグの手順はControllerへ委譲
+/// <summary>
+/// デバッグコントローラーにエディターを開くよう依頼する。
+/// </summary>
 void Game::OpenDebugMode() { m_DebugController->Open(*this); }
+/// <summary>
+/// デバッグモードが有効かを返す。
+/// </summary>
 bool Game::IsDebugMode() const { return m_DebugController->IsActive(); }
+/// <summary>
+/// デバッグモードでランが進行中かを返す。
+/// </summary>
 bool Game::IsDebugRunMode() const { return m_DebugController->IsRunActive(); }
+/// <summary>
+/// デバッグ戦闘のブレイクで使用する球の配置を取得する。
+/// </summary>
 const std::vector<DirectX::SimpleMath::Vector3>& Game::GetDebugBreakBallPositions() const
 {
     return m_DebugController->GetActiveBreakBallPositions();
 }
+/// <summary>
+/// プレイヤー球にデバッグ戦闘の設定を適用する。
+/// </summary>
 void Game::ApplyDebugBattlePlayer(PlayerBall* player) { m_DebugController->ApplyBattlePlayer(player); }
+/// <summary>
+/// 指定位置の敵球にデバッグ戦闘の設定を適用する。
+/// </summary>
 void Game::ApplyDebugBattleEnemy(EnemyBall* enemy, std::size_t index) { m_DebugController->ApplyBattleEnemy(enemy, index); }
+/// <summary>
+/// 現在のデバッグ設定をランへ適用する。
+/// </summary>
 void Game::ApplyDebugRunSettings() { m_DebugController->ApplyRunSettings(*this); }
+/// <summary>
+/// デバッグセッションを終了する。
+/// </summary>
 void Game::EndDebugMode() { m_DebugController->End(*this); }
+/// <summary>
+/// 勝敗を指定してデバッグ戦闘を終了する。
+/// </summary>
 void Game::FinishDebugBattle(bool victory) { m_DebugController->FinishBattle(*this, victory); }
+/// <summary>
+/// デバッグモードの入力と状態を更新し、通常のゲーム進行を止めるかを返す。
+/// </summary>
 bool Game::UpdateDebugMode() { return m_DebugController->Update(*this); }
+/// <summary>
+/// デバッグモードの操作画面を描画する。
+/// </summary>
 void Game::DrawDebugMode() { m_DebugController->Draw(*this); }
+/// <summary>
+/// 保存済みのデバッグ戦闘プリセットを読み込む。
+/// </summary>
 bool Game::LoadDebugPreset() { return m_DebugController->LoadPreset(); }

@@ -41,6 +41,9 @@ Application::Application(uint32_t width, uint32_t height)
     timeBeginPeriod(1); //タイマー精度を1ミリ秒に設定
 }
 
+/// <summary>
+/// ウィンドウ表示時の寸法を設定し、現在のモニターでフルスクリーンとウィンドウ表示を切り替える。
+/// </summary>
 void Application::SetDisplayMode(
     uint32_t width,
     uint32_t height,

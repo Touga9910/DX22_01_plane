@@ -173,12 +173,18 @@ void Input::SetVibration(int frame, float powor)
 }
 
 // マウスの現在位置を取得
+/// <summary>
+/// 現在のマウス位置を2次元座標で返す。
+/// </summary>
 DirectX::XMFLOAT2 Input::GetMousePosition()
 {
 	return DirectX::XMFLOAT2((float)m_Instance->mousePos.x, (float)m_Instance->mousePos.y);
 }
 
 // 1フレームでのマウスの移動量を取得
+/// <summary>
+/// 現在と前回のマウス位置の差を返す。
+/// </summary>
 DirectX::XMFLOAT2 Input::GetMouseMove()
 {
 	float dx = (float)(m_Instance->mousePos.x - m_Instance->mousePos_old.x);

@@ -54,6 +54,9 @@ enum class PhaseRunProgressionMode
 	RouteProgress
 };
 
+/// <summary>
+/// フェーズ進行方式を設定や保存に用いる文字列に変換する。
+/// </summary>
 inline const char* ToString(PhaseRunProgressionMode mode)
 {
 	return mode == PhaseRunProgressionMode::RouteProgress
@@ -61,6 +64,9 @@ inline const char* ToString(PhaseRunProgressionMode mode)
 		: "encounter";
 }
 
+/// <summary>
+/// 文字列からフェーズ進行方式を読み取り、ルート指定以外は遭遇回数方式とする。
+/// </summary>
 inline PhaseRunProgressionMode PhaseRunProgressionModeFromString(
 	const std::string& value)
 {
@@ -69,11 +75,17 @@ inline PhaseRunProgressionMode PhaseRunProgressionModeFromString(
 		: PhaseRunProgressionMode::EncounterCount;
 }
 
+/// <summary>
+/// ランの戦闘モードを設定や保存に用いる文字列に変換する。
+/// </summary>
 inline const char* ToString(RunCombatMode mode)
 {
 	return mode == RunCombatMode::PhaseTest ? "phase_test" : "legacy";
 }
 
+/// <summary>
+/// 文字列からランの戦闘モードを読み取り、フェーズ戦闘の指定以外は従来方式とする。
+/// </summary>
 inline RunCombatMode RunCombatModeFromString(const std::string& value)
 {
 	return value == "phase_test"
@@ -83,6 +95,9 @@ inline RunCombatMode RunCombatModeFromString(const std::string& value)
 
 // RunPhaseをセーブデータなどで扱う文字列へ変換
 // 未定義の値が渡された場合は"normal_route"を返す。
+/// <summary>
+/// ランの進行段階を保存や記録に用いる文字列に変換する。
+/// </summary>
 inline const char* ToString(RunPhase phase)
 {
 	switch (phase)
@@ -98,6 +113,9 @@ inline const char* ToString(RunPhase phase)
 
 // 文字列からRunPhaseを復元
 // 対応する文字列がない場合はNormalRouteを返す。
+/// <summary>
+/// 文字列からランの進行段階を読み取り、該当する特別な段階がなければ通常ルートとする。
+/// </summary>
 inline RunPhase RunPhaseFromString(const std::string& value)
 {
 	if (value == "boss_preparation") return RunPhase::BossPreparation;
@@ -134,6 +152,9 @@ enum class RelicRarity
 
 // RelicRarityを保存・表示用の文字列へ変換
 // Commonおよび未定義の値は"common"を返す。
+/// <summary>
+/// レリックの希少度を識別用の文字列へ変換する。
+/// </summary>
 inline const char* ToString(RelicRarity rarity)
 {
 	switch (rarity)
@@ -157,6 +178,9 @@ struct RelicDefinition
 };
 
 // char8_tで記述したUTF-8文字列を、既存のconst char*として扱うために変換
+/// <summary>
+/// レリック用のUTF-8文字列を、同じバイト列を指すcharポインターとして返す。
+/// </summary>
 inline const char* RelicUtf8(const char8_t* text) noexcept
 {
 	return reinterpret_cast<const char*>(text);

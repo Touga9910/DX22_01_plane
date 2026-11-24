@@ -10,6 +10,9 @@
 // knowledge of physics components, action budgets, UI, or concrete ball types.
 namespace EnemyChargeRules
 {
+    /// <summary>
+    /// 正の貫通軸ダメージだけを、今回のショットにおける中断判定用の累積値に加える。
+    /// </summary>
     inline int AccumulateAppliedDamage(
         int accumulatedDamage,
         EnemyDamageKind kind,
@@ -23,6 +26,9 @@ namespace EnemyChargeRules
         return accumulatedDamage + appliedDamage;
     }
 
+    /// <summary>
+    /// ショット中の水平移動距離と貫通ダメージを各しきい値と比較し、チャージ中断の理由を求める。
+    /// </summary>
     inline ChargeInterruptionResult EvaluateShot(
         bool active,
         bool heavyShot,

@@ -65,6 +65,9 @@ struct ChargeInterruptionResult
     int pierceDamage = 0;
     float pierceDamageThreshold = 0.0f;
 
+    /// <summary>
+    /// チャージ中断の理由から、中断が実際に発生したかを判定する。
+    /// </summary>
     bool WasInterrupted() const
     {
         return reason != ChargeInterruptReason::None;
@@ -74,6 +77,9 @@ struct ChargeInterruptionResult
 const char* ToString(BattleState state);
 const char* ToString(BattleResult result);
 
+/// <summary>
+/// 敵の行動種別をログ用の文字列に変換する。
+/// </summary>
 inline const char* ToString(EnemyActionType action)
 {
     switch (action)
@@ -85,6 +91,9 @@ inline const char* ToString(EnemyActionType action)
     }
 }
 
+/// <summary>
+/// 敵のチャージ状態をログ用の文字列に変換する。
+/// </summary>
 inline const char* ToString(EnemyChargeState state)
 {
     return state == EnemyChargeState::Charging
@@ -92,6 +101,9 @@ inline const char* ToString(EnemyChargeState state)
         : "normal";
 }
 
+/// <summary>
+/// チャージを中断した理由をログ用の文字列に変換する。
+/// </summary>
 inline const char* ToString(ChargeInterruptReason reason)
 {
     switch (reason)

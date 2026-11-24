@@ -22,6 +22,9 @@ using namespace GamePresentationPrimitives;
 
 namespace
 {
+/// <summary>
+/// 山札や捨て札の枚数を示すボタンを描画し、クリックされたかを返す。
+/// </summary>
 bool DrawPileButton(
 	const char* id,
 	const char* label,
@@ -87,6 +90,9 @@ bool DrawPileButton(
 
 namespace
 {
+/// <summary>
+/// 装甲ボスと取り巻きの状態、予告ダメージやシールドをパネルに描画する。
+/// </summary>
 void DrawBossEncounterPanel(Game& game, const ImGuiViewport* viewport, float hudHeight)
 {
     EnemyBall* boss = nullptr;
@@ -133,6 +139,9 @@ void DrawBossEncounterPanel(Game& game, const ImGuiViewport* viewport, float hud
 }
 }
 
+/// <summary>
+/// 戦闘中のHUDを描画し、デッキやレリックの一覧表示を操作できるようにする。
+/// </summary>
 void GamePresentation::DrawBattleHud(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -360,6 +369,9 @@ void GamePresentation::DrawBattleHud(Game& game)
 	}
 }
 
+/// <summary>
+/// デッキに含まれる球の一覧をオーバーレイに描画する。
+/// </summary>
 void GamePresentation::DrawDeckList(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -452,6 +464,9 @@ void GamePresentation::DrawDeckList(Game& game)
 	ImGui::PopStyleVar();
 }
 
+/// <summary>
+/// 所持レリックの一覧と説明をオーバーレイに描画する。
+/// </summary>
 void GamePresentation::DrawRelicList(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();

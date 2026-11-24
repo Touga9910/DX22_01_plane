@@ -10,14 +10,23 @@ namespace GameUi
     inline bool showDebugger = false;
     inline std::unordered_map<std::string, unsigned> windowRevisions;
 
+    /// <summary>
+    /// メインビューポートの作業領域を原点として、指定した相対位置を画面座標へ変換する。
+    /// </summary>
     inline ImVec2 MainPosition(float x, float y)
     {
         const auto* viewport = ImGui::GetMainViewport();
         return ImVec2(viewport->WorkPos.x + x, viewport->WorkPos.y + y);
     }
 
+    /// <summary>
+    /// ウィンドウのレイアウトを次回の設定時にリセットするため、レイアウトの版を進める。
+    /// </summary>
     inline void ResetWindows() { ++layoutRevision; }
 
+    /// <summary>
+    /// ウィンドウの位置とサイズをビューポートの範囲内に収め、必要なら配置を再設定する。
+    /// </summary>
     inline void PrepareWindow(const char* id, ImVec2 offset, ImVec2 size)
     {
         const auto* viewport = ImGui::GetMainViewport();

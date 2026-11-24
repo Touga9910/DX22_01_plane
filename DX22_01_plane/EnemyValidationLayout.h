@@ -11,6 +11,9 @@ struct EnemyValidationLayoutResult
     std::vector<EnemySpawnData> enemies;
     std::string error;
 
+    /// <summary>
+    /// 敵の検証用配置の生成にエラーがなかったかを返す。
+    /// </summary>
     bool Succeeded() const { return error.empty(); }
 };
 

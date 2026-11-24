@@ -9,13 +9,34 @@
 
 // Scene creation is outside this CPU-only timing fixture. The production
 // World, timing ring, aggregations, and performance logger are linked below.
+/// <summary>
+/// 時間計測テスト用のシーン管理オブジェクトを既定状態で構築する。
+/// </summary>
 SceneManager::SceneManager() = default;
+/// <summary>
+/// 時間計測テスト用のシーン管理オブジェクトを既定の手順で破棄する。
+/// </summary>
 SceneManager::~SceneManager() = default;
+/// <summary>
+/// 時間計測テストで戦闘シーンの生成処理を設定しようとした場合、失敗にする。
+/// </summary>
 void SceneManager::SetBattleSceneFactory(BattleSceneFactory) { assert(false); }
+/// <summary>
+/// 時間計測テストでシーン初期化が呼ばれた場合、失敗にする。
+/// </summary>
 bool SceneManager::Initialize(SceneType) { assert(false); return false; }
+/// <summary>
+/// 時間計測テストでシーン切り替えが呼ばれた場合、失敗にする。
+/// </summary>
 bool SceneManager::Change(SceneType) { assert(false); return false; }
+/// <summary>
+/// 時間計測テストでシーン管理の初期化が呼ばれた場合、失敗にする。
+/// </summary>
 void SceneManager::Reset() { assert(false); }
 
+/// <summary>
+/// 照準計測の集計条件、ログの一度限りの出力、計測対象外フレームの処理を検証する。
+/// </summary>
 int main()
 {
     using Clock = std::chrono::steady_clock;

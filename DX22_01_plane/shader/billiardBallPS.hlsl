@@ -19,6 +19,9 @@ struct BILLIARD_PS_IN
 };
 
 // Approximate fixed studio reflections, not the actual game table/nearby balls.
+/// <summary>
+/// 反射の方向から、室内の環境光と固定照明の映り込みを近似する。
+/// </summary>
 float3 StudioReflection(float3 directionWS)
 {
     float t = saturate(directionWS.y * 0.5f + 0.5f);
@@ -32,6 +35,9 @@ float3 StudioReflection(float3 directionWS)
                        + float3(0.48f, 0.56f, 0.67f) * fill;
 }
 
+/// <summary>
+/// 球の基礎色に撃破時の色変化、鏡面光と周囲の映り込みを反映し、出力色を求める。
+/// </summary>
 float4 main(BILLIARD_PS_IN input) : SV_Target
 {
     // Exact base-color calculation from the already working litTexturePS.hlsl.

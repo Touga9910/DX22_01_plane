@@ -17,6 +17,9 @@ public:
     static std::vector<Collision::Segment> BuildLocalWalls();
 
     // 生成済みのローカル衝突壁一覧を返す
+    /// <summary>
+    /// ローカル座標で保持している壁の衝突線分を返す。
+    /// </summary>
     const std::vector<Collision::Segment>& GetLocalWalls() const
     {
         return m_Walls;

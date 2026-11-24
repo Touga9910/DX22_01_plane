@@ -19,6 +19,9 @@ enum class BallCategory
 
 // BallCategoryを保存・データ参照用の文字列IDへ変換
 // Standardおよび未定義値は"standard"を返す
+/// <summary>
+/// 球のカテゴリを保存用IDに変換し、不明なカテゴリには基本球のIDを返す。
+/// </summary>
 inline const char* BallCategoryId(BallCategory category)
 {
 	switch (category)
@@ -32,6 +35,9 @@ inline const char* BallCategoryId(BallCategory category)
 }
 
 // 文字列が現在対応しているBallCategoryのIDか判定
+/// <summary>
+/// 指定の文字列が対応済みの球カテゴリIDかを判定する。
+/// </summary>
 inline bool IsBallCategoryId(const std::string& categoryId)
 {
 	return categoryId == "standard" || categoryId == "heavy" ||
@@ -42,6 +48,9 @@ inline bool IsBallCategoryId(const std::string& categoryId)
 // 文字列IDからBallCategoryを復元
 // categoryIdが空または未対応の場合は旧データ互換のためdefinitionIdも確認し、
 // どちらからも判定できない場合はStandardを返す
+/// <summary>
+/// カテゴリIDと球の定義IDからカテゴリを復元し、特定できない場合は基本球とする。
+/// </summary>
 inline BallCategory BallCategoryFromId(
 	const std::string& categoryId,
 	const std::string& definitionId = {})
@@ -69,23 +78,35 @@ inline BallCategory BallCategoryFromId(
 
 namespace AxisStackGeneration
 {
+    /// <summary>
+    /// 重量カテゴリまたは能力設定によって移動距離の重量スタックを得るかを返す。
+    /// </summary>
     inline bool HeavyDistance(BallCategory category, const BallStatus& status)
     {
         return category == BallCategory::Heavy || status.abilities.heavyDistanceStacks;
     }
 
+    /// <summary>
+    /// 反射カテゴリの最低保証を反映した反射スタックの加算量を返す。
+    /// </summary>
     inline int ReflectionAmount(BallCategory category, const BallStatus& status)
     {
         return category == BallCategory::Bounce
             ? (std::max)(1, status.cushionStackGenerateAmount) : status.cushionStackGenerateAmount;
     }
 
+    /// <summary>
+    /// 反射カテゴリの最低保証を反映した反射回数の上限を返す。
+    /// </summary>
     inline int ReflectionLimit(BallCategory category, const BallStatus& status)
     {
         return category == BallCategory::Bounce
             ? (std::max)(1, status.cushionReflectionLimit) : status.cushionReflectionLimit;
     }
 
+    /// <summary>
+    /// アンカーカテゴリの最低保証を反映したアンカースタックの加算量を返す。
+    /// </summary>
     inline int AnchorAmount(BallCategory category, const BallStatus& status)
     {
         return category == BallCategory::Anchor
@@ -110,6 +131,9 @@ struct PlayerBallData
 	int upgradeLevel = 0;											// 現在の強化段階
 
 	// 現在の強化段階から、さらに強化可能か判定
+	/// <summary>
+	/// 現在の強化段階が強化可能な範囲にあるかを判定する。
+	/// </summary>
 	bool CanUpgrade() const
 	{
 		return upgradeLevel >= 0 && upgradeLevel < MaxUpgradeLevel;

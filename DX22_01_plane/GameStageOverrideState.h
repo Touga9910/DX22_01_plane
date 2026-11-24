@@ -16,7 +16,13 @@ public:
 	GameStageOverrideState();
 	~GameStageOverrideState();
 
+	/// <summary>
+	/// 内部状態の所有権が重複するコピー構築を禁止する。
+	/// </summary>
 	GameStageOverrideState(const GameStageOverrideState&) = delete;
+	/// <summary>
+	/// 内部状態の所有権が重複するコピー代入を禁止する。
+	/// </summary>
 	GameStageOverrideState& operator=(const GameStageOverrideState&) = delete;
 
 	void Queue(StageData stage);

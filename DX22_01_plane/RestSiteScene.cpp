@@ -10,21 +10,33 @@
 
 #include <cstdio>
 
+/// <summary>
+/// 休憩所シーンを生成し、初期化処理を呼び出す。
+/// </summary>
 RestSiteScene::RestSiteScene()
 {
 	Init();
 }
 
+/// <summary>
+/// 休憩所シーンの終了処理を呼び出す。
+/// </summary>
 RestSiteScene::~RestSiteScene()
 {
 	Uninit();
 }
 
+/// <summary>
+/// 休憩所シーンの初期化の呼び出し口を提供する。関数本体は空。
+/// </summary>
 void RestSiteScene::Init()
 {
 
 }
 
+/// <summary>
+/// 休憩所の選択入力を受け付け、回復や強化などの選択した行動を処理する。
+/// </summary>
 void RestSiteScene::Update()
 {
 	if (m_UiState.modalOpen) return;
@@ -95,6 +107,9 @@ void RestSiteScene::Update()
 	}
 }
 
+/// <summary>
+/// 休憩所の状態から表示用データを組み立て、利用できるサービスと選択画面を描画する。
+/// </summary>
 void RestSiteScene::DrawUI()
 {
     const auto view=GameView::CaptureRestSite();
@@ -113,6 +128,9 @@ void RestSiteScene::DrawUI()
 }
 
 
+/// <summary>
+/// 休憩所シーンが登録したゲームオブジェクトを破棄し、管理一覧を空にする。
+/// </summary>
 void RestSiteScene::Uninit()
 {
 	for (GameObject* gameObject : m_SceneGameObjects)

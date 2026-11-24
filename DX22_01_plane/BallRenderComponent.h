@@ -25,12 +25,24 @@ public:
     void SetShininess(float shininess);
     void SetEnvironmentStrength(float strength);
     void SetDefeatVisualProgress(float progress);
+    /// <summary>
+    /// ボールの鏡面反射を描画するかどうかを設定する。
+    /// </summary>
     void SetSpecularEnabled(bool enabled) { m_SpecularEnabled = enabled; }
+    /// <summary>
+    /// ボールの環境反射を描画するかどうかを設定する。
+    /// </summary>
     void SetEnvironmentReflectionEnabled(bool enabled) { m_EnvironmentEnabled = enabled; }
     void BeginDraw();
     void DrawMesh(const DirectX::SimpleMath::Matrix& worldMatrix);
 
+    /// <summary>
+    /// 読み込んだボールモデルの基準半径を返す。
+    /// </summary>
     float GetModelBaseRadius() const { return m_ModelBaseRadius; }
+    /// <summary>
+    /// 描画モデルに割り当てられたビリヤードボール番号を返す。
+    /// </summary>
     int GetBilliardNumber() const { return m_BilliardNumber; } // 0: cue, 1-15: enemies
 
 private:

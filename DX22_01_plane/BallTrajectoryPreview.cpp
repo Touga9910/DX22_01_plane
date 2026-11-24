@@ -24,6 +24,9 @@ namespace
 	constexpr int MaximumContactsPerTick = 32;
 	constexpr std::size_t MaximumPathPoints = 1000;
 
+	/// <summary>
+	/// 新しい位置が間隔と上限の条件を満たす場合に軌跡へ追加する。
+	/// </summary>
 	void AddPathPoint(
 		BallTrajectoryPreview::Result& result,
 		const Vector3& position,
@@ -46,6 +49,9 @@ namespace
 		result.path.push_back(position);
 	}
 
+	/// <summary>
+	/// 2球が十分に離れたとき、貫通と接触の記録から相手を除く。
+	/// </summary>
 	void EraseReleasedContact(
 		BallPhysicsRules::Body& player,
 		BallPhysicsRules::Body& other)
@@ -65,6 +71,9 @@ namespace
 }
 
 #ifndef BALL_TRAJECTORY_PREVIEW_PHYSICS_ONLY
+/// <summary>
+/// 指定されたボール、壁、ポケットから弾道プレビューの入力をコピーする。
+/// </summary>
 BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
 	const std::vector<BallComponent*>& balls,
 	const std::vector<TableFrame*>& tableFrames,
@@ -152,6 +161,9 @@ BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
 	return input;
 }
 
+/// <summary>
+/// ゲームワールドから活動中のボールや盤面を収集し、弾道プレビューの入力を作る。
+/// </summary>
 BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
 	const GameWorld& world,
 	const BallComponent& player,
@@ -232,6 +244,9 @@ BallTrajectoryPreview::Input BallTrajectoryPreview::Capture(
 }
 #endif
 
+/// <summary>
+/// コピーした物理状態でショットを進め、プレビュー用の軌跡と接触を求める。
+/// </summary>
 BallTrajectoryPreview::Result BallTrajectoryPreview::Predict(
 	Input input,
 	const Vector3& velocity,
@@ -413,6 +428,9 @@ BallTrajectoryPreview::Result BallTrajectoryPreview::Predict(
 }
 
 #ifndef BALL_TRAJECTORY_PREVIEW_PHYSICS_ONLY
+/// <summary>
+/// 弾道プレビューの再計算に使う、入力状態の識別ハッシュを求める。
+/// </summary>
 std::uint64_t BallTrajectoryPreview::WorldKey(
 	const GameWorld& world,
 	int pierceMaximumUses,

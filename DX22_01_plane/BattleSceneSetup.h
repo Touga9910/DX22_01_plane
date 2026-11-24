@@ -20,6 +20,9 @@ struct BattleSceneSetupResult
 class BattleSceneSetup
 {
 public:
+    /// <summary>
+    /// 戦闘シーンのサービスを保持するステージ設定処理を作る。
+    /// </summary>
     explicit BattleSceneSetup(BattleSceneServices& services)
         : m_Services(services)
     {

@@ -25,6 +25,9 @@ class EnemyInfoLayout final
 {
 public:
     using BodyRegions = std::vector<std::pair<std::uintptr_t, ImVec4>>;
+    /// <summary>
+    /// 敵情報の配置に使うビューポート、安全領域の上端、球の表示領域を保持する。
+    /// </summary>
     EnemyInfoLayout(ImVec2 position, ImVec2 size, float safeTop, const BodyRegions& bodies)
         : m_ViewportPosition(position), m_ViewportSize(size),
           m_SafeTop(safeTop), m_BodyRegions(bodies) {}

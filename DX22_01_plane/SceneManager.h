@@ -14,7 +14,13 @@ public:
 	SceneManager();
 	~SceneManager();
 
+	/// <summary>
+	/// シーン管理の所有権を一意に保つため、コピー構築を禁止する。
+	/// </summary>
 	SceneManager(const SceneManager&) = delete;
+	/// <summary>
+	/// シーン管理の所有権を一意に保つため、コピー代入を禁止する。
+	/// </summary>
 	SceneManager& operator=(const SceneManager&) = delete;
 
 	using BattleSceneFactory =
@@ -33,9 +39,15 @@ public:
 	void Reset();
 
 	// 現在のシーンを返す。
+	/// <summary>
+	/// 現在管理しているシーンへのポインターを返す。
+	/// </summary>
 	Scene* Get() const { return m_Current.get(); }
 
 	// 現在のシーン種別を返す。
+	/// <summary>
+	/// 現在管理しているシーンの種別を返す。
+	/// </summary>
 	SceneType GetType() const { return m_CurrentType; }
 
 private:

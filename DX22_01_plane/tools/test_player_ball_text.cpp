@@ -8,6 +8,9 @@
 
 namespace
 {
+	/// <summary>
+	/// 球の定義一覧から指定IDのデータを探し、見つからなければテストを失敗させる。
+	/// </summary>
 	const PlayerBallData& FindBall(
 		const std::vector<PlayerBallData>& definitions,
 		const std::string& definitionId)
@@ -23,6 +26,9 @@ namespace
 		return *found;
 	}
 
+	/// <summary>
+	/// 球の定義をコピーし、指定の強化段階に対応する状態を設定する。
+	/// </summary>
 	PlayerBallData AtLevel(const PlayerBallData& definition, int level)
 	{
 		PlayerBallData ball = definition;
@@ -33,6 +39,9 @@ namespace
 		return ball;
 	}
 
+	/// <summary>
+	/// 指定球と強化段階の短い説明に、期待するUTF-8文字列が含まれることを確認する。
+	/// </summary>
 	void ExpectContains(
 		const std::vector<PlayerBallData>& definitions,
 		const char* definitionId,
@@ -44,6 +53,9 @@ namespace
 		assert(description.find(PlayerBallText::Utf8(expected)) != std::string::npos);
 	}
 
+	/// <summary>
+	/// 説明文の各文末が句点で終わり、次の文が改行で区切られることを確認する。
+	/// </summary>
 	void ExpectSentenceBreaks(const std::string& description)
 	{
 		const std::string period = PlayerBallText::Utf8(u8"。");
@@ -61,6 +73,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 定義データを読み込み、各球や強化段階の日本語説明を検証する。
+/// </summary>
 int main()
 {
 	const PlayerBallDataLoadResult loaded = PlayerBallDataLoader::Load(

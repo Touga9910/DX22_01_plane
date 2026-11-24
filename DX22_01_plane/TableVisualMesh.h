@@ -27,10 +27,22 @@ namespace TableVisualMesh
     constexpr Tint Rubber{0.035f, 0.043f, 0.038f};
     constexpr Tint Sights{0.86f, 0.80f, 0.62f};
 
+    /// <summary>
+    /// 二つの点の各成分の差を返す。
+    /// </summary>
     inline Point Sub(Point a, Point b) { return {a.x-b.x, a.y-b.y, a.z-b.z}; }
+    /// <summary>
+    /// 二つのベクトルの外積を求める。
+    /// </summary>
     inline Point Cross(Point a, Point b)
     { return {a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x}; }
+    /// <summary>
+    /// 二つのベクトルの内積を求める。
+    /// </summary>
     inline float Dot(Point a, Point b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
+    /// <summary>
+    /// 法線の向きをそろえ、頂点と色を指定した三角形をメッシュに追加する。
+    /// </summary>
     inline void Triangle(Mesh& mesh, Point a, Point b, Point c, Tint color,
         Point facing = {0, 1, 0})
     {
@@ -41,17 +53,29 @@ namespace TableVisualMesh
         normal = {normal.x/length,normal.y/length,normal.z/length};
         for (Point p : {a,b,c}) mesh.push_back({p,normal,color});
     }
+    /// <summary>
+    /// 四角形を二つの三角形に分けてメッシュに追加する。
+    /// </summary>
     inline void Quad(Mesh& mesh, Point a, Point b, Point c, Point d, Tint color,
         Point facing = {0, 1, 0})
     {
         Triangle(mesh,a,b,c,color,facing);
         Triangle(mesh,c,b,d,color,facing);
     }
+    /// <summary>
+    /// 位置に対応する中央ポケットまたは隅ポケットの開口半幅を返す。
+    /// </summary>
     inline float Radius(float x)
     { return std::abs(x) < 0.001f ? TableConfig::SIDE_POCKET_MOUTH_HALF_WIDTH : TableConfig::CORNER_POCKET_MOUTH_HALF_WIDTH; }
+    /// <summary>
+    /// 半径と中心からのずれから円弧までの距離を求める。
+    /// </summary>
     inline float Arc(float radius, float offset)
     { return std::sqrt((std::max)(0.0f, radius*radius-offset*offset)); }
 
+    /// <summary>
+    /// 盤面の端とポケットの円弧を分割するための座標を生成する。
+    /// </summary>
     inline std::vector<float> Samples(float extent, bool alongX)
     {
         std::vector<float> values{-extent,extent};
@@ -76,6 +100,9 @@ namespace TableVisualMesh
         values.erase(std::unique(values.begin(),values.end()),values.end());
         return values;
     }
+    /// <summary>
+    /// 指定座標でポケットの形状に沿って切り欠く深さを求める。
+    /// </summary>
     inline float CutDepth(float coordinate, bool alongX)
     {
         float depth = 0;
@@ -89,6 +116,9 @@ namespace TableVisualMesh
         return depth;
     }
 
+    /// <summary>
+    /// ポケット部分を切り欠いたフェルト面のメッシュを生成する。
+    /// </summary>
     inline Mesh BuildFelt()
     {
         Mesh mesh;
@@ -110,6 +140,9 @@ namespace TableVisualMesh
         return mesh;
     }
 
+    /// <summary>
+    /// ポケットの開口に合わせ、台枠の木部をメッシュに追加する。
+    /// </summary>
     inline void BuildWood(Mesh& mesh)
     {
         for (bool alongX : {true,false})
@@ -150,6 +183,9 @@ namespace TableVisualMesh
         }
     }
 
+    /// <summary>
+    /// ポケットの間をつなぐクッションの面をメッシュに追加する。
+    /// </summary>
     inline void BuildCushions(Mesh& mesh)
     {
         for (bool alongX : {true,false})
@@ -188,6 +224,9 @@ namespace TableVisualMesh
         }
     }
 
+    /// <summary>
+    /// 台の六つのポケットの内面と縁をメッシュに追加する。
+    /// </summary>
     inline void BuildPockets(Mesh& mesh)
     {
         for (float x : {-HalfWidth,0.0f,HalfWidth}) for (float z : {-HalfDepth,HalfDepth})
@@ -219,6 +258,9 @@ namespace TableVisualMesh
         }
     }
 
+    /// <summary>
+    /// 狙いの目印となる台枠のサイトをメッシュに追加する。
+    /// </summary>
     inline void BuildSights(Mesh& mesh)
     {
         for (bool alongX : {true,false}) for (float side : {-1.0f,1.0f})
@@ -237,6 +279,9 @@ namespace TableVisualMesh
             }
         }
     }
+    /// <summary>
+    /// 木部、クッション、ポケット、サイトを結合して台枠メッシュを作る。
+    /// </summary>
     inline Mesh BuildFrame()
     {
         Mesh mesh;

@@ -10,6 +10,9 @@
 #include <iostream>
 #include <set>
 
+/// <summary>
+/// ターン中の勝利と衝突判定、ガード強化、デッキ上限と球選択を検証する。
+/// </summary>
 int main()
 {
     // A cleared empty world differs from an empty world during stage loading.

@@ -73,29 +73,50 @@ public:
 	void RecordPhaseNormalBattleEncounter();
 
 	// 現在のルートマップを読み取り専用で返す。
+	/// <summary>
+	/// 現在のルートマップを読み取り専用の参照で返す。
+	/// </summary>
 	const RunMap& GetMap() const { return m_Map; }
 
 	// 現在の戦闘クリア回数を返す。
+	/// <summary>
+	/// 戦闘をクリアした回数を返す。
+	/// </summary>
 	int GetClearedBattleCount() const { return m_ClearedBattles; }
 
+	/// <summary>
+	/// 現在のフェーズで通常戦に入った回数を返す。
+	/// </summary>
 	int GetPhaseNormalBattleEncounterCount() const
 	{
 		return m_PhaseNormalBattleEncounters;
 	}
 
 	// 現在の通常エリア進行数を返す。
+	/// <summary>
+	/// 現在の通常エリアの進行数を返す。
+	/// </summary>
 	int GetAreaProgress() const { return m_AreaProgress; }
 
 	// 現在のランフェーズを返す。
+	/// <summary>
+	/// ランの現在のフェーズを返す。
+	/// </summary>
 	RunPhase GetPhase() const { return m_Phase; }
 
 	// 通常ルートの終了後に最終準備中かを返す。
+	/// <summary>
+	/// 通常ルートを終え、最終戦の準備中かを返す。
+	/// </summary>
 	bool IsBossPreparation() const
 	{
 		return m_Phase == RunPhase::BossPreparation;
 	}
 
 	// 最終ボスノードを選択可能な状態かを返す。
+	/// <summary>
+	/// 最終ボス戦を選択できるフェーズかを返す。
+	/// </summary>
 	bool IsFinalBossReady() const
 	{
 		return m_Phase == RunPhase::FinalBossReady;

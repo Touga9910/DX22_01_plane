@@ -14,6 +14,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 物理と描画のコンポーネントを取得し、補助球の物理特性、外観、ポケット時の処理を設定して非アクティブにする。
+/// </summary>
 void BreakBall::Awake()
 {
     m_Ball = GetGameObject()->GetComponent<BallComponent>();
@@ -35,11 +38,17 @@ void BreakBall::Awake()
     GetGameObject()->SetActive(false);
 }
 
+/// <summary>
+/// 固定更新で、補助球の速度に摩擦を適用する。
+/// </summary>
 void BreakBall::FixedUpdate()
 {
     BallPhysicsRules::EnemyFriction(m_Ball->GetMutableVelocity(), m_Ball->GetStatus().friction);
 }
 
+/// <summary>
+/// 現在のスケール、転がり回転、位置から補助球のメッシュを描画する。
+/// </summary>
 void BreakBall::Draw()
 {
     auto* camera = &GameRuntime::MainCamera();
@@ -54,11 +63,17 @@ void BreakBall::Draw()
     render->DrawMesh(world);
 }
 
+/// <summary>
+/// 補助球の破棄時にポケット処理の登録を解除する。
+/// </summary>
 void BreakBall::OnDestroy()
 {
     if (m_Ball) m_Ball->SetPocketHandler({});
 }
 
+/// <summary>
+/// 補助球を盤外に退避させ、ポケット済みか使用済みかを記録して非アクティブにする。
+/// </summary>
 void BreakBall::Deactivate(bool pocketed)
 {
     m_Pocketed = pocketed;
@@ -68,6 +83,9 @@ void BreakBall::Deactivate(bool pocketed)
     if (pocketed) BalanceLogger::GetInstance().RecordEvent("break_ball_pocketed", {{"ball_id", m_Index}});
 }
 
+/// <summary>
+/// 有効な補助球で装甲ボスに命中したことを通知し、その補助球を使用済みにする。
+/// </summary>
 void BreakBall::HitBoss(EnemyBall& boss)
 {
     if (!GetGameObject()->IsActive() || boss.IsDefeated() || !boss.IsArmorBoss()) return;
@@ -75,6 +93,9 @@ void BreakBall::HitBoss(EnemyBall& boss)
     Deactivate(false);
 }
 
+/// <summary>
+/// 補助球の再配置候補を保存し、指定位置で状態を初期化して有効にする。
+/// </summary>
 void BreakBall::PlaceAt(const Vector3& position)
 {
     if (!m_Ball) return;
@@ -86,6 +107,9 @@ void BreakBall::PlaceAt(const Vector3& position)
     GetGameObject()->SetActive(true);
 }
 
+/// <summary>
+/// 他の球、壁、ポケットと重ならない位置を優先候補から探し、補助球を再配置する。
+/// </summary>
 bool BreakBall::Reposition()
 {
     if (!m_Ball || GetGameObject()->IsActive()) return true;

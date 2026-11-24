@@ -6,6 +6,9 @@
 #include "SphereColliderComponent.h"
 #include "TagComponent.h"
 
+/// <summary>
+/// 指定の位置と半径で、ポケット用のタグとコンポーネントを持つゲームオブジェクトを生成する。
+/// </summary>
 Pocket* PocketFactory::Create(
     Game& game,
     const DirectX::SimpleMath::Vector3& position,

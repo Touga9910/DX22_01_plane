@@ -16,6 +16,9 @@
 
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// 選択したステージを読み込み、敵の難度補正や配置調整を反映して戦闘の設定を用意する。
+/// </summary>
 BattleSceneSetupResult BattleSceneSetup::Prepare() const
 {
     BattleSceneSetupResult result{};
@@ -89,6 +92,9 @@ BattleSceneSetupResult BattleSceneSetup::Prepare() const
     return result;
 }
 
+/// <summary>
+/// 敵が多い場合にボール半径を基に間隔を確保し、列と行に配置する。
+/// </summary>
 void BattleSceneSetup::ArrangeDenseEnemySpawns(StageData& stage) const
 {
     constexpr std::size_t kDenseColumnCount = 3;
@@ -139,6 +145,9 @@ void BattleSceneSetup::ArrangeDenseEnemySpawns(StageData& stage) const
     }
 }
 
+/// <summary>
+/// 敵の初期位置を盤面の範囲、壁、ポケットや他の球との間隔に照らして検証する。
+/// </summary>
 void BattleSceneSetup::ValidateEnemySpawns(
     const StageData& stage,
     const PlayerBall& player,

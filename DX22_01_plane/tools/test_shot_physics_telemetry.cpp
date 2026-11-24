@@ -8,6 +8,9 @@
 #include <iostream>
 #include <limits>
 
+/// <summary>
+/// ショット中の衝突と移動連鎖が物理計測に記録されることを検証する。
+/// </summary>
 int main()
 {
 	BallPhysicsRules::Body first;

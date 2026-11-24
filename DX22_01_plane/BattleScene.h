@@ -17,6 +17,9 @@ public:
 
     void Init();
     void Update() override;
+    /// <summary>
+    /// 生成された有効なオブジェクトをシーンの管理一覧へ追加する。
+    /// </summary>
     void TrackSpawnedObject(GameObject* object)
     {
         if (object != nullptr) m_SceneGameObjects.push_back(object);

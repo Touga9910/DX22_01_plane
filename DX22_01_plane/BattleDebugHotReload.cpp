@@ -12,6 +12,9 @@
 #include <utility>
 #include <vector>
 
+/// <summary>
+/// ステージと敵のJSONパス、監視開始時の更新日時、選択ステージを設定する。
+/// </summary>
 void BattleDebugHotReload::Initialize(
     std::string stageJsonPath,
     std::string enemyJsonPath,
@@ -27,6 +30,9 @@ void BattleDebugHotReload::Initialize(
     m_HotReloadWaitFrame = 0;
 }
 
+/// <summary>
+/// 通常実行時にJSONの更新を監視し、F5入力で敵ステータスを再読み込みする。
+/// </summary>
 void BattleDebugHotReload::Update()
 {
     if (m_Services.IsDebugMode())
@@ -41,6 +47,9 @@ void BattleDebugHotReload::Update()
     }
 }
 
+/// <summary>
+/// JSONの更新を検出し、書き込みが落ち着くまで待ってステージの再読み込みを行う。
+/// </summary>
 void BattleDebugHotReload::UpdateJsonHotReload()
 {
     if (m_Services.CurrentStageOverride() != nullptr)
@@ -91,6 +100,9 @@ void BattleDebugHotReload::UpdateJsonHotReload()
         << std::endl;
 }
 
+/// <summary>
+/// 選択中のステージに対応する敵データをJSONから読み込み、現存する敵に反映する。
+/// </summary>
 void BattleDebugHotReload::ReloadEnemyStatusFromJson()
 {
     const std::vector<StageData> stages = StageDataLoader::LoadAll(
@@ -141,6 +153,9 @@ void BattleDebugHotReload::ReloadEnemyStatusFromJson()
     std::cout << "[HotReload] \u6575\u30b9\u30c6\u30fc\u30bf\u30b9\u3092\u66f4\u65b0\u3057\u307e\u3057\u305f" << std::endl;
 }
 
+/// <summary>
+/// 指定JSONの最終更新日時を取得し、取得時の例外をログに記録する。
+/// </summary>
 std::filesystem::file_time_type BattleDebugHotReload::GetJsonWriteTime(
     const std::string& path) const
 {

@@ -13,6 +13,9 @@ namespace CombatPresentationRules
 		float intensity = 0.0f;
 	};
 
+	/// <summary>
+	/// 適用されたダメージ量に応じて、被弾時の点滅時間と強さを返す。
+	/// </summary>
 	inline HitFlash FlashForDamage(int appliedDamage)
 	{
 		if (appliedDamage <= 0) return {};
@@ -21,6 +24,9 @@ namespace CombatPresentationRules
 		return { 0.16f, 0.92f };
 	}
 
+	/// <summary>
+	/// 同時に撃破した個別の敵の数から、複数撃破の演出段階を決める。
+	/// </summary>
 	inline int MultiDefeatTier(int uniqueDefeats)
 	{
 		if (uniqueDefeats >= 4) return 3;
@@ -41,6 +47,9 @@ namespace CombatPresentationRules
 	inline constexpr unsigned char ChainBackgroundAlpha = 64;        // 25%
 	inline constexpr unsigned char MultiBreakBackgroundAlpha = 64;   // 25%
 	inline constexpr unsigned char ShotResultBackgroundAlpha = 77;   // 30%
+	/// <summary>
+	/// 攻撃対象、経過時間、表示位置の距離、撃破の有無から、ダメージ表示をまとめられるか判定する。
+	/// </summary>
 	inline bool CanMergeDamage(
 		std::uintptr_t existingTarget,
 		std::uintptr_t incomingTarget,

@@ -16,6 +16,9 @@
 
 namespace
 {
+	/// <summary>
+	/// 戦闘状態をデバッグ表示用の名前に変換する。
+	/// </summary>
 	const char* GetBattleStateDebugName(BattleState state)
 	{
 		switch (state)
@@ -31,6 +34,9 @@ namespace
 		}
 	}
 
+	/// <summary>
+	/// 現在の戦闘状態と報酬画面の有無に応じた被ダメージの説明を返す。
+	/// </summary>
 	const char* GetIncomingDamagePhaseLabel(
 		BattleState state,
 		bool clearReward)
@@ -61,6 +67,9 @@ namespace
 		}
 	}
 
+	/// <summary>
+	/// 現在の戦闘状態から、被ダメージ予測値の表示ラベルを返す。
+	/// </summary>
 	const char* GetIncomingDamageValueLabel(BattleState state)
 	{
 		switch (state)
@@ -80,6 +89,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 球、戦闘予測、衝突、演出などの診断情報をデバッグ画面に描画する。
+/// </summary>
 void GameDebugController::DrawDiagnostics(Game& game)
 {
 	if (GameUi::showDebugger)

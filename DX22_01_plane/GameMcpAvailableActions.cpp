@@ -14,6 +14,9 @@ using namespace GameMcpJson;
 
 namespace GameMcpStateSerialization
 {
+/// <summary>
+/// 現在の画面とゲーム状態から、実行可能な操作、進路の候補、ランマップをJSONに追加する。
+/// </summary>
 void AppendAvailableActions(Game& game, const GameMcpReadSnapshot& snapshot, const PlayerBall* player, nlohmann::json& state)
 {
 	state["available_actions"] = nlohmann::json::array();
@@ -188,6 +191,9 @@ void AppendAvailableActions(Game& game, const GameMcpReadSnapshot& snapshot, con
 	}
 }
 
+/// <summary>
+/// デバッグやステージエディターの状態に応じて、外部から実行できる操作を絞り込む。
+/// </summary>
 void RestrictDebugActions(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	if (snapshot.debug.editorOpen)

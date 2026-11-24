@@ -26,6 +26,9 @@ using DirectX::SimpleMath::Vector3;
 using namespace GamePresentationPrimitives;
 using namespace CombatOverlayDrawing;
 
+/// <summary>
+/// 戦闘中の敵の状態、行動予告や能力の情報を盤面の表示に反映する。
+/// </summary>
 void GamePresentation::DrawEnemyStatusEffects(Game& game)
 {
 	const BattleController* battleController =

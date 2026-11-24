@@ -3,6 +3,9 @@
 #include <cassert>
 #include <limits>
 #include <iostream>
+/// <summary>
+/// 敵攻撃が着弾するまでの時間進行と、対応する効果音の規則を検証する。
+/// </summary>
 int main()
 {
     double delay = EnemyAttackTiming::FlightSeconds;

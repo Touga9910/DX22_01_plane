@@ -16,6 +16,9 @@ constexpr float kEnemyVerticalStep = 4.0f;
 constexpr float kEnemyHorizontalStep = 6.0f;
 }
 
+/// <summary>
+/// 指定位置と寸法から、余白を含む敵情報ウィンドウの外枠を求める。
+/// </summary>
 ImVec4 EnemyInfoLayout::MakeFrameRect(const ImVec2& pos, float width, float height) const
 {
 	return ImVec4(
@@ -26,6 +29,9 @@ ImVec4 EnemyInfoLayout::MakeFrameRect(const ImVec2& pos, float width, float heig
 	);
 }
 
+/// <summary>
+/// 敵情報ウィンドウが画面内の安全領域に収まるよう表示位置を補正する。
+/// </summary>
 ImVec2 EnemyInfoLayout::ClampHoverPosition(const ImVec2& base, float width, float height) const
 {
 	const float left = m_ViewportPosition.x + kEnemyFramePadding + 2.0f;
@@ -40,6 +46,9 @@ ImVec2 EnemyInfoLayout::ClampHoverPosition(const ImVec2& base, float width, floa
 	);
 }
 
+/// <summary>
+/// 敵球の周縁と敵情報ウィンドウの外枠をつなぐ線分を求める。
+/// </summary>
 EnemyInfoLink EnemyInfoLayout::MakeLink(const ImVec2& pos, float width, float height, bool upper, const ImVec2& ball, float radius) const
 {
 	const ImVec4 frame = MakeFrameRect(pos, width, height);
@@ -66,6 +75,9 @@ EnemyInfoLink EnemyInfoLayout::MakeLink(const ImVec2& pos, float width, float he
 	return { start, end };
 }
 
+/// <summary>
+/// 画面上の点から線分上の最近接点までの距離の二乗を求める。
+/// </summary>
 float EnemyInfoLayout::PointSegmentDistanceSquared(const ImVec2& point, const ImVec2& a, const ImVec2& b)
 {
 	const float dx = b.x - a.x;
@@ -84,6 +96,9 @@ float EnemyInfoLayout::PointSegmentDistanceSquared(const ImVec2& point, const Im
 	return ex * ex + ey * ey;
 }
 
+/// <summary>
+/// 既配置の枠や接続線、敵球との重なりを評価し、敵情報ウィンドウの配置位置を決める。
+/// </summary>
 EnemyInfoPlacement EnemyInfoLayout::Resolve(const ImVec2& base, float width, float height, bool upper, std::uintptr_t owner, const ImVec2& ball, float radius)
 {
 	EnemyInfoPlacement result{};

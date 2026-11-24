@@ -16,6 +16,9 @@
 
 #pragma execution_character_set("utf-8")
 
+/// <summary>
+/// 現在の設定と一時停止の状態を表示モデルにまとめ、一時停止画面の描画を依頼する。
+/// </summary>
 void Game::DrawPauseUI()
 {
 	if (m_GamePresentation == nullptr)
@@ -72,6 +75,9 @@ void Game::DrawPauseUI()
 	}
 }
 
+/// <summary>
+/// 選択中の球や候補の情報を表示モデルにまとめ、球の選択画面の描画を依頼する。
+/// </summary>
 void Game::DrawBallSelectionUI()
 {
 	if (m_GamePresentation == nullptr)
@@ -111,6 +117,9 @@ void Game::DrawBallSelectionUI()
 	}
 }
 
+/// <summary>
+/// クリア報酬と盤面上の表示位置をまとめ、報酬画面の描画を依頼する。
+/// </summary>
 void Game::DrawClearRewardUI()
 {
 	if (m_GamePresentation == nullptr)

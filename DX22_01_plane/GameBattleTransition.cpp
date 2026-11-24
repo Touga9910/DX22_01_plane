@@ -14,11 +14,17 @@
 #include <algorithm>
 #include <iostream>
 
+/// <summary>
+/// 現在の戦闘に適用中のステージ上書きデータを取得する。
+/// </summary>
 const StageData* Game::GetCurrentStageOverride() const
 {
 	return m_StageOverrideState->Current();
 }
 
+/// <summary>
+/// ランの進行フェーズから次の戦闘が通常戦かボス戦かを返す。
+/// </summary>
 StageType Game::GetScheduledStageType() const
 {
 	// 現在のランフェーズから次に開始すべき戦闘種別を返す。
@@ -30,11 +36,17 @@ StageType Game::GetScheduledStageType() const
 	return StageType::Normal;
 }
 
+/// <summary>
+/// ランの進行に応じて予定されている種別の戦闘を開始する。
+/// </summary>
 void Game::StartNextBattle()
 {
 	StartNextBattle(GetScheduledStageType());
 }
 
+/// <summary>
+/// 指定した戦闘種別とランの状態に基づいてステージを決定し、戦闘へ遷移する。
+/// </summary>
 void Game::StartNextBattle(StageType stageType)
 {
 	// 選択された戦闘種別に対応するステージを確定して戦闘へ遷移

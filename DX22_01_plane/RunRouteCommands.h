@@ -14,5 +14,8 @@ public:
         const std::vector<int>& offeredNodeIds,
         const std::string& controllerType);
 
+    /// <summary>
+    /// ルート操作用の静的インターフェースのインスタンス化を禁止する。
+    /// </summary>
     RunRouteCommands() = delete;
 };

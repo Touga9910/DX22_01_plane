@@ -120,5 +120,8 @@ class GameMcpReadView final
 public:
 	static GameMcpReadSnapshot Capture(const Game& game);
 
+	/// <summary>
+	/// 読み取り用ビューをインスタンス化できないようにする。
+	/// </summary>
 	GameMcpReadView() = delete;
 };

@@ -14,6 +14,9 @@ namespace
     constexpr size_t MaximumPresets = 64;
     const char* Destinations[] = {"route", "battle", "midboss", "shop", "rest", "boss_preparation", "final_boss"};
 
+    /// <summary>
+    /// プリセット名が空白のみ、長すぎる名前、制御文字を含む名前に該当しないことを検証する。
+    /// </summary>
     void ValidateName(const std::string& name)
     {
         if (name.empty() || name.size() > 128 ||
@@ -22,6 +25,9 @@ namespace
             throw std::runtime_error("プリセット名は空白だけを除き、128バイト以内で指定してください。");
     }
 
+    /// <summary>
+    /// プリセット一覧をファイルから読み取り、未作成なら空の保存データを返す。
+    /// </summary>
     Json ReadStore(const std::filesystem::path& path)
     {
         if (!std::filesystem::exists(path))
@@ -39,6 +45,9 @@ namespace
         return value;
     }
 
+    /// <summary>
+    /// 保存データの大きさを確認し、親フォルダーを用意してプリセット一覧を書き込む。
+    /// </summary>
     void WriteStore(const std::filesystem::path& path, const Json& value)
     {
         const auto bytes = value.dump(2) + "\n";
@@ -52,6 +61,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 二つのランプリセットについて、設定項目ごとの変更前後の値を比較用の行にまとめる。
+/// </summary>
 std::vector<DebugRunPresetComparisonRow> CompareDebugRunPresets(
     const DebugRunPreset& before, const DebugRunPreset& after)
 {
@@ -118,6 +130,9 @@ std::vector<DebugRunPresetComparisonRow> CompareDebugRunPresets(
     return rows;
 }
 
+/// <summary>
+/// 遷移先とラン・戦闘の条件を、バージョン付きのプリセットJSONに変換する。
+/// </summary>
 nlohmann::json DebugRunPreset::ToJson() const
 {
     const int destination = static_cast<int>(run.destination);
@@ -130,6 +145,9 @@ nlohmann::json DebugRunPreset::ToJson() const
         {"battle_setup", battle.ToJson()}};
 }
 
+/// <summary>
+/// 球、敵、ステージのカタログを使い、プリセットJSONからランの開始条件と戦闘設定を復元する。
+/// </summary>
 DebugRunPreset DebugRunPreset::FromJson(const nlohmann::json& value,
     const std::vector<PlayerBallData>& balls, const std::vector<EnemyData>& enemies,
     const std::vector<StageData>& stages)
@@ -169,6 +187,9 @@ DebugRunPreset DebugRunPreset::FromJson(const nlohmann::json& value,
     return next;
 }
 
+/// <summary>
+/// 保存されているデバッグランプリセットの名前を一覧で返す。
+/// </summary>
 std::vector<std::string> DebugRunPresetStore::List(const std::filesystem::path& path)
 {
     const auto value = ReadStore(path);
@@ -177,6 +198,9 @@ std::vector<std::string> DebugRunPresetStore::List(const std::filesystem::path& 
     return names;
 }
 
+/// <summary>
+/// 保存ファイルから、指定名のデバッグランプリセットを取り出す。
+/// </summary>
 nlohmann::json DebugRunPresetStore::Load(const std::filesystem::path& path, const std::string& name)
 {
     ValidateName(name);
@@ -186,6 +210,9 @@ nlohmann::json DebugRunPresetStore::Load(const std::filesystem::path& path, cons
     return *found;
 }
 
+/// <summary>
+/// 名前と保存件数を検証し、デバッグランプリセットを新規保存または更新する。
+/// </summary>
 void DebugRunPresetStore::Save(const std::filesystem::path& path, const std::string& name,
     const nlohmann::json& preset)
 {
@@ -198,6 +225,9 @@ void DebugRunPresetStore::Save(const std::filesystem::path& path, const std::str
     WriteStore(path, value);
 }
 
+/// <summary>
+/// 元の名前と変更先を検証し、保存済みプリセットの名前を変更する。
+/// </summary>
 void DebugRunPresetStore::Rename(const std::filesystem::path& path, const std::string& oldName,
     const std::string& newName)
 {
@@ -214,6 +244,9 @@ void DebugRunPresetStore::Rename(const std::filesystem::path& path, const std::s
     WriteStore(path, value);
 }
 
+/// <summary>
+/// 保存済みのプリセットを、名前の重複や保存数の上限を確認して別名で複製する。
+/// </summary>
 void DebugRunPresetStore::Duplicate(const std::filesystem::path& path, const std::string& sourceName,
     const std::string& newName)
 {
@@ -229,6 +262,9 @@ void DebugRunPresetStore::Duplicate(const std::filesystem::path& path, const std
     WriteStore(path, value);
 }
 
+/// <summary>
+/// 指定した名前のプリセットを保存データから削除する。
+/// </summary>
 void DebugRunPresetStore::Delete(const std::filesystem::path& path, const std::string& name)
 {
     ValidateName(name);

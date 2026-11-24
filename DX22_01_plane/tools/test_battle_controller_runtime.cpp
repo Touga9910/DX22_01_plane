@@ -14,6 +14,9 @@
 class BattleControllerTestAccess final
 {
 public:
+    /// <summary>
+    /// テスト用に敵の生存数を指定して、戦闘フェーズの進行を試みる。
+    /// </summary>
     static bool AdvancePhase(
         BattleController& controller,
         int livingEnemyCount)
@@ -21,6 +24,9 @@ public:
         return controller.TryAdvancePhase(livingEnemyCount);
     }
 
+    /// <summary>
+    /// テスト用に敵の生存数を指定して、現在のフェーズで勝利が成立するかを判定する。
+    /// </summary>
     static bool IsPhaseVictory(
         const BattleController& controller,
         int livingEnemyCount)
@@ -28,6 +34,9 @@ public:
         return controller.IsPhaseVictoryForLivingCount(livingEnemyCount);
     }
 
+    /// <summary>
+    /// 戦闘をショット移動中に設定し、停止判定の確定条件を満たすようにする。
+    /// </summary>
     static void ForceMovingShotReady(BattleController& controller)
     {
         controller.m_State = BattleState::BallsMoving;
@@ -36,6 +45,9 @@ public:
             BattleFlowRules::RequiredStoppedTicks;
     }
 
+    /// <summary>
+    /// 戦闘を進行中の敵攻撃状態に設定する。
+    /// </summary>
     static void ForceEnemyAttack(BattleController& controller)
     {
         controller.m_State = BattleState::EnemyAttack;
@@ -45,6 +57,9 @@ public:
 
 namespace
 {
+    /// <summary>
+    /// ステージ一覧から指定IDに一致するステージを探す。
+    /// </summary>
     const StageData& FindStage(
         const std::vector<StageData>& stages,
         const std::string& id)
@@ -63,6 +78,9 @@ namespace
         std::vector<int> phaseNumbers;
     };
 
+    /// <summary>
+    /// 敵の出現や自球の復帰を記録できるテスト用の戦闘コントローラーを作る。
+    /// </summary>
     BattleController MakeController(
         GameWorld& world,
         SpawnObservation& spawns,
@@ -88,6 +106,9 @@ namespace
         return controller;
     }
 
+    /// <summary>
+    /// 旧戦闘モードでポケットによる撃破が勝利になり、勝利結果が一度だけ取得できることを検証する。
+    /// </summary>
     void VerifyLegacyPocketClear()
     {
         GameWorld world;
@@ -109,6 +130,9 @@ namespace
         assert(controller.ConsumeResult() == BattleResult::None);
     }
 
+    /// <summary>
+    /// 一つのフェーズだけで構成する戦闘が、敵の全滅時に次の出現処理を行わずに勝利することを検証する。
+    /// </summary>
     void VerifySinglePhase(
         const StageData& stage)
     {
@@ -132,6 +156,9 @@ namespace
         assert(spawns.calls == 0);
     }
 
+    /// <summary>
+    /// 二つのフェーズを持つ戦闘で、所定の敵数が出現し、最終フェーズの全滅で勝利することを検証する。
+    /// </summary>
     void VerifyTwoPhase(
         const StageData& stage,
         int expectedFirstPhaseCount,
@@ -179,6 +206,9 @@ namespace
         assert(spawns.calls == 1);
     }
 
+    /// <summary>
+    /// フェーズ途中の敗北判定と、重複更新で結果が変わらないことを検証する。
+    /// </summary>
     void VerifyDefeatAndDuplicateGuards(
         const StageData& stage)
     {
@@ -230,6 +260,9 @@ namespace
     }
 }
 
+/// <summary>
+/// ステージデータを読み込み、戦闘コントローラーのフェーズ進行と勝敗判定を検証する。
+/// </summary>
 int main()
 {
     const std::vector<StageData> stages = StageDataLoader::LoadAll(

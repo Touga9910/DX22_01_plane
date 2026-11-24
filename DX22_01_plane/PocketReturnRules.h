@@ -10,6 +10,9 @@
 namespace PocketReturnRules
 {
     // entryPositionからXZ平面上で最も近いポケット中心座標を返す
+    /// <summary>
+    /// 落球位置にXZ平面上で最も近いポケットの中心を探す。
+    /// </summary>
     inline DirectX::SimpleMath::Vector3 ClosestPocketCenter(
         const DirectX::SimpleMath::Vector3& entryPosition)
     {
@@ -32,6 +35,9 @@ namespace PocketReturnRules
 
     // 最寄りのポケット中心からテーブル中央側を向くXZ方向の単位ベクトルを返す
     // 長さを求められない場合は-Z方向を返す
+    /// <summary>
+    /// 最寄りのポケットから盤面中央へ向かう水平の単位ベクトルを求める。
+    /// </summary>
     inline DirectX::SimpleMath::Vector3 InwardDirection(
         const DirectX::SimpleMath::Vector3& entryPosition)
     {
@@ -51,6 +57,9 @@ namespace PocketReturnRules
 
     // 最寄りポケット中心からテーブル内側へinwardDistanceだけ移動した復帰座標を返す
     // inwardDistanceが負の場合は0として扱い、Y座標はFIELD_HEIGHTを使用する
+    /// <summary>
+    /// ポケット中心から指定距離だけ内側に進めた位置を、落球後の復帰候補にする。
+    /// </summary>
     inline DirectX::SimpleMath::Vector3 ReturnAnchor(
         const DirectX::SimpleMath::Vector3& entryPosition,
         float inwardDistance)

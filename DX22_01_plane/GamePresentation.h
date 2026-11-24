@@ -89,9 +89,15 @@ public:
 	PausePresentationIntent DrawPause(const PausePresentationModel& model);
 	BallSelectionPresentationIntent DrawBallSelection(
 		const BallSelectionPresentationModel& model);
+	/// <summary>
+	/// クリア報酬画面を描画し、選択された操作を返す。
+	/// </summary>
 	ClearRewardPresentationIntent DrawClearReward(
 		const ClearRewardPresentationModel& model)
 	{ return ClearRewardUi::Draw(model, m_RewardPurchaseOfferIndex); }
+	/// <summary>
+	/// デッキ、レリック一覧、ダッシュボードのいずれかが開いているかを返す。
+	/// </summary>
 	bool IsBattleInteractionBlocked() const noexcept
 	{
 		return m_DeckListOpen || m_RelicListOpen || m_DashboardOpen;
@@ -100,14 +106,23 @@ public:
 	void OnBattleStarted(Game& game);
 	void OnShotFired(int ballCategory);
 	void OnCollisionImpact(const CollisionImpactEvent& event);
+	/// <summary>
+	/// 衝突演出の診断情報を返す。
+	/// </summary>
 	const CollisionVfxDiagnostics& GetCollisionVfxDiagnostics() const noexcept
 	{
 		return m_CollisionVfx.GetDiagnostics();
 	}
+	/// <summary>
+	/// 戦闘反応演出の診断情報を返す。
+	/// </summary>
 	const CombatReactionDiagnostics& GetCombatReactionDiagnostics() const noexcept
 	{
 		return m_CombatReactionDiagnostics;
 	}
+	/// <summary>
+	/// 重量系の物理連鎖を検出した回数を返す。
+	/// </summary>
 	int GetHeavyPhysicsChainCount() const noexcept
 	{
 		return m_HeavyPhysicsChainCount;

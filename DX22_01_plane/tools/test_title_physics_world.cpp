@@ -3,6 +3,9 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+/// <summary>
+/// 一球だけ有効で、各球がテスト用の物理特性を持つタイトル用盤面を作る。
+/// </summary>
 TitlePhysicsWorld OneBall()
 {
     TitlePhysicsWorld w;w.active.fill(false);w.active[0]=true;
@@ -13,6 +16,9 @@ TitlePhysicsWorld OneBall()
     }
     return w;
 }
+/// <summary>
+/// タイトル画面の盤面で、摩擦や球の衝突、壁反射、ポケットの挙動を検証する。
+/// </summary>
 int main()
 {
     auto movement=OneBall();movement.balls[0].velocity={ShotPowerRules::AtFraction(.8f),0,0};

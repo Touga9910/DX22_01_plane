@@ -17,6 +17,9 @@ namespace BossEncounterRules
     enum class Intent { Normal, Prepare, Strong, Summon };
     // Escorts retain the encounter identity after a pocket destroys the core.
     // Resolve at shot end, never remove colliders in the middle of a chain.
+    /// <summary>
+    /// ボス戦が発生済みで、生存しているボス本体がいないかを判定する。
+    /// </summary>
     constexpr bool EncounterCleared(bool hasCoreOrEscort, bool hasLivingCore)
     {
         return hasCoreOrEscort && !hasLivingCore;
@@ -29,6 +32,9 @@ namespace BossEncounterRules
         bool advanceSummonConsumed = false;
         int summonCycle = 0;
     };
+    /// <summary>
+    /// ボスの行動予定をログ用の文字列に変換する。
+    /// </summary>
     inline const char* Name(Intent intent)
     {
         switch (intent) {
@@ -38,11 +44,17 @@ namespace BossEncounterRules
         default: return "summon_minions";
         }
     }
+    /// <summary>
+    /// ブレイクと中断の状態、および行動予定からボスの攻撃ダメージを求める。
+    /// </summary>
     inline int BossDamage(const TurnState& turn, const BossCombatRules::State& armor)
     {
         if (armor.IsBroken() || turn.interruptedThisShot) return 0;
         return turn.intent == Intent::Normal ? 2 : turn.intent == Intent::Strong ? 4 : 0;
     }
+    /// <summary>
+    /// ショット終了時の中断状態を記録し、アーマーが回復したら次の予定を強攻撃にする。
+    /// </summary>
     inline bool CompleteShot(TurnState& turn, BossCombatRules::State& armor)
     {
         turn.interruptedThisShot = armor.IsBroken();
@@ -52,6 +64,9 @@ namespace BossEncounterRules
         if (restored) turn.intent = Intent::Strong;
         return restored;
     }
+    /// <summary>
+    /// ボスの敵ターンを進め、次の行動と追加するミニオン数を決める。
+    /// </summary>
     inline int EndEnemyTurn(TurnState& turn, const BossCombatRules::State& armor, int livingMinions)
     {
         ++turn.turn;
@@ -79,6 +94,9 @@ namespace BossEncounterRules
         turn.intent = static_cast<Intent>((static_cast<int>(turn.intent)+1)%4);
         return spawn;
     }
+    /// <summary>
+    /// 生存ミニオンの番号をそろえ、ターンに応じた順番で攻撃担当を選ぶ。
+    /// </summary>
     inline std::vector<int> Attackers(std::vector<int> livingSerials, int turn)
     {
         std::sort(livingSerials.begin(), livingSerials.end());
@@ -88,6 +106,9 @@ namespace BossEncounterRules
             selected.push_back(livingSerials[(turn+i)%livingSerials.size()]);
         return selected;
     }
+    /// <summary>
+    /// ミニオンからボスへの衝突で発生するアーマー変化とダメージを求める。
+    /// </summary>
     inline BossCombatRules::PocketResult MinionImpact(BossCombatRules::State& armor, int hp)
     {
         if (hp<=0) return {};
@@ -99,6 +120,9 @@ namespace BossEncounterRules
         result.damage = (std::min)(hp, BossCombatRules::BreakBallDamage);
         return result;
     }
+    /// <summary>
+    /// ボスとミニオンの攻撃を合計し、シールドを引いた被ダメージを返す。
+    /// </summary>
     inline int IncomingDamage(const TurnState& turn, const BossCombatRules::State& armor,
                               bool bossAlive, int assignedMinionDamage, int shield, bool bossAttackAssigned = true)
     {

@@ -8,6 +8,9 @@ using json = nlohmann::json;
 
 namespace BalanceLogDetail
 {
+/// <summary>
+/// ショット中に記録されたイベントから、スタックの増減や発動回数などを集計する。
+/// </summary>
 ShotEventSummary SummarizeShotEvents(const json& pendingShot)
 {
 	int heavyStacksUncappedGain = 0;

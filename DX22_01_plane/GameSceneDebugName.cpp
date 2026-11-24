@@ -7,6 +7,9 @@
 #include "StageSelectScene.h"
 #include "TitleScene.h"
 
+/// <summary>
+/// シーンの実際の型を判定し、デバッグ出力に使用する名前を返す。
+/// </summary>
 const char* GetSceneDebugName(Scene* scene)
 {
 	if (dynamic_cast<TitleScene*>(scene)) return "TITLE";

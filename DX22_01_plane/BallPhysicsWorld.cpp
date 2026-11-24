@@ -35,20 +35,50 @@ namespace
         std::vector<Pocket*> pockets;
         Vector3 interior = Vector3::Zero;
         std::vector<Collision::Sphere> pocketSpheres;
+        /// <summary>
+        /// 物理計算に使うポケットの球形領域一覧を返す。
+        /// </summary>
         const auto& PocketSpheres() const { return pocketSpheres; }
+        /// <summary>
+        /// 物理計算に使う壁の線分一覧を返す。
+        /// </summary>
         const auto& Walls() const { return walls; }
+        /// <summary>
+        /// 指定番号のボールの衝突計算用状態を取得する。
+        /// </summary>
         auto PhysicsBody(std::size_t i) const { return bodies[i].collision->CapturePhysicsBody(); }
 
+        /// <summary>
+        /// 今回の物理計算で扱うボールの個数を返す。
+        /// </summary>
         std::size_t Count() const { return bodies.size(); }
+        /// <summary>
+        /// 指定番号のボールが衝突計算に参加できるかを返す。
+        /// </summary>
         bool IsActive(std::size_t i) const { return bodies[i].collision->CanSimulate(); }
+        /// <summary>
+        /// 指定番号のボールの衝突半径を返す。
+        /// </summary>
         float Radius(std::size_t i) const { return bodies[i].ball->GetRadius(); }
+        /// <summary>
+        /// 指定番号のボールの現在速度を返す。
+        /// </summary>
         Vector3 Velocity(std::size_t i) const { return bodies[i].ball->GetVelocity(); }
+        /// <summary>
+        /// シミュレーションを続ける条件を実行側に問い合わせる。
+        /// </summary>
         bool ShouldContinue() const { return context.shouldContinue(); }
 
+        /// <summary>
+        /// 物理サブステップの開始位置を全ボール分保存する。
+        /// </summary>
         void BeginSubstep()
         {
             for (Body& body : bodies) body.movementStart = body.ball->GetPosition();
         }
+        /// <summary>
+        /// 指定時間だけボールを速度方向に進め、その移動を記録する。
+        /// </summary>
         void Move(std::size_t i, float interval)
         {
 			const Vector3 from = bodies[i].ball->GetPosition();
@@ -56,10 +86,16 @@ namespace
 			context.traceMovement(
 				*bodies[i].ball, from, bodies[i].ball->GetPosition());
         }
+        /// <summary>
+        /// サブステップ内に移動したボールと壁・ポケットの接触を処理する。
+        /// </summary>
         void ResolveEnvironment(std::size_t i)
         {
             bodies[i].collision->ResolveEnvironment(bodies[i].movementStart, walls, interior, pockets);
         }
+        /// <summary>
+        /// 2球の衝突を解決し、速度や位置の変化を移動記録へ反映する。
+        /// </summary>
         void ResolvePair(std::size_t i, std::size_t j)
         {
             const Vector3 firstStart = bodies[i].ball->GetPosition();
@@ -77,6 +113,9 @@ namespace
     };
 }
 
+/// <summary>
+/// 活動中のボール、壁、ポケットを集め、連続衝突判定で物理ステップを進める。
+/// </summary>
 ContinuousBallStepper::Result BallPhysicsWorld::Step(
     const BallPhysicsWorldContext& context)
 {

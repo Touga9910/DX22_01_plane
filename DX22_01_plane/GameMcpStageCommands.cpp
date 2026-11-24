@@ -20,6 +20,9 @@
 
 namespace
 {
+	/// <summary>
+	/// ステージ配置IDの文字数と使用文字が許容範囲に収まるかを判定する。
+	/// </summary>
 	bool IsValidLayoutId(const std::string& layoutId)
 	{
 		if (layoutId.empty() || layoutId.size() > 64)
@@ -38,6 +41,9 @@ namespace
 			});
 	}
 
+	/// <summary>
+	/// MCP用の識別子をステージ種別に変換し、通常戦を既定値として返す。
+	/// </summary>
 	StageType ParseStageType(const std::string& value)
 	{
 		if (value == "midboss")
@@ -52,6 +58,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// タイトルからのステージエディター起動、配置の検証と変更案の提示を処理する。
+/// </summary>
 std::optional<nlohmann::json> GameMcpCommandHandlers::TryStageEditor(
 	Game& game,
 	const std::string& action,
@@ -93,6 +102,9 @@ std::optional<nlohmann::json> GameMcpCommandHandlers::TryStageEditor(
 	return std::nullopt;
 }
 
+/// <summary>
+/// 次のステージに使用する配置の指定や解除を検証して処理する。
+/// </summary>
 std::optional<nlohmann::json> GameMcpCommandHandlers::TryStageLayout(
 	Game& game,
 	const std::string& action,

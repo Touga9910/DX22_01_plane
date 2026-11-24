@@ -10,6 +10,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// フェルト面のメッシュをローカル座標に変換し、盤面を描画するリソースを用意する。
+/// </summary>
 void GroundRenderComponent::Awake()
 {
     // Ground keeps its existing field-size transform. Normalize the render-only
@@ -57,6 +60,9 @@ void GroundRenderComponent::Awake()
     m_Material->Create(material);
 }
 
+/// <summary>
+/// カメラとワールド変換を設定し、フェルト面を描画する。
+/// </summary>
 void GroundRenderComponent::Draw()
 {
     Camera* camera = &GameRuntime::MainCamera();

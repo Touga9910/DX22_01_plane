@@ -23,6 +23,9 @@ struct TitlePhysicsWorld
     bool hit=false;
     bool breakFanEnabled=false;
     bool breakFanApplied=false;
+    /// <summary>
+    /// タイトル演出で使う球の初期状態、処理順、ポケットを設定する。
+    /// </summary>
     TitlePhysicsWorld()
     {
         active.fill(true);
@@ -30,15 +33,45 @@ struct TitlePhysicsWorld
         rotation.fill(DirectX::SimpleMath::Quaternion::Identity);
         for(const auto& p:TableConfig::GetPocketCenters())pockets.push_back({p,TableConfig::POCKET_RADIUS});
     }
+    /// <summary>
+    /// タイトルの盤面で管理している球の総数を返す。
+    /// </summary>
     std::size_t Count()const{return balls.size();}
+    /// <summary>
+    /// 処理順の指定位置に対応する球が有効かを返す。
+    /// </summary>
     bool IsActive(std::size_t i)const{return active[order[i]];}
+    /// <summary>
+    /// タイトル演出で物理ステップの継続を許可する。
+    /// </summary>
     bool ShouldContinue()const{return true;}
+    /// <summary>
+    /// 処理順の指定位置に対応する球の物理データを返す。
+    /// </summary>
     const auto& PhysicsBody(std::size_t i)const{return balls[order[i]];}
+    /// <summary>
+    /// タイトルの盤面で使う壁の衝突線分を返す。
+    /// </summary>
     const auto& Walls()const{return walls;}
+    /// <summary>
+    /// タイトルの盤面で使うポケットの当たり判定を返す。
+    /// </summary>
     const auto& PocketSpheres()const{return pockets;}
+    /// <summary>
+    /// サブステップ開始時の球の座標を保存する。
+    /// </summary>
     void BeginSubstep(){for(std::size_t i=0;i<Count();++i)start[i]=balls[i].position;}
+    /// <summary>
+    /// 処理順で指定した球を、その速度と時間刻みに従って移動する。
+    /// </summary>
     void Move(std::size_t i,float interval){auto& b=balls[order[i]];b.position+=b.velocity*interval;}
+    /// <summary>
+    /// 処理順の指定位置を球の番号に変換し、盤面との接触を解決する。
+    /// </summary>
     void ResolveEnvironment(std::size_t i){ResolveEnvironmentSlot(order[i]);}
+    /// <summary>
+    /// 指定した球のポケット進入と壁との衝突を処理する。
+    /// </summary>
     void ResolveEnvironmentSlot(std::size_t i)
     {
         if(!active[i])return;
@@ -55,6 +88,9 @@ struct TitlePhysicsWorld
             }
         }
     }
+    /// <summary>
+    /// 球同士の接触で位置と速度を調整し、条件に応じてブレイクの効果を通知する。
+    /// </summary>
     void ResolvePair(std::size_t i,std::size_t j)
     {
         i=order[i];j=order[j];
@@ -85,6 +121,9 @@ struct TitlePhysicsWorld
         }
         ResolveEnvironmentSlot(i);ResolveEnvironmentSlot(j);
     }
+    /// <summary>
+    /// 球に摩擦を適用して物理を一刻み進め、移動距離に応じた回転を更新する。
+    /// </summary>
     ContinuousBallStepper::Result Tick()
     {
         std::array<Vector3,16> before;

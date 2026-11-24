@@ -13,6 +13,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 計画内で指定された行動を割り当てられた敵の数を返す。
+    /// </summary>
     int Count(
         const EnemyActionTurnPlan& plan,
         EnemyActionType action)
@@ -28,6 +31,9 @@ namespace
         return count;
     }
 
+    /// <summary>
+    /// 計画内で指定の行動を割り当てられた敵の識別子を集める。
+    /// </summary>
     std::unordered_set<std::uintptr_t> ActorsWith(
         const EnemyActionTurnPlan& plan,
         EnemyActionType action)
@@ -44,6 +50,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 敵行動の予算と公平性、溜めの割り当て、中断の規則を検証する。
+/// </summary>
 int main()
 {
 	const std::array<int, 3> swarmAttack{ 1, 2, 3 };

@@ -4,6 +4,9 @@
 
 using json = nlohmann::json;
 
+/// <summary>
+/// ショット中の敵同士の衝突を、連鎖と物理計測の記録に追加する。
+/// </summary>
 void BalanceLogger::RecordEnemyEnemyCollision(
 	std::uintptr_t firstEnemyKey,
 	const std::string& firstEnemyId,
@@ -28,6 +31,9 @@ void BalanceLogger::RecordEnemyEnemyCollision(
 		positionZ);
 }
 
+/// <summary>
+/// 敵の識別子と移動距離をショットの物理計測に記録する。
+/// </summary>
 void BalanceLogger::RecordEnemyMovement(
 	std::uintptr_t enemyKey,
 	const std::string& enemyId,
@@ -39,6 +45,9 @@ void BalanceLogger::RecordEnemyMovement(
 		distance);
 }
 
+/// <summary>
+/// 物理ステップにかかった時間をショットの物理計測に記録する。
+/// </summary>
 void BalanceLogger::RecordPhysicsStep(
 	long long processingMicroseconds)
 {
@@ -46,6 +55,9 @@ void BalanceLogger::RecordPhysicsStep(
 		processingMicroseconds);
 }
 
+/// <summary>
+/// ショット中の壁反射を連番付きの計測データとして記録する。
+/// </summary>
 void BalanceLogger::RecordWallReflection(
 	int wallIndex,
 	const std::string& wallGroup,
@@ -79,6 +91,9 @@ void BalanceLogger::RecordWallReflection(
 	else if (ballKind == "pinball_target") ++m_BouncePinballReflectionsSoFar;
 }
 
+/// <summary>
+/// 反射による特殊ダメージが発生した段階と結果をショットの記録に加える。
+/// </summary>
 void BalanceLogger::RecordBounceSpecialDamage(
 	int damageStage,
 	int calculatedDamage,
@@ -104,6 +119,9 @@ void BalanceLogger::RecordBounceSpecialDamage(
 	}
 }
 
+/// <summary>
+/// 貫通ミニオンの生成位置、方向、攻撃力などを貫通攻撃の計測に記録する。
+/// </summary>
 void BalanceLogger::RecordPierceMinionSpawn(
 	std::uintptr_t minionKey,
 	int attack,
@@ -123,6 +141,9 @@ void BalanceLogger::RecordPierceMinionSpawn(
 		launchSpeed);
 }
 
+/// <summary>
+/// 貫通ミニオンの移動距離を個体ごとの計測に記録する。
+/// </summary>
 void BalanceLogger::RecordPierceMinionMovement(
 	std::uintptr_t minionKey,
 	float distance)
@@ -132,6 +153,9 @@ void BalanceLogger::RecordPierceMinionMovement(
 		distance);
 }
 
+/// <summary>
+/// 貫通ミニオンが消滅した理由を記録する。
+/// </summary>
 void BalanceLogger::RecordPierceMinionDestroyed(
 	std::uintptr_t minionKey,
 	const std::string& reason)
@@ -141,6 +165,9 @@ void BalanceLogger::RecordPierceMinionDestroyed(
 		reason);
 }
 
+/// <summary>
+/// 貫通攻撃の発生源、標的、計算上のダメージと実際に適用したダメージを記録する。
+/// </summary>
 void BalanceLogger::RecordPierceAttack(
 	PierceAttackSource source,
 	std::uintptr_t sourceKey,
@@ -206,6 +233,9 @@ void BalanceLogger::RecordPierceAttack(
 		m_BouncePendingEmpoweredBonuses.erase(empowered);
 }
 
+/// <summary>
+/// ダメージを発生させた衝突の種別を保存し、ショット内の衝突の集計を更新する。
+/// </summary>
 void BalanceLogger::RecordDamageCollision(
 	BalanceCollisionType collisionType,
 	int damageToFirstEnemy,
@@ -245,6 +275,9 @@ void BalanceLogger::RecordDamageCollision(
 	}
 }
 
+/// <summary>
+/// 現在の衝突で敵に与えたダメージを、衝突種別と対応付けて記録する。
+/// </summary>
 void BalanceLogger::RecordEnemyDamage(
 	const std::string& enemyId,
 	int damage)
@@ -277,6 +310,9 @@ void BalanceLogger::RecordEnemyDamage(
 		});
 }
 
+/// <summary>
+/// 衝突に起因しない正の対敵ダメージをショットの合計に加える。
+/// </summary>
 void BalanceLogger::RecordNonCollisionEnemyDamage(
     const std::string& source, const std::string& enemyId, int damage)
 {
@@ -287,6 +323,9 @@ void BalanceLogger::RecordNonCollisionEnemyDamage(
         {"source", source}, {"enemy_id", enemyId}, {"damage", damage}});
 }
 
+/// <summary>
+/// プレイヤーが受けたダメージをステージのイベントとして記録する。
+/// </summary>
 void BalanceLogger::RecordPlayerDamage(
 	const std::string& source,
 	int damage,
@@ -316,6 +355,9 @@ void BalanceLogger::RecordPlayerDamage(
 	m_SavePending = true;
 }
 
+/// <summary>
+/// ラン中の進行イベントを記録し、該当するショット内イベントの集計も更新する。
+/// </summary>
 void BalanceLogger::RecordEvent(
 	const std::string& eventType,
 	const json& details)

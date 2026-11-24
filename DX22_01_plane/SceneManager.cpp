@@ -10,17 +10,29 @@
 #include <utility>
 
 // SceneManagerを未初期化状態で生成する。
+/// <summary>
+/// 管理対象のシーンがない状態でシーン管理を初期化する。
+/// </summary>
 SceneManager::SceneManager() = default;
 
 // 所有している現在のシーンを安全に破棄する。
+/// <summary>
+/// 管理対象のシーンを含むシーン管理のリソースを破棄する。
+/// </summary>
 SceneManager::~SceneManager() = default;
 
+/// <summary>
+/// 戦闘シーンを生成するときに使うファクトリーを登録する。
+/// </summary>
 void SceneManager::SetBattleSceneFactory(BattleSceneFactory factory)
 {
 	m_BattleSceneFactory = std::move(factory);
 }
 
 // 初期シーンを生成して管理対象に設定する。
+/// <summary>
+/// 未初期化のシーン管理に最初のシーンを設定する。
+/// </summary>
 bool SceneManager::Initialize(SceneType sceneType)
 {
 	if (m_Current != nullptr)
@@ -31,6 +43,9 @@ bool SceneManager::Initialize(SceneType sceneType)
 }
 
 // 有効な遷移先シーンを生成し、現在のシーンと入れ替える。
+/// <summary>
+/// 遷移先の種別を検証し、現在のシーンを破棄して対象のシーンを生成する。
+/// </summary>
 bool SceneManager::Change(SceneType sceneType)
 {
 	if (sceneType < SceneType::Title || sceneType >= SceneType::Max)
@@ -54,6 +69,9 @@ bool SceneManager::Change(SceneType sceneType)
 }
 
 // 現在のシーンを破棄して未初期化状態へ戻す。
+/// <summary>
+/// 管理中のシーンを破棄し、シーン種別を未初期化の状態へ戻す。
+/// </summary>
 void SceneManager::Reset()
 {
 	m_Current.reset();
@@ -61,6 +79,9 @@ void SceneManager::Reset()
 }
 
 // 指定された種別に対応する具体的なシーンを生成する。
+/// <summary>
+/// シーン種別に対応するクラスまたは登録済みのファクトリーからシーンを構築する。
+/// </summary>
 std::unique_ptr<Scene> SceneManager::Create(SceneType sceneType) const
 {
 	switch (sceneType)

@@ -56,11 +56,17 @@ public:
     // 実際の削除は管理側で行い、要求後は更新・描画処理を行わない。
     void Destroy();
 
+    /// <summary>
+    /// ゲームオブジェクトに破棄が要求されているかを返す。
+    /// </summary>
     bool IsDead() const
     {
         return m_DestroyRequested;
     }
 
+    /// <summary>
+    /// ゲームオブジェクトの破棄が予約されているかを返す。
+    /// </summary>
     bool IsDestroyRequested() const
     {
         return m_DestroyRequested;
@@ -70,11 +76,17 @@ public:
     // 名前
     // -------------------------
 
+    /// <summary>
+    /// ゲームオブジェクトの名前を返す。
+    /// </summary>
     const std::string& GetName() const
     {
         return m_Name;
     }
 
+    /// <summary>
+    /// ゲームオブジェクトの名前を設定する。
+    /// </summary>
     void SetName(const std::string& name)
     {
         m_Name = name;
@@ -84,6 +96,9 @@ public:
     // 有効状態
     // -------------------------
 
+    /// <summary>
+    /// ゲームオブジェクトが有効かを返す。
+    /// </summary>
     bool IsActive() const
     {
         return m_IsActive;
@@ -91,6 +106,9 @@ public:
 
     // GameObject全体の更新・描画有効状態を設定する。
     // falseの場合、各コンポーネントのUpdate・FixedUpdate・LateUpdate・Drawは実行されない。
+    /// <summary>
+    /// ゲームオブジェクトの有効状態を切り替える。
+    /// </summary>
     void SetActive(bool active)
     {
         m_IsActive = active;
@@ -101,6 +119,9 @@ public:
     // -------------------------
 
     // このGameObjectが保持するTransformComponentを返す。
+    /// <summary>
+    /// ゲームオブジェクトの位置や姿勢を管理するコンポーネントを返す。
+    /// </summary>
     TransformComponent* GetTransform() const
     {
         return m_Transform;
@@ -113,6 +134,9 @@ public:
     // 指定したComponent派生型を追加する。
     // 同じ型のコンポーネントをすでに持っている場合は、新規生成せず既存のものを返す。
     // 追加時に所有元を設定し、登録直後にAwakeを呼び出す。
+    /// <summary>
+    /// 指定型のコンポーネントがなければ生成して初期化し、登録済みのコンポーネントを返す。
+    /// </summary>
     template<class T, class... Args>
     T* AddComponent(Args&&... args)
     {
@@ -142,6 +166,9 @@ public:
 
     // 指定したComponent派生型を1つ取得する。
     // 対象型のコンポーネントを持っていない場合はnullptrを返す。
+    /// <summary>
+    /// 指定の型として扱える最初のコンポーネントを探して返す。
+    /// </summary>
     template<class T>
     T* GetComponent() const
     {
@@ -164,6 +191,9 @@ public:
     }
 
     // 指定したComponent派生型を持っている場合はtrueを返す。
+    /// <summary>
+    /// 指定の型として扱えるコンポーネントが登録されているかを返す。
+    /// </summary>
     template<class T>
     bool HasComponent() const
     {
@@ -172,6 +202,9 @@ public:
 
     // 指定したComponent派生型に一致するすべてのコンポーネントを取得する。
     // 一致するコンポーネントがない場合は空のvectorを返す。
+    /// <summary>
+    /// 指定の型として扱えるコンポーネントをすべて集めて返す。
+    /// </summary>
     template<class T>
     std::vector<T*> GetComponents() const
     {

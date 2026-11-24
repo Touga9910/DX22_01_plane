@@ -17,7 +17,9 @@
 
 #pragma execution_character_set("utf-8")
 
-// On Battle Stage Started の処理を実行
+/// <summary>
+/// 敵の行動予算を設定し、ステージに応じて戦闘の状態と開始時の処理を初期化する。
+/// </summary>
 void Game::OnBattleStageStarted(const StageData& stage)
 {
 	m_BattleState->controller.SetEnemyActionMaximumBudget(

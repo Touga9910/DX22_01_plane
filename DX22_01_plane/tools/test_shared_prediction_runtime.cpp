@@ -10,8 +10,14 @@
 #include <iostream>
 
 using namespace BallPhysicsRules;
+/// <summary>
+/// 二つの浮動小数点値の差がテストの許容値以内かを返す。
+/// </summary>
 bool Near(float a, float b) { return std::abs(a-b) < 0.00001f; }
 
+/// <summary>
+/// 指定した敵数で弾道予測を繰り返し、予測一回あたりの平均時間を求める。
+/// </summary>
 double MeasurePreviewMilliseconds(int enemyCount, int iterations)
 {
 	BallTrajectoryPreview::Input input;
@@ -54,6 +60,9 @@ double MeasurePreviewMilliseconds(int enemyCount, int iterations)
 		static_cast<double>(iterations);
 }
 
+/// <summary>
+/// 摩擦やショット威力、衝突、ポケット、レリックが実際の物理と弾道予測で一致することを検証する。
+/// </summary>
 int main()
 {
 	{

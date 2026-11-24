@@ -7,6 +7,9 @@ namespace
 {
 struct ConsoleFailureReports final
 {
+    /// <summary>
+    /// ネイティブテストの異常終了やアサーションをダイアログではなく標準エラーに出力するように設定する。
+    /// </summary>
     ConsoleFailureReports()
     {
         SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);

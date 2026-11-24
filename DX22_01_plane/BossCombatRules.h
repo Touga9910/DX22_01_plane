@@ -15,8 +15,17 @@ namespace BossCombatRules
         int shotsRemaining = 0;
         bool startedThisShot = false;
         bool pocketResolvedThisShot = false;
+        /// <summary>
+        /// ブレイク状態の残りショットがあるかを判定する。
+        /// </summary>
         bool IsBroken() const { return shotsRemaining > 0; }
+        /// <summary>
+        /// ショット開始時にアーマーの状態変化とポケット効果の適用記録を初期化する。
+        /// </summary>
         void BeginShot() { startedThisShot = false; pocketResolvedThisShot = false; }
+        /// <summary>
+        /// ブレイクボールとの接触でアーマーを減らし、尽きたらブレイクを開始する。
+        /// </summary>
         bool HitBreakBall()
         {
             if (IsBroken()) return false; // Fixed damage still applies; no duration refresh.
@@ -26,6 +35,9 @@ namespace BossCombatRules
             startedThisShot = true;
             return true;
         }
+        /// <summary>
+        /// ショット終了時にブレイクの残り回数を更新し、期限に達したらアーマーを回復する。
+        /// </summary>
         bool EndShot()
         {
             if (!IsBroken() || startedThisShot) return false;
@@ -35,6 +47,9 @@ namespace BossCombatRules
         }
     };
 
+    /// <summary>
+    /// ボスの最大HPからブレイク中のポケットダメージを計算する。
+    /// </summary>
     inline int PocketDamage(int maximumHp)
     {
         // ceil(maxHp * percent / 100), without overflowing intermediate products.
@@ -51,6 +66,9 @@ namespace BossCombatRules
         bool breakStarted = false;
     };
 
+    /// <summary>
+    /// ポケット効果をショットごとに一度適用し、ブレイク状態に応じてダメージやアーマーを処理する。
+    /// </summary>
     inline PocketResult ResolvePocket(State& state, int hp, int maximumHp)
     {
         if (hp <= 0 || state.pocketResolvedThisShot) return {};
@@ -68,6 +86,9 @@ namespace BossCombatRules
         return result;
     }
 
+    /// <summary>
+    /// 防御力を適用したボスへの直接ダメージを、アーマー状態に応じて補正する。
+    /// </summary>
     inline int DirectDamage(int incoming, int defense, const State& state)
     {
         const int afterDefense = (std::max)(1, incoming - defense);

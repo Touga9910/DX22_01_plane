@@ -13,6 +13,9 @@
 
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// 球種の相乗効果、貫通の測定値、衝突に伴う状態変化を検証する。
+/// </summary>
 int main()
 {
 	PierceAttackTelemetry pierceTelemetry;

@@ -24,5 +24,8 @@ public:
     static StageRouteType NodeType(int nodeId);
     static const char* LogName(StageRouteType routeType);
 
+    /// <summary>
+    /// ルート表示用の静的インターフェースのインスタンス化を禁止する。
+    /// </summary>
     RunRouteView() = delete;
 };

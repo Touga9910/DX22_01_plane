@@ -26,6 +26,9 @@
 namespace
 {
 constexpr int kClearRewardCount = 3;
+	/// <summary>
+	/// リストに含まれる撃破前の敵球を数える。
+	/// </summary>
 	int CountAliveEnemies(const std::vector<EnemyBall*>& enemies)
 	{
 		return static_cast<int>(std::count_if(
@@ -38,27 +41,42 @@ constexpr int kClearRewardCount = 3;
 	}
 }
 
+/// <summary>
+/// ステージクリア報酬を受け取れる状態かを返す。
+/// </summary>
 bool Game::IsClearRewardActive() const
 {
 	return m_RewardState->IsActive();
 }
 
+/// <summary>
+/// クリア報酬で提示している球候補の件数を返す。
+/// </summary>
 int Game::GetClearRewardBallOfferCount() const
 {
 	return m_RewardState->BallOfferCount();
 }
 
+/// <summary>
+/// 指定した報酬候補に対応する球カタログ上の位置を返す。
+/// </summary>
 int Game::GetClearRewardBallOfferCatalogIndex(int offerIndex) const
 {
 	return m_RewardState->BallOfferCatalogIndex(offerIndex);
 }
 
+/// <summary>
+/// クリア報酬の指定候補に対応する球データを取得する。
+/// </summary>
 const PlayerBallData* Game::GetClearRewardBallOffer(int offerIndex) const
 {
 	return m_RunController->Deck().GetCatalogBall(
 		GetClearRewardBallOfferCatalogIndex(offerIndex));
 }
 
+/// <summary>
+/// 購入条件を満たしていればクリア報酬の球をデッキに追加し、代金を差し引く。
+/// </summary>
 bool Game::AddClearRewardBallOffer(int offerIndex)
 {
     const int cost = GetClearRewardBallCost();
@@ -71,18 +89,30 @@ bool Game::AddClearRewardBallOffer(int offerIndex)
     return true;
 }
 
+/// <summary>
+/// ステージクリア報酬で球をすでに獲得したかを返す。
+/// </summary>
 bool Game::IsClearRewardBallAcquired() const { return m_RewardState->IsBallAcquired(); }
 
+/// <summary>
+/// 中ボス撃破後のレリックを選択中かを返す。
+/// </summary>
 bool Game::IsMidBossRelicSelectionActive() const
 {
 	return m_RewardState->IsMidBossRelicSelectionActive();
 }
 
+/// <summary>
+/// ステージクリア報酬が確定済みかを返す。
+/// </summary>
 bool Game::IsClearRewardChosen() const
 {
 	return m_RewardState->IsChosen();
 }
 
+/// <summary>
+/// 球カタログから抽選した球をクリア報酬候補として設定する。
+/// </summary>
 void Game::RollClearRewardBallOffers()
 {
 	m_RewardState->SetBallOffers(
@@ -90,6 +120,9 @@ void Game::RollClearRewardBallOffers()
 			kClearRewardBallOfferSize));
 }
 
+/// <summary>
+/// 戦闘の終了結果を反映し、ランの進行状況に応じてクリア報酬の受け取りを開始する。
+/// </summary>
 void Game::StartClearReward()
 {
 	if (IsDebugMode() && !IsDebugRunMode()) { FinishDebugBattle(true); return; }
@@ -248,6 +281,9 @@ void Game::StartClearReward()
 	m_RewardState->Activate();
 }
 
+/// <summary>
+/// クリア報酬が始まっていなければ、現在のステージのクリア処理を開始する。
+/// </summary>
 void Game::CompleteCurrentStage()
 {
 	if (!IsClearRewardActive())
@@ -256,6 +292,9 @@ void Game::CompleteCurrentStage()
 	}
 }
 
+/// <summary>
+/// 報酬画面の入力を処理し、レリックの取得、球の購入・強化、所持金の獲得や次への進行を行う。
+/// </summary>
 void Game::UpdateClearReward()
 {
 	if (!IsClearRewardActive()) return;

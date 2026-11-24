@@ -9,6 +9,9 @@ namespace RewardFieldLayout
     constexpr float CanvasHeight = 970.0f;
     struct Point { float x=0,y=0; };
     struct Bounds { float left=0,top=0,width=0,height=0; bool valid=false; };
+    /// <summary>
+    /// 辺ごとの外積の向きを比較して、点が四角形の内側にあるかを判定する。
+    /// </summary>
     inline bool Inside(const std::array<Point,4>& quad, Point p)
     {
         bool positive=false,negative=false;
@@ -20,6 +23,9 @@ namespace RewardFieldLayout
         }
         return !(positive&&negative);
     }
+    /// <summary>
+    /// 四角形の中心と辺を基準に、報酬表示のキャンバスを収める範囲を求める。
+    /// </summary>
     inline Bounds Fit(const std::array<Point,4>& quad, float width=CanvasWidth, float height=CanvasHeight)
     {
         Point center{};

@@ -5,6 +5,9 @@
 
 using namespace TableVisualMesh;
 
+/// <summary>
+/// 指定した盤面の座標を指定の高さより上で覆う三角形があるかを判定する。
+/// </summary>
 bool Covers(const Mesh& mesh, float x, float z, float minimumY)
 {
     for (std::size_t i=0; i<mesh.size(); i+=3)
@@ -21,6 +24,9 @@ bool Covers(const Mesh& mesh, float x, float z, float minimumY)
     return false;
 }
 
+/// <summary>
+/// メッシュの各三角形について、表面の向き、頂点の範囲と法線を検査する。
+/// </summary>
 void Check(const Mesh& mesh)
 {
     assert(!mesh.empty() && mesh.size()%3==0);
@@ -39,6 +45,9 @@ void Check(const Mesh& mesh)
     }
 }
 
+/// <summary>
+/// 台枠とフェルトの形状を検証し、指定に応じて三角形の情報を出力する。
+/// </summary>
 int main(int argc, char** argv)
 {
     static_assert(TableConfig::GetFieldWidth()==144 && TableConfig::GetFieldDepth()==72);

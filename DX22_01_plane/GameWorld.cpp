@@ -5,8 +5,14 @@
 
 #include <algorithm>
 
+/// <summary>
+/// ワールドが所有するゲームオブジェクトを解放する。
+/// </summary>
 GameWorld::~GameWorld() = default;
 
+/// <summary>
+/// 削除予定のオブジェクトを除き、所有する各コンポーネントに処理を適用する。
+/// </summary>
 void GameWorld::VisitComponents(
 	ComponentVisitor visitor,
 	void* context) const
@@ -24,7 +30,9 @@ void GameWorld::VisitComponents(
 	}
 }
 
-// 名前を指定してGameObjectを生成し、ゲーム空間へ登録する。
+/// <summary>
+/// 指定した名前でゲームオブジェクトを作成し、ワールドに登録する。
+/// </summary>
 GameObject* GameWorld::Create(const std::string& name)
 {
 	auto gameObject = std::make_unique<GameObject>(name);
@@ -33,7 +41,9 @@ GameObject* GameWorld::Create(const std::string& name)
 	return result;
 }
 
-// 指定したGameObjectへ遅延削除要求を送る。
+/// <summary>
+/// ワールドが所有する指定オブジェクトへ遅延削除を要求する。
+/// </summary>
 void GameWorld::RequestDestroy(GameObject* gameObject)
 {
 	if (gameObject != nullptr && Contains(gameObject))
@@ -42,7 +52,9 @@ void GameWorld::RequestDestroy(GameObject* gameObject)
 	}
 }
 
-// 削除要求済みのGameObjectをゲーム空間から取り除く。
+/// <summary>
+/// 削除が要求されたゲームオブジェクトをワールドから取り除く。
+/// </summary>
 void GameWorld::RemoveDestroyed()
 {
 	std::erase_if(
@@ -53,7 +65,9 @@ void GameWorld::RemoveDestroyed()
 		});
 }
 
-// 有効なGameObjectのフレーム更新を実行する。
+/// <summary>
+/// 開始時点で存在するオブジェクトのフレーム更新を実行する。
+/// </summary>
 void GameWorld::Update()
 {
 	// Components may append objects; never retain a vector iterator across callbacks.
@@ -66,7 +80,9 @@ void GameWorld::Update()
 	}
 }
 
-// 有効なGameObjectの固定時間更新を実行する。
+/// <summary>
+/// 開始時点で存在するオブジェクトの固定時間更新を実行する。
+/// </summary>
 void GameWorld::FixedUpdate()
 {
 	// Components may append objects; never retain a vector iterator across callbacks.
@@ -79,7 +95,9 @@ void GameWorld::FixedUpdate()
 	}
 }
 
-// 有効なGameObjectの後処理更新を実行する。
+/// <summary>
+/// 開始時点で存在するオブジェクトの後処理更新を実行する。
+/// </summary>
 void GameWorld::LateUpdate()
 {
 	// Components may append objects; never retain a vector iterator across callbacks.
@@ -92,7 +110,9 @@ void GameWorld::LateUpdate()
 	}
 }
 
-// 有効なGameObjectの描画を実行する。
+/// <summary>
+/// 開始時点で存在するオブジェクトの描画を実行する。
+/// </summary>
 void GameWorld::Draw()
 {
 	// Components may append objects; never retain a vector iterator across callbacks.
@@ -105,7 +125,9 @@ void GameWorld::Draw()
 	}
 }
 
-// すべてのGameObjectを終了処理して破棄する。
+/// <summary>
+/// 全オブジェクトの終了処理を呼び出し、ワールドを空にする。
+/// </summary>
 void GameWorld::Clear()
 {
 	for (const auto& gameObject : m_Objects)
@@ -115,7 +137,9 @@ void GameWorld::Clear()
 	m_Objects.clear();
 }
 
-// 指定したGameObjectが現在のゲーム空間に存在するかを返す。
+/// <summary>
+/// 指定したゲームオブジェクトがワールドに登録され、削除予定になっていないかを返す。
+/// </summary>
 bool GameWorld::Contains(const GameObject* gameObject) const
 {
 	if (gameObject == nullptr)
@@ -132,7 +156,9 @@ bool GameWorld::Contains(const GameObject* gameObject) const
 		});
 }
 
-// 指定したComponentが現在のゲーム空間に属しているかを返す。
+/// <summary>
+/// 指定したコンポーネントのアドレスが、ワールド所有の有効なオブジェクトに属するかを返す。
+/// </summary>
 bool GameWorld::Contains(const Component* component) const
 {
 	// Callers may retain an address after its component has been destroyed.
@@ -149,7 +175,9 @@ bool GameWorld::Contains(const Component* component) const
 	return false;
 }
 
-// 指定したタグを持つGameObjectをゲーム空間全体から取得する。
+/// <summary>
+/// 指定したタグが付いた有効なゲームオブジェクトの一覧を返す。
+/// </summary>
 std::vector<GameObject*> GameWorld::GetObjectsWithTag(GameObjectTag tag) const
 {
 	std::vector<GameObject*> result;

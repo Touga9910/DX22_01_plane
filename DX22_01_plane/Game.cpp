@@ -51,6 +51,9 @@ using DirectX::SimpleMath::Vector3;
 
 namespace
 {
+	/// <summary>
+	/// 環境変数から検証用の物理時間倍率を取得し、1倍から4倍の範囲に収める。
+	/// </summary>
 	double ValidationPhysicsTimeScale()
 	{
 		static const double scale = []
@@ -72,6 +75,9 @@ namespace
 
 namespace
 {
+	/// <summary>
+	/// リストに含まれる撃破前の敵球を数える。
+	/// </summary>
 	int CountAliveEnemies(const std::vector<EnemyBall*>& enemies)
 	{
 		return static_cast<int>(std::count_if(
@@ -401,6 +407,9 @@ void Game::Update(double elapsedSeconds)
 
 }
 
+/// <summary>
+/// 戦闘画面のレイアウトに合わせてカメラの注視点と距離を調整し、カメラを更新する。
+/// </summary>
 void Game::UpdateSceneCamera()
 {
 	if (dynamic_cast<BattleScene*>(GetCurrentScene()))

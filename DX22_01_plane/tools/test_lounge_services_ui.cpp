@@ -11,11 +11,20 @@
 
 namespace IllustratedUi
 {
+    /// <summary>
+    /// テスト画面で画像の表示領域を単色の矩形として描画する。
+    /// </summary>
     void Image(ImDrawList* d,const char*,ImVec2 a,ImVec2 b,ImU32 color,bool,bool) { d->AddRectFilled(a,b,color); }
 }
 namespace BallCardPresentation
 {
+    /// <summary>
+    /// テスト画面の球アイコン描画を置き換える空の実装を提供する。
+    /// </summary>
     void DrawBallIcon(const PlayerBallData&,const ImVec2&,const ImVec2&,bool) {}
+    /// <summary>
+    /// テスト用の球詳細画面に固定のラベルを描画する。
+    /// </summary>
     void DrawBallDetailPopup(const PlayerBallData&,int) { ImGui::TextUnformatted("Detail"); }
 }
 using namespace LoungeServiceUi;
@@ -24,6 +33,9 @@ RestModel rest;
 State state;
 bool atRest=false;
 float screenScale=1;
+/// <summary>
+/// マウス入力を適用した休憩所またはショップの画面を一フレーム描画し、操作結果を返す。
+/// </summary>
 Intent Frame(float x=-100,float y=-100,bool down=false,int button=0)
 {
     auto& io=ImGui::GetIO();
@@ -32,11 +44,17 @@ Intent Frame(float x=-100,float y=-100,bool down=false,int button=0)
     const auto intent=atRest?DrawRest(rest,state):DrawShop(shop,state);
     ImGui::Render(); return intent;
 }
+/// <summary>
+/// 基準画面の位置を実画面の座標に変換し、クリック操作を送る。
+/// </summary>
 Intent Click(float x,float y,int button=0)
 {
     x*=screenScale; y*=screenScale;
     Frame(x,y,false,button); Frame(x,y,true,button); return Frame(x,y,false,button);
 }
+/// <summary>
+/// 確認画面の配置を確定し、肯定またはキャンセルのボタンをクリックする。
+/// </summary>
 Intent Popup(const char* name,bool confirm)
 {
     Frame(); Frame();
@@ -45,6 +63,9 @@ Intent Popup(const char* name,bool confirm)
     const float y=window->DC.CursorPosPrevLine.y+20;
     Frame(x,y); Frame(x,y,true); return Frame(x,y);
 }
+/// <summary>
+/// ショップの販売制約、詳細表示、休憩所の選択制限と拡大表示時の入力を検証する。
+/// </summary>
 int main()
 {
     ImGui::CreateContext(); auto& io=ImGui::GetIO();

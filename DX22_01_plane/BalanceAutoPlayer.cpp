@@ -13,12 +13,18 @@
 
 #pragma execution_character_set("utf-8")
 
+/// <summary>
+/// 自動プレイの有効状態を切り替え、判断間隔のカウンターを初期化する。
+/// </summary>
 void BalanceAutoPlayer::SetEnabled(bool enabled)
 {
 	m_Enabled = enabled;
 	m_DecisionFrame = 0;
 }
 
+/// <summary>
+/// JSON設定から自動プレイの動作、ランの条件、乱数設定などを読み込む。
+/// </summary>
 void BalanceAutoPlayer::LoadConfig(
 	const std::string& filePath)
 {
@@ -79,6 +85,9 @@ void BalanceAutoPlayer::LoadConfig(
 	}
 }
 
+/// <summary>
+/// 切替キーと現在のシーンを確認し、自動プレイが有効なら場面に応じた操作を実行する。
+/// </summary>
 bool BalanceAutoPlayer::Update(Game& game)
 {
 	if (game.IsDebugMode() || game.IsDebugEditorOpen()) return false;

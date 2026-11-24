@@ -31,6 +31,9 @@ namespace BallPhysicsRules
     };
 
     // Closed rectangle only for the boss; ordinary balls retain pocket openings.
+    /// <summary>
+    /// 盤面の大きさからボス戦で使う四辺の壁の線分を組み立てる。
+    /// </summary>
     inline auto BossWalls()
     {
         const float x = TableConfig::GetFieldWidth() * 0.5f;
@@ -44,6 +47,9 @@ namespace BallPhysicsRules
 
     // Only living-enemy contacts already traversed by piercing bypass ordinary
     // separation. Exhausted pierce charges still need an exit direction.
+    /// <summary>
+    /// プレイヤーが貫通した敵の中にいるとき、その接触から抜ける方向を求める。
+    /// </summary>
     inline bool PierceExitDirection(const Body& player, const Body& enemy, Vector3& direction)
     {
         if (!player.player || !player.status.abilities.pierce || !enemy.enemy ||
@@ -60,11 +66,17 @@ namespace BallPhysicsRules
         return true;
     }
 
+    /// <summary>
+    /// 速度からボールに残留運動があるかを判定する。
+    /// </summary>
     inline bool HasResidualMotion(const Vector3& velocity)
     {
         return velocity.LengthSquared() > 0.0f;
     }
 
+    /// <summary>
+    /// プレイヤーボールを摩擦で減速させ、貫通から抜ける間の最低速度を確保する。
+    /// </summary>
     inline bool PlayerFriction(Vector3& velocity, Vector3& acceleration,
         const BallStatus& status, float friction, int& stopCount, const Vector3* pierceExit = nullptr)
     {
@@ -93,6 +105,9 @@ namespace BallPhysicsRules
         return true;
     }
 
+    /// <summary>
+    /// 速度域に応じて敵ボールを摩擦で減速させるか、速度をゼロにする。
+    /// </summary>
     inline void EnemyFriction(Vector3& velocity, float friction)
     {
         if (velocity.LengthSquared() <= 0.001f) return;
@@ -105,6 +120,9 @@ namespace BallPhysicsRules
         }
     }
 
+    /// <summary>
+    /// ポケット中心とボールの移動区間の距離から接触を判定する。
+    /// </summary>
     inline bool PocketHit(Vector3 start, Vector3 end, float radius, const Collision::Sphere& pocket)
     {
         start.y = end.y = pocket.center.y;
@@ -116,6 +134,9 @@ namespace BallPhysicsRules
     // them. Move the retained body back to the trigger rim and reflect only an
     // inward velocity; leaving it inside would make CCD rediscover TOI=0 for
     // every iteration of every fixed tick.
+    /// <summary>
+    /// 移動区間がポケットに入ったボールを外側に戻し、速度の向きを調整する。
+    /// </summary>
     inline bool RetainOutsidePocket(Body& body, Vector3 movementStart,
         const Collision::Sphere& pocket)
     {
@@ -155,6 +176,9 @@ namespace BallPhysicsRules
         return true;
     }
 
+    /// <summary>
+    /// 球と壁の接触位置と法線を求め、押し戻しと反射を適用する。
+    /// </summary>
     inline bool Wall(Body& body, const Collision::Segment& wall, const Vector3& interior,
         Vector3* resolvedContact = nullptr)
     {
@@ -178,12 +202,18 @@ namespace BallPhysicsRules
         return true;
     }
 
+    /// <summary>
+    /// 停止中のプレイヤーボールにアンカーのノックバック無効が働くかを判定する。
+    /// </summary>
     inline bool AnchorLocked(const Body& body)
     {
         return body.player && body.status.abilities.anchor && body.status.anchorKnockbackImmune &&
             body.velocity.LengthSquared() <= 0.0001f;
     }
 
+    /// <summary>
+    /// 以前に貫通した2球がまだ接触範囲内にあり、再衝突を抑えるべきかを判定する。
+    /// </summary>
     inline bool IgnoresPiercedPair(const Body& a, const Body& b)
     {
         const float separation = a.status.radius + b.status.radius + BallCcdGeometry::ReleaseSlop;
@@ -194,6 +224,9 @@ namespace BallPhysicsRules
 
     // True means a NEW approaching contact episode (one attack event). Further
     // solver iterations can still adjust velocity/position without dealing damage.
+    /// <summary>
+    /// 球同士の接触を解決し、貫通、アンカー、反発を踏まえて位置と速度を更新する。
+    /// </summary>
     inline bool Pair(Body& a, Body& b)
     {
         Vector3 normal = a.position - b.position;
@@ -318,6 +351,9 @@ namespace BallPhysicsRules
         return newContact;
     }
 
+    /// <summary>
+    /// アンカー能力のあるプレイヤーボールの速度と加速度をゼロにする。
+    /// </summary>
     inline bool StopAnchor(Body& body, Vector3& acceleration)
     {
         if (!body.player || !body.status.abilities.anchor) return false;
@@ -325,6 +361,9 @@ namespace BallPhysicsRules
         return true;
     }
 
+    /// <summary>
+    /// 攻撃元と対象の位置から向きを求め、正面ダメージの補正を適用する。
+    /// </summary>
     inline int DirectionalDamage(int damage, const Vector3& target, const Vector3& source, float multiplier)
     {
         Vector3 incoming = source - target;
@@ -334,6 +373,9 @@ namespace BallPhysicsRules
         return BallMechanics::DirectionalDamage(damage, incoming.Dot(-Vector3::UnitZ), multiplier);
     }
 
+    /// <summary>
+    /// 衝突した2球の攻撃力を基に、ショット効果を加味した互いへのダメージを求める。
+    /// </summary>
     template<class Shot>
     std::pair<int, int> ContactDamage(const Body& a, const Body& b, int attackA, int attackB,
         bool defeatedA, bool defeatedB, Shot& shot, int impactAttack = 1)
@@ -353,6 +395,9 @@ namespace BallPhysicsRules
         return { damageA, damageB };
     }
 
+    /// <summary>
+    /// 物理状態と戦闘値を並べ、ボールを安定した順序で扱うための比較キーを作る。
+    /// </summary>
     inline auto OrderingKey(const Body& body, int hp, int attack, const std::string& enemyId)
     {
         const auto& p = body.position;

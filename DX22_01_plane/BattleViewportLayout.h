@@ -19,6 +19,9 @@ struct BattleViewportLayout
 	float cameraDistance = 150.0f;
 	float cameraTargetZ = 0.0f;
 
+	/// <summary>
+	/// 画面寸法からHUDの余白と盤面の表示領域を決め、全体が収まるカメラ位置を計算する。
+	/// </summary>
 	static BattleViewportLayout Calculate(float width, float height) noexcept
 	{
 		BattleViewportLayout result{};

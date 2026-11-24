@@ -8,14 +8,23 @@ public:
 	// itemCountは最低1として扱い、allowSpaceがfalseの場合はSPACEを決定入力として扱わない
 	bool UpdateVertical(int itemCount, bool allowSpace = true);
 
+	/// <summary>
+	/// 現在選択している項目の番号を返す。
+	/// </summary>
 	int GetIndex() const { return m_Index; }	// 現在選択している項目番号を返す
 
 	// 選択位置を0～itemCount-1の範囲へ補正して設定
 	void SetIndex(int index, int itemCount);
 
 	// マウスなどから指定項目を選択し、次回UpdateVerticalで決定済みとして扱う
+	/// <summary>
+	/// 指定された項目を選択し、マウスによる確定を記録する。
+	/// </summary>
 	void Confirm(int index, int itemCount) { SetIndex(index, itemCount); m_MouseConfirmed = true; }
 
+	/// <summary>
+	/// 直前の入力更新で選択位置が変わったかを返す。
+	/// </summary>
 	bool WasMoved() const { return m_WasMoved; }	// 直前のUpdateVerticalで上下移動が発生していればtrueを返す
 
 private:

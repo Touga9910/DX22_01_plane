@@ -5,6 +5,9 @@
 #include <limits>
 #include <vector>
 
+/// <summary>
+/// 異なる描画頻度や一時停止を含む時間列で、固定ステップ時計の進み方を検証する。
+/// </summary>
 int main()
 {
     for (int hz : {30, 60, 144})

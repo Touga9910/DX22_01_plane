@@ -14,6 +14,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 台枠とチャージ表示のメッシュを用意し、描画用のバッファとマテリアルを初期化する。
+/// </summary>
 void TableFrameRenderComponent::Awake()
 {
     BuildMesh();
@@ -39,6 +42,9 @@ void TableFrameRenderComponent::Awake()
 	m_ChargeMaterial->Create(chargeMaterial);
 }
 
+/// <summary>
+/// 台枠を描画し、表示設定に応じてチャージ表示を重ねる。
+/// </summary>
 void TableFrameRenderComponent::Draw()
 {
     Camera& camera = GameRuntime::MainCamera();
@@ -79,6 +85,9 @@ void TableFrameRenderComponent::Draw()
 	}
 }
 
+/// <summary>
+/// 台の寸法に沿ってチャージ表示の頂点とインデックスを生成する。
+/// </summary>
 void TableFrameRenderComponent::BuildChargeIndicators()
 {
 	m_ChargeVertices.clear();
@@ -121,6 +130,9 @@ void TableFrameRenderComponent::BuildChargeIndicators()
 	}
 }
 
+/// <summary>
+/// チャージ表示用に、指定範囲と高さの黄色い四角形を追加する。
+/// </summary>
 void TableFrameRenderComponent::AddChargeQuad(
 	float xMin, float zMin, float xMax, float zMax, float y)
 {
@@ -140,6 +152,9 @@ void TableFrameRenderComponent::AddChargeQuad(
 		m_ChargeIndices.push_back(start + offset);
 }
 
+/// <summary>
+/// 台枠のメッシュを描画用の頂点とインデックスに変換し、ポケットの中心を保存する。
+/// </summary>
 void TableFrameRenderComponent::BuildMesh()
 {
     m_Vertices.clear();

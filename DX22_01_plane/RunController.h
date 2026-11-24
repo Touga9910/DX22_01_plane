@@ -22,7 +22,13 @@ public:
     RunController();
     ~RunController();
 
+    /// <summary>
+    /// 単一のラン状態を管理するため、コントローラーのコピー構築を禁止する。
+    /// </summary>
     RunController(const RunController&) = delete;
+    /// <summary>
+    /// 単一のラン状態を管理するため、コントローラーのコピー代入を禁止する。
+    /// </summary>
     RunController& operator=(const RunController&) = delete;
 
     void ResetRuntimeState(const PlayerRunStatus& defaultStatus);

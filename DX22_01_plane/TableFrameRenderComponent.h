@@ -16,8 +16,14 @@ class TableFrameRenderComponent final : public Component
 public:
     void Awake() override;
     void Draw() override;
+    /// <summary>
+    /// チャージ表示を描画するかどうかを設定する。
+    /// </summary>
     void SetChargeIndicatorsEnabled(bool enabled) { m_ShowChargeIndicators=enabled; }
 
+    /// <summary>
+    /// ローカル座標で保持しているポケットの中心を返す。
+    /// </summary>
     const std::vector<DirectX::SimpleMath::Vector3>&
         GetLocalPocketCenters() const
     {

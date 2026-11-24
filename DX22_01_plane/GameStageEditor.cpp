@@ -10,6 +10,9 @@
 namespace
 {
 
+    /// <summary>
+    /// 状態効果の種類に対応するステージエディターの表示名を返す。
+    /// </summary>
     const char* StatusEffectLabel(StatusEffectType type)
     {
         switch (type)
@@ -22,6 +25,9 @@ namespace
         }
     }
 
+    /// <summary>
+    /// 敵データの指定した配列から状態効果を探し、一致する要素の位置を返す。
+    /// </summary>
     int FindEffectIndex(
         const nlohmann::json& enemy,
         const char* field,
@@ -36,13 +42,18 @@ namespace
         return -1;
     }
 
+    /// <summary>
+    /// 敵の状態効果一覧から指定された種類の位置を返す。
+    /// </summary>
     int FindStatusEffectIndex(const nlohmann::json& enemy, StatusEffectType type)
     {
         return FindEffectIndex(enemy, "status_effects", type);
     }
 }
 
-// Stage Editor Player Radius の処理を実行する。
+/// <summary>
+/// 既定の半径とデバッグ用デッキの球の半径を比較し、配置検証に使う最大値を返す。
+/// </summary>
 float GameDebugController::StageEditorPlayerRadius() const
 {
     float radius = 2.4f;
@@ -50,7 +61,9 @@ float GameDebugController::StageEditorPlayerRadius() const
     return radius;
 }
 
-// Test Stage Editor Layout の処理を実行する。
+/// <summary>
+/// 編集中の配置を検証し、問題がなければその配置のデバッグ試遊を要求する。
+/// </summary>
 void GameDebugController::TestStageEditorLayout()
 {
     if (m_StageEditor.dragging) { m_DebugMessage = "ドラッグを終了してから適用してください。"; return; }
@@ -67,7 +80,9 @@ void GameDebugController::TestStageEditorLayout()
     m_DebugRequest = m_DebugRunActive ? 5 : 1;
 }
 
-// Stage Editorを描画する。
+/// <summary>
+/// ステージの読み込み、配置編集、検証、試遊に使うデバッグ画面を描画する。
+/// </summary>
 void GameDebugController::DrawStageEditor(Game&)
 {
     using Json = nlohmann::json;

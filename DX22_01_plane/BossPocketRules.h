@@ -11,6 +11,9 @@ namespace BossPocketRules
     using DirectX::SimpleMath::Vector3;
     struct Obstacle { Vector3 position; float radius; };
 
+    /// <summary>
+    /// ボール半径を考慮し、盤面内で障害物やポケットに重ならず配置できるかを判定する。
+    /// </summary>
     inline bool IsSafePosition(const Vector3& p, float radius,
         const std::vector<Obstacle>& obstacles, const std::vector<Collision::Sphere>& pockets)
     {
@@ -33,6 +36,9 @@ namespace BossPocketRules
 
     // Spawning honors authored world coordinates, unlike a pocket return anchor.
     // Local fallback preserves the formation when a custom layout blocks a slot.
+    /// <summary>
+    /// 希望する出現地点を優先し、使えない場合は周辺に安全な配置を探す。
+    /// </summary>
     inline std::optional<Vector3> FindSpawnPosition(const Vector3& preferred, float radius,
         const std::vector<Obstacle>& obstacles, const std::vector<Collision::Sphere>& pockets)
     {
@@ -48,6 +54,9 @@ namespace BossPocketRules
         return std::nullopt;
     }
 
+    /// <summary>
+    /// 落下地点の内側を優先して復帰先を探し、必要に応じて盤面全体を探索する。
+    /// </summary>
     inline std::optional<Vector3> FindReturnPosition(const Vector3& entry, float radius,
         const std::vector<Obstacle>& obstacles, const std::vector<Collision::Sphere>& pockets)
     {

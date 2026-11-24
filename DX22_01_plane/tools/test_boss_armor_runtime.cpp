@@ -17,21 +17,54 @@ struct BossWorld
     Body ball;
     std::vector<Collision::Segment> walls;
     std::vector<Collision::Sphere> pockets;
+    /// <summary>
+    /// テスト盤面に置く球の個数を返す。
+    /// </summary>
     std::size_t Count() const { return 1; }
+    /// <summary>
+    /// テスト用の球を常に処理対象として扱う。
+    /// </summary>
     bool IsActive(std::size_t) const { return true; }
+    /// <summary>
+    /// テスト盤面で物理ステップの継続を許可する。
+    /// </summary>
     bool ShouldContinue() const { return true; }
+    /// <summary>
+    /// テストの対象となる物理ボディを返す。
+    /// </summary>
     const Body& PhysicsBody(std::size_t) const { return ball; }
+    /// <summary>
+    /// テスト盤面の壁一覧を返す。
+    /// </summary>
     const auto& Walls() const { return walls; }
+    /// <summary>
+    /// テスト盤面のポケット一覧を返す。
+    /// </summary>
     const auto& PocketSpheres() const { return pockets; }
+    /// <summary>
+    /// テスト用盤面ではサブステップの開始時に追加処理を行わない。
+    /// </summary>
     void BeginSubstep() {}
+    /// <summary>
+    /// テスト用の球を速度と経過時間に応じて移動する。
+    /// </summary>
     void Move(std::size_t, float t) { ball.position += ball.velocity*t; }
+    /// <summary>
+    /// テスト用の球とボス戦の壁の衝突を解決する。
+    /// </summary>
     void ResolveEnvironment(std::size_t)
     {
         for (const auto& wall : BossWalls()) Wall(ball,wall,Vector3::Zero);
     }
+    /// <summary>
+    /// 単一の球を扱うテスト盤面向けに、球同士の衝突の呼び出し口を提供する。
+    /// </summary>
     void ResolvePair(std::size_t, std::size_t) {}
 };
 
+/// <summary>
+/// セーブのチェックサム計算を行うか、装甲ボスの攻撃や衝突処理を検証する。
+/// </summary>
 int main(int argc, char** argv)
 {
     if (argc == 3 && std::string(argv[1]) == "--fixture-checksum")

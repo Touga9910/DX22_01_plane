@@ -9,6 +9,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 休憩所で回復を実行し、利用済みの状態と実際の回復量を記録する。
+/// </summary>
 bool Game::RestHeal()
 {
 	RestSiteScene* restSite =
@@ -52,6 +55,9 @@ bool Game::RestHeal()
 
 // Rest Heal Amountを取得する。
 
+/// <summary>
+/// 休憩時に適用される設定上のHP回復量を返す。
+/// </summary>
 int Game::GetRestHealAmount() const
 {
 	return m_RunController->GetRestHealAmount();
@@ -59,6 +65,9 @@ int Game::GetRestHealAmount() const
 
 // Rest Heal Percentを取得する。
 
+/// <summary>
+/// 休憩時のHP回復率を百分率で返す。
+/// </summary>
 int Game::GetRestHealPercent() const
 {
 	return m_RunController->GetRestHealPercent();
@@ -66,6 +75,9 @@ int Game::GetRestHealPercent() const
 
 // Clear Reward Upgrade Costを取得する。
 
+/// <summary>
+/// 球を強化可能かと休憩所の利用状態を確認し、強化と記録を行う。
+/// </summary>
 bool Game::RestUpgradeBall(int ballIndex)
 {
 	RestSiteScene* restSite =

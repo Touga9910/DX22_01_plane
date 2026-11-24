@@ -14,11 +14,17 @@
 
 namespace
 {
+	/// <summary>
+	/// UTF-8の文字列をUIに渡せる文字ポインターとして扱う。
+	/// </summary>
 	const char* UiUtf8(const char8_t* text) noexcept
 	{
 		return reinterpret_cast<const char*>(text);
 	}
 
+	/// <summary>
+	/// ルートの種別に対応する日本語の表示名を返す。
+	/// </summary>
 	const char* GetLocalizedRouteName(StageRouteType routeType)
 	{
 		switch (routeType)
@@ -35,6 +41,9 @@ namespace
 		}
 	}
 
+    /// <summary>
+    /// ルートの種別に対応する行き先のヒントを返す。
+    /// </summary>
     const char* RouteHint(StageRouteType type)
     {
         switch (type)
@@ -48,6 +57,9 @@ namespace
         }
     }
 
+    /// <summary>
+    /// ルートの種別に対応するノードの画像パスを返す。
+    /// </summary>
     const char* RouteArt(StageRouteType type)
     {
         switch (type)
@@ -128,16 +140,25 @@ void StageSelectScene::Update()
 	}
 }
 
+/// <summary>
+/// 現在の選択候補に含まれるルートノードの数を返す。
+/// </summary>
 int StageSelectScene::GetRouteNodeCount() const
 {
     return static_cast<int>(m_RouteNodes.size());
 }
 
+/// <summary>
+/// 選択候補の位置からマップのノード識別子を取得する。
+/// </summary>
 int StageSelectScene::GetMapNodeIdAt(int routeIndex) const
 {
     return routeIndex >= 0 && routeIndex < GetRouteNodeCount() ? m_RouteNodes[routeIndex] : -1;
 }
 
+/// <summary>
+/// 選択候補の位置からルート種別を求め、その識別子を返す。
+/// </summary>
 const char* StageSelectScene::GetRouteIdAt(int routeIndex) const
 {
 	if (routeIndex < 0 || routeIndex >= GetRouteNodeCount())
@@ -147,6 +168,9 @@ const char* StageSelectScene::GetRouteIdAt(int routeIndex) const
 	return RunMapRouteId(RunRouteView::NodeType(m_RouteNodes[routeIndex]));
 }
 
+/// <summary>
+/// 選択候補の位置に対応するルート種別のログ用表示名を返す。
+/// </summary>
 const char* StageSelectScene::GetRouteDisplayNameAt(int routeIndex) const
 {
 	if (routeIndex < 0 || routeIndex >= GetRouteNodeCount())
@@ -156,6 +180,9 @@ const char* StageSelectScene::GetRouteDisplayNameAt(int routeIndex) const
 	return RunRouteView::LogName(RunRouteView::NodeType(m_RouteNodes[routeIndex]));
 }
 
+/// <summary>
+/// 選択候補の位置を検証し、指定された入力元でルートを確定する。
+/// </summary>
 bool StageSelectScene::ChooseRoute(
 	int routeIndex,
 	const std::string& controllerType)
@@ -172,6 +199,9 @@ bool StageSelectScene::ChooseRoute(
 		controllerType);
 }
 
+/// <summary>
+/// ルートマップと進行状況を描画し、選択された行き先を処理する。
+/// </summary>
 void StageSelectScene::DrawUI()
 {
     using namespace IllustratedUi;

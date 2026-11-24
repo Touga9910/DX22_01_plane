@@ -9,6 +9,9 @@ using json = nlohmann::json;
 
 namespace BalanceLogDetail
 {
+	/// <summary>
+	/// 数値を小数第2位に丸める。
+	/// </summary>
 	double RoundToTwoDecimals(double value)
 	{
 		return std::round(value * 100.0) / 100.0;
@@ -16,6 +19,9 @@ namespace BalanceLogDetail
 
 namespace
 {
+	/// <summary>
+	/// 貫通攻撃の発生源別の回数やダメージ合計をJSONに変換する。
+	/// </summary>
 	json MakePierceSourceTotalsJson(
 		const PierceAttackSourceTotals& totals)
 	{
@@ -30,6 +36,9 @@ namespace
 	}
 }
 
+	/// <summary>
+	/// 敵の移動、物理処理時間、衝突などのショット計測データをJSONに変換する。
+	/// </summary>
 	json MakeShotPhysicsTelemetryJson(
 		const ShotPhysicsTelemetry::Snapshot& telemetry)
 	{
@@ -141,6 +150,9 @@ namespace
 		};
 	}
 
+	/// <summary>
+	/// 球種ごとの壁反射と反射に伴うダメージの計測をJSONにまとめる。
+	/// </summary>
 	json MakeBounceTelemetryJson(
 		const ShotPhysicsTelemetry::Snapshot& physics,
 		const PierceAttackTelemetrySnapshot& attacks,
@@ -279,6 +291,9 @@ namespace
 		};
 	}
 
+	/// <summary>
+	/// 貫通ミニオンの履歴と攻撃の件数およびダメージの計測をJSONにまとめる。
+	/// </summary>
 	json MakePierceAttackTelemetryJson(
 		const PierceAttackTelemetrySnapshot& telemetry)
 	{

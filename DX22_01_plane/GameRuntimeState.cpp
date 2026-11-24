@@ -8,6 +8,9 @@
 
 namespace
 {
+	/// <summary>
+	/// 計測時間を0以上に補正して累積値と最大値を更新する。
+	/// </summary>
 	void AddTiming(
 		TimingAggregate& aggregate,
 		double milliseconds)
@@ -21,12 +24,18 @@ namespace
 	}
 }
 
+/// <summary>
+/// 戦闘シーンの生成に使用するファクトリを設定する。
+/// </summary>
 void GameRuntimeState::SetBattleSceneFactory(
 	SceneManager::BattleSceneFactory factory)
 {
 	m_Scenes.SetBattleSceneFactory(std::move(factory));
 }
 
+/// <summary>
+/// 指定したシーンを初期化し、成功した場合はシーン遷移の状態をリセットする。
+/// </summary>
 bool GameRuntimeState::InitializeScene(SceneType sceneType)
 {
 	const bool initialized = m_Scenes.Initialize(sceneType);
@@ -34,32 +43,50 @@ bool GameRuntimeState::InitializeScene(SceneType sceneType)
 	return initialized;
 }
 
+/// <summary>
+/// 実行中のシーンを指定した種別へ変更し、成否を返す。
+/// </summary>
 bool GameRuntimeState::ChangeScene(SceneType sceneType)
 {
 	return m_Scenes.Change(sceneType);
 }
 
+/// <summary>
+/// シーン遷移の状態と現在のシーンをクリアする。
+/// </summary>
 void GameRuntimeState::ResetScene()
 {
 	m_Transition.Reset();
 	m_Scenes.Reset();
 }
 
+/// <summary>
+/// 現在使用中のシーンを返す。
+/// </summary>
 Scene* GameRuntimeState::CurrentScene() const
 {
 	return m_Scenes.Get();
 }
 
+/// <summary>
+/// 現在使用中のシーンの種別を返す。
+/// </summary>
 SceneType GameRuntimeState::CurrentSceneType() const
 {
 	return m_Scenes.GetType();
 }
 
+/// <summary>
+/// 実行時のワールドを変更可能な参照として返す。
+/// </summary>
 GameWorld& GameRuntimeState::World()
 {
 	return m_World;
 }
 
+/// <summary>
+/// 物理更新用の時計と直近フレームの計測状態を初期化する。
+/// </summary>
 void GameRuntimeState::ResetPhysicsTiming()
 {
 	m_PhysicsClock.Reset();
@@ -69,6 +96,9 @@ void GameRuntimeState::ResetPhysicsTiming()
 	m_PhysicsRemainderSecondsLastFrame = 0.0;
 }
 
+/// <summary>
+/// 経過時間を物理更新用の時計へ加え、このフレームで実行する固定ステップ数を返す。
+/// </summary>
 int GameRuntimeState::BeginPhysicsFrame(double elapsedSeconds)
 {
 	m_PhysicsStepsLastFrame = 0;
@@ -87,6 +117,9 @@ int GameRuntimeState::BeginPhysicsFrame(double elapsedSeconds)
 	return steps;
 }
 
+/// <summary>
+/// 固定物理ステップのサブステップ数や上限到達状況を計測に加える。
+/// </summary>
 void GameRuntimeState::RecordPhysicsStep(
 	int substeps,
 	bool limitReached)
@@ -100,11 +133,17 @@ void GameRuntimeState::RecordPhysicsStep(
 	++m_PhysicsStepsLastFrame;
 }
 
+/// <summary>
+/// 物理更新用の時計をリセットし、未消化の更新時間を破棄する。
+/// </summary>
 void GameRuntimeState::StopPhysicsCatchUp()
 {
 	m_PhysicsClock.Reset();
 }
 
+/// <summary>
+/// 物理ステップとサブステップの最新の計測値をまとめて返す。
+/// </summary>
 GameRuntimeState::PhysicsTiming
 GameRuntimeState::CapturePhysicsTiming() const
 {
@@ -117,6 +156,9 @@ GameRuntimeState::CapturePhysicsTiming() const
 	};
 }
 
+/// <summary>
+/// 新しいフレーム時間計測を開始し、集計とサンプルの状態を初期化する。
+/// </summary>
 void GameRuntimeState::BeginFrameTimingMeasurement()
 {
 	const std::uint64_t nextSequence = m_FrameTiming.sequence + 1;
@@ -129,6 +171,9 @@ void GameRuntimeState::BeginFrameTimingMeasurement()
 	m_FrameTiming.sequence = nextSequence;
 }
 
+/// <summary>
+/// 計測中の場合は、更新処理の各工程にかかった時間を集計する。
+/// </summary>
 void GameRuntimeState::RecordUpdateTiming(
 	const UpdateTimingFrame& timing)
 {
@@ -155,6 +200,9 @@ void GameRuntimeState::RecordUpdateTiming(
 	AddTiming(m_FrameTiming.otherUpdate, timing.otherMilliseconds);
 }
 
+/// <summary>
+/// 計測中の場合は、固定物理更新のワールド処理と詳細工程の時間を集計する。
+/// </summary>
 void GameRuntimeState::RecordFixedPhysicsDetail(
 	double worldFixedMilliseconds,
 	double ballPhysicsMilliseconds,
@@ -168,12 +216,18 @@ void GameRuntimeState::RecordFixedPhysicsDetail(
 		battleControllerMilliseconds);
 }
 
+/// <summary>
+/// 計測中の場合は、ショット予測にかかった時間を集計する。
+/// </summary>
 void GameRuntimeState::RecordShotPredictionTiming(double milliseconds)
 {
 	if (!m_FrameTiming.active) return;
 	AddTiming(m_FrameTiming.shotPrediction, milliseconds);
 }
 
+/// <summary>
+/// 照準中のフレーム時間を記録し、照準の開始と終了に合わせて計測状態を切り替える。
+/// </summary>
 void GameRuntimeState::RecordAimingFrameTiming(
 	double frameMilliseconds,
 	double updateMilliseconds,
@@ -213,6 +267,9 @@ void GameRuntimeState::RecordAimingFrameTiming(
 		AimingTimingCapacity);
 }
 
+/// <summary>
+/// 照準中の場合は、予測処理にかかった時間と予測回数などを集計する。
+/// </summary>
 void GameRuntimeState::RecordTrajectoryPreviewPrediction(
 	double milliseconds,
 	std::size_t copiedBalls)
@@ -222,6 +279,9 @@ void GameRuntimeState::RecordTrajectoryPreviewPrediction(
 	m_AimingPreviewBallCopies += copiedBalls;
 }
 
+/// <summary>
+/// 照準中の場合は、弾道プレビューの盤面キーの計算時間を記録する。
+/// </summary>
 void GameRuntimeState::RecordTrajectoryPreviewWorldKey(
 	double milliseconds)
 {
@@ -229,6 +289,9 @@ void GameRuntimeState::RecordTrajectoryPreviewWorldKey(
 	AddTiming(m_AimingPreviewWorldKey, milliseconds);
 }
 
+/// <summary>
+/// 照準中の場合は、弾道プレビューのキャッシュを再利用したフレーム数を増やす。
+/// </summary>
 void GameRuntimeState::RecordTrajectoryPreviewCacheReuse()
 {
 	if (m_AimingTimingActive)
@@ -237,6 +300,9 @@ void GameRuntimeState::RecordTrajectoryPreviewCacheReuse()
 	}
 }
 
+/// <summary>
+/// 照準中の場合は、弾道プレビューを更新した回数を増やす。
+/// </summary>
 void GameRuntimeState::RecordTrajectoryPreviewRefresh()
 {
 	if (m_AimingTimingActive)
@@ -245,6 +311,9 @@ void GameRuntimeState::RecordTrajectoryPreviewRefresh()
 	}
 }
 
+/// <summary>
+/// 照準中の場合は、最大威力プレビューでキャッシュを再利用した回数を増やす。
+/// </summary>
 void GameRuntimeState::RecordMaximumPowerPreviewCacheReuse()
 {
 	if (m_AimingTimingActive)
@@ -253,6 +322,9 @@ void GameRuntimeState::RecordMaximumPowerPreviewCacheReuse()
 	}
 }
 
+/// <summary>
+/// 照準時のフレーム時間と弾道プレビューの計測結果をスナップショットにまとめる。
+/// </summary>
 AimingPerformanceSnapshot
 GameRuntimeState::CaptureAimingPerformance() const
 {
@@ -310,6 +382,9 @@ GameRuntimeState::CaptureAimingPerformance() const
 	return snapshot;
 }
 
+/// <summary>
+/// 計測中のフレーム時間と各工程の時間をサンプルに保存する。
+/// </summary>
 void GameRuntimeState::RecordFrameTiming(
 	double frameMilliseconds,
 	double updateMilliseconds,
@@ -348,6 +423,9 @@ void GameRuntimeState::RecordFrameTiming(
 	}
 }
 
+/// <summary>
+/// 収集したサンプルからフレーム時間の統計を集計し、計測を終了する。
+/// </summary>
 void GameRuntimeState::CompleteFrameTimingMeasurement()
 {
 	if (!m_FrameTiming.active || m_FrameTimingSampleCount == 0) return;

@@ -53,6 +53,9 @@ public:
     EnemyActionTurnPlan PlanTurn(
         const std::vector<EnemyActionCandidate>& candidates);
 
+    /// <summary>
+    /// 敵の行動計画に使う予算と行動コストの設定を返す。
+    /// </summary>
     const EnemyActionConfig& Config() const { return m_Config; }
     void SetConfigForTesting(const EnemyActionConfig& config);
 

@@ -64,17 +64,26 @@ public:
         { 0.04f, 0.72f, 0.5f, 0.9f, 1, 1, 1, 2, 100 },
 	}};
 
+	/// <summary>
+	/// 戦闘効果音の分類を、調整値テーブルの添字に変換する。
+	/// </summary>
 	static constexpr std::size_t Index(CombatSeCategory category)
 	{
 		return static_cast<std::size_t>(category);
 	}
 
+	/// <summary>
+	/// 指定分類の戦闘効果音設定を返し、対応する添字がなければ先頭の設定を使う。
+	/// </summary>
 	static const CombatSeTuning& Get(CombatSeCategory category)
 	{
 		const std::size_t index = Index(category);
 		return Tuning[index < Tuning.size() ? index : 0];
 	}
 
+	/// <summary>
+	/// 衝突速度を効果音演出に使える範囲に収め、有限でない値は0として扱う。
+	/// </summary>
 	static float SanitizeSpeed(float speed)
 	{
 		return std::isfinite(speed)
@@ -83,12 +92,18 @@ public:
 			: 0.0f;
 	}
 
+	/// <summary>
+	/// 有効範囲に収めた衝突速度を、演出の最大速度に対する比率に変換する。
+	/// </summary>
 	static float StrengthRatio(float speed)
 	{
 		return SanitizeSpeed(speed) /
 			CollisionPresentationRules::MaximumPresentationSpeed;
 	}
 
+	/// <summary>
+	/// 効果音の分類、衝突の強さと速度、連鎖の節目に応じて再生音量を求める。
+	/// </summary>
 	static float Volume(
 		CombatSeCategory category,
 		CollisionPresentationRules::Strength strength,
@@ -120,6 +135,9 @@ public:
 			: tuning.minimumVolume;
 	}
 
+	/// <summary>
+	/// 効果音の分類、衝突の強さ、連鎖の節目に応じて再生ピッチを選ぶ。
+	/// </summary>
 	static float Pitch(
 		CombatSeCategory category,
 		CollisionPresentationRules::Strength strength,
@@ -141,6 +159,9 @@ public:
 			: 1.0f;
 	}
 
+	/// <summary>
+	/// 分類ごとの基本優先度に衝突強度を反映し、効果音の再生優先度を求める。
+	/// </summary>
 	static int Priority(
 		CombatSeCategory category,
 		CollisionPresentationRules::Strength strength)
@@ -153,6 +174,9 @@ public:
 		return priority;
 	}
 
+	/// <summary>
+	/// 戦闘効果音の分類を、設定や診断で使う識別文字列に変換する。
+	/// </summary>
 	static const char* CategoryId(CombatSeCategory category)
 	{
 		switch (category)
@@ -168,5 +192,8 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 効果音の共通規則は静的処理として提供するため、インスタンスの生成を禁止する。
+	/// </summary>
 	CombatAudioRules() = delete;
 };

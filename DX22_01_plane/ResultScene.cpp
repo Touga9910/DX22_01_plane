@@ -28,6 +28,9 @@ namespace
 		ImVec4 color;
 	};
 
+	/// <summary>
+	/// プレイしたフレーム数を時分秒の表示用文字列に変換する。
+	/// </summary>
 	std::string FormatPlayTime(std::uint64_t activeFrames)
 	{
 		const std::uint64_t totalSeconds = activeFrames / 60;
@@ -44,6 +47,9 @@ namespace
 		return text;
 	}
 
+	/// <summary>
+	/// ランの集計結果と分析値から、結果画面に表示するハイライトを組み立てる。
+	/// </summary>
 	std::vector<RunHighlight> BuildRunHighlights(
 		const RunResultSnapshot& result,
 		const PlayerRunAnalysis& analysis)
@@ -144,6 +150,9 @@ namespace
 		return highlights;
 	}
 
+	/// <summary>
+	/// 指定した成績のハイライトを色付きのカードとして描画する。
+	/// </summary>
 	void DrawRunHighlight(const RunHighlight& highlight, int index)
 	{
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.08f, 0.10f, 0.14f, 0.88f));
@@ -238,6 +247,9 @@ void ResultScene::Update()
 	}
 }
 
+/// <summary>
+/// リザルトウィンドウを用意し、概要または詳細分析を描画する。
+/// </summary>
 void ResultScene::DrawUI()
 {
 	GameUi::PrepareWindow(m_ShowAnalysis ? "result_analysis" : "result", ImVec2(230, 95), ImVec2(820, 590));
@@ -257,6 +269,9 @@ void ResultScene::DrawUI()
 	ImGui::End();
 }
 
+/// <summary>
+/// ランの結果、到達状況と主な成績を概要画面に描画する。
+/// </summary>
 void ResultScene::DrawSummary()
 {
 	const RunResultSnapshot& statistics = m_Result;
@@ -323,6 +338,9 @@ void ResultScene::DrawSummary()
 	}
 }
 
+/// <summary>
+/// ショットやダメージに関する集計をリザルトの詳細分析画面に描画する。
+/// </summary>
 void ResultScene::DrawAnalysis()
 {
 	const RunResultSnapshot& statistics = m_Result;

@@ -11,8 +11,17 @@ public:
 	bool IsActive() const;
 	bool IsChosen() const;
 	// Chosen tracks the bonus; buying the optional ball is an independent step.
+	/// <summary>
+	/// 報酬を選択し、球の取得も済んで次へ進めるかを返す。
+	/// </summary>
 	bool IsReadyToContinue() const { return m_Chosen && m_BallAcquired; }
+	/// <summary>
+	/// 報酬の球を取得済みかを返す。
+	/// </summary>
 	bool IsBallAcquired() const { return m_BallAcquired; }
+	/// <summary>
+	/// 報酬の球を取得済みとして記録する。
+	/// </summary>
 	void MarkBallAcquired() { m_BallAcquired = true; }
 	bool IsMidBossRelicSelectionActive() const;
 	int SelectedRewardIndex() const;
@@ -53,9 +62,18 @@ public:
 
 	void RequestConfirmation();
 	bool ConsumeConfirmationRequest();
+	/// <summary>
+	/// 報酬をスキップする要求を記録する。
+	/// </summary>
 	void RequestSkip() { m_SkipRequested = true; }
 	bool ConsumeSkipRequest();
+	/// <summary>
+	/// 報酬の確認ダイアログを開いている状態を設定する。
+	/// </summary>
 	void SetModalOpen(bool open) { m_ModalOpen = open; }
+	/// <summary>
+	/// 報酬の確認ダイアログを開いているかを返す。
+	/// </summary>
 	bool IsModalOpen() const { return m_ModalOpen; }
 
 private:

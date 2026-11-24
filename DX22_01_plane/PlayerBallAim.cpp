@@ -16,6 +16,9 @@
 using namespace DirectX::SimpleMath;
 
 // Mouse aiming and shot preparation; physics state remains in PlayerBall.cpp.
+/// <summary>
+/// 照準とパワーの選択状態に応じてマウス入力を処理し、発射の準備を進める。
+/// </summary>
 void PlayerBall::UpdateAim()
 {
 	BattleState battleState = GameBattleView::State();
@@ -118,6 +121,9 @@ void PlayerBall::UpdateAim()
 	}
 }
 
+/// <summary>
+/// マウスの画面座標から照準に使う盤面上の座標を求める。
+/// </summary>
 bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 {
 	// ウィンドウハンドルを取得する
@@ -254,6 +260,9 @@ bool PlayerBall::TryGetMouseAimPosition(Vector3& aimPosition) const
 	return true;
 }
 
+/// <summary>
+/// 球からマウスが示す盤面座標への方向を求め、照準角を更新する。
+/// </summary>
 void PlayerBall::UpdateAimDirectionFromMouse()
 {
 	Vector3 aimPosition;                         // マウスが指している床上の座標
@@ -272,6 +281,9 @@ void PlayerBall::UpdateAimDirectionFromMouse()
 	m_AimAngle = static_cast<float>(std::atan2(aimVector.x, aimVector.z));
 }
 
+/// <summary>
+/// 現在の照準を固定し、マウスによるショットの強さの調整を開始する。
+/// </summary>
 void PlayerBall::BeginMousePowerDrag()
 {
 	m_IsPowerDragging = true;                                             // パワードラッグ中にする
@@ -284,6 +296,9 @@ void PlayerBall::BeginMousePowerDrag()
 	GameBattleCommands::BeginPowerSelection();
 }
 
+/// <summary>
+/// 固定した照準を使い、マウスのドラッグ量からショットの強さを更新する。
+/// </summary>
 void PlayerBall::UpdateShotPowerFromMouseDrag()
 {
 	m_AimAngle = m_LockedAimAngle;                                        // ドラッグ中は方向を固定する
@@ -306,6 +321,9 @@ void PlayerBall::UpdateShotPowerFromMouseDrag()
 	m_ShotPower = std::clamp(steppedPower, m_MinShotPower, m_MaxShotPower);
 }
 
+/// <summary>
+/// パワー調整のドラッグを取り消し、予測弾道を更新できる状態にする。
+/// </summary>
 void PlayerBall::CancelMousePowerDrag()
 {
 	m_IsPowerDragging = false;                                      // パワードラッグを終了する
@@ -313,11 +331,17 @@ void PlayerBall::CancelMousePowerDrag()
 	GameBattleCommands::CancelShot();				// 方向合わせ状態へ戻す
 }
 
+/// <summary>
+/// マウスドラッグ中のショット準備を取り消す。
+/// </summary>
 void PlayerBall::CancelShotPreparationInput()
 {
 	CancelMousePowerDrag();
 }
 
+/// <summary>
+/// ドラッグで決めた向きと強さで球を発射し、戦闘側にショット開始を通知する。
+/// </summary>
 void PlayerBall::FireMouseShot()
 {
 	// Legacy mouse shots move once before friction starts on the next tick.

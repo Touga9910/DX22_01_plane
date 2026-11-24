@@ -121,12 +121,21 @@ public:
 		bool enabled);
 	void DrawDebugTuning();
 
+	/// <summary>
+	/// 衝突エフェクトの生成数や描画数を記録した診断情報を返す。
+	/// </summary>
 	const CollisionVfxDiagnostics& GetDiagnostics() const noexcept
 	{
 		return m_Diagnostics;
 	}
 
+	/// <summary>
+	/// 変更可能な衝突エフェクト調整値への参照を返す。
+	/// </summary>
 	Tuning& GetTuning() noexcept { return m_Tuning; }
+	/// <summary>
+	/// 衝突エフェクト調整値への読み取り専用の参照を返す。
+	/// </summary>
 	const Tuning& GetTuning() const noexcept { return m_Tuning; }
 
 private:

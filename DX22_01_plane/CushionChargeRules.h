@@ -44,6 +44,9 @@ namespace CushionChargeRules
 		bool setupTriggered = false;
 	};
 
+	/// <summary>
+	/// 次のショット用の反射ボーナスを引き継ぎ、ショット単位の回数や効果を初期化する。
+	/// </summary>
 	inline void BeginPlayerShot(State& state)
 	{
 		state.activeSetupBonus = state.pendingSetupBonus;
@@ -60,6 +63,9 @@ namespace CushionChargeRules
 		state.pinballSpeedRetention = 0.9f;
 	}
 
+	/// <summary>
+	/// ショット終了時に、使い残した現在のボーナスと強化命中・ピンボールの状態を解除する。
+	/// </summary>
 	inline void EndPlayerShot(State& state)
 	{
 		state.activeSetupBonus = 0;
@@ -72,6 +78,9 @@ namespace CushionChargeRules
 		state.pinballSpeedRetention = 0.9f;
 	}
 
+	/// <summary>
+	/// 有効な反射を記録し、条件に応じてスタックを消費・生成して反射速度と強化命中回数を更新する。
+	/// </summary>
 	inline ReflectionResult ApplyValidReflection(
 		State& state,
 		const ReflectionConfig& config,
@@ -106,6 +115,9 @@ namespace CushionChargeRules
 		return result;
 	}
 
+	/// <summary>
+	/// 同じ敵への重複適用を避け、使用可能なら強化命中の残り回数を1減らす。
+	/// </summary>
 	inline bool ConsumeEmpoweredHit(State& state, std::uintptr_t enemyId)
 	{
 		if (enemyId == 0 || state.empoweredHitsRemaining <= 0 ||
@@ -115,11 +127,17 @@ namespace CushionChargeRules
 		return true;
 	}
 
+	/// <summary>
+	/// 次のショットで有効な反射が起きたときに加算するスタック数を予約する。
+	/// </summary>
 	inline void ArmSetupForNextShot(State& state, int amount)
 	{
 		state.pendingSetupBonus = (std::max)(0, amount);
 	}
 
+	/// <summary>
+	/// スタック消費と対象の条件を確認し、ピンボールの対象と衝突条件を登録する。
+	/// </summary>
 	inline bool ActivatePinball(
 		State& state,
 		std::uintptr_t targetId,
@@ -140,11 +158,17 @@ namespace CushionChargeRules
 		return true;
 	}
 
+	/// <summary>
+	/// 指定された識別子が、現在のピンボール効果の対象か判定する。
+	/// </summary>
 	inline bool IsPinballTarget(const State& state, std::uintptr_t targetId)
 	{
 		return targetId != 0 && state.pinballTargetId == targetId;
 	}
 
+	/// <summary>
+	/// ピンボール対象の衝突を加算し、所定の衝突数ごとに進む段階を返す。
+	/// </summary>
 	inline int RegisterPinballCollision(State& state, std::uintptr_t targetId)
 	{
 		if (!IsPinballTarget(state, targetId)) return 0;
@@ -153,6 +177,9 @@ namespace CushionChargeRules
 			(std::max)(1, state.pinballCollisionsPerStage);
 	}
 
+	/// <summary>
+	/// ピンボール対象の衝突後速度を、保持率に基づく下限から衝突前の速さまでの範囲に補正する。
+	/// </summary>
 	inline void PreservePinballSpeed(
 		const State& state,
 		std::uintptr_t targetId,
@@ -170,16 +197,25 @@ namespace CushionChargeRules
 		velocityAfter *= correctedSpeed / afterSpeed;
 	}
 
+	/// <summary>
+	/// 反射チャージのスタックがあれば1、なければ0を返す。
+	/// </summary>
 	inline int ActiveCount(const State& state)
 	{
 		return state.stackCount > 0 ? 1 : 0;
 	}
 
+	/// <summary>
+	/// 次のショット用の追加スタックが予約されていれば1、なければ0を返す。
+	/// </summary>
 	inline int PendingNextShotCount(const State& state)
 	{
 		return state.pendingSetupBonus > 0 ? 1 : 0;
 	}
 
+	/// <summary>
+	/// 保持する反射チャージのスタック数を0以上で返す。
+	/// </summary>
 	inline int TotalStacks(const State& state)
 	{
 		return (std::max)(0, state.stackCount);

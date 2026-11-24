@@ -16,6 +16,9 @@ namespace
 constexpr const char* kTutorialProgressPath = "runtime/tutorial_progress.json";
 }
 
+/// <summary>
+/// 通常開始か再生かを記録して、チュートリアルを最初の手順から始める。
+/// </summary>
 void GamePresentation::StartTutorial(bool replay)
 {
 	m_TutorialReplay = replay;
@@ -23,6 +26,9 @@ void GamePresentation::StartTutorial(bool replay)
 	m_TutorialStep = TutorialStep::Welcome;
 }
 
+/// <summary>
+/// チュートリアルを閉じ、初回の完了状態をファイルに保存する。
+/// </summary>
 void GamePresentation::CompleteTutorial()
 {
 	m_TutorialStep = TutorialStep::Complete;
@@ -34,6 +40,9 @@ void GamePresentation::CompleteTutorial()
 	}
 }
 
+/// <summary>
+/// チュートリアルの完了状態をJSONファイルに保存する。
+/// </summary>
 void GamePresentation::SaveTutorialProgress() const
 {
 	std::error_code error;
@@ -49,6 +58,9 @@ void GamePresentation::SaveTutorialProgress() const
 	}.dump(2) << '\n';
 }
 
+/// <summary>
+/// 現在の手順に対応するチュートリアルを描画し、ガイドの操作を処理する。
+/// </summary>
 void GamePresentation::DrawTutorial(Game& game)
 {
 	GameUi::PrepareWindow("tutorial", ImVec2(305, 400), ImVec2(670, 270));
@@ -139,6 +151,9 @@ void GamePresentation::DrawTutorial(Game& game)
 	ImGui::End();
 }
 
+/// <summary>
+/// 保存されたJSONからチュートリアルの完了状態を読み込む。
+/// </summary>
 void GamePresentation::LoadTutorialProgress()
 {
 	std::ifstream tutorialFile(kTutorialProgressPath);

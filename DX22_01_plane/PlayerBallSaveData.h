@@ -13,6 +13,9 @@ namespace PlayerBallSaveData
 
 	// ボール1個分の実行時データをセーブ用JSONへ変換
 	// プレイヤーボールではdefenseを保存せず、現行の強化モデル番号を出力
+	/// <summary>
+	/// 球の定義ID、強化段階、ステータスと強化テーブルをセーブ用JSONに変換する。
+	/// </summary>
 	inline nlohmann::json BallToJson(const PlayerBallData& ball)
 	{
 		json upgrades = json::array();
@@ -34,6 +37,9 @@ namespace PlayerBallSaveData
 	// セーブJSONからPlayerBallDataを復元
 	// 必須項目、ID、強化段階、性能値が不正な場合はInvalidSaveDataを例外として通知
 	// categoryを持たない旧データはdefinitionIdからカテゴリを補完
+	/// <summary>
+	/// セーブ用JSONから球データを復元し、旧形式のカテゴリを定義IDから補完する。
+	/// </summary>
 	inline PlayerBallData BallFromJson(const json& value)
 	{
 		PlayerBallData ball;

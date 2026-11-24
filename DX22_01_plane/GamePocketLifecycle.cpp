@@ -22,11 +22,17 @@
 
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// 戦闘中の敵がすべて撃破済みかを返す。
+/// </summary>
 bool Game::AreAllEnemiesDefeated() const
 {
 	return m_BattleState->controller.AreAllEnemiesDefeated();
 }
 
+/// <summary>
+/// 敵の生存状態とボスの装甲やHPから、ポケットでとどめを刺せるかを判定する。
+/// </summary>
 bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
 {
     return enemy != nullptr && !enemy->IsDefeated() && !enemy->IsPocketed() &&
@@ -34,6 +40,9 @@ bool Game::IsEnemyPocketFinisherEligible(const EnemyBall* enemy) const
             enemy->GetHP() <= BossCombatRules::PocketDamage(enemy->GetMaxHP())));
 }
 
+/// <summary>
+/// 最大HPと戦闘の設定から、自球がポケットに落ちた際のダメージを求める。
+/// </summary>
 int Game::GetPlayerPocketDamageAmount() const
 {
 	return (std::max)(1, static_cast<int>(std::ceil(
@@ -41,6 +50,9 @@ int Game::GetPlayerPocketDamageAmount() const
 		m_BattleState->controller.PocketRules().playerDamageRatio)));
 }
 
+/// <summary>
+/// ポケットに落ちた敵を処理し、装甲ボスの復帰や撃破済みの球の除去を行う。
+/// </summary>
 void Game::HandleEnemyPocket(EnemyBall* enemy)
 {
 	if (enemy == nullptr || enemy->IsPocketed())
@@ -109,6 +121,9 @@ void Game::HandleEnemyPocket(EnemyBall* enemy)
 	m_RuntimeState->World().RequestDestroy(enemy->GetGameObject());
 }
 
+/// <summary>
+/// 球やポケットとの干渉を避けながら、自球を盤面に戻す候補位置を探す。
+/// </summary>
 Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 {
 	std::uniform_real_distribution<float> xDistribution(
@@ -154,6 +169,9 @@ Vector3 Game::FindPlayerPocketReturnPosition(const PlayerBall* player)
 	return Vector3(0.0f, TableConfig::FIELD_HEIGHT, 0.0f);
 }
 
+/// <summary>
+/// ポケットに落ちた生存中の自球を盤面へ戻し、復帰位置を記録する。
+/// </summary>
 void Game::RestorePocketedPlayer()
 {
 	for (PlayerBall* player :

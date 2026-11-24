@@ -67,7 +67,13 @@ public:
 	/// 描画時の視点の上書き設定があればその位置を返し、それ以外はカメラの現在位置を返す。
 	/// </summary>
 	DirectX::SimpleMath::Vector3 GetPosition() { return RenderViewOverride::current ? RenderViewOverride::current->eye : m_Position; }
+	/// <summary>
+	/// カメラが現在注視している座標を返す。
+	/// </summary>
 	DirectX::SimpleMath::Vector3 GetTarget() const{	return m_Target; }
+	/// <summary>
+	/// カメラが保持しているビュー行列を返す。
+	/// </summary>
 	DirectX::SimpleMath::Matrix GetViewMatrix() const { return m_ViewMatrix; }
 
 	void SetTarget(DirectX::SimpleMath::Vector3 target);

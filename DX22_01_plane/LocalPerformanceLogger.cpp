@@ -14,6 +14,9 @@ namespace
 {
 	std::uint64_t g_LastHandledSequence = 0;
 
+	/// <summary>
+	/// 呼び出し回数から処理時間の平均をミリ秒単位で求める。
+	/// </summary>
 	double Average(const TimingAggregate& timing)
 	{
 		return timing.callCount > 0
@@ -21,6 +24,9 @@ namespace
 			: 0.0;
 	}
 
+	/// <summary>
+	/// ログのファイル名に使うローカル日時を整形する。
+	/// </summary>
 	std::string Timestamp()
 	{
 		const auto now = std::chrono::system_clock::now();
@@ -32,6 +38,9 @@ namespace
 		return result.str();
 	}
 
+	/// <summary>
+	/// 既存のJSONログと名前が重複しない出力パスを探す。
+	/// </summary>
 	std::filesystem::path UniqueLogPath(
 		const std::filesystem::path& directory,
 		const std::string& stem)
@@ -48,17 +57,26 @@ namespace
 	}
 }
 
+/// <summary>
+/// 照準の計測番号が有効で、処理済み番号と異なるかを返す。
+/// </summary>
 bool LocalPerformanceLogger::IsAimingSequencePending(std::uint64_t sequence)
 {
 	return sequence != 0 && sequence != g_LastHandledSequence;
 }
 
+/// <summary>
+/// 照準の計測が完了し、まだ記録対象であるかを判定する。
+/// </summary>
 bool LocalPerformanceLogger::IsAimingSnapshotPending(
 	const AimingPerformanceSnapshot& snapshot)
 {
 	return snapshot.active && snapshot.complete && IsAimingSequencePending(snapshot.sequence);
 }
 
+/// <summary>
+/// 計測条件を満たす照準の処理時間とキャッシュ統計をJSONログに記録する。
+/// </summary>
 void LocalPerformanceLogger::TryWriteAimingSnapshot(
 	const AimingPerformanceSnapshot& snapshot,
 	int livingEnemyCount,

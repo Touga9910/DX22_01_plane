@@ -7,6 +7,9 @@
 #include <fstream>
 #include <iostream>
 
+/// <summary>
+/// 敵の脅威コスト、ステージの目標値、配置方式ごとの補正をJSONから読み込む。
+/// </summary>
 void GameEncounterBalance::Load(const std::string& filePath)
 {
 	std::ifstream file(filePath);
@@ -64,6 +67,9 @@ void GameEncounterBalance::Load(const std::string& filePath)
 	}
 }
 
+/// <summary>
+/// 敵の構成と配置方式をもとに遭遇戦の脅威度を算出し、ステージ目標値とともに返す。
+/// </summary>
 EncounterThreatSnapshot GameEncounterBalance::Evaluate(
 	const EncounterThreatInput& input) const
 {

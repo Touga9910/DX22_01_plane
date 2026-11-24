@@ -20,6 +20,9 @@ namespace
     constexpr ImU32 Paper = IM_COL32(235, 222, 187, 255);
     constexpr ImU32 Brown = IM_COL32(61, 39, 25, 255);
 
+    /// <summary>
+    /// ラウンジの背景、見出し、説明、所持金を表示する。
+    /// </summary>
     void Background(const Canvas& ui, const char* title, const char* subtitle, int money)
     {
         ui.Art("assets/UI/Lounge/services_background.png", 0, 0, 1672, 941, IM_COL32_WHITE, false);
@@ -28,6 +31,9 @@ namespace
         ui.Text("所持金", 1285, 104, 114, 38, 26, Gold);
         GoldUi::Draw(ImGui::GetWindowDrawList(), ui.At(1400, 102), money, 38*ui.scale, 30*ui.scale);
     }
+    /// <summary>
+    /// 影と枠を付けたラウンジのパネルを指定位置に描く。
+    /// </summary>
     void Plate(const Canvas& ui, float x, float y, float w, float h, bool gray=false)
     {
         auto* draw=ImGui::GetWindowDrawList();
@@ -35,6 +41,9 @@ namespace
         draw->AddRectFilled(ui.At(x,y),ui.At(x+w,y+h),gray?IM_COL32(155,153,143,255):Paper,12*ui.scale);
         draw->AddRect(ui.At(x,y),ui.At(x+w,y+h),gray?IM_COL32(102,101,94,255):IM_COL32(161,134,82,255),12*ui.scale,0,2*ui.scale);
     }
+    /// <summary>
+    /// ラウンジのボタンを状態に合わせて描き、有効なクリックを返す。
+    /// </summary>
     bool Button(const Canvas& ui,const char* id,const char* text,float x,float y,float w,float h,bool enabled=true,bool selected=false)
     {
         auto* draw=ImGui::GetWindowDrawList();
@@ -45,6 +54,9 @@ namespace
         ui.Text(text,x+8,y+6,w-16,h-12,26,enabled?Cream:IM_COL32(150,145,130,255));
         return enabled&&clicked;
     }
+    /// <summary>
+    /// ラウンジのモーダルに共通の配色とスタイルを設定する。
+    /// </summary>
     void ModalStyle()
     {
         ImGui::PushStyleColor(ImGuiCol_PopupBg,ImVec4(.08f,.14f,.115f,1));
@@ -56,12 +68,18 @@ namespace
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20,18));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,10);
     }
+    /// <summary>
+    /// モーダルをビューポート内に収め、表示時に中央に配置する。
+    /// </summary>
     void ModalSize(float width,float height)
     {
         const auto* vp=ImGui::GetMainViewport();
         ImGui::SetNextWindowSize(ImVec2((std::min)(width,vp->WorkSize.x-32),(std::min)(height,vp->WorkSize.y-32)),ImGuiCond_Appearing);
         ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x+vp->WorkSize.x*.5f,vp->WorkPos.y+vp->WorkSize.y*.5f),ImGuiCond_Appearing,ImVec2(.5f,.5f));
     }
+    /// <summary>
+    /// モーダルのボタンを状態に応じて描き、有効なクリックを返す。
+    /// </summary>
     bool ModalButton(const char* label,bool enabled=true)
     {
         ImGui::BeginDisabled(!enabled);
@@ -69,6 +87,9 @@ namespace
         ImGui::EndDisabled();
         return enabled&&clicked;
     }
+    /// <summary>
+    /// 指定されたボールの詳細をモーダルで表示する。
+    /// </summary>
     void DetailModal(const std::vector<const PlayerBallData*>& balls,int index)
     {
         ModalSize(780,470);
@@ -85,6 +106,9 @@ namespace
             ImGui::EndPopup();
         }
     }
+    /// <summary>
+    /// 現在の選択が利用できる場合は維持し、条件を満たす項目を先頭から探す。
+    /// </summary>
     template<class Predicate>
     int FirstEligible(const std::vector<const PlayerBallData*>& deck,int current,Predicate allowed)
     {
@@ -92,6 +116,9 @@ namespace
         for(int i=0;i<static_cast<int>(deck.size());++i) if(deck[i]&&allowed(*deck[i])) return i;
         return -1;
     }
+    /// <summary>
+    /// デッキから強化または削除するボールを選ぶモーダルを表示し、確定の有無を返す。
+    /// </summary>
     bool DeckModal(const std::vector<const PlayerBallData*>& deck, LoungeServiceUi::State& state,bool upgrade,bool allowed,int price=0)
     {
         bool confirmed=false;
@@ -125,6 +152,9 @@ namespace
         }
         return confirmed;
     }
+    /// <summary>
+    /// モーダルの開閉状態を保存し、適用したスタイルを戻す。
+    /// </summary>
     void FinishModals(LoungeServiceUi::State& state)
     {
         state.modalOpen=ImGui::IsPopupOpen(Purchase)||ImGui::IsPopupOpen(Details)||ImGui::IsPopupOpen(Deck)||ImGui::IsPopupOpen(Heal);
@@ -132,6 +162,9 @@ namespace
     }
 }
 
+/// <summary>
+/// ショップでボールやレリックの購入、ボールの削除を選ぶ画面を描き、操作内容を返す。
+/// </summary>
 LoungeServiceUi::Intent LoungeServiceUi::DrawShop(const ShopModel& m,State& state)
 {
     Canvas ui("lounge_shop",1672,941,IM_COL32(20,24,22,255));
@@ -224,6 +257,9 @@ LoungeServiceUi::Intent LoungeServiceUi::DrawShop(const ShopModel& m,State& stat
     return intent;
 }
 
+/// <summary>
+/// 休憩所で回復やボールの強化を選ぶ画面を描き、操作内容を返す。
+/// </summary>
 LoungeServiceUi::Intent LoungeServiceUi::DrawRest(const RestModel& m,State& state)
 {
     Canvas ui("lounge_rest",1672,941,IM_COL32(20,24,22,255));

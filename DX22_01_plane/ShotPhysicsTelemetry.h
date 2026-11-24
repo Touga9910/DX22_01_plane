@@ -78,6 +78,9 @@ public:
 		int physicsStepCount = 0;
 	};
 
+	/// <summary>
+	/// ショット観測を初期化して有効にし、観測開始時点の敵球を登録する。
+	/// </summary>
 	void BeginShot(const std::vector<EnemyDescriptor>& enemies)
 	{
 		Reset();
@@ -88,6 +91,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// ショット観測を無効にし、敵球の登録と衝突や物理時間の記録を初期化する。
+	/// </summary>
 	void Reset()
 	{
 		m_Active = false;
@@ -102,8 +108,14 @@ public:
 		m_PhysicsStepCount = 0;
 	}
 
+	/// <summary>
+	/// ショットのテレメトリーを記録中かを返す。
+	/// </summary>
 	bool IsActive() const { return m_Active; }
 
+	/// <summary>
+	/// 移動した敵球を識別し、その敵球について累計移動距離を記録する。
+	/// </summary>
 	void RecordEnemyMovement(
 		std::uintptr_t enemyKey,
 		const std::string& enemyId,
@@ -117,6 +129,9 @@ public:
 		m_Enemies[slot].distance += distance;
 	}
 
+	/// <summary>
+	/// 敵球同士の衝突を各球と衝突イベントの記録へ反映する。
+	/// </summary>
 	void RecordEnemyEnemyCollision(
 		std::uintptr_t firstEnemyKey,
 		const std::string& firstEnemyId,
@@ -152,6 +167,9 @@ public:
 		++m_PairCounts[{ pair.first, pair.second }];
 	}
 
+	/// <summary>
+	/// 物理ステップで測定した処理時間やステップ単位の観測値を集計する。
+	/// </summary>
 	void RecordPhysicsStep(long long processingMicroseconds)
 	{
 		if (!m_Active)
@@ -163,6 +181,9 @@ public:
 		++m_PhysicsStepCount;
 	}
 
+	/// <summary>
+	/// 球の種類、壁の位置、反射前後の情報を壁反射イベントとして記録する。
+	/// </summary>
 	void RecordWallReflection(
 		int wallIndex,
 		const std::string& wallGroup,
@@ -194,6 +215,9 @@ public:
 		});
 	}
 
+	/// <summary>
+	/// 記録した物理処理と衝突の情報を、ショット終了時のスナップショットにまとめる。
+	/// </summary>
 	Snapshot EndShot()
 	{
 		Snapshot snapshot;
@@ -232,6 +256,9 @@ public:
 	}
 
 private:
+	/// <summary>
+	/// 識別子が有効で未登録の敵球を観測一覧に追加する。
+	/// </summary>
 	void RegisterEnemy(const EnemyDescriptor& enemy)
 	{
 		if (enemy.key == 0 || m_EnemyLookup.contains(enemy.key))
@@ -245,6 +272,9 @@ private:
 			enemy.stableIndex + 1);
 	}
 
+	/// <summary>
+	/// 敵球の識別子に対応する観測枠を返し、未登録なら枠を用意する。
+	/// </summary>
 	std::size_t EnsureEnemy(
 		std::uintptr_t enemyKey,
 		const std::string& enemyId)

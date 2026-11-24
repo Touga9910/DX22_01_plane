@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <iostream>
 
+/// <summary>
+/// 進行度に対応するステージ難易度の範囲を返す。
+/// </summary>
 DifficultyRange GetDifficultyRange(int progress)
 {
     if (progress <= 2)
@@ -17,6 +20,9 @@ DifficultyRange GetDifficultyRange(int progress)
     return { 2, 3 };
 }
 
+/// <summary>
+/// 進行度に対応するフェーズ検証用ステージの識別子を返す。
+/// </summary>
 std::vector<std::string> GetPhaseTestStageIds(int progress)
 {
 	if (progress <= 2)
@@ -30,6 +36,9 @@ std::vector<std::string> GetPhaseTestStageIds(int progress)
 	return { "phase_prototype_009", "phase_prototype_010" };
 }
 
+/// <summary>
+/// キャンペーンの階層に対応する通常戦ステージの候補を返す。
+/// </summary>
 std::vector<std::string> GetCampaignPhaseStageIds(int floor)
 {
 	if (floor < 5)
@@ -51,11 +60,17 @@ std::vector<std::string> GetCampaignPhaseStageIds(int floor)
 	};
 }
 
+/// <summary>
+/// ステージ選択用の乱数エンジンを不定のシード値で初期化する。
+/// </summary>
 StageSelector::StageSelector()
     : m_RandomEngine(std::random_device{}())
 {
 }
 
+/// <summary>
+/// 種別や難易度、許可リストから候補を絞り、ステージを抽選する。
+/// </summary>
 const StageData* StageSelector::SelectStage(
     const std::vector<StageData>& stages,
     StageType stageType,
@@ -131,16 +146,25 @@ const StageData* StageSelector::SelectStage(
     return selected;
 }
 
+/// <summary>
+/// ステージ抽選の再開に必要な乱数エンジンの状態を取得する。
+/// </summary>
 StageSelectorSnapshot StageSelector::CaptureSnapshot() const
 {
     return { m_RandomEngine };
 }
 
+/// <summary>
+/// 保存された状態からステージ抽選の乱数エンジンを復元する。
+/// </summary>
 void StageSelector::RestoreSnapshot(const StageSelectorSnapshot& snapshot)
 {
     m_RandomEngine = snapshot.randomEngine;
 }
 
+/// <summary>
+/// 進行度に対応するフェーズ検証用の通常ステージを抽選する。
+/// </summary>
 const StageData* StageSelector::SelectPhaseTestStage(
 	const std::vector<StageData>& stages,
 	int progress,
@@ -181,6 +205,9 @@ const StageData* StageSelector::SelectPhaseTestStage(
 	return candidates[distribution(m_RandomEngine)];
 }
 
+/// <summary>
+/// 階層と許可リストに合う複数フェーズの通常戦ステージを抽選する。
+/// </summary>
 const StageData* StageSelector::SelectCampaignNormalStage(
 	const std::vector<StageData>& stages,
 	int floor,

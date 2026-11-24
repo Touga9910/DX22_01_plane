@@ -20,13 +20,17 @@ namespace AnchorStackRules
 
 	static constexpr int EnemyStacksPerPlayerStack = 5;
 
-	// Add a non-negative amount and clamp it to the configured maximum.
+	/// <summary>
+	/// 加算量と上限を非負として扱い、加算後のスタック数を0から上限までに収める。
+	/// </summary>
 	inline int AddClamped(int value, int amount, int maximum)
 	{
 		return std::clamp(value + (std::max)(0, amount), 0, (std::max)(0, maximum));
 	}
 
-	// Add player stacks and return the amount actually added.
+	/// <summary>
+	/// プレイヤーのスタックを上限まで加え、実際に増えた数を返す。
+	/// </summary>
 	inline int AddPlayerStacks(State& state, int amount, int maximum)
 	{
 		const int before = state.playerStacks;
@@ -34,7 +38,9 @@ namespace AnchorStackRules
 		return state.playerStacks - before;
 	}
 
-	// Add enemy stacks and return the amount actually added.
+	/// <summary>
+	/// 敵のスタックを上限まで加え、実際に増えた数を返す。
+	/// </summary>
 	inline int AddEnemyStacks(int& enemyStacks, int amount, int maximum)
 	{
 		const int before = enemyStacks;
@@ -58,6 +64,9 @@ namespace AnchorStackRules
 
 	// Resolve an anchor grant at collision time. Keeping this value-only makes
 	// the grant independent from a later player pocket/despawn event.
+	/// <summary>
+	/// 衝突で敵に付与するスタックを計算し、付与前後の数と付与量を返す。
+	/// </summary>
 	inline EnemyGrantResult GrantEnemyStacksOnCollision(
 		int& enemyStacks,
 		int baseAmount,
@@ -90,6 +99,9 @@ namespace AnchorStackRules
 
 	// Living-enemy filtering belongs to the collision caller. This rule only
 	// shares the larger current value and never sums the two values.
+	/// <summary>
+	/// 2体の敵のスタックを上限内に収め、高い方の数を両方に適用する。
+	/// </summary>
 	inline EnemyShareResult ShareEnemyStacks(
 		int& firstStacks,
 		int& secondStacks,
@@ -107,7 +119,9 @@ namespace AnchorStackRules
 		return result;
 	}
 
-	// Consume player stacks. A non-positive amount consumes all stacks.
+	/// <summary>
+	/// プレイヤーのスタックを指定量だけ消費する。指定量が0以下の場合は全量を消費する。
+	/// </summary>
 	inline int ConsumePlayerStacks(State& state, int amount)
 	{
 		const int available = (std::max)(0, state.playerStacks);
@@ -123,6 +137,9 @@ namespace AnchorStackRules
 		int playerStacksGenerated = 0;
 	};
 
+	/// <summary>
+	/// 敵のスタックを消費し、その数に応じたプレイヤーのスタック生成数と換算の進捗を求める。
+	/// </summary>
 	inline EnemyConsumeResult ConsumeEnemyStacks(
 		int& enemyStacks,
 		State& state,
@@ -143,6 +160,9 @@ namespace AnchorStackRules
 		return { consumed, actuallyAdded };
 	}
 
+	/// <summary>
+	/// 基本値にプレイヤーのスタックによる加算と一度限りの加算を足し、敵への付与量を求める。
+	/// </summary>
 	inline int CalculateEnemyGrant(
 		int baseAmount,
 		int playerStacks,
@@ -156,6 +176,9 @@ namespace AnchorStackRules
 			(std::max)(0, oneShotBonus);
 	}
 
+	/// <summary>
+	/// 消費した敵スタック数を上限で制限し、1スタック当たりの値を掛けてシールド量を求める。
+	/// </summary>
 	inline int CalculateShield(int consumedEnemyStacks, int shieldPerStack)
 	{
 		const int consumed = std::clamp(
@@ -163,6 +186,9 @@ namespace AnchorStackRules
 		return consumed * (std::max)(0, shieldPerStack);
 	}
 
+	/// <summary>
+	/// 消費前のプレイヤースタック数に応じて、敵スタック1つ当たりのフィニッシャーダメージを求める。
+	/// </summary>
 	inline int FinisherDamagePerEnemyStack(int playerStacksBeforeConsume)
 	{
 		return 2 + (std::min)(
@@ -170,11 +196,17 @@ namespace AnchorStackRules
 			(std::max)(0, playerStacksBeforeConsume) / 5);
 	}
 
+	/// <summary>
+	/// 撃破時に自動消費する敵スタック数として、現在の非負のスタック数の半分を返す。
+	/// </summary>
 	inline int DefeatAutoConsumeAmount(int enemyStacks)
 	{
 		return (std::max)(0, enemyStacks) / 2;
 	}
 
+	/// <summary>
+	/// 復帰先の座標を保存し、未使用の復帰位置として記録する。
+	/// </summary>
 	inline void SaveReturnPosition(
 		State& state,
 		const DirectX::SimpleMath::Vector3& position)
@@ -183,6 +215,9 @@ namespace AnchorStackRules
 		state.returnPositionPending = true;
 	}
 
+	/// <summary>
+	/// 保存済みの復帰位置を取り出し、次の呼び出しで再利用されないように消去する。
+	/// </summary>
 	inline bool ConsumeReturnPosition(
 		State& state,
 		DirectX::SimpleMath::Vector3& position)

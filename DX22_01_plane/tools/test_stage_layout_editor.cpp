@@ -4,6 +4,9 @@
 #include <fstream>
 #include <iostream>
 
+/// <summary>
+/// ステージ配置の検証、試遊編集、変更案の確定、取り消しと原子的な保存をテストする。
+/// </summary>
 int main()
 {
     using Json = nlohmann::json;

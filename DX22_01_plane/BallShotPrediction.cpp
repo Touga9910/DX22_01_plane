@@ -36,6 +36,9 @@ namespace
     constexpr int MaxTotalSubsteps = 60000;
     constexpr std::size_t MaxPathPoints = 1000;
 
+    /// <summary>
+    /// 各ボールの物理・戦闘状態をコピーし、ショット予測用の初期状態を組み立てる。
+    /// </summary>
     std::vector<Ball> Capture(const Input& input)
     {
         std::vector<Ball> result;
@@ -120,24 +123,60 @@ namespace
         std::uintptr_t playerId = 0;
         int playerPocketDamage = 1;
         bool gameOver = false;
+        /// <summary>
+        /// ショット予測で使うポケットの球形領域一覧を返す。
+        /// </summary>
         const auto& PocketSpheres() const { return pockets; }
+        /// <summary>
+        /// ショット予測で使う壁の線分一覧を返す。
+        /// </summary>
         const auto& Walls() const { return walls; }
+        /// <summary>
+        /// 指定番号のボールの予測物理状態を読み取り専用で返す。
+        /// </summary>
         const auto& PhysicsBody(std::size_t i) const { return At(i).physics; }
 
+        /// <summary>
+        /// 処理順の番号から、更新可能な予測ボールを取得する。
+        /// </summary>
         Ball& At(std::size_t i) { return result.balls[order[i]]; }
+        /// <summary>
+        /// 処理順の番号から、読み取り専用の予測ボールを取得する。
+        /// </summary>
         const Ball& At(std::size_t i) const { return result.balls[order[i]]; }
+        /// <summary>
+        /// 今回の予測で処理するボールの個数を返す。
+        /// </summary>
         std::size_t Count() const { return order.size(); }
+        /// <summary>
+        /// 指定番号のボールが予測内で活動中かを返す。
+        /// </summary>
         bool IsActive(std::size_t i) const { return At(i).active; }
+        /// <summary>
+        /// 指定番号のボールの予測上の衝突半径を返す。
+        /// </summary>
         float Radius(std::size_t i) const { return At(i).physics.status.radius; }
+        /// <summary>
+        /// 指定番号のボールの予測上の速度を返す。
+        /// </summary>
         Vector3 Velocity(std::size_t i) const { return At(i).physics.velocity; }
+        /// <summary>
+        /// ゲーム終了が予測されるまでシミュレーションを続ける。
+        /// </summary>
         bool ShouldContinue() const { return !gameOver; }
 
+        /// <summary>
+        /// 撃破済みの敵を除外し、プレイヤーにはショット補正を加えて攻撃力を返す。
+        /// </summary>
         int Attack(const Ball& ball) const
         {
             if (ball.physics.enemy && ball.defeated) return 0;
             return ball.attack + (ball.physics.player ? result.shot.collisionBonus : 0);
         }
 
+        /// <summary>
+        /// プレイヤーボールの予測位置を、間隔と進行方向を考慮して軌跡に追加する。
+        /// </summary>
         void AddPoint(const Ball& ball, bool force = false)
         {
             if (ball.physics.id != playerId || !ball.active) return;
@@ -152,6 +191,9 @@ namespace
             lastPathVelocity = v;
         }
 
+        /// <summary>
+        /// サブステップ開始位置を各ボール分保存し、軌跡へ反映する。
+        /// </summary>
         void BeginSubstep()
         {
             for (std::size_t i = 0; i < Count(); ++i)
@@ -160,6 +202,9 @@ namespace
                 AddPoint(At(i));
             }
         }
+		/// <summary>
+		/// 予測内でボールを進め、活動中の敵の移動を戦闘予測に反映する。
+		/// </summary>
 		void Move(std::size_t i, float interval)
 		{
 			Ball& ball = At(i);
@@ -175,6 +220,9 @@ namespace
 				AxisStackGeneration::HeavyDistance(result.shotCategory, result.shotStatus));
 		}
 
+        /// <summary>
+        /// プレイヤーボールの反射位置を記録し、初回接触の案内情報を設定する。
+        /// </summary>
         void RecordPreviewReflection(const Ball& ball, const Ball* other = nullptr)
         {
             if (ball.physics.id != playerId) return;
@@ -196,6 +244,9 @@ namespace
                 result.reflectionPathIndices.push_back(result.path.size() - 1);
         }
 
+        /// <summary>
+        /// ボールが進入したポケットを特定し、落下に伴う予測上の効果を処理する。
+        /// </summary>
         bool CheckPocket(Ball& ball, const Vector3& start)
         {
             for (const auto& pocket : pockets)
@@ -269,6 +320,9 @@ namespace
             return false;
         }
 
+        /// <summary>
+        /// ポケット侵入と壁への反射を処理し、予測の軌跡と効果を更新する。
+        /// </summary>
         void Environment(Ball& ball, const Vector3& start)
         {
             if (!ball.active || CheckPocket(ball, start)) return;
@@ -326,8 +380,14 @@ namespace
             }
             CheckPocket(ball, start);
         }
+        /// <summary>
+        /// 指定ボールの移動区間に対して壁とポケットの判定を実行する。
+        /// </summary>
         void ResolveEnvironment(std::size_t i) { Environment(At(i), starts[i]); }
 
+		/// <summary>
+		/// 敵から消費するアンカースタックを計算し、プレイヤーの蓄積値と変換進捗を更新する。
+		/// </summary>
 		AnchorStackRules::EnemyConsumeResult ConsumeEnemyAnchors(
 			Ball& target,
 			int amount)
@@ -345,6 +405,9 @@ namespace
 			return consumed;
 		}
 
+		/// <summary>
+		/// 敵の撃破時に必要なアンカースタックを消費し、敵の蓄積をリセットする。
+		/// </summary>
 		void HandleDefeatAnchors(Ball& target)
 		{
 			const int automaticConsume =
@@ -354,6 +417,9 @@ namespace
 			target.anchorStacks = 0;
 		}
 
+		/// <summary>
+		/// 敵に方向補正などを含むダメージを適用し、予測のHPと撃破情報を更新する。
+		/// </summary>
 		void Damage(Ball& target, int amount, const Vector3& source, bool directional = true)
 		{
 			if (!target.physics.enemy || target.defeated || amount <= 0) return;
@@ -381,6 +447,9 @@ namespace
             // EnemyBall::TakeDamage intentionally preserves velocity after lethal contact.
         }
 
+		/// <summary>
+		/// 相手の衝突猶予を確認し、敵の衝突段階を進めて次の接触を登録する。
+		/// </summary>
 		void AdvanceCollisionStage(Ball& target, std::uintptr_t otherId)
 		{
 			if (!target.physics.enemy || target.defeated ||
@@ -391,6 +460,9 @@ namespace
 				target.collisionGraceByBall[otherId] = target.collisionGraceTicks;
 		}
 
+		/// <summary>
+		/// 連鎖が成立した接触に対し、ヘビー系のフィニッシャーや追加効果を適用する。
+		/// </summary>
 		void ChainImpact(const Ball& playerBall, const Vector3& center,
 			std::uintptr_t excludedTargetId, int attackDamage, bool suppressed)
 		{
@@ -441,6 +513,9 @@ namespace
 			}
 		}
 
+        /// <summary>
+        /// 予測内で2球の衝突を解決し、反射・貫通・ダメージと能力の連鎖を更新する。
+        /// </summary>
         void ResolvePair(std::size_t i, std::size_t j)
         {
             Ball& a = At(i);
@@ -747,6 +822,9 @@ namespace
             if (b.active && (b.physics.position != bp || b.physics.velocity != bv)) Environment(b, bp);
         }
 
+        /// <summary>
+        /// 活動中のボールの処理順を作り直し、衝突の猶予時間を進める。
+        /// </summary>
         void BeginTick()
         {
             order.clear();
@@ -779,6 +857,9 @@ namespace
         }
     };
 
+    /// <summary>
+    /// ボス本体とミニオンの状態から、予測内でボス戦が完了したかを判定する。
+    /// </summary>
     std::pair<bool,int> BossCompletion(const std::vector<Ball>& balls)
     {
         bool encounter = false, livingCore = false;
@@ -794,6 +875,9 @@ namespace
         return {cleared,retiring};
     }
 
+    /// <summary>
+    /// 生存中のボスについて、アーマー回復の予告が発生するかを求める。
+    /// </summary>
     bool BossRecoveryAnnouncement(const std::vector<Ball>& balls)
     {
         for (const auto& ball : balls)
@@ -807,6 +891,9 @@ namespace
         return false;
     }
 
+    /// <summary>
+    /// 生存中のボスとミニオンの数を確認し、敵ターンで発生する補給を求める。
+    /// </summary>
     std::pair<bool,int> BossAdvanceSupply(const std::vector<Ball>& balls)
     {
         int living = 0;
@@ -826,6 +913,9 @@ namespace
         return {false,0};
     }
 
+    /// <summary>
+    /// 予測ボールの識別情報・位置・速度・戦闘状態を検証用JSONに変換する。
+    /// </summary>
     nlohmann::json BallJson(const Ball& ball)
     {
         auto vector = [](const Vector3& v) { return nlohmann::json::array({v.x, v.y, v.z}); };
@@ -838,6 +928,9 @@ namespace
             {"pocket_resolved_this_shot", ball.bossState.pocketResolvedThisShot}};
     }
 
+	/// <summary>
+	/// クッションのスタックと補正の状態を検証用JSONに変換する。
+	/// </summary>
 	nlohmann::json CushionJson(const CushionChargeRules::State& charges)
 	{
 		return {
@@ -853,6 +946,9 @@ namespace
 		};
 	}
 
+    /// <summary>
+    /// デバッグ環境でショット予測の検証出力が有効かを判定する。
+    /// </summary>
     bool VerificationEnabled()
     {
 #ifdef _DEBUG
@@ -868,6 +964,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 入力状態を複製してショットをシミュレーションし、軌跡と戦闘結果の予測を返す。
+/// </summary>
 Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player, const Vector3& velocity, bool skipFirstPlayerFriction, const PlayerBallData* offer)
 {
     const auto started = std::chrono::steady_clock::now();
@@ -1049,6 +1148,9 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
     return result;
 }
 
+/// <summary>
+/// 予測に影響するボールや戦闘の状態をまとめ、入力を識別するハッシュを計算する。
+/// </summary>
 std::uint64_t BallShotPrediction::WorldKey(const Input& input)
 {
     std::uint64_t hash = 14695981039346656037ull;
@@ -1133,6 +1235,9 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
     return hash;
 }
 
+/// <summary>
+/// 検証が有効なとき、同じショットを予測して入力識別子と予測結果を記録する。
+/// </summary>
 void BallShotPrediction::WriteVerificationPrediction(const Input& input, const PlayerBall& player, const Vector3& velocity, bool skip)
 {
     if (!VerificationEnabled()) return;
@@ -1172,6 +1277,9 @@ void BallShotPrediction::WriteVerificationPrediction(const Input& input, const P
     std::ofstream("runtime/shot_prediction_expected.json") << data.dump(2);
 }
 
+/// <summary>
+/// 検証が有効なとき、ショット後の実際のボール状態と結果を記録する。
+/// </summary>
 void BallShotPrediction::WriteVerificationActual(const Input& input)
 {
     if (!VerificationEnabled()) return;

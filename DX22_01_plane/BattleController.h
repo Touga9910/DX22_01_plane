@@ -75,6 +75,9 @@ struct BattleControllerHooks
 class BattleController final
 {
 public:
+    /// <summary>
+    /// 戦闘コントローラーをメンバーの既定値で初期化する。
+    /// </summary>
     BattleController() = default;
 
     void Initialize(
@@ -100,39 +103,69 @@ public:
     void NotifyEnemyDefeated();
     void NotifyEnemyPocketDefeated();
 
+    /// <summary>
+    /// 現在の戦闘進行状態を返す。
+    /// </summary>
     BattleState GetState() const
     {
         return m_State;
     }
 
+    /// <summary>
+    /// 保持している戦闘結果を返す。
+    /// </summary>
     BattleResult GetResult() const
     {
         return m_Result;
     }
 
+    /// <summary>
+    /// 戦闘が活動中かを返す。
+    /// </summary>
     bool IsActive() const
     {
         return m_Active;
     }
 
+    /// <summary>
+    /// 戦闘の進行状態が終了かを判定する。
+    /// </summary>
     bool IsFinished() const
     {
         return m_State == BattleState::Finished;
     }
 
+    /// <summary>
+    /// 戦闘の進行状態がボール移動中かを判定する。
+    /// </summary>
     bool IsBallsMoving() const
     {
         return m_State == BattleState::BallsMoving;
     }
 
+    /// <summary>
+    /// 全ボールが停止判定を満たし続けた固定ステップ数を返す。
+    /// </summary>
     int GetStoppedTickCount() const
     {
         return m_AllBallsStoppedTickCount;
     }
 
+    /// <summary>
+    /// 現在の戦闘ターン番号を返す。
+    /// </summary>
     int GetTurnNumber() const { return m_TurnNumber; }
+    /// <summary>
+    /// 戦闘開始からの固定物理ステップ数を返す。
+    /// </summary>
     std::uint64_t GetFixedStepCount() const { return m_FixedStepCount; }
+    /// <summary>
+    /// 現在のショットで進めた固定物理ステップ数を返す。
+    /// </summary>
     std::uint64_t GetShotFixedStepCount() const { return m_ShotFixedStepCount; }
+    /// <summary>
+    /// 戦闘状態の遷移履歴を読み取り専用の参照で返す。
+    /// </summary>
     const std::deque<BattleState>& GetStateHistory() const
     {
         return m_StateHistory;
@@ -145,35 +178,80 @@ public:
     bool AreAllEnemiesDefeated() const;
 
     void ResetShotState(const ShotRelicRules& rules);
+    /// <summary>
+    /// 現在のショットのレリック効果を読み取り専用で返す。
+    /// </summary>
     const ShotRelicRules& GetShotRelicRules() const { return m_ShotRelicRules; }
+    /// <summary>
+    /// 現在のショットのレリック効果を設定する。
+    /// </summary>
     void SetShotRelicRules(const ShotRelicRules& rules) { m_ShotRelicRules = rules; }
     bool ClaimBountyReward();
 
     void BeginStage(const StageData& stage);
+    /// <summary>
+    /// 現在のステージ種別を返す。
+    /// </summary>
     StageType GetStageType() const { return m_StageType; }
+    /// <summary>
+    /// 現在の戦闘方式を返す。
+    /// </summary>
     CombatMode GetCombatMode() const { return m_CombatMode; }
+    /// <summary>
+    /// 現在の戦闘方式がフェーズ制かを判定する。
+    /// </summary>
     bool IsPhasePrototype() const
     {
         return m_CombatMode == CombatMode::PhasePrototype;
     }
+    /// <summary>
+    /// フェーズ制で、ボス戦以外の敵攻撃タイミングを使うかを判定する。
+    /// </summary>
     bool UsesPhaseAttackTiming() const
     {
         return IsPhasePrototype() && m_StageType != StageType::Boss;
     }
+    /// <summary>
+    /// 進行中のフェーズ番号を返す。
+    /// </summary>
     int GetCurrentPhase() const { return m_CurrentPhase; }
+    /// <summary>
+    /// ステージに設定された総フェーズ数を返す。
+    /// </summary>
     int GetTotalPhases() const { return m_TotalPhases; }
+    /// <summary>
+    /// 次のフェーズまでの残りターン数を返す。
+    /// </summary>
     int GetTurnsUntilNextPhase() const { return m_TurnsUntilNextPhase; }
     int GetNextPhaseEnemyCount() const;
     int GetLivingEnemyCount() const;
     int GetDefeatedEnemyCount() const;
+    /// <summary>
+    /// ポケットで撃破した敵の累計を返す。
+    /// </summary>
     int GetPocketDefeatedEnemyCount() const
     {
         return m_PocketDefeatedEnemyCount;
     }
+    /// <summary>
+    /// ポケットの戦闘ルールを変更できる参照を返す。
+    /// </summary>
     BattlePocketRules& PocketRules() { return m_PocketRules; }
+    /// <summary>
+    /// ポケットの戦闘ルールを読み取り専用の参照で返す。
+    /// </summary>
     const BattlePocketRules& PocketRules() const { return m_PocketRules; }
+    /// <summary>
+    /// ポケット効果に使う乱数生成器を変更できる参照を返す。
+    /// </summary>
     std::mt19937& PocketRandomEngine() { return m_PocketRandomEngine; }
+    /// <summary>
+    /// ポケット効果に使う乱数生成器を読み取り専用の参照で返す。
+    /// </summary>
     const std::mt19937& PocketRandomEngine() const { return m_PocketRandomEngine; }
+    /// <summary>
+    /// 敵行動プランナーが使っている設定を返す。
+    /// </summary>
     const EnemyActionConfig& GetEnemyActionConfig() const
     {
         return m_EnemyActionPlanner.Config();

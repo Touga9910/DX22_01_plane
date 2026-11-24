@@ -29,6 +29,9 @@
 #include <stdexcept>
 #include <utility>
 
+/// <summary>
+/// 自動プレイの有効状態と停止要求など、動作の状態を取得する。
+/// </summary>
 GameBalanceAutomationSnapshot
 GameBalanceRuntime::CaptureAutomationSnapshot() const
 {
@@ -43,6 +46,9 @@ GameBalanceRuntime::CaptureAutomationSnapshot() const
 	return snapshot;
 }
 
+/// <summary>
+/// 現在の進行度に対する難度補正、適用中の設定、自動プレイの情報をまとめる。
+/// </summary>
 GameBalanceReadSnapshot GameBalanceRuntime::CaptureReadSnapshot(
 	int progress,
 	int clearedStageCountValue) const
@@ -109,37 +115,58 @@ GameBalanceReadSnapshot GameBalanceRuntime::CaptureReadSnapshot(
 	return snapshot;
 }
 
+/// <summary>
+/// バランス検証用の自動プレイが有効かを返す。
+/// </summary>
 bool GameBalanceRuntime::IsAutoPlayEnabled() const
 {
 	return autoPlayer.IsEnabled();
 }
 
+/// <summary>
+/// バランス検証用の自動プレイの有効状態を設定する。
+/// </summary>
 void GameBalanceRuntime::SetAutoPlayEnabled(bool enabled)
 {
 	autoPlayer.SetEnabled(enabled);
 }
 
+/// <summary>
+/// 現在のランが終わった時点で自動プレイを停止する要求を設定する。
+/// </summary>
 void GameBalanceRuntime::SetStopAfterCurrentRunRequested(bool requested)
 {
 	autoPlayer.SetStopAfterCurrentRunRequested(requested);
 }
 
+/// <summary>
+/// バランス検証が有効かを返す。
+/// </summary>
 bool GameBalanceRuntime::IsValidationEnabled() const
 {
 	return validation.IsEnabled();
 }
 
+/// <summary>
+/// バランス検証の有効状態を設定する。
+/// </summary>
 void GameBalanceRuntime::SetValidationEnabled(bool enabled)
 {
 	validation.SetEnabled(enabled);
 }
 
+/// <summary>
+/// 指定したIDの検証条件が登録されているかを返す。
+/// </summary>
 bool GameBalanceRuntime::HasValidationVariant(
 	const std::string& variantId) const
 {
 	return validation.HasVariant(variantId);
 }
 
+/// <summary>
+/// 検証条件または通常プレイの設定から、進行度に応じた通常ステージ候補を取得する。
+/// </summary>
 std::vector<std::string>
 GameBalanceRuntime::GetAllowedNormalStageIds(int progress) const
 {
@@ -151,6 +178,9 @@ GameBalanceRuntime::GetAllowedNormalStageIds(int progress) const
 	return normalPlay.GetAllowedNormalStageIds(progress);
 }
 
+/// <summary>
+/// 検証条件または通常プレイの設定から、進行度に応じた敵の行動予算上限を取得する。
+/// </summary>
 int GameBalanceRuntime::GetEnemyActionMaximumBudget(int progress) const
 {
 	if (validation.HasActiveBalanceOverride() &&
@@ -161,6 +191,9 @@ int GameBalanceRuntime::GetEnemyActionMaximumBudget(int progress) const
 	return normalPlay.GetEnemyActionMaximumBudget(progress);
 }
 
+/// <summary>
+/// 通常プレイ、通常設定を使う検証、固有条件を使う検証のうち、適用中の設定元を返す。
+/// </summary>
 std::string GameBalanceRuntime::GetEffectiveBalanceSource() const
 {
 	if (!validation.HasActiveBalanceOverride())
@@ -172,12 +205,17 @@ std::string GameBalanceRuntime::GetEffectiveBalanceSource() const
 		: "validation_variant";
 }
 
+/// <summary>
+/// 検証が耐久モードで行われているかを返す。
+/// </summary>
 bool Game::IsEnduranceMode() const
 {
 	return m_BalanceRuntime->validation.IsEnduranceMode();
 }
 
-// Player Status From Jsonを読み込む。
+/// <summary>
+/// プレイヤーと球の基本データ、球カタログ、初期デッキを設定ファイルから読み込む。
+/// </summary>
 void Game::LoadPlayerStatusFromJson(
 	const std::string& filePath,
 	const std::string& deckFilePath)
@@ -216,7 +254,9 @@ void Game::LoadPlayerStatusFromJson(
 
 	ResetPlayerRuntimeStatus();
 }
-// Player Runtime Statusを初期状態へ戻す。
+/// <summary>
+/// プレイヤーと戦闘中の一時状態を新規ラン開始時の値へ戻す。
+/// </summary>
 void Game::ResetPlayerRuntimeStatus()
 {
 	// プレイヤーとラン進行に属する一時状態を新規ラン開始前の値へ戻す。
@@ -242,7 +282,9 @@ void Game::ResetPlayerRuntimeStatus()
 	m_DebugController->ResetDiagnostics("ラン初期化");
 }
 
-// New Runを開始する。
+/// <summary>
+/// ラン設定と乱数シードを確定し、プレイヤー状態と戦闘進行を初期化して新しいランを開始する。
+/// </summary>
 void Game::StartNewRun(
 	const std::string& controllerType,
 	const std::string& controllerProfile,
@@ -459,7 +501,9 @@ void Game::StartNewRun(
 		runContext);
 }
 
-// Difficulty Profile Configを読み込む。
+/// <summary>
+/// 選択された難度プロファイルと進行度ごとの補正をJSONから読み込む。
+/// </summary>
 void Game::LoadDifficultyProfileConfig(
 	const std::string& filePath)
 {
@@ -507,14 +551,18 @@ void Game::LoadDifficultyProfileConfig(
 	}
 }
 
-// Encounter Balance Configを読み込む。
+/// <summary>
+/// 遭遇戦の脅威度を評価するための設定ファイルを読み込む。
+/// </summary>
 void Game::LoadEncounterBalanceConfig(
 	const std::string& filePath)
 {
 	m_EncounterBalance->Load(filePath);
 }
 
-// Pocket Rules Configを読み込む。
+/// <summary>
+/// ポケット時の処理に適用するルールをJSONから読み込む。
+/// </summary>
 void Game::LoadPocketRulesConfig(const std::string& filePath)
 {
 	std::ifstream file(filePath);
@@ -556,6 +604,9 @@ void Game::LoadPocketRulesConfig(const std::string& filePath)
 	}
 }
 
+/// <summary>
+/// イベント種別と詳細をバランス調査ログに記録する。
+/// </summary>
 void Game::RecordBalanceEvent(
 	const std::string& eventType,
 	const nlohmann::json& details)
@@ -565,6 +616,9 @@ void Game::RecordBalanceEvent(
 
 // Enemy Dataへ基準難易度と進行度の固定補正を適用する。
 
+/// <summary>
+/// 進行度、難度、アセンションなどに応じた強さの補正を敵データに適用する。
+/// </summary>
 void Game::ApplyEnemyDifficultyScaling(
 	EnemyData& enemyData) const
 {
@@ -579,6 +633,9 @@ void Game::ApplyEnemyDifficultyScaling(
 
 // Balance Auto Full Hp Enemy Survivedを通知する。
 
+/// <summary>
+/// 現在の球を使ったショットで無傷の敵が残ったことを自動プレイに知らせる。
+/// </summary>
 void Game::NotifyBalanceAutoFullHpEnemySurvived()
 {
 	const PlayerBallData* currentBall =

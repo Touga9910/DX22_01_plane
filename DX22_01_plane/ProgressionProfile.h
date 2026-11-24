@@ -21,6 +21,9 @@ struct AchievementDefinition
     const char* reward;
 };
 
+/// <summary>
+/// UTF-8の文字列を進行状況の表示に使うcharポインターへ変換する。
+/// </summary>
 inline const char* ProgressionUtf8(const char8_t* text) noexcept
 {
     return reinterpret_cast<const char*>(text);

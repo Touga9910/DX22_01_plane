@@ -21,6 +21,9 @@
 #include <algorithm>
 #include <typeinfo>
 
+/// <summary>
+/// プレイヤー、地面、盤面の枠、ポケットを生成し、シーンの管理対象へ登録する。
+/// </summary>
 BattleArenaObjects BattleSceneObjectFactory::CreateArena(
     std::vector<GameObject*>& sceneObjects) const
 {
@@ -57,6 +60,9 @@ BattleArenaObjects BattleSceneObjectFactory::CreateArena(
     return { player, tableFrame };
 }
 
+/// <summary>
+/// ステージ設定の敵と初期ボスミニオンを配置し、反映後のステージの開始を通知する。
+/// </summary>
 void BattleSceneObjectFactory::CreateStageObjects(
     const StageData& stage,
     std::vector<GameObject*>& sceneObjects) const
@@ -98,6 +104,9 @@ void BattleSceneObjectFactory::CreateStageObjects(
     m_Services.NotifyStageStarted(actualStage);
 }
 
+/// <summary>
+/// プレイヤーボールをシミュレーション状態に切り替える。
+/// </summary>
 void BattleSceneObjectFactory::BeginSimulation(PlayerBall& player) const
 {
     player.SetState(PlayerBall::State::Simulation);

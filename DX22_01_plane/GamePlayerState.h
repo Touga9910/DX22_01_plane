@@ -12,5 +12,8 @@ public:
     static int PocketDamageAmount();
     static int AbsorbShieldDamage(int damage);
 
+    /// <summary>
+    /// プレイヤー状態の操作用クラスをインスタンス化できないようにする。
+    /// </summary>
     GamePlayerState() = delete;
 };

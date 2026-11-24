@@ -39,5 +39,8 @@ public:
         bool skipFirstPlayerFriction);
     static void WriteVerificationActual();
 
+    /// <summary>
+    /// 静的なショット予測インターフェースのインスタンス化を禁止する。
+    /// </summary>
     GameShotPrediction() = delete;
 };

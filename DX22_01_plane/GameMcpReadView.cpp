@@ -9,6 +9,9 @@
 #include "RunController.h"
 #include "RunProgressController.h"
 
+/// <summary>
+/// ゲームからラン、バランス検証、物理、デバッグなどの公開用状態を取得してスナップショットを作る。
+/// </summary>
 GameMcpReadSnapshot GameMcpReadView::Capture(const Game& game)
 {
 	GameMcpReadSnapshot snapshot;

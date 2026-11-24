@@ -18,6 +18,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 新しいボールオブジェクトにタグ・ステータス・物理・描画などの共通コンポーネントを取り付ける。
+    /// </summary>
     GameObject* ConfigureBallObject(
         GameObject* object,
         GameObjectTag tag)
@@ -36,6 +39,9 @@ namespace
         return object;
     }
 
+    /// <summary>
+    /// 指定したゲームにボールオブジェクトを作成し、共通コンポーネントを設定する。
+    /// </summary>
     GameObject* CreateBallObject(
         Game& game,
         const char* name,
@@ -45,6 +51,9 @@ namespace
             GameRuntime::CreateObject(game, name), tag);
     }
 
+    /// <summary>
+    /// 現在のゲームにボールオブジェクトを作成し、共通コンポーネントを設定する。
+    /// </summary>
     GameObject* CreateBallObject(
         const char* name,
         GameObjectTag tag)
@@ -54,12 +63,18 @@ namespace
     }
 }
 
+/// <summary>
+/// 指定番号を持つブレイクボールを作成する。
+/// </summary>
 BreakBall* BallFactory::CreateBreakBall(Game& game, int index)
 {
     auto* object = CreateBallObject(game, "BreakBall", GameObjectTag::None);
     return object->AddComponent<BreakBall>(index);
 }
 
+/// <summary>
+/// プレイヤータグ付きのオブジェクトを作り、プレイヤーボールを取り付ける。
+/// </summary>
 PlayerBall* BallFactory::CreatePlayer(Game& game)
 {
     GameObject* object = CreateBallObject(
@@ -70,6 +85,9 @@ PlayerBall* BallFactory::CreatePlayer(Game& game)
     return object->AddComponent<PlayerBall>();
 }
 
+/// <summary>
+/// 敵タグ付きのボールを指定データで作成し、敵の攻撃コンポーネントを設定する。
+/// </summary>
 EnemyBall* BallFactory::CreateEnemy(Game& game, const EnemyData& data)
 {
     GameObject* object = CreateBallObject(
@@ -82,6 +100,9 @@ EnemyBall* BallFactory::CreateEnemy(Game& game, const EnemyData& data)
     return enemy;
 }
 
+/// <summary>
+/// 指定データと位置に基づいてお邪魔ボールを作成する。
+/// </summary>
 NuisanceBall* BallFactory::CreateNuisanceBall(
     const NuisanceBallData& data,
     const DirectX::SimpleMath::Vector3& position)
@@ -92,6 +113,9 @@ NuisanceBall* BallFactory::CreateNuisanceBall(
     return object->AddComponent<NuisanceBall>(data, position);
 }
 
+/// <summary>
+/// 指定ステータス、配置、発射方向と速度で貫通ミニオンを作成する。
+/// </summary>
 PierceMinion* BallFactory::CreatePierceMinion(
 	Game& game,
 	const BallStatus& status,

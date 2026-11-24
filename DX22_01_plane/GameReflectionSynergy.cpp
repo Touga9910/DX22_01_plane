@@ -11,6 +11,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 自球の壁反射をレリックと反射スタックに反映し、条件に応じて反射速度を補正する。
+/// </summary>
 void Game::NotifyPlayerWallCollision(
 	int cushionRegion,
 	const DirectX::SimpleMath::Vector3& playerPosition,
@@ -151,6 +154,9 @@ void Game::NotifyPlayerWallCollision(
 	}
 }
 
+/// <summary>
+/// 敵同士が衝突したときのシールドとアンカー伝播を処理し、反射連鎖のダメージ段階を返す。
+/// </summary>
 int Game::NotifyEnemyEnemySynergyCollision(
 	EnemyBall* first,
 	EnemyBall* second,
@@ -244,6 +250,9 @@ int Game::NotifyEnemyEnemySynergyCollision(
 	return damageStage;
 }
 
+/// <summary>
+/// 反射連鎖の対象となる敵が壁に当たったとき、反射後の速度と演出を更新する。
+/// </summary>
 void Game::NotifyEnemyWallCollision(
 	EnemyBall* enemy,
 	const DirectX::SimpleMath::Vector3& velocityBefore,
@@ -282,6 +291,9 @@ void Game::NotifyEnemyWallCollision(
 	});
 }
 
+/// <summary>
+/// レリックのバンクショットによるダメージ倍率を消費し、その倍率を返す。
+/// </summary>
 int Game::ConsumeBankShotDamageMultiplier()
 {
     auto rules = CaptureShotRelicRules();

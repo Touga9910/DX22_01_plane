@@ -8,6 +8,9 @@
 // Keep vector-based geometry separate from the lightweight dimensions header.
 namespace TableConfig
 {
+    /// <summary>
+    /// 盤面の寸法から四隅と長辺中央のポケットの中心座標を求める。
+    /// </summary>
     inline std::array<DirectX::SimpleMath::Vector3, 6>
         GetPocketCenters()
     {

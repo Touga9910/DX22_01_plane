@@ -12,6 +12,9 @@ enum class EnemyBoardAbilityType
 	ProtectionResonator,
 };
 
+/// <summary>
+/// 敵の盤面能力を、設定やログで使う識別文字列に変換する。
+/// </summary>
 inline const char* ToString(EnemyBoardAbilityType ability)
 {
 	switch (ability)
@@ -23,6 +26,9 @@ inline const char* ToString(EnemyBoardAbilityType ability)
 	}
 }
 
+/// <summary>
+/// 設定上の識別文字列から敵の盤面能力を求め、未知の値は能力なしとして扱う。
+/// </summary>
 inline EnemyBoardAbilityType EnemyBoardAbilityTypeFromString(
 	std::string_view value)
 {
@@ -37,6 +43,9 @@ inline EnemyBoardAbilityType EnemyBoardAbilityTypeFromString(
 
 namespace EnemyBoardAbilityRules
 {
+	/// <summary>
+	/// 周囲の生存味方数に応じて、群体強化の段階を返す。
+	/// </summary>
 	inline int SwarmStage(int nearbyLivingAllies)
 	{
 		if (nearbyLivingAllies >= 4) return 2;
@@ -44,6 +53,9 @@ namespace EnemyBoardAbilityRules
 		return 0;
 	}
 
+	/// <summary>
+	/// 群体強化の段階に対応する攻撃力を、設定された上限の範囲で返す。
+	/// </summary>
 	inline int SwarmAttack(
 		int nearbyLivingAllies,
 		const std::array<int, 3>& attackByStage,
@@ -56,11 +68,17 @@ namespace EnemyBoardAbilityRules
 			(std::max)(0, maximumAttack));
 	}
 
+	/// <summary>
+	/// 壁との衝突速度が脆化の発動しきい値に達しているか判定する。
+	/// </summary>
 	inline bool QualifiesForBrittle(float collisionSpeed, float threshold)
 	{
 		return collisionSpeed >= (std::max)(0.0f, threshold);
 	}
 
+	/// <summary>
+	/// 防御計算後のダメージから防護共鳴の軽減量を引き、0以上にする。
+	/// </summary>
 	inline int ApplyProtectionReduction(
 		int damageAfterDefense,
 		int reduction)

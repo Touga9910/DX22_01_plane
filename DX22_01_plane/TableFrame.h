@@ -19,12 +19,33 @@ public:
     std::vector<Collision::Segment> GetWalls() const;
     std::vector<Collision::Sphere> GetPocketSpheres() const;
 
+    /// <summary>
+    /// ビリヤード台の外形の幅を返す。
+    /// </summary>
     float GetOuterWidth() const { return TableConfig::TABLE_OUTER_WIDTH; }
+    /// <summary>
+    /// ビリヤード台の外形の奥行きを返す。
+    /// </summary>
     float GetOuterDepth() const { return TableConfig::TABLE_OUTER_DEPTH; }
+    /// <summary>
+    /// 台枠の内側にある盤面の幅を返す。
+    /// </summary>
     float GetFieldWidth() const { return TableConfig::GetFieldWidth(); }
+    /// <summary>
+    /// 台枠の内側にある盤面の奥行きを返す。
+    /// </summary>
     float GetFieldDepth() const { return TableConfig::GetFieldDepth(); }
+    /// <summary>
+    /// 球が転がる盤面の高さを返す。
+    /// </summary>
     float GetFieldHeight() const { return TableConfig::FIELD_HEIGHT; }
+    /// <summary>
+    /// 台枠の幅を返す。
+    /// </summary>
     float GetRailWidth() const { return TableConfig::RAIL_WIDTH; }
+    /// <summary>
+    /// ポケットの当たり判定に使う半径を返す。
+    /// </summary>
     float GetPocketRadius() const { return TableConfig::POCKET_RADIUS; }
 
 private:

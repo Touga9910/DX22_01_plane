@@ -21,6 +21,9 @@ namespace
     };
     std::unordered_map<std::string, ArtTexture> textures;
 
+    /// <summary>
+    /// 画像を必要に応じて変換してGPUへ転送し、読み込み結果をパスと表示形式でキャッシュする。
+    /// </summary>
     const ArtTexture& Texture(const char* path, bool grayscale = false)
     {
         const std::string key = std::string(path) + (grayscale ? "#grayscale" : "");
@@ -83,8 +86,14 @@ namespace
     }
 }
 
+/// <summary>
+/// イラストのキャッシュを消去してテクスチャを解放する。
+/// </summary>
 void ResetResources() { textures.clear(); }
 
+/// <summary>
+/// 指定領域に画像を描き、必要に応じて余白を除いたUV範囲や代替枠を使う。
+/// </summary>
 void Image(ImDrawList* draw, const char* path, ImVec2 lo, ImVec2 hi, ImU32 tint, bool trimPadding, bool grayscale)
 {
     const auto& art = Texture(path, grayscale);
@@ -105,6 +114,9 @@ void Image(ImDrawList* draw, const char* path, ImVec2 lo, ImVec2 hi, ImU32 tint,
         start, ImVec2(start.x + w * scale, start.y + h * scale), uvMin, uvMax, tint);
 }
 
+/// <summary>
+/// 指定されたUV範囲の画像を描き、読み込めない場合は代替領域を描く。
+/// </summary>
 void ImageRegion(ImDrawList* draw, const char* path, ImVec2 lo, ImVec2 hi,
     ImVec2 uvMin, ImVec2 uvMax, bool grayscale)
 {

@@ -12,6 +12,9 @@
 
 namespace
 {
+	/// <summary>
+	/// 符号なし16ビット整数をリトルエンディアンで書き込む。
+	/// </summary>
 	void WriteU16(std::ofstream& stream, std::uint16_t value)
 	{
 		const char bytes[2] = {
@@ -21,6 +24,9 @@ namespace
 		stream.write(bytes, 2);
 	}
 
+	/// <summary>
+	/// 符号なし32ビット整数をリトルエンディアンで書き込む。
+	/// </summary>
 	void WriteU32(std::ofstream& stream, std::uint32_t value)
 	{
 		const char bytes[4] = {
@@ -32,6 +38,9 @@ namespace
 		stream.write(bytes, 4);
 	}
 
+	/// <summary>
+	/// 音声処理のテスト用に、短い無音のWAVファイルを作成する。
+	/// </summary>
 	void WriteTestWav(const std::filesystem::path& path)
 	{
 		constexpr std::uint32_t SampleRate = 48000;
@@ -60,6 +69,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// テスト音源を使い、戦闘効果音のカテゴリ別設定と再生制約を検証する。
+/// </summary>
 int main()
 {
 	int voiceTotal = 0;

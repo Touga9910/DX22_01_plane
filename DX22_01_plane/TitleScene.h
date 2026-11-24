@@ -34,7 +34,13 @@ public:
 	TitleScene(); // コンストラクタ
 	~TitleScene(); // デストラクタ
 
+    /// <summary>
+    /// タイトル演出や確認画面の状態から、一時停止を許可できるかを返す。
+    /// </summary>
     bool AllowsPause() const { return !m_Sequence.Active() && m_QuitFade < 0 && !m_ShowQuit && !m_ShowProgression; }
+    /// <summary>
+    /// 開始演出のフェードが完了して開始処理が確定したかを返す。
+    /// </summary>
     bool IsStartFadeComplete() const { return m_Sequence.phase == TitleSequence::Phase::Committed; }
 	void Update(); // 更新
 	void DrawUI() override;

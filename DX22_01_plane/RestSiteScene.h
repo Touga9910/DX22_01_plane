@@ -17,7 +17,13 @@ public:
 
 	void Update() override;
 	void DrawUI() override;
+	/// <summary>
+	/// 現在の休憩所で行動を使用済みかを返す。
+	/// </summary>
 	bool HasUsedAction() const { return m_ActionUsed; }
+	/// <summary>
+	/// 現在の休憩所で行動を使用済みとして記録する。
+	/// </summary>
 	void MarkActionUsed() { m_ActionUsed = true; }
 
 private:

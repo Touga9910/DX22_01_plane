@@ -9,10 +9,16 @@ struct SceneTransitionTiming
     float blackHoldSeconds = .5f;
     float fadeInSeconds = .75f;
 
+    /// <summary>
+    /// フェード時間を有効な範囲に収め、有限値でなければ既定値を返す。
+    /// </summary>
     static float ClampSeconds(float value, float fallback)
     {
         return std::isfinite(value) ? std::clamp(value, 0.0f, MaximumSeconds) : fallback;
     }
+    /// <summary>
+    /// フェードアウト、暗転とフェードインの時間を設定可能な範囲に正規化する。
+    /// </summary>
     void Normalize()
     {
         const SceneTransitionTiming defaults;

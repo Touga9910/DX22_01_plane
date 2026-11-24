@@ -17,6 +17,9 @@ struct BattleArenaObjects
 class BattleSceneObjectFactory
 {
 public:
+    /// <summary>
+    /// 戦闘シーンのサービスを保持するオブジェクト生成処理を作る。
+    /// </summary>
     explicit BattleSceneObjectFactory(BattleSceneServices& services)
         : m_Services(services)
     {

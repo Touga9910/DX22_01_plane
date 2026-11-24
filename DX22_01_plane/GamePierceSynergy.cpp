@@ -13,6 +13,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 貫通球が敵を貫いたことを記録し、条件を満たせば貫通スタックと貫通痕を生成する。
+/// </summary>
 void Game::NotifyPlayerPiercedEnemy(
 	EnemyBall* enemy,
 	const DirectX::SimpleMath::Vector3& playerPosition,
@@ -88,12 +91,18 @@ void Game::NotifyPlayerPiercedEnemy(
 	}
 }
 
+/// <summary>
+/// 自球の方向変更通知を受け付け、現在は渡された座標を破棄する。
+/// </summary>
 void Game::NotifyPlayerDirectionChange(
 	const DirectX::SimpleMath::Vector3& playerPosition)
 {
 	(void)playerPosition;
 }
 
+/// <summary>
+/// ショット中に動いた敵や貫通ミニオンの水平移動距離を記録し、対応する移動イベントや衝突ルールに反映する。
+/// </summary>
 void Game::NotifyTraceMovement(
 	BallComponent& ball,
 	const DirectX::SimpleMath::Vector3& from,
@@ -145,6 +154,9 @@ void Game::NotifyTraceMovement(
 		AxisStackGeneration::HeavyDistance(currentBall->category, currentBall->status));
 }
 
+/// <summary>
+/// 使用中または選択中の球とレリックから、貫通回数の上限を求める。
+/// </summary>
 int Game::GetPierceMaximumUses() const
 {
 	const PlayerBallData* ball = m_RunController->Deck().GetCurrent();
@@ -158,6 +170,9 @@ int Game::GetPierceMaximumUses() const
 
 // Pierce Speed Retentionを取得する。
 
+/// <summary>
+/// 使用中または選択中の球とレリックから、貫通後に保持する速度の割合を求める。
+/// </summary>
 float Game::GetPierceSpeedRetention() const
 {
 	const PlayerBallData* ball = m_RunController->Deck().GetCurrent();

@@ -15,6 +15,9 @@ using DirectX::SimpleMath::Vector3;
 
 namespace
 {
+    /// <summary>
+    /// 指定ID、HP、半径を持つテスト用の敵データを作る。
+    /// </summary>
     EnemyData MakeEnemy(const char* id, int hp, float radius)
     {
         EnemyData enemy;
@@ -25,6 +28,9 @@ namespace
         return enemy;
     }
 
+    /// <summary>
+    /// 敵が盤面内に収まり、自球や他の敵と重ならないことを検査する。
+    /// </summary>
     void AssertSafe(
         const std::vector<EnemySpawnData>& enemies,
         const Vector3& player,
@@ -58,6 +64,9 @@ namespace
         }
     }
 
+    /// <summary>
+    /// 生成された敵の一覧で指定IDが出現する回数を数える。
+    /// </summary>
     int CountId(
         const std::vector<EnemySpawnData>& enemies,
         const std::string& id)
@@ -69,6 +78,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 敵のHP倍率と個体数の設定、安全で再現可能な配置を検証する。
+/// </summary>
 int main()
 {
     assert(EnemyHpScaling::ApplyMultiplier(3, 1.0f) == 3);

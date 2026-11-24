@@ -15,11 +15,26 @@ public:
     using Color = std::array<float,3>;
     using Project = bool (*)(const Position&, ImVec2&);
 
+    /// <summary>
+    /// オーラを無効にしてアニメーションの位相を初期化する。
+    /// </summary>
     void Reset() { m_Active=false; m_Phase=0; }
+    /// <summary>
+    /// オーラが有効かを返す。
+    /// </summary>
     bool IsActive() const { return m_Active; }
+    /// <summary>
+    /// オーラが追従している現在の位置を返す。
+    /// </summary>
     Position FollowPosition() const { return m_Follow; }
+    /// <summary>
+    /// オーラのアニメーション位相を返す。
+    /// </summary>
     float Phase() const { return m_Phase; }
 
+    /// <summary>
+    /// 対象球の識別子、位置、半径、色と経過時間を使ってオーラを更新する。
+    /// </summary>
     void Update(Position target, float radius, Color color,
         std::uintptr_t identity, float deltaSeconds)
     {

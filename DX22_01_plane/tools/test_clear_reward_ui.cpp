@@ -17,6 +17,9 @@ namespace
     ImVec2 detailTermCenter;
     ClearRewardPresentationModel model;
     int pending=-1;
+    /// <summary>
+    /// 指定したマウス入力で報酬画面を一フレーム進め、描画時に返された操作をモデルに反映する。
+    /// </summary>
     ClearRewardPresentationIntent Frame(float x=-100, float y=-100, bool down=false, int button=0)
     {
         auto& io=ImGui::GetIO();
@@ -30,12 +33,18 @@ namespace
         model.selectedRewardBallIndex=intent.selectedRewardBallIndex;
         return intent;
     }
+    /// <summary>
+    /// マウスを押して離す一連の入力を報酬画面に送る。
+    /// </summary>
     ClearRewardPresentationIntent Click(float x, float y, int button=0)
     {
         Frame(x,y,false,button);
         Frame(x,y,true,button);
         return Frame(x,y,false,button);
     }
+    /// <summary>
+    /// 指定した確認画面の表示位置を確定し、左右いずれかのボタンをクリックする。
+    /// </summary>
     ClearRewardPresentationIntent PopupButton(const char* name, bool right)
     {
         Frame(); Frame(); // settle auto-size and position
@@ -45,6 +54,9 @@ namespace
         const float y=window->DC.CursorPosPrevLine.y+21;
         return Click(x,y);
     }
+    /// <summary>
+    /// 開いている球の詳細画面を閉じるボタンをクリックする。
+    /// </summary>
     ClearRewardPresentationIntent CloseDetails()
     {
         Frame(); Frame();
@@ -56,11 +68,17 @@ namespace
 
 namespace IllustratedUi
 {
+    /// <summary>
+    /// 画像の代わりに色付きの矩形を描画し、必要なら配置範囲を検査する。
+    /// </summary>
     void Image(ImDrawList* draw,const char*,ImVec2 lo,ImVec2 hi,ImU32 tint,bool,bool)
     {
         if(checkFieldBounds) assert(lo.x>=200 && lo.y>=150 && hi.x<=1100.01f && hi.y<=825.01f);
         draw->AddRectFilled(lo,hi,tint);
     }
+    /// <summary>
+    /// 部分画像の描画範囲を検査し、グレー表示の回数を数えて代替の矩形を描画する。
+    /// </summary>
     void ImageRegion(ImDrawList* draw,const char*,ImVec2 lo,ImVec2 hi,ImVec2,ImVec2,bool gray)
     {
         if(checkFieldBounds) assert(lo.x>=200 && lo.y>=150 && hi.x<=1100.01f && hi.y<=825.01f);
@@ -69,7 +87,13 @@ namespace IllustratedUi
 }
 namespace BallCardPresentation
 {
+    /// <summary>
+    /// グレー表示として要求された球アイコンを数える。
+    /// </summary>
     void DrawBallIcon(const PlayerBallData&,const ImVec2&,const ImVec2&,bool gray) { grayIcons+=gray; }
+    /// <summary>
+    /// 球の詳細画面のテスト表示を描画し、説明項目を操作できる位置を記録する。
+    /// </summary>
     void DrawBallDetailPopup(const PlayerBallData&,int)
     {
         ++details;
@@ -84,6 +108,9 @@ namespace BallCardPresentation
     }
 }
 
+/// <summary>
+/// 報酬の終了状態、選択順、球の詳細、購入とスキップの画面操作を検証する。
+/// </summary>
 int main()
 {
     GameRewardState state;

@@ -9,6 +9,9 @@
 
 using json = nlohmann::json;
 
+/// <summary>
+/// 保存待ちのランログを所定のディレクトリへ書き出す。
+/// </summary>
 void BalanceLogger::Save()
 {
 	if (!m_RunActive || m_LogPath.empty() || !m_SavePending)
@@ -71,12 +74,18 @@ void BalanceLogger::Save()
 	m_SavePending = false;
 }
 
+/// <summary>
+/// 現在時刻をUnixエポックからのミリ秒数で返す。
+/// </summary>
 long long BalanceLogger::GetEpochMilliseconds()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+/// <summary>
+/// 現在時刻をUTCのタイムスタンプ文字列に変換する。
+/// </summary>
 std::string BalanceLogger::MakeUtcTimestamp()
 {
 	const auto now = std::chrono::system_clock::now();
@@ -97,6 +106,9 @@ std::string BalanceLogger::MakeUtcTimestamp()
 	return stream.str();
 }
 
+/// <summary>
+/// 現在時刻を使ってログ用のラン識別子を生成する。
+/// </summary>
 std::string BalanceLogger::MakeRunId()
 {
 	const auto now = std::chrono::system_clock::now();

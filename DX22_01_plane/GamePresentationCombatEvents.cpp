@@ -14,6 +14,9 @@
 
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// 戦闘開始時に前の戦闘演出を初期化し、必要に応じてチュートリアルを開始する。
+/// </summary>
 void GamePresentation::OnBattleStarted(Game&)
 {
 	m_PlayerAura.Reset();
@@ -45,6 +48,9 @@ void GamePresentation::OnBattleStarted(Game&)
 	}
 }
 
+/// <summary>
+/// 発射した球種を記録し、前回のショット演出を消してチュートリアルを更新する。
+/// </summary>
 void GamePresentation::OnShotFired(int ballCategory)
 {
 	ClearHitReactions();
@@ -75,6 +81,9 @@ void GamePresentation::OnShotFired(int ballCategory)
 	}
 }
 
+/// <summary>
+/// 戦闘のダメージと撃破を画面表示、被弾演出、振動に反映する。
+/// </summary>
 void GamePresentation::OnCombatFeedback(
 	const Vector3& worldPosition,
 	int damage,
@@ -213,6 +222,9 @@ void GamePresentation::OnCombatFeedback(
 	}
 }
 
+/// <summary>
+/// 衝突時の相対速度や連鎖段階をもとに、衝突エフェクトと画面揺れを設定する。
+/// </summary>
 void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 {
 	const CollisionPresentationRules::Strength strength =
@@ -341,6 +353,9 @@ void GamePresentation::OnCollisionImpact(const CollisionImpactEvent& event)
 	}
 }
 
+/// <summary>
+/// 連鎖が届いた範囲と命中数を、一定時間表示する演出に追加する。
+/// </summary>
 void GamePresentation::OnChainImpact(
 	const Vector3& worldPosition,
 	float radius,
@@ -359,6 +374,9 @@ void GamePresentation::OnChainImpact(
 	m_ChainRanges.push_back(feedback);
 }
 
+/// <summary>
+/// ポケットに落ちた対象とダメージや撃破の結果に応じて、画面表示と振動を設定する。
+/// </summary>
 void GamePresentation::OnPocketFeedback(
 	const Vector3& worldPosition,
 	bool playerPocket,
@@ -406,6 +424,9 @@ void GamePresentation::OnPocketFeedback(
 	}
 }
 
+/// <summary>
+/// 敵の攻撃の出発点と目標地点を記録し、飛翔演出を開始する。
+/// </summary>
 void GamePresentation::OnEnemyAttackLaunched(const Vector3& start, const Vector3& target)
 {
     m_AttackStart = start;
@@ -413,6 +434,9 @@ void GamePresentation::OnEnemyAttackLaunched(const Vector3& start, const Vector3
     m_AttackFlightAge = 0.0f;
 }
 
+/// <summary>
+/// 敵の攻撃の飛翔表示を終え、シールドで受け止めた結果を自球のHUDに反映する。
+/// </summary>
 void GamePresentation::OnEnemyAttackImpact(int hpDamage, int shieldAbsorbed)
 {
     m_AttackFlightAge = -1.0f;
@@ -434,6 +458,9 @@ void GamePresentation::OnEnemyAttackImpact(int hpDamage, int shieldAbsorbed)
     m_Feedback.push_back(std::move(feedback));
 }
 
+/// <summary>
+/// 自球が受けたダメージに応じて、画面の明滅、表示、振動を設定する。
+/// </summary>
 void GamePresentation::OnPlayerDamage(
 	int damage,
 	const std::string& source)
@@ -468,6 +495,9 @@ void GamePresentation::OnPlayerDamage(
 	}
 }
 
+/// <summary>
+/// 敵の溜め行動を中断した理由に応じて、戦闘中の表示を追加する。
+/// </summary>
 void GamePresentation::OnChargeInterrupted(
 	const Vector3& worldPosition,
 	ChargeInterruptReason reason)
@@ -498,6 +528,9 @@ void GamePresentation::OnChargeInterrupted(
 	m_Feedback.push_back(std::move(feedback));
 }
 
+/// <summary>
+/// 敵の能力状態が変わったとき、対応する説明やリングの表示を追加する。
+/// </summary>
 void GamePresentation::OnEnemyAbilityStateChanged(
 	const EnemyAbilityStateChangedEvent& event)
 {

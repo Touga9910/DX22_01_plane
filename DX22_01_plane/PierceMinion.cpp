@@ -11,6 +11,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// ミニオンの能力値、出現位置、発射方向、初速を保存する。
+/// </summary>
 PierceMinion::PierceMinion(
 	const BallStatus& status,
 	const Vector3& position,
@@ -23,6 +26,9 @@ PierceMinion::PierceMinion(
 {
 }
 
+/// <summary>
+/// ミニオンの物理と描画を準備し、発射条件と計測の情報を登録する。
+/// </summary>
 void PierceMinion::Awake()
 {
 	m_Ball = GetGameObject()->GetComponent<BallComponent>();
@@ -65,6 +71,9 @@ void PierceMinion::Awake()
 	m_Ball->SetScale(Vector3(scale));
 }
 
+/// <summary>
+/// 固定更新で摩擦を適用し、場外に出たか停止したミニオンを破棄する。
+/// </summary>
 void PierceMinion::FixedUpdate()
 {
 	if (m_Ball == nullptr) return;
@@ -77,6 +86,9 @@ void PierceMinion::FixedUpdate()
 		Destroy("stopped");
 }
 
+/// <summary>
+/// ミニオンの位置と転がりを反映した変換でモデルを描画する。
+/// </summary>
 void PierceMinion::Draw()
 {
 	if (m_Ball == nullptr) return;
@@ -90,6 +102,9 @@ void PierceMinion::Draw()
 	render->DrawMesh(world);
 }
 
+/// <summary>
+/// 外部から破棄されたミニオンの計測を終了し、ポケットイベントの処理を解除する。
+/// </summary>
 void PierceMinion::OnDestroy()
 {
 	if (m_TelemetryRegistered && !m_DestructionReported)
@@ -102,6 +117,9 @@ void PierceMinion::OnDestroy()
 	if (m_Ball != nullptr) m_Ball->SetPocketHandler({});
 }
 
+/// <summary>
+/// ミニオンの破棄理由を記録し、物理を停止してオブジェクトを破棄する。
+/// </summary>
 void PierceMinion::Destroy(const char* reason)
 {
 	if (m_TelemetryRegistered && !m_DestructionReported)

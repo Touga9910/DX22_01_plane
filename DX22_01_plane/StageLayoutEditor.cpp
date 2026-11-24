@@ -12,6 +12,9 @@
 
 namespace
 {
+    /// <summary>
+    /// サイズ上限を確認し、ステージファイルの内容を読み込む。
+    /// </summary>
     std::string ReadSource(const std::filesystem::path& path)
     {
         if (std::filesystem::file_size(path) > 4 * 1024 * 1024) throw std::runtime_error("ステージファイルが大きすぎます。");
@@ -19,6 +22,9 @@ namespace
         if (!file) throw std::runtime_error("ステージファイルを開けません。");
         std::ostringstream bytes; bytes << file.rdbuf(); return bytes.str();
     }
+    /// <summary>
+    /// 指定されたJSONの項目を検証し、許容範囲内の整数を返す。
+    /// </summary>
     int Integer(const StageLayoutEditor::Json& j, const char* key, int maximum = 99)
     {
         const auto& v = j.at(key);
@@ -29,6 +35,9 @@ namespace
 
     using Json = StageLayoutEditor::Json;
 
+    /// <summary>
+    /// 敵の配置一覧を保存ファイル用またはエディター用のJSONに変換する。
+    /// </summary>
     Json EncodeEnemies(const std::vector<EnemySpawnData>& enemies, bool forFile)
     {
         Json result = Json::array();
@@ -53,6 +62,9 @@ namespace
         return result;
     }
 
+    /// <summary>
+    /// エディター用のJSONを検証し、敵マスターと照合して配置一覧を組み立てる。
+    /// </summary>
     std::vector<EnemySpawnData> DecodeEnemies(const Json& enemies, const std::vector<EnemyData>& catalog)
     {
         if (!enemies.is_array() || enemies.empty() || enemies.size() > 32) throw std::runtime_error("敵は1～32体にしてください。");
@@ -126,6 +138,9 @@ namespace
         return spawns;
     }
 
+    /// <summary>
+    /// 配置されているボスの装甲球の数を返す。
+    /// </summary>
     int CountBossCores(const std::vector<EnemySpawnData>& enemies)
     {
         return static_cast<int>(std::count_if(enemies.begin(), enemies.end(), [](const auto& enemy) {
@@ -134,6 +149,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 編集データから初期配置と各増援フェーズの敵数を含む表示名を組み立てる。
+/// </summary>
 std::string StageLayoutEditor::DisplayName(const Json& value)
 {
     const std::string name = value.value("name", std::string{});
@@ -147,6 +165,9 @@ std::string StageLayoutEditor::DisplayName(const Json& value)
         value.at("enemies").size(), reinforcementCounts);
 }
 
+/// <summary>
+/// ステージの配置やフェーズ設定をエディター用のJSONに変換する。
+/// </summary>
 StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
 {
     Json result = {{"id", stage.id}, {"stage_type", ToString(stage.stageType)}, {"difficulty", stage.difficulty},
@@ -168,6 +189,9 @@ StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
     return result;
 }
 
+/// <summary>
+/// エディター用のJSONを検証し、敵の配置やフェーズ設定をステージデータに戻す。
+/// </summary>
 StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyData>& catalog)
 {
     StageData stage;
@@ -247,6 +271,9 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
     return stage;
 }
 
+/// <summary>
+/// 編集中の配置を検証し、フェーズごとの測定値と問題を返す。
+/// </summary>
 StageLayoutEditor::Json StageLayoutEditor::Inspect(const Json& value, const std::vector<EnemyData>& catalog, float playerRadius)
 {
     Json report = {{"valid", false}, {"errors", Json::array()}, {"metrics", Json::object()}};
@@ -305,18 +332,27 @@ StageLayoutEditor::Json StageLayoutEditor::Inspect(const Json& value, const std:
     return report;
 }
 
+/// <summary>
+/// 編集中の配置を差し替え、取り消し履歴とリビジョンを更新する。
+/// </summary>
 void StageLayoutEditor::Replace(const Json& value)
 {
     if (draft == value) return;
     if (!draft.is_null()) { undo.push_back(draft); if (undo.size() > 64) undo.erase(undo.begin()); }
     redo.clear(); draft = value; ++revision; selected = -1;
 }
+/// <summary>
+/// 履歴から一つ前または一つ先の配置へ移動する。
+/// </summary>
 void StageLayoutEditor::Undo(bool forward)
 {
     auto& from = forward ? redo : undo; auto& to = forward ? undo : redo;
     if (from.empty()) return;
     to.push_back(draft); draft = from.back(); from.pop_back(); ++revision; selected = -1;
 }
+/// <summary>
+/// 既存ステージを編集用に読み込み、元ファイルと履歴の状態を初期化する。
+/// </summary>
 void StageLayoutEditor::Load(const std::filesystem::path& path, const StageData& stage)
 {
     auto bytes = ReadSource(path); Replace(Encode(stage)); sourceBytes = std::move(bytes);
@@ -325,12 +361,18 @@ void StageLayoutEditor::Load(const std::filesystem::path& path, const StageData&
     dragging = false;
     activePhase = 0;
 }
+/// <summary>
+/// 編集中の配置を試遊用のステージデータに変換する。
+/// </summary>
 StageData StageLayoutEditor::BuildPlaytestStage(const std::vector<EnemyData>& catalog) const
 {
     StageData stage = Decode(draft, catalog);
     stage.prototypeOnly = stage.id == m_SourcePrototypeStageId;
     return stage;
 }
+/// <summary>
+/// 配置とファイルの更新状態を検証し、バックアップを残してステージを保存する。
+/// </summary>
 void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vector<EnemyData>& catalog, float playerRadius)
 {
     auto report = Inspect(draft, catalog, playerRadius);
@@ -386,6 +428,9 @@ void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vecto
         throw std::runtime_error("ステージファイルを更新できませんでした。");
     sourceBytes = output;
 }
+/// <summary>
+/// 現在のリビジョンと配置案を検証し、採用待ちの案として保存する。
+/// </summary>
 void StageLayoutEditor::Propose(const Json& value, std::uint64_t expected, const std::vector<EnemyData>& catalog, float playerRadius)
 {
     if (dragging || expected != revision) throw std::runtime_error("配置が変更されています。最新のrevisionを取得してください。");
@@ -402,11 +447,17 @@ void StageLayoutEditor::Propose(const Json& value, std::uint64_t expected, const
     if (!Inspect(candidate, catalog, playerRadius)["valid"].get<bool>()) throw std::runtime_error("配置案にエラーがあります。検証結果を確認してください。");
     proposal = Encode(Decode(candidate, catalog)); proposalRevision = revision;
 }
+/// <summary>
+/// 現在のリビジョンに対応した配置案を編集中の配置に反映する。
+/// </summary>
 bool StageLayoutEditor::Accept()
 {
     if (proposal.is_null() || proposalRevision != revision || dragging) return false;
     Replace(proposal); proposal = nullptr; return true;
 }
+/// <summary>
+/// 編集中の配置、検証結果、敵の定義と盤面範囲をスナップショットにまとめる。
+/// </summary>
 StageLayoutEditor::Json StageLayoutEditor::Snapshot(const std::vector<EnemyData>& catalog, float playerRadius) const
 {
     Json definitions = Json::array();

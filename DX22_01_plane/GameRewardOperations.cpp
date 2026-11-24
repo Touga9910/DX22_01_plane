@@ -18,6 +18,9 @@ namespace
     constexpr int kClearRewardSecondUpgradeCost = 30;
 }
 
+/// <summary>
+/// クリア報酬で球を強化する費用を、強化段階に応じて返す。
+/// </summary>
 int Game::GetClearRewardUpgradeCost(int ballIndex) const
 {
 	const PlayerBallData* ball =
@@ -40,6 +43,9 @@ int Game::GetClearRewardUpgradeCost(int ballIndex) const
 
 // Clear Reward Upgradeを適用する。
 
+/// <summary>
+/// クリア報酬で指定の球を強化し、支払った費用を呼び出し元に返す。
+/// </summary>
 bool Game::ApplyClearRewardUpgrade(
 	int ballIndex,
 	int& chargedCost)
@@ -71,6 +77,9 @@ bool Game::ApplyClearRewardUpgrade(
 
 // Rest Upgrade Ball の処理を実行する。
 
+/// <summary>
+/// 基本報酬と撃破済みの敵の報酬から、クリア時の獲得金を計算する。
+/// </summary>
 int Game::CalculateStageRewardMoney() const
 {
 	constexpr int BASE_CLEAR_MONEY = 5;
@@ -101,6 +110,9 @@ int Game::CalculateStageRewardMoney() const
 
 // Collect Stage Reward Money の処理を実行する。
 
+/// <summary>
+/// ステージ報酬の獲得金を一度だけ加算し、取得前後の所持金を記録する。
+/// </summary>
 void Game::CollectStageRewardMoney()
 {
 	// StartClearRewardが複数回呼ばれても二重取得しない

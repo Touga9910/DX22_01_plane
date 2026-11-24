@@ -12,6 +12,9 @@ class TagComponent final : public Component
 public:
     // 指定したタグを初期値としてTagComponentを生成
     // 引数を省略した場合はNoneとして生成
+    /// <summary>
+    /// オブジェクトの初期タグを保存する。
+    /// </summary>
     explicit TagComponent(GameObjectTag tag = GameObjectTag::None)
         : m_Tag(tag)
     {
@@ -21,7 +24,13 @@ public:
     // タグ取得・変更
     // -------------------------
 
+    /// <summary>
+    /// オブジェクトに設定されたタグを返す。
+    /// </summary>
     GameObjectTag GetTag() const { return m_Tag; }        // 現在設定されているタグを返す
+    /// <summary>
+    /// オブジェクトのタグを変更する。
+    /// </summary>
     void SetTag(GameObjectTag tag) { m_Tag = tag; }       // このGameObjectのタグを指定した値へ変更する
 
 private:

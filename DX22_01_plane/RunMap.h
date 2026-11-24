@@ -10,6 +10,9 @@
 enum class StageRouteType { NormalBattle, MidBoss, Shop, RestSite, FinalBoss, BossPreparation };
 
 // ルート種別をセーブデータやMCP出力で使用する文字列IDへ変換
+/// <summary>
+/// ルート種別をセーブやMCP出力に使う文字列IDに変換する。
+/// </summary>
 inline const char* RunMapRouteId(StageRouteType type)
 {
     switch (type)
@@ -49,6 +52,9 @@ class RunMap
     int m_Active = -1;
 
     // 指定した2ノード間を接続重複を除外し、接続先IDを昇順に保つ。
+    /// <summary>
+    /// ノードから接続先へ向かう経路を、重複を除いて昇順で登録する。
+    /// </summary>
     void Connect(int from, int to)
     {
         auto& next = m_Nodes.at(from).next;
@@ -56,6 +62,9 @@ class RunMap
         std::sort(next.begin(), next.end());
     }
 
+    /// <summary>
+    /// 各エリアに複数の候補を並べ、隣接する行を結んだ分岐ルートを生成する。
+    /// </summary>
     void GenerateBranching(std::mt19937& rng)
     {
         std::vector<int> previous;
@@ -122,10 +131,19 @@ class RunMap
     }
 
 public:
+    /// <summary>
+    /// ルート生成方式のバージョンに合わせて、中央レーンの番号を返す。
+    /// </summary>
     int CenterLane() const { return m_Version == 1 ? 1 : 2; }
+    /// <summary>
+    /// 現在のルート生成に使ったシードを返す。
+    /// </summary>
     std::uint32_t Seed() const { return m_Seed; }
     // 指定Seedから3レーン構成のランマップを生成し、進行状態を初期化
     // 通常エリアの後ろには、ボス準備ノードと最終ボスノードが必ず追加される。
+    /// <summary>
+    /// 生成条件を検証して通常エリアを作り、最後にボス準備と最終ボスのノードを追加する。
+    /// </summary>
     void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 2)
     {
         if (startArea < 0 || startArea > 1000000 || areaCount < 0 || areaCount > 15)
@@ -204,30 +222,54 @@ public:
     }
 
     // 生成済みの全ノードを読み取り専用で返す。
+    /// <summary>
+    /// 生成した全ノードを読み取り専用の参照で返す。
+    /// </summary>
     const std::vector<RunMapNode>& Nodes() const { return m_Nodes; }
 
     // 完了済みノードを、通過した順番で返す。
+    /// <summary>
+    /// クリア済みのノードを通過順に返す。
+    /// </summary>
     const std::vector<int>& Path() const { return m_Path; }
 
     // 現在進行中のノードIDを返す。未選択の場合は-1を返す。
+    /// <summary>
+    /// 進行中のノードIDを返し、未選択の場合は-1を返す。
+    /// </summary>
     int Active() const { return m_Active; }
 
     // このマップ生成時に指定された開始エリア番号を返す。
+    /// <summary>
+    /// ルート生成時に指定した開始エリア番号を返す。
+    /// </summary>
     int StartArea() const { return m_StartArea; }
 
     // このマップに含まれる通常エリアの行数を返す。
+    /// <summary>
+    /// ルートに含まれる通常エリアの行数を返す。
+    /// </summary>
     int AreaCount() const { return m_AreaCount; }
 
     // IDに対応するノードを返す。範囲外のIDの場合はnullptrを返す。
+    /// <summary>
+    /// IDに対応するノードを返し、範囲外では空のポインターを返す。
+    /// </summary>
     const RunMapNode* Node(int id) const
     {
         return id >= 0 && id < static_cast<int>(m_Nodes.size()) ? &m_Nodes[id] : nullptr;
     }
     // 指定ノードが完了済みの経路に含まれているかを判定
+    /// <summary>
+    /// 指定したノードがクリア済みの経路に含まれるかを判定する。
+    /// </summary>
     bool Visited(int id) const { return std::find(m_Path.begin(), m_Path.end(), id) != m_Path.end(); }
 
     // 現在選択できる次のノードID一覧を返す。
     // ノード進行中は空、開始時は先頭3レーン、以降は直前ノードの接続先となる。
+    /// <summary>
+    /// マップの進行状況と接続に基づき、次に選べるノードの一覧を返す。
+    /// </summary>
     std::vector<int> Available() const
     {
         if (m_Nodes.empty() || m_Active >= 0) return {};
@@ -236,6 +278,9 @@ public:
     }
     
     // 選択可能なノードを進行中として設定選択できない場合はfalseを返す。
+    /// <summary>
+    /// 指定ノードが選択可能なら、進行中のノードとして設定する。
+    /// </summary>
     bool Choose(int id)
     {
         const auto options = Available();
@@ -245,9 +290,15 @@ public:
     }
     
     // 現在進行中のノード選択を取り消し、再選択できる状態に戻す。
+    /// <summary>
+    /// 進行中のノード選択を取り消し、経路を選び直せる状態にする。
+    /// </summary>
     void CancelActive() { m_Active = -1; }
 
     // 進行中ノードを完了済み経路へ追加進行中でない場合はfalseを返す。
+    /// <summary>
+    /// 進行中ノードをクリア済みの経路に追加し、そのノードの進行を終える。
+    /// </summary>
     bool CompleteActive()
     {
         if (m_Active < 0) return false;
@@ -257,6 +308,9 @@ public:
     
     // 完了した通常エリア数に開始エリア番号を加え、ラン全体での到達数を返す。
     // ボス準備ノードと最終ボスノードは通常エリア数に含めない。
+    /// <summary>
+    /// ボス用ノードを除いて、開始位置からの通常エリアの進行数を求める。
+    /// </summary>
     int CompletedAreas() const
     {
         return m_StartArea + static_cast<int>(std::count_if(m_Path.begin(), m_Path.end(),
@@ -265,6 +319,9 @@ public:
     
     // 現在位置または次の選択候補から、指定ノードへ将来到達できるかを探索
     // 存在しないノードと既に完了したノードは到達不可として扱う。
+    /// <summary>
+    /// 現在の接続関係をたどり、指定の未訪問ノードに到達できるかを判定する。
+    /// </summary>
     bool Reachable(int id) const
     {
         if (!Node(id) || Visited(id)) return false;
@@ -283,6 +340,9 @@ public:
     
     // 旧形式セーブの開始地点を先頭ノードへ移し、施設・戦闘内の状態を再現
     // 新規マップの開始前にのみ使用でき、通常戦闘から休憩所までを受け付ける。
+    /// <summary>
+    /// まだ進んでいないルートの入口を旧データに対応する種別に変更する。
+    /// </summary>
     void MigrateEntry(StageRouteType type)
     {
         if (m_AreaCount == 0 || !m_Path.empty() || m_Active != -1 ||
@@ -294,6 +354,9 @@ public:
     
     // マップを再生成・復元するための最小情報をJSONへ保存
     // ノード本体は固定生成規則に従ってSeedから再生成するため保存しない。
+    /// <summary>
+    /// シード、進行経路、生成条件などマップを再現するための情報をJSONにする。
+    /// </summary>
     nlohmann::json Save() const
     {
         return { {"version", m_Version}, {"seed", m_Seed}, {"start_area", m_StartArea},
@@ -303,6 +366,9 @@ public:
     
     // JSONのSeedからマップを再生成し、完了経路と進行中ノードを検証しながら復元
     // バージョン不一致や接続しない経路など、不正なデータの場合は例外を送出
+    /// <summary>
+    /// 保存された条件でマップを再生成し、経路の接続関係を検証して状態を復元する。
+    /// </summary>
     static RunMap Restore(const nlohmann::json& data)
     {
         RunMap result;
@@ -332,6 +398,9 @@ public:
     // 
     // 
     // UI、デバッグ表示、MCPからのゲーム状態取得で扱いやすい形式を返す。
+    /// <summary>
+    /// UIやMCPで使えるよう、マップをセーブ情報と各ノードの一覧にまとめる。
+    /// </summary>
     nlohmann::json Snapshot() const
     {
         auto result = Save();

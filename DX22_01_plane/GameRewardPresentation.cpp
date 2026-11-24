@@ -21,6 +21,9 @@ namespace
     constexpr const char* UpgradePopup = "強化するボールを選択###reward_upgrade_targets";
 }
 
+/// <summary>
+/// クリア報酬の候補と確認画面を描画し、選択や購入などの操作結果を返す。
+/// </summary>
 ClearRewardPresentationIntent ClearRewardUi::Draw(
     const ClearRewardPresentationModel& model, int& pendingPurchaseOfferIndex)
 {

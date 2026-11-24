@@ -16,11 +16,17 @@ namespace BallCcdGeometry
     inline constexpr double NoHit = (std::numeric_limits<double>::infinity)(); // 指定区間内に衝突しないことを表す特殊値
 
     // Vector3の全成分が有限値であればtrueを返す
+    /// <summary>
+    /// ベクトルの3成分がいずれも有限値かを判定する。
+    /// </summary>
     inline bool Finite(const Vector3& v)
     {
         return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
     }
     // 2つのVector3の内積をdouble精度で計算
+    /// <summary>
+    /// 2つのベクトルの内積を倍精度で計算する。
+    /// </summary>
     inline double Dot(const Vector3& a, const Vector3& b)
     {
         return static_cast<double>(a.x) * b.x + static_cast<double>(a.y) * b.y + static_cast<double>(a.z) * b.z;
@@ -28,6 +34,9 @@ namespace BallCcdGeometry
 
     // 相対位置offset・相対速度velocityから、半径radiusの球面へ最初に接触する時刻を返す
     // remaining以内に接触しない場合はNoHitを返す。すでに食い込んでいる場合やtrigger指定時は0.0を返せる
+    /// <summary>
+    /// 相対位置と速度から球の接触時刻を求め、残り時間内の解を返す。
+    /// </summary>
     inline double SphereTime(const Vector3& offset, const Vector3& velocity, double radius,
         double remaining, bool trigger = false)
     {
@@ -52,6 +61,9 @@ namespace BallCcdGeometry
 
     // XZ平面上でpointから線分segmentへ最も近い点を返す
     // projectionが指定されている場合は、線分始点を0・終点を1とした投影係数も格納
+    /// <summary>
+    /// XZ平面で対象点に最も近い線分上の点を求め、必要なら線分上の比率を返す。
+    /// </summary>
     inline Vector3 ClosestXZ(const Vector3& point, const Collision::Segment& segment, float* projection = nullptr)
     {
         Vector3 direction = segment.end - segment.start;
@@ -68,6 +80,9 @@ namespace BallCcdGeometry
 
     // 壁線分に対してinterior側を向くXZ平面上の法線を返す
     // 長さを持たない線分の場合はUnitXを返す
+    /// <summary>
+    /// 壁の線分から、盤面の内側を向くXZ平面上の単位法線を求める。
+    /// </summary>
     inline Vector3 InwardNormal(const Collision::Segment& wall, const Vector3& interior)
     {
         Vector3 direction = wall.end - wall.start;
@@ -82,6 +97,9 @@ namespace BallCcdGeometry
     // 移動する球と壁線分がremaining以内に最初に接触する時刻を返す
     // すでに食い込んでいる、または接触状態で壁へ接近している場合は0を返す
     // 衝突しない場合はNoHitを返す
+    /// <summary>
+    /// 移動中の球が壁の辺または端点に到達する時刻を求める。
+    /// </summary>
     inline double WallTime(const Vector3& position, Vector3 velocity, float radius,
         const Collision::Segment& wall, double remaining)
     {
@@ -118,6 +136,9 @@ namespace BallCcdGeometry
 
     // ボール中心とポケット中心の連続判定から、ポケットへ接触する時刻を返す
     // 判定半径にはボール半径とポケット半径の合計を使用
+    /// <summary>
+    /// XZ平面でボールとポケットの接触時刻を求める。
+    /// </summary>
     inline double PocketTime(Vector3 position, Vector3 velocity, float radius,
         const Collision::Sphere& pocket, double remaining)
     {

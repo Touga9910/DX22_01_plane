@@ -23,9 +23,21 @@ enum class Pass { Update, Fixed, Late, Draw };
 struct Counter : Component
 {
     int calls[4]{};
+    /// <summary>
+    /// 通常更新が呼ばれた回数を数える。
+    /// </summary>
     void Update() override { ++calls[0]; }
+    /// <summary>
+    /// 固定時間ステップ更新が呼ばれた回数を数える。
+    /// </summary>
     void FixedUpdate() override { ++calls[1]; }
+    /// <summary>
+    /// 通常更新後の処理が呼ばれた回数を数える。
+    /// </summary>
     void LateUpdate() override { ++calls[2]; }
+    /// <summary>
+    /// 描画が呼ばれた回数を数える。
+    /// </summary>
     void Draw() override { ++calls[3]; }
 };
 
@@ -38,6 +50,9 @@ struct Spawner final : Component
     Pass pass = Pass::Update;
     bool components = false, spawned = false, fromStart = false;
     std::vector<Counter*> children;
+    /// <summary>
+    /// 設定に応じて同じオブジェクトへのコンポーネント追加か、別のオブジェクト生成を一度行う。
+    /// </summary>
     void Spawn()
     {
         if (spawned) return;
@@ -57,13 +72,31 @@ struct Spawner final : Component
             children.push_back(object->AddComponent<Counter>());
         }
     }
+    /// <summary>
+    /// 開始時に生成する設定であれば、テスト対象を追加する。
+    /// </summary>
     void Start() override { if (fromStart) Spawn(); }
+    /// <summary>
+    /// 通常更新時に生成する設定であれば、テスト対象を追加する。
+    /// </summary>
     void Update() override { if (pass == Pass::Update) Spawn(); }
+    /// <summary>
+    /// 固定時間ステップ更新時に生成する設定であれば、テスト対象を追加する。
+    /// </summary>
     void FixedUpdate() override { if (pass == Pass::Fixed) Spawn(); }
+    /// <summary>
+    /// 通常更新後に生成する設定であれば、テスト対象を追加する。
+    /// </summary>
     void LateUpdate() override { if (pass == Pass::Late) Spawn(); }
+    /// <summary>
+    /// 描画時に生成する設定であれば、テスト対象を追加する。
+    /// </summary>
     void Draw() override { if (pass == Pass::Draw) Spawn(); }
 };
 
+/// <summary>
+/// 更新や描画中に対象を追加しても、既存と新規の処理対象が正しく扱われることを検証する。
+/// </summary>
 void CheckMutation()
 {
     for (bool components : {false, true})
@@ -102,6 +135,9 @@ void CheckMutation()
 }
 }
 
+/// <summary>
+/// ワールド内の大量の破棄サイクル、無効な参照、コールバック中の生成を検証する。
+/// </summary>
 int main(int argc, char** argv)
 {
 	#ifdef _WIN32

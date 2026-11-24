@@ -15,6 +15,9 @@ public:
 		Game& game,
 		const std::string& candidateId,
 		const std::string& stateKey);
+	/// <summary>
+	/// ボスのショット候補のキャッシュと識別キーを消去する。
+	/// </summary>
 	void Reset()
 	{
 		m_BossShotCache = nlohmann::json{};

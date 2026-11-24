@@ -10,6 +10,9 @@
 #include <optional>
 #include <string>
 
+/// <summary>
+/// ランの新規開始、進路選択、次の戦闘や報酬後への進行コマンドを検証して処理する。
+/// </summary>
 std::optional<nlohmann::json> GameMcpCommandHandlers::TryRun(
 	Game& game,
 	const std::string& action,

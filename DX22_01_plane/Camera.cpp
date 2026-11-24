@@ -163,6 +163,9 @@ void Camera::SetDistanceY(float dist)
 
 }
 
+/// <summary>
+/// 注視点から設定された高さだけ離れた位置に、見下ろし用カメラを配置する。
+/// </summary>
 void Camera::RefreshPosition()
 {
 	m_Position = m_Target + Vector3(0.0f, m_CameraDistanceY, -0.1f);

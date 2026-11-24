@@ -31,6 +31,9 @@ using DirectX::SimpleMath::Matrix;
 using DirectX::SimpleMath::Vector3;
 using namespace GamePresentationPrimitives;
 
+/// <summary>
+/// 戦闘UIのアイコン、チュートリアルの進行、ダッシュボードの設定を読み込む。
+/// </summary>
 void GamePresentation::Initialize(Game& game)
 {
 	// Upload every combat HUD icon once after the renderer is available. Draw
@@ -41,6 +44,9 @@ void GamePresentation::Initialize(Game& game)
 	LoadDashboard();
 }
 
+/// <summary>
+/// 経過時間をもとに戦闘演出と自球のオーラを更新し、入力とチュートリアルの状態を処理する。
+/// </summary>
 void GamePresentation::Update(Game& game, float deltaSeconds)
 {
 	const float presentationDelta = std::clamp(deltaSeconds, 0.0f, 0.10f);
@@ -176,6 +182,9 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 	++m_PresentationFrame;
 }
 
+/// <summary>
+/// 戦闘中の攻撃演出、各種オーバーレイ、HUDとチュートリアルを描画する。
+/// </summary>
 void GamePresentation::Draw(Game& game)
 {
     // Reward artwork owns the screen, including the explanation of its choices.
@@ -306,6 +315,9 @@ void GamePresentation::Draw(Game& game)
 	}
 }
 
+/// <summary>
+/// 有効な貫通痕を盤面に投影し、動きや明滅を付けて描画する。
+/// </summary>
 void GamePresentation::DrawPierceTraces(Game& game)
 {
     if (game.IsPaused() || game.IsClearRewardActive() ||
@@ -350,6 +362,9 @@ void GamePresentation::DrawPierceTraces(Game& game)
     }
 }
 
+/// <summary>
+/// 戦闘状態と自球の位置、球種に応じてオーラの表示状態を更新する。
+/// </summary>
 void GamePresentation::UpdatePlayerAura(Game& game, float deltaSeconds)
 {
 	if (!IsBattleScene(game) || game.GetBattleState() == BattleState::Finished ||
@@ -369,6 +384,9 @@ void GamePresentation::UpdatePlayerAura(Game& game, float deltaSeconds)
 		color, reinterpret_cast<std::uintptr_t>(player), deltaSeconds);
 }
 
+/// <summary>
+/// 戦闘中の自球に付随するオーラを画面へ投影して描画する。
+/// </summary>
 void GamePresentation::DrawPlayerAura(Game& game)
 {
 	if (!IsBattleScene(game) || !m_PlayerAura.IsActive() ||
@@ -388,6 +406,9 @@ void GamePresentation::DrawPlayerAura(Game& game)
 		{ return TryProjectToScreen(Vector3(p.x, p.y, p.z), screen); });
 }
 
+/// <summary>
+/// 現在のシーンが戦闘シーンかを判定する。
+/// </summary>
 bool GamePresentation::IsBattleScene(const Game& game) const
 {
 	return dynamic_cast<const BattleScene*>(game.GetCurrentScene()) != nullptr;

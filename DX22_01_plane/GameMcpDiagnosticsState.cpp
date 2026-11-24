@@ -20,6 +20,9 @@ using namespace GameMcpJson;
 
 namespace GameMcpStateSerialization
 {
+/// <summary>
+/// 物理ステップや弾道予測、戦闘モードなどの診断情報をJSONに追加する。
+/// </summary>
 void AppendBattleDiagnostics(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	state["physics_clock"] = {
@@ -127,6 +130,9 @@ void AppendBattleDiagnostics(Game& game, const GameMcpReadSnapshot& snapshot, nl
 	}
 }
 
+/// <summary>
+/// フレーム処理と音声処理の計測結果を集計し、性能診断情報をJSONに追加する。
+/// </summary>
 void AppendPerformanceDiagnostics(Game& game, nlohmann::json& state)
 {
 	const FrameTimingSnapshot& frameTiming = game.GetFrameTimingSnapshot();

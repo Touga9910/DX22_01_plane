@@ -31,6 +31,9 @@ struct CombatIconTexture
 	int width = 0;
 	int height = 0;
 
+	/// <summary>
+	/// アイコンのテクスチャビューと画像寸法が描画に使えるか判定する。
+	/// </summary>
 	bool IsValid() const noexcept
 	{
 		return view != nullptr && width > 0 && height > 0;
@@ -39,6 +42,9 @@ struct CombatIconTexture
 class CombatIconResources final
 {
 public:
+	/// <summary>
+	/// 戦闘アイコンごとに画像を読み込み、読み込みの試行を一度だけ行う。
+	/// </summary>
 	void Load()
 	{
 		if (m_LoadAttempted)
@@ -65,6 +71,9 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// 指定された戦闘アイコンの描画用テクスチャが有効なら返す。
+	/// </summary>
 	const CombatIconTexture* Get(CombatIconKind kind) const noexcept
 	{
 		const CombatIconTexture& texture = m_Textures[static_cast<std::size_t>(kind)];
@@ -72,6 +81,9 @@ public:
 	}
 
 private:
+	/// <summary>
+	/// 画像ファイルをRGBAで読み込み、Direct3Dで描画するためのテクスチャビューを作成する。
+	/// </summary>
 	static bool LoadTexture(const char* path, CombatIconTexture& destination)
 	{
 		int channels = 0;
@@ -124,19 +136,31 @@ private:
 	std::array<CombatIconTexture, static_cast<std::size_t>(CombatIconKind::Count)> m_Textures{};
 };
 
+/// <summary>
+/// 戦闘アイコン用リソースを保持する共有インスタンスを返す。
+/// </summary>
 CombatIconResources& GetCombatIconResources()
 {
 	static CombatIconResources resources;
 	return resources;
 }
+/// <summary>
+/// テクスチャのシェーダーリソースビューをImGuiのテクスチャ参照に変換する。
+/// </summary>
 ImTextureRef MakeCombatTextureReference(const CombatIconTexture& texture)
 {
 	return ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<std::uintptr_t>(texture.view.Get())));
 }
 }
 
+/// <summary>
+/// 戦闘オーバーレイで使うアイコン群の読み込みを要求する。
+/// </summary>
 void LoadIcons() { GetCombatIconResources().Load(); }
 
+/// <summary>
+/// 指定された戦闘アイコンを、画面上の範囲に色補正をかけて描画する。
+/// </summary>
 void DrawCombatIcon(ImDrawList* drawList, CombatIconKind kind, const ImVec2& minimum,
 	const ImVec2& maximum, ImU32 tint)
 {
@@ -154,6 +178,9 @@ void DrawCombatIcon(ImDrawList* drawList, CombatIconKind kind, const ImVec2& min
 		ImVec2(1.0f, 1.0f), tint);
 }
 
+/// <summary>
+/// 戦闘中の数値や短い文字列を、縁取り付きで指定位置に表示する。
+/// </summary>
 void DrawOutlinedValue(ImDrawList* drawList, const ImVec2& position, const char* value,
 	ImU32 color, float fontScale)
 {
@@ -170,6 +197,9 @@ void DrawOutlinedValue(ImDrawList* drawList, const ImVec2& position, const char*
 	drawList->AddText(font, size, position, color, value);
 }
 
+/// <summary>
+/// 敵の残りHPの割合に応じて、HP演出の色と透明度を設定する。
+/// </summary>
 ImU32 EnemyHpColor(float hpRatio, float opacity)
 {
 	if (hpRatio <= 0.30f)
@@ -183,6 +213,9 @@ ImU32 EnemyHpColor(float hpRatio, float opacity)
 	return WithAlpha(IM_COL32(72, 225, 108, 255), opacity);
 }
 
+/// <summary>
+/// 指定の角度範囲に、色と線幅を適用した円弧を描画する。
+/// </summary>
 void DrawArc(
 	ImDrawList* drawList,
 	const ImVec2& center,
@@ -205,6 +238,9 @@ void DrawArc(
 	drawList->PathStroke(color, 0, thickness);
 }
 
+/// <summary>
+/// 現在HPとダメージの残像を、敵球の画面上の位置に合わせてリングで表示する。
+/// </summary>
 void DrawEnemyHpRing(
 	const EnemyHpDisplaySettings& settings,
 	const ImVec2& projectedCenter,
@@ -284,6 +320,9 @@ void DrawEnemyHpRing(
 	}
 }
 
+/// <summary>
+/// 状態効果を画面上に表示する日本語名に変換する。
+/// </summary>
 const char* StatusEffectName(StatusEffectType type)
 {
 	switch (type)
@@ -296,6 +335,9 @@ const char* StatusEffectName(StatusEffectType type)
 	}
 }
 
+/// <summary>
+/// 敵の次の行動を画面上に表示する日本語名に変換する。
+/// </summary>
 const char* EnemyActionDisplayName(EnemyActionType action)
 {
 	switch (action)
@@ -307,6 +349,9 @@ const char* EnemyActionDisplayName(EnemyActionType action)
 	}
 }
 
+/// <summary>
+/// 敵の行動の種類に対応するバッジ色を返す。
+/// </summary>
 ImU32 EnemyActionColor(EnemyActionType action)
 {
 	switch (action)
@@ -318,6 +363,9 @@ ImU32 EnemyActionColor(EnemyActionType action)
 	}
 }
 
+/// <summary>
+/// 敵の行動に応じたアイコンと表示色で行動予告バッジを描画する。
+/// </summary>
 void DrawEnemyActionBadge(ImDrawList* drawList, const ImVec2& minimum, EnemyActionType action)
 {
 	const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
@@ -344,6 +392,9 @@ void DrawEnemyActionBadge(ImDrawList* drawList, const ImVec2& minimum, EnemyActi
 	}
 }
 
+/// <summary>
+/// 攻撃・防御の状態効果をアイコンで示し、効果量を重ねて描画する。
+/// </summary>
 void DrawStatusIcon(ImDrawList* drawList, const ImVec2& minimum, StatusEffectType type, int magnitude)
 {
 	const ImVec2 maximum(minimum.x + kCombatIconSize, minimum.y + kCombatIconSize);
@@ -358,6 +409,9 @@ void DrawStatusIcon(ImDrawList* drawList, const ImVec2& minimum, StatusEffectTyp
 	DrawOutlinedValue(drawList, ImVec2(maximum.x - valueSize.x, maximum.y - valueSize.y), value);
 }
 
+/// <summary>
+/// 指定されたリソースのアイコンと数値をバッジとして描画する。
+/// </summary>
 void DrawResourceBadge(ImDrawList* drawList, const ImVec2& minimum, const ResourceBadge& badge)
 {
 	const ImVec2 maximum(minimum.x + kResourceBadgeWidth, minimum.y + kResourceBadgeHeight);
@@ -370,6 +424,9 @@ void DrawResourceBadge(ImDrawList* drawList, const ImVec2& minimum, const Resour
 		IM_COL32(255, 255, 255, 255));
 }
 
+/// <summary>
+/// マウス座標が指定された画面上の矩形に入っているか判定する。
+/// </summary>
 bool IsMouseInside(const ImVec2& minimum, const ImVec2& maximum)
 {
 	const ImVec2 mouse = ImGui::GetIO().MousePos;

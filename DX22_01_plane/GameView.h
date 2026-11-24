@@ -67,5 +67,8 @@ public:
     static std::string RunSaveSummary();
     static std::string SaveLoadMessage();
 
+    /// <summary>
+    /// 静的な画面表示用データ取得インターフェースのインスタンス化を禁止する。
+    /// </summary>
     GameView() = delete;
 };

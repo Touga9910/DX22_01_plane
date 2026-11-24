@@ -22,6 +22,9 @@ enum class CombatMode
     PhasePrototype
 };
 
+/// <summary>
+/// 戦闘モードをデータに保存する識別子へ変換する。
+/// </summary>
 inline const char* ToString(CombatMode mode)
 {
     return mode == CombatMode::PhasePrototype
@@ -29,6 +32,9 @@ inline const char* ToString(CombatMode mode)
         : "legacy";
 }
 
+/// <summary>
+/// ステージ種別をデータに保存する識別子へ変換する。
+/// </summary>
 inline const char* ToString(StageType stageType)
 {
     switch (stageType)
@@ -71,6 +77,9 @@ struct PhaseBattleData
     std::vector<EnemyPhaseData> phases;
 };
 
+/// <summary>
+/// ステージ名に初期配置と各増援フェーズの敵数を付けた表示名を組み立てる。
+/// </summary>
 inline std::string FormatStageDisplayName(
     std::string_view name,
     std::size_t openingEnemyCount,
@@ -104,6 +113,9 @@ struct StageData
     std::vector<DirectX::SimpleMath::Vector3> breakBallPositions;
     std::optional<EnemyValidationSettings> enemyValidation;
 
+    /// <summary>
+    /// ステージの初期配置と増援フェーズの敵数を含む表示名を返す。
+    /// </summary>
     std::string DisplayName() const
     {
         std::vector<std::size_t> reinforcementCounts;
@@ -113,6 +125,9 @@ struct StageData
     }
 };
 
+/// <summary>
+/// ボス戦のブレイクボールの既定座標を返す。
+/// </summary>
 inline std::vector<DirectX::SimpleMath::Vector3> DefaultBossBreakBallPositions()
 {
     return {

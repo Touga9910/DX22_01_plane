@@ -17,6 +17,9 @@
 #include <cmath>
 #include <type_traits>
 
+/// <summary>
+/// 敵の被ダメージに応じて戦闘予測を無効化し、ダメージ演出用イベントを発行する。
+/// </summary>
 void Game::NotifyCombatFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	int damage,
@@ -37,6 +40,9 @@ void Game::NotifyCombatFeedback(
 
 // Pocket Feedbackを通知する。
 
+/// <summary>
+/// 衝突位置、接近速度、ダメージ、対象などを含む衝突イベントを発行する。
+/// </summary>
 void Game::NotifyCollisionImpact(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	const DirectX::SimpleMath::Vector3& firstTargetPosition,
@@ -67,6 +73,9 @@ void Game::NotifyCollisionImpact(
 	});
 }
 
+/// <summary>
+/// 壁への衝突位置と接近速度、衝突対象をイベントとして発行する。
+/// </summary>
 void Game::NotifyWallImpact(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	float relativeApproachSpeed,
@@ -79,6 +88,9 @@ void Game::NotifyWallImpact(
 	});
 }
 
+/// <summary>
+/// 球がポケットに入った結果をイベントとして発行し、戦闘予測に再計算を要求する。
+/// </summary>
 void Game::NotifyPocketFeedback(
 	const DirectX::SimpleMath::Vector3& worldPosition,
 	bool playerPocket,
@@ -100,6 +112,9 @@ void Game::NotifyPocketFeedback(
 
 // Player Damageを通知する。
 
+/// <summary>
+/// 敵のチャージが妨害された位置と理由を求め、関連する予測、ログ、イベントを更新する。
+/// </summary>
 void Game::NotifyChargeInterrupted(
 	const EnemyBall& enemy,
 	const ChargeInterruptionResult& result)
@@ -141,6 +156,9 @@ void Game::NotifyChargeInterrupted(
 	});
 }
 
+/// <summary>
+/// 能力の蓄積値が変化したときやフィニッシャー発動時に、変化の詳細をイベントとして発行する。
+/// </summary>
 void Game::NotifyAxisResourceChanged(
 	AxisResourceKind axis,
 	AxisResourceOwner owner,
@@ -171,6 +189,9 @@ void Game::NotifyAxisResourceChanged(
 
 // Game Eventを公開する。
 
+/// <summary>
+/// 戦闘イベントの種類に応じて、統計、バランスログ、音声と画面演出を更新する。
+/// </summary>
 void Game::PublishGameEvent(const GameEvent& event)
 {
 	std::visit(
@@ -349,6 +370,9 @@ void Game::PublishGameEvent(const GameEvent& event)
 		event);
 }
 
+/// <summary>
+/// 敵の能力状態の変化を、対象の行動予定とともにログへ記録してイベントを発行する。
+/// </summary>
 void Game::NotifyEnemyAbilityStateChanged(
 	const EnemyAbilityStateChangedEvent& event)
 {

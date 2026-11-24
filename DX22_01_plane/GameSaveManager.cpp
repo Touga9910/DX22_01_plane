@@ -34,6 +34,9 @@ namespace
 	const std::filesystem::path kSavePath =
 		std::filesystem::path("saves") / "run_save.json";
 
+	/// <summary>
+	/// 再開時のシーン種別をセーブファイルの識別文字列へ変換する。
+	/// </summary>
 	std::string SceneToId(SceneType scene)
 	{
 		switch (scene)
@@ -46,6 +49,9 @@ namespace
 		}
 	}
 
+	/// <summary>
+	/// セーブに記録された識別文字列を再開先のシーン種別へ変換する。
+	/// </summary>
 	SceneType SceneFromId(const std::string& id)
 	{
 		if (id == "select") return SceneType::Select;
@@ -55,6 +61,9 @@ namespace
 		throw std::runtime_error(UiText::InvalidSaveData);
 	}
 
+	/// <summary>
+	/// 乱数生成器の現在の内部状態を保存可能な文字列へ変換する。
+	/// </summary>
 	template<typename Engine>
 	std::string SerializeEngine(const Engine& engine)
 	{
@@ -63,6 +72,9 @@ namespace
 		return stream.str();
 	}
 
+	/// <summary>
+	/// 保存された文字列から乱数生成器の状態を復元し、読み取りに失敗した場合は例外を送出する。
+	/// </summary>
 	template<typename Engine>
 	Engine DeserializeEngine(const std::string& value)
 	{
@@ -76,6 +88,9 @@ namespace
 		return engine;
 	}
 
+	/// <summary>
+	/// 現在時刻をセーブに記録するUTCの日時文字列へ変換する。
+	/// </summary>
 	std::string MakeUtcTimestamp()
 	{
 		const std::time_t now = std::chrono::system_clock::to_time_t(
@@ -87,6 +102,9 @@ namespace
 		return stream.str();
 	}
 
+	/// <summary>
+	/// セーブのJSONデータから整合性確認に使うチェックサムを計算する。
+	/// </summary>
 	std::string CalculateChecksum(const json& payload)
 	{
 		const std::string bytes = payload.dump();
@@ -104,6 +122,9 @@ namespace
 	using PlayerBallSaveData::BallToJson;
 	using PlayerBallSaveData::BallFromJson;
 
+	/// <summary>
+	/// 球のインスタンスの一覧をセーブ用のJSON配列に変換する。
+	/// </summary>
 	json BallListToJson(const std::vector<PlayerBallData>& balls)
 	{
 		json result = json::array();
@@ -114,6 +135,9 @@ namespace
 		return result;
 	}
 
+	/// <summary>
+	/// JSON配列の形式と球の情報を検証して、球のインスタンス一覧を復元する。
+	/// </summary>
 	std::vector<PlayerBallData> BallListFromJson(const json& values)
 	{
 		if (!values.is_array() || values.size() > 200)
@@ -129,6 +153,9 @@ namespace
 		return result;
 	}
 
+	/// <summary>
+	/// 旧版の球カタログの位置を、廃止された球の置き換えも含めて現行の位置へ変換する。
+	/// </summary>
 	int MigrateLegacyCatalogIndex(int index)
 	{
 		if (index == kRemovedTraceDriverCatalogIndex)
@@ -138,6 +165,9 @@ namespace
 		return index > kRemovedTraceDriverCatalogIndex ? index - 1 : index;
 	}
 
+	/// <summary>
+	/// セーブファイルを読み込み、形式、バージョン、チェックサムを検証する。
+	/// </summary>
 	json ReadAndValidateDocument()
 	{
 		std::ifstream file(kSavePath, std::ios::binary);
@@ -172,6 +202,9 @@ namespace
 		return payload;
 	}
 
+	/// <summary>
+	/// デッキ内の球のインスタンスIDが有効で重複していないことを検証する。
+	/// </summary>
 	void ValidateUniqueInstances(const PlayerDeckSnapshot& deck)
 	{
 		std::set<std::uint64_t> ids;
@@ -199,6 +232,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// セーブファイルの有無と妥当性を確認し、再開情報を返す。
+/// </summary>
 RunSaveInfo GameSaveManager::Inspect()
 {
 	RunSaveInfo info;
@@ -225,6 +261,9 @@ RunSaveInfo GameSaveManager::Inspect()
 	return info;
 }
 
+/// <summary>
+/// 現在のランを再開先とともに検証して保存し、成否とメッセージを返す。
+/// </summary>
 bool GameSaveManager::Save(
 	const GameRunSaveSnapshot& snapshot,
 	SceneType resumeScene,
@@ -376,6 +415,9 @@ bool GameSaveManager::Save(
 	}
 }
 
+/// <summary>
+/// セーブを検証し、旧形式を必要に応じて変換してランのデータを復元する。
+/// </summary>
 bool GameSaveManager::Load(
 	const GameRunLoadRules& rules,
 	GameRunRestoreRequest& request,
@@ -710,6 +752,9 @@ bool GameSaveManager::Load(
 	}
 }
 
+/// <summary>
+/// ランのセーブファイルを削除し、失敗時には理由を出力する。
+/// </summary>
 bool GameSaveManager::Remove(std::string* error)
 {
 	std::error_code code;

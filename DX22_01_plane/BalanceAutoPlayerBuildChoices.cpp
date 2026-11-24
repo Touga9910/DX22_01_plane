@@ -13,6 +13,9 @@ using namespace BalanceAutoPolicy;
 
 namespace BalanceAutoPolicy
 {
+	/// <summary>
+	/// 攻撃力、強化段階、能力などに重みを付け、自動プレイで用いる球の評価値を求める。
+	/// </summary>
 	float GetAutoBallValue(const PlayerBallData& ball)
 	{
 		float value =
@@ -34,7 +37,9 @@ namespace BalanceAutoPolicy
 	}
 }
 
-// Balance Auto Heal Neededかどうかを判定
+/// <summary>
+/// ボス準備中かどうかで回復の基準を変え、現在のHPで回復が必要かを判定する。
+/// </summary>
 bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 {
 	if (game.GetPlayerMaxHp() <= 0 ||
@@ -48,7 +53,9 @@ bool BalanceAutoPlayer::IsHealNeeded(const Game& game) const
 		game.GetPlayerMaxHp() * thresholdPercent;
 }
 
-// Balance Auto Relic To Buyを検索
+/// <summary>
+/// 所持状況、販売候補、回復の必要性を考慮し、自動購入するレリックの位置を選ぶ。
+/// </summary>
 int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 {
 	const auto isCandidate = [this, &game](int index)
@@ -99,7 +106,9 @@ int BalanceAutoPlayer::FindRelicToBuy(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Weakest Ballを検索
+/// <summary>
+/// デッキの最小数と資金を確認し、取り除ける球の中から評価の低い候補を選ぶ。
+/// </summary>
 int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 {
 	const int ballCount = game.GetDeckBallCount();
@@ -144,7 +153,9 @@ int BalanceAutoPlayer::FindWeakestBall(const Game& game) const
 	return weakestIndex;
 }
 
-// Balance Auto Shop提示内の未所持Ballを検索
+/// <summary>
+/// デッキにない球を優先順で調べ、購入候補となるカタログ上の位置を返す。
+/// </summary>
 int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 {
 	if (game.GetDeckBallCount() >= kAutoMaximumDeckSize)
@@ -202,7 +213,9 @@ int BalanceAutoPlayer::FindMissingCatalogBall(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Clear Reward内の未所持ボール提示を検索
+/// <summary>
+/// デッキにない球を優先順で調べ、選択できるクリア報酬の位置を返す。
+/// </summary>
 int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 {
 	if (game.GetDeckBallCount() >=
@@ -261,7 +274,9 @@ int BalanceAutoPlayer::FindMissingClearRewardBallOffer(const Game& game) const
 	return -1;
 }
 
-// Balance Auto Upgrade Targetを検索
+/// <summary>
+/// 強化可能な球を評価し、優先度が最も高い球のデッキ位置を返す。
+/// </summary>
 int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 {
 	int bestIndex = -1;
@@ -289,7 +304,9 @@ int BalanceAutoPlayer::FindUpgradeTarget(const Game& game) const
 	return bestIndex;
 }
 
-// Balance Auto Shop Actionを保持しているか判定
+/// <summary>
+/// レリック購入、球の除外、未所持球の購入のいずれかを自動で実行できるかを返す。
+/// </summary>
 bool BalanceAutoPlayer::HasShopAction(const Game& game) const
 {
 	return FindRelicToBuy(game) >= 0 ||

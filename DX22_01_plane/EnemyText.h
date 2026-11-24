@@ -3,6 +3,9 @@
 #include <string>
 
 // 敵定義IDをプレイヤー向けの日本語表示名へ変換する。未登録のIDはそのまま表示する。
+/// <summary>
+/// 登録済みの敵識別子を日本語の表示名に変換し、未登録なら識別子を返す。
+/// </summary>
 inline const char* EnemyLabel(const std::string& id)
 {
     if (id == "enemy_normal") return "通常球";

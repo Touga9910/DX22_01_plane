@@ -11,7 +11,9 @@
 
 using namespace BalanceAutoPolicy;
 
-// Balance Auto Rewardを適用
+/// <summary>
+/// 所持金や未所持の球とレリックを評価し、クリア報酬を自動で選択する。
+/// </summary>
 void BalanceAutoPlayer::ApplyReward(Game& game)
 {
 	bool hasMissingRelic = false;

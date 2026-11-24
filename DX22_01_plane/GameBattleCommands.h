@@ -11,5 +11,8 @@ public:
     static int ConsumeBankShotDamageMultiplier();
     static int ConsumePlayerEnemyRelicDamageBonus();
 
+    /// <summary>
+    /// 戦闘コマンドの静的インターフェースをインスタンス化できないようにする。
+    /// </summary>
     GameBattleCommands() = delete;
 };

@@ -9,6 +9,9 @@
 using json = nlohmann::json;
 using namespace BalanceLogDetail;
 
+/// <summary>
+/// 前回分の未保存イベントを処理し、新しいショットの状況と各計測カウンターを初期化する。
+/// </summary>
 void BalanceLogger::BeginShot(
 	const std::string& ballId,
 	int upgradeLevel,
@@ -86,6 +89,9 @@ void BalanceLogger::BeginShot(
 	m_ShotActive = true;
 }
 
+/// <summary>
+/// ショットの物理、攻撃、判断結果をまとめ、ステージの記録に追加する。
+/// </summary>
 void BalanceLogger::EndShot(
 	int playerHp,
 	int enemiesAlive,
@@ -234,6 +240,9 @@ void BalanceLogger::EndShot(
 	Save();
 }
 
+/// <summary>
+/// 衝突効果の値から評価用のショットスコアを計算する。
+/// </summary>
 double BalanceLogger::CalculateShotScore(int collisionEffect)
 {
 	const int safeCollisionEffect =

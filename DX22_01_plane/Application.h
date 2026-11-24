@@ -35,6 +35,9 @@ public:
     }
 
     static void SetDisplayMode(uint32_t width, uint32_t height, bool fullscreen);
+    /// <summary>
+    /// 現在フルスクリーン表示に設定されているかを返す。
+    /// </summary>
     static bool IsFullscreen() { return m_IsFullscreen; }
 
 private:

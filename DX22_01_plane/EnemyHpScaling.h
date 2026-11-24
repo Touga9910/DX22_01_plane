@@ -6,6 +6,9 @@
 
 namespace EnemyHpScaling
 {
+    /// <summary>
+    /// 敵の基準最大HPに倍率を適用し、入力値と結果を使用可能な範囲に収める。
+    /// </summary>
     inline int ApplyMultiplier(int baseMaxHp, float multiplier)
     {
         const double safeBase = static_cast<double>((std::max)(1, baseMaxHp));

@@ -8,6 +8,9 @@ class BattleSceneServices;
 class BattleDebugHotReload
 {
 public:
+    /// <summary>
+    /// 戦闘シーンのサービスを保持するJSON再読み込み処理を作る。
+    /// </summary>
     explicit BattleDebugHotReload(BattleSceneServices& services)
         : m_Services(services)
     {

@@ -8,11 +8,17 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// ポケットの初期半径を0以上に補正して保持する。
+/// </summary>
 Pocket::Pocket(float initialRadius)
     : m_InitialRadius((std::max)(0.0f, initialRadius))
 {
 }
 
+/// <summary>
+/// ポケットの当たり判定とトリガーをゲームオブジェクトに設定する。
+/// </summary>
 void Pocket::Awake()
 {
     GameObject* owner = GetGameObject();
@@ -32,6 +38,9 @@ void Pocket::Awake()
     m_ColliderComponent->SetTrigger(true);
 }
 
+/// <summary>
+/// ポケットのワールド座標を更新する。
+/// </summary>
 void Pocket::SetPosition(const Vector3& position)
 {
     if (TransformComponent* transform = GetTransform())
@@ -40,6 +49,9 @@ void Pocket::SetPosition(const Vector3& position)
     }
 }
 
+/// <summary>
+/// ポケットの半径を0以上に補正し、生成済みの当たり判定にも反映する。
+/// </summary>
 void Pocket::SetRadius(float radius)
 {
     m_InitialRadius = (std::max)(0.0f, radius);
@@ -50,6 +62,9 @@ void Pocket::SetRadius(float radius)
     }
 }
 
+/// <summary>
+/// 現在の位置と半径からポケットの球形当たり判定を返す。
+/// </summary>
 Collision::Sphere Pocket::GetSphere() const
 {
     if (m_ColliderComponent != nullptr)

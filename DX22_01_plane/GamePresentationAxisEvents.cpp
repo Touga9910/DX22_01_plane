@@ -11,6 +11,9 @@
 
 using namespace GamePresentationPrimitives;
 
+/// <summary>
+/// 能力軸のリソース変化を集計し、増減やフィニッシャーの表示を追加する。
+/// </summary>
 void GamePresentation::OnAxisResourceChanged(
 	const AxisResourceChangedEvent& event)
 {
@@ -94,6 +97,9 @@ void GamePresentation::OnAxisResourceChanged(
 	m_Feedback.push_back(std::move(feedback));
 }
 
+/// <summary>
+/// 能力軸の発動内容に応じて、軌跡、着弾効果、説明テキストを登録する。
+/// </summary>
 void GamePresentation::OnAxisAbilityResolved(
 	const AxisAbilityResolvedEvent& event)
 {
@@ -222,6 +228,9 @@ void GamePresentation::OnAxisAbilityResolved(
 	m_Feedback.push_back(std::move(feedback));
 }
 
+/// <summary>
+/// ショットの命中数、ダメージ、撃破数や能力軸の変化を結果表示に反映する。
+/// </summary>
 void GamePresentation::OnShotResolved(const ShotResolvedEvent& event)
 {
 	m_CurrentShotHitCount = event.hitCount;

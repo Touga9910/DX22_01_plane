@@ -118,6 +118,9 @@ public:
 	Scene* CurrentScene() const;
 	SceneType CurrentSceneType() const;
 	GameWorld& World();
+	/// <summary>
+	/// シーン遷移の状態を変更可能な参照として返す。
+	/// </summary>
 	SceneTransition& Transition() { return m_Transition; }
 
 	void ResetPhysicsTiming();
@@ -145,6 +148,9 @@ public:
 	void RecordTrajectoryPreviewRefresh();
 	void RecordMaximumPowerPreviewCacheReuse();
 	AimingPerformanceSnapshot CaptureAimingPerformance() const;
+	/// <summary>
+	/// 照準のサンプル収集が完了していれば、完了した計測のシーケンス番号を返す。
+	/// </summary>
 	std::uint64_t CompletedAimingSequence() const
 	{
 		return m_AimingTimingActive && m_AimingTimingSampleCount == AimingTimingCapacity
@@ -157,10 +163,16 @@ public:
 		double presentMilliseconds,
 		int physicsSteps,
 		bool shotMoving);
+	/// <summary>
+	/// フレーム時間を現在計測しているかを返す。
+	/// </summary>
 	bool IsFrameTimingMeasurementActive() const
 	{
 		return m_FrameTiming.active;
 	}
+	/// <summary>
+	/// 現在保持しているフレーム時間計測のスナップショットを返す。
+	/// </summary>
 	const FrameTimingSnapshot& CaptureFrameTiming() const
 	{
 		return m_FrameTiming;

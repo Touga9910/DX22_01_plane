@@ -18,11 +18,17 @@ namespace
     constexpr float kDenseGap = 1.5f;
     constexpr float kLineGap = 1.5f;
 
+    /// <summary>
+    /// 二つの位置のXとZ成分を使い、盤面上の水平距離を求める。
+    /// </summary>
     float DistanceXZ(const Vector3& left, const Vector3& right)
     {
         return std::hypot(left.x - right.x, left.z - right.z);
     }
 
+    /// <summary>
+    /// 候補の敵球が盤面内に収まり、プレイヤー球や配置済みの敵球などと重ならないかを確認する。
+    /// </summary>
     bool CanPlace(
         const EnemySpawnData& candidate,
         const Vector3& playerPosition,
@@ -67,6 +73,9 @@ namespace
         return true;
     }
 
+    /// <summary>
+    /// 候補位置を順に検証し、全ての敵球を配置できる場合に位置を確定する。
+    /// </summary>
     bool CommitPositions(
         std::vector<EnemySpawnData>& enemies,
         const std::vector<Vector3>& positions,
@@ -92,6 +101,9 @@ namespace
         return true;
     }
 
+    /// <summary>
+    /// 敵球の半径をもとに間隔を調整し、盤面内に密集配置できる候補を探す。
+    /// </summary>
     bool ArrangeDense(
         std::vector<EnemySpawnData>& enemies,
         const Vector3& playerPosition,
@@ -158,6 +170,9 @@ namespace
         return false;
     }
 
+    /// <summary>
+    /// プレイヤー球との距離に余裕がある方向を優先し、敵球を直線状に配置できる位置を探す。
+    /// </summary>
     bool ArrangeLine(
         std::vector<EnemySpawnData>& enemies,
         const Vector3& playerPosition,
@@ -217,6 +232,9 @@ namespace
         return false;
     }
 
+    /// <summary>
+    /// 指定されたシードから位置候補を生成し、重なりを避けて再現可能なランダム配置を作る。
+    /// </summary>
     bool ArrangeRandom(
         std::vector<EnemySpawnData>& enemies,
         const EnemyValidationSettings& settings,
@@ -261,6 +279,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 検証設定と敵カタログから敵球を選び、指定パターンで配置して結果またはエラーを返す。
+/// </summary>
 EnemyValidationLayoutResult EnemyValidationLayout::Generate(
     const std::vector<EnemyData>& catalog,
     const EnemyValidationSettings& settings,

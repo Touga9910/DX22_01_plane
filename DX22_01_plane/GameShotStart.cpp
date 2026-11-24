@@ -17,6 +17,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 敵の一覧から撃破済みの敵の数を数える。
+    /// </summary>
     int CountDefeatedEnemies(const std::vector<EnemyBall*>& enemies)
     {
         return static_cast<int>(std::count_if(
@@ -27,6 +30,9 @@ namespace
             }));
     }
 
+    /// <summary>
+    /// 敵の一覧から生存している敵の数を数える。
+    /// </summary>
     int CountAliveEnemies(const std::vector<EnemyBall*>& enemies)
     {
         return static_cast<int>(std::count_if(
@@ -37,6 +43,9 @@ namespace
             }));
     }
 }
+/// <summary>
+/// ショット用の戦闘状態をリセットし、プレイヤー球にレリック補正を適用する。
+/// </summary>
 void Game::ResetShotRelicState(PlayerBall* player)
 {
 	m_BattleState->controller.ResetShotState(MakePredictionShotRules(0.0f));
@@ -48,6 +57,9 @@ void Game::ResetShotRelicState(PlayerBall* player)
 
 // End Of Shot Relic Effectsを適用する。
 
+/// <summary>
+/// ショットした球を確定し、計測、スタック、球固有効果などのショット開始処理を行う。
+/// </summary>
 void Game::OnPlayerShotFired(PlayerBall* player)
 {
 	ResetFrameTiming();

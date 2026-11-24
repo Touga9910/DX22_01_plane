@@ -21,6 +21,9 @@ namespace HeavyCollisionRules
 		int discardedByStorageLimit = 0;
 		int turnLimit = DefaultGainLimitPerTurn;
 
+		/// <summary>
+		/// スタックが一つ以上付与されたかを返す。
+		/// </summary>
 		explicit operator bool() const
 		{
 			return granted > 0;
@@ -39,6 +42,9 @@ namespace HeavyCollisionRules
 		float activeEnemyCollisionMultiplier = 1.0f;
 	};
 
+	/// <summary>
+	/// 距離とターン上限の設定を保ち、衝突スタックの状態を初期化する。
+	/// </summary>
 	inline void Reset(State& state)
 	{
 		const float distancePerStack =
@@ -51,6 +57,9 @@ namespace HeavyCollisionRules
 		state.gainLimitPerTurn = gainLimit;
 	}
 
+	/// <summary>
+	/// スタックを一つ生成するために必要な移動距離を設定する。
+	/// </summary>
 	inline void SetDistancePerStack(State& state, float distance)
 	{
 		state.distancePerStack =
@@ -59,6 +68,9 @@ namespace HeavyCollisionRules
 			: DefaultDistancePerStack;
 	}
 
+	/// <summary>
+	/// ターン内の生成上限を設定し、現在の生成数をその上限内に収める。
+	/// </summary>
 	inline void SetGainLimitPerTurn(State& state, int gainLimit)
 	{
 		state.gainLimitPerTurn = (std::max)(0, gainLimit);
@@ -67,6 +79,9 @@ namespace HeavyCollisionRules
 			state.gainLimitPerTurn);
 	}
 
+	/// <summary>
+	/// ショット内の生成記録を初期化し、予約された敵衝突倍率を適用する。
+	/// </summary>
 	inline void BeginShot(State& state)
 	{
 		state.gainedThisTurn = 0;
@@ -77,6 +92,9 @@ namespace HeavyCollisionRules
 		state.pendingEnemyCollisionMultiplier = 1.0f;
 	}
 
+	/// <summary>
+	/// スタック生成の対象となる敵の移動距離をショット内で累積する。
+	/// </summary>
 	inline void RecordEnemyMovement(
 		State& state,
 		std::uintptr_t enemyId,
@@ -87,6 +105,9 @@ namespace HeavyCollisionRules
 		state.distanceByEnemyThisShot[enemyId] += distance;
 	}
 
+	/// <summary>
+	/// ターン上限と保有上限までスタックを付与し、付与数と超過数を返す。
+	/// </summary>
 	inline GainResult ApplyGain(State& state, int amount)
 	{
 		GainResult result;
@@ -109,6 +130,9 @@ namespace HeavyCollisionRules
 		return result;
 	}
 
+	/// <summary>
+	/// 敵ごとの移動距離と生成ボーナスからスタックを付与し、ショット内の記録を初期化する。
+	/// </summary>
 	inline GainResult EndShot(State& state, int generationBonus = 0)
 	{
 		long long requested = 0;
@@ -136,6 +160,9 @@ namespace HeavyCollisionRules
 		return result;
 	}
 
+	/// <summary>
+	/// 同じ敵にはショット中に一度だけスタックを生成する。
+	/// </summary>
 	inline GainResult GenerateOncePerEnemy(
 		State& state,
 		std::uintptr_t enemyId,
@@ -151,6 +178,9 @@ namespace HeavyCollisionRules
 		return ApplyGain(state, amount);
 	}
 
+	/// <summary>
+	/// 指定数まで保有スタックを消費し、実際の消費数を返す。
+	/// </summary>
 	inline int Consume(State& state, int amount)
 	{
 		const int requested = (std::max)(0, amount);
@@ -159,11 +189,17 @@ namespace HeavyCollisionRules
 		return consumed;
 	}
 
+	/// <summary>
+	/// 次のショットに適用する敵衝突のダメージ倍率を予約する。
+	/// </summary>
 	inline void ArmNextEnemyCollisionMultiplier(State& state, float multiplier)
 	{
 		state.pendingEnemyCollisionMultiplier = (std::max)(1.0f, multiplier);
 	}
 
+	/// <summary>
+	/// ショット中の倍率を敵同士の衝突ダメージに適用する。
+	/// </summary>
 	inline int ScaleEnemyCollisionDamage(const State& state, int damage)
 	{
 		return (std::max)(0, static_cast<int>(std::lround(
@@ -177,6 +213,9 @@ namespace HeavyCollisionRules
 		int bonusDamage = 0;
 	};
 
+	/// <summary>
+	/// フィニッシャー用のスタックを消費し、消費数に応じた追加ダメージを求める。
+	/// </summary>
 	inline FinisherResult ConsumeForFinisher(
 		State& state,
 		float damagePerStack,

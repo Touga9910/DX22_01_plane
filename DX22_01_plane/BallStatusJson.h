@@ -6,6 +6,9 @@
 // JSONオブジェクトからBallStatusの各項目を読み込む
 // valueがオブジェクトでない場合は受け取ったstatusをそのまま返す
 // JSONに存在しない項目はstatus側の既存値を維持するため、旧データの読み込みにも使用できる
+/// <summary>
+/// JSONに指定された項目で既定のボールステータスを上書きする。
+/// </summary>
 inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status = {})
 {
 	if (!value.is_object()) return status;
@@ -93,6 +96,9 @@ inline BallStatus ReadBallStatus(const nlohmann::json& value, BallStatus status 
 
 // BallStatusの全共通項目をJSONオブジェクトへ変換
 // 敵・デバッグ用途も含む汎用形式のためdefenseも出力
+/// <summary>
+/// ボールの能力とステータス項目をJSONオブジェクトに変換する。
+/// </summary>
 inline nlohmann::json WriteBallStatus(const BallStatus& status)
 {
 	return {
@@ -167,6 +173,9 @@ inline nlohmann::json WriteBallStatus(const BallStatus& status)
 
 // BallStatusの数値が保存・実行時に許容する範囲内か検証
 // NaNや無限大を含む不正な浮動小数値もfalseとする
+/// <summary>
+/// ボールのステータスの各項目が有効範囲にあるかを判定する。
+/// </summary>
 inline bool IsValidBallStatus(const BallStatus& s)
 {
 	return s.impactAttack >= 0 && s.impactAttack <= 100000 &&
@@ -237,6 +246,9 @@ inline bool IsValidBallStatus(const BallStatus& s)
 // プレイヤーボールでは防御力を使用しない
 // 汎用BallStatusには敵・デバッグ互換のためdefenseを残し、以下の関数で常に0として扱う
 // プレイヤーボール用にBallStatusを読み込み、defenseを必ず0へ補正して返す
+/// <summary>
+/// JSONからプレイヤーボールのステータスを読み取り、防御力をゼロにする。
+/// </summary>
 inline BallStatus ReadPlayerBallStatus(
 	const nlohmann::json& value,
 	BallStatus status = {})
@@ -247,6 +259,9 @@ inline BallStatus ReadPlayerBallStatus(
 }
 
 // プレイヤーボール用JSONを生成し、汎用形式からdefense項目を除外して返す
+/// <summary>
+/// プレイヤーボールのステータスを防御力欄を省いたJSONに変換する。
+/// </summary>
 inline nlohmann::json WritePlayerBallStatus(const BallStatus& status)
 {
 	nlohmann::json value = WriteBallStatus(status);
@@ -255,6 +270,9 @@ inline nlohmann::json WritePlayerBallStatus(const BallStatus& status)
 }
 
 // defenseを0として扱ったうえで、プレイヤーボールのBallStatusが有効範囲か検証する。
+/// <summary>
+/// 防御力をゼロとしたプレイヤーボールのステータスを検証する。
+/// </summary>
 inline bool IsValidPlayerBallStatus(BallStatus status)
 {
 	status.defense = 0;

@@ -10,5 +10,8 @@ public:
     static const PierceTraceRules::State& Current();
     static std::size_t SelectedMinionTraceCount();
 
+    /// <summary>
+    /// 静的なショット軌跡参照インターフェースのインスタンス化を禁止する。
+    /// </summary>
     GameShotTraceView() = delete;
 };

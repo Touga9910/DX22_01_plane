@@ -12,6 +12,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 戦闘シーンのサービスの参照を取得し、欠けている場合は例外を送出する。
+    /// </summary>
     BattleSceneServices& RequireServices(
         const std::unique_ptr<BattleSceneServices>& services)
     {
@@ -24,6 +27,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 戦闘シーンのサービスを引き受け、盤面とステージの初期化を始める。
+/// </summary>
 BattleScene::BattleScene(
     std::unique_ptr<BattleSceneServices> services)
     : m_Services(std::move(services))
@@ -37,8 +43,14 @@ BattleScene::BattleScene(
     Init();
 }
 
+/// <summary>
+/// 戦闘シーンと所有している生成・設定用オブジェクトを破棄する。
+/// </summary>
 BattleScene::~BattleScene() = default;
 
+/// <summary>
+/// 盤面とプレイヤーを作成し、ステージの敵配置と再読み込み監視を準備する。
+/// </summary>
 void BattleScene::Init()
 {
     m_Par = 4;
@@ -70,6 +82,9 @@ void BattleScene::Init()
     m_ObjectFactory->BeginSimulation(*arena.player);
 }
 
+/// <summary>
+/// ステージの共通処理と戦闘データの再読み込みを毎フレーム進める。
+/// </summary>
 void BattleScene::Update()
 {
     StageBase::Update();

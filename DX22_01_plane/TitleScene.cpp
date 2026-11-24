@@ -95,6 +95,9 @@ void TitleScene::Update()
     }
 }
 
+/// <summary>
+/// タイトル画面のメニューと演出を描き、開始や設定などの操作を受け付ける。
+/// </summary>
 void TitleScene::DrawUI()
 {
     if(!GameRuntime::World().Contains(m_Table))return;
@@ -160,6 +163,9 @@ void TitleScene::DrawUI()
     }
 }
 
+/// <summary>
+/// アセンションの設定、実績、保存済みランの状態を表示する。
+/// </summary>
 void TitleScene::DrawProgressionUI()
 {
 	const auto& profile = GameView::Progression();

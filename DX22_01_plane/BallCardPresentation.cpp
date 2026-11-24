@@ -30,6 +30,9 @@ namespace
 		ImVec2 uvMin = ImVec2(0.0f, 0.0f);
 		ImVec2 uvMax = ImVec2(1.0f, 1.0f);
 
+		/// <summary>
+		/// テクスチャのビューと正の画像寸法が揃っているかを確認する。
+		/// </summary>
 		bool IsValid() const noexcept
 		{
 			return view != nullptr && width > 0 && height > 0;
@@ -39,6 +42,9 @@ namespace
 	class BallCardArtResources final
 	{
 	public:
+		/// <summary>
+		/// ボールカードの背景・枠・アイコンの画像を初回だけ読み込む。
+		/// </summary>
 		void Load()
 		{
 			if (m_LoadAttempted)
@@ -59,6 +65,9 @@ namespace
 			LoadTexture("assets/UI/Cards/card_anchor_green.png", m_Icons[CategoryIndex(BallCategory::Anchor)]);
 		}
 
+		/// <summary>
+		/// カードの画像リソースと読み込み済みフラグを初期状態に戻す。
+		/// </summary>
 		void Reset()
 		{
 			m_Base = {};
@@ -67,17 +76,26 @@ namespace
 			m_LoadAttempted = false;
 		}
 
+		/// <summary>
+		/// 有効なカード背景テクスチャへのポインターを返す。
+		/// </summary>
 		const BallCardTexture* Base() const noexcept
 		{
 			return m_Base.IsValid() ? &m_Base : nullptr;
 		}
 
+		/// <summary>
+		/// ボール種別に対応する有効なカード枠テクスチャへのポインターを返す。
+		/// </summary>
 		const BallCardTexture* Frame(BallCategory category) const noexcept
 		{
 			const BallCardTexture& texture = m_Frames[CategoryIndex(category)];
 			return texture.IsValid() ? &texture : nullptr;
 		}
 
+		/// <summary>
+		/// ボール種別に対応する有効なアイコンテクスチャへのポインターを返す。
+		/// </summary>
 		const BallCardTexture* Icon(BallCategory category) const noexcept
 		{
 			const BallCardTexture& texture = m_Icons[CategoryIndex(category)];
@@ -85,6 +103,9 @@ namespace
 		}
 
 	private:
+		/// <summary>
+		/// ボール種別を枠とアイコンの配列インデックスに変換する。
+		/// </summary>
 		static constexpr std::size_t CategoryIndex(BallCategory category) noexcept
 		{
 			switch (category)
@@ -97,6 +118,9 @@ namespace
 			}
 		}
 
+		/// <summary>
+		/// カード画像を読み込み、描画に使うDirect3Dのテクスチャビューを作る。
+		/// </summary>
 		static bool LoadTexture(const char* path, BallCardTexture& destination)
 		{
 			int channels = 0;
@@ -206,18 +230,27 @@ namespace
 		std::array<BallCardTexture, 5> m_Icons{};
 	};
 
+	/// <summary>
+	/// ボールカードの画像を保有する共有リソースを返す。
+	/// </summary>
 	BallCardArtResources& GetBallCardArtResources()
 	{
 		static BallCardArtResources resources;
 		return resources;
 	}
 
+	/// <summary>
+	/// Direct3DのテクスチャビューをImGuiで使う参照に変換する。
+	/// </summary>
 	ImTextureRef MakeTextureReference(const BallCardTexture& texture)
 	{
 		return ImTextureRef(static_cast<ImTextureID>(
 			reinterpret_cast<std::uintptr_t>(texture.view.Get())));
 	}
 
+	/// <summary>
+	/// 画像の縦横比を保ち、指定範囲を埋めるように画像を切り抜いて描画する。
+	/// </summary>
 	void DrawTextureCover(
 		ImDrawList* drawList,
 		const BallCardTexture& texture,
@@ -263,6 +296,9 @@ namespace
 			tint);
 	}
 
+	/// <summary>
+	/// 画像の縦横比を保ち、指定範囲の中央に画像全体を収めて描画する。
+	/// </summary>
 	void DrawTextureContain(
 		ImDrawList* drawList,
 		const BallCardTexture& texture,
@@ -317,10 +353,19 @@ namespace
 	};
 }
 
+/// <summary>
+/// 共有のカード画像リソースを読み込む。
+/// </summary>
 void LoadResources() { GetBallCardArtResources().Load(); }
 
+/// <summary>
+/// 共有のカード画像リソースを解放する。
+/// </summary>
 void ResetResources() { GetBallCardArtResources().Reset(); }
 
+/// <summary>
+/// ボール種別のアイコンを表示し、必要に応じてグレースケール画像を使う。
+/// </summary>
 void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVec2& size, bool grayscale)
 {
     if (grayscale && ball.category != BallCategory::Standard)
@@ -351,6 +396,9 @@ void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVe
     }
 }
 
+	/// <summary>
+	/// ボール選択カードに能力やステータスを表示し、選択や詳細表示の操作を返す。
+	/// </summary>
 	BallCardInteraction DrawBallSelectionCard(
 		const PlayerBallData& ball,
 		int index,
@@ -688,6 +736,9 @@ void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVe
 		ImGui::PopID();
 		return interaction;
 	}
+	/// <summary>
+	/// 用語を強調表示し、マウスを重ねたときに説明を表示する。
+	/// </summary>
 	void DrawTermTooltip(const char* term, const char* explanation)
 	{
 		// 水色＋下線：ホバーできる文字であることを常時示す。
@@ -710,6 +761,9 @@ void DrawBallIcon(const PlayerBallData& ball, const ImVec2& position, const ImVe
 		ImGui::EndTooltip();
 	}
 
+	/// <summary>
+	/// ボール固有の能力、現在の数値、次回強化の情報を詳細ポップアップに表示する。
+	/// </summary>
 	void DrawBallDetailPopup(const PlayerBallData& ball, int effectiveAttack)
 	{
 		const BallStatus& status = ball.status;

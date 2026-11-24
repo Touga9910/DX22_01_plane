@@ -9,6 +9,9 @@ using namespace GameMcpJson;
 
 namespace GameMcpStateSerialization
 {
+/// <summary>
+/// レリックの一覧と所持状況、関連する効果条件をJSONに追加する。
+/// </summary>
 void AppendRelics(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	state["relics"] = nlohmann::json::array();
@@ -99,6 +102,9 @@ void AppendRelics(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::jso
 	};
 }
 
+/// <summary>
+/// 球の所持状況、入手候補、強化や削除の選択肢をJSONに追加する。
+/// </summary>
 void AppendInventory(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	state["offered_balls"] = nlohmann::json::array();

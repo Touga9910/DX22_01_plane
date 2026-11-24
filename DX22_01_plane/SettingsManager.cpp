@@ -21,6 +21,9 @@ namespace
 	};
 }
 
+/// <summary>
+/// 設定ファイルから表示、操作、音量などの設定を読み込み、適用できる値を保持する。
+/// </summary>
 bool SettingsManager::Load(const std::string& path)
 {
 	std::ifstream file(path);
@@ -148,6 +151,9 @@ bool SettingsManager::Load(const std::string& path)
 	}
 }
 
+/// <summary>
+/// 画面遷移時間を正規化し、現在の設定を指定のパスに保存する。
+/// </summary>
 bool SettingsManager::Save(const std::string& path)
 {
 	m_Settings.sceneTransition.Normalize();
@@ -208,11 +214,17 @@ bool SettingsManager::Save(const std::string& path)
 	return true;
 }
 
+/// <summary>
+/// 変更が記録されている場合だけ設定を保存し、処理の成否を返す。
+/// </summary>
 bool SettingsManager::SaveIfDirty(const std::string& path)
 {
 	return !m_Dirty || Save(path);
 }
 
+/// <summary>
+/// 解像度の選択番号を有効範囲に収め、表示モードと解像度をアプリケーションに適用する。
+/// </summary>
 void SettingsManager::ApplyDisplaySettings()
 {
 	m_Settings.resolutionIndex = std::clamp(
@@ -227,11 +239,17 @@ void SettingsManager::ApplyDisplaySettings()
 		m_Settings.fullscreen);
 }
 
+/// <summary>
+/// 選択可能な解像度の種類数を返す。
+/// </summary>
 int SettingsManager::GetResolutionCount()
 {
 	return kResolutionCount;
 }
 
+/// <summary>
+/// 指定の番号を有効範囲に制限し、解像度の表示ラベルを返す。
+/// </summary>
 const char* SettingsManager::GetResolutionLabel(int index)
 {
 	index = std::clamp(index, 0, kResolutionCount - 1);

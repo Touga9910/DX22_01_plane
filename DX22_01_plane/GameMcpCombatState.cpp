@@ -20,6 +20,9 @@ using namespace GameMcpJson;
 
 namespace GameMcpStateSerialization
 {
+/// <summary>
+/// 敵の位置や状態、ブレイク球とボスの情報をJSONに追加し、敵の一覧を返す。
+/// </summary>
 std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
 {
     state["boss_state"] = nullptr;
@@ -286,6 +289,9 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
 	return enemies;
 }
 
+/// <summary>
+/// クッションや衝突効果、アンカーなどの戦闘中の相乗効果をJSONに追加する。
+/// </summary>
 void AppendSynergies(Game& game, const std::vector<EnemyBall*>& enemies, nlohmann::json& state)
 {
 	state["table"]["cushions"] = nlohmann::json::array();

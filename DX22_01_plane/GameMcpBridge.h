@@ -22,6 +22,9 @@ public:
 	void Update(Game& game);
 	void Shutdown(Game& game);
 
+	/// <summary>
+	/// MCPブリッジが有効かを返す。
+	/// </summary>
 	bool IsEnabled() const { return m_Enabled; }
 
 private:

@@ -9,6 +9,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 台枠の描画と衝突のコンポーネントを取得し、台枠を盤面の高さに配置する。
+/// </summary>
 void TableFrame::Awake()
 {
     GameObject* owner = GetGameObject();
@@ -34,6 +37,9 @@ void TableFrame::Awake()
     }
 }
 
+/// <summary>
+/// 台枠の衝突線分をワールド座標に変換して返す。
+/// </summary>
 std::vector<Collision::Segment> TableFrame::GetWalls() const
 {
     std::vector<Collision::Segment> result;
@@ -62,6 +68,9 @@ std::vector<Collision::Segment> TableFrame::GetWalls() const
     return result;
 }
 
+/// <summary>
+/// ポケットの中心をワールド座標に変換し、当たり判定用の球を返す。
+/// </summary>
 std::vector<Collision::Sphere> TableFrame::GetPocketSpheres() const
 {
     std::vector<Collision::Sphere> result;

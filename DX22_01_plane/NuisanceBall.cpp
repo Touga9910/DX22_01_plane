@@ -12,6 +12,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// お邪魔ボールの物理特性、モデル、色、初期位置、ポケット処理を設定する。
+/// </summary>
 void NuisanceBall::Awake()
 {
     m_Ball = GetGameObject()->GetComponent<BallComponent>();
@@ -45,6 +48,9 @@ void NuisanceBall::Awake()
     m_Ball->SetPocketHandler([this]() { Pocket(); });
 }
 
+/// <summary>
+/// 物理の固定更新でお邪魔ボールの速度に摩擦を適用する。
+/// </summary>
 void NuisanceBall::FixedUpdate()
 {
     if (m_Ball != nullptr)
@@ -55,6 +61,9 @@ void NuisanceBall::FixedUpdate()
     }
 }
 
+/// <summary>
+/// お邪魔ボールの位置と転がりを反映した変換でモデルを描画する。
+/// </summary>
 void NuisanceBall::Draw()
 {
     Camera* camera = &GameRuntime::MainCamera();
@@ -70,11 +79,17 @@ void NuisanceBall::Draw()
     render->DrawMesh(world);
 }
 
+/// <summary>
+/// 破棄時にポケットイベントの処理を解除する。
+/// </summary>
 void NuisanceBall::OnDestroy()
 {
     if (m_Ball != nullptr) m_Ball->SetPocketHandler({});
 }
 
+/// <summary>
+/// ポケットに入ったお邪魔ボールを停止して破棄し、プレイヤーボールの弱体効果を更新する。
+/// </summary>
 void NuisanceBall::Pocket()
 {
     if (m_Ball == nullptr) return;

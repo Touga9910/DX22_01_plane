@@ -6,11 +6,20 @@
 #include <limits>
 
 using Position = PlayerAuraEffect::Position;
+/// <summary>
+/// 二つのテスト位置の三次元距離を求める。
+/// </summary>
 float Distance(Position a, Position b)
 { return std::hypot(a.x-b.x,a.y-b.y,a.z-b.z); }
+/// <summary>
+/// 盤面上のテスト位置を、画面上の固定倍率と原点を使って投影する。
+/// </summary>
 bool Project(const Position& p, ImVec2& screen)
 { screen=ImVec2(400+p.x*10,300+p.z*10); return true; }
 
+/// <summary>
+/// 自球のオーラの動き、初期化、配色とImGuiで生成される描画形状を検証する。
+/// </summary>
 int main()
 {
     PlayerBallData ball;

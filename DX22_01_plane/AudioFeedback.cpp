@@ -31,17 +31,26 @@ namespace
 		"assets/audio/combat/chain_15.wav",
 	}};
 
+	/// <summary>
+	/// 2つの4バイト識別子が一致するかを返す。
+	/// </summary>
 	bool FourCcEquals(const char* value, const char* expected)
 	{
 		return std::memcmp(value, expected, 4) == 0;
 	}
 
+	/// <summary>
+	/// 先頭2バイトをリトルエンディアンの符号なし16ビット整数として読み取る。
+	/// </summary>
 	std::uint16_t ReadU16(const std::uint8_t* bytes)
 	{
 		return static_cast<std::uint16_t>(bytes[0]) |
 			(static_cast<std::uint16_t>(bytes[1]) << 8);
 	}
 
+	/// <summary>
+	/// 先頭4バイトをリトルエンディアンの符号なし32ビット整数として読み取る。
+	/// </summary>
 	std::uint32_t ReadU32(const std::uint8_t* bytes)
 	{
 		return static_cast<std::uint32_t>(bytes[0]) |
@@ -50,6 +59,9 @@ namespace
 			(static_cast<std::uint32_t>(bytes[3]) << 24);
 	}
 
+	/// <summary>
+	/// 指定された連鎖到達数が定義済みの節目に対応する場合、その配列位置を返す。
+	/// </summary>
 	int MilestoneIndex(int milestone)
 	{
 		for (int index = 0; index < 4; ++index)
@@ -61,11 +73,17 @@ namespace
 	}
 }
 
+/// <summary>
+/// 戦闘効果音の再生を停止し、音声リソースを解放する。
+/// </summary>
 AudioFeedback::~AudioFeedback()
 {
 	Shutdown();
 }
 
+/// <summary>
+/// 戦闘効果音を初期化し、音源と再生用ボイスの準備を行う。
+/// </summary>
 bool AudioFeedback::Initialize(bool allowGeneratedTestTones)
 {
 	Shutdown();
@@ -113,6 +131,9 @@ bool AudioFeedback::Initialize(bool allowGeneratedTestTones)
 	return m_Initialized;
 }
 
+/// <summary>
+/// 再生用ボイスとXAudio2のリソースを解放し、音声処理を終了する。
+/// </summary>
 void AudioFeedback::Shutdown()
 {
 	for (VoiceSlot& slot : m_Voices)
@@ -141,6 +162,9 @@ void AudioFeedback::Shutdown()
 	m_Diagnostics.activeVoices = 0;
 }
 
+/// <summary>
+/// 効果音管理の経過時間と音量を更新し、使用中のボイスの状態を確認する。
+/// </summary>
 void AudioFeedback::Update(double elapsedSeconds, float seVolume)
 {
 	const auto started = std::chrono::steady_clock::now();
@@ -171,6 +195,9 @@ void AudioFeedback::Update(double elapsedSeconds, float seVolume)
 	++m_Diagnostics.updateCount;
 }
 
+/// <summary>
+/// プレイヤーへの衝撃に応じて、被ダメージ音またはシールド防御音を要求する。
+/// </summary>
 void AudioFeedback::OnPlayerImpact(int hpDamage, int shieldAbsorbed)
 {
     if (hpDamage <= 0 && shieldAbsorbed <= 0) return;
@@ -178,6 +205,9 @@ void AudioFeedback::OnPlayerImpact(int hpDamage, int shieldAbsorbed)
         CollisionPresentationRules::Strength::Medium, 0.0f, 0, true });
 }
 
+/// <summary>
+/// ショット開始時に撃破数と効果音の重複判定用の記録をリセットする。
+/// </summary>
 void AudioFeedback::OnShotFired(const ShotFiredEvent&)
 {
 	m_DefeatedTargets.clear();
@@ -185,6 +215,9 @@ void AudioFeedback::OnShotFired(const ShotFiredEvent&)
 	m_DefeatsThisShot = 0;
 }
 
+/// <summary>
+/// 衝突の種類と接近速度に応じて、衝突や連鎖の効果音を要求する。
+/// </summary>
 void AudioFeedback::OnCollisionImpact(
 	const CollisionImpactEvent& event,
 	int existingHeavyChainCount)
@@ -224,6 +257,9 @@ void AudioFeedback::OnCollisionImpact(
 		event.relativeApproachSpeed, existingHeavyChainCount, true });
 }
 
+/// <summary>
+/// 敵の撃破をショット内で重複なく記録し、撃破の効果音を要求する。
+/// </summary>
 void AudioFeedback::OnEnemyDamage(const EnemyDamageEvent& event)
 {
 	if (!event.defeated)
@@ -242,6 +278,9 @@ void AudioFeedback::OnEnemyDamage(const EnemyDamageEvent& event)
 		m_DefeatsThisShot });
 }
 
+/// <summary>
+/// 衝突時の接近速度に応じて壁の衝突音を要求する。
+/// </summary>
 void AudioFeedback::OnWallImpact(const WallImpactEvent& event)
 {
 	Request({ CombatSeCategory::WallImpact,
@@ -249,12 +288,18 @@ void AudioFeedback::OnWallImpact(const WallImpactEvent& event)
 		event.relativeApproachSpeed, 0, false });
 }
 
+/// <summary>
+/// 指定した分類の効果音ファイルが読み込み済みかを返す。
+/// </summary>
 bool AudioFeedback::HasLoadedAsset(CombatSeCategory category) const noexcept
 {
 	const std::size_t index = CombatAudioRules::Index(category);
 	return index < m_Clips.size() && m_Clips[index].loaded;
 }
 
+/// <summary>
+/// 指定した分類の効果音ファイルのパスを返す。
+/// </summary>
 const std::string& AudioFeedback::AssetPath(
 	CombatSeCategory category) const noexcept
 {
@@ -263,6 +308,9 @@ const std::string& AudioFeedback::AssetPath(
 	return index < m_Clips.size() ? m_Clips[index].path : Empty;
 }
 
+/// <summary>
+/// 指定した分類の効果音にファイルを読み込む。
+/// </summary>
 bool AudioFeedback::LoadClip(
 	CombatSeCategory category,
 	const std::string& path)
@@ -271,6 +319,9 @@ bool AudioFeedback::LoadClip(
 	return LoadClipFile(clip, path);
 }
 
+/// <summary>
+/// WAVファイルの形式とデータを検査し、対応する音声を再生用クリップへ読み込む。
+/// </summary>
 bool AudioFeedback::LoadClipFile(Clip& clip, const std::string& path)
 {
 	clip = {};
@@ -363,6 +414,9 @@ bool AudioFeedback::LoadClipFile(Clip& clip, const std::string& path)
 	return clip.loaded;
 }
 
+/// <summary>
+/// 連鎖の節目に対応する音源を選び、利用できない場合は分類の既定音源を返す。
+/// </summary>
 AudioFeedback::Clip& AudioFeedback::SelectClip(const PlayRequest& request)
 {
 	Clip& fallback = m_Clips[CombatAudioRules::Index(request.category)];
@@ -384,6 +438,9 @@ AudioFeedback::Clip& AudioFeedback::SelectClip(const PlayRequest& request)
 	return sameFormat ? m_ChainStageClips[index] : fallback;
 }
 
+/// <summary>
+/// 指定した効果音分類に対応するテスト用PCM音源を合成する。
+/// </summary>
 void AudioFeedback::GenerateTestTone(CombatSeCategory category)
 {
 	Clip& clip = m_Clips[CombatAudioRules::Index(category)];
@@ -430,6 +487,9 @@ void AudioFeedback::GenerateTestTone(CombatSeCategory category)
 	clip.generatedTestTone = true;
 }
 
+/// <summary>
+/// 読み込み済みの効果音に対して、音声形式と同時再生数に応じたボイスを作成する。
+/// </summary>
 bool AudioFeedback::CreateVoices()
 {
 	if (m_XAudio2 == nullptr)
@@ -465,6 +525,9 @@ bool AudioFeedback::CreateVoices()
 	return true;
 }
 
+/// <summary>
+/// 再生済みのボイスを空き状態に戻し、使用中のボイス数を更新する。
+/// </summary>
 void AudioFeedback::RefreshVoiceStates()
 {
 	int activeVoices = 0;
@@ -492,6 +555,9 @@ void AudioFeedback::RefreshVoiceStates()
 		activeVoices);
 }
 
+/// <summary>
+/// 音量、再生間隔、優先度、空きボイスを確認し、条件を満たす効果音を再生する。
+/// </summary>
 void AudioFeedback::Request(const PlayRequest& request)
 {
 	const auto started = std::chrono::steady_clock::now();
@@ -612,6 +678,9 @@ void AudioFeedback::Request(const PlayRequest& request)
 		milliseconds);
 }
 
+/// <summary>
+/// 指定した分類の再生用ボイスを探し、再利用できるものを返す。
+/// </summary>
 AudioFeedback::VoiceSlot* AudioFeedback::FindAvailableVoice(
 	CombatSeCategory category)
 {
@@ -639,6 +708,9 @@ AudioFeedback::VoiceSlot* AudioFeedback::FindAvailableVoice(
 	return nullptr;
 }
 
+/// <summary>
+/// 重要な通知音の例外と優先度を考慮し、同分類の再生間隔の制限が有効かを判定する。
+/// </summary>
 bool AudioFeedback::IsCooldownActive(
 	CombatSeCategory category,
 	int priority,
@@ -654,6 +726,9 @@ bool AudioFeedback::IsCooldownActive(
 		priority <= m_LastPlayedPriority[index];
 }
 
+/// <summary>
+/// 効果音の再生を見送った理由に対応する診断カウンターを更新する。
+/// </summary>
 void AudioFeedback::RecordSkip(CombatSeSkipReason reason)
 {
 	switch (reason)
@@ -684,6 +759,9 @@ void AudioFeedback::RecordSkip(CombatSeSkipReason reason)
 	}
 }
 
+/// <summary>
+/// ボイスの再生と待機中の音声を取り消し、再利用できる状態にする。
+/// </summary>
 void AudioFeedback::StopVoice(VoiceSlot& slot)
 {
 	if (slot.voice == nullptr)

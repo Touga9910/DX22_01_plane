@@ -8,8 +8,14 @@
 #include <limits>
 
 // Persistence test does not open a native display.
+/// <summary>
+/// 設定の保存と読み込みを検証するため、画面モード変更を空の実装に置き換える。
+/// </summary>
 void Application::SetDisplayMode(uint32_t, uint32_t, bool) {}
 
+/// <summary>
+/// シーン遷移の時間設定を保存と復元で保持し、古い設定や不正値も処理できることを検証する。
+/// </summary>
 int main()
 {
     using Json = nlohmann::json;

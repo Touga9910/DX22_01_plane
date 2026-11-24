@@ -11,11 +11,17 @@ namespace fs = std::filesystem;
 using nlohmann::json;
 const fs::path path = "saves/run_save.json";
 
+/// <summary>
+/// テスト用のセーブファイルをバイナリで読み込み、その内容を返す。
+/// </summary>
 std::string Read()
 {
     std::ifstream file(path, std::ios::binary);
     return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 }
+/// <summary>
+/// テスト用のセーブファイルを指定されたバイト列で上書きする。
+/// </summary>
 void Write(const std::string& bytes)
 {
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
@@ -23,6 +29,9 @@ void Write(const std::string& bytes)
     assert(file.good());
 }
 
+/// <summary>
+/// 隔離された作業場所で、セーブの保存と復元、不正データの拒否、失敗時の保護を検証する。
+/// </summary>
 int main()
 {
     // Never run this fixture against a user's existing saves.

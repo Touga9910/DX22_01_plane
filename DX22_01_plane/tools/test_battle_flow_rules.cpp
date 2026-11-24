@@ -3,6 +3,9 @@
 #include <cassert>
 #include <iostream>
 
+/// <summary>
+/// 停止確認、フェーズ開始と進行、勝利と戦闘後の復帰に関する規則を検証する。
+/// </summary>
 int main()
 {
     using namespace BattleFlowRules;

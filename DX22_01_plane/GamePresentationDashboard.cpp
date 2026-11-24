@@ -17,6 +17,9 @@ namespace
 {
 constexpr const char* kBalanceReportPath = "logs/balance/balance_report.json";
 
+/// <summary>
+/// バランス評価の識別子を、ダッシュボードに表示する日本語の判定に変換する。
+/// </summary>
 const char* JudgementLabel(const std::string& judgement)
 {
 	if (judgement == "balanced") return "目標範囲内";
@@ -26,6 +29,9 @@ const char* JudgementLabel(const std::string& judgement)
 	return "評価待ち";
 }
 
+/// <summary>
+/// バランス評価の判定に対応する表示色を返す。
+/// </summary>
 ImVec4 JudgementColor(const std::string& judgement)
 {
 	if (judgement == "balanced") return ImVec4(0.25f, 0.85f, 0.48f, 1.0f);
@@ -34,6 +40,9 @@ ImVec4 JudgementColor(const std::string& judgement)
 	return ImVec4(0.95f, 0.78f, 0.28f, 1.0f);
 }
 
+/// <summary>
+/// JSONから指定の数値項目を読み取り、値がなければ既定値を返す。
+/// </summary>
 float ReadNumber(const json& value, const char* key, float fallback = 0.0f)
 {
 	if (!value.is_object() || !value.contains(key) ||
@@ -44,6 +53,9 @@ float ReadNumber(const json& value, const char* key, float fallback = 0.0f)
 	return value[key].get<float>();
 }
 
+/// <summary>
+/// JSONから指定の文字列項目を読み取り、値がなければ既定値を返す。
+/// </summary>
 std::string ReadString(
 	const json& value,
 	const char* key,
@@ -58,6 +70,9 @@ std::string ReadString(
 }
 }
 
+/// <summary>
+/// バランス分析レポートを、評価や指標のタブに分けてダッシュボードに描画する。
+/// </summary>
 void GamePresentation::DrawDashboard()
 {
 	GameUi::PrepareWindow("dashboard", ImVec2(120, 35), ImVec2(1040, 650));
@@ -501,6 +516,9 @@ void GamePresentation::DrawDashboard()
 	ImGui::End();
 }
 
+/// <summary>
+/// 分析レポートを読み込み、ダッシュボードの表示データや読み込みエラーを更新する。
+/// </summary>
 void GamePresentation::LoadDashboard()
 {
 	m_Dashboard = DashboardData{};

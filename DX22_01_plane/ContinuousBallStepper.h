@@ -13,6 +13,9 @@ namespace ContinuousBallStepper
     inline constexpr int MaxIterations = 256; // 1tick内で許可する衝突時刻反復回数の上限
 
     // 位置・速度が有限で、半径と質量が正の有効な物理Bodyか判定
+    /// <summary>
+    /// 球の位置と速度が有限で、半径と質量が有限かつ正であることを確認する。
+    /// </summary>
     inline bool Valid(const BallPhysicsRules::Body& body)
     {
         return BallCcdGeometry::Finite(body.position) && BallCcdGeometry::Finite(body.velocity) &&
@@ -22,6 +25,9 @@ namespace ContinuousBallStepper
 
     // 現在時刻で発生している環境接触とボール同士の接触を解決
     // 同時刻ではポケットを含む環境処理を先に行い、その後でボール同士を処理
+    /// <summary>
+    /// 現在時刻の環境接触を先に処理し、その後で有効な球同士の接触を解決する。
+    /// </summary>
     template<class Adapter>
     void ResolveContacts(Adapter& world)
     {
@@ -38,6 +44,9 @@ namespace ContinuousBallStepper
 
     // 1tick内の最短衝突時刻を反復探索し、未衝突区間を飛び越えずにworldを進める
     // 不正なBody・壁・ポケットを検出した場合はlimitReachedをtrueにして終了
+    /// <summary>
+    /// 最短の衝突時刻を繰り返し求めて球を進め、異常入力や反復上限による未処理時間を報告する。
+    /// </summary>
     template<class Adapter>
     Result Step(Adapter& world)
     {

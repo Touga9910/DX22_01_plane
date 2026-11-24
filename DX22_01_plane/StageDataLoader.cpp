@@ -16,6 +16,9 @@ namespace
 {
     constexpr const char* kDefaultEnemyId = "enemy_normal";
 
+    /// <summary>
+    /// 配列または名前付きの座標から3次元ベクトルを読み込み、省略値を補う。
+    /// </summary>
     Vector3 LoadVector3(const json& value, const Vector3& defaultValue)
     {
         if (value.is_array() && value.size() == 3)
@@ -37,6 +40,9 @@ namespace
         return defaultValue;
     }
 
+    /// <summary>
+    /// JSONからボールの攻撃力や物理特性を読み込み、省略値を補う。
+    /// </summary>
     BallStatus LoadBallStatus(const json& value)
     {
         BallStatus status;
@@ -66,6 +72,9 @@ namespace
         return status;
     }
 
+    /// <summary>
+    /// JSONから敵の基礎能力、モデル、行動の定義を読み込む。
+    /// </summary>
     EnemyData LoadEnemyMasterData(const json& value)
     {
         EnemyData data;
@@ -203,6 +212,9 @@ namespace
         return data;
     }
 
+    /// <summary>
+    /// 敵マスターのJSONを読み込み、敵の識別子をキーにした参照表を作る。
+    /// </summary>
     std::unordered_map<std::string, EnemyData> LoadEnemyMasterMap(
         const std::string& filePath)
     {
@@ -250,6 +262,9 @@ namespace
         return enemyMap;
     }
 
+    /// <summary>
+    /// 文字列からステージ種別を取得し、未知の種別は警告して通常戦にする。
+    /// </summary>
     StageType ParseStageType(const std::string& value)
     {
         if (value == "normal")
@@ -270,6 +285,9 @@ namespace
         return StageType::Normal;
     }
 
+    /// <summary>
+    /// 戦闘モードの識別子を判別し、それ以外を従来の戦闘モードとして扱う。
+    /// </summary>
     CombatMode ParseCombatMode(const std::string& value)
     {
         if (value == "phasePrototype" || value == "phase_prototype")
@@ -279,6 +297,9 @@ namespace
         return CombatMode::Legacy;
     }
 
+    /// <summary>
+    /// 敵の配置と参照先の定義を確認し、スポーン用のデータを組み立てる。
+    /// </summary>
     bool LoadEnemySpawn(
         const json& spawnJson,
         const std::unordered_map<std::string, EnemyData>& enemyMasterMap,
@@ -339,6 +360,9 @@ namespace
         return true;
     }
 
+    /// <summary>
+    /// ステージの必須項目が揃っていることを確認し、不足や不正な値を報告する。
+    /// </summary>
     bool HasRequiredStageFields(const json& stageJson, size_t index)
     {
         const char* requiredFields[] =
@@ -374,6 +398,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 敵マスターを読み込み、敵の定義一覧を組み立てる。
+/// </summary>
 std::vector<EnemyData> StageDataLoader::LoadEnemyDefinitions(
     const std::string& enemyMasterFilePath)
 {
@@ -395,6 +422,9 @@ std::vector<EnemyData> StageDataLoader::LoadEnemyDefinitions(
     return definitions;
 }
 
+/// <summary>
+/// ステージと敵マスターから有効なステージを読み込み、フェーズごとの配置を組み立てる。
+/// </summary>
 std::vector<StageData> StageDataLoader::LoadAll(
     const std::string& stageFilePath,
     const std::string& enemyMasterFilePath)
@@ -563,6 +593,9 @@ std::vector<StageData> StageDataLoader::LoadAll(
     return stages;
 }
 
+/// <summary>
+/// 指定した識別子を持つステージを一覧から返す。
+/// </summary>
 const StageData* StageDataLoader::FindById(
     const std::vector<StageData>& stages,
     const std::string& stageId)

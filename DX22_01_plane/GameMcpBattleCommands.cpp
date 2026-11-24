@@ -10,6 +10,9 @@
 #include <string>
 #include <vector>
 
+/// <summary>
+/// 対応する戦闘コマンドを検証し、球の選択、ショットの評価や発射を処理する。
+/// </summary>
 std::optional<nlohmann::json> GameMcpCommandHandlers::TryBattle(
 	Game& game,
 	const std::string& action,

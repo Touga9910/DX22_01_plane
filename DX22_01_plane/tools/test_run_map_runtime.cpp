@@ -2,6 +2,9 @@
 #include <cassert>
 #include <iostream>
 
+/// <summary>
+/// 複数のシードとマップ版で、経路の再現性や到達可能性、保存と破損データの扱いを検証する。
+/// </summary>
 int main()
 {
     for (unsigned seed = 0; seed < 200; ++seed)

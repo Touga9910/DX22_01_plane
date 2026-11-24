@@ -1,6 +1,9 @@
 #include "../PlayerShieldRules.h"
 #include <cassert>
 #include <iostream>
+/// <summary>
+/// シールドによるポケットや敵攻撃の軽減と、後から得たシールドの適用順を検証する。
+/// </summary>
 int main()
 {
     for (int shieldAtShot : {0, 3, 4, 5})

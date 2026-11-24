@@ -10,13 +10,22 @@ class TitleTable final:public Component
 public:
     ~TitleTable() override;
     void Awake() override;
+    /// <summary>
+    /// オブジェクトの破棄時にタイトル台のリソースを解放する。
+    /// </summary>
     void OnDestroy() override { Release(); }
     void Release();
     void Draw() override;
     void Step(float dt,bool released,float cameraBlend=0);
     void DrawEffects(ImDrawList* draw);
     bool Project(const DirectX::SimpleMath::Vector3& world, ImVec2& screen)const;
+    /// <summary>
+    /// タイトル演出の手球がラックに衝突したかを返す。
+    /// </summary>
     bool RackHit() const{return m_Physics.hit;}
+    /// <summary>
+    /// タイトル台の演出開始からの経過時間を返す。
+    /// </summary>
     float Age()const{return m_Age;}
 private:
     std::unique_ptr<GameObject> m_Table,m_Frame;

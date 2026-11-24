@@ -22,6 +22,9 @@ namespace GameMcpStateSerialization
 {
 namespace
 {
+	/// <summary>
+	/// ステージの基本情報、敵とブレイク球の出現配置をJSONに変換する。
+	/// </summary>
 	nlohmann::json StageDataToJson(const StageData& stage)
 	{
 		nlohmann::json enemies = nlohmann::json::array();
@@ -56,6 +59,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 盤面の寸法と構造、選択されたステージの配置情報をJSONに追加する。
+/// </summary>
 void AppendTable(Game& game, const GameMcpReadSnapshot& snapshot, const std::vector<std::string>& stageEnemyIds, nlohmann::json& state)
 {
 	const std::vector<TableFrame*> tableFrames =
@@ -141,6 +147,9 @@ void AppendTable(Game& game, const GameMcpReadSnapshot& snapshot, const std::vec
 	};
 }
 
+/// <summary>
+/// プレイヤーの基本情報と一時シールドをJSONに追加し、現在の自球へのポインターを返す。
+/// </summary>
 const PlayerBall* AppendPlayer(Game& game, const GameMcpReadSnapshot& snapshot, nlohmann::json& state)
 {
 	const std::vector<PlayerBall*> players =
@@ -164,6 +173,9 @@ const PlayerBall* AppendPlayer(Game& game, const GameMcpReadSnapshot& snapshot, 
 	return player;
 }
 
+/// <summary>
+/// 自球の物理状態と、選択されている球のデータをJSONに追加する。
+/// </summary>
 void AppendSelectedBall(Game& game, const GameMcpReadSnapshot& snapshot, const PlayerBall* player, nlohmann::json& state)
 {
 	if (player != nullptr)

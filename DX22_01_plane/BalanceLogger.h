@@ -170,26 +170,53 @@ public:
 		int playerMaxHp,
 		int clearedStageCount);
 
+	/// <summary>
+	/// ランの計測が進行中かを返す。
+	/// </summary>
 	bool IsRunActive() const { return m_RunActive; }
+	/// <summary>
+	/// ステージの計測が進行中かを返す。
+	/// </summary>
 	bool IsStageActive() const { return m_StageActive; }
+	/// <summary>
+	/// ショットの計測が進行中かを返す。
+	/// </summary>
 	bool IsShotActive() const { return m_ShotActive; }
+	/// <summary>
+	/// 現在のランのログファイルパスを返す。
+	/// </summary>
 	const std::filesystem::path& GetLogPath() const { return m_LogPath; }
+	/// <summary>
+	/// 直近のショットの物理計測データを返す。
+	/// </summary>
 	const nlohmann::json& GetLatestShotPhysicsTelemetry() const
 	{
 		return m_LatestShotPhysicsTelemetry;
 	}
+	/// <summary>
+	/// 直近のショットの貫通攻撃の計測データを返す。
+	/// </summary>
 	const nlohmann::json& GetLatestShotPierceAttackTelemetry() const
 	{
 		return m_LatestShotPierceAttackTelemetry;
 	}
+	/// <summary>
+	/// 直近のショットの反射の計測データを返す。
+	/// </summary>
 	const nlohmann::json& GetLatestShotBounceTelemetry() const
 	{
 		return m_LatestShotBounceTelemetry;
 	}
+	/// <summary>
+	/// 直近のショットの戦闘結果を返す。
+	/// </summary>
 	const nlohmann::json& GetLatestShotCombatResult() const
 	{
 		return m_LatestShotCombatResult;
 	}
+	/// <summary>
+	/// 現在記録しているバランス設定のメタデータを返す。
+	/// </summary>
 	const nlohmann::json& GetBalanceMetadata() const
 	{
 		return m_BalanceMetadata;

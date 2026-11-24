@@ -27,9 +27,21 @@ struct DebugRunSnapshot
 class GameDebugController
 {
 public:
+	/// <summary>
+	/// デバッグモードが現在有効かを返す。
+	/// </summary>
 	bool IsActive() const { return m_DebugMode; }
+	/// <summary>
+	/// デバッグモードでランが進行中かを返す。
+	/// </summary>
 	bool IsRunActive() const { return m_DebugMode && m_DebugRunActive; }
+	/// <summary>
+	/// デバッグエディターが開いているかを返す。
+	/// </summary>
 	bool IsEditorOpen() const { return m_DebugEditorOpen; }
+	/// <summary>
+	/// デバッグ戦闘が終了したかを返す。
+	/// </summary>
 	bool IsBattleFinished() const { return m_DebugBattleFinished; }
 
 	void Open(Game& game);
@@ -41,12 +53,21 @@ public:
 	void ApplyRunSettings(Game& game);
 	void ApplyBattlePlayer(PlayerBall* player);
 	void ApplyBattleEnemy(EnemyBall* enemy, std::size_t index);
+	/// <summary>
+	/// 現在のデバッグ設定におけるブレイク用の球の配置を取得する。
+	/// </summary>
 	const std::vector<DirectX::SimpleMath::Vector3>& GetActiveBreakBallPositions() const
 	{
 		return m_DebugActiveSetup.breakBallPositions;
 	}
 
+	/// <summary>
+	/// デバッグ戦闘またはランの開始を要求する。
+	/// </summary>
 	void RequestStart() { m_DebugRequest = 1; }
+	/// <summary>
+	/// デバッグモードの終了を要求する。
+	/// </summary>
 	void RequestExit() { m_DebugRequest = 2; }
 	bool LoadPreset();
 	void SavePreset();
@@ -64,8 +85,17 @@ public:
 	void ResetDiagnostics(const char* reason);
 
 	float StageEditorPlayerRadius() const;
+	/// <summary>
+	/// 参照専用のステージ配置エディターを取得する。
+	/// </summary>
 	const StageLayoutEditor& GetStageEditor() const { return m_StageEditor; }
+	/// <summary>
+	/// 編集可能なステージ配置エディターを取得する。
+	/// </summary>
 	StageLayoutEditor& GetStageEditor() { return m_StageEditor; }
+	/// <summary>
+	/// デバッグエディターで使用する敵データの一覧を取得する。
+	/// </summary>
 	const std::vector<EnemyData>& GetEnemyCatalog() const { return m_DebugEnemyCatalog; }
 
 private:

@@ -88,5 +88,8 @@ public:
         const DirectX::SimpleMath::Vector3& worldPosition,
         int damage);
 
+    /// <summary>
+    /// 戦闘イベントの静的インターフェースをインスタンス化できないようにする。
+    /// </summary>
     GameBattleEvents() = delete;
 };

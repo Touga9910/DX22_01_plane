@@ -11,6 +11,9 @@ enum class EnemyValidationLayoutPattern
     Random,
 };
 
+/// <summary>
+/// 敵の検証用配置パターンを設定保存用の識別文字列に変換する。
+/// </summary>
 inline const char* EnemyValidationLayoutPatternId(
     EnemyValidationLayoutPattern pattern)
 {
@@ -22,6 +25,9 @@ inline const char* EnemyValidationLayoutPatternId(
     }
 }
 
+/// <summary>
+/// 設定文字列を対応する敵の配置パターンに変換し、認識できたかを返す。
+/// </summary>
 inline bool TryParseEnemyValidationLayoutPattern(
     const std::string& id,
     EnemyValidationLayoutPattern& pattern)
@@ -33,6 +39,9 @@ inline bool TryParseEnemyValidationLayoutPattern(
     return true;
 }
 
+/// <summary>
+/// 敵の検証用HP倍率が対応値の1倍、1.5倍、2倍のいずれかに近いか確認する。
+/// </summary>
 inline bool IsSupportedEnemyHpMultiplier(float multiplier)
 {
     return std::isfinite(multiplier) &&
@@ -41,6 +50,9 @@ inline bool IsSupportedEnemyHpMultiplier(float multiplier)
          std::abs(multiplier - 2.0f) < 0.0001f);
 }
 
+/// <summary>
+/// 検証で配置する敵の数が、対応している6体、8体、10体、12体のいずれかかを確認する。
+/// </summary>
 inline bool IsSupportedEnemyValidationCount(int count)
 {
 	return count == 6 || count == 8 || count == 10 || count == 12;

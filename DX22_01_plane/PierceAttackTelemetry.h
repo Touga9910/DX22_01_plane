@@ -17,6 +17,9 @@ enum class PierceAttackSource
 	Other,
 };
 
+/// <summary>
+/// 貫通系の攻撃元をログ用の識別文字列に変換する。
+/// </summary>
 inline const char* ToString(PierceAttackSource source)
 {
 	switch (source)
@@ -84,6 +87,9 @@ struct PierceAttackTelemetrySnapshot
 class PierceAttackTelemetry final
 {
 public:
+	/// <summary>
+	/// 貫通系攻撃のショット計測を開始し、集計とミニオンの記録を初期化する。
+	/// </summary>
 	void BeginShot()
 	{
 		m_Active = true;
@@ -93,6 +99,9 @@ public:
 		m_CurrentMinionCount = 0;
 	}
 
+	/// <summary>
+	/// ショット計測を停止し、集計とミニオンの記録を消去する。
+	/// </summary>
 	void Reset()
 	{
 		m_Active = false;
@@ -102,6 +111,9 @@ public:
 		m_CurrentMinionCount = 0;
 	}
 
+	/// <summary>
+	/// ミニオンの生成時刻、攻撃力、出現位置と発射条件を記録する。
+	/// </summary>
 	void RecordMinionSpawn(
 		std::uintptr_t key,
 		int attack,
@@ -132,6 +144,9 @@ public:
 			m_CurrentMinionCount);
 	}
 
+	/// <summary>
+	/// 記録済みのミニオンに、その更新で移動した距離を加算する。
+	/// </summary>
 	void RecordMinionMovement(std::uintptr_t key, float distance)
 	{
 		if (!m_Active || distance <= 0.0f) return;
@@ -140,6 +155,9 @@ public:
 		found->second.snapshot.movementDistance += distance;
 	}
 
+	/// <summary>
+	/// 破棄されたミニオンの破棄理由と生存時間を記録する。
+	/// </summary>
 	void RecordMinionDestroyed(
 		std::uintptr_t key,
 		const std::string& reason)
@@ -150,6 +168,9 @@ public:
 		FinishMinion(found->second, reason, NowMicroseconds());
 	}
 
+	/// <summary>
+	/// 貫通系の攻撃について、攻撃元別の実ダメージと過剰ダメージ、対象を記録する。
+	/// </summary>
 	void RecordAttack(
 		PierceAttackSource source,
 		std::uintptr_t sourceKey,
@@ -196,6 +217,9 @@ public:
 		minion.overkillDamage += overkill;
 	}
 
+	/// <summary>
+	/// 残ったミニオンの計測を閉じ、貫通系攻撃のショット集計を確定する。
+	/// </summary>
 	PierceAttackTelemetrySnapshot EndShot()
 	{
 		if (!m_Active) return {};
@@ -232,6 +256,9 @@ public:
 		return m_Snapshot;
 	}
 
+	/// <summary>
+	/// 貫通系攻撃のショット計測が進行中かを返す。
+	/// </summary>
 	bool IsActive() const { return m_Active; }
 
 private:
@@ -243,12 +270,18 @@ private:
 		bool active = false;
 	};
 
+	/// <summary>
+	/// 単調増加時計の時刻をマイクロ秒単位で返す。
+	/// </summary>
 	static long long NowMicroseconds()
 	{
 		return std::chrono::duration_cast<std::chrono::microseconds>(
 			std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
 
+	/// <summary>
+	/// 攻撃の判定、命中、有効打、各ダメージの値を集計に加算する。
+	/// </summary>
 	static void RecordTotals(
 		PierceAttackSourceTotals& totals,
 		int calculatedDamage,
@@ -264,6 +297,9 @@ private:
 		totals.overkillDamage += overkill;
 	}
 
+	/// <summary>
+	/// 指定された攻撃元に対応する集計を返す。
+	/// </summary>
 	PierceAttackSourceTotals& TotalsFor(PierceAttackSource source)
 	{
 		switch (source)
@@ -276,6 +312,9 @@ private:
 		}
 	}
 
+	/// <summary>
+	/// ミニオンの破棄理由と生存時間を確定し、活動中の数を減らす。
+	/// </summary>
 	void FinishMinion(
 		MinionState& state,
 		const std::string& reason,

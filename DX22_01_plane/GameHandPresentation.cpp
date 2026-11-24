@@ -9,6 +9,9 @@
 
 using namespace BallCardPresentation;
 
+/// <summary>
+/// 球候補の手札を描画し、プレイヤーが選んだ候補や確定操作を返す。
+/// </summary>
 BallSelectionPresentationIntent GamePresentation::DrawBallSelection(
 	const BallSelectionPresentationModel& model)
 {

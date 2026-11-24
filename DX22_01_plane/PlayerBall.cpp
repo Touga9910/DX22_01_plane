@@ -25,6 +25,9 @@
 using namespace std;
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// ゲームオブジェクトから球と描画のコンポーネントを取得し、球の状態とイベント処理を初期化する。
+/// </summary>
 void PlayerBall::Awake()
 {
 	GameObject* owner = GetGameObject();
@@ -46,11 +49,17 @@ void PlayerBall::Awake()
 	Init();
 }
 
+/// <summary>
+/// ゲームのメインカメラを使ってプレイヤー球を描画する。
+/// </summary>
 void PlayerBall::Draw()
 {
 	Draw(&GameRuntime::MainCamera());
 }
 
+/// <summary>
+/// 球に登録したポケットと撃破のコールバックを解除して終了処理に進む。
+/// </summary>
 void PlayerBall::OnDestroy()
 {
 	if (m_Ball != nullptr)
@@ -61,6 +70,9 @@ void PlayerBall::OnDestroy()
 	Uninit();
 }
 
+/// <summary>
+/// プレイヤー球の能力値、モデル、位置と弾道予測の描画リソースを初期化する。
+/// </summary>
 void PlayerBall::Init()
 {
 	// ステータス設定
@@ -116,6 +128,9 @@ void PlayerBall::Init()
 	InitTrajectoryVisualModel();
 }
 
+/// <summary>
+/// プレイヤー球の状態効果とフレームごとの表示・操作を更新する。
+/// </summary>
 void PlayerBall::Update()
 {
 	if (IsDefeated()) return;    // 倒されている場合は更新しない
@@ -138,6 +153,9 @@ void PlayerBall::Update()
 	}
 }
 
+/// <summary>
+/// 固定更新で球の停止・落下判定や軌跡の寿命を更新する。
+/// </summary>
 void PlayerBall::FixedUpdate()
 {
 	if (IsDefeated() || m_IsPocketed) return;
@@ -157,6 +175,9 @@ void PlayerBall::FixedUpdate()
 	// Movement is performed for all balls together by BallPhysicsWorld.
 }
 
+/// <summary>
+/// 報酬表示の状態と球の位置に応じて、プレイヤー球、軌跡、照準ガイドを描画する。
+/// </summary>
 void PlayerBall::Draw(Camera* cam)
 {
 	if (GameBattleView::ClearRewardActive()) return;
@@ -218,11 +239,17 @@ void PlayerBall::Draw(Camera* cam)
 	DrawTrajectoryLine();
 }
 
+/// <summary>
+/// プレイヤー球の終了処理の呼び出し口を提供する。関数本体は空。
+/// </summary>
 void PlayerBall::Uninit()
 {
 	// 現時点では解放が必要な専用リソースはない
 }
 
+/// <summary>
+/// 球を撃破状態にしてゲーム側へプレイヤー撃破を通知する。
+/// </summary>
 void PlayerBall::Defeat()
 {
 	m_Ball->Defeat();
@@ -231,6 +258,9 @@ void PlayerBall::Defeat()
 	GameBattleEvents::PlayerDefeated();
 }
 
+/// <summary>
+/// ポケットのダメージをシールドとHPに反映し、生存していれば復帰待ちにする。
+/// </summary>
 void PlayerBall::OnPocketHit()
 {
 	if (m_Ball == nullptr || m_IsPocketed)
@@ -262,6 +292,9 @@ void PlayerBall::OnPocketHit()
 	EnterPocketQueue();
 }
 
+/// <summary>
+/// 球をポケット待機状態に移し、速度と操作状態を更新する。
+/// </summary>
 void PlayerBall::EnterPocketQueue()
 {
 	if (m_Ball == nullptr || IsDefeated() || m_IsPocketed)
@@ -278,6 +311,9 @@ void PlayerBall::EnterPocketQueue()
 	}
 }
 
+/// <summary>
+/// ポケット待機中の球を指定位置に戻し、操作に使う状態を復元する。
+/// </summary>
 void PlayerBall::ReturnFromPocket(const Vector3& position)
 {
 	if (m_Ball == nullptr || IsDefeated() || !m_IsPocketed)
@@ -300,6 +336,9 @@ void PlayerBall::ReturnFromPocket(const Vector3& position)
 	m_State = State::Idle;
 }
 
+/// <summary>
+/// 受けるダメージを計算し、シールドで吸収した残りを球のHPへ反映する。
+/// </summary>
 void PlayerBall::TakeDamage(int damage)
 {
 	const int finalDamage = CalculateIncomingDamage(damage);
@@ -311,6 +350,9 @@ void PlayerBall::TakeDamage(int damage)
 	GamePlayerState::CaptureFrom(this);
 }
 
+/// <summary>
+/// お邪魔球から受けるオーラの効果を集め、プレイヤー球に適用する。
+/// </summary>
 void PlayerBall::RefreshNuisanceDebuffs()
 {
 	if (m_Ball == nullptr) return;
@@ -334,6 +376,9 @@ void PlayerBall::RefreshNuisanceDebuffs()
 	m_Ball->SetAuraStatusEffects(aura);
 }
 
+/// <summary>
+/// デバッグ移動、摩擦による停止判定と盤外落下時の処理を進める。
+/// </summary>
 void PlayerBall::UpdateSimulation()
 {
 	UpdateDebugMove();          // デバッグ用のWASD加速を反映する
@@ -346,6 +391,9 @@ void PlayerBall::UpdateSimulation()
 	}
 }
 
+/// <summary>
+/// デバッグ用の移動入力をプレイヤー球の速度に反映する。
+/// </summary>
 void PlayerBall::UpdateDebugMove()
 {
 	const float moveSpeed = 0.01f;           // デバッグ移動の加速度
@@ -357,6 +405,9 @@ void PlayerBall::UpdateDebugMove()
 	m_Ball->GetMutableVelocity() += moveInput * moveSpeed;     // 入力方向へ速度を加算する
 }
 
+/// <summary>
+/// 床の摩擦による減速と貫通終了時の方向を扱い、球が止まったかを更新する。
+/// </summary>
 void PlayerBall::UpdateStopByFriction()
 {
     Vector3 exitDirection;
@@ -378,6 +429,9 @@ void PlayerBall::UpdateStopByFriction()
         exitingPierce ? &exitDirection : nullptr)) m_State = State::Idle;
 }
 
+/// <summary>
+/// 盤外へ落ちた球を所定の位置に戻し、速度と軌跡をリセットする。
+/// </summary>
 void PlayerBall::CheckFallRespawn()
 {
 	if (m_Ball->GetPosition().y >= -100.0f) return;       // 一定以下に落ちていなければ何もしない
@@ -387,6 +441,9 @@ void PlayerBall::CheckFallRespawn()
 	m_TrajectoryPositions.clear();                       // 落下前の軌跡を消す
 }
 
+/// <summary>
+/// 移動方向と既存の軌跡から、球の後方に追加する軌跡点を求める。
+/// </summary>
 void PlayerBall::AddTrailPoint()
 {
 	Vector3 planarVelocity = m_Ball->GetVelocity();
@@ -422,6 +479,9 @@ void PlayerBall::AddTrailPoint()
 	}
 }
 
+/// <summary>
+/// 寿命を過ぎた軌跡点を除去し、残った軌跡の表示状態を更新する。
+/// </summary>
 void PlayerBall::UpdateTrailLife()
 {
 	const int expirationFrame = m_CurrentFrame - TRAIL_DURATION_FRAMES;
@@ -442,6 +502,9 @@ void PlayerBall::UpdateTrailLife()
 	}
 }
 
+/// <summary>
+/// 指定の速度で自動プレイのショットを発射し、戦闘側に開始を通知する。
+/// </summary>
 void PlayerBall::FireAutomatedShot(
 	const DirectX::SimpleMath::Vector3& velocity)
 {
@@ -459,6 +522,9 @@ void PlayerBall::FireAutomatedShot(
 	GameBattleEvents::PlayerShotFired(this);
 }
 
+/// <summary>
+/// 照準角またはドラッグ開始時に固定した向きと、ショットの強さから速度ベクトルを作る。
+/// </summary>
 Vector3 PlayerBall::GetShotVector() const
 {
 	// TC-18: m_AimAngle=0, m_ShotPower=5 → Vector3(sin(0),0,cos(0))×5 = Vector3(0,0,5)
@@ -470,6 +536,9 @@ Vector3 PlayerBall::GetShotVector() const
 	return Vector3(sin(m_AimAngle), 0.0f, cos(m_AimAngle)) * m_ShotPower;
 }
 
+/// <summary>
+/// プレイヤー球と照準に関する値をImGuiのデバッグ画面に表示する。
+/// </summary>
 void PlayerBall::DrawImGui()
 {
 	// 親クラスの共通UIを呼ぶ

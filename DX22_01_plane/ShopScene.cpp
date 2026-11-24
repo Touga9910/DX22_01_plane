@@ -9,16 +9,25 @@
 #include "UiText.h"
 #include "imgui/imgui.h"
 
+/// <summary>
+/// ショップシーンを生成し、商品の初期化を呼び出す。
+/// </summary>
 ShopScene::ShopScene()
 {
 	Init();
 }
 
+/// <summary>
+/// ショップシーンの終了処理を呼び出す。
+/// </summary>
 ShopScene::~ShopScene()
 {
 	Uninit();
 }
 
+/// <summary>
+/// ショップに並べる球とレリックの候補を抽選する。
+/// </summary>
 void ShopScene::Init()
 {
 	GameSceneCommands::RollShopBallOffers();
@@ -26,6 +35,9 @@ void ShopScene::Init()
 
 }
 
+/// <summary>
+/// ショップの入力を処理し、商品の購入や球の除去に関する選択を進める。
+/// </summary>
 void ShopScene::Update()
 {
 	if (m_UiState.modalOpen) return;
@@ -110,6 +122,9 @@ void ShopScene::Update()
 	}
 }
 
+/// <summary>
+/// ショップの状態から価格や候補の表示用データを作成し、選択画面を描画する。
+/// </summary>
 void ShopScene::DrawUI()
 {
     const auto view=GameView::CaptureShop();
@@ -134,6 +149,9 @@ void ShopScene::DrawUI()
 }
 
 
+/// <summary>
+/// ショップが登録したゲームオブジェクトを破棄し、管理一覧を空にする。
+/// </summary>
 void ShopScene::Uninit()
 {
 	for (GameObject* gameObject : m_SceneGameObjects)

@@ -2,6 +2,9 @@
 #include "../BossPocketRules.h"
 #include <cassert>
 #include <iostream>
+/// <summary>
+/// ボス戦の行動順、召喚上限、装甲破壊、衝突とポケットの規則を検証する。
+/// </summary>
 int main()
 {
     using namespace BossEncounterRules;

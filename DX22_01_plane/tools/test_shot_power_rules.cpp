@@ -3,6 +3,9 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+/// <summary>
+/// ショット威力の範囲と割合指定、および衝撃に応じた揺れの規則を検証する。
+/// </summary>
 int main()
 {
     static_assert(ShotPowerRules::Maximum==8);

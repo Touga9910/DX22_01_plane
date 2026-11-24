@@ -21,6 +21,9 @@ namespace SynchronizedBallStepper
 
     // world内の全有効ボールを安全な距離幅で同期移動し、環境・ボール同士の接触を順に解決
     // ボールが存在しない場合は初期値のResultを返す
+    /// <summary>
+    /// 安全な時間刻みで有効な球を同時に進め、環境と球同士の接触を解決する。
+    /// </summary>
     template<class Adapter>
     Result Step(Adapter& world)
     {

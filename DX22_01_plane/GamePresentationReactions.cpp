@@ -12,6 +12,9 @@ using DirectX::SimpleMath::Vector3;
 
 namespace
 {
+	/// <summary>
+	/// 識別キーに対応する、現在ワールドに登録されている敵コンポーネントを探す。
+	/// </summary>
 	EnemyBall* FindLiveHitTarget(std::uintptr_t key)
 	{
 		if (key == 0) return nullptr;
@@ -25,6 +28,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 登録中の被弾演出を消去し、対象となる敵の発光と診断用カウンターを初期化する。
+/// </summary>
 void GamePresentation::ClearHitReactions()
 {
 	for (HitReaction& reaction : m_HitReactions)
@@ -40,6 +46,9 @@ void GamePresentation::ClearHitReactions()
 	m_CombatReactionDiagnostics.activeHitFlashes = 0;
 }
 
+/// <summary>
+/// ダメージと撃破状態を確認し、対象の敵に短時間の被弾発光を登録する。
+/// </summary>
 void GamePresentation::BeginHitReaction(
 	std::uintptr_t targetKey,
 	int damage,
@@ -111,6 +120,9 @@ void GamePresentation::BeginHitReaction(
 		active);
 }
 
+/// <summary>
+/// 被弾発光の残り時間と強度を更新し、無効な対象や期限切れの演出を消去する。
+/// </summary>
 void GamePresentation::UpdateHitReactions(Game& game, float deltaSeconds)
 {
 	const bool enabled = game.IsEnemyHitFlashEnabled() && IsBattleScene(game);
@@ -144,6 +156,9 @@ void GamePresentation::UpdateHitReactions(Game& game, float deltaSeconds)
 	m_CombatReactionDiagnostics.activeHitFlashes = active;
 }
 
+/// <summary>
+/// 生存中の敵のHP表示を更新し、盤面から消えた対象の表示状態を除く。
+/// </summary>
 void GamePresentation::UpdateEnemyHpVisuals(float deltaSeconds)
 {
 	std::vector<std::uintptr_t> liveKeys;
@@ -211,6 +226,9 @@ void GamePresentation::UpdateEnemyHpVisuals(float deltaSeconds)
 		});
 }
 
+/// <summary>
+/// 指定された敵の撃破をすでに追跡しているかを返す。
+/// </summary>
 bool GamePresentation::HasTrackedDefeat(std::uintptr_t targetKey) const
 {
 	if (targetKey == 0) return false;
@@ -220,6 +238,9 @@ bool GamePresentation::HasTrackedDefeat(std::uintptr_t targetKey) const
 		targetKey) != m_DefeatKeys.begin() + m_TrackedDefeatCount;
 }
 
+/// <summary>
+/// 初回の撃破を記録し、個別の撃破演出や複数撃破のバナーを開始する。
+/// </summary>
 bool GamePresentation::BeginDefeatReaction(
 	const Vector3& worldPosition,
 	std::uintptr_t targetKey)

@@ -4,6 +4,9 @@
 #include <limits>
 #include <stdexcept>
 
+/// <summary>
+/// 画面遷移のフェード時間、確定とキャンセル、読み込み失敗からの回復を検証する。
+/// </summary>
 int main()
 {
     for (auto phase : {SceneTransition::Phase::FadeOut, SceneTransition::Phase::Black, SceneTransition::Phase::FadeIn})

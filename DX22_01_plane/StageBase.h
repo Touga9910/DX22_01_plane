@@ -33,6 +33,9 @@ public:
     // 終了処理も共通化
     void Uninit();
 
+    /// <summary>
+    /// 打数から規定打数を引いたスコアを返す。
+    /// </summary>
     int GetScore() const { return m_StrokeCount - m_Par; }
 
     void RemoveInvalidSceneObjectRefs();

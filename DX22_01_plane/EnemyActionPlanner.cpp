@@ -9,6 +9,9 @@
 
 namespace
 {
+    /// <summary>
+    /// 敵行動の予算、各行動コスト、チャージ開始数などを使用可能な範囲に補正する。
+    /// </summary>
     EnemyActionConfig Normalize(EnemyActionConfig config)
     {
         config.maximumBudget = (std::max)(0, config.maximumBudget);
@@ -26,6 +29,9 @@ namespace
         return config;
     }
 
+    /// <summary>
+    /// 巡回カーソルの位置から順に候補を調べ、条件を満たす候補の添字を返す。
+    /// </summary>
     template<typename Predicate>
     std::vector<std::size_t> OrderedIndices(
         const std::vector<EnemyActionCandidate>& candidates,
@@ -50,6 +56,9 @@ namespace
     }
 }
 
+/// <summary>
+/// 敵行動の設定をJSONから読み込み、利用できない場合は既定の設定を使う。
+/// </summary>
 bool EnemyActionPlanner::LoadConfig(const std::string& filePath)
 {
     std::ifstream file(filePath);
@@ -102,6 +111,9 @@ bool EnemyActionPlanner::LoadConfig(const std::string& filePath)
     }
 }
 
+/// <summary>
+/// 通常攻撃、チャージ開始、チャージ攻撃の巡回カーソルを先頭に戻す。
+/// </summary>
 void EnemyActionPlanner::Reset()
 {
     m_NormalCursor = 0;
@@ -109,6 +121,9 @@ void EnemyActionPlanner::Reset()
     m_ChargeAttackCursor = 0;
 }
 
+/// <summary>
+/// テスト用の行動設定を有効範囲に補正して適用し、候補選択の順序を初期化する。
+/// </summary>
 void EnemyActionPlanner::SetConfigForTesting(
     const EnemyActionConfig& config)
 {
@@ -116,6 +131,9 @@ void EnemyActionPlanner::SetConfigForTesting(
     Reset();
 }
 
+/// <summary>
+/// 行動予算をチャージ攻撃、チャージ開始、通常攻撃の順に割り当て、次ターンの予約も記録する。
+/// </summary>
 EnemyActionTurnPlan EnemyActionPlanner::PlanTurn(
     const std::vector<EnemyActionCandidate>& candidates)
 {

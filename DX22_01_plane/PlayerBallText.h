@@ -11,11 +11,17 @@
 
 namespace PlayerBallText
 {
+    /// <summary>
+    /// UTF-8の文字列を既存の表示APIへ渡せるcharポインターとして扱う。
+    /// </summary>
     inline const char* Utf8(const char8_t* text) noexcept
     {
         return reinterpret_cast<const char*>(text);
     }
 
+    /// <summary>
+    /// 球の定義IDに対応する表示色を返す。
+    /// </summary>
     inline std::array<float, 3> GetColor(const std::string& id)
     {
         if (id == "player_heavy" || id == "player_collision_boost" || id == "player_lightweight") return { 0.85f, 0.45f, 0.16f };
@@ -25,6 +31,9 @@ namespace PlayerBallText
         return { 0.25f, 0.63f, 1.0f };
     }
 
+    /// <summary>
+    /// 球カテゴリに対応する表示色を返し、基本球は定義IDの色を使う。
+    /// </summary>
     inline std::array<float, 3> GetColor(const PlayerBallData& ball)
     {
         switch (ball.category)
@@ -37,6 +46,9 @@ namespace PlayerBallText
         }
     }
 
+    /// <summary>
+    /// 球の定義IDに対応する日本語の表示名を返す。
+    /// </summary>
     inline const char* GetName(const std::string& id)
     {
         if (id == "player_guard") return Utf8(u8"防御球");
@@ -62,6 +74,9 @@ namespace PlayerBallText
     }
 
     // 詳細ウィンドウやマウスオーバーで表示する説明。改修済みの実効果を反映。
+    /// <summary>
+    /// 球の効果と強化内容を説明する日本語の詳細文を返す。
+    /// </summary>
     inline const char* GetDescription(const std::string& id)
     {
         if (id == "player_guard") return Utf8(u8"ショット時にシールド3（+1で4、+2で5）を得る。追突力は0→1→1。+2では敵同士の有効衝突ごとにシールド1を得る。シールドはそのターン終了で消える。");
@@ -86,6 +101,9 @@ namespace PlayerBallText
         return Utf8(u8"ボールの説明は未登録です。");
     }
 
+    /// <summary>
+    /// 球のカテゴリや能力に応じた特性ラベルを返す。
+    /// </summary>
     inline const char* GetTrait(const PlayerBallData& ball)
     {
         switch (ball.category)
@@ -98,6 +116,9 @@ namespace PlayerBallText
         }
     }
 
+    /// <summary>
+    /// 球の定義IDに対応する役割ラベルを返す。
+    /// </summary>
     inline const char* GetRoles(const std::string& id)
     {
         if (id == "player_guard") return Utf8(u8"[防御]");
@@ -112,6 +133,9 @@ namespace PlayerBallText
         return Utf8(u8"[汎用]");
     }
 
+    /// <summary>
+    /// カテゴリごとに共通するスタックの獲得条件を表示する文を返す。
+    /// </summary>
     inline const char* GetCommonStackRule(BallCategory category)
     {
         switch (category)
@@ -125,6 +149,9 @@ namespace PlayerBallText
     }
 
     // カード内説明は拡大表示で3～4行に収まりやすい短文にする。
+    /// <summary>
+    /// 球の現在ステータスと効果をカード内に収まる短文に整える。
+    /// </summary>
     inline std::string GetShortDescription(const PlayerBallData& ball)
     {
         const BallStatus& s = ball.status;
@@ -226,6 +253,9 @@ namespace PlayerBallText
     }
 
     // 強化プレビューでは段階ごとの実数値を表示する。
+    /// <summary>
+    /// 指定の強化段階で使う球の攻撃力や能力値を表示用の文字列に整える。
+    /// </summary>
     inline std::string GetStats(const PlayerBallData& ball, const BallStatus& s)
     {
         std::ostringstream text;
@@ -280,6 +310,9 @@ namespace PlayerBallText
         return text.str();
     }
 
+    /// <summary>
+    /// 現在と次の強化段階の能力値を比較する表示文を返す。
+    /// </summary>
     inline std::string GetUpgradePreview(const PlayerBallData& ball)
     {
         if (!ball.CanUpgrade()) return Utf8(u8"最大強化");

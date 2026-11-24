@@ -29,6 +29,9 @@ namespace
     constexpr float kDefeatVisualTransitionSeconds = 0.3f;
 }
 
+/// <summary>
+/// 物理と描画のコンポーネントを取得し、ポケット時の処理を登録して初期データから敵球を準備する。
+/// </summary>
 void EnemyBall::Awake()
 {
     GameObject* owner = GetGameObject();
@@ -58,11 +61,17 @@ void EnemyBall::Awake()
     }
 }
 
+/// <summary>
+/// ゲームで共有しているメインカメラを使って敵球を描画する。
+/// </summary>
 void EnemyBall::Draw()
 {
     Draw(&GameRuntime::MainCamera());
 }
 
+/// <summary>
+/// モデルの基準半径と現在の最大スケールから描画上の半径を求め、取得できなければ物理半径を使う。
+/// </summary>
 float EnemyBall::GetVisualRadius() const
 {
 	if (m_Ball == nullptr)
@@ -81,6 +90,9 @@ float EnemyBall::GetVisualRadius() const
 	return visualRadius > 0.001f ? visualRadius : GetRadius();
 }
 
+/// <summary>
+/// お邪魔ボールと予告を片付け、ポケット処理の登録を解除して敵球の終了処理を呼び出す。
+/// </summary>
 void EnemyBall::OnDestroy()
 {
     m_NuisanceWarningVisible = false;
@@ -92,6 +104,9 @@ void EnemyBall::OnDestroy()
     Uninit();
 }
 
+/// <summary>
+/// 既定の敵データを使い、敵球のステータスと表示を初期化する。
+/// </summary>
 void EnemyBall::Init()
 {
     // デフォルトのEnemyDataを使って初期化する
@@ -99,6 +114,9 @@ void EnemyBall::Init()
     Init(data);
 }
 
+/// <summary>
+/// 敵データをもとに、戦闘状態、HP、モデル、色、配置とお邪魔ボールの出現条件を初期化する。
+/// </summary>
 void EnemyBall::Init(const EnemyData& data)
 {
 	m_AnchorStacks = 0;
@@ -218,6 +236,9 @@ void EnemyBall::Init(const EnemyData& data)
     m_NuisanceWarningVisible = m_NuisanceTurnsUntilSpawn == 1;
 }
 
+/// <summary>
+/// 固定更新で撃破演出と衝突の再集計待ち時間を進め、敵球の速度に摩擦を適用する。
+/// </summary>
 void EnemyBall::FixedUpdate()
 {
     if (m_Ball == nullptr || m_IsPocketed)
@@ -252,6 +273,9 @@ void EnemyBall::FixedUpdate()
     // Movement is performed after EVERY ball has applied friction for this tick.
 }
 
+/// <summary>
+/// ポケットに入っていない敵球を、指定カメラと転がり回転を反映して描画し、お邪魔ボールの出現予告も表示する。
+/// </summary>
 void EnemyBall::Draw(Camera* cam)
 {
 	if (m_RenderComponent == nullptr && GetGameObject() != nullptr)
@@ -283,11 +307,17 @@ void EnemyBall::Draw(Camera* cam)
     DrawNuisanceWarning();
 }
 
+/// <summary>
+/// 敵球コンポーネントの終了処理の呼び出し口を提供する。
+/// </summary>
 void EnemyBall::Uninit()
 {
     // 必要に応じた解放処理
 }
 
+/// <summary>
+/// 敵球を撃破状態にし、盤面に残る球の速度と加速度を保ったまま撃破処理を行う。
+/// </summary>
 void EnemyBall::Defeat()
 {
     if (m_Ball == nullptr)
@@ -305,6 +335,9 @@ void EnemyBall::Defeat()
     CompleteDefeatTransition();
 }
 
+/// <summary>
+/// 未処理の撃破に対して行動や状態効果を解除し、撃破を通知して他の敵の盤面能力を再評価する。
+/// </summary>
 void EnemyBall::CompleteDefeatTransition()
 {
     if (m_Ball == nullptr || !m_Ball->IsDefeated() || m_DefeatProcessed)
@@ -348,6 +381,9 @@ void EnemyBall::CompleteDefeatTransition()
     }
 }
 
+/// <summary>
+/// ポケットに入った位置を保存し、敵球を停止して盤面から無効化する。
+/// </summary>
 void EnemyBall::RemoveFromFieldAfterPocket()
 {
     if (m_Ball == nullptr)
@@ -365,6 +401,9 @@ void EnemyBall::RemoveFromFieldAfterPocket()
     }
 }
 
+/// <summary>
+/// 同じ識別子の有効な敵球に再読み込みしたデータを適用し、HP割合、描画色、半径を更新する。
+/// </summary>
 void EnemyBall::ApplyHotReloadData(const EnemyData& data)
 {
     // 別の敵IDのデータを誤って適用しない
@@ -405,6 +444,9 @@ void EnemyBall::ApplyHotReloadData(const EnemyData& data)
         << std::endl;
 }
 
+/// <summary>
+/// 有効な敵球の最大HPとステータスを変更し、変更前のHP割合から現在HPを求め直す。
+/// </summary>
 void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
 {
     if (!CanParticipateInCombat()) return;
@@ -434,6 +476,9 @@ void EnemyBall::ApplyStatusKeepHpRate(const BallStatus& status)
     SetHP(newHp);
 }
 
+/// <summary>
+/// 戦闘に参加できる敵球のステータス値を更新する。
+/// </summary>
 void EnemyBall::ApplyStatusValuesOnly(const BallStatus& status)
 {
     if (!CanParticipateInCombat()) return;
@@ -441,6 +486,9 @@ void EnemyBall::ApplyStatusValuesOnly(const BallStatus& status)
     m_Ball->ApplyStatusValuesOnly(status);
 }
 
+/// <summary>
+/// ポケットに入ったことを、二重処理を避けて戦闘側に通知する。
+/// </summary>
 void EnemyBall::OnPocketHit()
 {
     if (m_Ball == nullptr || m_IsPocketed)
@@ -450,6 +498,9 @@ void EnemyBall::OnPocketHit()
     GameBattleEvents::EnemyPocketed(this);
 }
 
+/// <summary>
+/// 防御や保護能力を反映したダメージを適用し、貫通ダメージ、撃破、ログを処理する。
+/// </summary>
 void EnemyBall::TakeDamage(
     int damage,
     EnemyDamageKind damageKind)
@@ -506,6 +557,9 @@ void EnemyBall::TakeDamage(
 		appliedDamage);
 }
 
+/// <summary>
+/// 防御計算後の被ダメージに、防護共鳴による軽減を適用する。
+/// </summary>
 int EnemyBall::CalculateDamageTaken(int damage) const
 {
 	const int damageAfterDefense = CalculateDamageTakenWithoutProtection(damage);
@@ -515,6 +569,9 @@ int EnemyBall::CalculateDamageTaken(int damage) const
 		GetProtectionDamageReduction());
 }
 
+/// <summary>
+/// 装甲ボスの規則と防御を反映し、防護共鳴を適用する前の被ダメージを求める。
+/// </summary>
 int EnemyBall::CalculateDamageTakenWithoutProtection(int damage) const
 {
 	if (m_Ball == nullptr || m_Ball->IsDefeated() || damage <= 0) return 0;
@@ -528,6 +585,9 @@ int EnemyBall::CalculateDamageTakenWithoutProtection(int damage) const
 	return m_Ball->CalculateDamageTaken(damage);
 }
 
+/// <summary>
+/// 群体強化や脆化による攻撃力と、状態効果の攻撃補正を合算する。
+/// </summary>
 int EnemyBall::GetAttack() const
 {
 	if (!CanParticipateInCombat()) return 0;
@@ -551,6 +611,9 @@ int EnemyBall::GetAttack() const
 	return (std::max)(0, attack + statusModifier);
 }
 
+/// <summary>
+/// 盤面上の距離を調べ、敵球が有効な防護共鳴の範囲内にいるか判定する。
+/// </summary>
 bool EnemyBall::IsProtectedByResonator() const
 {
 	if (m_Ball == nullptr || IsDefeated() || IsPocketed()) return false;
@@ -575,6 +638,9 @@ bool EnemyBall::IsProtectedByResonator() const
 	return false;
 }
 
+/// <summary>
+/// 範囲内にいる防護共鳴の発生源のうち、最も大きいダメージ軽減量を返す。
+/// </summary>
 int EnemyBall::GetProtectionDamageReduction() const
 {
 	if (!IsProtectedByResonator()) return 0;
@@ -602,6 +668,9 @@ int EnemyBall::GetProtectionDamageReduction() const
 	return reduction;
 }
 
+/// <summary>
+/// 保護範囲と近くの生存味方数を再評価し、必要に応じて能力の変化を通知する。
+/// </summary>
 void EnemyBall::RefreshBoardAbilityState(bool notifyChange)
 {
 	const bool protectedNow = IsProtectedByResonator();
@@ -672,6 +741,9 @@ void EnemyBall::RefreshBoardAbilityState(bool notifyChange)
 	}
 }
 
+/// <summary>
+/// 発動条件に達した壁衝突で脆化状態を設定または更新し、新たな発動を通知する。
+/// </summary>
 void EnemyBall::RegisterWallImpact(float collisionSpeed)
 {
 	if (m_EnemyData.boardAbility.type !=
@@ -699,6 +771,9 @@ void EnemyBall::RegisterWallImpact(float collisionSpeed)
 	}
 }
 
+/// <summary>
+/// 攻撃後に脆化の残り行動数を減らし、効果が終了した場合は変化を通知する。
+/// </summary>
 void EnemyBall::ConsumeBoardAbilityAfterAttack()
 {
 	if (!CanParticipateInCombat() || !IsBrittle()) return;
@@ -714,6 +789,9 @@ void EnemyBall::ConsumeBoardAbilityAfterAttack()
 	}
 }
 
+/// <summary>
+/// 盤面能力の変化理由、攻撃値、段階や衝突速度をまとめて戦闘イベントに渡す。
+/// </summary>
 void EnemyBall::PublishBoardAbilityChange(
 	const char* reason,
 	int previousStage,
@@ -740,6 +818,9 @@ void EnemyBall::PublishBoardAbilityChange(
 	});
 }
 
+/// <summary>
+/// 戦闘に参加可能な敵に、次の行動、消費予算、チャージ攻撃の倍率を保存する。
+/// </summary>
 void EnemyBall::SetPlannedAction(
     EnemyActionType action,
     int budgetCost,
@@ -757,6 +838,9 @@ void EnemyBall::SetPlannedAction(
         (std::max)(0.0f, chargeDamageMultiplier);
 }
 
+/// <summary>
+/// チャージ開始が予定され、使用条件を満たす敵をチャージ中にする。
+/// </summary>
 void EnemyBall::BeginCharge()
 {
     if (m_PlannedAction != EnemyActionType::ChargeStart ||
@@ -767,6 +851,9 @@ void EnemyBall::BeginCharge()
     m_ChargeState = EnemyChargeState::Charging;
 }
 
+/// <summary>
+/// チャージ攻撃の完了時に通常状態へ戻し、ショット中の追跡情報を消去する。
+/// </summary>
 void EnemyBall::CompleteChargeAttack()
 {
     if (m_ChargeState == EnemyChargeState::Charging)
@@ -776,6 +863,9 @@ void EnemyBall::CompleteChargeAttack()
     ResetChargeShotTracking();
 }
 
+/// <summary>
+/// 今回のショットでチャージ攻撃を予定している敵の開始位置と重いショットかどうかを記録する。
+/// </summary>
 void EnemyBall::BeginChargeShotTracking(bool heavyShot)
 {
     ResetChargeShotTracking();
@@ -791,6 +881,9 @@ void EnemyBall::BeginChargeShotTracking(bool heavyShot)
     m_ChargeShotStart = GetPosition();
 }
 
+/// <summary>
+/// ショット中の移動距離と貫通ダメージで中断を判定し、追跡情報を消去して結果を返す。
+/// </summary>
 std::optional<ChargeInterruptionResult>
 EnemyBall::EndChargeShotTracking(
     float heavyInterruptDiameterMultiplier,
@@ -832,6 +925,9 @@ EnemyBall::EndChargeShotTracking(
     return result;
 }
 
+/// <summary>
+/// 予定済みまたは進行中のチャージを解除し、進行中だった場合は中断理由を保持する。
+/// </summary>
 void EnemyBall::CancelCharge(ChargeInterruptReason reason)
 {
     const bool wasCharging =
@@ -857,6 +953,9 @@ void EnemyBall::CancelCharge(ChargeInterruptReason reason)
     ResetChargeShotTracking();
 }
 
+/// <summary>
+/// チャージ中断判定のために保持していたショット開始位置と貫通ダメージなどを初期化する。
+/// </summary>
 void EnemyBall::ResetChargeShotTracking()
 {
     m_ChargeShotActive = false;
@@ -865,6 +964,9 @@ void EnemyBall::ResetChargeShotTracking()
     m_ChargeShotPierceDamage = 0;
 }
 
+/// <summary>
+/// 衝突元との位置関係による軽減と、現在の衝突段階の倍率をダメージに反映する。
+/// </summary>
 int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) const
 {
     if (!CanParticipateInCombat() || damage <= 0) return 0;
@@ -878,6 +980,9 @@ int EnemyBall::AdjustCollisionDamage(int damage, const Vector3& sourcePosition) 
         GetCollisionStageDamageMultiplier());
 }
 
+/// <summary>
+/// 敵データの倍率表から、現在の衝突段階に対応するダメージ倍率を返す。
+/// </summary>
 float EnemyBall::GetCollisionStageDamageMultiplier() const
 {
     return EnemyGimmickRules::CollisionDamageMultiplier(
@@ -885,6 +990,9 @@ float EnemyBall::GetCollisionStageDamageMultiplier() const
         m_CollisionStage);
 }
 
+/// <summary>
+/// 同じ相手との再集計待ちを考慮して衝突段階を進め、描画色を更新する。
+/// </summary>
 void EnemyBall::RegisterCollisionForStage(std::uintptr_t otherBallId)
 {
     if (!HasCollisionStages() || IsDefeated() || otherBallId == 0 ||
@@ -902,17 +1010,26 @@ void EnemyBall::RegisterCollisionForStage(std::uintptr_t otherBallId)
     UpdateCollisionStageTint();
 }
 
+/// <summary>
+/// 現在の衝突段階を描画色に反映する。
+/// </summary>
 void EnemyBall::UpdateCollisionStageTint()
 {
 	ApplyPresentationTint();
 }
 
+/// <summary>
+/// 被弾時の点滅強度を0から1に収め、描画色を更新する。
+/// </summary>
 void EnemyBall::SetPresentationHitFlash(float intensity)
 {
 	m_PresentationHitFlash = std::clamp(intensity, 0.0f, 1.0f);
 	ApplyPresentationTint();
 }
 
+/// <summary>
+/// 衝突段階の明るさと被弾時の点滅を基本色に重ね、敵球の描画色を設定する。
+/// </summary>
 void EnemyBall::ApplyPresentationTint()
 {
 	if (m_RenderComponent == nullptr) return;
@@ -941,12 +1058,18 @@ void EnemyBall::ApplyPresentationTint()
 		stageTint.w));
 }
 
+/// <summary>
+/// 生成したお邪魔ボールが現在もゲームワールド内に存在するかを返す。
+/// </summary>
 bool EnemyBall::HasLiveNuisanceBall() const
 {
     return m_NuisanceBallObject != nullptr &&
         GameRuntime::World().Contains(m_NuisanceBallObject);
 }
 
+/// <summary>
+/// 所有していたお邪魔ボールを破棄し、そのお邪魔ボールに伴うプレイヤー側の弱体化を更新する。
+/// </summary>
 void EnemyBall::DestroyNuisanceBall()
 {
     const bool destroyed = HasLiveNuisanceBall();
@@ -963,6 +1086,9 @@ void EnemyBall::DestroyNuisanceBall()
     }
 }
 
+/// <summary>
+/// 出現条件を満たす敵のお邪魔ボールを指定位置に生成し、予告とプレイヤー側の弱体化を更新する。
+/// </summary>
 void EnemyBall::SpawnNuisanceBall()
 {
     if (!m_EnemyData.nuisanceBall.enabled || HasLiveNuisanceBall() ||
@@ -983,6 +1109,9 @@ void EnemyBall::SpawnNuisanceBall()
     m_NuisanceWarningVisible = false;
 }
 
+/// <summary>
+/// ターン終了時にスタンやお邪魔ボールの待ち時間を進め、出現または予告を処理する。
+/// </summary>
 void EnemyBall::AdvanceTurnGimmicks()
 {
     if (!CanParticipateInCombat()) return;
@@ -1020,6 +1149,9 @@ void EnemyBall::AdvanceTurnGimmicks()
     else m_NuisanceWarningVisible = m_NuisanceTurnsUntilSpawn == 1;
 }
 
+/// <summary>
+/// お邪魔ボールの出現を予告している敵から予定位置まで、盤面上に目印を描画する。
+/// </summary>
 void EnemyBall::DrawNuisanceWarning()
 {
     if (!m_NuisanceWarningVisible || IsDefeated() || IsPocketed() ||
@@ -1050,6 +1182,9 @@ void EnemyBall::DrawNuisanceWarning()
     }
 }
 
+/// <summary>
+/// 通常の敵に最大HPに応じたポケットダメージを与え、撃破を処理して実際の減少量を返す。
+/// </summary>
 int EnemyBall::ApplyPocketDamage()
 {
     if (IsArmorBoss() || IsDefeated() || m_EnemyData.pocketDamageRatio <= 0.0f) return 0;
@@ -1065,11 +1200,17 @@ int EnemyBall::ApplyPocketDamage()
     return applied;
 }
 
+/// <summary>
+/// 指定した表示名で敵球のデバッグ情報をImGuiに表示する。
+/// </summary>
 void EnemyBall::DrawImGui(const std::string& label)
 {
     m_Ball->DrawImGui(label); // 共通UIを呼ぶ
 }
 
+/// <summary>
+/// 補助球による装甲ボスへの命中を処理し、装甲、HP、ブレイクと戦闘表示を更新する。
+/// </summary>
 void EnemyBall::HitBreakBall(int ballId)
 {
     if (!IsArmorBoss() || IsDefeated()) return;
@@ -1098,6 +1239,9 @@ void EnemyBall::HitBreakBall(int ballId)
 		GetPosition(), damage, IsDefeated(), false, this);
 }
 
+/// <summary>
+/// ショット終了時に装甲ボスのブレイク状態を進め、終了した場合はログに記録する。
+/// </summary>
 void EnemyBall::EndBossShot()
 {
     if (IsArmorBoss() && !IsDefeated() && BossEncounterRules::CompleteShot(m_BossTurn, m_BossState))
@@ -1105,6 +1249,9 @@ void EnemyBall::EndBossShot()
             {{"boss_id", GetEnemyId()}, {"armor", m_BossState.armor}});
 }
 
+/// <summary>
+/// 装甲ボスのポケット効果で装甲とHPを更新し、ブレイクや攻撃中断を記録して結果を返す。
+/// </summary>
 BossCombatRules::PocketResult EnemyBall::ResolveBossPocket()
 {
     if (!IsArmorBoss() || !CanParticipateInCombat()) return {};
@@ -1130,6 +1277,9 @@ BossCombatRules::PocketResult EnemyBall::ResolveBossPocket()
     return result;
 }
 
+/// <summary>
+/// ボスの取り巻きを撃破扱いにして盤外に退避させ、非アクティブにする。
+/// </summary>
 void EnemyBall::RetireBossMinion()
 {
     if (!IsBossMinion() || !m_Ball) return;
@@ -1138,6 +1288,9 @@ void EnemyBall::RetireBossMinion()
     GetGameObject()->SetActive(false);
 }
 
+/// <summary>
+/// ボスの取り巻きを消費して装甲ボスへの補助球命中を処理し、取り巻きを盤面から取り除く。
+/// </summary>
 void EnemyBall::ConsumeBossMinion(EnemyBall& boss)
 {
     if (!IsBossMinion() || !GetGameObject()->IsActive() || boss.IsDefeated()) return;

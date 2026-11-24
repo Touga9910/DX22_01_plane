@@ -25,6 +25,9 @@ using PlayerBallSaveData::BallToJson;
 using PlayerBallSaveData::BallFromJson;
 using DirectX::SimpleMath::Vector3;
 
+/// <summary>
+/// 球の強化、戦闘能力、セーブ復元、ステージ配置の規則をまとめて検証する。
+/// </summary>
 int main()
 {
     RunProgressController phaseProgress;

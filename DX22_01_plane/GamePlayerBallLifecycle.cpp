@@ -15,6 +15,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 選択中の球から物理特性や見た目を設定し、ラン中のプレイヤー状態を反映する。
+/// </summary>
 void Game::ApplyPlayerStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -59,6 +62,9 @@ void Game::ApplyPlayerStatusTo(PlayerBall* player)
 
 // Player Run Status Toを適用する。
 
+/// <summary>
+/// ラン中の最大HPと現在HP、レリックの効果を指定された自球に反映する。
+/// </summary>
 void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 {
 	if (player == nullptr)
@@ -75,6 +81,9 @@ void Game::ApplyPlayerRunStatusTo(PlayerBall* player)
 
 // Relic Modifiers Toを適用する。
 
+/// <summary>
+/// 指定された自球の状態を取得し、デッキの球データとラン中のHPに反映する。
+/// </summary>
 void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 {
 	if (player == nullptr)
@@ -100,6 +109,9 @@ void Game::CapturePlayerStatusFrom(const PlayerBall* player)
 }
 // Current Player Statusを取得して保持する。
 
+/// <summary>
+/// 盤面の現在の自球からデッキとランに保存する状態を取り込む。
+/// </summary>
 void Game::CaptureCurrentPlayerStatus()
 {
 	std::vector<PlayerBall*> players =
@@ -113,6 +125,9 @@ void Game::CaptureCurrentPlayerStatus()
 
 // Next Player Ballを準備する。
 
+/// <summary>
+/// ターン終了時のシールドと使用球を処理し、次に使う球または選択画面を準備する。
+/// </summary>
 bool Game::PrepareNextPlayerBall()
 {
 	if (m_BattleState->playerShield > 0)
@@ -157,6 +172,9 @@ bool Game::PrepareNextPlayerBall()
 
 // Stage Reward Moneyを計算する。
 
+/// <summary>
+/// 使用済みの自球の状態を取り込み、デッキから捨て札に移す。
+/// </summary>
 void Game::DiscardCurrentPlayerBall()
 {
 	if (!m_RunController->Deck().HasCurrent())

@@ -36,6 +36,9 @@ struct DebugBattleSetup
         {4.0f, TableConfig::FIELD_HEIGHT, 10.0f}
     };
 
+    /// <summary>
+    /// デバッグ戦闘のHP、所持金、デッキ、敵、配置などを検証し、範囲外や不整合を知らせる。
+    /// </summary>
     std::string Validate() const
     {
         if (maxHp < 1 || maxHp > 9999 || hp < 1 || hp > maxHp || money < 0 || money > 999999)
@@ -87,6 +90,9 @@ struct DebugBattleSetup
         return {};
     }
 
+    /// <summary>
+    /// デバッグ設定の解放済み難度、選択難度、実績を進行プロフィールに反映する。
+    /// </summary>
     void ApplyProgressionTo(ProgressionProfile& profile) const
     {
         profile.highestUnlockedAscension = highestUnlockedAscension;
@@ -94,11 +100,17 @@ struct DebugBattleSetup
         profile.achievements = achievements;
     }
 
+    /// <summary>
+    /// 最大HPと選択難度に基づき、デバッグ戦闘の標準開始HPを求める。
+    /// </summary>
     int DefaultStartingHp() const
     {
         return ProgressionProfile::StartingHp(maxHp, selectedAscension);
     }
 
+    /// <summary>
+    /// デッキ、敵、補助球、進行情報などのデバッグ戦闘設定を保存用JSONに変換する。
+    /// </summary>
     nlohmann::json ToJson() const
     {
         using nlohmann::json;
@@ -132,6 +144,9 @@ struct DebugBattleSetup
             {"break_balls", breakBalls}};
     }
 
+    /// <summary>
+    /// 対応バージョンのJSONを読み取り、球と敵のカタログを使ってデバッグ戦闘設定を復元する。
+    /// </summary>
     static DebugBattleSetup FromJson(const nlohmann::json& j,
         const std::vector<PlayerBallData>& catalog, const std::vector<EnemyData>& enemyCatalog)
     {

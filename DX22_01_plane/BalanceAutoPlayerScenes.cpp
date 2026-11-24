@@ -12,6 +12,9 @@
 
 using namespace BalanceAutoPolicy;
 
+/// <summary>
+/// 保留中の球の調整や休憩・購入の必要性を考慮し、次のルートを自動で選ぶ。
+/// </summary>
 void BalanceAutoPlayer::ApplyRouteChoice(Game& game, StageSelectScene* stageSelect)
 {
 	PrunePendingBalls(game);
@@ -62,6 +65,9 @@ void BalanceAutoPlayer::ApplyRouteChoice(Game& game, StageSelectScene* stageSele
 	stageSelect->ChooseRoute(selectedRoute, "autoplay");
 }
 
+/// <summary>
+/// 休憩所で回復が必要なら回復し、必要に応じて球の強化を選択する。
+/// </summary>
 void BalanceAutoPlayer::ApplyRestSiteAction(Game& game)
 {
 	if (IsHealNeeded(game) && game.RestHeal())
@@ -96,6 +102,9 @@ void BalanceAutoPlayer::ApplyRestSiteAction(Game& game)
 	game.LeaveRestSite();
 }
 
+/// <summary>
+/// レリックや球の購入、不要な球の除外から、条件に合うショップ操作を実行する。
+/// </summary>
 void BalanceAutoPlayer::ApplyShopAction(Game& game)
 {
 	const int relicIndex = FindRelicToBuy(game);

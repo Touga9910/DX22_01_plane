@@ -21,6 +21,9 @@ public:
 	void OnDestroy() override;
 	void Destroy(const char* reason = "external");
 
+	/// <summary>
+	/// ミニオンの物理コンポーネントを返す。
+	/// </summary>
 	BallComponent* GetBall() const { return m_Ball; }
 
 private:

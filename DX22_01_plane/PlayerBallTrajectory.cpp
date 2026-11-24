@@ -11,6 +11,9 @@
 using namespace DirectX::SimpleMath;
 
 // Preview caching and guide rendering, independent of runtime ball updates.
+/// <summary>
+/// 指定の初速でシミュレーションした弾道を、予測表示に使う点やイベントに変換して記録する。
+/// </summary>
 void PlayerBall::GeneratePreTrajectory(
 	const DirectX::SimpleMath::Vector3& initialVelocity,
 	std::uint64_t worldKey)
@@ -109,6 +112,9 @@ void PlayerBall::GeneratePreTrajectory(
 	m_LastPreviewWorldKey = worldKey;
 }
 
+/// <summary>
+/// 予測ガイドの描画に使う四角形メッシュとマテリアルを準備する。
+/// </summary>
 void PlayerBall::InitTrajectoryVisualModel()
 {
 	// ★ PreviewMeshの初期化
@@ -145,6 +151,9 @@ void PlayerBall::InitTrajectoryVisualModel()
 	m_PreviewSubsets.push_back(subset);
 }
 
+/// <summary>
+/// 照準中に予測弾道と、予測上の当たりや位置を示すガイドを描画する。
+/// </summary>
 void PlayerBall::DrawTrajectoryLine()
 {
 	if (m_State == State::Simulation || m_PrePositions.size() < 2)
@@ -229,6 +238,9 @@ void PlayerBall::DrawTrajectoryLine()
 	Renderer::SetDepthEnable(true);
 }
 
+/// <summary>
+/// 指定されたワールド座標間に、幅と高さを指定してガイド線を描画する。
+/// </summary>
 void PlayerBall::DrawGuideSegment(
 	const DirectX::SimpleMath::Vector3& start,
 	const DirectX::SimpleMath::Vector3& end,
@@ -268,6 +280,9 @@ void PlayerBall::DrawGuideSegment(
 		m_PreviewSubsets[0].VertexBase);
 }
 
+/// <summary>
+/// 円周上に並べた線分から、指定した半径の円形ガイドを描画する。
+/// </summary>
 void PlayerBall::DrawGuideCircle(
 	const DirectX::SimpleMath::Vector3& center,
 	float radius,

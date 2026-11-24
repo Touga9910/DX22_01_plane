@@ -14,11 +14,17 @@ using DirectX::SimpleMath::Vector3;
 
 namespace GamePresentationPrimitives
 {
+/// <summary>
+/// UTF-8の文字列を、描画APIが受け取る文字ポインターとして返す。
+/// </summary>
 const char* PresentationUtf8(const char8_t* text) noexcept
 {
 	return reinterpret_cast<const char*>(text);
 }
 
+/// <summary>
+/// 色成分を保ったまま、不透明度を指定された割合で置き換える。
+/// </summary>
 ImU32 WithAlpha(ImU32 color, float alpha)
 {
 	const unsigned int clamped = static_cast<unsigned int>(
@@ -26,6 +32,9 @@ ImU32 WithAlpha(ImU32 color, float alpha)
 	return (color & 0x00ffffffu) | (clamped << 24u);
 }
 
+/// <summary>
+/// 能力軸の種別を画面に表示するラベルに変換する。
+/// </summary>
 const char* AxisResourceLabel(AxisResourceKind axis)
 {
 	switch (axis)
@@ -38,6 +47,9 @@ const char* AxisResourceLabel(AxisResourceKind axis)
 	}
 }
 
+/// <summary>
+/// 能力軸に対応する演出の色を返す。
+/// </summary>
 ImU32 AxisResourceColor(AxisResourceKind axis)
 {
 	switch (axis)
@@ -50,6 +62,9 @@ ImU32 AxisResourceColor(AxisResourceKind axis)
 	}
 }
 
+/// <summary>
+/// 能力軸のリソースが変化した理由を表示用ラベルに変換する。
+/// </summary>
 const char* AxisResourceReasonLabel(AxisResourceChangeReason reason)
 {
 	switch (reason)
@@ -67,6 +82,9 @@ const char* AxisResourceReasonLabel(AxisResourceChangeReason reason)
 	}
 }
 
+/// <summary>
+/// ワールド座標をカメラとビューポートに合わせて画面座標に投影する。
+/// </summary>
 bool TryProjectToScreen(
 	const Vector3& worldPosition,
 	ImVec2& screenPosition)

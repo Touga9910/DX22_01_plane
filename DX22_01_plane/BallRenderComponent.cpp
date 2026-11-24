@@ -45,6 +45,9 @@ namespace
     // Occupancy is associated with living renderer components, not enemy types.
     std::array<const BallRenderComponent*, kLastNumber + 1> s_NumberOwners{};
 
+    /// <summary>
+    /// FBX読み込みの情報を標準エラー出力とデバッガーに記録する。
+    /// </summary>
     void Log(const std::string& message)
     {
         const std::string line = "[Caromino/FBX] " + message + "\n";
@@ -52,6 +55,9 @@ namespace
         OutputDebugStringA(line.c_str());
     }
 
+    /// <summary>
+    /// エラーをログに記録し、警告ダイアログを最初の一度だけ表示する。
+    /// </summary>
     void WarnOnce(const std::string& message)
     {
         Log("ERROR: " + message);
@@ -64,6 +70,9 @@ namespace
         }
     }
 
+    /// <summary>
+    /// 文字列の大文字を小文字にそろえる。
+    /// </summary>
     std::string Lower(std::string text)
     {
         std::transform(text.begin(), text.end(), text.begin(),
@@ -71,12 +80,18 @@ namespace
         return text;
     }
 
+    /// <summary>
+    /// 指定パスが旧式のゴルフボールモデルを指すかを判定する。
+    /// </summary>
     bool IsLegacyBallModel(const char* path)
     {
         if (!path) return false;
         return Lower(path).find("golf_ball.obj") != std::string::npos;
     }
 
+    /// <summary>
+    /// 敵の定義IDに対応する優先ボール番号を選ぶ。
+    /// </summary>
     int PreferredEnemyNumber(const std::string& id)
     {
         if (id == "enemy_normal") return 1;
@@ -94,6 +109,9 @@ namespace
         return 13;
     }
 
+    /// <summary>
+    /// 優先番号から順に空き番号を探し、描画コンポーネントに割り当てる。
+    /// </summary>
     int ReserveNumber(const BallRenderComponent* owner, int preferred)
     {
         preferred = std::clamp(preferred, kFirstNumber, kLastNumber);
@@ -115,6 +133,9 @@ namespace
     // FBX is placed under assets/model/BilliardBalls/.
     // Supports direct placement, original source/ directory and a nested
     // 'Billiard Balls' unpacked directory; never requires OBJ or MTL files.
+    /// <summary>
+    /// 実行ディレクトリを基準とした複数の候補からビリヤードボールのFBXを探す。
+    /// </summary>
     fs::path FindFBX()
     {
         const fs::path dir = "assets/model/BilliardBalls";
@@ -139,6 +160,9 @@ namespace
         return {};
     }
 
+    /// <summary>
+    /// ボール番号をカラーテクスチャのファイル名の本体に変換する。
+    /// </summary>
     std::string TextureStem(int number)
     {
         if (number == 0) return "BallCue";
@@ -146,6 +170,9 @@ namespace
         return "Ball" + std::to_string(number);
     }
 
+    /// <summary>
+    /// FBXの近くにある候補ディレクトリから指定番号のカラーテクスチャを探す。
+    /// </summary>
     fs::path FindColorTexture(const fs::path& fbxPath, int number)
     {
         const fs::path base = fbxPath.parent_path();
@@ -172,6 +199,9 @@ namespace
 
     // Parse a FBX material's diffuse texture name. 'Ball 15.jpg' and
     // 'BallCue.jpg' are intentionally handled without relying on mesh order.
+    /// <summary>
+    /// テクスチャの名前から対応するボール番号を読み取る。
+    /// </summary>
     int TextureNumber(std::string fileName)
     {
         const auto slash = fileName.find_last_of("/\\");
@@ -190,6 +220,9 @@ namespace
         return number >= 1 && number <= 15 ? number : -1;
     }
 
+    /// <summary>
+    /// ディフューズテクスチャの番号が一致するメッシュをシーンから探す。
+    /// </summary>
     const aiMesh* FindByTexture(const aiScene* scene, int number)
     {
         for (unsigned int i = 0; i < scene->mNumMeshes; ++i)
@@ -205,6 +238,9 @@ namespace
         return nullptr;
     }
 
+    /// <summary>
+    /// ノード名の空白や大文字をそろえ、指定番号のメッシュをシーン階層から探す。
+    /// </summary>
     const aiMesh* FindByNode(const aiScene* scene, const aiNode* node, int number)
     {
         if (!node) return nullptr;
@@ -229,6 +265,9 @@ namespace
     class OneBallMesh final : public Mesh
     {
     public:
+        /// <summary>
+        /// 1球の頂点とインデックスを受け取り、メッシュに格納する。
+        /// </summary>
         OneBallMesh(std::vector<VERTEX_3D> vertices, std::vector<unsigned int> indices)
         {
             m_vertices = std::move(vertices);
@@ -237,16 +276,25 @@ namespace
     };
 }
 
+/// <summary>
+/// 描画コンポーネントの破棄時に割り当て済みのボール番号を解放する。
+/// </summary>
 BallRenderComponent::~BallRenderComponent()
 {
     ReleaseBilliardNumber();
 }
 
+/// <summary>
+/// コンポーネントの終了通知を受けてボール番号を解放する。
+/// </summary>
 void BallRenderComponent::OnDestroy()
 {
     ReleaseBilliardNumber();
 }
 
+/// <summary>
+/// 割り当てた番号を空きに戻し、ビリヤードモデルに関する状態を初期化する。
+/// </summary>
 void BallRenderComponent::ReleaseBilliardNumber()
 {
     if (m_BilliardNumber >= 1 && m_BilliardNumber <= 15 &&
@@ -257,6 +305,9 @@ void BallRenderComponent::ReleaseBilliardNumber()
     m_MissingBilliardTexture = false;
 }
 
+/// <summary>
+/// FBXから指定番号のメッシュを切り出し、テクスチャと反射用の描画資源を準備する。
+/// </summary>
 bool BallRenderComponent::TryLoadBilliardFBX(const char* filePath, int number)
 {
     m_RenderReady = false;
@@ -412,6 +463,9 @@ bool BallRenderComponent::TryLoadBilliardFBX(const char* filePath, int number)
     return true;
 }
 
+/// <summary>
+/// 元の静的モデルとテクスチャを読み込み、通常の描画構成を準備する。
+/// </summary>
 void BallRenderComponent::LoadOriginalModel(const char* modelFilePath,
     const char* textureDirectory)
 {
@@ -460,6 +514,9 @@ void BallRenderComponent::LoadOriginalModel(const char* modelFilePath,
         Log("Fallback model has no drawable subsets or materials");
 }
 
+/// <summary>
+/// ボールの種別からモデルと番号を選び、ビリヤードモデルを優先して読み込む。
+/// </summary>
 void BallRenderComponent::LoadModel(const char* modelFilePath,
     const char* textureDirectory)
 {
@@ -496,6 +553,9 @@ void BallRenderComponent::LoadModel(const char* modelFilePath,
     LoadOriginalModel(modelFilePath, textureDirectory);
 }
 
+/// <summary>
+/// 反射の設定をシェーダーに渡す定数バッファーを作成する。
+/// </summary>
 bool BallRenderComponent::CreateReflectionBuffer()
 {
     m_ReflectionBuffer.Reset();
@@ -516,6 +576,9 @@ bool BallRenderComponent::CreateReflectionBuffer()
     return true;
 }
 
+/// <summary>
+/// カメラ位置や反射の強さなどを定数バッファーに書き込み、描画に設定する。
+/// </summary>
 void BallRenderComponent::BindReflectionBuffer() const
 {
     if (!m_ReflectionEnabled || !m_ReflectionBuffer) return;
@@ -536,26 +599,41 @@ void BallRenderComponent::BindReflectionBuffer() const
     context->PSSetConstantBuffers(6, 1, &buffer);
 }
 
+/// <summary>
+/// 鏡面反射の強さを許容範囲内に収めて設定する。
+/// </summary>
 void BallRenderComponent::SetSpecularStrength(float strength)
 {
     m_SpecularStrength = std::clamp(strength, 0.0f, 2.0f);
 }
 
+/// <summary>
+/// 鏡面反射の光沢度を許容範囲内に収めて設定する。
+/// </summary>
 void BallRenderComponent::SetShininess(float shininess)
 {
     m_Shininess = std::clamp(shininess, 4.0f, 256.0f);
 }
 
+/// <summary>
+/// 環境反射の強さを0から1の範囲に収めて設定する。
+/// </summary>
 void BallRenderComponent::SetEnvironmentStrength(float strength)
 {
     m_EnvironmentStrength = std::clamp(strength, 0.0f, 1.0f);
 }
 
+/// <summary>
+/// 撃破演出の進行度を0から1の範囲に収めて設定する。
+/// </summary>
 void BallRenderComponent::SetDefeatVisualProgress(float progress)
 {
     m_DefeatVisualProgress = std::clamp(progress, 0.0f, 1.0f);
 }
 
+/// <summary>
+/// 描画できる状態ならシェーダー、反射設定、メッシュの描画状態を準備する。
+/// </summary>
 void BallRenderComponent::BeginDraw()
 {
     if (!m_RenderReady || Renderer::GetDeviceContext() == nullptr) return;
@@ -564,6 +642,9 @@ void BallRenderComponent::BeginDraw()
     m_MeshRenderer.BeforeDraw();
 }
 
+/// <summary>
+/// ボール固有の色を考慮し、描画用マテリアルの色を設定する。
+/// </summary>
 void BallRenderComponent::SetTint(const Color& color)
 {
     Color tint = color;
@@ -591,6 +672,9 @@ void BallRenderComponent::SetTint(const Color& color)
     }
 }
 
+/// <summary>
+/// ワールド行列とマテリアルを設定し、ボールのメッシュをサブセット単位で描画する。
+/// </summary>
 void BallRenderComponent::DrawMesh(const Matrix& worldMatrix)
 {
     if (!m_RenderReady || Renderer::GetDeviceContext() == nullptr) return;

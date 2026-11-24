@@ -25,6 +25,9 @@ class StageSelector
 {
 public:
     StageSelector();
+	/// <summary>
+	/// ステージ選択に使用する乱数エンジンのシード値を設定する。
+	/// </summary>
 	void Seed(std::uint32_t seed) { m_RandomEngine.seed(seed); }
 
     const StageData* SelectStage(

@@ -107,6 +107,9 @@ struct BallStatus
 
 // BallStatusの各物理・シナジー調整値をゲーム内で許容する範囲へ補正して返す
 // 引数は値渡しのため、呼び出し元のBallStatus自体は直接変更しない
+/// <summary>
+/// ボールのステータス値を各項目の許容範囲に収める。
+/// </summary>
 inline BallStatus NormalizeBallStatus(BallStatus status)
 {
 	status.impactAttack = std::clamp(status.impactAttack, 0, 100000);

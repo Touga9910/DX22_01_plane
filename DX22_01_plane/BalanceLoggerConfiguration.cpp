@@ -6,6 +6,9 @@
 
 using json = nlohmann::json;
 
+/// <summary>
+/// バランス設定の対象ファイルを集め、各ファイルの識別情報をスナップショットにまとめる。
+/// </summary>
 json BalanceLogger::MakeConfigurationSnapshot()
 {
 	json paths = json::array();
@@ -54,6 +57,9 @@ json BalanceLogger::MakeConfigurationSnapshot()
 	return { { "files", std::move(files) } };
 }
 
+/// <summary>
+/// バランス設定のバージョンやハッシュなどを読み込み、ログ用のメタデータを組み立てる。
+/// </summary>
 json BalanceLogger::LoadBalanceMetadata()
 {
 	json result = {
@@ -94,6 +100,9 @@ json BalanceLogger::LoadBalanceMetadata()
 	return result;
 }
 
+/// <summary>
+/// 指定ファイルの有無を調べ、内容から識別用のハッシュを求める。
+/// </summary>
 json BalanceLogger::MakeFileFingerprint(
 	const std::filesystem::path& path)
 {

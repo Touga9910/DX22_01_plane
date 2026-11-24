@@ -5,6 +5,9 @@
 
 // JSON配列から状態効果一覧を読み込む
 // 配列でない場合は空のStatusEffectCollectionを返し、不正な要素は読み飛ばす
+/// <summary>
+/// JSON配列から有効な状態効果の種別と強さを読み込む。
+/// </summary>
 inline StatusEffectCollection ReadStatusEffects(const nlohmann::json& value)
 {
 	StatusEffectCollection effects;
@@ -31,6 +34,9 @@ inline StatusEffectCollection ReadStatusEffects(const nlohmann::json& value)
 
 // 状態効果一覧をJSON配列へ変換
 // 効果量が0の状態効果は保存対象に含めない
+/// <summary>
+/// 有効な状態効果の種別と強さをJSON配列に書き出す。
+/// </summary>
 inline nlohmann::json WriteStatusEffects(const StatusEffectCollection& effects)
 {
 	nlohmann::json result = nlohmann::json::array();

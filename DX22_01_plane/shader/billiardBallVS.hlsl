@@ -20,6 +20,9 @@ struct BILLIARD_PS_IN
     float3 normalWS : TEXCOORD2;
 };
 
+/// <summary>
+/// 球の頂点をクリップ空間へ変換し、照明後の色、UV、ワールド座標と法線を渡す。
+/// </summary>
 BILLIARD_PS_IN main(BILLIARD_VS_IN input)
 {
     BILLIARD_PS_IN output;

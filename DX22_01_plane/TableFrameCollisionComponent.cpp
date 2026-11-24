@@ -4,11 +4,17 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 台枠のローカル座標で衝突線分を生成して保存する。
+/// </summary>
 void TableFrameCollisionComponent::Awake()
 {
     m_Walls = BuildLocalWalls();
 }
 
+/// <summary>
+/// 台の寸法とポケットの開口幅から、枠や開口部の縁の衝突線分を組み立てる。
+/// </summary>
 std::vector<Collision::Segment>
 TableFrameCollisionComponent::BuildLocalWalls()
 {
@@ -90,6 +96,9 @@ TableFrameCollisionComponent::BuildLocalWalls()
     return walls;
 }
 
+/// <summary>
+/// 十分な長さのある線分を壁の当たり判定に追加する。
+/// </summary>
 void TableFrameCollisionComponent::AddWall(
     std::vector<Collision::Segment>& walls,
     const Vector3& start,

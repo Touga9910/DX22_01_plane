@@ -9,6 +9,9 @@ void Shader::Create(std::string vs, std::string ps)
 	CreateChecked(vs, ps);
 }
 
+/// <summary>
+/// 既存のシェーダーを解放して指定ファイルから作り直し、作成の成否を返す。
+/// </summary>
 bool Shader::CreateChecked(const std::string& vs, const std::string& ps)
 {
 	m_pVertexShader.Reset();

@@ -5,6 +5,9 @@
 
 #include <utility>
 
+/// <summary>
+/// 書き込み設定を確認し、外部コマンドを対応する処理に振り分けて結果を返す。
+/// </summary>
 nlohmann::json GameMcpBridge::ExecuteCommand(
 	Game& game,
 	const nlohmann::json& command)

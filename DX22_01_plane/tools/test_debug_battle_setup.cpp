@@ -8,6 +8,9 @@
 #include <limits>
 #include <iostream>
 
+/// <summary>
+/// デバッグ戦闘のステージ指定、ルート遷移、プリセット検証と保存をテストする。
+/// </summary>
 int main()
 {
     // Jumps keep a connected remaining map, including both final boss transitions.

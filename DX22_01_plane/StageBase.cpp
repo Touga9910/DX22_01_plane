@@ -9,9 +9,18 @@
 //#include "Arrow.h"
 #include "Texture2D.h"
 
+/// <summary>
+/// 基底ステージを既定の状態で初期化する。
+/// </summary>
 StageBase::StageBase() {}
+/// <summary>
+/// ステージの終了処理を呼び出してシーンのオブジェクトを破棄する。
+/// </summary>
 StageBase::~StageBase() { Uninit(); }
 
+/// <summary>
+/// プレイヤータグの付いたオブジェクトからプレイヤーボールを取得する。
+/// </summary>
 PlayerBall* StageBase::GetPlayerBall() const {
     const auto players =
         GameRuntime::World().GetObjectsWithTag(GameObjectTag::Player);
@@ -26,6 +35,9 @@ PlayerBall* StageBase::GetPlayerBall() const {
     return nullptr;
 }
 
+/// <summary>
+/// ターン終了時に打数を更新し、移動中にゴールが成立した場合はステージを完了する。
+/// </summary>
 void StageBase::Update()
 {
     RemoveInvalidSceneObjectRefs();
@@ -57,6 +69,9 @@ void StageBase::Update()
     }
 }
 
+/// <summary>
+/// 現在の打数を2桁に分け、数字テクスチャの表示を更新する。
+/// </summary>
 void StageBase::UpdateStrokeUI()
 {
     RemoveInvalidSceneObjectRefs();
@@ -85,6 +100,9 @@ void StageBase::UpdateStrokeUI()
     }
 }
 
+/// <summary>
+/// シーンが管理するオブジェクトを破棄し、参照一覧を消去する。
+/// </summary>
 void StageBase::Uninit() {
     for (GameObject* gameObject : m_SceneGameObjects)
     {
@@ -93,6 +111,9 @@ void StageBase::Uninit() {
     m_SceneGameObjects.clear();
 }
 
+/// <summary>
+/// ゲームワールドに存在しないオブジェクトへの参照を一覧から除く。
+/// </summary>
 void StageBase::RemoveInvalidSceneObjectRefs()
 {
     GameWorld& world = GameRuntime::World();

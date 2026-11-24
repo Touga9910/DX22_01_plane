@@ -17,6 +17,9 @@ using DirectX::SimpleMath::Vector3;
 using namespace GamePresentationPrimitives;
 using namespace CombatOverlayDrawing;
 
+/// <summary>
+/// 能力軸のリソースや現在の効果を、自球側のバッジとツールチップに描画する。
+/// </summary>
 void GamePresentation::DrawPlayerResourceBadges(Game& game)
 {
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();

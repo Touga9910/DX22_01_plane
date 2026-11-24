@@ -12,6 +12,9 @@ using json = nlohmann::json;
 
 namespace
 {
+	/// <summary>
+	/// 各強化段階のステータスをJSONから読み込み、項目が省略された段階には既定値を適用する。
+	/// </summary>
 	void LoadUpgradeTableFromJson(PlayerBallData& ballData, const json& ballJson)
 	{
 		BallStatus previous = ballData.status;
@@ -32,6 +35,9 @@ namespace
 
 }
 
+/// <summary>
+/// 球の定義と既定のラン状態をJSONから読み取り、取得できる定義を組み立てる。
+/// </summary>
 PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 	const std::string& filePath,
 	const BallStatus& fallbackBallStatus,
@@ -147,6 +153,9 @@ PlayerBallDataLoadResult PlayerBallDataLoader::Load(
 	return result;
 }
 
+/// <summary>
+/// デッキの球IDをJSONから読み込み、読み込み済みの定義から対応する球を集める。
+/// </summary>
 std::vector<PlayerBallData> PlayerBallDataLoader::LoadDeck(
 	const std::string& filePath,
 	const std::vector<PlayerBallData>& ballDefinitions)

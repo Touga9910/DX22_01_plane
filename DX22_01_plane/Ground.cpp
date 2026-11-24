@@ -6,6 +6,9 @@
 
 using namespace DirectX::SimpleMath;
 
+/// <summary>
+/// 盤面の描画コンポーネントを取得し、盤面の高さと寸法に合わせて変換を設定する。
+/// </summary>
 void Ground::Awake()
 {
     GameObject* owner = GetGameObject();

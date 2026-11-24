@@ -4,6 +4,9 @@
 // Visual StudioがCP932を使用する場合でも安全に扱えるよう、Unicodeエスケープを用いる。
 namespace UiText
 {
+	/// <summary>
+	/// UTF-8文字列をUIに渡せる文字ポインターに変換する。
+	/// </summary>
 	inline const char* Utf8(const char8_t* text) noexcept
 	{
 		return reinterpret_cast<const char*>(text);

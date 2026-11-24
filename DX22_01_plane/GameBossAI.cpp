@@ -25,11 +25,23 @@ using nlohmann::json;
 namespace
 {
     constexpr int MaximumCandidatesPerOffer = 128;
+    /// <summary>
+    /// ベクトルのY成分を除いて水平面に投影する。
+    /// </summary>
     Vector3 Flat(Vector3 v) { v.y = 0; return v; }
+    /// <summary>
+    /// ベクトルを水平面に投影し、十分な長さがあれば正規化する。
+    /// </summary>
     Vector3 Unit(Vector3 v) { v = Flat(v); if (v.LengthSquared() > 0.00001f) v.Normalize(); return v; }
+    /// <summary>
+    /// ベクトルの座標をX・Y・Z成分を持つJSONに変換する。
+    /// </summary>
     json Position(const Vector3& v) { return {{"x",v.x},{"y",v.y},{"z",v.z}}; }
 
     // An explicitly geometric NEXT-shot opportunity, not a simulated second shot.
+    /// <summary>
+    /// 球の配置の幾何関係から、次のショットでボス球を押せる目安を計算する。
+    /// </summary>
     float Opportunity(const Vector3& player, const Vector3& boss, const std::vector<Vector3>& neutrals)
     {
         float best = 0;
@@ -45,7 +57,9 @@ namespace
     struct Aim { Vector3 velocity; std::string target, kind; };
 }
 
-// Boss Shotsを評価する。
+/// <summary>
+/// 現在のボス戦で選べる球とショットを予測し、評価順の候補と推奨案を返す。
+/// </summary>
 json BossShotPlanner::Evaluate(Game& game)
 {
     const auto players = GameRuntime::World().GetComponents<PlayerBall>();
@@ -238,7 +252,9 @@ json BossShotPlanner::Evaluate(Game& game)
     return m_BossShotCache;
 }
 
-// Boss Planned Shotを発射する。
+/// <summary>
+/// 現在の盤面が評価時と一致することを確認して選択候補を発射し、判断の詳細を記録する。
+/// </summary>
 bool BossShotPlanner::Fire(Game& game, const std::string& candidateId, const std::string& stateKey)
 {
     const auto evaluation = Evaluate(game);
@@ -266,11 +282,17 @@ bool BossShotPlanner::Fire(Game& game, const std::string& candidateId, const std
     return false;
 }
 
+/// <summary>
+/// 現在のボス戦で可能なショットの候補を評価する。
+/// </summary>
 json Game::EvaluateBossShots()
 {
     return m_BossShotPlanner->Evaluate(*this);
 }
 
+/// <summary>
+/// 盤面の識別キーと候補IDを照合し、評価済みのボス戦用ショットを発射する。
+/// </summary>
 bool Game::FireBossPlannedShot(
     const std::string& candidateId,
     const std::string& stateKey)
@@ -278,22 +300,34 @@ bool Game::FireBossPlannedShot(
     return m_BossShotPlanner->Fire(*this, candidateId, stateKey);
 }
 
+/// <summary>
+/// デッキから提示されている球候補の件数を取得する。
+/// </summary>
 int Game::GetBallOfferCount() const
 {
     return m_RunController->Deck().GetOfferCount();
 }
 
+/// <summary>
+/// 指定位置の球候補のデータを取得する。
+/// </summary>
 const PlayerBallData* Game::GetBallOffer(int offerIndex) const
 {
     return m_RunController->Deck().GetOffer(offerIndex);
 }
 
+/// <summary>
+/// 現在のランで発射したショットの累計を取得する。
+/// </summary>
 std::uint64_t Game::GetTotalShotCount() const
 {
     return static_cast<std::uint64_t>(
         m_PersistenceRuntime->Statistics().GetState().totalShots);
 }
 
+/// <summary>
+/// 速度と盤面が発射条件を満たす場合に、指定の球と計測情報で自動ショットを発射する。
+/// </summary>
 bool Game::TryFireAutomatedShot(
     const Vector3& velocity,
     int offerIndex,

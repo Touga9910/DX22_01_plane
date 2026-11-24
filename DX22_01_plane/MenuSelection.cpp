@@ -4,6 +4,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 上下入力で選択項目を移動し、キーボード、コントローラー、マウスからの確定を判定する。
+/// </summary>
 bool MenuSelection::UpdateVertical(int itemCount, bool allowSpace)
 {
 	m_WasMoved = false;
@@ -31,6 +34,9 @@ bool MenuSelection::UpdateVertical(int itemCount, bool allowSpace)
 		Input::GetButtonTrigger(XINPUT_A);
 }
 
+/// <summary>
+/// 指定された選択位置を項目数の範囲に収めて保存する。
+/// </summary>
 void MenuSelection::SetIndex(int index, int itemCount)
 {
 	itemCount = (std::max)(1, itemCount);

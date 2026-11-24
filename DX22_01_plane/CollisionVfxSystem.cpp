@@ -12,17 +12,26 @@ namespace
 {
 	constexpr float kFrameEpsilon = 0.000001f;
 
+	/// <summary>
+	/// 値を0から1の範囲に収める。
+	/// </summary>
 	float Clamp01(float value)
 	{
 		return std::clamp(value, 0.0f, 1.0f);
 	}
 
+	/// <summary>
+	/// ImGui用の色データのRGB成分を保持し、透明度を指定値に差し替える。
+	/// </summary>
 	ImU32 WithAlpha(ImU32 color, float alpha)
 	{
 		return (color & 0x00ffffffu) |
 			(static_cast<ImU32>(255.0f * Clamp01(alpha)) << 24);
 	}
 
+	/// <summary>
+	/// フレーム番号と要素番号から、再現可能な演出用の揺らぎを算出する。
+	/// </summary>
 	float DeterministicJitter(unsigned long long frame, int index)
 	{
 		std::uint32_t value = static_cast<std::uint32_t>(frame) ^
@@ -33,6 +42,9 @@ namespace
 		return static_cast<float>(value & 0xffffu) / 65535.0f - 0.5f;
 	}
 
+	/// <summary>
+	/// ワールド座標上の円周を画面に投影し、線分でリングを描画する。
+	/// </summary>
 	void DrawWorldRing(
 		ImDrawList* drawList,
 		CollisionVfxSystem::ProjectWorldToScreen projector,
@@ -64,6 +76,9 @@ namespace
 			thickness);
 	}
 
+	/// <summary>
+	/// パックされたRGBA色を、0から1の浮動小数点成分に変換する。
+	/// </summary>
 	void ColorToFloats(std::uint32_t color, float values[4])
 	{
 		values[0] = static_cast<float>(color & 0xffu) / 255.0f;
@@ -72,6 +87,9 @@ namespace
 		values[3] = static_cast<float>((color >> 24) & 0xffu) / 255.0f;
 	}
 
+	/// <summary>
+	/// 浮動小数点のRGBA成分を、ImGuiで扱うパック色に変換する。
+	/// </summary>
 	std::uint32_t FloatsToColor(const float values[4])
 	{
 		return IM_COL32(
@@ -82,6 +100,9 @@ namespace
 	}
 }
 
+/// <summary>
+/// 衝突エフェクトを消去し、診断値とフレーム内の生成数を初期化する。
+/// </summary>
 void CollisionVfxSystem::Reset()
 {
 	ClearActive();
@@ -90,6 +111,9 @@ void CollisionVfxSystem::Reset()
 	m_GeneratedThisFrame = 0;
 }
 
+/// <summary>
+/// 火花、衝撃波、破裂演出、方向軌跡を非表示にし、診断用の有効数を更新する。
+/// </summary>
 void CollisionVfxSystem::ClearActive()
 {
 	for (Spark& spark : m_Sparks) spark.active = false;
@@ -99,6 +123,9 @@ void CollisionVfxSystem::ClearActive()
 	RefreshActiveDiagnostics();
 }
 
+/// <summary>
+/// 経過時間で衝突演出の寿命と火花の位置・速度を更新し、寿命切れの演出を無効にする。
+/// </summary>
 void CollisionVfxSystem::Update(float elapsedSeconds, bool enabled)
 {
 	if (!enabled)
@@ -140,6 +167,9 @@ void CollisionVfxSystem::Update(float elapsedSeconds, bool enabled)
 	RefreshActiveDiagnostics();
 }
 
+/// <summary>
+/// 衝突強度、連鎖、撃破、密度設定をもとに火花の生成数を求める。
+/// </summary>
 int CollisionVfxSystem::DesiredSparkCount(const SpawnRequest& request) const
 {
 	int count = m_Tuning.weakSparkCount;
@@ -158,6 +188,9 @@ int CollisionVfxSystem::DesiredSparkCount(const SpawnRequest& request) const
 	return std::clamp(count, 0, 14);
 }
 
+/// <summary>
+/// 火花用の空き枠を条件に応じて探し、空きが使えなければ優先度の低い枠を選ぶ。
+/// </summary>
 int CollisionVfxSystem::FindSparkSlot(int priority, bool allowInactive)
 {
 	if (allowInactive)
@@ -181,6 +214,9 @@ int CollisionVfxSystem::FindSparkSlot(int priority, bool allowInactive)
 	return lowestIndex;
 }
 
+/// <summary>
+/// 衝撃波の表示上限と優先度をもとに、使用または置換できる枠を探す。
+/// </summary>
 int CollisionVfxSystem::FindWaveSlot(
 	int maximumWaves,
 	int priority,
@@ -207,6 +243,9 @@ int CollisionVfxSystem::FindWaveSlot(
 	return lowestIndex;
 }
 
+/// <summary>
+/// 破裂演出の表示上限と優先度をもとに、使用または置換できる枠を探す。
+/// </summary>
 int CollisionVfxSystem::FindBurstSlot(
 	int maximumBursts,
 	int priority,
@@ -230,6 +269,9 @@ int CollisionVfxSystem::FindBurstSlot(
 	return lowestIndex;
 }
 
+/// <summary>
+/// 方向軌跡用の空き枠を探し、満杯なら優先度の低い枠を置換候補とする。
+/// </summary>
 int CollisionVfxSystem::FindTrailSlot(int priority)
 {
 	for (int index = 0; index < MaximumTrailCapacity; ++index)
@@ -249,6 +291,9 @@ int CollisionVfxSystem::FindTrailSlot(int priority)
 	return lowestIndex;
 }
 
+/// <summary>
+/// 貫通、反射、アンカーなどの演出スタイルに対応する設定色を返す。
+/// </summary>
 std::uint32_t CollisionVfxSystem::SelectStyleColor(Style style) const
 {
 	switch (style)
@@ -260,6 +305,9 @@ std::uint32_t CollisionVfxSystem::SelectStyleColor(Style style) const
 	}
 }
 
+/// <summary>
+/// 撃破、能力スタイル、二次衝突の有無に応じて衝突演出の色を選ぶ。
+/// </summary>
 std::uint32_t CollisionVfxSystem::SelectColor(
 	const SpawnRequest& request) const
 {
@@ -271,6 +319,9 @@ std::uint32_t CollisionVfxSystem::SelectColor(
 	return m_Tuning.secondaryColor;
 }
 
+/// <summary>
+/// 衝突内容と表示密度に応じて火花や衝撃波などを生成し、生成数の上限と診断値を管理する。
+/// </summary>
 void CollisionVfxSystem::Spawn(const SpawnRequest& request)
 {
 	++m_Diagnostics.impactEvents;
@@ -575,6 +626,9 @@ void CollisionVfxSystem::Spawn(const SpawnRequest& request)
 	RefreshActiveDiagnostics();
 }
 
+/// <summary>
+/// 指定区間と寿命から方向軌跡を生成し、描画用の枠に登録する。
+/// </summary>
 void CollisionVfxSystem::SpawnTrail(const TrailRequest& request)
 {
 	Vector3 delta = request.endPosition - request.startPosition;
@@ -626,6 +680,9 @@ void CollisionVfxSystem::SpawnTrail(const TrailRequest& request)
 	RefreshActiveDiagnostics();
 }
 
+/// <summary>
+/// 有効な衝突エフェクトを画面に投影して描画し、描画プリミティブ数を記録する。
+/// </summary>
 void CollisionVfxSystem::Draw(
 	ImDrawList* drawList,
 	ProjectWorldToScreen projector,
@@ -900,6 +957,9 @@ void CollisionVfxSystem::Draw(
 		m_Diagnostics.primitiveSubmissionsLastFrame);
 }
 
+/// <summary>
+/// 火花の数や色など、衝突エフェクトの調整項目をImGuiに表示する。
+/// </summary>
 void CollisionVfxSystem::DrawDebugTuning()
 {
 	if (!ImGui::Begin("Collision VFX Tuning"))
@@ -952,6 +1012,9 @@ void CollisionVfxSystem::DrawDebugTuning()
 	ImGui::End();
 }
 
+/// <summary>
+/// 有効なエフェクトを種類ごとに数え、診断値を更新する。
+/// </summary>
 void CollisionVfxSystem::RefreshActiveDiagnostics()
 {
 	m_Diagnostics.activeSparks = static_cast<int>(std::count_if(

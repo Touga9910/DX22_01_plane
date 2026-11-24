@@ -6,6 +6,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// 所持金と購入条件を確認し、価格を支払ってカタログの指定球をデッキへ加える。
+/// </summary>
 bool Game::BuyShopBall(int catalogIndex, int cost)
 {
 	cost = (std::max)(0, cost);
@@ -34,6 +37,9 @@ bool Game::BuyShopBall(int catalogIndex, int cost)
 
 // Shop入店中に提示するBallを、重複なしで最大3枠抽選する。
 
+/// <summary>
+/// ショップで提示する球をカタログから重複なく抽選する。
+/// </summary>
 void Game::RollShopBallOffers()
 {
 	m_RunController->ShopBallOffers() =
@@ -42,6 +48,9 @@ void Game::RollShopBallOffers()
 
 // Shopの提示位置から対応するCatalog Ballを購入する。
 
+/// <summary>
+/// 提示順の位置をカタログの位置へ変換し、ショップの球を購入する。
+/// </summary>
 bool Game::BuyShopBallOffer(int offerIndex, int cost)
 {
 	return BuyShopBall(GetShopBallOfferCatalogIndex(offerIndex), cost);
@@ -49,6 +58,9 @@ bool Game::BuyShopBallOffer(int offerIndex, int cost)
 
 // Shop Ballを取り除く。
 
+/// <summary>
+/// 所持金と除外条件を確認し、価格を支払って指定の球をデッキから除外する。
+/// </summary>
 bool Game::RemoveShopBall(int ballIndex, int cost)
 {
 	cost = (std::max)(0, cost);

@@ -13,6 +13,9 @@ struct DebugRunSetup
     bool infiniteMoney = false;
     std::string stageId;
 
+    /// <summary>
+    /// 指定した遷移先とルートのシードを使い、デバッグ用のラン進行状態を組み立てる。
+    /// </summary>
     RunProgressState BuildProgress(std::uint32_t routeSeed) const
     {
         const bool endRoute = destination == DebugRunDestination::Preparation ||

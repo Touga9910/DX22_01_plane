@@ -293,7 +293,9 @@ public:
 
 	// ===== ポーズ中の入力要求 =====
 	// ポーズ・セーブ・全画面切り替えを次回更新へ予約
-	// 現在ポーズメニューを開けるかを返す。
+	/// <summary>
+	/// 現在の状態でポーズメニューを開けるかを返す。
+	/// </summary>
 	bool CanOpenPauseMenu() const { return CanPause(); }
 	// 次回更新時のポーズ切り替えを要求
 	void RequestPauseToggle();
@@ -311,6 +313,9 @@ public:
 	const BattleController* GetBattleControllerDiagnostics() const;
 	EnemyActionConfig GetEnemyActionConfig() const;
 
+	/// <summary>
+	/// 直前の戦闘結果を取得する。
+	/// </summary>
 	BattleResult GetLastBattleResult() const
 	{
 		return m_LastBattleResult;
@@ -322,6 +327,9 @@ public:
 	const PlayerBallData* GetClearRewardBallOffer(int offerIndex) const;
 	bool AddClearRewardBallOffer(int offerIndex);
 	bool IsClearRewardBallAcquired() const;
+	/// <summary>
+	/// クリア報酬の球を購入するために必要な金額を返す。
+	/// </summary>
 	int GetClearRewardBallCost() const { return 25; }
 	int GetSelectedBallOfferIndex() const;
 	int GetHeldBallOfferIndex() const;
@@ -645,12 +653,16 @@ public:
 
 	// ===== レリック所持とステータス補正 =====
 	// レリック定義と所持状態を参照し、予測用ショットルールと攻防補正値を生成
-	// 登録されているレリック総数を返す。
+	/// <summary>
+	/// レリックカタログに登録されている定義の件数を返す。
+	/// </summary>
 	int GetRelicCount() const
 	{
 		return static_cast<int>(RelicCatalog.size());
 	}
-	// 指定位置のレリック定義を返す。
+	/// <summary>
+	/// 指定位置のレリック定義を返し、範囲外ならヌルポインタを返す。
+	/// </summary>
 	const RelicDefinition* GetRelic(int index) const
 	{
 		return index >= 0 && index < GetRelicCount()
@@ -676,7 +688,9 @@ public:
 	// バンクショット効果をまだ消費可能かを返す。
 	bool IsCurrentShotBankShotReady() const;
 	int GetEffectivePlayerBallAttack(const PlayerBallData* ball) const;
-	// ボール報酬として提示する候補数を返す。
+	/// <summary>
+	/// 球候補を追加するレリックの有無に応じて提示する球の数を返す。
+	/// </summary>
 	int GetBallOfferSize() const
 	{
 		return HasRelic(RelicType::ExpandedBallOffer) ? 7 : 5;

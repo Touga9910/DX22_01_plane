@@ -25,6 +25,9 @@ public:
 	int GetEnemyActionMaximumBudget(int progress) const;
 	std::vector<std::string> GetAllowedNormalStageIds(int progress) const;
 	std::string GetStagePoolId(int progress) const;
+	/// <summary>
+	/// バランス設定をデータファイルから読み込めたかを返す。
+	/// </summary>
 	bool IsLoadedFromData() const { return m_LoadedFromData; }
 
 private:

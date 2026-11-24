@@ -17,8 +17,17 @@ public:
 
     std::vector<VERTEX_3D> GetVertices();
 
+    /// <summary>
+    /// 盤面の表面の高さを返す。
+    /// </summary>
     float GetFieldHeight() const { return TableConfig::FIELD_HEIGHT; }
+    /// <summary>
+    /// 盤面の幅を返す。
+    /// </summary>
     float GetFieldWidth() const { return TableConfig::GetFieldWidth(); }
+    /// <summary>
+    /// 盤面の奥行きを返す。
+    /// </summary>
     float GetFieldDepth() const { return TableConfig::GetFieldDepth(); }
 
 private:

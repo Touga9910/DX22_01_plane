@@ -3,6 +3,9 @@
 #include <iostream>
 
 // Always enabled, independent of NDEBUG, and readable in redirected test logs.
+/// <summary>
+/// テスト条件が成立しなければ、失敗した式とソース位置を表示して終了する。
+/// </summary>
 inline void TestCheck(bool passed, const char* expression, const char* file, int line)
 {
     if (passed) return;

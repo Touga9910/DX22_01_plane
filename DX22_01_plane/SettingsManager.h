@@ -55,9 +55,21 @@ public:
 	bool SaveIfDirty(const std::string& path = "saves/settings.json");
 	void ApplyDisplaySettings();
 
+	/// <summary>
+	/// 現在の設定を読み取り専用の参照で返す。
+	/// </summary>
 	const GameSettings& Get() const { return m_Settings; }
+	/// <summary>
+	/// 設定を編集できる参照を返す。
+	/// </summary>
 	GameSettings& Edit() { return m_Settings; }
+	/// <summary>
+	/// 設定が変更され、保存が必要になったことを記録する。
+	/// </summary>
 	void MarkDirty() { m_Dirty = true; }
+	/// <summary>
+	/// 保存されていない設定変更があるかを返す。
+	/// </summary>
 	bool IsDirty() const { return m_Dirty; }
 
 	static int GetResolutionCount();

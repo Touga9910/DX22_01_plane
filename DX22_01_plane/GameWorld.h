@@ -14,10 +14,19 @@ class GameObject;
 class GameWorld final
 {
 public:
+	/// <summary>
+	/// 既定の状態で空のゲームワールドを生成する。
+	/// </summary>
 	GameWorld() = default;
 	~GameWorld();
 
+	/// <summary>
+	/// ゲームオブジェクトの所有権が重複するワールドのコピー構築を禁止する。
+	/// </summary>
 	GameWorld(const GameWorld&) = delete;
+	/// <summary>
+	/// ゲームオブジェクトの所有権が重複するワールドのコピー代入を禁止する。
+	/// </summary>
 	GameWorld& operator=(const GameWorld&) = delete;
 
 	// 名前を指定してGameObjectを生成し、ゲーム空間へ登録
@@ -50,7 +59,9 @@ public:
 	// 指定したComponentが現在のゲーム空間に属しているかを返す。
 	bool Contains(const Component* component) const;
 
-	// 指定した型のComponentをゲーム空間全体から取得
+	/// <summary>
+	/// 指定した型に変換できるワールド内のコンポーネントを一覧にまとめて返す。
+	/// </summary>
 	template<typename T>
 	std::vector<T*> GetComponents() const
 	{
@@ -65,6 +76,9 @@ public:
 
 	// Visits matching components without allocating an intermediate vector.
 	// Use this for read-only per-frame signatures and diagnostics.
+	/// <summary>
+	/// 指定した型に変換できる各コンポーネントに、渡された処理を適用する。
+	/// </summary>
 	template<typename T, typename Visitor>
 	void ForEachComponent(Visitor&& visitor) const
 	{
@@ -90,7 +104,9 @@ public:
 			&context);
 	}
 
-	// 指定した型のComponentを持つGameObjectをゲーム空間全体から取得
+	/// <summary>
+	/// 指定した型のコンポーネントを持つゲームオブジェクトを収集する。
+	/// </summary>
 	template<typename T>
 	std::vector<GameObject*> GetObjectsWith() const
 	{
@@ -112,6 +128,9 @@ private:
 	// Keep GameObject's storage private without allocating an intermediate list.
 	void VisitComponents(ComponentVisitor visitor, void* context) const;
 
+	/// <summary>
+	/// 指定した型へ変換できるコンポーネントを出力一覧に追加する。
+	/// </summary>
 	template<typename T>
 	static void CollectComponent(Component* component, void* context)
 	{
@@ -121,6 +140,9 @@ private:
 		}
 	}
 
+	/// <summary>
+	/// コンポーネントが指定した型に変換できる場合、その所有オブジェクトを出力一覧へ追加する。
+	/// </summary>
 	template<typename T>
 	static void CollectOwner(Component* component, void* context)
 	{

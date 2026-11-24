@@ -9,8 +9,14 @@ namespace RouteVisualPath
 {
     struct Point { float x=0,y=0; };
     struct Segment { Point from,to; };
+    /// <summary>
+    /// 入力整数のビットを混ぜ、ルートの見た目の生成に使う決定的な値を返す。
+    /// </summary>
     inline std::uint32_t Mix(std::uint32_t n)
     { n^=n>>16;n*=0x7feb352du;n^=n>>15;n*=0x846ca68bu;return n^(n>>16); }
+    /// <summary>
+    /// シードとノード番号から、2点間に描くルートの曲線を生成する。
+    /// </summary>
     inline std::array<Point,65> Curve(std::uint32_t seed,int from,int to,Point a,Point b)
     {
         const auto hash=Mix(seed^Mix(static_cast<std::uint32_t>(from))^Mix(static_cast<std::uint32_t>(to)+0x9e3779b9u));
@@ -28,6 +34,9 @@ namespace RouteVisualPath
         }
         return result;
     }
+    /// <summary>
+    /// 曲線に沿って一定間隔で区切り、破線として描く線分を返す。
+    /// </summary>
     inline std::vector<Segment> Dashes(const std::array<Point,65>& curve,float scale)
     {
         std::vector<Segment> result;

@@ -2,6 +2,9 @@
 
 #include <algorithm>
 
+/// <summary>
+/// ランの結果からショットあたりのダメージなどの成績指標を計算する。
+/// </summary>
 PlayerRunAnalysis AnalyzeRun(const RunResultSnapshot& result)
 {
 	PlayerRunAnalysis analysis;
