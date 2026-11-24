@@ -16,6 +16,7 @@ from bridge_store import GameBridgeError, GameBridgeStore
 from ball_aim_guidance import attach_ball_aim_guidance
 from build_comparison_jobs import BuildComparisonJobManager
 from build_shot_evaluator import build_joint_shot_context, selected_ball
+from joint_context_cache import JointContextCache, TacticalContextCache
 from boss_shot_policy import evaluate_boss_choices, fire_boss_choice
 from build_decision import (
     build_decision_snapshot,
@@ -899,6 +900,14 @@ def create_server(
     )
     deterministic_shot_random: random.Random | None = None
     last_candidate_generation: dict[str, Any] = {}
+    joint_evaluation_cache = JointContextCache()
+    tactical_evaluation_cache = TacticalContextCache()
+
+    def cached_tactical(state, profile):
+        return tactical_evaluation_cache.evaluate(state, profile, build_tactical_shot_context)
+
+    def cached_joint(state, profile):
+        return joint_evaluation_cache.evaluate(state, profile, build_joint_shot_context)
     current_shot_policy = "standard"
 
     # Older running game binaries omit enemy physical properties. Use the
@@ -1062,8 +1071,8 @@ def create_server(
             state["build_shot_choices"] = dict(evaluation, choices=evaluation["offer_choices"]) if evaluation else {
                 "model": "boss_shared_ccd_v1", "recommended": None, "choices": []}
         else:
-            state["shot_tactics"] = build_tactical_shot_context(state, profile)
-            state["build_shot_choices"] = build_joint_shot_context(state, profile)
+            state["shot_tactics"] = cached_tactical(state, profile)
+            state["build_shot_choices"] = cached_joint(state, profile)
         geometric = state["build_shot_choices"]
         last_candidate_generation.clear()
         if not state.get("boss_state"):
@@ -1643,7 +1652,7 @@ def create_server(
             # get_game_state in the telemetry of the shot that is actually fired.
             # plan_build_shot otherwise receives the raw bridge state, which does
             # not contain the derived build_shot_choices snapshot.
-            joint_context = build_joint_shot_context(state, profile)
+            joint_context = cached_joint(state, profile)
             candidate_generation = {}
             if last_candidate_generation.get("sequence") == state.get("sequence"):
                 candidate_generation = dict(
@@ -1696,7 +1705,7 @@ def create_server(
                 used = choice
                 break
             if shot_plan is None or used is None:
-                joint = build_joint_shot_context(state, profile)
+                joint = cached_joint(state, profile)
                 next_action = recommended_action(
                     state, {"recommended_target_id": None}, joint,
                 )
@@ -1762,7 +1771,7 @@ def create_server(
         else:
             # Without selected-ball mechanics the server cannot prove a
             # contact path. Do not synthesize a direction to fire.
-            joint = build_joint_shot_context(state, profile)
+            joint = cached_joint(state, profile)
             next_action = recommended_action(
                 state, {"recommended_target_id": None}, joint,
             )

@@ -151,6 +151,7 @@ void Game::Init()
 	m_Instance->InitializeBattleController();
 
 	// 最初のシーンを読み込む
+	m_Instance->m_RuntimeState->Transition().Configure(m_Instance->m_SettingsRuntime->Current().sceneTransition);
 	m_Instance->m_RuntimeState->InitializeScene(SceneType::Title);
 	m_Instance->m_GameMcpBridge =
 		std::make_unique<GameMcpBridge>();
@@ -196,6 +197,19 @@ void Game::Update(double elapsedSeconds)
 
 	// 入力処理を更新
 	Input::Update();
+	auto& transition = m_Instance->m_RuntimeState->Transition();
+	if (transition.IsPreviewing() && (Input::GetKeyTrigger(VK_ESCAPE) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
+	{
+		transition.CancelPreview();
+		// Consume this frame so the same Esc cannot close the settings/pause UI.
+		ResetFrameTiming();
+		return;
+	}
+	if (transition.Advance(elapsedSeconds))
+	{
+		ResetFrameTiming();
+		return;
+	}
 	if (m_Instance->UpdateDebugMode()) return;
 	if (m_Instance->m_PauseState->ConsumeDisplayApplyRequest())
 	{
@@ -292,34 +306,15 @@ void Game::Update(double elapsedSeconds)
 		scene->Update();
 	}
 	updateTiming.sceneMilliseconds = finishSection(sceneStarted);
+	if (m_Instance->m_RuntimeState->Transition().Active())
+	{
+		ResetFrameTiming();
+		return;
+	}
 
 	// カメラを更新
 	const auto cameraStarted = startSection();
-
-	if (dynamic_cast<BattleScene*>(
-		m_Instance->GetCurrentScene()) != nullptr)
-	{
-		const BattleViewportLayout battleLayout =
-			BattleViewportLayout::Calculate(
-				static_cast<float>(Application::GetWidth()),
-				static_cast<float>(Application::GetHeight()));
-		m_Instance->m_Camera.SetDistanceY(battleLayout.cameraDistance);
-
-		// GamePresentation側が設定したカメラシェイクを維持
-		Vector3 target = m_Instance->m_Camera.GetTarget();
-
-		// 上部HUDの下に盤面の中心を合わせる
-		target.z += battleLayout.cameraTargetZ;
-
-		m_Instance->m_Camera.SetTarget(target);
-	}
-	else
-	{
-		// 戦闘以外の既存カメラ構図を維持する
-		m_Instance->m_Camera.SetDistanceY(150.0f);
-	}
-
-	m_Instance->m_Camera.Update();
+	m_Instance->UpdateSceneCamera();
 
 	updateTiming.cameraMilliseconds =
 		finishSection(cameraStarted);
@@ -394,9 +389,27 @@ void Game::Update(double elapsedSeconds)
 
 }
 
+void Game::UpdateSceneCamera()
+{
+	if (dynamic_cast<BattleScene*>(GetCurrentScene()))
+	{
+		const auto layout = BattleViewportLayout::Calculate(
+			static_cast<float>(Application::GetWidth()), static_cast<float>(Application::GetHeight()));
+		m_Camera.SetDistanceY(layout.cameraDistance);
+		Vector3 target = m_Camera.GetTarget();
+		target.z += layout.cameraTargetZ;
+		m_Camera.SetTarget(target);
+	}
+	else m_Camera.SetDistanceY(150.0f);
+	m_Camera.Update();
+}
+
 void Game::Draw()
 {
 	Renderer::DrawStart();
+	const bool transitioning = m_Instance->m_RuntimeState->Transition().Active();
+	if (transitioning) ImGui::PushStyleVar(ImGuiStyleVar_DisabledAlpha, 1.0f);
+	ImGui::BeginDisabled(transitioning);
 
 	m_Instance->m_RuntimeState->World().Draw();
 
@@ -455,6 +468,16 @@ void Game::Draw()
 		ImGui::End();
 	}
 
+	ImGui::EndDisabled();
+	const float fadeAlpha = m_Instance->m_RuntimeState->Transition().Alpha();
+	if (transitioning) ImGui::PopStyleVar();
+	if (fadeAlpha > 0)
+	{
+		for (auto* viewport : ImGui::GetPlatformIO().Viewports)
+			ImGui::GetForegroundDrawList(viewport)->AddRectFilled(viewport->Pos,
+				ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y),
+				IM_COL32(0, 0, 0, static_cast<int>(255 * fadeAlpha)));
+	}
 	// Application owns ImGui rendering and presentation, including detached windows.
 }
 

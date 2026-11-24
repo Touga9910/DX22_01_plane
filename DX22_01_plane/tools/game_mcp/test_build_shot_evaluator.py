@@ -8,6 +8,7 @@ from pathlib import Path
 
 from build_profiles import compose_control_profile, load_build_profiles, profile_settings_hash
 from build_shot_evaluator import build_joint_shot_context, evaluate_build_shots
+from relic_rules import Relic
 from shot_planner import load_player_profiles, plan_build_shot
 from bridge_store import GameBridgeError
 from server import create_server
@@ -85,7 +86,7 @@ class BuildShotTests(unittest.TestCase):
         s["offered_balls"][0]["status"]["pierceSpeedRetention"] = .05
         slowed = evaluate_build_shots(s, self.profile("pierce"), shot_type="direct", fixed_power=3)[0]
         self.assertEqual(slowed["metrics"]["pierce_followups"], 0)
-        s["relics"] = [{"index": 7, "owned": True}]
+        s["relics"] = [{"index": Relic.PierceBallCharger, "owned": True}]
         charged = evaluate_build_shots(s, self.profile("pierce"), shot_type="direct", fixed_power=3)[0]
         self.assertEqual(charged["metrics"]["pierce_followups"], 2)
 
@@ -120,7 +121,7 @@ class BuildShotTests(unittest.TestCase):
         s = state(ball("anchor"), [enemy(0, 0, 15)])
         c = evaluate_build_shots(s, self.profile("anchor"), shot_type="direct")[0]
         self.assertEqual(c["power"], 3)
-        self.assertGreater(c["metrics"]["stable_stop"], 0)
+        self.assertEqual(c["metrics"]["stable_stop"], 0)  # stopping is priced by safety/reachability
         self.assertIn("z", c["estimated_stop_position"])
         self.assertLess(c["estimated_stop_position"]["z"], 15)
         self.assertEqual(c["followup_hits"], 0)
@@ -128,7 +129,7 @@ class BuildShotTests(unittest.TestCase):
     def test_bank_relic_gain_and_beginner_restriction(self):
         s = state(ball("bounce"), [enemy(0, 0, 20)])
         s["table"]["walls"] = [{"start": {"x": 15, "z": -20}, "end": {"x": 15, "z": 50}}]
-        s["relics"] = [{"index": 3, "owned": True}, {"index": 8, "owned": True}]
+        s["relics"] = [{"index": Relic.BankShot, "owned": True}, {"index": Relic.BounceBallSpring, "owned": True}]
         c = evaluate_build_shots(s, self.profile("bounce"))[0]
         self.assertEqual(c["shot_type"], "bank")
         self.assertGreater(c["metrics"]["bank_damage_gain"], 0)
@@ -148,7 +149,9 @@ class BuildShotTests(unittest.TestCase):
         self.assertEqual(c["expected_incoming_damage"], 0)
 
     def test_joint_choices_use_layout_instead_of_fixed_ball_priority(self):
-        s = state(ball("standard", attack=1), [enemy(0, 0, 15), enemy(1, 0, 30), enemy(2, 0, 45)])
+        # Reliable multi-target finishes should win through damage/survival,
+        # rather than the old +7 bonus for three HP of piercing damage.
+        s = state(ball("standard", attack=1), [enemy(0, 0, 15, hp=1), enemy(1, 0, 30, hp=1), enemy(2, 0, 45, hp=1)])
         pierce = ball("pierce")
         pierce.update(index=1, instance_id=2, selected=False)
         s["offered_balls"].append(pierce)
@@ -368,11 +371,11 @@ class BuildShotTests(unittest.TestCase):
 
     def test_standard_values_scope_low_power_and_avoids_overkill_bank_credit(self):
         s = state(ball(), [enemy(0, 0, 15, hp=3)])
-        s["relics"] = [{"index": 5, "owned": True}]
+        s["relics"] = [{"index": Relic.StandardBallScope, "owned": True}]
         c = evaluate_build_shots(s, self.profile("standard"), shot_type="direct")[0]
         self.assertLessEqual(c["power"], 4)
         self.assertEqual(c["metrics"]["kills"], 1)
-        s["relics"] = [{"index": 3, "owned": True}]
+        s["relics"] = [{"index": Relic.BankShot, "owned": True}]
         s["enemies"][0]["hp"] = 1
         s["table"]["walls"] = [{"start": {"x": 15, "z": -20}, "end": {"x": 15, "z": 50}}]
         c = evaluate_build_shots(s, self.profile("standard"), shot_type="bank")[0]
@@ -387,7 +390,8 @@ class BuildShotTests(unittest.TestCase):
         self.assertEqual(flank["metrics"]["damage"], 6)
         s["table"]["pockets"] = [{"index": 0, "position": {"x": 0, "z": 25}, "radius": 3}]
         risky = evaluate_build_shots(s, self.profile("standard"), shot_type="direct", shot_goal="damage")[0]
-        self.assertEqual(risky["self_pocket_risk"], 1)
+        self.assertEqual(risky["geometric_self_pocket_risk"], 1)
+        self.assertLessEqual(risky["self_pocket_risk"], risky["geometric_self_pocket_risk"])
         self.assertLess(risky["score"], flank["score"])
 
     def test_mcp_server_publishes_and_executes_the_same_ball_evaluation(self):

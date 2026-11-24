@@ -36,6 +36,7 @@ struct CombatReactionDiagnostics;
 struct FrameTimingSnapshot;
 struct AimingPerformanceSnapshot;
 struct EnemyHpDisplaySettings;
+struct SceneTransitionTiming;
 class GameObject;
 class GameRuntime;
 class GameRuntimeState;
@@ -66,6 +67,7 @@ namespace HeavyCollisionRules { struct State; }
 class Game
 {
 private:
+	void UpdateSceneCamera();
 	// ===== ゲーム全体の基盤 =====
 	// 唯一のGameインスタンスと、シーン・カメラ・ゲーム空間を管理
 	static Game* m_Instance;//ゲームインスタンス
@@ -280,6 +282,8 @@ public:
 	GameObject* CreateGameObject(const std::string& name);
 
 	void ChangeScene(SceneType sceneType);	//シーンを変更
+	bool LoadSavedRunWithFade();
+	const SceneTransitionTiming& GetSceneTransitionTiming() const;
 	// 現在のシーンを読み取り用に返す。
 	Scene* GetCurrentScene() const;
 	// 現在のシーン種別を返す。

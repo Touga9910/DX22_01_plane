@@ -49,6 +49,26 @@ def route_state(hp: int = 50, money: int = 50) -> dict:
 
 
 class RouteValueDecisionTests(unittest.TestCase):
+    def test_late_recovery_reserve_prevents_hp27_upgrade_before_combat(self):
+        state = route_state(hp=27)
+        for candidate in state["deck_balls"]:
+            candidate["next_upgrade"] = {"attack": 3}
+        state["scene"] = "rest_site"
+        state["available_actions"] = ["heal", "upgrade_ball"]
+        state["player"]["progress"] = 12
+        state["run_map"]["nodes"] = [
+            {"node_id": 0, "active": True, "destination": "rest", "next_node_ids": [1]},
+            {"node_id": 1, "destination": "battle", "next_node_ids": [2]},
+            {"node_id": 2, "destination": "rest", "next_node_ids": []}]
+        decision = evaluate_rest_site_action(state, self.profiles, "standard")
+        self.assertEqual(decision["recommended_action"], "heal")
+        self.assertEqual(decision["survival_reserve"]["battles_until_recovery"], 1)
+        state["run_map"]["nodes"][1]["destination"] = "rest"
+        decision = evaluate_rest_site_action(state, self.profiles, "standard")
+        self.assertEqual(decision["recommended_action"], "upgrade_ball")
+        state["player"]["current_hp"] = 50
+        self.assertEqual(evaluate_rest_site_action(state, self.profiles, "standard")["recommended_action"], "upgrade_ball")
+
     def setUp(self) -> None:
         self.profiles, _ = load_build_profiles(
             Path(__file__).resolve().parent / "build_profiles.json"
@@ -71,6 +91,40 @@ class RouteValueDecisionTests(unittest.TestCase):
         )
         self.assertGreaterEqual(decision["recovery_amount"], 10)
         self.assertGreater(decision["recovery_value"], 0)
+
+    def test_route_rest_values_only_the_action_that_can_be_claimed(self) -> None:
+        for hp in (15, 40, 50):
+            with self.subTest(hp=hp):
+                state = route_state(hp=hp)
+                action = evaluate_rest_site_action(state, self.profiles, "standard")
+                routes = evaluate_route_options(state, self.profiles, "standard")
+                rest = next(r for r in routes["routes"] if r["destination"] == "rest")
+                self.assertEqual(rest["rest_action"], action["recommended_action"])
+                values = rest["values"]
+                if action["recommended_action"] == "heal":
+                    self.assertEqual(values["free_upgrade_value"], 0)
+                    self.assertEqual(values["recovery_value"], action["recovery_value"])
+                else:
+                    self.assertEqual(values["recovery_value"], 0)
+                    self.assertEqual(values["free_upgrade_value"], action["free_upgrade_value"])
+
+    def test_route_uses_published_heal_amount_before_entering_rest(self) -> None:
+        state = route_state(hp=15)
+        state["rest_heal"] = {"configured_heal_amount": 4}
+        action = evaluate_rest_site_action(state, self.profiles, "standard")
+        self.assertEqual(action["recovery_amount"], 4)
+        routes = evaluate_route_options(state, self.profiles, "standard")
+        rest = next(r for r in routes["routes"] if r["destination"] == "rest")
+        self.assertEqual(rest["values"]["recovery_value"], 108.0)
+
+    def test_future_rest_does_not_count_two_exclusive_bonuses(self) -> None:
+        state = route_state(hp=40)
+        state["run_map"]["nodes"][3]["destination"] = "rest"
+        routes = evaluate_route_options(state, self.profiles, "standard")
+        battle = next(r for r in routes["routes"] if r["route_index"] == 0)
+        self.assertTrue(battle["reachable_rest_nodes"])
+        values = battle["values"]
+        self.assertFalse(values["recovery_value"] > 0 and values["free_upgrade_value"] > 0)
 
     def test_danger_hp_forces_immediate_rest_safety(self) -> None:
         routes = evaluate_route_options(

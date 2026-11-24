@@ -57,6 +57,44 @@ class FakeStore:
 
 
 class ShotRecoveryTests(unittest.TestCase):
+    def test_hp1_auto_selects_real_shield_candidate_but_manual_fire_is_preserved(self):
+        guard = ball(1, selected=False)
+        guard["definition_id"] = "player_guard"
+        guard["status"]["shotShield"] = 3
+        state = battle([ball(), guard], [enemy(0, 15), enemy(1, -15)])
+        state["player"]["current_hp"] = 1
+        joint = build_joint_shot_context(state, self.intermediate)
+        self.assertEqual(joint["recommended"]["definition_id"], "player_guard")
+        self.assertEqual(joint["recommended"]["expected_incoming_damage"], 0)
+        action = recommended_action(state, build_tactical_shot_context(state, self.intermediate), joint)
+        self.assertEqual((action["action"], action["ball_index"]), ("select_ball", 1))
+        server, store = self.make_server(state)
+
+        async def manual():
+            _, result = await server.call_tool("fire_shot", {
+                "target_id": "enemy:0", "power_mode": "manual", "power": 3})
+            return result["result"]
+
+        result = asyncio.run(manual())
+        self.assertTrue(result["ok"])
+        self.assertEqual([name for name, _ in store.commands], ["fire_shot"])
+        self.assertEqual(result["shot_plan"]["candidate_comparison"]["actual_selected_instance_id"], 7)
+
+    def test_joint_recommendation_replaces_reachable_lethal_selected_ball(self):
+        state = battle([ball(), ball(1, selected=False)], [enemy(0, 15)])
+        state["player"]["current_hp"] = 1
+        choice = {"offer_index": 1, "instance_id": 8, "target_id": "enemy:0",
+                  "shot_type": "direct", "shot_goal": "damage", "power": 4.0}
+        action = recommended_action(state, {"recommended_target_id": "enemy:0"}, {"recommended": choice})
+        self.assertEqual(action["action"], "select_ball")
+        self.assertEqual(action["ball_index"], 1)
+        state["offered_balls"][0]["selected"] = False
+        state["offered_balls"][1]["selected"] = True
+        action = recommended_action(state, {"recommended_target_id": "enemy:other"}, {"recommended": choice})
+        self.assertEqual(action["action"], "fire_shot")
+        self.assertEqual(action["target_id"], "enemy:0")
+        self.assertEqual(action["power"], 4.0)
+
     @classmethod
     def setUpClass(cls):
         root = Path(__file__).parent

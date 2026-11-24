@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "SceneTransitionTiming.h"
 
 enum class EnemyHpDisplayMode : int
 {
@@ -28,6 +29,7 @@ struct EnemyHpDisplaySettings
 
 struct GameSettings
 {
+	SceneTransitionTiming sceneTransition{};
 	float bgmVolume = 0.8f;
 	float seVolume = 0.8f;
 	bool vibrationEnabled = true;

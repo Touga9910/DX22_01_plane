@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -24,7 +25,14 @@ PROJECT = Path(__file__).resolve().parents[2]
 def save(path, value):
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(path)
+    for attempt in range(100):
+        try:
+            temporary.replace(path)
+            break
+        except PermissionError:
+            if attempt == 99:
+                raise
+            time.sleep(.1)
 
 
 def read_lines(path):

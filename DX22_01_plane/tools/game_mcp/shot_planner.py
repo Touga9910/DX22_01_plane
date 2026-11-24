@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from bridge_store import GameBridgeError
+from wall_geometry import inset_wall
 from build_shot_evaluator import evaluate_build_shots, selected_ball
 
 
@@ -964,7 +965,8 @@ def plan_build_shot(
     direction_target = actual_aim
     if choice["shot_type"] == "bank":
         bank = _plan_bank_shot(player_position, actual_aim,
-                              state["table"]["walls"][choice["wall_index"]], choice["wall_index"])
+                              state["table"]["walls"][choice["wall_index"]], choice["wall_index"],
+                              radius=float(selected_ball(state)["status"].get("radius", 2.4)))
         if bank is None:
             raise UnreachableShotError("Aim error invalidated the bank path; refresh the recommendation.")
         direction_target = bank["contact_point"]
@@ -1185,9 +1187,12 @@ def _plan_bank_shot(
     target: tuple[float, float],
     wall: Any,
     wall_index: int,
+    radius: float = 0.0,
 ) -> dict[str, Any] | None:
     if not isinstance(wall, dict):
         return None
+    if radius > 0:
+        wall = inset_wall(wall, player, radius)
     try:
         start = _xz_position(wall.get("start"), "wall.start")
         end = _xz_position(wall.get("end"), "wall.end")
@@ -1228,7 +1233,7 @@ def _plan_bank_shot(
         return None
 
     wall_length = math.sqrt(wall_length_squared)
-    endpoint_margin = min(1.0, wall_length * 0.1)
+    endpoint_margin = min(max(1.0, radius), wall_length * 0.25)
     distance_from_start = wall_scale * wall_length
     if not (
         endpoint_margin

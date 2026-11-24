@@ -153,6 +153,8 @@
     <ClInclude Include="ShotPowerRules.h" />
     <ClInclude Include="TitleTable.h" />
     <ClInclude Include="TitleSequence.h" />
+    <ClInclude Include="SceneTransition.h" />
+    <ClInclude Include="SceneTransitionTiming.h" />
     <ClInclude Include="RenderViewOverride.h" />
     <ClInclude Include="TitleScene.h">
       <Filter>ヘッダー ファイル\01_Scene\System</Filter>

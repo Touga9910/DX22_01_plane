@@ -54,7 +54,7 @@ void TitleScene::Update()
     {
         if(Input::GetKeyTrigger(VK_SPACE)||Input::GetKeyTrigger(VK_ESCAPE)||Input::GetKeyTrigger(VK_RETURN))m_Sequence.Skip();
         m_Sequence.Advance(dt,m_Table->RackHit());
-        m_Table->Step(dt,m_Sequence.phase==TitleSequence::Phase::Break||m_Sequence.phase==TitleSequence::Phase::Fade);
+        m_Table->Step(dt,m_Sequence.phase==TitleSequence::Phase::Break||m_Sequence.phase==TitleSequence::Phase::Fade,m_Sequence.CameraBlend());
         if(m_Sequence.ConsumeStart())
         {
             m_Table->Release();
@@ -72,11 +72,10 @@ void TitleScene::Update()
     {
     case 0:
         if(m_CanContinue&&!m_ConfirmNewRun){m_ConfirmNewRun=true;m_Message=UiText::OverwriteConfirm;return;}
-        m_Sequence.Begin();GameSceneCommands::PlayTitleCue(false,1);return;
+        m_Sequence.Begin(GameView::CaptureTitle().transitionTiming.fadeOutSeconds);GameSceneCommands::PlayTitleCue(false,1);return;
     case 1:
         if(m_CanContinue)
         {
-            m_Table->Release();
             const auto* previousScene=this;
             const bool loaded=GameSceneCommands::LoadSavedRun();
             if(!loaded&&GameSceneCommands::IsCurrentScene(previousScene))
@@ -140,7 +139,7 @@ void TitleScene::DrawUI()
         if(ImGui::InvisibleButton("skip_title",vp->WorkSize))m_Sequence.Skip();
 
     }
-    const float fade=m_QuitFade>=0?std::clamp(m_QuitFade/.45f,0.0f,1.0f):m_Sequence.phase==TitleSequence::Phase::Fade?std::clamp(m_Sequence.time/.65f,0.0f,1.0f):m_Sequence.Active()&&m_Sequence.phase!=TitleSequence::Phase::Break?1.0f:0;
+    const float fade=m_QuitFade>=0?std::clamp(m_QuitFade/.45f,0.0f,1.0f):m_Sequence.phase==TitleSequence::Phase::Fade?m_Sequence.FadeAlpha():(m_Sequence.phase==TitleSequence::Phase::Ready||m_Sequence.phase==TitleSequence::Phase::Committed)?1.0f:0;
     if(fade>0) d->AddRectFilled(vp->WorkPos,ImVec2(vp->WorkPos.x+w,vp->WorkPos.y+h),IM_COL32(0,0,0,static_cast<int>(255*fade)));
     if(m_ShowProgression)DrawProgressionUI();
     if(m_ShowQuit&&!ImGui::IsPopupOpen("終了確認"))ImGui::OpenPopup("終了確認");

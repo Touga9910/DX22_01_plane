@@ -1,0 +1,313 @@
+作成日：2026年11月22日
+MCP重量球の自己落下と攻撃偏重の再修正
+
+比較元：1122_mcp_policy_v12の50有効ラン。seed2026112101～2026112110×standard/heavy/pierce/bounce/anchor。
+プレイヤーに見える変化：重量球は発射位置から固定tickの摩擦を含めて追跡し、落下後の敵攻撃を含む安全性と、実際の連鎖利益で球を比較する。
+強める柱：選択・狙い・連鎖。球種の使用を強制せず、無益な接触加点で危険な候補を選ぶ問題を直す。
+取得・強化前後の狙い：重量の移動・衝突を活かしながら、同じ与ダメージを連鎖・撃破・攻撃阻止で何度も加点しない。
+危険：防御球一択への過補正、予測値を低く表示するだけの改善、既知seedへの過適合。ゲームC++・球性能・敵性能・実行ファイルは変更しない。
+成功条件：元の落下5件と悪化21組を保持して原因を分析し、意味のある回帰検証後に判断を凍結。同じseedの50有効ランを完走し、実被害・手数・危険通過・残存誤差・能力活用を比較する。途中変更は別版へ分離する。
+物理上の差：旧Pythonは最初の接触を連続摩擦の簡略式で仮定し、接触後も分割時間ごとに摩擦をかけていた。実ゲームは固定tickの先頭で摩擦を適用し、そのtick内の全衝突を追跡する。重量球を発射位置から評価してこの差を減らす。
+原ログの限界：過去5件には当該ショット直前の全盤面状態がなく、同一入力の完全再シミュレーションとはしない。新しい選択ショットには再現用の予測入力を保存し、実C++接触記録と照合する。
+
+途中版v13は25有効ランで停止し、全原ログとinterrupted_summary.jsonを保持。追加した停止確認が次tickの摩擦適用後を数え、閾値をまたぐ場合に1tick早く止まる境界不具合を修正。摩擦0.1・初速0.3・半径0.1の直進では、必要な移動1.6に対して旧途中版は1.5で停止し、終端付近の落下を見逃した。新しい回帰テストは修正前失敗・修正後成功。途中結果を正式50ランへ混ぜない。
+
+途中版v14は0有効ランで停止し、全途中ログを保持。残骸はCapturePhysicsBodyでenemy=falseとなり、重球のknockbackTransfer対象外だった。残骸→生存敵は、生存敵同士のimpactAttackや衝突レリック加算を使わない。衝突レリック回数も生存敵への接触／生存敵同士だけ増える。v15でこれらとBankShot消費順を修正したが、下記の実効攻撃0の扱いをさらに修正した。旧v13/v14の撃破を省いた再計算は、撃破後も物理が同じという誤った前提があったため無効とし、正式比較の精度の根拠に使わない。新しい入力には球・レリック・経路・設定も保存し、撃破コールバック込みで再計算する。
+
+途中版v15は5有効ランで停止し、全原ログを保持。ContactDamageの呼出元まで追い、BallCollisionComponent::GetAttackが非戦闘敵に0、EnemyBall::AdjustCollisionDamageも0入力に0を返すことを確認。v15は初期残骸の公開attack=0には対応したが、予測中に撃破した球へ元のattackを使う余地が残った。v16は全残骸の実効攻撃を0へ固定し、無益な接触へ連鎖点・衝突レリック回数を与えない。旧途中版の照合結果は正式精度の根拠に使わない。確定撃破優先の後段並べ替えにも、期待・保守・サンプル最大損失を悪化させない条件を追加。関連142テスト成功。
+同じ盤面の共同評価をサーバー内で最大4件再利用し、返却結果を複製する。通信・表示だけの差を除き、盤面・HP・敵・球・レリック・資源・プロフィールは全て比較する。実入力6盤面×6回の36比較で未キャッシュ計算と完全一致。計算部分の参考計測で約5.98倍、ラン全体の倍率は未確定。
+
+正式50ランの比較結果
+
+比較：v12→v16。同じ10seed×5型、中級者、固定難度、B0014、legacy/standard。同一EXE・初期セーブ、判断コードを凍結。
+同seedでも経路・デッキ・報酬・操作乱数消費が変わるため、単独修正の因果実験や同一盤面だけの物理精度比較とは区別する。
+追加修正：残骸へのknockbackTransferを1へ戻す。残骸→生存敵の実効攻撃は0。予測中の撃破でも直ちに0にし、生存敵同士向けimpactAttackや衝突加算を流用しない。残骸衝突で衝突レリックの回数を増やさず、BankShotの未消費権は後続の壁接触からも有効化する。
+修正：重量球を発射位置から追跡。固定tick先頭の摩擦、発射直後の摩擦スキップ、停止確認中の低速移動を反映。最初の接触前に落下した場合の架空の与ダメージを消す。
+限界：候補生成時の到達可能性の絞り込みには従来の連続摩擦近似が残る。同時接触の順序・位置補正・特殊反応も実ソルバー全体と同一ではない。
+修正：重複する攻撃成果の追加点（撃破・阻止・接触・反射増分・貫通・フィニッシュ等）の合計を、実与ダメージ点の半分・最大6点へ制限。HP損失の安全重みは最低4。これらは校正済み最適値ではなく、今回検証する仮説。
+後段の確定撃破優先は、期待損失・保守的損失・9条件中の最大損失が全て増えない場合に限る。高得点で安全な生成候補を、撃破という理由だけで逆転させない。
+維持：追加連鎖撃破の重み0.8/打ち切り0.35、名目60%＋端点ストレス40%。確率・最悪被害の保証ではない。球種使用は強制しない。
+公開score_breakdownはストレス条件を含む加重平均。offense_budget・prediction_input・coupled_chainの接触列は名目条件。全条件の損失はrobustness.samplesで別に記録し、名目だけの予算と加重平均を混同しない。
+収集安定性：前回のWindows管理JSON置換競合を受け、一時的PermissionErrorを再試行。テストで旧JSONを保ち2回失敗後に保存できることを確認。
+検証：関連142テスト成功。従来の貫通優先テストは、3HPの貫通に+7点を付ける旧挙動に依存していたため、低HPの直列3敵を確実に倒す配置へ変更し、実ダメージと攻撃阻止で連鎖候補を選べることを検証した。
+
+全体
+勝利数/50：50.000→50.000
+平均累積被ダメージ：14.100→7.640
+平均打数：35.460→36.220
+平均戦闘数：8.100→8.100
+平均終了HP：37.820→43.140
+平均回復回数：0.060→0.000
+同一盤面の共同評価再利用：実入力6盤面・36比較で完全一致、単体計算比5.98倍。全ランの経過時間の倍率とは区別する。盤面・HP・敵・提示球・資源・プロフィールを保持し、通信・表示・派生ビューだけをキーから除外。4件まで保持し返却時は複製する。
+
+ビルド別・各10組
+standard：勝利10→10/10、被害13.50→9.30、打数35.20→35.40、終了HP37.50→41.30、対象球使用率36.9%→29.2%。
+  有効10、除外0、接続再試行0。コア所持完成率100%、固有機構：{'standard_direct_damage_shot': 104}
+heavy：勝利10→10/10、被害12.80→7.90、打数35.10→34.60、終了HP40.50→43.50、対象球使用率36.0%→27.3%。
+  有効10、除外0、接続再試行0。コア所持完成率80%、固有機構：{'chain_impact_triggered': 12, 'heavy_collision_boost_armed': 0, 'heavy_distance_stacks_generated': 46, 'heavy_finisher_triggered': 15, 'heavy_micro_stack_generated': 0}
+pierce：勝利10→10/10、被害12.90→8.20、打数35.20→36.10、終了HP38.40→42.40、対象球使用率15.2%→7.7%。
+  有効10、除外0、接続再試行0。コア所持完成率20%、固有機構：{'pierce_finisher_hit': 26, 'pierce_minions_launched': 2, 'pierce_trace_generated': 60}
+bounce：勝利10→10/10、被害17.30→6.70、打数36.20→36.60、終了HP34.00→43.90、対象球使用率8.5%→7.0%。
+  有効10、除外0、接続再試行0。コア所持完成率0%、固有機構：{'bank_shot_triggered': 76, 'cushion_stacks_consumed': 0, 'cushion_stacks_generated': 11, 'pinball_activated': 0, 'reflection_setup_armed': 0}
+anchor：勝利10→10/10、被害14.00→6.10、打数35.60→38.40、終了HP38.70→44.60、対象球使用率9.4%→7.3%。
+  有効10、除外0、接続再試行0。コア所持完成率30%、固有機構：{'anchor_finisher_triggered': 1, 'anchor_stacks_generated': 20, 'origin_anchor_return_armed': 0, 'stop_shield_granted': 0}
+
+前回悪化した21組：元の集合を固定して追跡
+敵攻撃・落下は被害源の分類、ボスは戦闘の分類。ボス差は前二者に含まれるため足し合わせない。
+元21組の安全点トレードオフ143場面、選択後実被害104場面。総点差1未満・安全点差4以上・実被害ありは7場面/6組。安全点はHPの単位ではなく、代替を実行すれば無被害だったという意味でもない。
+seed=2026112109/standard：被害21→14、打数35→30、最低戦闘終了HP33→37。
+  元のv9→v12悪化：敵攻撃差+11、落下差+4、ボス差+0、経路変更True。安全点の高い候補を選ばなかった場面の実被害合計15。
+  v9ボス到達：HP48、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害2。
+  v12ボス到達：HP35、デッキ11球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['攻撃コア', 'バンクショット', '緊急修理キット']、被害2。
+  v16ボス到達：HP49、デッキ11球、球使用{'player_heavy': 2, 'player_guard': 1, 'player_standard': 4}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害13。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 4, 'chosen': {'ball': 'player_standard', 'old_score': 7.7005, 'cap_only_score': 3.7005, 'budget': {'raw_secondary_points': 7.0, 'secondary_budget': 3.0}, 'old_chain_points': 1.0, 'old_safety_points': -6.0}, 'alternative': {'ball': 'player_guard', 'old_score': 7.52, 'cap_only_score': 2.02, 'budget': {'raw_secondary_points': 6.5, 'secondary_budget': 1.0}, 'old_chain_points': 0.0, 'old_safety_points': -2.0}}
+  元候補の採点診断：{'stage': 3, 'shot': 4, 'actual_damage': 4, 'chosen': {'ball': 'player_standard', 'old_score': 13.2266, 'cap_only_score': 3.9265999999999996, 'budget': {'raw_secondary_points': 12.8, 'secondary_budget': 3.5}, 'old_chain_points': 2.0, 'old_safety_points': -3.4931}, 'alternative': {'ball': 'player_guard', 'old_score': 9.6, 'cap_only_score': 5.300000000000001, 'budget': {'raw_secondary_points': 5.8, 'secondary_budget': 1.5}, 'old_chain_points': 0.5, 'old_safety_points': 0.0}}
+seed=2026112108/bounce：被害19→3、打数29→26、最低戦闘終了HP32→47。
+  元のv9→v12悪化：敵攻撃差+10、落下差+0、ボス差+11、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計6。
+  v9ボス到達：HP47、デッキ13球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_standard': 2}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器']、被害2。
+  v12ボス到達：HP44、デッキ13球、球使用{'player_heavy': 2, 'player_guard': 1, 'player_standard': 4}、レリック['衝撃加速装置', 'バンクショット', '緊急修理キット', 'ヘビーインパクター']、被害13。
+  v16ボス到達：HP49、デッキ13球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['衝撃加速装置', 'バンクショット', '緊急修理キット', 'ヘビーインパクター']、被害2。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 4, 'chosen': {'ball': 'player_standard', 'old_score': 11.9248, 'cap_only_score': 4.9698, 'budget': {'raw_secondary_points': 11.455, 'secondary_budget': 4.5}, 'old_chain_points': 1.295, 'old_safety_points': -8.536}, 'alternative': {'ball': 'player_guard', 'old_score': 11.587, 'cap_only_score': 3.187, 'budget': {'raw_secondary_points': 9.9, 'secondary_budget': 1.5}, 'old_chain_points': 0.0, 'old_safety_points': -0.44}}
+  元候補の採点診断：{'stage': 5, 'shot': 2, 'actual_damage': 1, 'chosen': {'ball': 'player_heavy', 'old_score': 27.6082, 'cap_only_score': 17.2382, 'budget': {'raw_secondary_points': 16.37, 'secondary_budget': 6.0}, 'old_chain_points': 1.47, 'old_safety_points': -2.728}, 'alternative': {'ball': 'player_guard', 'old_score': 10.82, 'cap_only_score': 6.42, 'budget': {'raw_secondary_points': 6.4, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112107/bounce：被害18→5、打数34→47、最低戦闘終了HP32→46。
+  元のv9→v12悪化：敵攻撃差+12、落下差+0、ボス差+7、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計7。
+  v9ボス到達：HP47、デッキ15球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_standard': 1, 'player_chain_impact': 1}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '貫通過給機']、被害2。
+  v12ボス到達：HP41、デッキ15球、球使用{'player_heavy': 2, 'player_guard': 3, 'player_bounce': 1, 'player_standard': 1}、レリック['衝撃加速装置', 'バンクショット', '精密照準器', 'ヘビーインパクター', '高張力スプリング']、被害9。
+  v16ボス到達：HP50、デッキ15球、球使用{'player_guard': 5, 'player_standard': 3, 'player_bounce': 3, 'player_heavy': 2}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '貫通過給機']、被害5。
+  元候補の採点診断：{'stage': 3, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 26.1366, 'cap_only_score': 16.1066, 'budget': {'raw_secondary_points': 16.03, 'secondary_budget': 6.0}, 'old_chain_points': 5.11, 'old_safety_points': -4.4}, 'alternative': {'ball': 'player_guard', 'old_score': 11.52, 'cap_only_score': 8.02, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 2.5}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 7, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_cushion_charge', 'old_score': 17.1089, 'cap_only_score': 10.438899999999999, 'budget': {'raw_secondary_points': 11.145, 'secondary_budget': 4.475}, 'old_chain_points': 1.365, 'old_safety_points': -4.4}, 'alternative': {'ball': 'player_guard', 'old_score': 15.1538, 'cap_only_score': 10.9038, 'budget': {'raw_secondary_points': 7.825, 'secondary_budget': 3.575}, 'old_chain_points': 1.365, 'old_safety_points': 0.0}}
+seed=2026112101/anchor：被害24→8、打数40→44、最低戦闘終了HP32→42。
+  元のv9→v12悪化：敵攻撃差+9、落下差+2、ボス差-2、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計18。
+  v9ボス到達：HP44、デッキ13球、球使用{'player_guard': 2, 'player_heavy': 2, 'player_standard': 2}、レリック['緊急修理キット', '精密照準器']、被害4。
+  v12ボス到達：HP41、デッキ15球、球使用{'player_guard': 2, 'player_heavy': 1, 'player_standard': 1}、レリック['衝撃加速装置']、被害2。
+  v16ボス到達：HP44、デッキ15球、球使用{'player_guard': 5, 'player_standard': 2, 'player_heavy': 2}、レリック['衝撃加速装置', '精密照準器']、被害2。
+  元候補の採点診断：{'stage': 4, 'shot': 3, 'actual_damage': 6, 'chosen': {'ball': 'player_heavy', 'old_score': 12.4626, 'cap_only_score': 0.33259999999999934, 'budget': {'raw_secondary_points': 17.89, 'secondary_budget': 5.76}, 'old_chain_points': 8.65, 'old_safety_points': -16.0}, 'alternative': {'ball': 'player_guard', 'old_score': 11.7739, 'cap_only_score': 4.3739, 'budget': {'raw_secondary_points': 9.0, 'secondary_budget': 1.6}, 'old_chain_points': 0.0, 'old_safety_points': -0.7974}}
+  元候補の採点診断：{'stage': 3, 'shot': 3, 'actual_damage': 4, 'chosen': {'ball': 'player_heavy', 'old_score': 24.735, 'cap_only_score': 8.325, 'budget': {'raw_secondary_points': 22.41, 'secondary_budget': 6.0}, 'old_chain_points': 5.25, 'old_safety_points': -11.52}, 'alternative': {'ball': 'player_guard', 'old_score': 12.6283, 'cap_only_score': 5.548299999999999, 'budget': {'raw_secondary_points': 9.0, 'secondary_budget': 1.92}, 'old_chain_points': 0.0, 'old_safety_points': -0.0282}}
+seed=2026112104/anchor：被害18→6、打数37→33、最低戦闘終了HP32→44。
+  元のv9→v12悪化：敵攻撃差+9、落下差+0、ボス差+8、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計9。
+  v9ボス到達：HP43、デッキ12球、球使用{'player_guard': 2, 'player_heavy': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害1。
+  v12ボス到達：HP41、デッキ13球、球使用{'player_heavy': 2, 'player_guard': 4, 'player_standard': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害9。
+  v16ボス到達：HP45、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害1。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 27.521, 'cap_only_score': 4.650999999999999, 'budget': {'raw_secondary_points': 28.87, 'secondary_budget': 6.0}, 'old_chain_points': 6.55, 'old_safety_points': -12.32}, 'alternative': {'ball': 'player_guard', 'old_score': 5.4067, 'cap_only_score': 1.0067, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 1.6}, 'old_chain_points': 0.0, 'old_safety_points': -4.0}}
+  元候補の採点診断：{'stage': 6, 'shot': 4, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 34.319, 'cap_only_score': 9.169, 'budget': {'raw_secondary_points': 31.15, 'secondary_budget': 6.0}, 'old_chain_points': 8.95, 'old_safety_points': -7.2}, 'alternative': {'ball': 'player_guard', 'old_score': 5.8375, 'cap_only_score': 1.4375, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 1.6}, 'old_chain_points': 0.0, 'old_safety_points': -4.0}}
+seed=2026112102/bounce：被害23→6、打数42→37、最低戦闘終了HP32→47。
+  元のv9→v12悪化：敵攻撃差+9、落下差-4、ボス差+11、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計5。
+  v9ボス到達：HP45、デッキ14球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害2。
+  v12ボス到達：HP43、デッキ13球、球使用{'player_heavy': 2, 'player_guard': 1, 'player_standard': 3, 'player_reflection_setup': 1}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害13。
+  v16ボス到達：HP48、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害1。
+  元候補の採点診断：{'stage': 8, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 75.6288, 'cap_only_score': 44.67380000000001, 'budget': {'raw_secondary_points': 36.955, 'secondary_budget': 6.0}, 'old_chain_points': 5.775, 'old_safety_points': -1.3227}, 'alternative': {'ball': 'player_guard', 'old_score': 54.877, 'cap_only_score': 34.967, 'budget': {'raw_secondary_points': 25.91, 'secondary_budget': 6.0}, 'old_chain_points': 3.99, 'old_safety_points': 1.2924}}
+  元候補の採点診断：{'stage': 5, 'shot': 2, 'actual_damage': 1, 'chosen': {'ball': 'player_cushion_charge', 'old_score': 14.9036, 'cap_only_score': 6.603599999999999, 'budget': {'raw_secondary_points': 11.3, 'secondary_budget': 3.0}, 'old_chain_points': 1.4, 'old_safety_points': -2.64}, 'alternative': {'ball': 'player_guard', 'old_score': 8.8828, 'cap_only_score': 4.5828, 'budget': {'raw_secondary_points': 5.8, 'secondary_budget': 1.5}, 'old_chain_points': 1.4, 'old_safety_points': 0.0}}
+seed=2026112106/anchor：被害17→7、打数35→39、最低戦闘終了HP33→43。
+  元のv9→v12悪化：敵攻撃差+9、落下差+2、ボス差-2、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計12。
+  v9ボス到達：HP45、デッキ14球、球使用{'player_guard': 4, 'player_standard': 2, 'player_anchor_finisher': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット']、被害4。
+  v12ボス到達：HP35、デッキ15球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_anchor_finisher': 1, 'player_standard': 1}、レリック['バンクショット', '精密照準器']、被害2。
+  v16ボス到達：HP46、デッキ15球、球使用{'player_guard': 3, 'player_heavy': 1, 'player_standard': 2, 'player_anchor_finisher': 1}、レリック['バンクショット', '精密照準器']、被害3。
+  元候補の採点診断：{'stage': 6, 'shot': 4, 'actual_damage': 5, 'chosen': {'ball': 'player_heavy', 'old_score': 8.7759, 'cap_only_score': -6.2341, 'budget': {'raw_secondary_points': 18.79, 'secondary_budget': 3.78}, 'old_chain_points': 3.55, 'old_safety_points': -15.2}, 'alternative': {'ball': 'player_guard', 'old_score': -0.6968, 'cap_only_score': -6.296799999999999, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 0.4}, 'old_chain_points': 0.0, 'old_safety_points': -8.0}}
+  元候補の採点診断：{'stage': 6, 'shot': 2, 'actual_damage': 4, 'chosen': {'ball': 'player_heavy', 'old_score': 21.2752, 'cap_only_score': 6.025199999999998, 'budget': {'raw_secondary_points': 20.47, 'secondary_budget': 5.22}, 'old_chain_points': 4.75, 'old_safety_points': -7.2}, 'alternative': {'ball': 'player_stop_shield', 'old_score': 16.5032, 'cap_only_score': 9.0932, 'budget': {'raw_secondary_points': 9.87, 'secondary_budget': 2.46}, 'old_chain_points': 3.15, 'old_safety_points': 0.0}}
+seed=2026112105/pierce：被害18→7、打数42→39、最低戦闘終了HP32→43。
+  元のv9→v12悪化：敵攻撃差+5、落下差+2、ボス差+1、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計14。
+  v9ボス到達：HP43、デッキ12球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害3。
+  v12ボス到達：HP36、デッキ15球、球使用{'player_guard': 5, 'player_standard': 4, 'player_minion_finisher': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害4。
+  v16ボス到達：HP47、デッキ14球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_minion_finisher': 1, 'player_pierce_finisher': 1, 'player_standard': 1}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害4。
+  元候補の採点診断：{'stage': 6, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 57.2525, 'cap_only_score': 34.0275, 'budget': {'raw_secondary_points': 29.225, 'secondary_budget': 6.0}, 'old_chain_points': 1.905, 'old_safety_points': -4.5034}, 'alternative': {'ball': 'player_guard', 'old_score': 20.2069, 'cap_only_score': 12.1069, 'budget': {'raw_secondary_points': 12.6, 'secondary_budget': 4.5}, 'old_chain_points': 0.3, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 6, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_pierce', 'old_score': 7.5209, 'cap_only_score': 1.6208999999999993, 'budget': {'raw_secondary_points': 7.9, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': -4.4}, 'alternative': {'ball': 'player_guard', 'old_score': 7.02, 'cap_only_score': 2.02, 'budget': {'raw_secondary_points': 5.5, 'secondary_budget': 0.5}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112103/anchor：被害14→5、打数31→37、最低戦闘終了HP36→47。
+  元のv9→v12悪化：敵攻撃差+7、落下差+0、ボス差+0、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計9。
+  v9ボス到達：HP48、デッキ14球、球使用{'player_guard': 4, 'player_heavy': 2, 'player_standard': 1}、レリック['緊急修理キット', '精密照準器']、被害5。
+  v12ボス到達：HP41、デッキ14球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 2}、レリック['緊急修理キット', '精密照準器']、被害5。
+  v16ボス到達：HP49、デッキ15球、球使用{'player_guard': 5, 'player_standard': 3, 'player_heavy': 2, 'player_pierce': 2}、レリック['緊急修理キット', '精密照準器']、被害4。
+  元候補の採点診断：{'stage': 5, 'shot': 3, 'actual_damage': 4, 'chosen': {'ball': 'player_standard', 'old_score': 4.2818, 'cap_only_score': 0.2618000000000007, 'budget': {'raw_secondary_points': 9.44, 'secondary_budget': 5.42}, 'old_chain_points': 2.0, 'old_safety_points': -16.0}, 'alternative': {'ball': 'player_guard', 'old_score': 4.0242, 'cap_only_score': -1.3957999999999995, 'budget': {'raw_secondary_points': 6.3, 'secondary_budget': 0.88}, 'old_chain_points': 0.0, 'old_safety_points': -0.6}}
+  元候補の採点診断：{'stage': 3, 'shot': 3, 'actual_damage': 4, 'chosen': {'ball': 'player_heavy', 'old_score': 18.6337, 'cap_only_score': 3.043700000000001, 'budget': {'raw_secondary_points': 19.63, 'secondary_budget': 4.04}, 'old_chain_points': 2.35, 'old_safety_points': -4.16}, 'alternative': {'ball': 'player_guard', 'old_score': 12.2628, 'cap_only_score': 3.6128, 'budget': {'raw_secondary_points': 10.25, 'secondary_budget': 1.6}, 'old_chain_points': 0.05, 'old_safety_points': 0.0}}
+seed=2026112109/bounce：被害14→2、打数29→31、最低戦闘終了HP40→49。
+  元のv9→v12悪化：敵攻撃差+5、落下差+2、ボス差-2、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計8。
+  v9ボス到達：HP49、デッキ12球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 1}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害4。
+  v12ボス到達：HP41、デッキ15球、球使用{'player_guard': 2, 'player_heavy': 1, 'player_standard': 1, 'player_ricochet_finisher': 1}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害2。
+  v16ボス到達：HP50、デッキ13球、球使用{'player_guard': 2, 'player_heavy': 1, 'player_standard': 2}、レリック['衝撃加速装置', 'バンクショット', '緊急修理キット', '精密照準器']、被害2。
+  元候補の採点診断：{'stage': 3, 'shot': 4, 'actual_damage': 4, 'chosen': {'ball': 'player_standard', 'old_score': 12.2773, 'cap_only_score': 3.0773, 'budget': {'raw_secondary_points': 12.7, 'secondary_budget': 3.5}, 'old_chain_points': 2.8, 'old_safety_points': -3.8424}, 'alternative': {'ball': 'player_guard', 'old_score': 10.4091, 'cap_only_score': 1.1090999999999993, 'budget': {'raw_secondary_points': 10.3, 'secondary_budget': 1.0}, 'old_chain_points': 2.8, 'old_safety_points': -0.6012}}
+  元候補の採点診断：{'stage': 6, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 31.2188, 'cap_only_score': 19.418799999999997, 'budget': {'raw_secondary_points': 17.8, 'secondary_budget': 6.0}, 'old_chain_points': 1.82, 'old_safety_points': -0.88}, 'alternative': {'ball': 'player_guard', 'old_score': 10.82, 'cap_only_score': 6.42, 'budget': {'raw_secondary_points': 6.4, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112102/standard：被害19→12、打数41→39、最低戦闘終了HP34→43。
+  元のv9→v12悪化：敵攻撃差+5、落下差+2、ボス差+0、経路変更True。安全点の高い候補を選ばなかった場面の実被害合計16。
+  v9ボス到達：HP43、デッキ11球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害2。
+  v12ボス到達：HP36、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['攻撃コア', '緊急修理キット']、被害2。
+  v16ボス到達：HP46、デッキ11球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット']、被害3。
+  元候補の採点診断：{'stage': 7, 'shot': 2, 'actual_damage': 4, 'chosen': {'ball': 'player_heavy', 'old_score': 28.0481, 'cap_only_score': 17.618100000000002, 'budget': {'raw_secondary_points': 16.43, 'secondary_budget': 6.0}, 'old_chain_points': 2.35, 'old_safety_points': -3.4132}, 'alternative': {'ball': 'player_guard', 'old_score': 12.277, 'cap_only_score': 8.902000000000001, 'budget': {'raw_secondary_points': 5.375, 'secondary_budget': 2.0}, 'old_chain_points': 0.575, 'old_safety_points': 2.0}}
+  元候補の採点診断：{'stage': 7, 'shot': 4, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 17.9331, 'cap_only_score': 11.368099999999998, 'budget': {'raw_secondary_points': 11.24, 'secondary_budget': 4.675}, 'old_chain_points': 2.6, 'old_safety_points': -3.12}, 'alternative': {'ball': 'player_guard', 'old_score': 10.38, 'cap_only_score': 5.580000000000001, 'budget': {'raw_secondary_points': 6.3, 'secondary_budget': 1.5}, 'old_chain_points': 1.5, 'old_safety_points': 1.6}}
+seed=2026112107/anchor：被害18→5、打数40→41、最低戦闘終了HP38→46。
+  元のv9→v12悪化：敵攻撃差+3、落下差+0、ボス差-2、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計10。
+  v9ボス到達：HP50、デッキ11球、球使用{'player_heavy': 2, 'player_guard': 2, 'player_standard': 3}、レリック['バンクショット', '緊急修理キット', '精密照準器', '貫通過給機']、被害10。
+  v12ボス到達：HP45、デッキ12球、球使用{'player_guard': 2, 'player_heavy': 2, 'player_standard': 5}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '高張力スプリング']、被害8。
+  v16ボス到達：HP50、デッキ13球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 3}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '高張力スプリング']、被害4。
+  元候補の採点診断：{'stage': 3, 'shot': 4, 'actual_damage': 3, 'chosen': {'ball': 'player_heavy', 'old_score': 23.9631, 'cap_only_score': 6.2631000000000006, 'budget': {'raw_secondary_points': 23.7, 'secondary_budget': 6.0}, 'old_chain_points': 5.7, 'old_safety_points': -7.1565}, 'alternative': {'ball': 'player_guard', 'old_score': 8.9538, 'cap_only_score': 4.1538, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 1.2}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 4, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 23.353, 'cap_only_score': 11.902999999999999, 'budget': {'raw_secondary_points': 17.05, 'secondary_budget': 5.6}, 'old_chain_points': 6.85, 'old_safety_points': -4.0}, 'alternative': {'ball': 'player_guard', 'old_score': 12.8558, 'cap_only_score': 12.6958, 'budget': {'raw_secondary_points': 3.0, 'secondary_budget': 2.84}, 'old_chain_points': 0.0, 'old_safety_points': 4.0}}
+seed=2026112108/anchor：被害9→3、打数29→26、最低戦闘終了HP41→47。
+  元のv9→v12悪化：敵攻撃差+6、落下差+0、ボス差+1、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計6。
+  v9ボス到達：HP49、デッキ13球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器']、被害2。
+  v12ボス到達：HP44、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 2}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器']、被害3。
+  v16ボス到達：HP49、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器']、被害2。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 21.7787, 'cap_only_score': 5.678699999999997, 'budget': {'raw_secondary_points': 20.7, 'secondary_budget': 4.6}, 'old_chain_points': 3.3, 'old_safety_points': -4.48}, 'alternative': {'ball': 'player_guard', 'old_score': 5.92, 'cap_only_score': 0.9199999999999999, 'budget': {'raw_secondary_points': 5.8, 'secondary_budget': 0.8}, 'old_chain_points': 1.0, 'old_safety_points': -0.8}}
+  元候補の採点診断：{'stage': 5, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 23.1167, 'cap_only_score': 10.9367, 'budget': {'raw_secondary_points': 17.92, 'secondary_budget': 5.74}, 'old_chain_points': 2.8, 'old_safety_points': -3.52}, 'alternative': {'ball': 'player_guard', 'old_score': 10.8068, 'cap_only_score': 7.6468, 'budget': {'raw_secondary_points': 5.64, 'secondary_budget': 2.48}, 'old_chain_points': 1.8, 'old_safety_points': 0.0}}
+seed=2026112108/standard：被害15→10、打数26→30、最低戦闘終了HP35→40。
+  元のv9→v12悪化：敵攻撃差+4、落下差+0、ボス差+8、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計5。
+  v9ボス到達：HP42、デッキ10球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット', 'ヘビーインパクター']、被害2。
+  v12ボス到達：HP45、デッキ13球、球使用{'player_heavy': 3, 'player_cushion_charge': 1, 'player_standard': 1, 'player_guard': 1}、レリック['攻撃コア', 'バンクショット', '緊急修理キット', 'ヘビーインパクター']、被害10。
+  v16ボス到達：HP49、デッキ12球、球使用{'player_heavy': 2, 'player_guard': 2, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '精密照準器', 'ヘビーインパクター']、被害9。
+  元候補の採点診断：{'stage': 4, 'shot': 2, 'actual_damage': 3, 'chosen': {'ball': 'player_heavy', 'old_score': 25.8146, 'cap_only_score': 12.7596, 'budget': {'raw_secondary_points': 18.955, 'secondary_budget': 5.9}, 'old_chain_points': 2.075, 'old_safety_points': -3.12}, 'alternative': {'ball': 'player_guard', 'old_score': 15.6319, 'cap_only_score': 6.831899999999999, 'budget': {'raw_secondary_points': 10.8, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 1, 'chosen': {'ball': 'player_standard', 'old_score': 21.9693, 'cap_only_score': 17.2943, 'budget': {'raw_secondary_points': 10.675, 'secondary_budget': 6.0}, 'old_chain_points': 1.475, 'old_safety_points': -2.0}, 'alternative': {'ball': 'player_guard', 'old_score': 12.02, 'cap_only_score': 7.02, 'budget': {'raw_secondary_points': 7.0, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112104/standard：被害15→13、打数36→38、最低戦闘終了HP35→37。
+  元のv9→v12悪化：敵攻撃差+1、落下差+2、ボス差+4、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計10。
+  v9ボス到達：HP40、デッキ11球、球使用{'player_guard': 1, 'player_heavy': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害1。
+  v12ボス到達：HP40、デッキ11球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害5。
+  v16ボス到達：HP46、デッキ11球、球使用{'player_heavy': 2, 'player_guard': 3, 'player_standard': 2}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害9。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 3, 'chosen': {'ball': 'player_heavy', 'old_score': 23.9429, 'cap_only_score': 12.1279, 'budget': {'raw_secondary_points': 17.815, 'secondary_budget': 6.0}, 'old_chain_points': 2.775, 'old_safety_points': -5.8557}, 'alternative': {'ball': 'player_guard', 'old_score': 6.22, 'cap_only_score': 3.420000000000001, 'budget': {'raw_secondary_points': 4.8, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': -2.4}}
+  元候補の採点診断：{'stage': 6, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 40.5046, 'cap_only_score': 26.4496, 'budget': {'raw_secondary_points': 20.055, 'secondary_budget': 6.0}, 'old_chain_points': 4.575, 'old_safety_points': -4.04}, 'alternative': {'ball': 'player_standard', 'old_score': 15.658, 'cap_only_score': 10.158, 'budget': {'raw_secondary_points': 8.55, 'secondary_budget': 3.05}, 'old_chain_points': 0.05, 'old_safety_points': 0.0}}
+seed=2026112107/standard：被害10→4、打数37→33、最低戦闘終了HP41→46。
+  元のv9→v12悪化：敵攻撃差+1、落下差+0、ボス差+3、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計4。
+  v9ボス到達：HP47、デッキ10球、球使用{'player_guard': 3, 'player_heavy': 1, 'player_standard': 3}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '貫通過給機']、被害3。
+  v12ボス到達：HP46、デッキ12球、球使用{'player_guard': 2, 'player_standard': 4, 'player_heavy': 2}、レリック['衝撃加速装置', '緊急修理キット', '精密照準器', '貫通過給機']、被害6。
+  v16ボス到達：HP48、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 1}、レリック['衝撃加速装置', 'バンクショット', '精密照準器', 'ヘビーインパクター', '高張力スプリング']、被害2。
+  元候補の採点診断：{'stage': 3, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_standard', 'old_score': 19.1108, 'cap_only_score': 14.210799999999999, 'budget': {'raw_secondary_points': 10.875, 'secondary_budget': 5.975}, 'old_chain_points': 0.475, 'old_safety_points': -4.0}, 'alternative': {'ball': 'player_guard', 'old_score': 10.7194, 'cap_only_score': 9.6944, 'budget': {'raw_secondary_points': 4.025, 'secondary_budget': 3.0}, 'old_chain_points': 0.025, 'old_safety_points': -0.0331}}
+  元候補の採点診断：{'stage': 4, 'shot': 3, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 26.3449, 'cap_only_score': 16.864900000000002, 'budget': {'raw_secondary_points': 15.48, 'secondary_budget': 6.0}, 'old_chain_points': 2.2, 'old_safety_points': -3.68}, 'alternative': {'ball': 'player_standard', 'old_score': 20.5028, 'cap_only_score': 12.8028, 'budget': {'raw_secondary_points': 11.7, 'secondary_budget': 4.0}, 'old_chain_points': 0.5, 'old_safety_points': 0.0}}
+seed=2026112105/bounce：被害15→3、打数41→37、最低戦闘終了HP35→47。
+  元のv9→v12悪化：敵攻撃差-1、落下差+2、ボス差+4、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計5。
+  v9ボス到達：HP41、デッキ12球、球使用{'player_guard': 3, 'player_heavy': 2, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害3。
+  v12ボス到達：HP42、デッキ12球、球使用{'player_guard': 3, 'player_standard': 2, 'player_heavy': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害7。
+  v16ボス到達：HP50、デッキ12球、球使用{'player_guard': 1, 'player_heavy': 2, 'player_standard': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害3。
+  元候補の採点診断：{'stage': 5, 'shot': 5, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 19.243, 'cap_only_score': 8.313, 'budget': {'raw_secondary_points': 15.305, 'secondary_budget': 4.375}, 'old_chain_points': 2.065, 'old_safety_points': -4.4}, 'alternative': {'ball': 'player_guard', 'old_score': 13.8, 'cap_only_score': 6.3, 'budget': {'raw_secondary_points': 9.5, 'secondary_budget': 2.0}, 'old_chain_points': 0.7, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 5, 'shot': 2, 'actual_damage': 1, 'chosen': {'ball': 'player_heavy', 'old_score': 26.9694, 'cap_only_score': 15.0094, 'budget': {'raw_secondary_points': 17.96, 'secondary_budget': 6.0}, 'old_chain_points': 2.24, 'old_safety_points': -2.552}, 'alternative': {'ball': 'player_guard', 'old_score': 7.94, 'cap_only_score': 5.04, 'budget': {'raw_secondary_points': 4.4, 'secondary_budget': 1.5}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112106/pierce：被害12→15、打数30→34、最低戦闘終了HP40→35。
+  元のv9→v12悪化：敵攻撃差+3、落下差+0、ボス差+3、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計7。
+  v9ボス到達：HP43、デッキ13球、球使用{'player_guard': 1, 'player_heavy': 1, 'player_pierce_finisher': 1, 'player_pierce': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット', '精密照準器', 'ヘビーインパクター']、被害2。
+  v12ボス到達：HP43、デッキ13球、球使用{'player_heavy': 1, 'player_guard': 1, 'player_pierce_finisher': 1, 'player_refractive_pierce': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット', '精密照準器', 'ヘビーインパクター']、被害5。
+  v16ボス到達：HP41、デッキ11球、球使用{'player_heavy': 2, 'player_guard': 1, 'player_standard': 1, 'player_pierce': 1}、レリック['衝撃加速装置', 'バンクショット', '精密照準器']、被害6。
+  元候補の採点診断：{'stage': 5, 'shot': 3, 'actual_damage': 4, 'chosen': {'ball': 'player_heavy', 'old_score': 39.0352, 'cap_only_score': 21.6752, 'budget': {'raw_secondary_points': 23.36, 'secondary_budget': 6.0}, 'old_chain_points': 2.865, 'old_safety_points': -3.5046}, 'alternative': {'ball': 'player_guard', 'old_score': 9.7631, 'cap_only_score': 9.4081, 'budget': {'raw_secondary_points': 4.355, 'secondary_budget': 4.0}, 'old_chain_points': 0.855, 'old_safety_points': -2.2675}}
+  元候補の採点診断：{'stage': 4, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_refractive_pierce', 'old_score': 13.8976, 'cap_only_score': 3.8976, 'budget': {'raw_secondary_points': 12.5, 'secondary_budget': 2.5}, 'old_chain_points': 0.0, 'old_safety_points': -4.0}, 'alternative': {'ball': 'player_guard', 'old_score': 7.338, 'cap_only_score': 1.8079999999999998, 'budget': {'raw_secondary_points': 6.13, 'secondary_budget': 0.6}, 'old_chain_points': 0.63, 'old_safety_points': 0.0}}
+seed=2026112102/anchor：被害15→6、打数44→44、最低戦闘終了HP42→48。
+  元のv9→v12悪化：敵攻撃差+2、落下差+0、ボス差-2、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計13。
+  v9ボス到達：HP49、デッキ14球、球使用{'player_guard': 4, 'player_standard': 2, 'player_anchor_finisher': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット']、被害4。
+  v12ボス到達：HP44、デッキ13球、球使用{'player_guard': 2, 'player_heavy': 1, 'player_standard': 1}、レリック['攻撃コア', '衝撃加速装置', 'バンクショット', '緊急修理キット']、被害2。
+  v16ボス到達：HP50、デッキ11球、球使用{'player_guard': 4, 'player_heavy': 2, 'player_standard': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット']、被害2。
+  元候補の採点診断：{'stage': 7, 'shot': 4, 'actual_damage': 4, 'chosen': {'ball': 'player_anchor', 'old_score': 8.6391, 'cap_only_score': -1.0509, 'budget': {'raw_secondary_points': 12.95, 'secondary_budget': 3.26}, 'old_chain_points': 2.15, 'old_safety_points': -12.8}, 'alternative': {'ball': 'player_guard', 'old_score': 7.42, 'cap_only_score': 1.6199999999999999, 'budget': {'raw_secondary_points': 8.2, 'secondary_budget': 2.4}, 'old_chain_points': 1.0, 'old_safety_points': -4.8}}
+  元候補の採点診断：{'stage': 7, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 26.1771, 'cap_only_score': 9.937100000000001, 'budget': {'raw_secondary_points': 20.94, 'secondary_budget': 4.7}, 'old_chain_points': 5.1, 'old_safety_points': -1.528}, 'alternative': {'ball': 'player_guard', 'old_score': 16.8404, 'cap_only_score': 11.240400000000001, 'budget': {'raw_secondary_points': 8.0, 'secondary_budget': 2.4}, 'old_chain_points': 2.0, 'old_safety_points': 4.0}}
+seed=2026112104/bounce：被害21→13、打数39→39、最低戦闘終了HP32→37。
+  元のv9→v12悪化：敵攻撃差+4、落下差+0、ボス差-4、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計12。
+  v9ボス到達：HP43、デッキ12球、球使用{'player_heavy': 3, 'player_guard': 1, 'player_standard': 3}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害13。
+  v12ボス到達：HP41、デッキ15球、球使用{'player_heavy': 2, 'player_guard': 2, 'player_standard': 2, 'player_bounce': 1}、レリック['衝撃加速装置', 'バンクショット', '緊急修理キット', 'ヘビーインパクター']、被害9。
+  v16ボス到達：HP39、デッキ15球、球使用{'player_guard': 4, 'player_heavy': 2, 'player_bounce': 1}、レリック['衝撃加速装置', 'バンクショット', 'ヘビーインパクター']、被害2。
+  元候補の採点診断：{'stage': 5, 'shot': 4, 'actual_damage': 3, 'chosen': {'ball': 'player_heavy', 'old_score': 20.6647, 'cap_only_score': 10.8397, 'budget': {'raw_secondary_points': 15.825, 'secondary_budget': 6.0}, 'old_chain_points': 4.305, 'old_safety_points': -8.3135}, 'alternative': {'ball': 'player_guard', 'old_score': 7.849, 'cap_only_score': 1.3139999999999996, 'budget': {'raw_secondary_points': 7.535, 'secondary_budget': 1.0}, 'old_chain_points': 0.035, 'old_safety_points': -2.2}}
+  元候補の採点診断：{'stage': 6, 'shot': 4, 'actual_damage': 3, 'chosen': {'ball': 'player_heavy', 'old_score': 34.2805, 'cap_only_score': 19.9255, 'budget': {'raw_secondary_points': 20.355, 'secondary_budget': 6.0}, 'old_chain_points': 3.255, 'old_safety_points': -0.88}, 'alternative': {'ball': 'player_guard', 'old_score': 10.92, 'cap_only_score': 6.52, 'budget': {'raw_secondary_points': 6.4, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+seed=2026112105/standard：被害9→3、打数37→41、最低戦闘終了HP42→47。
+  元のv9→v12悪化：敵攻撃差+0、落下差+0、ボス差+0、経路変更False。安全点の高い候補を選ばなかった場面の実被害合計6。
+  v9ボス到達：HP44、デッキ11球、球使用{'player_guard': 3, 'player_standard': 4}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット', '高張力スプリング']、被害2。
+  v12ボス到達：HP43、デッキ11球、球使用{'player_guard': 3, 'player_standard': 5, 'player_heavy': 1}、レリック['攻撃コア', '衝撃加速装置', '緊急修理キット', '高張力スプリング']、被害2。
+  v16ボス到達：HP49、デッキ11球、球使用{'player_guard': 4, 'player_standard': 3, 'player_heavy': 2}、レリック['攻撃コア', '衝撃加速装置', '精密照準器']、被害2。
+  元候補の採点診断：{'stage': 7, 'shot': 2, 'actual_damage': 2, 'chosen': {'ball': 'player_heavy', 'old_score': 18.9486, 'cap_only_score': 6.953600000000001, 'budget': {'raw_secondary_points': 15.295, 'secondary_budget': 3.3}, 'old_chain_points': 0.575, 'old_safety_points': -2.16}, 'alternative': {'ball': 'player_guard', 'old_score': 10.9318, 'cap_only_score': 6.9318, 'budget': {'raw_secondary_points': 6.0, 'secondary_budget': 2.0}, 'old_chain_points': 0.0, 'old_safety_points': 0.0}}
+  元候補の採点診断：{'stage': 6, 'shot': 2, 'actual_damage': 1, 'chosen': {'ball': 'player_heavy', 'old_score': 21.6409, 'cap_only_score': 13.9209, 'budget': {'raw_secondary_points': 13.72, 'secondary_budget': 6.0}, 'old_chain_points': 1.0, 'old_safety_points': -2.88}, 'alternative': {'ball': 'player_guard', 'old_score': 11.6468, 'cap_only_score': 10.0068, 'budget': {'raw_secondary_points': 4.74, 'secondary_budget': 3.1}, 'old_chain_points': 0.9, 'old_safety_points': 0.0}}
+元21組：改善20、同等0、悪化1。
+cap_only_scoreは古い盤面・予測・安全点を固定して追加点上限だけを適用した参考値。新しい物理や安全重みを含むv16の実評価や、代替候補実行時の被害とは扱わない。経路・成長・照準を含む相互作用を単独原因へ帰属しない。
+
+予測精度と危険場面
+v12：通常phase906ターン、敵攻撃HP被害MAE0.1635、0予測の敵被弾0。
+  幾何評価1453打、総HP被害MAE0.1502、落下HP被害0予測の被害5、落下リスク0の実落下5、実落下172ターン（11.84%）、落下HP被害は予測43.591／実測42。
+  連鎖完了1453／打ち切り0、推奨球との実行不一致0。専用ボス評価は幾何予測の精度集計に含めない。
+  実C++接触記録1453打の敵同士接触回数MAE0.5320回。保守的な敵HP被害見積もりの過小誤差合計1.000。数値停止や接触回数一致は軌道一致・最悪値保証ではない。
+  最低戦闘終了HP21、HP10以下の戦闘終了0、ショット前後を含む低HP戦闘0、回復後も必要HP未満0。
+v16：通常phase936ターン、敵攻撃HP被害MAE0.0620、0予測の敵被弾1。
+  幾何評価1500打、総HP被害MAE0.0551、落下HP被害0予測の被害2、落下リスク0の実落下2、実落下169ターン（11.27%）、落下HP被害は予測8.350／実測8。
+  連鎖完了1500／打ち切り0、推奨球との実行不一致0。専用ボス評価は幾何予測の精度集計に含めない。
+  実C++接触記録1500打の敵同士接触回数MAE0.3120回。保守的な敵HP被害見積もりの過小誤差合計1.000。数値停止や接触回数一致は軌道一致・最悪値保証ではない。
+  最低戦闘終了HP35、HP10以下の戦闘終了0、ショット前後を含む低HP戦闘0、回復後も必要HP未満0。
+重量球の実発射入力による幾何再計算：{'shots': 276, 'available': 276, 'unavailable': 0, 'completed': 276, 'falls': 3, 'replay_false_negative': 1, 'replay_false_positive': 1}
+リスクが微小な正値なら0見逃し件数には含まれない。0予測件数だけでなく、総HP誤差・落下HPの予測合計・実被害・実発射の再計算も合わせて評価する。
+採点・HP成分・モデルの整合性監査：{'counts': {'raw_heavy_shots': 276, 'evaluated_shots': 1500, 'bonus_cap_applied': 1363, 'heavy_shots': 276, 'heavy_from_launch': 276}, 'issues': []}
+敵攻撃0予測の実被弾：{'seed': 2026112105, 'build': 'pierce', 'stage_index': 5, 'shot': 6, 'ball': 'player_minion_finisher', 'predicted_incoming': 0.0, 'actual_enemy_hp_damage': 1, 'predicted_kills': 1, 'actual_kills': 0, 'conservative_incoming_damage': 0.0}
+ミニオンフィニッシャーの残存例では撃破を過大予測した。生成球を含む完全な物理は省いた近似であり、どの生成物・接触が差を生んだかはこの集計だけで断定しない。保守的損失や9条件一致も、実ゲームの損失上限保証ではない。
+実発射再計算は発射直前の保存状態・実速度と、固定した元の採点関数の撃破コールバックを使用する。HP0後の残骸に対する押し出し条件も変える。名目経路の到達フィルターで評価不能な場合はunavailableとして分母を分ける。特殊反応・同時接触・ポケット復帰後は完全再現でない。入力とC++実接触をheavy_actual_launch_replay.jsonへ保存。
+残存落下の原因分離：heavy/seed2026112105/戦闘7/打3は、名目と9条件では落下0だったが、実際の発射位置・速度による同じ採点関数では落下を再現した。軌道が非単調に変わる領域を有限サンプルが拾えなかった例であり、リスク0は安全保証ではない。
+pierce/seed2026112106/戦闘5/打5は、実発射入力でも落下を再現できなかった。実接触13回に対し予測5回、実撃破3体に対し予測2体。最初の敵同士接触2回の位置差は1e-6未満だが、その後約0.0014、0.0032、0.0304へ拡大した。軽量球押し出し増幅や敵盤面能力はこの例にはない。順次接触・位置補正・撃破状態・反射の近似が累積する物理予測誤差として記録し、単一の原因には断定しない。詳細入力・接触列はfirst_physics_residual.json。
+v12の幾何評価重量球：384打、予測記録384打、実落下19ターン、落下HP予測40.265／実測38、リスク0の実落下5（重量球1打あたり1.30%）。
+v16の幾何評価重量球：276打、予測記録276打、実落下3ターン、落下HP予測5.812／実測6、リスク0の実落下2（重量球1打あたり0.72%）。
+重量球を使った回数と実落下の機会自体も変わる。0予測件数の減少だけで同じ軌道の予測器が改善したとは判断しない。実発射照合とルール境界テストも併せて評価する。
+旧落下ケースの同seed全ラン追跡：(2026112106, 'anchor')、累積被害17→7。新しい幾何評価の重量球6打、実落下0、落下HP被害0、リスク0の実落下0。同じ打数・盤面の再現ではない。
+旧落下ケースの同seed全ラン追跡：(2026112104, 'heavy')、累積被害19→5。新しい幾何評価の重量球7打、実落下0、落下HP被害0、リスク0の実落下0。同じ打数・盤面の再現ではない。
+旧落下ケースの同seed全ラン追跡：(2026112105, 'heavy')、累積被害13→4。新しい幾何評価の重量球5打、実落下1、落下HP被害2、リスク0の実落下1。同じ打数・盤面の再現ではない。
+旧落下ケースの同seed全ラン追跡：(2026112110, 'heavy')、累積被害23→13。新しい幾何評価の重量球9打、実落下0、落下HP被害0、リスク0の実落下0。同じ打数・盤面の再現ではない。
+旧落下ケースの同seed全ラン追跡：(2026112110, 'pierce')、累積被害22→6。新しい幾何評価の重量球9打、実落下0、落下HP被害0、リスク0の実落下0。同じ打数・盤面の再現ではない。
+旧落下5件：[(2026112106, 'anchor', 6, 2, 2), (2026112104, 'heavy', 5, 3, 2), (2026112105, 'heavy', 3, 1, 2), (2026112110, 'heavy', 5, 4, 2), (2026112110, 'pierce', 6, 5, 2)]
+旧5件は完全な発射前状態が未保存。同じseedでもv16の同じ戦闘・打数は同じ入力とは限らず、5件を同入力で全て解消したという結論にはしない。
+全50組：改善41、同等1、悪化8。敗北0。
+悪化組の分析：通常戦とボス戦の被害差を分ける。ボス専用の狙い計算自体は今回変更していないが、到達時の成長・デッキ・残HP・乱数消費は変わる。以下は観測された内訳であり、未実行の代替ショットとの因果差ではない。
+  2026112109/anchor：通常戦差-2、ボス戦差+4、経路変更False。
+  2026112106/bounce：通常戦差+1、ボス戦差+2、経路変更False。
+  2026112103/heavy：通常戦差+0、ボス戦差+2、経路変更False。
+  2026112108/heavy：通常戦差-1、ボス戦差+5、経路変更False。
+  2026112106/pierce：通常戦差+2、ボス戦差+1、経路変更False。
+  2026112109/pierce：通常戦差+0、ボス戦差+6、経路変更False。
+  2026112103/standard：通常戦差+4、ボス戦差-1、経路変更False。
+  2026112106/standard：通常戦差-1、ボス戦差+7、経路変更False。
+今回の悪化のうち、元21組に含まれる組1、元21組以外7。
+  今回悪化 seed=2026112109/anchor：被害4→6、打数27→33。
+  今回悪化 seed=2026112106/bounce：被害11→14、打数38→38。
+  今回悪化 seed=2026112103/heavy：被害9→11、打数27→32。
+  今回悪化 seed=2026112108/heavy：被害5→9、打数33→33。
+  今回悪化 seed=2026112106/pierce：被害12→15、打数30→34。
+  今回悪化 seed=2026112109/pierce：被害6→12、打数27→34。
+  今回悪化 seed=2026112103/standard：被害7→10、打数32→32。
+  今回悪化 seed=2026112106/standard：被害9→15、打数30→32。
+  大きな悪化の戦闘別内訳：(2026112109, 'pierce')
+    before: [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 2, {'enemy_attack': 2}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})]
+    after: [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_002', 3, {'pocket': 2, 'enemy_attack': 1}), ('boss_001', 8, {'boss_strong_attack': 4, 'enemy_attack': 4})]
+    beforeの球・手数：[('normal_002', 3, {'player_guard': 3}), ('normal_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_mixed', 4, {'player_pierce_finisher': 1, 'player_standard': 2, 'player_heavy': 1}), ('midboss_001', 3, {'player_guard': 2, 'player_heavy': 1}), ('midboss_002', 2, {'player_guard': 1, 'player_standard': 1}), ('campaign_phase_late_mixed', 5, {'player_pierce_finisher': 1, 'player_heavy': 2, 'player_standard': 2}), ('midboss_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('boss_001', 4, {'player_guard': 1, 'player_heavy': 1, 'player_pierce_finisher': 1, 'player_standard': 1})]
+    afterの球・手数：[('normal_002', 3, {'player_guard': 3}), ('normal_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_mixed', 7, {'player_standard': 2, 'player_guard': 3, 'player_heavy': 2}), ('midboss_001', 3, {'player_guard': 2, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_late_mixed', 5, {'player_standard': 1, 'player_heavy': 2, 'player_guard': 2}), ('midboss_002', 3, {'player_standard': 2, 'player_guard': 1}), ('boss_001', 7, {'player_guard': 2, 'player_heavy': 1, 'player_standard': 2, 'player_pierce_finisher': 1, 'player_minion_finisher': 1})]
+  大きな悪化の戦闘別内訳：(2026112106, 'standard')
+    before: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_001', 2, {'enemy_attack': 2})]
+    after: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_pairs', 4, {'enemy_attack': 4}), ('midboss_002', 0, {}), ('boss_001', 9, {'boss_strong_attack': 1, 'enemy_attack': 8})]
+    beforeの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 6, {'player_heavy': 2, 'player_standard': 2, 'player_guard': 2}), ('campaign_phase_late_mixed', 6, {'player_standard': 5, 'player_heavy': 1}), ('campaign_phase_late_pairs', 4, {'player_standard': 2, 'player_heavy': 2}), ('midboss_002', 2, {'player_heavy': 1, 'player_guard': 1}), ('boss_001', 4, {'player_guard': 1, 'player_heavy': 2, 'player_standard': 1})]
+    afterの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 5, {'player_heavy': 2, 'player_guard': 3}), ('campaign_phase_late_mixed', 5, {'player_heavy': 2, 'player_standard': 2, 'player_guard': 1}), ('campaign_phase_late_pairs', 7, {'player_heavy': 3, 'player_guard': 2, 'player_standard': 1, 'player_anchor': 1}), ('midboss_002', 1, {'player_heavy': 1}), ('boss_001', 6, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 2})]
+  大きな悪化の戦闘別内訳：(2026112108, 'heavy')
+    before: [('normal_002', 1, {'enemy_attack': 1}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 0, {}), ('midboss_002', 0, {}), ('boss_001', 3, {'enemy_attack': 1, 'boss_strong_attack': 2})]
+    after: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 8, {'boss_strong_attack': 5, 'enemy_attack': 3})]
+    beforeの球・手数：[('normal_002', 3, {'player_guard': 1, 'player_standard': 1, 'player_heavy': 1}), ('normal_002', 3, {'player_guard': 3}), ('midboss_002', 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_pairs', 5, {'player_standard': 2, 'player_heavy': 2, 'player_chain_impact': 1}), ('campaign_phase_late_mixed', 6, {'player_guard': 4, 'player_heavy': 1, 'player_standard': 1}), ('midboss_002', 2, {'player_guard': 1, 'player_heavy': 1}), ('boss_001', 11, {'player_guard': 5, 'player_heavy': 2, 'player_standard': 4})]
+    afterの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_pairs', 5, {'player_standard': 2, 'player_guard': 3}), ('campaign_phase_late_mixed', 7, {'player_anchor': 1, 'player_heavy': 2, 'player_guard': 4}), ('midboss_002', 1, {'player_heavy': 1}), ('boss_001', 11, {'player_guard': 3, 'player_standard': 6, 'player_heavy': 2})]
+  大きな悪化の戦闘別内訳：(2026112106, 'bounce')
+    before: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 3, {'enemy_attack': 3}), ('campaign_phase_late_pairs', 0, {}), ('midboss_002', 0, {}), ('boss_001', 8, {'enemy_attack': 3, 'boss_strong_attack': 5})]
+    after: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 10, {'boss_strong_attack': 1, 'enemy_attack': 9})]
+    beforeの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_pairs', 4, {'player_heavy': 2, 'player_standard': 2}), ('campaign_phase_late_mixed', 5, {'player_standard': 2, 'player_heavy': 1, 'player_chain_impact': 1, 'player_guard': 1}), ('campaign_phase_late_pairs', 6, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 2}), ('midboss_002', 2, {'player_guard': 1, 'player_standard': 1}), ('boss_001', 13, {'player_guard': 5, 'player_bounce': 3, 'player_heavy': 1, 'player_chain_impact': 2, 'player_standard': 1, 'player_ricochet_finisher': 1})]
+    afterの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 7, {'player_heavy': 2, 'player_standard': 2, 'player_guard': 3}), ('campaign_phase_late_mixed', 5, {'player_standard': 2, 'player_heavy': 3}), ('campaign_phase_late_pairs', 9, {'player_standard': 3, 'player_heavy': 2, 'player_guard': 4}), ('midboss_002', 2, {'player_guard': 1, 'player_standard': 1}), ('boss_001', 7, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 3})]
+  大きな悪化の戦闘別内訳：(2026112106, 'pierce')
+    before: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 5, {'enemy_attack': 5})]
+    after: [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_late_mixed', 5, {'pocket': 2, 'enemy_attack': 3}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_001', 6, {'enemy_attack': 6})]
+    beforeの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 3}), ('campaign_phase_mid_pairs', 6, {'player_standard': 3, 'player_refractive_pierce': 1, 'player_heavy': 1, 'player_guard': 1}), ('campaign_phase_late_mixed', 5, {'player_pierce_finisher': 1, 'player_standard': 1, 'player_heavy': 2, 'player_refractive_pierce': 1}), ('campaign_phase_late_pairs', 4, {'player_refractive_pierce': 1, 'player_pierce': 1, 'player_pierce_finisher': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 2, 'player_heavy': 1}), ('boss_001', 4, {'player_heavy': 1, 'player_guard': 1, 'player_pierce_finisher': 1, 'player_refractive_pierce': 1})]
+    afterの球・手数：[('normal_002', 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 3, {'player_guard': 3}), ('campaign_phase_mid_pairs', 7, {'player_standard': 2, 'player_guard': 3, 'player_heavy': 2}), ('campaign_phase_late_mixed', 6, {'player_standard': 1, 'player_heavy': 3, 'player_guard': 2}), ('campaign_phase_late_pairs', 6, {'player_standard': 2, 'player_heavy': 2, 'player_guard': 2}), ('midboss_002', 2, {'player_heavy': 1, 'player_guard': 1}), ('boss_001', 5, {'player_heavy': 2, 'player_guard': 1, 'player_standard': 1, 'player_pierce': 1})]
+実被害が大きい場面：{'seed': 2026112109, 'build': 'standard', 'stage': 8, 'stage_id': 'boss_001', 'shot': 5, 'ball': 'player_heavy', 'hp_before': 42, 'hp_next_input': 38, 'actual_gross': 5, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112109, 'build': 'pierce', 'stage': 8, 'stage_id': 'boss_001', 'shot': 5, 'ball': 'player_pierce_finisher', 'hp_before': 44, 'hp_next_input': 39, 'actual_gross': 5, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112104, 'build': 'pierce', 'stage': 5, 'stage_id': 'campaign_phase_late_mixed', 'shot': 4, 'ball': 'player_standard', 'hp_before': 50, 'hp_next_input': 45, 'actual_gross': 5, 'expected_incoming': 5.0, 'expected_pocket': 0.0, 'conservative_loss': 5.0, 'self_pocket_risk': 0.0}
+実被害が大きい場面：{'seed': 2026112106, 'build': 'pierce', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 41, 'hp_next_input': 37, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112110, 'build': 'heavy', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 44, 'hp_next_input': 40, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112106, 'build': 'standard', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 44, 'hp_next_input': 40, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112106, 'build': 'bounce', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 46, 'hp_next_input': 42, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112104, 'build': 'standard', 'stage': 8, 'stage_id': 'boss_002', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 46, 'hp_next_input': 42, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112107, 'build': 'pierce', 'stage': 9, 'stage_id': 'boss_002', 'shot': 5, 'ball': 'player_heavy', 'hp_before': 47, 'hp_next_input': 43, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112102, 'build': 'pierce', 'stage': 9, 'stage_id': 'boss_002', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 48, 'hp_next_input': 44, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112109, 'build': 'heavy', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 49, 'hp_next_input': 45, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+実被害が大きい場面：{'seed': 2026112108, 'build': 'standard', 'stage': 7, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 49, 'hp_next_input': 45, 'actual_gross': 4, 'expected_incoming': None, 'expected_pocket': None, 'conservative_loss': None, 'self_pocket_risk': None}
+残存落下：{'seed': 2026112105, 'build': 'heavy', 'stage_index': 7, 'shot': 3, 'ball': 'player_heavy', 'predicted_gross': 0.0, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 2, 'self_pocket_risk': 0.0}
+残存落下：{'seed': 2026112106, 'build': 'pierce', 'stage_index': 5, 'shot': 5, 'ball': 'player_heavy', 'predicted_gross': 0.0, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 2, 'self_pocket_risk': 0.0}
+大きな総HP被害の過小予測：{'seed': 2026112105, 'build': 'heavy', 'stage_index': 7, 'shot': 3, 'ball': 'player_heavy', 'predicted_gross': 0.0, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 2, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 0.0}
+大きな総HP被害の過小予測：{'seed': 2026112106, 'build': 'pierce', 'stage_index': 5, 'shot': 5, 'ball': 'player_heavy', 'predicted_gross': 0.0, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 2, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 0.0}
+大きな総HP被害の過小予測：{'seed': 2026112104, 'build': 'bounce', 'stage_index': 5, 'shot': 2, 'ball': 'player_heavy', 'predicted_gross': 1.52, 'actual_gross': 3, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 3.0}
+大きな総HP被害の過小予測：{'seed': 2026112102, 'build': 'standard', 'stage_index': 7, 'shot': 5, 'ball': 'player_heavy', 'predicted_gross': 0.7, 'actual_gross': 2, 'predicted_pocket': 0.3, 'actual_pocket': 2, 'self_pocket_risk': 0.15, 'conservative_incoming_damage': 2.0}
+大きな総HP被害の過小予測：{'seed': 2026112103, 'build': 'heavy', 'stage_index': 3, 'shot': 5, 'ball': 'player_heavy', 'predicted_gross': 0.88, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 2.0}
+大きな総HP被害の過小予測：{'seed': 2026112110, 'build': 'pierce', 'stage_index': 6, 'shot': 3, 'ball': 'player_heavy', 'predicted_gross': 0.88, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 2.0}
+大きな総HP被害の過小予測：{'seed': 2026112101, 'build': 'standard', 'stage_index': 7, 'shot': 3, 'ball': 'player_heavy', 'predicted_gross': 0.98, 'actual_gross': 2, 'predicted_pocket': 0.1, 'actual_pocket': 0, 'self_pocket_risk': 0.05, 'conservative_incoming_damage': 2.0}
+大きな総HP被害の過小予測：{'seed': 2026112101, 'build': 'pierce', 'stage_index': 5, 'shot': 4, 'ball': 'player_heavy', 'predicted_gross': 2.0, 'actual_gross': 3, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 3.0}
+大きな総HP被害の過小予測：{'seed': 2026112105, 'build': 'pierce', 'stage_index': 5, 'shot': 6, 'ball': 'player_minion_finisher', 'predicted_gross': 0.0, 'actual_gross': 1, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 0.0}
+大きな総HP被害の過小予測：{'seed': 2026112104, 'build': 'anchor', 'stage_index': 5, 'shot': 2, 'ball': 'player_heavy', 'predicted_gross': 1.08, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 2.0}
+大きな総HP被害の過小予測：{'seed': 2026112101, 'build': 'bounce', 'stage_index': 3, 'shot': 3, 'ball': 'player_guard', 'predicted_gross': 0.3, 'actual_gross': 1, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 1.0}
+大きな総HP被害の過小予測：{'seed': 2026112102, 'build': 'pierce', 'stage_index': 7, 'shot': 2, 'ball': 'player_refractive_pierce', 'predicted_gross': 1.32, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'self_pocket_risk': 0.0, 'conservative_incoming_damage': 2.0}
+対象球使用率が低下した型：standard, heavy, pierce, bounce, anchor。安全な球への選択移行で被害が減る面と、主力の固有連鎖を使わない面を区別する。球種を強制しない方針は保つが、球取得時の狙い・配置・固有機構の有効性は引き続き課題。使用率低下だけで球性能の弱さや防御一択とは断定しない。
+
+評価：予測の内訳一致、実被害、手数、各球の能力活用を分ける。新しい上限・安全重みの最適性、未知seedへの汎化、操作感や面白さはこの既知seed比較だけでは確定しない。
+ゲーム本体・球・敵の弱体化はしていない。全原ログ、固定policy_snapshot、比較50組、元21組と旧5件を保持した。
+
+通常MCPへの反映確認
+ポート8765へv16を反映済み。scene=result、HP23、中級者・standard設定を維持。ゲームPID10992を維持し、MCP応答にモデル名build_tactics_v16_combat_liveness_bounded_offenseを確認。検証用8920～8954の各5ポート群に待受なし、ゲームプロセスは元の1件のみ。収集親プロセスも終了コード0。main_mcp_verification.jsonに記録。

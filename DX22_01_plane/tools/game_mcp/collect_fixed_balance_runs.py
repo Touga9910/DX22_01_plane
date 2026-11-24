@@ -106,7 +106,6 @@ BUILD_MECHANIC_EVENTS = {
     "anchor": (
         "anchor_stacks_generated",
         "stop_shield_granted",
-        "stop_shield_absorbed",
         "anchor_finisher_triggered",
         "origin_anchor_return_armed",
     ),
@@ -158,6 +157,10 @@ UNSUPPORTED_MECHANIC_MEASUREMENTS = {
         },
     },
     "anchor": {
+        "stop_shield_absorbed": {
+            "reason": "shared player shield pool; absorption event does not identify the granting ball",
+            "replacement": "generic_shield_absorption_event_count; stop_shield_granted for confirmed stop-shield generation",
+        },
         "anchor_enemy_transfer": {
             "reason": "historical collector name has no runtime event",
             "replacement": "stop_shield_granted or anchor_finisher_triggered",
@@ -594,6 +597,7 @@ async def play_current_run(
     reward_selection_history: list[dict[str, Any]] = []
     deck_compression_history: list[dict[str, Any]] = []
     route_selection_history: list[dict[str, Any]] = []
+    rest_decision_history: list[dict[str, Any]] = []
     shop_action_history: list[dict[str, Any]] = []
     shop_attempted_actions: set[str] = set()
     rejected_rewards: Counter[tuple[Any, ...]] = Counter()
@@ -678,6 +682,7 @@ async def play_current_run(
                 "reward_selection_history": reward_selection_history,
                 "deck_compression_history": deck_compression_history,
                 "route_selection_history": route_selection_history,
+                "rest_decision_history": rest_decision_history,
                 "shop_action_history": shop_action_history,
             }
 
@@ -773,6 +778,8 @@ async def play_current_run(
                     "pocket_index": next_action.get("pocket_index", -1),
                     "ball_selection_reason": f"dynamic:{active_build_id}:selected_reachable_ball",
                 }
+                if next_action.get("power") is not None:
+                    arguments.update(power_mode="manual", power=float(next_action["power"]))
                 shot = await call(session, "fire_shot", arguments)
                 if shot.get("ok", False):
                     shots_fired += 1
@@ -925,6 +932,11 @@ async def play_current_run(
                 rest_decision = evaluate_rest_site_action(
                     state, build_profiles, active_build_id,
                 )
+                if rest_decision.get("recommended_action"):
+                    entry = {"progress": state.get("player", {}).get("progress"), **rest_decision}
+                    rest_decision_history.append(entry)
+                    print(json.dumps({"event": "rest_decision", "build": active_build_id,
+                                      **entry}, ensure_ascii=False), flush=True)
                 if (
                     rest_decision.get("recommended_action") == "heal"
                     and "heal" in actions
@@ -1072,6 +1084,7 @@ async def play_current_run(
         "reward_selection_history": reward_selection_history,
         "deck_compression_history": deck_compression_history,
         "route_selection_history": route_selection_history,
+        "rest_decision_history": rest_decision_history,
         "shop_action_history": shop_action_history,
     }
 
@@ -1670,14 +1683,15 @@ def extract_run_record(
             1
             for event in events
             if _as_dict(event).get("event_type") == "route_area_completed"
-            and _event_details(event).get("area_type") == "rest"
+            and str(_event_details(event).get("area_type", "")).lower() in {"rest", "rest_site"}
         ),
         "heal_count": event_counts["rest_heal"],
+        "generic_shield_absorption_event_count": event_counts["stop_shield_absorbed"],
         "rest_upgrade_count": sum(
             1
             for event in events
             if _as_dict(event).get("event_type") == "ball_upgraded"
-            and _event_details(event).get("source_scene") == "rest"
+            and str(_event_details(event).get("source_scene", "")).lower() in {"rest", "rest_site"}
         ),
         "shop_visits": event_counts["shop_entered"]
         or sum(
@@ -1722,6 +1736,7 @@ def extract_run_record(
         "dominant_ball_shot_share": _rate(dominant_count, total_shots),
         "build_reward_dependent": build_complete and not initial_build_complete,
         "reward_selection_history": reward_selection_history,
+        "rest_decision_history": _as_list(summary.get("rest_decision_history")),
         "dynamic_balance_enabled_at_start": context.get(
             "dynamic_balance_enabled_at_start"
         ),
@@ -2563,10 +2578,12 @@ async def ensure_comparison_run_started(
         confirmed = await get_state(session)
         if state_observer is not None:
             state_observer(confirmed)
-        if state_matches_comparison_run(confirmed, seed, build):
+        if (state_matches_comparison_run(confirmed, seed, build)
+                and confirmed.get("scene") not in {"title", "result"}):
             break
         await asyncio.sleep(0.05)
-    if not state_matches_comparison_run(confirmed, seed, build):
+    if (not state_matches_comparison_run(confirmed, seed, build)
+            or confirmed.get("scene") in {"title", "result"}):
         raise RuntimeError(
             "MCP server did not confirm requested comparison run: "
             f"requested={build}/{seed}, observed={state_diagnostic_snapshot(confirmed)}"

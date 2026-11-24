@@ -1,5 +1,6 @@
 ﻿#include "Game.h"
 #include "GameRuntimeState.h"
+#include "GameBalanceRuntime.h"
 #include "GameBattleState.h"
 #include "GamePersistenceRuntime.h"
 #include "GameRewardState.h"
@@ -8,6 +9,9 @@
 #include "RunResultSnapshot.h"
 #include "BattleScene.h"
 #include "ResultScene.h"
+#include "TitleScene.h"
+#include "Camera.h"
+#include "GameSettingsRuntime.h"
 
 #pragma execution_character_set("utf-8")
 
@@ -23,11 +27,31 @@ SceneType Game::GetCurrentSceneType() const
 	return m_RuntimeState->CurrentSceneType();
 }
 
+bool Game::LoadSavedRunWithFade()
+{
+	if (GetCurrentSceneType() != SceneType::Title) return false;
+	m_RuntimeState->Transition().Configure(m_SettingsRuntime->Current().sceneTransition);
+	return m_RuntimeState->Transition().Request([this]() { LoadSavedRun(); });
+}
+
 void Game::ChangeScene(SceneType sceneType)
 {
 	if (sceneType < SceneType::Title || sceneType >= SceneType::Max)
 	{
 		std::cerr << "[Game] 無効なシーンへの遷移要求を拒否しました" << std::endl;
+		return;
+	}
+
+	auto& transition = m_RuntimeState->Transition();
+	// Debug tools, save restoration and batch runs depend on immediate scene
+	// construction. Human scene navigation commits under the black overlay.
+	if (!transition.IsCommitting() && GetCurrentScene() && !IsDebugMode() &&
+		!m_PersistenceRuntime->IsRestoringRunSave() &&
+		!m_BalanceRuntime->autoPlayer.IsEnabled() && !m_BalanceRuntime->validation.IsEnabled())
+	{
+		const auto* title = dynamic_cast<TitleScene*>(GetCurrentScene());
+		transition.Configure(m_SettingsRuntime->Current().sceneTransition);
+		transition.Request([this, sceneType]() { ChangeScene(sceneType); }, title && title->IsStartFadeComplete());
 		return;
 	}
 
@@ -105,4 +129,8 @@ void Game::ChangeScene(SceneType sceneType)
 	}
 
 	m_Instance->InvalidateDebugCombatForecast("シーン変更");
+	// New scenes must already have their final framing during fade-in, before
+	// gameplay is allowed its first update.
+	m_Camera.SetTarget(DirectX::SimpleMath::Vector3::Zero);
+	UpdateSceneCamera();
 }

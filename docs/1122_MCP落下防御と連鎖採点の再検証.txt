@@ -1,0 +1,345 @@
+作成日：2026年11月22日
+MCP落下防御と連鎖採点の再検証
+
+比較元：1121_mcp_policy_v9の同一50組、seed2026112101～2026112110×standard/heavy/pierce/bounce/anchor。
+プレイヤーに見える変化：落下によるシールド消費と、その後の敵攻撃を分けて評価し、実行可能な連鎖撃破を候補の利益に反映する。
+強める柱：狙いと連鎖。特定球の強制ではなく、角度・威力・盤面・防御残量によってショットを比較する。
+狙いの変化：連鎖の利益と攻撃阻止の信頼度を区別し、直近の生存余力を残しながら複数撃破を狙う。
+危険：推定連鎖を確定扱いして再び被弾すること、落下を過大評価して球選択を単調にすること、同seedへの過適合。
+成功条件：前回悪化9組の全原ログ調査、落下・防御・連鎖の回帰テスト、ゲーム条件一致・固定コードの50有効ラン、敗北・低HP・悪化組・過小過大誤差を含む比較。勝率だけで面白さや未知seedでの妥当性を断定しない。
+
+事前確認：GamePocketLifecycle.cppでは生存敵も残骸もポケットで除去されるが、予測内では縁で反射させていた。通常の衝突撃破後に残骸を残す規則と区別する。ポケット判定は初期重なりも含む必要がある。旧モデルの最大6tick刻みと、連鎖側の非落下で幾何リスクを0上書きする処理も見直す。
+ゲーム本体・球/敵性能・難度・初期セーブを変更せず、MCP判断だけを比較する。元のゲームとログは保持する。
+
+予備v10：0有効ラン時点で、到達不能ストレス条件に名目の回復・落下内訳と計算完了フラグを引き継ぐ境界不整合を追加発見。観測済み選択ショットには発生していなかったが、混在比較を避けるため収集だけを停止して全ログを保持した。正式比較へ混ぜない。
+正式v11：境界条件のHP成分も個別計算し、回復・撃破を見込まず未完了と表示する。関連117テスト成功。出力1122_mcp_policy_v11、比較元v9。同じ50組を最初から新規収集する。
+
+v11は残骸経路が連鎖予測を迂回する分岐を実測で発見し、43有効ラン時点で停止。被害増の組も含め全43組を保持し、interrupted_summary.jsonと中断ラン比較.txtへ別保存した。正式v12へ混ぜない。
+正式版をv12へ更新：残骸に遮られた経路も発射位置から衝突を予測し、到達前の標的ダメージを見込まない。関連121テスト成功。接触探索の計算量削減は160条件でv11と出力完全一致、部分計算で約1.49倍。等価な提示球の評価再利用も点数・順位・個体指定の一致をテスト。出力1122_mcp_policy_v12、比較元v9、同じ50組を最初から新規収集する。
+
+正式50ランの比較結果
+
+比較：v9→v12。同じseed10個×5ビルド、B0014、中級者の照準2%・威力5%のぶれ、固定難度、legacy/standard、同じ実行ファイルと初期セーブ。各コホートの判断コードを固定。
+同seedでもショット・乱数消費・経路・報酬・デッキが変わる。全体の方針比較であり、同じ盤面での物理誤差だけの比較や単独修正の因果実験ではない。
+48有効ラン時点で管理状態JSONの置換がWindowsの一時的なアクセス競合により失敗。未完了のbounce/anchor・seed2026112110を同条件で再実行した。中断原ログはapplication_exitとして保存し、有効50ランに混ぜない。完了済み48原ログ・固定policy・実行ファイル・初期セーブのハッシュを照合。recovery_interruptionとrecovery_journal.jsonに全経緯を保存。管理ファイル保存は再試行するが、ゲーム判断は変更していない。
+
+実装と限界
+1. GamePocketLifecycle.cppと照合し、生存敵も残骸もポケット後に除去する。衝突撃破しただけの残骸は物理障害として残す。ポケット初期重なりもトリガーする。
+2. 最大6tickの進行を最大1tickにし、最大512反復・24接触で打ち切りを明示。完全なゲーム物理ではない。
+3. 予測外の落下を0上書きしないよう幾何警告・通過位置の余裕を残す。落下あり/なしのHP被害を別々に求めて重み付けする。
+4. 敵同士のシールド生成は接触時に双方生存の場合のみ。落下より後に得たシールドで過去の落下被害を相殺しない。
+5. 照準×威力の端点を含む最大9条件で比較。HP被害・落下被害・残りシールドも同じ条件の重みで公開する。
+6. 連鎖撃破は一律0.5から、数値停止まで完了0.8・打ち切り0.35の採点重みへ。校正済み確率ではない。期待被害と、追加連鎖撃破での攻撃阻止を当てにしない保守的被害を別に記録し、後者を致死・最大損失の減点へ使う。
+7. 特殊生成物、状態効果、同時接触、初回接触までの連続摩擦近似等は完全再現ではない。数値停止や全ストレス条件一致も確定保証ではない。
+8. predicted_kill_countは高確度の部分集合、metrics.killsは割引した追加連鎖を含む採点値。前者と実撃破数の差だけで、採点上の連鎖評価を判断しない。
+9. 残骸に遮られた通常候補も発射位置から動的に評価し、奥の標的へ最初から当たったと仮定しない。実接触前のダメージを0に戻し、残骸での進路変更・落下・その後のシールド残量まで評価する。
+10. 静的な壁形状・接触ペアの再計算を減らす処理は160条件でv11の予測と完全一致。単体計測で約1.49倍。同じ状態・性能の提示球は評価を再利用し、実行用の個体番号を付け直す。点数・順位・個体指定の同値性をテスト。
+予備v10と中断v11の結果は正式比較に混ぜない。v11の43有効ラン・全原ログは1122_mcp_policy_v11/interrupted_summary.jsonと中断ラン比較.txtに保持。
+
+全体
+勝利数/50：50.000→50.000
+平均累積被ダメージ：13.880→14.100
+平均打数：35.640→35.460
+平均戦闘数：8.100→8.100
+1戦あたり被害：1.714→1.741
+平均終了HP：38.920→37.820
+平均回復回数：0.120→0.060
+評価：予測内訳・ルール整合の修正と、候補採点の優位性は別。今回の実成績には悪化があり、判断基準が以前より妥当だと一括して確認できたとは結論しない。
+
+ビルド別・各10組
+standard：勝利10→10/10、被害11.10→13.50、打数33.00→35.20、終了HP40.00→37.50。
+  対象系統球使用率35.3%→36.9%。コア所持による完成率100%。全ビルドを十分に成立させた強度試験とは限らない。
+  有効10、除外0、接続再試行0。
+  固有機構：{"standard_direct_damage_shot": 129}
+heavy：勝利10→10/10、被害19.80→12.80、打数36.80→35.10、終了HP36.20→40.50。
+  対象系統球使用率35.7%→36.0%。コア所持による完成率100%。全ビルドを十分に成立させた強度試験とは限らない。
+  有効10、除外0、接続再試行0。
+  固有機構：{"chain_impact_triggered": 13, "heavy_collision_boost_armed": 0, "heavy_distance_stacks_generated": 59, "heavy_finisher_triggered": 21, "heavy_micro_stack_generated": 0}
+pierce：勝利10→10/10、被害14.30→12.90、打数37.20→35.20、終了HP37.40→38.40。
+  対象系統球使用率15.2%→15.2%。コア所持による完成率40%。全ビルドを十分に成立させた強度試験とは限らない。
+  有効10、除外0、接続再試行0。
+  固有機構：{"pierce_finisher_hit": 43, "pierce_minions_launched": 5, "pierce_trace_generated": 120}
+bounce：勝利10→10/10、被害13.70→17.30、打数34.90→36.20、終了HP38.50→34.00。
+  対象系統球使用率5.4%→8.5%。コア所持による完成率20%。全ビルドを十分に成立させた強度試験とは限らない。
+  有効10、除外0、接続再試行3。
+  固有機構：{"bank_shot_triggered": 121, "cushion_stacks_consumed": 0, "cushion_stacks_generated": 16, "pinball_activated": 0, "reflection_setup_armed": 1}
+anchor：勝利10→10/10、被害10.50→14.00、打数36.30→35.60、終了HP42.50→38.70。
+  対象系統球使用率7.4%→9.4%。コア所持による完成率30%。全ビルドを十分に成立させた強度試験とは限らない。
+  有効10、除外0、接続再試行4。
+  固有機構：{"anchor_finisher_triggered": 1, "anchor_stacks_generated": 20, "origin_anchor_return_armed": 0, "stop_shield_granted": 0}
+
+前回悪化した9組の追跡
+数字はv7→v9→v12の累積被害。元の9組を後から選び直さない。
+seed=2026112101/bounce：18→19→16、最低戦闘終了HP34→34。
+  v7→v9の被害源：{'enemy_attack': 14, 'pocket': 4}→{'enemy_attack': 13, 'pocket': 4, 'boss_strong_attack': 2}。
+  v9→v12の被害源：{'enemy_attack': 13, 'pocket': 4, 'boss_strong_attack': 2}→{'enemy_attack': 12, 'pocket': 4}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 2), ('campaign_phase_mid_mixed', 0), ('campaign_phase_mid_pairs', 5), ('midboss_002', 2), ('campaign_phase_late_mixed', 7), ('boss_001', 3)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 1), ('campaign_phase_mid_mixed', 4), ('campaign_phase_mid_pairs', 2), ('midboss_002', 0), ('campaign_phase_late_mixed', 8), ('boss_001', 1)]
+  増分が大きい戦闘：[('campaign_phase_mid_pairs', 0, 2), ('midboss_002', 0, 2)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの3打、不確実な追加連鎖撃破を見積もったもの19打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：34打でMAE1.000回、最大差7回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112105/bounce：11→12→15、最低戦闘終了HP38→35。
+  v7→v9の被害源：{'enemy_attack': 11}→{'enemy_attack': 11, 'boss_strong_attack': 1}。
+  v9→v12の被害源：{'enemy_attack': 11, 'boss_strong_attack': 1}→{'enemy_attack': 10, 'pocket': 2, 'boss_strong_attack': 3}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 0), ('midboss_001', 2), ('campaign_phase_mid_pairs', 0), ('campaign_phase_mid_mixed', 4), ('campaign_phase_late_mixed', 1), ('campaign_phase_late_pairs', 2), ('midboss_002', 0), ('boss_002', 3)] → [('normal_002', 0), ('normal_002', 0), ('midboss_001', 2), ('campaign_phase_mid_pairs', 0), ('campaign_phase_mid_mixed', 4), ('campaign_phase_late_mixed', 0), ('campaign_phase_late_pairs', 2), ('midboss_002', 0), ('boss_002', 7)]
+  増分が大きい戦闘：[('campaign_phase_mid_mixed', 0, 4), ('midboss_001', 0, 2)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの3打、不確実な追加連鎖撃破を見積もったもの18打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：34打でMAE0.765回、最大差7回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112110/bounce：31→32→29、最低戦闘終了HP18→21。
+  v7→v9の被害源：{'enemy_attack': 26, 'pocket': 4, 'boss_strong_attack': 1}→{'enemy_attack': 31, 'boss_strong_attack': 1}。
+  v9→v12の被害源：{'enemy_attack': 31, 'boss_strong_attack': 1}→{'enemy_attack': 25, 'boss_strong_attack': 4}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 6), ('campaign_phase_mid_mixed', 2), ('campaign_phase_late_mixed', 8), ('campaign_phase_late_pairs', 6), ('midboss_002', 0), ('boss_001', 10)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 6), ('campaign_phase_mid_mixed', 4), ('campaign_phase_late_mixed', 6), ('campaign_phase_late_pairs', 1), ('midboss_002', 0), ('boss_001', 12)]
+  増分が大きい戦闘：[('campaign_phase_late_pairs', 2, 6), ('boss_001', 6, 10)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの6打、不確実な追加連鎖撃破を見積もったもの17打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：36打でMAE0.500回、最大差2回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112103/heavy：16→18→9、最低戦闘終了HP34→41。
+  v7→v9の被害源：{'enemy_attack': 15, 'boss_strong_attack': 1}→{'enemy_attack': 14, 'pocket': 4}。
+  v9→v12の被害源：{'enemy_attack': 14, 'pocket': 4}→{'enemy_attack': 9}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_pairs', 9), ('midboss_002', 0), ('campaign_phase_late_mixed', 3), ('midboss_002', 3), ('boss_002', 2)] → [('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_pairs', 4), ('midboss_002', 1), ('campaign_phase_late_mixed', 1), ('midboss_002', 0), ('boss_002', 2)]
+  増分が大きい戦闘：[('campaign_phase_mid_pairs', 4, 9), ('midboss_002', 0, 3)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの7打、不確実な追加連鎖撃破を見積もったもの12打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：25打でMAE0.880回、最大差6回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112107/heavy：13→31→10、最低戦闘終了HP32→42。
+  v7→v9の被害源：{'enemy_attack': 10, 'pocket': 2, 'boss_strong_attack': 1}→{'enemy_attack': 25, 'pocket': 2, 'boss_strong_attack': 4}。
+  v9→v12の被害源：{'enemy_attack': 25, 'pocket': 2, 'boss_strong_attack': 4}→{'enemy_attack': 9, 'boss_strong_attack': 1}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_mixed', 1), ('campaign_phase_mid_pairs', 4), ('midboss_001', 0), ('midboss_002', 2), ('campaign_phase_late_mixed', 7), ('midboss_001', 3), ('boss_002', 13)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_mixed', 3), ('campaign_phase_mid_pairs', 0), ('midboss_001', 0), ('midboss_002', 0), ('campaign_phase_late_mixed', 4), ('midboss_001', 0), ('boss_002', 3)]
+  増分が大きい戦闘：[('boss_002', 2, 13), ('campaign_phase_late_mixed', 4, 7)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの4打、不確実な追加連鎖撃破を見積もったもの20打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：31打でMAE1.000回、最大差12回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112109/heavy：8→17→14、最低戦闘終了HP33→37。
+  v7→v9の被害源：{'enemy_attack': 8}→{'enemy_attack': 15, 'pocket': 2}。
+  v9→v12の被害源：{'enemy_attack': 15, 'pocket': 2}→{'enemy_attack': 13, 'boss_strong_attack': 1}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_mixed', 1), ('midboss_001', 3), ('midboss_002', 0), ('campaign_phase_late_mixed', 5), ('midboss_002', 1), ('boss_001', 6)] → [('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_mixed', 0), ('midboss_001', 0), ('midboss_002', 1), ('campaign_phase_late_mixed', 1), ('midboss_002', 1), ('boss_001', 10)]
+  増分が大きい戦闘：[('midboss_001', 0, 3), ('campaign_phase_late_mixed', 2, 5)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの4打、不確実な追加連鎖撃破を見積もったもの15打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：28打でMAE0.929回、最大差9回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112107/pierce：13→15→11、最低戦闘終了HP38→39。
+  v7→v9の被害源：{'enemy_attack': 11, 'pocket': 2}→{'enemy_attack': 10, 'boss_strong_attack': 5}。
+  v9→v12の被害源：{'enemy_attack': 10, 'boss_strong_attack': 5}→{'enemy_attack': 9, 'pocket': 2}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_mixed', 4), ('campaign_phase_mid_pairs', 4), ('midboss_001', 0), ('midboss_002', 0), ('campaign_phase_late_mixed', 0), ('midboss_001', 0), ('boss_002', 7)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_mixed', 5), ('campaign_phase_mid_pairs', 4), ('midboss_001', 0), ('midboss_002', 0), ('campaign_phase_late_mixed', 0), ('midboss_001', 0), ('boss_002', 2)]
+  増分が大きい戦闘：[('boss_002', 2, 7), ('campaign_phase_mid_pairs', 0, 4)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの1打、不確実な追加連鎖撃破を見積もったもの11打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：31打でMAE0.258回、最大差3回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112110/pierce：17→22→22、最低戦闘終了HP28→28。
+  v7→v9の被害源：{'enemy_attack': 16, 'boss_strong_attack': 1}→{'enemy_attack': 20, 'boss_strong_attack': 2}。
+  v9→v12の被害源：{'enemy_attack': 20, 'boss_strong_attack': 2}→{'enemy_attack': 16, 'pocket': 2, 'boss_strong_attack': 4}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_pairs', 2), ('campaign_phase_mid_mixed', 2), ('campaign_phase_late_mixed', 2), ('campaign_phase_late_pairs', 8), ('midboss_002', 0), ('boss_001', 7)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 0), ('campaign_phase_mid_mixed', 2), ('campaign_phase_late_mixed', 3), ('campaign_phase_late_pairs', 10), ('midboss_002', 0), ('boss_001', 7)]
+  増分が大きい戦闘：[('campaign_phase_mid_pairs', 0, 2), ('campaign_phase_late_pairs', 6, 8)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの3打、不確実な追加連鎖撃破を見積もったもの19打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：39打でMAE1.077回、最大差8回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+seed=2026112110/standard：11→26→17、最低戦闘終了HP24→33。
+  v7→v9の被害源：{'enemy_attack': 9, 'pocket': 2}→{'enemy_attack': 24, 'pocket': 2}。
+  v9→v12の被害源：{'enemy_attack': 24, 'pocket': 2}→{'enemy_attack': 17}。
+  v9→v12の戦闘別被害：[('normal_002', 0), ('normal_002', 1), ('campaign_phase_mid_pairs', 8), ('campaign_phase_mid_mixed', 2), ('campaign_phase_late_mixed', 4), ('campaign_phase_late_pairs', 5), ('midboss_002', 0), ('boss_001', 6)] → [('normal_002', 0), ('normal_002', 0), ('campaign_phase_mid_pairs', 0), ('campaign_phase_mid_mixed', 2), ('campaign_phase_late_mixed', 6), ('campaign_phase_late_pairs', 6), ('midboss_002', 1), ('boss_001', 2)]
+  増分が大きい戦闘：[('campaign_phase_mid_pairs', 1, 8), ('boss_001', 2, 6)]
+  v9選択ショット：幾何落下警告が連鎖側で0となったもの3打、不確実な追加連鎖撃破を見積もったもの16打。条件出現だけで悪化の単独原因とは断定しない。
+  C++物理記録とのv9敵同士接触回数の比較：36打でMAE1.278回、最大差10回。接触列と19件の落下誤差の全物理記録を1122_mcp_baseline_physics_audit.jsonへ保存。
+元9組のうちv9比で被害改善7組、v7以下まで戻ったもの5組。
+重量型seed末尾07は最終ボス被害2→13が前回の全体+18のうち+11。ボス専用C++評価は変更していないが、到達デッキ12→15球、guard使用4→2打、heavy使用1→2打、レリックも変化していた。通常戦の物理誤差だけへ帰属できない。
+標準型末尾10は中盤pairs被害1→8と最終ボス2→6が大きい。重量型末尾03は通常攻撃が減った一方、自己落下+4が増加。反射型末尾10は自己落下4→0でも通常攻撃26→31に増えた。その他も各戦闘・球使用・候補比較を1122_mcp_v10_diagnosis.jsonに保存。
+
+予測精度（同じ観測コードで両群を再集計）
+v9：フェーズ通常戦916ターン、敵攻撃HP被害MAE0.2885、過小誤差1.100、過大誤差263.200。
+  保守的な敵攻撃被害見積もり：MAE0.2885、過小1.100、過大263.200。v9は元の期待被害が追加連鎖の攻撃阻止を数えないため、その値を比較に使う。保守値も最大被害の保証ではない。
+  敵攻撃0予測の実被弾1件（0.11%）。
+  通常・中ボス等の幾何評価1475ショット、総HP被害MAE0.2471、総被害0予測の実被害8件。回復で実被害を相殺せず、専用ボス評価はこの精度集計の対象外。
+  自己落下HP被害予測16.053／実測44。落下HP被害0予測の実被害19件（1.29%）。
+  シールドでHP被害0の場合も含む自己落下観測102ターン、落下リスク0の落下90件。リスクの値は校正済み発生確率ではない。
+  推奨球と実選択の不一致0、連鎖計算1467打／完了1428／打ち切り39。
+  C++の実接触記録と照合した1467ショットで、敵同士接触回数MAE0.8712回、予測総数3451／実総数2463、過小145／過大1133回。選んだ盤面・軌道も異なるため同じ入力の物理実験ではない。
+v12：フェーズ通常戦906ターン、敵攻撃HP被害MAE0.1635、過小誤差76.915、過大誤差71.246。
+  保守的な敵攻撃被害見積もり：MAE0.3599、過小1.000、過大325.076。v9は元の期待被害が追加連鎖の攻撃阻止を数えないため、その値を比較に使う。保守値も最大被害の保証ではない。
+  敵攻撃0予測の実被弾0件（0.00%）。
+  通常・中ボス等の幾何評価1453ショット、総HP被害MAE0.1502、総被害0予測の実被害2件。回復で実被害を相殺せず、専用ボス評価はこの精度集計の対象外。
+  自己落下HP被害予測43.591／実測42。落下HP被害0予測の実被害5件（0.34%）。
+  シールドでHP被害0の場合も含む自己落下観測172ターン、落下リスク0の落下5件。リスクの値は校正済み発生確率ではない。
+  推奨球と実選択の不一致0、連鎖計算1453打／完了1453／打ち切り0。
+  C++の実接触記録と照合した1453ショットで、敵同士接触回数MAE0.5320回、予測総数3015／実総数2758、過小258／過大515回。選んだ盤面・軌道も異なるため同じ入力の物理実験ではない。
+enemy:Nはその時点のコンポーネント一覧の番号で、除去後に別個体へ再利用され得る。同じ番号が後続の攻撃計画にあるだけで、狙った敵が生存したとは判断しない。
+
+危険場面・敗因・新たな悪化
+実落下の頻度：幾何ショットあたり6.92%→11.84%。落下の見落としが減ることと、落下そのものが減ることは別であり、シールドを多く使って通過する方針への変化も評価する。
+v9：最低戦闘終了HP18、回復6回、回復後も必要HPに届かない判断0。HP10以下の戦闘終了0回、ショット前後も含む低HP戦闘0件。
+v12：最低戦闘終了HP21、回復3回、回復後も必要HPに届かない判断0。HP10以下の戦闘終了0回、ショット前後も含む低HP戦闘0件。
+今回v9比で被害が増えた組は21/50。全50組をsurvival_pairs.csvへ保存。
+被害改善26組、同等3組、悪化21組。ペア差の中央値-1.00HP、平均0.22HP。少数の大きな改善と、多数の小さな悪化を区別する。
+予測HP内訳の実行監査：1453ショット、到達不能ストレス条件を含むもの5ショット、正味HP損失と内訳の不整合0（丸め許容0.003HP）。
+残骸に遮られた選択25打、発射位置からの動的予測25打、特殊球の簡易経路0打。通常候補が動的予測を迂回していないことを検証。
+v9の落下シールド吸収量：予測24.225／実測由来160.000、1幾何ショットあたりMAE0.1005、吸収0予測で実消費71件。
+v12の落下シールド吸収量：予測307.104／実測由来302.000、1幾何ショットあたりMAE0.0036、吸収0予測で実消費0件。
+落下シールド吸収は、設定ファイルのハッシュ一致を確認し、各戦闘の最大HPから求めた落下コスト−実記録の落下HP被害で逆算。シールド全消費や生成量の直接測定とは区別する。
+GameShotStart.cppでショット開始時にシールドを0へ戻すため、余った盾を次ショットへ持ち越す資源とは扱わない。吸収量の増加だけを悪化とは判定せず、同じターンの落下後の敵攻撃・最終HP被害・手数と合わせて評価する。
+v9の1ラン平均経過時間4.45分、最長6.18分。射撃・移動・MCP待ち・I/O等を含み、予測計算単独のベンチマークではない。
+v12の1ラン平均経過時間8.58分、最長12.90分。射撃・移動・MCP待ち・I/O等を含み、予測計算単独のベンチマークではない。
+  seed=2026112109/standard：被害6→21、打数27→35。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 5, {'enemy_attack': 3, 'pocket': 2}), ('midboss_001', 1, {'enemy_attack': 1}), ('campaign_phase_late_pairs', 10, {'enemy_attack': 8, 'pocket': 2}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_001', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_standardの総点7.7005・安全点-6.0、別候補player_guardの総点7.52・安全点-2.0、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 1.0, 'damage': 6.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 4.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.4505, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -6.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.39, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘3/第4打、選択player_standardの総点13.2266・安全点-3.4931、別候補player_guardの総点9.6・安全点0.0、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.0, 'damage': 7.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 7.2, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.6, 'precision': 1.5, 'prevented_attack': 3.6, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -3.4931, 'stable_stop': 0.0, 'stress_tail_risk': -3.3803, 'uncertainty': -0.6, 'waste_penalty': 0.0}
+  seed=2026112108/bounce：被害5→19、打数25→29。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})] → [('normal_002', 1, {'enemy_attack': 1}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 5, {'enemy_attack': 5}), ('midboss_002', 0, {}), ('boss_001', 13, {'enemy_attack': 9, 'boss_strong_attack': 4})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_standardの総点11.9248・安全点-8.536、別候補player_guardの総点11.587・安全点-0.44、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 4.0, 'chain_collisions': 1.295, 'damage': 9.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.92, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.4572, 'precision': 1.0, 'prevented_attack': 2.24, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -8.536, 'stable_stop': 0.0, 'stress_tail_risk': -0.18, 'uncertainty': -0.357, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘5/第2打、選択player_heavyの総点27.6082・安全点-2.728、別候補player_guardの総点10.82・安全点0.0、選択後の総実被害1。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 2.0, 'chain_collisions': 1.47, 'damage': 12.7, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.38, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 3.52, 'protection_release': 0.0, 'resource_delta_value': 2.7182, 'safety': -2.728, 'stable_stop': 0.0, 'stress_tail_risk': -1.14, 'uncertainty': -0.472, 'waste_penalty': 0.0}
+  seed=2026112107/bounce：被害5→18、打数34→34。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 0, {}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 0, {}), ('midboss_001', 0, {}), ('boss_002', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_mid_pairs', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('midboss_001', 0, {}), ('boss_002', 9, {'enemy_attack': 8, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘3/第3打、選択player_heavyの総点26.1366・安全点-4.4、別候補player_guardの総点11.52・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 5.11, 'damage': 14.9, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.92, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.4226, 'safety': -4.4, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.976, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘7/第2打、選択player_cushion_chargeの総点17.1089・安全点-4.4、別候補player_guardの総点15.1538・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 4.0, 'chain_collisions': 1.365, 'damage': 8.95, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.78, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.4572, 'precision': 1.0, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 1.2351, 'safety': -4.4, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.364, 'waste_penalty': 0.0}
+  seed=2026112101/anchor：被害14→24、打数40→40。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('boss_001', 4, {'enemy_attack': 3, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_pairs', 8, {'enemy_attack': 8}), ('campaign_phase_mid_mixed', 9, {'enemy_attack': 7, 'pocket': 2}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('boss_001', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘4/第3打、選択player_heavyの総点12.4626・安全点-16.0、別候補player_guardの総点11.7739・安全点-0.7974、選択後の総実被害6。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 8.65, 'damage': 11.52, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.24, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.9368, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.2138, 'safety': -16.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -1.258, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘3/第3打、選択player_heavyの総点24.735・安全点-11.52、別候補player_guardの総点12.6283・安全点-0.0282、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 5.25, 'damage': 16.72, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 13.8, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.65, 'prevented_attack': 3.36, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -11.52, 'stable_stop': 0.0, 'stress_tail_risk': -1.68, 'uncertainty': -1.005, 'waste_penalty': 0.0}
+  seed=2026112104/anchor：被害8→18、打数36→37。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('boss_002', 1, {'enemy_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_pairs', 4, {'enemy_attack': 4}), ('midboss_002', 0, {}), ('boss_002', 9, {'enemy_attack': 8, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_heavyの総点27.521・安全点-12.32、別候補player_guardの総点5.4067・安全点-4.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 6.55, 'damage': 15.92, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 12.36, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.9871, 'prevented_attack': 9.96, 'protection_release': 0.0, 'resource_delta_value': 0.4249, 'safety': -12.32, 'stable_stop': 0.0, 'stress_tail_risk': -4.38, 'uncertainty': -1.141, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第4打、選択player_heavyの総点34.319・安全点-7.2、別候補player_guardの総点5.8375・安全点-4.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 8.95, 'damage': 13.8, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 12.6, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 9.6, 'protection_release': 0.0, 'resource_delta_value': 0.898, 'safety': -7.2, 'stable_stop': 0.0, 'stress_tail_risk': -3.3, 'uncertainty': -1.189, 'waste_penalty': 0.0}
+  seed=2026112102/bounce：被害14→23、打数38→42。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_001', 0, {}), ('campaign_phase_mid_mixed', 0, {}), ('campaign_phase_mid_pairs', 4, {'enemy_attack': 2, 'pocket': 2}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 4, {'enemy_attack': 4}), ('campaign_phase_late_mixed', 3, {'enemy_attack': 1, 'pocket': 2}), ('boss_002', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 5, {'enemy_attack': 5}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('boss_002', 13, {'enemy_attack': 9, 'boss_strong_attack': 4})]
+  安全点が高い別候補を選ばなかった場面：戦闘8/第3打、選択player_heavyの総点75.6288・安全点-1.3227、別候補player_guardの総点54.877・安全点1.2924、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 2.0, 'chain_collisions': 5.775, 'damage': 44.2, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 24.22, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 4.96, 'protection_release': 0.0, 'resource_delta_value': 0.4903, 'safety': -1.3227, 'stable_stop': 0.0, 'stress_tail_risk': -3.7288, 'uncertainty': -1.125, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘5/第2打、選択player_cushion_chargeの総点14.9036・安全点-2.64、別候補player_guardの総点8.8828・安全点0.0、選択後の総実被害1。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 1.4, 'damage': 6.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 6.3, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.4572, 'precision': 1.0, 'prevented_attack': 3.6, 'protection_release': 0.0, 'resource_delta_value': 1.2608, 'safety': -2.64, 'stable_stop': 0.0, 'stress_tail_risk': -1.2, 'uncertainty': -0.36, 'waste_penalty': 0.0}
+  seed=2026112106/anchor：被害9→17、打数35→35。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_late_pairs', 0, {}), ('midboss_002', 0, {}), ('boss_001', 4, {'enemy_attack': 1, 'boss_strong_attack': 3})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 5, {'enemy_attack': 5}), ('campaign_phase_late_pairs', 9, {'enemy_attack': 7, 'pocket': 2}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘6/第4打、選択player_heavyの総点8.7759・安全点-15.2、別候補player_guardの総点-0.6968・安全点-8.0、選択後の総実被害5。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 3.55, 'damage': 7.56, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 8.64, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.9369, 'prevented_attack': 6.6, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -15.2, 'stable_stop': 0.0, 'stress_tail_risk': -1.8, 'uncertainty': -0.671, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第2打、選択player_heavyの総点21.2752・安全点-7.2、別候補player_stop_shieldの総点16.5032・安全点0.0、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 4.75, 'damage': 10.44, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.12, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.4872, 'prevented_attack': 6.6, 'protection_release': 0.0, 'resource_delta_value': 0.608, 'safety': -7.2, 'stable_stop': 0.0, 'stress_tail_risk': -1.8, 'uncertainty': -0.89, 'waste_penalty': 0.0}
+  seed=2026112105/pierce：被害10→18、打数41→42。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 3, {'enemy_attack': 3}), ('campaign_phase_late_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('boss_002', 3, {'enemy_attack': 2, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_001', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 0, {}), ('campaign_phase_late_mixed', 6, {'enemy_attack': 6}), ('campaign_phase_late_pairs', 6, {'enemy_attack': 4, 'pocket': 2}), ('midboss_002', 0, {}), ('boss_002', 4, {'enemy_attack': 2, 'boss_strong_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘6/第3打、選択player_heavyの総点57.2525・安全点-4.5034、別候補player_guardの総点20.2069・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 1.905, 'damage': 36.7, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 23.8, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.6678, 'prevented_attack': 3.52, 'protection_release': 0.0, 'resource_delta_value': 0.1035, 'safety': -4.5034, 'stable_stop': 0.0, 'stress_tail_risk': -2.9734, 'uncertainty': -1.127, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第2打、選択player_pierceの総点7.5209・安全点-4.4、別候補player_guardの総点7.02・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 4.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 2.8, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 3.5, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.0, 'prevented_attack': 1.6, 'protection_release': 0.0, 'resource_delta_value': 0.7609, 'safety': -4.4, 'stable_stop': 0.0, 'stress_tail_risk': -1.2, 'uncertainty': -0.18, 'waste_penalty': 0.0}
+  seed=2026112103/anchor：被害7→14、打数32→31。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 0, {}), ('midboss_002', 0, {}), ('boss_002', 5, {'enemy_attack': 4, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_pairs', 5, {'enemy_attack': 5}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('midboss_002', 0, {}), ('boss_002', 5, {'enemy_attack': 4, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第3打、選択player_standardの総点4.2818・安全点-16.0、別候補player_guardの総点4.0242・安全点-0.6、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.0, 'damage': 10.84, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 7.44, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.9368, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -16.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.575, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘3/第3打、選択player_heavyの総点18.6337・安全点-4.16、別候補player_guardの総点12.2628・安全点0.0、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.35, 'damage': 8.08, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 8.4, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.7788, 'prevented_attack': 8.88, 'protection_release': 0.0, 'resource_delta_value': 0.0969, 'safety': -4.16, 'stable_stop': 0.0, 'stress_tail_risk': -4.44, 'uncertainty': -0.512, 'waste_penalty': 0.0}
+  seed=2026112109/bounce：被害7→14、打数28→29。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 4, {'enemy_attack': 4})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 5, {'enemy_attack': 3, 'pocket': 2}), ('midboss_001', 1, {'enemy_attack': 1}), ('midboss_002', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 5, {'enemy_attack': 5}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘3/第4打、選択player_standardの総点12.2773・安全点-3.8424、別候補player_guardの総点10.4091・安全点-0.6012、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.8, 'damage': 7.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 6.3, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.6, 'precision': 1.0, 'prevented_attack': 3.6, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -3.8424, 'stable_stop': 0.0, 'stress_tail_risk': -3.3803, 'uncertainty': -0.6, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第2打、選択player_heavyの総点31.2188・安全点-0.88、別候補player_guardの総点10.82・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 2.0, 'chain_collisions': 1.82, 'damage': 15.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.78, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 3.2, 'protection_release': 0.0, 'resource_delta_value': 0.5708, 'safety': -0.88, 'stable_stop': 0.0, 'stress_tail_risk': -0.9, 'uncertainty': -0.532, 'waste_penalty': 0.0}
+  seed=2026112102/standard：被害12→19、打数35→41。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_001', 0, {}), ('campaign_phase_mid_mixed', 3, {'enemy_attack': 3}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('boss_002', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 3, {'enemy_attack': 3}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 6, {'enemy_attack': 4, 'pocket': 2}), ('campaign_phase_late_mixed', 3, {'enemy_attack': 3}), ('boss_002', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘7/第2打、選択player_heavyの総点28.0481・安全点-3.4132、別候補player_guardの総点12.277・安全点2.0、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.35, 'damage': 14.85, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.4, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.4052, 'prevented_attack': 3.68, 'protection_release': 0.0, 'resource_delta_value': 2.4702, 'safety': -3.4132, 'stable_stop': 0.0, 'stress_tail_risk': -1.9401, 'uncertainty': -0.914, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘7/第4打、選択player_heavyの総点17.9331・安全点-3.12、別候補player_guardの総点10.38・安全点1.6、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.6, 'damage': 9.35, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 5.76, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.5, 'prevented_attack': 2.88, 'protection_release': 0.0, 'resource_delta_value': 1.0871, 'safety': -3.12, 'stable_stop': 0.0, 'stress_tail_risk': -0.66, 'uncertainty': -0.624, 'waste_penalty': 0.0}
+  seed=2026112107/anchor：被害12→18、打数36→40。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 0, {}), ('midboss_001', 0, {}), ('boss_002', 10, {'enemy_attack': 9, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_mid_pairs', 4, {'enemy_attack': 4}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('midboss_001', 0, {}), ('boss_002', 8, {'enemy_attack': 4, 'boss_strong_attack': 4})]
+  安全点が高い別候補を選ばなかった場面：戦闘3/第4打、選択player_heavyの総点23.9631・安全点-7.1565、別候補player_guardの総点8.9538・安全点0.0、選択後の総実被害3。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 5.7, 'damage': 12.6, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.92, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 7.08, 'protection_release': 0.0, 'resource_delta_value': 0.3299, 'safety': -7.1565, 'stable_stop': 0.0, 'stress_tail_risk': -4.8163, 'uncertainty': -0.854, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘4/第3打、選択player_heavyの総点23.353・安全点-4.0、別候補player_guardの総点12.8558・安全点4.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 6.85, 'damage': 11.2, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.2, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -4.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -1.057, 'waste_penalty': 0.0}
+  seed=2026112108/anchor：被害3→9、打数27→29。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 0, {}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})] → [('normal_002', 1, {'enemy_attack': 1}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_001', 3, {'enemy_attack': 3})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_heavyの総点21.7787・安全点-4.48、別候補player_guardの総点5.92・安全点-0.8、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 3.3, 'damage': 9.2, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 8.76, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.4147, 'prevented_attack': 8.64, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -4.48, 'stable_stop': 0.0, 'stress_tail_risk': -2.82, 'uncertainty': -0.396, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘5/第2打、選択player_heavyの総点23.1167・安全点-3.52、別候補player_guardの総点10.8068・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.8, 'damage': 11.48, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 8.76, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 6.36, 'protection_release': 0.0, 'resource_delta_value': 0.8027, 'safety': -3.52, 'stable_stop': 0.0, 'stress_tail_risk': -3.18, 'uncertainty': -0.546, 'waste_penalty': 0.0}
+  seed=2026112108/standard：被害10→15、打数27→26。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_late_mixed', 6, {'enemy_attack': 6}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})] → [('normal_002', 1, {'enemy_attack': 1}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 10, {'enemy_attack': 9, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘4/第2打、選択player_heavyの総点25.8146・安全点-3.12、別候補player_guardの総点15.6319・安全点0.0、選択後の総実被害3。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.075, 'damage': 11.8, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 12.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.5, 'prevented_attack': 4.88, 'protection_release': 0.0, 'resource_delta_value': 0.4026, 'safety': -3.12, 'stable_stop': 0.0, 'stress_tail_risk': -2.16, 'uncertainty': -0.723, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_standardの総点21.9693・安全点-2.0、別候補player_guardの総点12.02・安全点0.0、選択後の総実被害1。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 1.475, 'damage': 12.95, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 7.2, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.4572, 'precision': 1.4055, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -2.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.604, 'waste_penalty': 0.0}
+  seed=2026112104/standard：被害11→15、打数30→36。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_001', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_002', 1, {'enemy_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_pairs', 2, {'pocket': 2}), ('campaign_phase_late_mixed', 5, {'enemy_attack': 5}), ('campaign_phase_late_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('boss_002', 5, {'enemy_attack': 4, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_heavyの総点23.9429・安全点-5.8557、別候補player_guardの総点6.22・安全点-2.4、選択後の総実被害3。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.775, 'damage': 14.7, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.88, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.5905, 'prevented_attack': 4.16, 'protection_release': 0.0, 'resource_delta_value': 0.1904, 'safety': -5.8557, 'stable_stop': 0.0, 'stress_tail_risk': -1.6863, 'uncertainty': -0.971, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第3打、選択player_heavyの総点40.5046・安全点-4.04、別候補player_standardの総点15.658・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 4.575, 'damage': 27.7, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 15.32, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.5, 'prevented_attack': 0.16, 'protection_release': 0.0, 'resource_delta_value': 0.4676, 'safety': -4.04, 'stable_stop': 0.0, 'stress_tail_risk': -2.97, 'uncertainty': -1.368, 'waste_penalty': 0.0}
+  seed=2026112107/standard：被害6→10、打数37→37。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('midboss_001', 0, {}), ('boss_002', 3, {'enemy_attack': 2, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('campaign_phase_mid_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('midboss_001', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_late_mixed', 0, {}), ('midboss_001', 0, {}), ('boss_002', 6, {'enemy_attack': 2, 'boss_strong_attack': 4})]
+  安全点が高い別候補を選ばなかった場面：戦闘3/第3打、選択player_standardの総点19.1108・安全点-4.0、別候補player_guardの総点10.7194・安全点-0.0331、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.475, 'damage': 11.95, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.4, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.4398, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -4.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.314, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘4/第3打、選択player_heavyの総点26.3449・安全点-3.68、別候補player_standardの総点20.5028・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.2, 'damage': 14.5, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 12.96, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.4057, 'prevented_attack': 0.32, 'protection_release': 0.0, 'resource_delta_value': 0.5472, 'safety': -3.68, 'stable_stop': 0.0, 'stress_tail_risk': -0.24, 'uncertainty': -0.828, 'waste_penalty': 0.0}
+  seed=2026112105/bounce：被害12→15、打数41→41。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('boss_002', 3, {'enemy_attack': 2, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 4, {'enemy_attack': 2, 'pocket': 2}), ('campaign_phase_late_mixed', 0, {}), ('campaign_phase_late_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('boss_002', 7, {'enemy_attack': 4, 'boss_strong_attack': 3})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第5打、選択player_heavyの総点19.243・安全点-4.4、別候補player_guardの総点13.8・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.065, 'damage': 8.75, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.24, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.6894, 'prevented_attack': 4.0, 'protection_release': 0.0, 'resource_delta_value': 0.2426, 'safety': -4.4, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.504, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘5/第2打、選択player_heavyの総点26.9694・安全点-2.552、別候補player_guardの総点7.94・安全点0.0、選択後の総実被害1。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.24, 'damage': 12.55, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 12.04, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 3.68, 'protection_release': 0.0, 'resource_delta_value': 0.7004, 'safety': -2.552, 'stable_stop': 0.0, 'stress_tail_risk': -1.26, 'uncertainty': -0.589, 'waste_penalty': 0.0}
+  seed=2026112106/pierce：被害9→12、打数34→30。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 3, {'enemy_attack': 3}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_002', 0, {}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_late_mixed', 4, {'enemy_attack': 4}), ('campaign_phase_late_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('boss_001', 5, {'enemy_attack': 5})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第3打、選択player_heavyの総点39.0352・安全点-3.5046、別候補player_guardの総点9.7631・安全点-2.2675、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.865, 'damage': 26.65, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 15.785, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 4.71, 'protection_release': 0.0, 'resource_delta_value': 0.3824, 'safety': -3.5046, 'stable_stop': 0.0, 'stress_tail_risk': -6.3716, 'uncertainty': -1.641, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘4/第2打、選択player_refractive_pierceの総点13.8976・安全点-4.0、別候補player_guardの総点7.338・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 5.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 7.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.0, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.2376, 'safety': -4.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.48, 'waste_penalty': 0.0}
+  seed=2026112102/anchor：被害14→15、打数43→44。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 4, {'enemy_attack': 4}), ('campaign_phase_late_mixed', 0, {}), ('boss_002', 4, {'enemy_attack': 3, 'boss_strong_attack': 1})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 1, {'enemy_attack': 1}), ('midboss_002', 0, {}), ('campaign_phase_late_pairs', 6, {'enemy_attack': 6}), ('campaign_phase_late_mixed', 3, {'enemy_attack': 3}), ('boss_002', 2, {'enemy_attack': 2})]
+  安全点が高い別候補を選ばなかった場面：戦闘7/第4打、選択player_anchorの総点8.6391・安全点-12.8、別候補player_guardの総点7.42・安全点-4.8、選択後の総実被害4。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 2.15, 'damage': 6.52, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 5.4, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.9371, 'prevented_attack': 5.4, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -12.8, 'stable_stop': 3.0, 'stress_tail_risk': -1.2, 'uncertainty': -0.408, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘7/第2打、選択player_heavyの総点26.1771・安全点-1.528、別候補player_guardの総点16.8404・安全点4.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 5.1, 'damage': 9.4, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 7.92, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 7.92, 'protection_release': 0.0, 'resource_delta_value': 0.5001, 'safety': -1.528, 'stable_stop': 0.0, 'stress_tail_risk': -2.463, 'uncertainty': -0.832, 'waste_penalty': 0.0}
+  seed=2026112104/bounce：被害20→21、打数34→39。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 1, {'enemy_attack': 1}), ('midboss_001', 1, {'enemy_attack': 1}), ('campaign_phase_mid_pairs', 2, {'enemy_attack': 2}), ('campaign_phase_late_mixed', 2, {'enemy_attack': 2}), ('campaign_phase_late_pairs', 0, {}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_002', 13, {'enemy_attack': 9, 'boss_strong_attack': 4})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 0, {}), ('campaign_phase_mid_pairs', 4, {'enemy_attack': 4}), ('campaign_phase_late_mixed', 5, {'enemy_attack': 5}), ('campaign_phase_late_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('boss_002', 9, {'enemy_attack': 8, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘5/第4打、選択player_heavyの総点20.6647・安全点-8.3135、別候補player_guardの総点7.849・安全点-2.2、選択後の総実被害3。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 4.305, 'damage': 15.35, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 8.4, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 0.4018, 'prevented_attack': 3.12, 'protection_release': 0.0, 'resource_delta_value': 0.1229, 'safety': -8.3135, 'stable_stop': 0.0, 'stress_tail_risk': -0.8735, 'uncertainty': -1.008, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第4打、選択player_heavyの総点34.2805・安全点-0.88、別候補player_guardの総点10.92・安全点0.0、選択後の総実被害3。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 2.0, 'chain_collisions': 3.255, 'damage': 17.55, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 11.9, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 3.2, 'protection_release': 0.0, 'resource_delta_value': 0.3735, 'safety': -0.88, 'stable_stop': 0.0, 'stress_tail_risk': -2.4, 'uncertainty': -0.878, 'waste_penalty': 0.0}
+  seed=2026112105/standard：被害8→9、打数35→37。
+  戦闘被害：[('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 0, {}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_pairs', 2, {'enemy_attack': 2}), ('midboss_002', 1, {'enemy_attack': 1}), ('boss_002', 2, {'enemy_attack': 2})] → [('normal_002', 0, {}), ('normal_002', 0, {}), ('midboss_001', 2, {'enemy_attack': 2}), ('campaign_phase_mid_pairs', 0, {}), ('campaign_phase_mid_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_mixed', 1, {'enemy_attack': 1}), ('campaign_phase_late_pairs', 3, {'enemy_attack': 3}), ('midboss_002', 0, {}), ('boss_002', 2, {'enemy_attack': 1, 'boss_strong_attack': 1})]
+  安全点が高い別候補を選ばなかった場面：戦闘7/第2打、選択player_heavyの総点18.9486・安全点-2.16、別候補player_guardの総点10.9318・安全点0.0、選択後の総実被害2。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.575, 'damage': 6.6, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 10.88, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.5, 'prevented_attack': 3.84, 'protection_release': 0.0, 'resource_delta_value': 0.2916, 'safety': -2.16, 'stable_stop': 0.0, 'stress_tail_risk': -1.38, 'uncertainty': -0.358, 'waste_penalty': 0.0}
+  安全点が高い別候補を選ばなかった場面：戦闘6/第2打、選択player_heavyの総点21.6409・安全点-2.88、別候補player_guardの総点11.6468・安全点0.0、選択後の総実被害1。選択理由['highest_total_score']。
+    選択の内訳：{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 1.0, 'damage': 12.5, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.6, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.5, 'prevented_attack': 3.12, 'protection_release': 0.0, 'resource_delta_value': 0.4409, 'safety': -2.88, 'stable_stop': 0.0, 'stress_tail_risk': -2.34, 'uncertainty': -0.46, 'waste_penalty': 0.0}
+候補間の安全点差はモデル上の比較であり、別候補を実行したときの実被害を測った結果ではない。選択された候補の実被害と、代替候補の反実仮想を混同しない。
+採点に残る課題：連鎖接触・与ダメージ・撃破・攻撃阻止の加点が合算され、安全点の高い候補より危険な候補をわずかな総点差で選ぶ例がある。接触・撃破の同じ成果に対する加点の重複と、将来HPの価値の校正を次の検証対象にする。今回の連鎖重み0.8を最適値と認定しない。
+具体例：standard/seed末尾09/戦闘5/第4打は、標準球7.7005点と防御球7.52点の差で標準球を選択。安全点は−6対−2、選択後は敵攻撃4HP。anchor/末尾01/戦闘4/第3打は重量球12.4626点対防御球11.7739点、安全点−16対−0.7974で重量球を選び、落下2＋敵攻撃4HPを受けた。予測が当たることと、その被害を許容する採点が適切なことを分けて評価する。
+敗北0件。敗北がない場合も、被害増・低HP・誤予測を分析対象から外さない。
+敵攻撃の過小予測96ターン。全過小予測と各ランの大きな過大予測をsurvival_analysis.jsonへ保存。
+  敵過小 seed=2026112103/anchor/戦闘3/第3打/player_heavy：1.04→4、保守見積もり4.0、落下リスク0.0。
+  敵過小 seed=2026112101/anchor/戦闘3/第6打/player_heavy：1.2→4、保守見積もり4.0、落下リスク0.003。
+  敵過小 seed=2026112106/pierce/戦闘5/第3打/player_heavy：1.645→4、保守見積もり4.0、落下リスク0.054。
+  敵過小 seed=2026112101/bounce/戦闘7/第4打/player_heavy：1.0→3、保守見積もり3.0、落下リスク0.0。
+  敵過小 seed=2026112107/anchor/戦闘3/第4打/player_heavy：1.28→3、保守見積もり3.0、落下リスク0.0。
+  敵過小 seed=2026112101/anchor/戦闘7/第2打/player_anchor_finisher：0.4→2、保守見積もり2.0、落下リスク0.0。
+  敵過小 seed=2026112104/bounce/戦闘4/第6打/player_heavy：0.4→2、保守見積もり2.0、落下リスク0.0。
+  敵過小 seed=2026112104/bounce/戦闘6/第4打/player_heavy：1.4→3、保守見積もり3.0、落下リスク0.0。
+  敵過小 seed=2026112110/bounce/戦闘3/第5打/player_bounce：0.4→2、保守見積もり2.0、落下リスク0.0。
+  敵過小 seed=2026112107/pierce/戦闘3/第3打/player_heavy：0.4→2、保守見積もり2.0、落下リスク0.0。
+  敵過小 seed=2026112107/heavy/戦闘7/第3打/player_heavy：0.48→2、保守見積もり2.0、落下リスク0.0。
+  敵過小 seed=2026112109/standard/戦闘6/第3打/player_heavy：0.48→2、保守見積もり2.0、落下リスク0.0。
+特殊球の残存例：seed2026112105/pierce/戦闘7/第2打のミニオンフィニッシャーは、敵HP被害1→実測2、予測撃破3→実測2。サンプル最大損失も1であり、特殊生成物を含む移動・貫通後続・撃破は依然近似である。保守的平均や9条件最大を実ゲームでの上限保証と解釈しない。
+  大きな誤差 seed=2026112103/anchor/戦闘3/第3打：1.04→4、撃破数1→2。
+  大きな誤差 seed=2026112101/anchor/戦闘3/第6打：1.2→4、撃破数0→0。
+  大きな誤差 seed=2026112106/pierce/戦闘5/第3打：1.645→4、撃破数1→5。
+  大きな誤差 seed=2026112106/pierce/戦闘4/第3打：2.32→0、撃破数0→5。
+  大きな誤差 seed=2026112101/bounce/戦闘7/第4打：1.0→3、撃破数0→1。
+  大きな誤差 seed=2026112110/heavy/戦闘5/第4打：2.948→1、撃破数1→5。
+  大きな誤差 seed=2026112107/anchor/戦闘3/第4打：1.28→3、撃破数1→2。
+  大きな誤差 seed=2026112101/anchor/戦闘7/第2打：0.4→2、撃破数0→0。
+残った落下リスク0または落下HP被害0予測の実落下・球種別：{'player_heavy': 5}
+v12の最初の残存落下例はseed2026112104/heavy/戦闘5/第3打。全9条件で落下0・総被害0の予測に対し、実際は落下2HP。敵同士の接触総数は予測・実測とも13回で一致したが、プレイヤーの経路は外れた。接触位置・反発を含む軌道の近似差が後続で増幅する問題が疑われる。名目の最小ポケット余裕2.74で近接警告も0。回数一致だけを軌道一致の証明にしない。first_remaining_pocket_case.jsonとremaining_pocket_errors.jsonに予測・操作誤差・C++物理記録を保存。
+  総HP誤差 seed=2026112101/anchor/戦闘4/第3打/player_heavy：総被害2.659→6、落下被害0.009→2、落下リスク0.004、予測残シールド0.0。
+  総HP誤差 seed=2026112103/anchor/戦闘3/第3打/player_heavy：総被害1.04→4、落下被害0.0→0、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112101/anchor/戦闘3/第6打/player_heavy：総被害1.2049999999999998→4、落下被害0.005→0、落下リスク0.003、予測残シールド0.0。
+  総HP誤差 seed=2026112109/bounce/戦闘3/第4打/player_standard：総被害1.746→4、落下被害0.546→2、落下リスク0.274、予測残シールド0.0。
+  総HP誤差 seed=2026112109/standard/戦闘3/第4打/player_standard：総被害1.746→4、落下被害0.546→2、落下リスク0.274、予測残シールド0.0。
+  総HP誤差 seed=2026112106/pierce/戦闘5/第3打/player_heavy：総被害1.752→4、落下被害0.107→0、落下リスク0.054、予測残シールド0.0。
+  総HP誤差 seed=2026112106/anchor/戦闘6/第2打/player_heavy：総被害1.8→4、落下被害0.0→2、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112105/heavy/戦闘3/第1打/player_heavy：総被害0.84→3、落下被害0.0→2、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112101/bounce/戦闘7/第4打/player_heavy：総被害1.0→3、落下被害0.0→0、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112104/heavy/戦闘5/第3打/player_heavy：総被害0.0→2、落下被害0.0→2、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112110/pierce/戦闘6/第5打/player_heavy：総被害0.0→2、落下被害0.0→2、落下リスク0.0、予測残シールド0.0。
+  総HP誤差 seed=2026112101/standard/戦闘5/第5打/player_heavy：総被害0.074→2、落下被害0.074→2、落下リスク0.037、予測残シールド0.0。
+
+検証・保存物
+関連121テスト成功（観測6件を含む）。ゲームC++と実行ファイルは変更なし。
+中断後の2再実行は、ボス到達前の全7戦で戦闘ID・被害・打数が中断前と一致。recovery_prefix_comparison.jsonに保存。50有効ランを確認後、収集処理は終了コード0で終了し、検証用の全ゲーム・ポートを終了。
+通常MCPサーバーへv12を反映し、get_game_stateの再接続を確認。元のゲームPID10992・result画面・HP23・中級者/標準型の設定は維持。main_mcp_reload.jsonとmain_mcp_verification.jsonへ保存。
+既知seedの回帰比較であり、未知seedでの汎化や操作感・面白さの確定ではない。特殊球を強制して勝率を作る変更はしていない。
+保存：1122_mcp_v10_diagnosis.json、policy_comparison.json、survival_analysis.json、survival_pairs.csv、new_regression_analysis.json、固定policy_snapshot、全ショット原ログ。

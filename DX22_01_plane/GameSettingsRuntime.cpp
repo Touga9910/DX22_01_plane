@@ -35,6 +35,7 @@ bool GameSettingsRuntime::Replace(const GameSettings& settings)
 	const bool vibrationTurnedOff =
 		m_Manager.Get().vibrationEnabled && !settings.vibrationEnabled;
 	m_Manager.Edit() = settings;
+	m_Manager.Edit().sceneTransition.Normalize();
 	m_Manager.MarkDirty();
 	return vibrationTurnedOff;
 }

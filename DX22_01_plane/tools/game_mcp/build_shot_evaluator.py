@@ -6,9 +6,17 @@ are capped by enemy HP and annotated as estimates; execution adds human error.
 from __future__ import annotations
 
 import math
+import json
+import copy
 from typing import Any
+from enemy_turn_prediction import forecast_enemy_turn, attack_damage
+from wall_geometry import inset_wall
+from relic_rules import Relic
+from coupled_chain import project as project_coupled_chain
 
-MODEL_VERSION = "build_tactics_v4_p1_tactics"
+MODEL_VERSION = "build_tactics_v23_unverified_chain_inventory_only"
+LAUNCH_PHYSICS_BALLS = {'player_guard','player_heavy','player_pierce','player_refractive_pierce',
+                        'player_pierce_finisher','player_minion_finisher'}
 DEFAULT_WEIGHTS = {
     "damage": 1.0, "kills": 4.0, "prevented_attack": 2.0,
     "pierce_followups": 0.5, "chain_collisions": 0.5,
@@ -88,7 +96,7 @@ def ball_stats(state, ball):
     effects = state.get("relic_effects", {})
     stats["attack"] = stats.get("attack", 1) + effects.get("all_ball_attack_bonus", 0)
     stats["defense"] = stats.get("defense", 0) + effects.get("all_ball_defense_bonus", 0)
-    if stats.get("pierce") and ball.get("definition_id") == "player_pierce" and relic_owned(state, 7):
+    if stats.get("pierce") and ball.get("definition_id") == "player_pierce" and relic_owned(state, Relic.PierceBallCharger):
         stats["pierceMaxUses"] = stats.get("pierceMaxUses", 1) + 1
         stats["pierceSpeedRetention"] = 1.0
     return stats
@@ -117,6 +125,13 @@ def ray_contact(start, direction, center, radius):
     return max(0, along - math.sqrt(max(0, radius * radius - across2)))
 
 
+def pocket_capture_distance(center, direction, pocket, enemy_radius, aim_margin=0.0):
+    # Match BallPhysicsRules::PocketHit's sum of radii, rather than a fixed
+    # angle tolerance (which accepted distant rays that missed the pocket).
+    trigger = max(0, enemy_radius + float(pocket.get("radius", 3)) - aim_margin)
+    return ray_contact(center, direction, pos(pocket["position"]), trigger)
+
+
 def first_contact(start, direction, distance, enemies, radius, excluded=()):
     hits = []
     for e in enemies:
@@ -140,9 +155,25 @@ def path_risk(start, end, radius, pockets):
     return risk
 
 
-def wall_contact(start, direction, walls):
+def hp_exposure(incoming, initial_shield, pocket_cost, risk, shield_events=(), pocket_time=None):
+    """Resolve pocket/no-pocket scenarios separately, then average HP loss.
+
+    Shield earned after falling cannot pay for that earlier fall. Fractional
+    exposure is a scenario weight, never a fractional hit that reuses shield.
+    """
+    before = initial_shield + sum(amount for time, amount in shield_events if pocket_time is None or time <= pocket_time)
+    after = sum(amount for time, amount in shield_events if pocket_time is not None and time > pocket_time)
+    total = before + after
+    remaining = max(0., before - pocket_cost) + after
+    pocket_loss = risk * max(0., pocket_cost - before)
+    enemy_loss = (1-risk) * max(0., incoming-total) + risk * max(0., incoming-remaining)
+    return enemy_loss, pocket_loss, (1-risk)*total + risk*remaining
+
+
+def wall_contact(start, direction, walls, radius=0.0):
     hits = []
     for index, wall in enumerate(walls):
+        wall = inset_wall(wall, start, radius)
         a, b = pos(wall["start"]), pos(wall["end"])
         edge = sub(b, a)
         cross = direction[0] * edge[1] - direction[1] * edge[0]
@@ -201,7 +232,7 @@ def candidate_paths(state, target, stats, shot_type, wall_index, shot_goal, pock
         for i, wall in enumerate(state.get("table", {}).get("walls", [])):
             if wall_index >= 0 and wall_index != i:
                 continue
-            bank = _plan_bank_shot(start, center, wall, i)
+            bank = _plan_bank_shot(start, center, wall, i, radius=float(stats.get("radius", 2.4)))
             if bank:
                 yield {"aim": center, "mode": "bank", "kind": "bank",
                        "wall": bank["contact_point"], "wall_index": i}
@@ -241,6 +272,27 @@ def _present_ball(state, ids):
             if isinstance(ball, dict) and ball.get("definition_id") in ids:
                 return True
     return False
+
+
+def _marginal_heavy_consumer_value(state, current, generated, hp, damage_by_id, discount):
+    """No future damage credit without a simulated next hand and AoE geometry.
+
+    Ownership and surviving HP alone cannot prove an extra hit or kill. Current
+    activation damage is already credited by the coupled contact simulation.
+    """
+    return 0.
+
+
+def _heavy_inventory_option_value(state, current, generated, discount):
+    """Small, capped inventory option, never hypothetical damage or kill value."""
+    capacity = 0
+    for collection in ('deck_balls', 'offered_balls'):
+        for consumer in state.get(collection, []):
+            if consumer.get('definition_id') in {'player_chain_impact', 'player_collision_boost'}:
+                stats = ball_stats(state, consumer)
+                capacity = max(capacity, _whole(stats.get('heavyCollisionConsumeAmount', 5), 5))
+    increment = max(0, min(capacity, current + generated) - min(capacity, current))
+    return min(.5, .1 * increment) * max(0., min(1., discount))
 
 
 def _anchor_stacks_by_target(state):
@@ -518,7 +570,11 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
         # Heavy gains stacks from accumulated movement, including rebounds.
         # The estimate stops on enemy contact and never goes beyond 3 walls.
         travel = max(0.0, pushed_motion["travel"])
-        generated = min(remaining, int(travel // divisor))
+        living_distances=pushed_motion.get('living_enemy_distances')
+        requested=(sum(int(max(0,d)//divisor) for key,d in living_distances.items() if key!='player')
+                   if living_distances is not None else int(travel//divisor))
+        if requested:requested+=max(0,_whole(stats.get('eventStackGenerationBonus')))
+        generated = min(remaining, requested)
         facts["heavy_stacks_generated_estimate"] = generated
         facts["heavy_estimated_travel"] = round(travel, 3)
         facts["heavy_predicted_wall_bounces"] = pushed_motion["wall_bounces"]
@@ -526,9 +582,10 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
             exceptional = _valuable_stack_chain(state, "heavy", generated, heavy)
             facts["exceptional_stack_setup"] |= exceptional
             has_spender = _present_ball(state, {"player_chain_impact", "player_collision_boost"})
-            resource_gain += generated * (0.55 if has_spender else 0.18) * future
-            if exceptional:
-                resource_gain += 1.1 * future
+            resource_gain += _heavy_inventory_option_value(state, heavy, generated, future)
+            marginal = _marginal_heavy_consumer_value(state, heavy, generated, hp, damage_by_id, future)
+            facts['owned_consumer_marginal_value'] = marginal
+            resource_gain = max(resource_gain, marginal)
             reasons.append("敵の移動距離（最大3反射予測）から重量スタック生成を狙う")
 
     if definition == "player_lightweight":
@@ -662,9 +719,29 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
     }, facts, reasons)
 
 
-def score_candidate(state, ball, target, stats, path, power, profile):
+def bound_offense_rewards(breakdown, distinct_kills=0.):
+    """Bound overlapping outcome bonuses; damage already includes chain damage.
+
+    Prevention is also rewarded through reduced HP loss. Raw profile weights
+    remain inspectable, but cannot turn repeated contacts into unlimited value.
+    """
+    keys = ('kills', 'prevented_attack', 'chain_collisions', 'bank_damage_gain',
+            'pierce_followups', 'pocket_control', 'finisher_value')
+    raw = sum(max(0., breakdown.get(k,0.)) for k in keys)
+    # Distinct removals shorten the remaining fight. Repeated contacts with
+    # one body cannot earn this allowance; speculative kills are discounted.
+    distinct_bonus=min(4.,2.*max(0.,distinct_kills-1.))
+    budget = min(6.+distinct_bonus, .5*max(0.,breakdown.get('damage',0.))+distinct_bonus)
+    breakdown['offense_overlap_adjustment'] = round(-max(0.,raw-budget),4)
+    return {'raw_secondary_points':round(raw,4),'secondary_budget':round(budget,4),
+            'distinct_kill_allowance':round(distinct_bonus,4)}
+
+
+def score_candidate(state, ball, target, stats, path, power, profile, *, coupled=False, launch_velocity=None):
     start = pos(state["player"]["position"])
     enemies = [e for e in state.get("enemies", []) if not e.get("defeated") and not e.get("pocketed")]
+    bodies = [e for e in state.get("enemies", []) if not e.get("pocketed") and e.get("position")]
+    retained_blocker = None
     pockets = state.get("table", {}).get("pockets", [])
     walls = state.get("table", {}).get("walls", [])
     radius = float(stats.get("radius", 2.4))
@@ -678,7 +755,10 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         distance = length(sub(path["wall"], start))
         if first_contact(start, to_wall, distance, enemies, radius):
             return None  # A supposed bank path cannot hit an enemy before the wall.
-        first_wall = wall_contact(start, to_wall, walls)
+        obstacle = first_contact(start, to_wall, distance, bodies, radius)
+        if obstacle and obstacle[1].get("defeated"):
+            retained_blocker = obstacle[1]["target_id"]
+        first_wall = wall_contact(start, to_wall, walls, radius)
         if first_wall and first_wall[0] < distance - 1e-3:
             return None
         if distance > stopping_distance(speed, stats):
@@ -689,16 +769,20 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         travelled = distance
     direction = unit(sub(path["aim"], origin))
     max_distance = stopping_distance(speed, stats)
-    wall = wall_contact(origin, direction, walls)
+    wall = wall_contact(origin, direction, walls, radius)
     if wall:
         max_distance = min(max_distance, wall[0])
     hit = first_contact(origin, direction, max_distance, enemies, radius)
     if not hit or hit[1]["target_id"] != target["target_id"]:
         return None
     hit_distance, _ = hit
+    obstacle = first_contact(origin, direction, max_distance, bodies, radius)
+    if obstacle and obstacle[1]["target_id"] != target["target_id"]:
+        retained_blocker = obstacle[1]["target_id"]
     contact = add(origin, mul(direction, hit_distance))
     speed = remaining_speed(speed, hit_distance, stats)
     normal = unit(sub(pos(target["position"]), contact))
+    opening_contact, opening_speed, opening_direction, opening_normal = contact, speed, direction, normal
     quality = max(0, dot(direction, normal))
     if quality < 0.25:
         return None
@@ -707,6 +791,21 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     hp = {e["target_id"]: max(0, float(e.get("hp", e.get("max_hp", 1)))) for e in enemies}
     damage_by_id = {key: 0.0 for key in hp}
     contacts = 0
+    error = profile.get("human_error", {})
+    aim_error = max(0, float(error.get("aim_radius_ratio", 0))) * float(target.get("radius", 2.4))
+    low_contact_speed = power * max(0, 1 - float(error.get("power_ratio", 0)))
+    low_contact_speed = remaining_speed(low_contact_speed, travelled - hit_distance, stats)
+    if path["mode"] == "bank":
+        low_contact_speed *= restitution
+    robust_primary_contact = stopping_distance(low_contact_speed, stats) >= hit_distance
+    if retained_blocker:
+        robust_primary_contact = False
+    perpendicular = (-direction[1], direction[0])
+    for offset in (-aim_error, aim_error) if aim_error else ():
+        trial = unit(sub(add(path["aim"], mul(perpendicular, offset)), origin))
+        trial_hit = first_contact(origin, trial, max_distance, bodies, radius)
+        if not trial_hit or trial_hit[1]["target_id"] != target["target_id"]:
+            robust_primary_contact = False
 
     def damage(enemy, raw, source, directional=True):
         key = enemy["target_id"]
@@ -725,9 +824,9 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     bounce_empowered = (definition == "player_bounce" and bank_reflection
                         and shared_reflection > 0 and
                         _whole(stats.get("cushionConsumptionLimit", 1), 1) > 0)
-    precision = definition == "player_standard" and relic_owned(state, 5) and path["mode"] == "direct" and power <= 4
-    bonus = int(precision) + int(definition == "player_heavy" and relic_owned(state, 6))
-    if definition == "player_bounce" and relic_owned(state, 8) and path["mode"] == "bank":
+    precision = definition == "player_standard" and relic_owned(state, Relic.StandardBallScope) and path["mode"] == "direct" and power <= 4
+    bonus = int(precision) + int(definition == "player_heavy" and relic_owned(state, Relic.HeavyBallCore))
+    if definition == "player_bounce" and relic_owned(state, Relic.BounceBallSpring) and path["mode"] == "bank":
         bonus += 1
         bank_gain += 1
     # Anchor finisher's direct bonus shares a single damage application and
@@ -736,9 +835,16 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                            if definition == "player_anchor_finisher" else 0)
     anchor_damage_bonus = first_anchor_stacks * (2 + min(
         2, _whole(_resource_state(state).get("player_anchor_stacks")) // 5))
-    damage(target, attack + bonus + (attack if path["mode"] == "bank" and relic_owned(state, 3) else 0)
+    damage(target, attack + bonus + (attack if path["mode"] == "bank" and relic_owned(state, Relic.BankShot) else 0)
            + (_number(stats.get("cushionBounceAttackBonus", 1)) if bounce_empowered else 0)
            + anchor_damage_bonus, contact)
+    reliable_damage = {target["target_id"]: damage_by_id[target["target_id"]]} if robust_primary_contact else {}
+    stationary_opening=all(length(pos(e.get('velocity',{})))<1e-6 for e in bodies)
+    separated_opening=all(length(sub(pos(a['position']),pos(b['position'])))>=
+        float(a.get('radius',2.4))+float(b.get('radius',2.4))-.0001
+        for n,a in enumerate(bodies) for b in bodies[n+1:])
+    ordinary_area_board=all(board_ability(e).get('type','none') in ('none','') for e in enemies)
+    reliable_first_area=robust_primary_contact and stationary_opening and separated_opening and ordinary_area_board
     # ChainImpact: the actual game consumes once and affects the two *closest*
     # other enemies. Do not reward everyone inside the radius.
     chain_impact_hits = 0
@@ -752,12 +858,16 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                   and length(sub(pos(e["position"]), center)) <= chain_radius]
         nearby.sort(key=lambda e: length(sub(pos(e["position"]), center)))
         for other in nearby[:2]:
+            before_area=damage_by_id[other['target_id']]
             damage(other, attack + bonus + bonus_damage, center, directional=False)
+            if reliable_first_area and length(sub(pos(other['position']),center))<chain_radius-.001:
+                reliable_damage[other['target_id']]=damage_by_id[other['target_id']]-before_area
             chain_impact_hits += 1
     if path["mode"] == "bank":
-        spring_bonus = int(definition == "player_bounce" and relic_owned(state, 8))
+        spring_bonus = int(definition == "player_bounce" and relic_owned(state, Relic.BounceBallSpring))
         baseline_damage = min(hp[target["target_id"]], collision_damage(attack + bonus - spring_bonus + (_number(stats.get("cushionBounceAttackBonus", 1)) if bounce_empowered else 0), target, contact))
         bank_gain = max(0, damage_by_id[target["target_id"]] - baseline_damage)
+    opening_damage = dict(damage_by_id)
     contacts += 1
     pierce_followups = 0
     chain_collisions = 0
@@ -795,21 +905,25 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         last_contact = contact
         for use in range(int(stats.get("pierceMaxUses", 1))):
             reach = stopping_distance(speed, stats)
-            limit = wall_contact(cursor, direction, walls)
+            limit = wall_contact(cursor, direction, walls, radius)
             if limit:
                 reach = min(reach, limit[0])
             next_hit = first_contact(cursor, direction, reach, enemies, radius, hit_ids)
+            physical_hit = first_contact(cursor, direction, reach, bodies, radius, hit_ids)
+            if physical_hit and physical_hit[1].get("defeated"):
+                break  # Retained bodies do not grant a pierce pass-through.
             if not next_hit:
                 break
             distance, other = next_hit
             last_contact = add(cursor, mul(direction, distance))
-            impact_bonus = contacts if relic_owned(state, 2) else 0
+            impact_bonus = contacts if relic_owned(state, Relic.CollisionAttackUp) else 0
             finisher_bonus = 0.0
             if definition == "player_pierce_finisher" and pierce_followups >= 0:
                 finisher_bonus = (_number(stats.get("pierceFinisherBaseBonus", 1), 1)
                                   + max(0, len(hit_ids) - 1) *
                                   _number(stats.get("pierceFinisherMultiTargetBonus", 1), 1))
             damage(other, attack + impact_bonus + finisher_bonus, last_contact)
+            reliable_damage[other["target_id"]] = damage_by_id[other["target_id"]]
             contacts += 1
             pierce_followups += 1
             hit_ids.add(other["target_id"])
@@ -831,7 +945,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         push_reach = stopping_distance(push_speed, target_stats)
         pushed_distance = push_reach
         center = pos(target["position"])
-        push_wall = wall_contact(center, normal, walls)
+        push_wall = wall_contact(center, normal, walls, float(target.get("radius", 2.4)))
         if push_wall:
             if push_wall[0] <= push_reach:
                 brittle_wall_speed = remaining_speed(
@@ -847,13 +961,13 @@ def score_candidate(state, ball, target, stats, path, power, profile):
             push_reach = min(push_reach, push_wall[0])
             pushed_distance = push_reach
         predicted_target_position = add(center, mul(normal, pushed_distance))
-        secondary = first_contact(center, normal, push_reach, enemies, float(target.get("radius", 2.4)), hit_ids)
-        if secondary:
+        secondary = first_contact(center, normal, push_reach, bodies, float(target.get("radius", 2.4)), hit_ids)
+        if secondary and not secondary[1].get("defeated"):
             # Estimate only free movement until the next enemy collision.
             pushed_distance = min(pushed_distance, secondary[0])
             distance, other = secondary
             impact = add(center, mul(normal, distance))
-            impact_bonus = contacts if relic_owned(state, 2) else 0
+            impact_bonus = contacts if relic_owned(state, Relic.CollisionAttackUp) else 0
             damage(other, float(stats.get("impactAttack", 1)) + impact_bonus, impact)
             damage(target, float(stats.get("impactAttack", 1)) + impact_bonus, pos(other["position"]))
             chain_collisions = 1
@@ -861,23 +975,34 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         if path["kind"] == "pocket":
             pocket = path["pocket"]
             distance = length(sub(pos(pocket["position"]), center))
-            alignment = dot(normal, unit(sub(pos(pocket["position"]), center)))
-            if alignment < 0.85 or push_reach + float(pocket.get("radius", 3)) < distance:
+            human_error = profile.get("human_error", {})
+            margin = float(human_error.get("aim_radius_ratio", 0)) * float(target.get("radius", 2.4)) * (1 + distance / max(1, radius + float(target.get("radius", 2.4))))
+            capture = pocket_capture_distance(center, normal, pocket, float(target.get("radius", 2.4)), margin)
+            # Lower allowed power must still reach this target's capture circle.
+            low_speed = power * max(0, 1 - float(human_error.get("power_ratio", 0)))
+            low_speed = remaining_speed(low_speed, travelled - hit_distance, stats)
+            if path["mode"] == "bank":
+                low_speed *= restitution
+            low_speed = remaining_speed(low_speed, hit_distance, stats)
+            low_push = 2 * player_mass / (player_mass + enemy_mass) * low_speed * dot(direction, normal) * restitution * float(stats.get("knockbackTransfer", 1))
+            robust_reach = min(push_reach, stopping_distance(low_push, target_stats))
+            if capture is None or capture > robust_reach:
                 return None
-            if secondary and secondary[0] < distance:
+            if secondary and secondary[0] < capture:
                 return None  # Another enemy blocks this simple pocket estimate.
             pocket_damage = hp[target["target_id"]]  # Every enemy pocket is a defeat.
             key = target["target_id"]
             damage_by_id[key] = min(hp[key], damage_by_id[key] + pocket_damage)
-            controlled.add(key)
+            if robust_primary_contact:
+                controlled.add(key)
 
     post_speed = length(outgoing)
     post_direction = unit(outgoing)
     post_distance = stopping_distance(post_speed, stats)
     stop = add(contact, mul(post_direction, post_distance))
-    first_post_wall = wall_contact(contact, post_direction, walls)
+    first_post_wall = wall_contact(contact, post_direction, walls, radius)
     initial_post_limit = min(post_distance, first_post_wall[0]) if first_post_wall else post_distance
-    residual_hit = first_contact(contact, post_direction, initial_post_limit, enemies, radius, hit_ids) if post_speed > 0 else None
+    residual_hit = first_contact(contact, post_direction, initial_post_limit, bodies, radius, hit_ids) if post_speed > 0 else None
     if first_post_wall and first_post_wall[0] < post_distance:
         # Bound the stop estimate to one rebound; do not extrapolate through walls.
         distance, wall_point, wall_normal, _ = first_post_wall
@@ -885,7 +1010,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         post_speed = remaining_speed(post_speed, distance, stats) * restitution
         post_direction = sub(post_direction, mul(wall_normal, 2 * dot(post_direction, wall_normal)))
         remaining = stopping_distance(post_speed, stats)
-        second_wall = wall_contact(add(wall_point, mul(post_direction, 0.001)), post_direction, walls)
+        second_wall = wall_contact(add(wall_point, mul(post_direction, 0.001)), post_direction, walls, radius)
         if second_wall:
             remaining = min(remaining, second_wall[0])
         stop = add(wall_point, mul(post_direction, remaining))
@@ -894,19 +1019,20 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         post_origin = contact
         remaining = post_distance
     if not stats.get("pierce"):
-        followup = residual_hit or (first_contact(post_origin, post_direction, remaining, enemies, radius, hit_ids) if post_speed > 0 else None)
-        if followup:
+        followup = residual_hit or (first_contact(post_origin, post_direction, remaining, bodies, radius, hit_ids) if post_speed > 0 else None)
+        if followup and not followup[1].get("defeated"):
             distance, other = followup
             source = add(contact, mul(unit(outgoing), distance)) if residual_hit else add(post_origin, mul(post_direction, distance))
             # Only one further contact is credited, discounted for moving targets.
             before = damage_by_id[other["target_id"]]
-            damage(other, attack + (contacts if relic_owned(state, 2) else 0), source)
+            damage(other, attack + (contacts if relic_owned(state, Relic.CollisionAttackUp) else 0), source)
             damage_by_id[other["target_id"]] = before + (damage_by_id[other["target_id"]] - before) * 0.6
             followup_hits = 1
             contacts += 0.6
     # P1: first anchor-marked target can be consumed immediately on contact.
     # This bounded estimate only covers the first guaranteed contact, not
     # arbitrary later collisions or position changes.
+    before_anchor_aoe = dict(damage_by_id)
     if definition == "player_anchor_finisher":
         stacks = _anchor_stacks_by_target(state).get(target["target_id"], 0)
         if stacks > 0:
@@ -921,15 +1047,165 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                     if (e["target_id"] != target["target_id"] and
                             length(sub(pos(e["position"]), pos(target["position"]))) <= aoe_radius):
                         damage(e, math.floor(finisher_bonus / 2), pos(target["position"]), directional=False)
+                        if reliable_first_area and length(sub(pos(e['position']),pos(target['position'])))<aoe_radius-.001:
+                            key=e['target_id']
+                            reliable_damage[key]=reliable_damage.get(key,0)+damage_by_id[key]-before_anchor_aoe[key]
     risk = max(pre_risk, path_risk(post_origin, stop, radius, pockets))
+    geometric_risk = risk
+    chain_projection = None
+    prediction_input = None
+    collision_shield_events = []
+    geometric_controlled = set(controlled)
+    if coupled and definition != "player_ricochet_finisher":
+        anchor_aoe = {key: damage_by_id[key] - before_anchor_aoe[key] for key in hp}
+        damage_by_id = {key: min(hp[key], opening_damage[key] + anchor_aoe[key]) for key in hp}
+        initial_outgoing = sub(mul(opening_direction, opening_speed), mul(opening_normal,
+            2 * enemy_mass / (player_mass + enemy_mass) * opening_speed * dot(opening_direction, opening_normal) * restitution))
+        initial_push = mul(opening_normal, push_speed)
+        remaining_pierce = 0
+        if stats.get("pierce") and int(stats.get("pierceMaxUses", 1)) > 0:
+            initial_outgoing = mul(opening_normal if stats.get("refractAfterPierce") else opening_direction,
+                                   opening_speed * float(stats.get("pierceSpeedRetention", .75)))
+            initial_push = (0., 0.)
+            remaining_pierce = max(0, int(stats.get("pierceMaxUses", 1)) - 1)
+        if stats.get("anchor"): initial_outgoing = (0., 0.)
+        contacts, chain_collisions, followup_hits, pierce_followups = 1, 0, 0, 0
+        hit_ids = {target["target_id"]}
+        launch_projection = bool(retained_blocker) or definition in LAUNCH_PHYSICS_BALLS
+        bank_bonus_consumed = not launch_projection and path['mode']=='bank' and relic_owned(state,Relic.BankShot)
+        if launch_projection:
+            # The geometric target lies behind a corpse. Start before that
+            # obstacle instead of inventing a first contact with the target.
+            damage_by_id = {key:0. for key in hp}
+            reliable_damage.clear()
+            contacts = 0
+            hit_ids.clear()
+            remaining_pierce = max(0, int(stats.get('pierceMaxUses',1))) if stats.get('pierce') else 0
+        last_spring_wall = 0
+        reliable_pierce_route=bool(stats.get('pierce') and robust_primary_contact and stationary_opening)
+        def apply_contact(event):
+            nonlocal contacts, chain_collisions, followup_hits, pierce_followups, last_spring_wall, bank_bonus_consumed, reliable_pierce_route
+            keys = event["first"], event["second"]
+            bonus_collision = contacts if relic_owned(state, Relic.CollisionAttackUp) else 0
+            if "player" in keys:
+                if event['player_wall_hits']:reliable_pierce_route=False
+                key = keys[1] if keys[0] == "player" else keys[0]
+                foe = next((e for e in enemies if e["target_id"] == key), None)
+                if foe and damage_by_id[key] < hp[key]:
+                    source = event["first_position"] if keys[0] == "player" else event["second_position"]
+                    extra = int(definition == "player_heavy" and relic_owned(state, Relic.HeavyBallCore))
+                    if definition == "player_standard" and relic_owned(state, Relic.StandardBallScope) and path["mode"] == "direct" and not event["player_wall_hits"] and power <= 4:
+                        extra += 1
+                    if definition == "player_bounce" and relic_owned(state, Relic.BounceBallSpring):
+                        extra += min(3, max(0, event["player_wall_hits"] - last_spring_wall))
+                        last_spring_wall = event["player_wall_hits"]
+                    if definition == "player_pierce_finisher":
+                        extra += _number(stats.get("pierceFinisherBaseBonus", 1), 1) + max(0, len(hit_ids)-1) * _number(stats.get("pierceFinisherMultiTargetBonus", 1), 1)
+                    if not bank_bonus_consumed and event['player_wall_hits'] and relic_owned(state, Relic.BankShot):
+                        extra += attack
+                        bank_bonus_consumed = True
+                    before_damage=damage_by_id[key]
+                    damage(foe, attack + bonus_collision + extra, source)
+                    if launch_projection and ((not hit_ids and key==target['target_id'] and robust_primary_contact)
+                                              or reliable_pierce_route):
+                        reliable_damage[key]=damage_by_id[key]-before_damage
+                    followup_hits += bool(hit_ids)
+                    pierce_followups += bool(hit_ids) and bool(stats.get('pierce'))
+                    hit_ids.add(key)
+                    contacts += 1
+                if not event.get('pierced'):reliable_pierce_route=False
+            else:
+                reliable_pierce_route=False
+                if event.get('living_enemy_pair'):
+                    collision_shield_events.append((event['time'], max(0, _whole(stats.get('enemyCollisionShield')))))
+                live = [key for key in keys if key in hp and damage_by_id[key] < hp[key]]
+                for key in live:
+                    foe = next(e for e in enemies if e["target_id"] == key)
+                    other_position = event["second_position"] if key == keys[0] else event["first_position"]
+                    if event.get('living_enemy_pair'):
+                        raw = max(0, _number(stats.get('impactAttack',1))) + bonus_collision
+                    else:
+                        # BallCollisionComponent::GetAttack returns zero for
+                        # corpses, even if their pre-defeat attack was nonzero.
+                        raw = 0.
+                    damage(foe,raw,other_position)
+                if event.get('living_enemy_pair'):
+                    chain_collisions += 1
+                contacts += bool(event.get('living_enemy_pair'))
+            event['hp_after']={key:max(0,hp[key]-damage_by_id[key]) for key in hp}
+            return [key for key in hp if damage_by_id[key] >= hp[key]]
+        physical_state = {**state, "enemies": [{**e, "defeated": e.get("defeated", False) or (e["target_id"] in hp and damage_by_id[e["target_id"]] >= hp[e["target_id"]])} for e in state.get("enemies", [])]}
+        incoming_segments = [(start, path["wall"]), (path["wall"], opening_contact)] if path["mode"] == "bank" else [(start, opening_contact)]
+        pocket_before_contact = any(
+            (capture := ray_contact(a, unit(sub(b, a)), pos(pocket["position"]), radius + float(pocket.get("radius", 3)))) is not None
+            and capture <= length(sub(b, a)) for a, b in incoming_segments for pocket in pockets)
+        if launch_projection:
+            physical_state = state
+            initial_direction = unit(sub(path['wall'] if path['mode']=='bank' else path['aim'], start))
+            launch = tuple(launch_velocity) if launch_velocity is not None else mul(initial_direction,power)
+            chain_projection = project_coupled_chain(physical_state, stats, start, launch,
+                target['target_id'], (0.,0.), on_contact=apply_contact, pierce_remaining=remaining_pierce,
+                from_launch=definition in LAUNCH_PHYSICS_BALLS)
+            reliable_damage = {key:min(amount,damage_by_id[key]) for key,amount in reliable_damage.items()}
+            replay_state = {key:state[key] for key in ('player','enemies','table','relics','relic_effects',
+                'ball_synergies','balance_validation','pocket_rules','enemy_turn_forecast') if key in state}
+            for collection in ('deck_balls','offered_balls'):
+                replay_state[collection] = [{k:b[k] for k in ('index','instance_id','definition_id','upgrade_level','status','category') if k in b}
+                                            for b in state.get(collection, [])]
+            prediction_input = {'state': copy.deepcopy(replay_state), 'stats':dict(stats),
+                                'ball':{key:ball[key] for key in ('index','instance_id','definition_id','upgrade_level','status','category') if key in ball},
+                                'path':json.loads(json.dumps(path)),
+                                'profile':{key:profile[key] for key in ('human_error','allow_bank_shots','recommended_power','build_policy') if key in profile},
+                                'cue_position':list(start),'cue_velocity':list(launch),
+                                'target_id':target['target_id'],'target_velocity':[0.,0.],
+                                'pierce_remaining':remaining_pierce,'from_launch':definition in LAUNCH_PHYSICS_BALLS}
+        elif pocket_before_contact:
+            damage_by_id = {key: 0. for key in hp}
+            contacts, chain_collisions, followup_hits, pierce_followups = 0, 0, 0, 0
+            reliable_damage.clear()
+            chain_projection = {"contacts": [], "pocketed": ["player"], "complete": True,
+                                "iterations": 0, "positions": {"player": start}}
+        else:
+            chain_projection = project_coupled_chain(physical_state, stats, opening_contact, initial_outgoing,
+                                                    target["target_id"], initial_push, on_contact=apply_contact,
+                                                    pierce_remaining=remaining_pierce)
+        projected_pockets = set(chain_projection["pocketed"]) & set(hp)
+        for key in projected_pockets: damage_by_id[key] = hp[key]
+        controlled = projected_pockets & geometric_controlled
+        clearance = chain_projection.get('minimum_player_pocket_clearance')
+        near_risk = .25 * max(0., 1 - clearance / max(.1, radius * .5)) if clearance is not None else 0.
+        # A negative discrete projection cannot erase an incoming-path warning.
+        risk = min(1., max(float("player" in chain_projection["pocketed"]), .25 * geometric_risk, near_risk))
+        stop = chain_projection["positions"].get("player", stop)
+        pushed_distance = chain_projection.get("distances", {}).get(target["target_id"], 0.)
+        predicted_target_position = chain_projection["positions"].get(target["target_id"], predicted_target_position)
     defense = float(stats.get("defense", 0))
-    killed = {key for key in hp if hp[key] > 0 and damage_by_id[key] >= hp[key] - 1e-6}
+    nominal_killed = {key for key in hp if hp[key] > 0 and damage_by_id[key] >= hp[key] - 1e-6}
+    sy=_resource_state(state)
+    spawned_actor_approximation=(definition=='player_minion_finisher' and bool(sy.get('pierce_traces'))
+        and _effective_minion_stack_consume(state,_whole(sy.get('pierce_stacks')),15,True)>0)
+    if spawned_actor_approximation:
+        # Spawned balls can change the cue/target trajectory before impact.
+        # Keep their useful damage estimate, but do not remove an attacker
+        # with certainty while those physical actors are absent from the world.
+        reliable_damage.clear()
+        controlled.clear()
+    if retained_blocker:
+        reliable_damage.clear()
+        controlled.clear()
+    # Moving-target chains remain useful damage estimates, but do not promise
+    # that a particular attacker is removed. Credit direct contacts or a
+    # geometrically validated pocket to that exact target only.
+    killed = {key for key in nominal_killed if key in controlled or reliable_damage.get(key, 0) >= hp[key] - 1e-6}
+    chain_only_kills = nominal_killed - killed if chain_projection else set()
+    chain_confidence = (.8 if chain_projection.get('complete') else .35) if chain_projection else 0.
+    chain_only_prevention = sum(attack_damage(e, float(stats.get("defense", 0))) for e in enemies if e["target_id"] in chain_only_kills)
     prevented_by_target = {}
     prevention_reasons = {}
     for enemy in enemies:
         key = enemy["target_id"]
         if key in killed | controlled and enemy.get("can_attack_this_turn", True):
-            prevented_by_target[key] = max(1, float(enemy.get("attack", 1)) - defense)
+            prevented_by_target[key] = attack_damage(enemy, defense)
             prevention_reasons[key] = "defeat_or_pocket_control"
 
     tactical = tactical_ai_enabled(state)
@@ -1067,11 +1343,12 @@ def score_candidate(state, ball, target, stats, path, power, profile):
                 next_prevention_before_defense[key] = reduction
                 next_prevention_reasons[key] = "swarm_stage_reduction"
     incoming_before_prevention = sum(
-        max(1, float(e.get("attack", 1)) - defense) for e in enemies
+        attack_damage(e, defense) for e in enemies
         if e.get("can_attack_this_turn", True))
     incoming_damage = max(0.0, incoming_before_prevention - prevented)
-    predicted_shield = max(0, _whole(stats.get("shotShield"))) + (
-        chain_collisions * max(0, _whole(stats.get("enemyCollisionShield"))))
+    predicted_shield = max(0, _whole(stats.get("shotShield")))
+    if not chain_projection:
+        predicted_shield += chain_collisions * max(0, _whole(stats.get("enemyCollisionShield")))
     if definition == "player_stop_shield":
         stacks = _anchor_stacks_by_target(state).get(target["target_id"], 0)
         consumed = min(stacks, _whole(stats.get("anchorEnemyConsumeLimit", 5), 5))
@@ -1084,15 +1361,21 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         predicted_shield = max(
             0, min(predicted_shield, shield_capacity - existing_shield)
         )
-    incoming_damage = max(0.0, incoming_damage - predicted_shield)
     player = state["player"]
     current_hp = float(player.get("current_hp", 50))
     max_hp = max(1, float(player.get("max_hp", 50)))
     pocket_cost = state.get("pocket_rules", {}).get("player", {}).get("damage_amount", math.ceil(max_hp * 0.04))
-    repair = min(max(0, max_hp - current_hp), 1.0) if relic_owned(state, 4) and contacts >= 3 else 0.0
-    net_loss = incoming_damage + risk * pocket_cost - repair
+    conservative_incoming, pocket_hp_loss, shield_after_pocket = hp_exposure(
+        incoming_damage, predicted_shield, pocket_cost, risk, collision_shield_events,
+        (chain_projection or {}).get('player_pocket_time'))
+    incoming_damage, _, _ = hp_exposure(
+        max(0., incoming_damage - chain_confidence * chain_only_prevention), predicted_shield,
+        pocket_cost, risk, collision_shield_events, (chain_projection or {}).get('player_pocket_time'))
+    repair = min(max(0, max_hp - current_hp), 1.0) if relic_owned(state, Relic.EmergencyRepairKit) and contacts >= 3 else 0.0
+    net_loss = incoming_damage + pocket_hp_loss - repair
+    conservative_net_loss = conservative_incoming + pocket_hp_loss - repair
     urgency = 1 + max(0, 0.5 - current_hp / max_hp) * 4
-    stable = max(0, 1 - min(1, post_distance / 35)) * (1 - risk) if stats.get("anchor") else 0
+    stable = 0.0  # Stopping is already priced through safety and useful follow-up reachability.
     uncertainty = 0.0
     if path["kind"] in ("offset", "chain_contact"):
         uncertainty += 0.15
@@ -1130,14 +1413,19 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     # estimates; they do not create guaranteed damage or kills.
     pushed_motion = ({"travel": pushed_distance, "wall_bounces": 0,
                       "post_wall_contacts": 0})
-    if (definition in {"player_heavy", "player_ricochet_finisher"}
+    if chain_projection:
+        pushed_motion = {"travel": pushed_distance,
+                         "living_enemy_distances":chain_projection.get('living_enemy_distances'),
+                         "wall_bounces": chain_projection.get("wall_hits_by_body", {}).get(target["target_id"], 0),
+                         "post_wall_contacts": chain_projection.get("post_wall_contacts_by_body", {}).get(target["target_id"], 0)}
+    elif (definition in {"player_heavy", "player_ricochet_finisher"}
             and push_speed > 0.0):
         pushed_motion = _pushed_enemy_trajectory(
             enemies, target, normal, push_speed, walls, max_wall_bounces=3)
 
     # Score P1 effects separately from confirmed immediate damage.
     contact_ids = set(hit_ids)
-    if followup_hits:
+    if followup_hits and not chain_projection:
         contact_ids.add(other["target_id"])
     special_metrics, special_facts, special_reasons = _special_score(
         state, ball, stats, enemies, target, path, hp, damage_by_id,
@@ -1157,8 +1445,8 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         special_reasons.append("次ターンに印が最も多い敵を狙える位置へつなぐ")
 
     metrics = {
-        "damage": sum(damage_by_id.values()), "kills": len(killed),
-        "prevented_attack": prevented, "pierce_followups": pierce_followups,
+        "damage": sum(damage_by_id.values()), "kills": len(killed) + chain_confidence * len(chain_only_kills),
+        "prevented_attack": prevented + chain_confidence * chain_only_prevention, "pierce_followups": pierce_followups,
         "chain_collisions": chain_collisions, "bank_damage_gain": min(bank_gain, damage_by_id[target["target_id"]]),
         "pocket_control": len(controlled - killed), "safety": -net_loss * urgency,
         "stable_stop": stable, "precision": quality,
@@ -1174,6 +1462,14 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     metrics.update(special_metrics)
     metrics["anchor_target_focus"] = anchor_focus
     metrics["anchor_followup_position"] = anchor_followup
+    # A future resource/position option is not a second immediate hit. Bound
+    # its total value to progress made now, while retaining a small setup option.
+    future_keys = ("resource_delta_value", "next_shot_setup_value", "anchor_followup_position")
+    future_total = sum(max(0, metrics.get(key, 0)) for key in future_keys)
+    future_cap = 3.
+    future_budget = min(future_cap, 1. + .5 * (sum(damage_by_id.values()) + prevented))
+    if future_total > future_budget:
+        for key in future_keys: metrics[key] *= future_budget / future_total
     weights = {**DEFAULT_WEIGHTS, **profile.get("build_policy", {}).get("shot_evaluation", {})}
     if tactical and ai_profile == "survival_v2":
         weights.update({
@@ -1186,9 +1482,17 @@ def score_candidate(state, ball, target, stats, path, power, profile):
             "uncertainty": 1.40,
             "safety": float(weights.get("safety", 2.0)) * 1.20,
         })
+    # HP is needed for every later encounter. Do not let an archetype's raw
+    # collision weight price several HP below a redundant contact bonus.
+    weights['safety'] = max(4., float(weights.get('safety',2.)))
     breakdown = {key: round(value * float(weights.get(key, 0)), 4) for key, value in metrics.items()}
+    offense_budget = bound_offense_rewards(breakdown,metrics['kills'])
     breakdown["power_cost"] = round(-0.12 * power, 4)
-    breakdown["lethal_risk"] = -150.0 if net_loss >= current_hp else 0.0
+    if retained_blocker:
+        # Keep a fallback when retained bodies obstruct every simple path,
+        # but do not reward damage behind a body as a guaranteed direct hit.
+        breakdown["retained_body_obstruction"] = -round(max(0, breakdown.get("damage", 0)) + 4, 4)
+    breakdown["lethal_risk"] = -150.0 if conservative_net_loss >= current_hp else 0.0
     decision_reasons = []
     if killed:
         if float(target.get("attack", 0)) >= 2:
@@ -1216,7 +1520,19 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         decision_reasons.append("到達可能な候補の中でダメージと安全性が高い")
 
     return {
+        "_evaluation_path": path,
         "model": MODEL_VERSION, "estimate_only": True,
+        "offense_budget": offense_budget,
+        "prediction_input": prediction_input,
+        "spawned_actor_approximation": spawned_actor_approximation,
+        "coupled_chain": ({"complete": chain_projection["complete"], "contacts": chain_projection["contacts"],
+                            "iterations": chain_projection["iterations"], "pocketed": chain_projection["pocketed"],
+                            "player_pocket_time": chain_projection.get('player_pocket_time'),
+                            "minimum_player_pocket_clearance": chain_projection.get('minimum_player_pocket_clearance'),
+                            'from_launch':chain_projection.get('from_launch',False),
+                            'friction_mode':chain_projection.get('friction_mode'),
+                            'solver':chain_projection.get('solver'),
+                            'living_enemy_distances':chain_projection.get('living_enemy_distances')} if chain_projection else None),
         "offer_index": ball.get("index", -1), "instance_id": ball.get("instance_id"),
         "definition_id": definition,
         "upgrade_level": int(ball.get("upgrade_level", 0)),
@@ -1230,6 +1546,19 @@ def score_candidate(state, ball, target, stats, path, power, profile):
         "metrics": {k: round(v, 4) for k, v in metrics.items()},
         "expected_damage_by_target": {k: round(v, 3) for k, v in damage_by_id.items() if v > 0},
         "expected_incoming_damage": round(incoming_damage, 3),
+        "expected_net_hp_loss": round(net_loss, 3),
+        "conservative_incoming_damage": round(conservative_incoming, 3),
+        "conservative_net_hp_loss": round(conservative_net_loss, 3),
+        "chain_confidence_weight": chain_confidence,
+        "collision_shield_events": [list(event) for event in collision_shield_events],
+        "expected_defeated_target_ids": sorted(killed),
+        "robust_primary_contact": robust_primary_contact,
+        "retained_body_blocker": retained_blocker,
+        "speculative_defeated_target_ids": sorted(nominal_killed - killed),
+        "chain_only_prevention_estimate": round(chain_only_prevention, 3),
+        "expected_self_pocket_hp_loss": round(pocket_hp_loss, 3),
+        "expected_shield_after_pocket": round(shield_after_pocket, 3),
+        "enemy_turn_forecast": state.get("enemy_turn_forecast"),
         "expected_attack_prevention": round(prevented, 3),
         "expected_attack_prevention_by_target": {
             key: {"amount": round(value, 3), "reason": prevention_reasons[key]}
@@ -1251,6 +1580,7 @@ def score_candidate(state, ball, target, stats, path, power, profile):
             for key, value in future_charge_prevention.items()
         },
         "self_pocket_risk": round(risk, 3), "expected_repair": repair,
+        "geometric_self_pocket_risk": round(geometric_risk, 3),
         "estimated_stop_position": point(stop), "followup_hits": followup_hits,
         "predicted_chain_count": chain_collisions + chain_impact_hits,
         "predicted_kill_count": len(killed),
@@ -1276,9 +1606,96 @@ def score_candidate(state, ball, target, stats, path, power, profile):
     }
 
 
+def _coupled_rescore(state, ball, stats, candidate, profile):
+    target = next(e for e in state["enemies"] if e["target_id"] == candidate["target_id"])
+    path = candidate["_evaluation_path"]
+    power = candidate["power"]
+    nominal = score_candidate(state, ball, target, stats, path, power, profile, coupled=True)
+    if nominal is None:
+        return None
+    error = profile.get("human_error", {})
+    power_error = max(0, float(error.get("power_ratio", 0)))
+    aim_error = max(0, float(error.get("aim_radius_ratio", 0))) * float(target.get("radius", 2.4))
+    variants = []
+    origin = pos(state["player"]["position"])
+    direction = unit(sub(path["aim"], origin))
+    side = (-direction[1], direction[0])
+    # Include simultaneous aim/power errors; axial endpoints alone miss
+    # collision-order changes at the corners of the allowed error rectangle.
+    fractions=(-1.,-.5,0.,.5,1.) if ball.get('definition_id') in {'player_heavy','player_guard'} else (-1.,0.,1.)
+    for power_offset in tuple(f*power_error for f in fractions) if power_error else (0.,):
+        for offset in tuple(f*aim_error for f in fractions) if aim_error else (0.,):
+            if not offset and not power_offset:
+                continue
+            changed = {**path, "aim": add(path["aim"], mul(side, offset))}
+            if path["mode"] == "bank":
+                from shot_planner import _plan_bank_shot
+                plan = _plan_bank_shot(origin, changed["aim"], state["table"]["walls"][path["wall_index"]], path["wall_index"], radius=float(stats.get("radius", 2.4)))
+                if not plan:
+                    changed['invalid_stress_path'] = True
+                else:
+                    changed["wall"] = plan["contact_point"]
+            variants.append((changed, max(1., min(8., power * (1+power_offset)))))
+    samples = [dict(nominal)]
+    for changed, changed_power in variants:
+        sample = None if changed.get('invalid_stress_path') else score_candidate(state, ball, target, stats, changed, changed_power, profile, coupled=True)
+        if sample is None:
+            defense = float(stats.get("defense", 0))
+            incoming_before_shield = sum(attack_damage(e, defense) for e in state['enemies'] if not e.get('defeated') and not e.get('pocketed'))
+            pocket_cost = state.get('pocket_rules', {}).get('player', {}).get('damage_amount', math.ceil(float(state['player'].get('max_hp',50))*.04))
+            incoming, pocket_loss, shield_remaining = hp_exposure(incoming_before_shield,
+                max(0, _whole(stats.get('shotShield'))), pocket_cost, nominal['self_pocket_risk'])
+            gross_loss = incoming + pocket_loss
+            sample = {**nominal, "score": -8. - gross_loss * 2,
+                      "score_breakdown": {"unreachable_path": -8., "safety": -gross_loss * 2},
+                      "metrics": {"safety": -gross_loss},
+                      "expected_incoming_damage": incoming, "expected_net_hp_loss": gross_loss,
+                      "expected_self_pocket_hp_loss": pocket_loss, 'expected_shield_after_pocket': shield_remaining,
+                      "expected_repair": 0., 'coupled_chain': None, 'collision_shield_events': [],
+                      "conservative_incoming_damage": incoming, "conservative_net_hp_loss": gross_loss,
+                      "expected_damage_by_target": {}, "expected_defeated_target_ids": [],
+                      "speculative_defeated_target_ids": [], "predicted_kill_count": 0}
+        samples.append(sample)
+    weights = [1.] if len(samples) == 1 else [.6] + [.4 / (len(samples)-1)] * (len(samples)-1)
+    def average(key): return sum(w * s[key] for w, s in zip(weights, samples))
+    net = average("expected_net_hp_loss")
+    tail = max(s["conservative_net_hp_loss"] for s in samples)
+    breakdown_keys = set().union(*(s["score_breakdown"] for s in samples))
+    nominal["score_breakdown"] = {k: round(sum(w * s["score_breakdown"].get(k, 0) for w, s in zip(weights, samples)), 4) for k in breakdown_keys}
+    nominal["score_breakdown"]["stress_tail_risk"] = round(-max(0., tail - net) * 1.5, 4)
+    nominal["score"] = round(sum(nominal["score_breakdown"].values()), 4)
+    metric_keys = set().union(*(s["metrics"] for s in samples))
+    nominal["metrics"] = {k: round(sum(w * s["metrics"].get(k, 0) for w, s in zip(weights, samples)), 4) for k in metric_keys}
+    nominal["expected_incoming_damage"] = round(average("expected_incoming_damage"), 3)
+    nominal["expected_net_hp_loss"] = round(net, 3)
+    # Every reported HP component must refer to the same weighted scenarios.
+    # v9 left pocket/shield fields nominal while incoming damage was averaged.
+    for key in ('self_pocket_risk', 'expected_self_pocket_hp_loss', 'expected_shield_after_pocket',
+                'expected_repair', 'conservative_incoming_damage', 'conservative_net_hp_loss'):
+        nominal[key] = round(average(key), 3)
+    guaranteed = set.intersection(*(set(s["expected_defeated_target_ids"]) for s in samples))
+    possible = set().union(*(set(s["expected_defeated_target_ids"]) | set(s.get("speculative_defeated_target_ids", [])) for s in samples))
+    nominal["expected_defeated_target_ids"] = sorted(guaranteed)
+    nominal["speculative_defeated_target_ids"] = sorted(possible - guaranteed)
+    nominal["predicted_kill_count"] = len(guaranteed)
+    all_keys = set().union(*(s["expected_damage_by_target"] for s in samples))
+    nominal["expected_damage_by_target"] = {k: round(sum(w * s["expected_damage_by_target"].get(k, 0) for w, s in zip(weights, samples)), 3) for k in all_keys}
+    nominal["robustness"] = {"method": "nominal_60_percent_and_interior_rectangle_stress_40_percent_not_calibrated_probability",
+                              "worst_net_hp_loss": round(tail, 3), "samples": [
+                                  {"incoming": s["expected_incoming_damage"], "loss": s["expected_net_hp_loss"], "kills": s["expected_defeated_target_ids"],
+                                   "pocket_loss": s['expected_self_pocket_hp_loss'], 'pocket_risk': s['self_pocket_risk'],
+                                   "shield_remaining": s['expected_shield_after_pocket'],
+                                   "conservative_loss": s['conservative_net_hp_loss'],
+                                   "complete": (s.get("coupled_chain") or {}).get("complete", False)} for s in samples]}
+    nominal["expected_attack_prevention_by_target"] = {k: v for k, v in nominal["expected_attack_prevention_by_target"].items() if k in guaranteed or v["reason"] != "defeat_or_pocket_control"}
+    nominal["expected_next_turn_prevention_by_target"] = {k: v for k, v in nominal["expected_next_turn_prevention_by_target"].items() if k in guaranteed or v["reason"] != "defeat_or_pocket_control"}
+    return nominal
+
+
 def evaluate_build_shots(state: dict[str, Any], profile: dict[str, Any], *,
                          ball=None, target_id="", shot_type="auto", wall_index=-1,
                          fixed_power=None, shot_goal="auto", pocket_index=-1):
+    state = forecast_enemy_turn(state)
     ball = ball or selected_ball(state)
     if not ball or not ball.get("status") or not state.get("player", {}).get("position"):
         return []
@@ -1293,10 +1710,7 @@ def evaluate_build_shots(state: dict[str, Any], profile: dict[str, Any], *,
     if fixed_power is not None:
         powers = [float(fixed_power)]  # Respect an explicit manual power.
     elif ball.get("definition_id") == "player_heavy":
-        # Heavy resource gain is based on enemy movement. Always evaluate the
-        # full power permitted by the current player's profile (7 for the
-        # intermediate MCP profile), instead of an arbitrary weak shot.
-        powers = [hi]
+        powers = sorted({lo,(lo+hi)/2,hi})
     else:
         powers = sorted({lo, hi, (lo + hi) / 2, max(lo, min(hi, 4.0)),
                          max(lo, min(hi, safe_precision_power))})
@@ -1311,23 +1725,48 @@ def evaluate_build_shots(state: dict[str, Any], profile: dict[str, Any], *,
                 scored = score_candidate(state, ball, target, stats, path, power, profile)
                 if scored is not None:
                     candidates.append(scored)
-    # A stack-generating shot should not beat a clear kill on stack points
-    # alone. Keep the option for rare threshold-crossing synergies.
-    if (ball.get("definition_id") in {"player_heavy", "player_lightweight",
-                                       "player_pierce", "player_refractive_pierce",
-                                       "player_pierce_finisher", "player_minion_finisher",
-                                       "player_cushion_charge", "player_anchor",
-                                       "player_origin_anchor"}
-            and any(c.get("predicted_kill_count", 0) > 0 for c in candidates)):
-        for c in candidates:
-            if (c.get("predicted_kill_count", 0) == 0
-                    and not c.get("special_ability_estimates", {}).get("exceptional_stack_setup")):
-                c["score_breakdown"]["available_kill_priority"] = -2.5
-                c["score"] = round(c["score"] - 2.5, 4)
-                c["decision_reasons"].append("撃破可能な別候補があるため資源準備を控えめに評価")
-                c["reason"] = " / ".join(c["decision_reasons"])
+    # Resource value and distinct kills are already in the bounded score.
+    # Do not prune useful setup routes with a second categorical kill penalty.
     candidates.sort(key=lambda c: (-c["score"], c["power"], c["target_id"]))
+    if candidates and profile.get("coupled_chain_prediction", True):
+        shortlist = []
+        for c in candidates:
+            signature = (c["target_id"], c["contact_kind"], c["shot_type"], c["wall_index"], c["pocket_index"])
+            if all(signature != (s["target_id"], s["contact_kind"], s["shot_type"], s["wall_index"], s["pocket_index"]) for s in shortlist):
+                shortlist.append(c)
+            if len(shortlist) >= 3: break
+        for best in (min(candidates, key=lambda c: c["expected_net_hp_loss"]), max(candidates, key=lambda c: c["predicted_chain_count"]), max(candidates, key=lambda c: c["expected_attack_prevention"])):
+            if best not in shortlist: shortlist.append(best)
+        setup=max(candidates,key=lambda c:sum(c['score_breakdown'].get(k,0) for k in ('resource_delta_value','next_shot_setup_value','anchor_followup_position')))
+        if setup not in shortlist:shortlist.append(setup)
+        # Keep a route for every reachable target/type, including fallback
+        # bank shots. A global score beam must not turn reachability into a lie.
+        seen_routes = set()
+        for best in candidates:
+            route = best["target_id"], best["shot_type"]
+            if route not in seen_routes:
+                if best not in shortlist: shortlist.append(best)
+                seen_routes.add(route)
+        candidates = [scored for c in shortlist if (scored := _coupled_rescore(state, ball, stats, c, profile)) is not None]
+        candidates.sort(key=lambda c: (-c["score"], c["power"], c["target_id"]))
+    for candidate in candidates:
+        candidate.pop("_evaluation_path", None)
     return candidates
+
+
+def _offer_evaluation_key(ball):
+    # Instance identity affects execution, not physics or scoring. Keep the
+    # cache local to one state/profile evaluation and rebind identities below.
+    return (ball.get('definition_id'), ball.get('upgrade_level',0), ball.get('category'),
+            json.dumps(ball.get('status',{}),sort_keys=True))
+
+
+def _survival_costs(candidate):
+    expected=float(candidate.get('expected_net_hp_loss',0))
+    conservative=float(candidate.get('conservative_net_hp_loss',expected))
+    samples=candidate.get('robustness',{}).get('samples',[])
+    tail=max((float(s.get('conservative_loss',s.get('loss',conservative))) for s in samples),default=conservative)
+    return expected,conservative,tail
 
 
 def build_joint_shot_context(state, profile):
@@ -1336,8 +1775,17 @@ def build_joint_shot_context(state, profile):
     charge_candidates = 0
     charge_targets = set()
     offers = state.get("offered_balls", [])
+    equivalent_offers = {}
     for ball in offers:
-        candidates = evaluate_build_shots(state, profile, ball=ball)
+        key = _offer_evaluation_key(ball)
+        if key not in equivalent_offers:
+            equivalent_offers[key] = evaluate_build_shots(state, profile, ball=ball)
+        candidates = copy.deepcopy(equivalent_offers[key])
+        for candidate in candidates:
+            candidate['offer_index'] = ball.get('index',-1)
+            candidate['instance_id'] = ball.get('instance_id')
+            if candidate.get('prediction_input'):
+                candidate['prediction_input']['ball'] = {k:ball[k] for k in ('index','instance_id','definition_id','upgrade_level','status','category') if k in ball}
         reachable_candidates += len(candidates)
         for candidate in candidates:
             targets = candidate.get("tactical_outcomes", {}).get(
@@ -1349,27 +1797,15 @@ def build_joint_shot_context(state, profile):
             choices.append(candidates[0])
     choices.sort(key=lambda c: c["score"], reverse=True)
     shot_policy = str(profile.get("mcp_shot_policy", "standard"))
-    # Shared priority for *all* resource-generating balls: a reasonably close
-    # confirmed kill beats speculative stack farming. Exceptional setups that
-    # unlock an owned consumer remain valid alternatives. The tactical policy
-    # deliberately omits this legacy reorder and trusts the already bounded
-    # physical/special-effect score instead of forcing a special-ball choice.
+    # All shot policies compare physical/special-effect value in the same
+    # bounded score. Preserve diagnostics for old logs without a hidden reorder.
     lethal_preference_used = False
     generators = {"player_heavy", "player_lightweight", "player_pierce",
                   "player_refractive_pierce", "player_pierce_finisher",
                   "player_minion_finisher", "player_cushion_charge",
                   "player_anchor", "player_origin_anchor"}
-    if (shot_policy == "standard" and choices
-            and choices[0].get("definition_id") in generators):
-        best = choices[0]
-        exceptional = best.get("special_ability_estimates", {}).get(
-            "exceptional_stack_setup", False)
-        if best.get("predicted_kill_count", 0) == 0 and not exceptional:
-            lethal = next((c for c in choices if c.get("predicted_kill_count", 0) > 0), None)
-            if lethal and best["score"] - lethal["score"] <= 3.0:
-                choices.remove(lethal)
-                choices.insert(0, lethal)
-                lethal_preference_used = True
+    # Trust the same bounded score for every ball. The former post-sort kill
+    # override erased small but real owned-resource/position advantages.
     selected = choices[0] if choices else None
     alternatives = []
     if selected:
@@ -1423,4 +1859,4 @@ def build_joint_shot_context(state, profile):
                 "candidates": alternatives,
             },
             "candidate_generation": candidate_generation,
-            "limitations": "Geometry estimates: at most one pushed-enemy collision and one residual hit; up to three pushed-enemy wall rebounds are heuristic only, not a moving multi-ball simulation."}
+            "limitations": "Bounded moving-body estimates: at most 24 contacts and 512 iterations; launch worlds use float32 contact episodes. Spawned actors remain approximate and cannot guarantee attacker removal. Numerical completion and finite stress samples are not safety guarantees."}

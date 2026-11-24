@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from typing import Any
+from recovery_risk import recovery_reserve, project_path_health
 
 from build_decision import (
     build_progress_snapshot,
@@ -131,7 +132,10 @@ def evaluate_rest_site_action(
     maximum_hp = max(1, int(player.get("max_hp", max(1, current_hp))))
     configured_amount = int(
         _as_dict(state.get("rest_site_rule")).get(
-            "configured_heal_amount", math.ceil(maximum_hp * 0.25)
+            "configured_heal_amount",
+            _as_dict(state.get("rest_heal")).get(
+                "configured_heal_amount", math.ceil(maximum_hp * 0.25)
+            ),
         )
     )
     available_actions = set(_as_list(state.get("available_actions")))
@@ -146,8 +150,12 @@ def evaluate_rest_site_action(
     expected_loss = max(0.0, float(policy.get("expected_battle_hp_loss", 6.0)))
     danger_ratio = max(0.0, float(policy.get("danger_hp_ratio", 0.4)))
     hp_ratio = current_hp / maximum_hp
+    reserve = recovery_reserve(state)
+    reserve_shortfall = reserve is not None and current_hp <= reserve["required_hp"]
+    if reserve and reserve["battles_until_recovery"]:
+        expected_loss = reserve["mean_loss"]
     recovery_value = recovery_ratio * 100.0
-    if current_hp < expected_loss * 2.0 or hp_ratio <= danger_ratio:
+    if current_hp < expected_loss * 2.0 or hp_ratio <= danger_ratio or reserve_shortfall:
         recovery_value += 100.0
 
     upgrades = evaluate_upgrade_choices(state, profiles, profile_id)
@@ -172,12 +180,13 @@ def evaluate_rest_site_action(
             "free_upgrade_value": 0.0,
         }
     choose_heal = recovery_amount > 0 and (
-        hp_ratio <= danger_ratio or recovery_value >= upgrade_value
+        hp_ratio <= danger_ratio or reserve_shortfall or recovery_value >= upgrade_value
     )
     return {
         "recommended_action": "heal" if choose_heal else "upgrade_ball",
         "reason": (
             "danger_survival_priority" if choose_heal and hp_ratio <= danger_ratio
+            else "recovery_reserve_shortfall" if choose_heal and reserve_shortfall
             else "recovery_value_exceeds_upgrade" if choose_heal
             else "free_upgrade_value_exceeds_recovery"
         ),
@@ -187,6 +196,9 @@ def evaluate_rest_site_action(
         "recovery_amount": recovery_amount,
         "recovery_ratio": round(recovery_ratio, 4),
         "expected_next_battle_hp_loss": expected_loss,
+        "survival_reserve": reserve,
+        "hp_after_action": min(maximum_hp, current_hp + recovery_amount) if choose_heal else current_hp,
+        "post_action_reserve_shortfall": round(max(0, (reserve or {}).get("required_hp", 0) - (min(maximum_hp, current_hp + recovery_amount) if choose_heal else current_hp)), 3),
         "recovery_value": round(recovery_value, 3),
         "free_upgrade_value": round(upgrade_value, 3),
         "upgrade_candidate": upgrade,
@@ -211,6 +223,9 @@ def evaluate_route_options(
     hp_ratio = current_hp / maximum_hp
     policy = _as_dict(profile.get("stage_choice_policy"))
     expected_loss = max(0.0, float(policy.get("expected_battle_hp_loss", 6.0)))
+    reserve = recovery_reserve(state)
+    if reserve:
+        expected_loss = reserve["mean_loss"]
     danger_ratio = max(0.0, float(policy.get("danger_hp_ratio", 0.4)))
     progress = build_progress_snapshot(state, profiles, profile_id)
     roles = role_composition_snapshot(state, profile_id)
@@ -237,6 +252,7 @@ def evaluate_route_options(
         + min(24.0, float(upgrade.get("score", 0.0)) * 0.04)
         if isinstance(upgrade, dict) else 0.0
     )
+    rest_decision = evaluate_rest_site_action(state, profiles, profile_id)
     role_counts = _as_dict(roles.get("counts"))
     deficits = {
         "Generator": int(role_counts.get("Generator", 0)) == 0,
@@ -263,6 +279,14 @@ def evaluate_route_options(
         route_index = int(option["route_index"])
         node_id = int(option.get("node_id", -1))
         destination = str(option.get("destination", "unknown"))
+        if destination == "rest":
+            rest_state = dict(state)
+            target_node = next((n for n in _as_list(_as_dict(state.get("run_map")).get("nodes")) if n.get("node_id") == node_id), {})
+            rest_state["player"] = {**player, "progress": max(int(player.get("progress", 0)), int(target_node.get("area", player.get("progress", 0))))}
+            rest_state["run_map"] = {**_as_dict(state.get("run_map")), "nodes": [
+                {**node, "active": node.get("node_id") == node_id}
+                for node in _as_list(_as_dict(state.get("run_map")).get("nodes"))]}
+            rest_decision = evaluate_rest_site_action(rest_state, profiles, profile_id)
         paths = _reachable_paths(state, node_id, max(1, min(3, horizon)))
         if not paths:
             paths = [[{"node_id": node_id, "destination": destination, "next_node_ids": option.get("next_node_ids", [])}]]
@@ -293,10 +317,15 @@ def evaluate_route_options(
         hp_risk = expected_battles * expected_loss
         if hp_ratio <= danger_ratio:
             hp_risk *= 1.5
+        health_projection = None
+        if "progress" in player:
+            health_paths = _reachable_paths(state, node_id, 6) or paths
+            projections = [project_path_health(state, path, rest_decision.get("recommended_action") if destination == "rest" else None) for path in health_paths]
+            health_projection = min(projections, key=lambda item: item["risk_cost"])
+            hp_risk = health_projection["risk_cost"]
         recovery_value = 0.0
         if destination == "rest":
-            recoverable = min(maximum_hp - current_hp, math.ceil(maximum_hp * 0.25))
-            recovery_value = max(0.0, recoverable / maximum_hp * 100.0)
+            recovery_value = float(rest_decision.get("recovery_value", 0.0))
         elif reachable_rest:
             nearest = min(reachable_rest.values())
             recovery_value = max(0.0, 12.0 / (nearest + 1))
@@ -304,6 +333,20 @@ def evaluate_route_options(
             free_upgrade_base * 0.25 / (min(reachable_rest.values()) + 1)
             if reachable_rest else 0.0
         )
+        # A rest visit grants one action. Price the action that would actually
+        # be taken, rather than adding healing and upgrading as if both occur.
+        if destination == "rest":
+            if rest_decision.get("recommended_action") == "heal":
+                free_upgrade_value = 0.0
+            else:
+                recovery_value = 0.0
+                free_upgrade_value = float(rest_decision.get("free_upgrade_value", 0.0))
+        elif reachable_rest:
+            # Future HP is unknown; keep the more valuable option, not both.
+            if weights["recovery_value"] * recovery_value >= weights["free_upgrade_value"] * free_upgrade_value:
+                free_upgrade_value = 0.0
+            else:
+                recovery_value = 0.0
         shop_factor = 1.0 if destination == "shop" else (
             (0.7 if guaranteed_shop else 0.4) / (min(reachable_shop.values()) + 1)
             if reachable_shop else 0.0
@@ -363,6 +406,8 @@ def evaluate_route_options(
             "future_rest_access": "guaranteed" if guaranteed_rest else "possible" if reachable_rest else "unreachable",
             "path_count": len(paths),
             "expected_battles": round(expected_battles, 3),
+            "health_projection": health_projection,
+            "rest_action": rest_decision.get("recommended_action") if destination == "rest" else None,
             "projected_money": money,
         })
 

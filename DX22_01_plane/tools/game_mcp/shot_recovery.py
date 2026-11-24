@@ -59,12 +59,29 @@ def recommended_action(
     shot_tactics: dict[str, Any],
     build_shot_choices: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """選択済みの球を優先し、撃てないときだけ別球を選ぶ。"""
+    """自動操作では共同評価の球を選び、選択後の状態で再計画する。"""
     actions = state.get("available_actions", [])
     if "fire_shot" not in actions or state.get("game_state") != "aiming_direction":
         return None
     selected = next((ball for ball in state.get("offered_balls", [])
                      if ball.get("selected")), None)
+    best = build_shot_choices.get("recommended")
+    if best and best.get("offer_index", -1) >= 0:
+        same_ball = selected and (
+            selected.get("instance_id") == best.get("instance_id")
+            if best.get("instance_id") is not None
+            else selected.get("index") == best.get("offer_index"))
+        if not same_ball and "select_ball" in actions:
+            return {"action": "select_ball", "ball_index": best["offer_index"],
+                    "ball_instance_id": best.get("instance_id"),
+                    "target_id_after_selection": best["target_id"],
+                    "reason": "joint_policy_recommendation", "state_sequence": state.get("sequence")}
+        if same_ball:
+            return {"action": "fire_shot", "ball_index": best["offer_index"],
+                    "ball_instance_id": best.get("instance_id"), "target_id": best["target_id"],
+                    "shot_goal": best.get("shot_goal", "auto"), "shot_type": best.get("shot_type", "auto"),
+                    "pocket_index": best.get("pocket_index", -1), "wall_index": best.get("wall_index", -1),
+                    "power": best.get("power"), "state_sequence": state.get("sequence")}
     target_id = shot_tactics.get("recommended_target_id")
     if selected and target_id:
         return {

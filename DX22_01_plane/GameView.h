@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include "SceneTransitionTiming.h"
 
 struct PlayerBallData;
 class ProgressionProfile;
@@ -36,6 +37,7 @@ struct ShopViewSnapshot
 
 struct TitleViewSnapshot
 {
+    SceneTransitionTiming transitionTiming;
     bool validRunSave = false;
 };
 

@@ -13,7 +13,7 @@ public:
     void OnDestroy() override { Release(); }
     void Release();
     void Draw() override;
-    void Step(float dt,bool released);
+    void Step(float dt,bool released,float cameraBlend=0);
     void DrawEffects(ImDrawList* draw);
     bool Project(const DirectX::SimpleMath::Vector3& world, ImVec2& screen)const;
     bool RackHit() const{return m_Physics.hit;}
@@ -27,6 +27,7 @@ private:
     DirectX::SimpleMath::Matrix m_View{},m_Projection{};
     std::array<float,4> m_Viewport{};
     float m_RenderWidth=1,m_RenderHeight=1;
+    float m_CameraBlend=0;
     bool m_ProjectionValid=false;
     float m_Accumulator=0,m_Age=0,m_ShakePhase=0,m_ShakeLifetime=0,m_ShakeStrength=0,m_ShakeCooldown=0;
     bool m_Released=false;

@@ -3,6 +3,11 @@
 
 #pragma execution_character_set("utf-8")
 
+const SceneTransitionTiming& Game::GetSceneTransitionTiming() const
+{
+	return m_SettingsRuntime->Current().sceneTransition;
+}
+
 bool Game::IsVibrationEnabled() const
 {
 	return m_SettingsRuntime->IsVibrationEnabled();

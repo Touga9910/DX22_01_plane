@@ -35,6 +35,7 @@ public:
 	~TitleScene(); // デストラクタ
 
     bool AllowsPause() const { return !m_Sequence.Active() && m_QuitFade < 0 && !m_ShowQuit && !m_ShowProgression; }
+    bool IsStartFadeComplete() const { return m_Sequence.phase == TitleSequence::Phase::Committed; }
 	void Update(); // 更新
 	void DrawUI() override;
 	void DrawProgressionUI();

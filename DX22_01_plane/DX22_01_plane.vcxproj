@@ -386,6 +386,8 @@
     <ClInclude Include="GameRunSaveState.h" />
     <ClInclude Include="GameWorld.h" />
     <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="SceneTransition.h" />
+    <ClInclude Include="SceneTransitionTiming.h" />
     <ClInclude Include="SceneObjectFactory.h" />
     <ClInclude Include="RunProgressController.h" />
     <ClInclude Include="DebugBattleSetup.h" />

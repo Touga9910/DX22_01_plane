@@ -29,7 +29,9 @@ void GameRuntimeState::SetBattleSceneFactory(
 
 bool GameRuntimeState::InitializeScene(SceneType sceneType)
 {
-	return m_Scenes.Initialize(sceneType);
+	const bool initialized = m_Scenes.Initialize(sceneType);
+	if (initialized) m_Transition.BeginFadeIn();
+	return initialized;
 }
 
 bool GameRuntimeState::ChangeScene(SceneType sceneType)
@@ -39,6 +41,7 @@ bool GameRuntimeState::ChangeScene(SceneType sceneType)
 
 void GameRuntimeState::ResetScene()
 {
+	m_Transition.Reset();
 	m_Scenes.Reset();
 }
 

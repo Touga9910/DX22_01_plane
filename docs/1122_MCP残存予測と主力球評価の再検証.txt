@@ -1,0 +1,226 @@
+作成日：2026年11月22日
+MCP残存予測と主力球評価の再検証
+
+プレイヤーに見える変化：重量球の連鎖後の落下と特殊球の実接触を発射直前から予測し、複数敵を倒す価値と将来の固有能力準備を失わない球選択へ修正する。
+強める柱：選択・狙い・連鎖。球種の使用率を強制する加点ではなく、狙い・実接触・異なる敵の撃破・使える資源の価値を評価する。
+取得・強化前後の狙い：主力球の資源生成から所有する消費球へのつながり、複数敵への連鎖を、単発ダメージと安全性に加えて比較する。
+危険：使用率だけを上げる誘導、攻撃成果の二重加点の復活、有限サンプルで安全を保証する表示、既知seedへの過適合。
+成功条件：前回v16の悪化8組を全件分析し、残存入力と境界テストで修正を検証後に判断を凍結。同seed2026112105・2026112106・2026112109の5ビルド各3ランを完走し、対応15組で被害・手数・球使用・危険場面・残存誤差を比較する。旧8組のうち再実行対象5組と、ログ分析のみの3組を区別する。
+ゲーム本体・球性能・敵性能・難度・EXEは変更しない。元ログと途中検証は保持し、途中変更の結果を正式比較へ混ぜない。
+
+途中版v17は5有効ランで停止し、全原ログとinterrupted_summary.jsonを保持。発射世界の導入時に、直接貫通の後続命中まで確認済み集合から消す回帰を発見した。初回接触の範囲撃破を移動連鎖と同じく推測扱いにする過小評価も修正。再現2テストは修正前失敗・修正後成功。移動敵と生成ミニオンの過大保証を防ぐテストを含む関連154テスト成功。正式比較はv18対v16の同じ15組で取り直し、途中版を混ぜない。途中5組は全勝だが、対応平均被害4.2→5.2、主力使用率19.49%→14.658%だったことも保持する。
+
+正式15ランの比較結果
+
+比較：v16→v18。seed2026112105・2026112106・2026112109、5型各3ラン。中級者・固定難度・B0014・legacy/standard・同一EXE・同じ初期セーブ。判断コード凍結、関連154テスト成功。
+通常戦・中ボスは敵半径の±2%の狙い誤差と±5%の威力誤差（0付近が出やすい三角分布）。最終ボスは従来どおり共有C++の専用候補を使い、照準誤差なし。同一seedでも経路・デッキ・報酬・乱数消費が変わるため、修正単独の因果効果や同一盤面の比較とは区別する。
+今回の3seedは残存誤差と悪化例を調べるため選んだ既知seedで、無作為標本や未知seedへの汎化確認ではない。前回50ラン全体の平均と今回15ラン平均は直接比較しない。
+修正：重量・貫通系の発射世界にfloat32の状態、tickごとの空間順、環境優先、接触中の再処理、重なりだけの補正を導入。人工的な押し離しを廃止。重量は25条件と複数威力を評価。
+特殊球：最初の命中を仮定せず発射位置から接触を評価。生成ミニオンは完全再現しないため、その場合の撃破を確定の攻撃阻止に使わない。推測ダメージ・推測撃破と保守的な残存攻撃を分ける。
+追加修正：静止配置の直線貫通は、壁反射・通常衝突・敵同士接触より前の直接命中を各条件で確認し、全条件共通の撃破を確定へ戻す。静止・重なりなし・盤面能力なし・範囲境界の余裕を満たす初回範囲与ダメージも確認済みへ含める。移動敵・生成物・後続の連鎖は推測として保持。
+採点：異なる敵の撃破に最大4点の上限追加余地を認め、接触反復による加点を抑えたまま複数撃破の価値を残す。準備候補も詳細評価へ保持し、採点後の確定撃破強制差し替えを廃止。球種名による使用促進加点なし。
+重量資源：生存中の各敵の移動を個別に切り捨て換算し、生成ボーナスと上限を反映。標的1体だけや撃破後の移動を資源に置き換えない。
+検証：旧リスク0の実落下2入力は新25条件でどちらも正のリスク。ただし実発射単独の物理照合では1件を依然再現できない。旧特殊球の完全な発射前状態は未保存であり、同一入力で修正を証明したとは扱わない。
+勝利数/15：15.0000→15.0000
+平均累積被ダメージ：8.2667→7.1333
+平均打数：34.7333→36.2000
+平均戦闘数：8.3333→8.3333
+1戦闘あたり被ダメージ：0.9920→0.8560
+平均終了HP：42.0000→43.3333
+平均回復回数：0.0000→0.0000
+対象球使用率のラン平均：0.1483→0.1560
+standard各3組：勝利3→3、被害10.67→10.67、打数34.33→37.33、対象球使用率27.1%→31.8%。
+  コア所持完成率100%→100%。所持だけで戦い方の成立や面白さを判定しない。
+heavy各3組：勝利3→3、被害7.33→2.67、打数30.00→32.67、対象球使用率28.9%→21.4%。
+  コア所持完成率100%→67%。所持だけで戦い方の成立や面白さを判定しない。
+pierce各3組：勝利3→3、被害11.33→8.00、打数35.67→40.00、対象球使用率8.9%→11.2%。
+  コア所持完成率67%→33%。所持だけで戦い方の成立や面白さを判定しない。
+bounce各3組：勝利3→3、被害6.33→6.00、打数35.33→35.00、対象球使用率2.0%→6.3%。
+  コア所持完成率0%→0%。所持だけで戦い方の成立や面白さを判定しない。
+anchor各3組：勝利3→3、被害5.67→8.33、打数38.33→36.00、対象球使用率7.3%→7.3%。
+  コア所持完成率33%→0%。所持だけで戦い方の成立や面白さを判定しない。
+
+15組：被害改善10、同等0、悪化5。敗北0。
+
+前回悪化8組の原因分析（v12→v16）
+旧8組では、推測を含む加重撃破指標が1を超え、追加点の上限制限も受けた選択打が63打。採点後の確定撃破差し替えは1回だけだった。全ての悪化をこの差し替えへ帰属しない。上限制限の発動も誤判断の証明ではなく、異なる敵を倒す価値を残すための修正仮説。内訳はoriginal_8_scoring_diagnosis.json。
+旧8組のボス敵ターンHP被害は、v12の52打・v16の56打すべてで専用予測と実測が一致した。この集合のボス被害増を敵ターン予測の見逃しとは扱わない。専用採点が既知の被害を受け入れる選択、到達デッキ・成長・配置の違いを調べる必要がある。
+2026112109/anchor：旧被害4→6。通常戦差-2、ボス戦差+4、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率0.0%→3.0%。
+  v12専用ボス予測：4打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：7打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  再実行：v16→v18被害6→3、打数33→34。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 3}。
+  v16 2/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 3/campaign_phase_mid_mixed：被害0、打数4、使用球{'player_standard': 1, 'player_guard': 2, 'player_heavy': 1}。
+  v16 4/midboss_001：被害0、打数3、使用球{'player_guard': 3}。
+  v16 5/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 6/campaign_phase_late_mixed：被害0、打数7、使用球{'player_standard': 1, 'player_guard': 3, 'player_heavy': 2, 'player_stop_shield': 1}。
+  v16 7/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 8/boss_001：被害6、打数7、使用球{'player_standard': 4, 'player_guard': 2, 'player_heavy': 1}。
+2026112106/bounce：旧被害11→14。通常戦差+1、ボス戦差+2、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率10.5%→0.0%。
+  v12専用ボス予測：13打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：7打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  再実行：v16→v18被害14→13、打数38→38。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 2/normal_002：被害0、打数2、使用球{'player_guard': 1, 'player_standard': 1}。
+  v16 3/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 4/campaign_phase_mid_pairs：被害1、打数7、使用球{'player_heavy': 2, 'player_standard': 2, 'player_guard': 3}。
+  v16 5/campaign_phase_late_mixed：被害2、打数5、使用球{'player_standard': 2, 'player_heavy': 3}。
+  v16 6/campaign_phase_late_pairs：被害1、打数9、使用球{'player_standard': 3, 'player_heavy': 2, 'player_guard': 4}。
+  v16 7/midboss_002：被害0、打数2、使用球{'player_guard': 1, 'player_standard': 1}。
+  v16 8/boss_001：被害10、打数7、使用球{'player_heavy': 2, 'player_guard': 2, 'player_standard': 3}。
+2026112103/heavy：旧被害9→11。通常戦差+0、ボス戦差+2、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率40.7%→34.4%。
+  v12専用ボス予測：4打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：7打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  今回の3seed外。前回ログによる分析のみで、再実行済みとは扱わない。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 2/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 3/campaign_phase_mid_pairs：被害2、打数6、使用球{'player_heavy': 2, 'player_standard': 2, 'player_guard': 2}。
+  v16 4/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_chain_impact': 1}。
+  v16 5/campaign_phase_late_mixed：被害5、打数7、使用球{'player_heavy': 3, 'player_guard': 2, 'player_chain_impact': 1, 'player_standard': 1}。
+  v16 6/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 7/boss_002：被害4、打数7、使用球{'player_guard': 4, 'player_heavy': 2, 'player_standard': 1}。
+2026112108/heavy：旧被害5→9。通常戦差-1、ボス戦差+5、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率24.2%→18.2%。
+  v12専用ボス予測：11打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：11打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  今回の3seed外。前回ログによる分析のみで、再実行済みとは扱わない。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 2/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 3/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 4/campaign_phase_mid_pairs：被害0、打数5、使用球{'player_standard': 2, 'player_guard': 3}。
+  v16 5/campaign_phase_late_mixed：被害1、打数7、使用球{'player_anchor': 1, 'player_heavy': 2, 'player_guard': 4}。
+  v16 6/midboss_002：被害0、打数1、使用球{'player_heavy': 1}。
+  v16 7/boss_001：被害8、打数11、使用球{'player_guard': 3, 'player_standard': 6, 'player_heavy': 2}。
+2026112106/pierce：旧被害12→15。通常戦差+2、ボス戦差+1、落下差+2（落下は戦闘別差に含む）。経路変更False、対象球使用率26.7%→2.9%。
+  v12専用ボス予測：4打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：5打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  再実行：v16→v18被害15→9、打数34→41。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 2/normal_002：被害0、打数2、使用球{'player_guard': 1, 'player_standard': 1}。
+  v16 3/midboss_002：被害0、打数3、使用球{'player_guard': 3}。
+  v16 4/campaign_phase_mid_pairs：被害2、打数7、使用球{'player_standard': 2, 'player_guard': 3, 'player_heavy': 2}。
+  v16 5/campaign_phase_late_mixed：被害5、打数6、使用球{'player_standard': 1, 'player_heavy': 3, 'player_guard': 2}。
+  v16 6/campaign_phase_late_pairs：被害1、打数6、使用球{'player_standard': 2, 'player_heavy': 2, 'player_guard': 2}。
+  v16 7/midboss_002：被害1、打数2、使用球{'player_heavy': 1, 'player_guard': 1}。
+  v16 8/boss_001：被害6、打数5、使用球{'player_heavy': 2, 'player_guard': 1, 'player_standard': 1, 'player_pierce': 1}。
+2026112109/pierce：旧被害6→12。通常戦差+0、ボス戦差+6、落下差+2（落下は戦闘別差に含む）。経路変更False、対象球使用率11.1%→5.9%。
+  v12専用ボス予測：4打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：7打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  再実行：v16→v18被害12→11、打数34→35。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 3}。
+  v16 2/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 3/campaign_phase_mid_mixed：被害0、打数7、使用球{'player_standard': 2, 'player_guard': 3, 'player_heavy': 2}。
+  v16 4/midboss_001：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 5/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 6/campaign_phase_late_mixed：被害1、打数5、使用球{'player_standard': 1, 'player_heavy': 2, 'player_guard': 2}。
+  v16 7/midboss_002：被害3、打数3、使用球{'player_standard': 2, 'player_guard': 1}。
+  v16 8/boss_001：被害8、打数7、使用球{'player_guard': 2, 'player_heavy': 1, 'player_standard': 2, 'player_pierce_finisher': 1, 'player_minion_finisher': 1}。
+2026112103/standard：旧被害7→10。通常戦差+4、ボス戦差-1、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率37.5%→34.4%。
+  v12専用ボス予測：8打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：6打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  今回の3seed外。前回ログによる分析のみで、再実行済みとは扱わない。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 2/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 3/campaign_phase_mid_pairs：被害2、打数6、使用球{'player_standard': 3, 'player_guard': 2, 'player_heavy': 1}。
+  v16 4/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 5/campaign_phase_late_mixed：被害4、打数8、使用球{'player_standard': 4, 'player_guard': 3, 'player_heavy': 1}。
+  v16 6/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 7/boss_002：被害4、打数6、使用球{'player_guard': 2, 'player_heavy': 2, 'player_standard': 2}。
+2026112106/standard：旧被害9→15。通常戦差-1、ボス戦差+7、落下差+0（落下は戦闘別差に含む）。経路変更False、対象球使用率40.0%→21.9%。
+  v12専用ボス予測：4打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  v16専用ボス予測：6打、敵HP被害MAE0.000、敵攻撃0予測の被害0。
+  再実行：v16→v18被害15→20、打数32→37。
+  v16 1/normal_002：被害0、打数3、使用球{'player_guard': 2, 'player_standard': 1}。
+  v16 2/normal_002：被害0、打数2、使用球{'player_guard': 1, 'player_standard': 1}。
+  v16 3/midboss_002：被害0、打数3、使用球{'player_guard': 2, 'player_heavy': 1}。
+  v16 4/campaign_phase_mid_pairs：被害1、打数5、使用球{'player_heavy': 2, 'player_guard': 3}。
+  v16 5/campaign_phase_late_mixed：被害1、打数5、使用球{'player_heavy': 2, 'player_standard': 2, 'player_guard': 1}。
+  v16 6/campaign_phase_late_pairs：被害4、打数7、使用球{'player_heavy': 3, 'player_guard': 2, 'player_standard': 1, 'player_anchor': 1}。
+  v16 7/midboss_002：被害0、打数1、使用球{'player_heavy': 1}。
+  v16 8/boss_001：被害9、打数6、使用球{'player_heavy': 2, 'player_guard': 2, 'player_standard': 2}。
+旧8組のうち再実行5組：改善4、同等0、悪化1。残る3組は旧ログ分析のみ。
+通常戦の被害減がボス戦の増加で逆転した例では、専用ボス照準自体は未変更。ボス到達時のデッキ・レリック・HP・使用球と乱数消費の差を記録し、上流の一つの修正へ単独帰属しない。未実行の代替候補なら被害が減ったという因果証明もしていない。
+
+予測誤差と危険場面
+危険場面の抽出基準：1入力区間の実被害4HP以上、またはショット前HP20以下。致死やHP10以下の通過とは区別し、修復で総被害を相殺しない。
+v16：敵攻撃HP被害MAE0.0534/251ターン、0予測の実敵被弾1。総HP被害MAE0.0616/426打。
+  落下HP0予測の被害2、落下リスク0の実落下2、実落下54、落下HP予測3.565／実測6。連鎖打ち切り0。
+  最低戦闘終了HP35、HP10以下の戦闘0。
+v18：敵攻撃HP被害MAE0.0367/283ターン、0予測の実敵被弾1。総HP被害MAE0.0332/464打。
+  落下HP0予測の被害0、落下リスク0の実落下1、実落下60、落下HP予測2.804／実測2。連鎖打ち切り0。
+  最低戦闘終了HP32、HP10以下の戦闘0。
+v16の通常重量球の使用・落下：{'shots': 84, 'actual_falls': 2, 'actual_pocket_hp': 4, 'zero_risk_falls': 2, 'predicted_pocket_hp': 1.3799999999999997}
+v18の通常重量球の使用・落下：{'shots': 58, 'actual_falls': 1, 'actual_pocket_hp': 2, 'zero_risk_falls': 0, 'predicted_pocket_hp': 2.232}
+重量球の使用回数や盤面が変わるため、実ランの見逃し減だけを同一入力の予測器改善とは扱わない。保存済み276入力の照合と2件の固定回帰入力も併記する。
+v16の初期通常戦・中ボスも含む全幾何評価：敵HP被害MAE0.0488/426打、敵攻撃0予測の実被害1。
+v18の初期通常戦・中ボスも含む全幾何評価：敵HP被害MAE0.0315/464打、敵攻撃0予測の実被害1。
+v16の確認済み撃破数監査：Counter({'settled_shots': 426, 'actual_more_than_confirmed': 195, 'confirmed_count_exceeded_actual': 1, 'confirmed_multiple': 0})
+v18の確認済み撃破数監査：Counter({'settled_shots': 464, 'actual_more_than_confirmed': 198, 'confirmed_multiple': 3})
+確認済み撃破数が実撃破数を上回る場合は過大予測。下回ること自体は、推測連鎖を確認済みへ含めない設計上も起きる。数が一致しても同じtarget_idを倒した証明ではない。
+v16ボス専用予測：95打、敵攻撃HP被害MAE0.000、敵攻撃0予測の被害0。通常戦の幾何予測とは別集計。
+v18ボス専用予測：79打、敵攻撃HP被害MAE0.000、敵攻撃0予測の被害0。通常戦の幾何予測とは別集計。
+専用ボス評価は、通常MCPの最低4点/HPとは異なる安全重みを使う。既知の被害を受け入れる選択と落下・撃破の見逃しを混同しない。未実行の他候補なら累積被害が減ったという因果証明ではない。
+ボスの危険選択：{'seed': 2026112105, 'build': 'anchor', 'stage': 9, 'shot': 1, 'ball': 'player_heavy', 'expected_enemy_hp': 4.0, 'actual_enemy_hp': 4, 'actual_pocket_hp': 0, 'immediate_player_hp_loss': 0.0, 'safety_points': -4.0, 'prediction_complete': True, 'hp_before': 49}
+ボスの危険選択：{'seed': 2026112106, 'build': 'bounce', 'stage': 8, 'shot': 1, 'ball': 'player_heavy', 'expected_enemy_hp': 4.0, 'actual_enemy_hp': 4, 'actual_pocket_hp': 0, 'immediate_player_hp_loss': 0.0, 'safety_points': -4.0, 'prediction_complete': True, 'hp_before': 42}
+ボスの危険選択：{'seed': 2026112109, 'build': 'pierce', 'stage': 8, 'shot': 5, 'ball': 'player_refractive_pierce', 'expected_enemy_hp': 5.0, 'actual_enemy_hp': 5, 'actual_pocket_hp': 0, 'immediate_player_hp_loss': 0.0, 'safety_points': -5.0, 'prediction_complete': True, 'hp_before': 44}
+能力活用（各3ラン合計。共通シールド吸収をアンカー固有発動と断定しない）：
+standard/before: {'ball_usage': Counter({'player_guard': 47, 'player_standard': 28, 'player_heavy': 27, 'player_anchor': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 113, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 28, 'player_heavy': 21, 'player_anchor': 1, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+standard/after: {'ball_usage': Counter({'player_guard': 57, 'player_standard': 35, 'player_heavy': 19, 'player_bounce': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 42, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 35, 'player_heavy': 9, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+heavy/before: {'ball_usage': Counter({'player_guard': 40, 'player_standard': 22, 'player_heavy': 19, 'player_chain_impact': 7, 'player_stop_shield': 1, 'player_bounce': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 73, 'heavy_stacks_consumed': 18, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 22, 'player_heavy': 12, 'player_chain_impact': 6, 'player_guard': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+heavy/after: {'ball_usage': Counter({'player_guard': 51, 'player_standard': 23, 'player_heavy': 18, 'player_chain_impact': 3, 'player_anchor': 2, 'player_pierce': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 23, 'pierce_stacks_generated': 1, 'heavy_stacks_consumed': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 23, 'player_heavy': 5, 'player_chain_impact': 2, 'player_anchor': 2, 'player_pierce': 1, 'player_guard': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+pierce/before: {'ball_usage': Counter({'player_guard': 49, 'player_standard': 25, 'player_heavy': 23, 'player_minion_finisher': 5, 'player_pierce_finisher': 3, 'player_pierce': 2}), 'resource_flow': Counter({'heavy_stacks_generated': 70, 'pierce_stacks_generated': 22, 'pierce_stacks_consumed': 6, 'heavy_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 25, 'player_heavy': 12, 'player_pierce_finisher': 8, 'player_pierce': 4, 'player_minion_finisher': 2, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_refractive_pierce': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+pierce/after: {'ball_usage': Counter({'player_guard': 69, 'player_standard': 28, 'player_heavy': 9, 'player_pierce_finisher': 6, 'player_refractive_pierce': 3, 'player_pierce': 2, 'player_minion_finisher': 2, 'player_bounce': 1}), 'resource_flow': Counter({'pierce_stacks_generated': 52, 'heavy_stacks_generated': 7, 'pierce_stacks_consumed': 7, 'heavy_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 28, 'player_pierce_finisher': 18, 'player_refractive_pierce': 6, 'player_pierce': 4, 'player_heavy': 2, 'player_minion_finisher': 1, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+bounce/before: {'ball_usage': Counter({'player_guard': 55, 'player_standard': 29, 'player_heavy': 20, 'player_cushion_charge': 2}), 'resource_flow': Counter({'heavy_stacks_generated': 49, 'reflection_stacks_generated': 6, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 29, 'player_heavy': 10, 'player_cushion_charge': 2, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+bounce/after: {'ball_usage': Counter({'player_guard': 55, 'player_standard': 28, 'player_heavy': 15, 'player_bounce': 4, 'player_cushion_charge': 2, 'player_ricochet_finisher': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 29, 'reflection_stacks_generated': 4, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 28, 'player_heavy': 6, 'player_cushion_charge': 2, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_anchor': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+anchor/before: {'ball_usage': Counter({'player_guard': 61, 'player_standard': 26, 'player_heavy': 19, 'player_anchor_finisher': 6, 'player_anchor': 2, 'player_stop_shield': 1}), 'resource_flow': Counter({'heavy_stacks_generated': 66, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 26, 'player_heavy': 13, 'player_anchor': 2, 'player_anchor_finisher': 1, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_stop_shield': 0, 'player_origin_anchor': 0})}
+anchor/after: {'ball_usage': Counter({'player_guard': 54, 'player_standard': 26, 'player_heavy': 20, 'player_anchor_finisher': 5, 'player_anchor': 3}), 'resource_flow': Counter({'heavy_stacks_generated': 51, 'heavy_stacks_consumed': 0, 'pierce_stacks_generated': 0, 'pierce_stacks_consumed': 0, 'reflection_stacks_generated': 0, 'reflection_stacks_consumed': 0}), 'ability_activations': Counter({'player_standard': 26, 'player_heavy': 14, 'player_anchor': 3, 'player_guard': 0, 'player_chain_impact': 0, 'player_collision_boost': 0, 'player_lightweight': 0, 'player_pierce': 0, 'player_refractive_pierce': 0, 'player_pierce_finisher': 0, 'player_minion_finisher': 0, 'player_cushion_charge': 0, 'player_bounce': 0, 'player_ricochet_finisher': 0, 'player_reflection_setup': 0, 'player_stop_shield': 0, 'player_anchor_finisher': 0, 'player_origin_anchor': 0})}
+主力球が到達可能な候補として残った場面の選択率（専用ボスなど共同候補記録のない打は別分母）：
+standard：19/79、候補記録なし22打、全戦闘の主力球28/103打 → 26/92、候補記録なし18打、全戦闘の主力球35/112打
+heavy：21/40、候補記録なし15打、全戦闘の主力球26/90打 → 15/49、候補記録なし10打、全戦闘の主力球21/98打
+pierce：5/46、候補記録なし17打、全戦闘の主力球10/107打 → 8/48、候補記録なし24打、全戦闘の主力球13/120打
+bounce：2/15、候補記録なし17打、全戦闘の主力球2/106打 → 7/28、候補記録なし12打、全戦闘の主力球7/105打
+anchor：7/38、候補記録なし24打、全戦闘の主力球9/115打 → 7/33、候補記録なし15打、全戦闘の主力球8/108打
+使用率はラン別割合の平均と、全ショットを合算した割合で分母が異なる。主力使用回数が同じでも、他球の打数が増えると使用率は下がる。例：heavy/seed2026112106は主力9→9打、総打数28→32打だった。
+戦闘経過時間合計の1ラン平均（MCP判断待ちを含む）：303.3秒→1534.7秒。25条件・詳細物理で計算量が増えた。経路・手数・並行負荷も変わるため純粋なCPUベンチマークではなく、実ゲームのフレーム時間の検証とも区別する。
+危険場面：{'seed': 2026112109, 'build': 'pierce', 'stage': 8, 'stage_id': 'boss_001', 'shot': 5, 'ball': 'player_refractive_pierce', 'hp_before': 44, 'actual_gross': 5, 'actual_kills': 0, 'predicted_kills': None, 'expected_loss': None, 'conservative_loss': None, 'score': None, 'spawned_actor_approximation': None, 'risk': None}
+危険場面：{'seed': 2026112106, 'build': 'standard', 'stage': 8, 'stage_id': 'boss_001', 'shot': 5, 'ball': 'player_heavy', 'hp_before': 36, 'actual_gross': 5, 'actual_kills': 1, 'predicted_kills': None, 'expected_loss': None, 'conservative_loss': None, 'score': None, 'spawned_actor_approximation': None, 'risk': None}
+危険場面：{'seed': 2026112105, 'build': 'anchor', 'stage': 9, 'stage_id': 'boss_002', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 49, 'actual_gross': 4, 'actual_kills': 1, 'predicted_kills': None, 'expected_loss': None, 'conservative_loss': None, 'score': None, 'spawned_actor_approximation': None, 'risk': None}
+危険場面：{'seed': 2026112106, 'build': 'bounce', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 42, 'actual_gross': 4, 'actual_kills': 1, 'predicted_kills': None, 'expected_loss': None, 'conservative_loss': None, 'score': None, 'spawned_actor_approximation': None, 'risk': None}
+危険場面：{'seed': 2026112106, 'build': 'pierce', 'stage': 4, 'stage_id': 'campaign_phase_mid_pairs', 'shot': 4, 'ball': 'player_standard', 'hp_before': 48, 'actual_gross': 4, 'actual_kills': 2, 'predicted_kills': 1, 'expected_loss': 4.0, 'conservative_loss': 4.0, 'score': -1.9725, 'spawned_actor_approximation': False, 'risk': 0.0}
+危険場面：{'seed': 2026112106, 'build': 'standard', 'stage': 6, 'stage_id': 'campaign_phase_late_pairs', 'shot': 4, 'ball': 'player_heavy', 'hp_before': 47, 'actual_gross': 4, 'actual_kills': 2, 'predicted_kills': 1, 'expected_loss': 3.373, 'conservative_loss': 4.0, 'score': 1.9014, 'spawned_actor_approximation': False, 'risk': 0.0}
+危険場面：{'seed': 2026112106, 'build': 'standard', 'stage': 8, 'stage_id': 'boss_001', 'shot': 1, 'ball': 'player_heavy', 'hp_before': 43, 'actual_gross': 4, 'actual_kills': 1, 'predicted_kills': None, 'expected_loss': None, 'conservative_loss': None, 'score': None, 'spawned_actor_approximation': None, 'risk': None}
+残存0予測：{'seed': 2026112106, 'build': 'pierce', 'kind': 'pocket', 'stage': 'campaign_phase_mid_pairs', 'stage_index': 4, 'shot': 2, 'ball': 'player_guard', 'predicted_gross': 0.0, 'actual_gross': 2, 'predicted_pocket': 0.0, 'actual_pocket': 0, 'predicted_incoming': None, 'actual_enemy_hp_damage': None}
+残存0予測：{'seed': 2026112106, 'build': 'pierce', 'kind': 'enemy', 'stage': 'campaign_phase_mid_pairs', 'stage_index': 4, 'shot': 2, 'ball': 'player_guard', 'predicted_gross': None, 'actual_gross': None, 'predicted_pocket': None, 'actual_pocket': None, 'predicted_incoming': 0.0, 'actual_enemy_hp_damage': 2}
+落下・敵被弾・撃破の誤差件数は同じショットを重複して含むため合算しない。
+確認できた残存原因：pierce/seed2026112106/戦闘4/打2のガード球は、旧来の接触後連続摩擦モデルが落下を見逃した。予測はシールド3を残したが、実際は落下で2を消費して残り1。その後1を吸収し、敵攻撃から2HP被害。落下自体のHP被害は0でも後の安全性を変える。撃破は予測0・実測0で、特殊球の撃破過大予測ではない。
+この選択はguardの得点5.715・安全点0に対し、屈折貫通は得点−0.1024・安全点−8だった。主力の過小評価だけでなく、代替球の安全性の過大評価も使用率低下を生みうる。代替球の実行結果は未観測であり、主力なら被害を減らせたとは断定しない。通常ガード球には完全な発射前入力が未保存で、軌道差の単独原因までは確定しない。guard_fall_shield_diagnosis.jsonに全イベントと候補内訳を保持。
+今回悪化2026112105/anchor：4→10。
+before_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 3}), ('midboss_001', 0, 2, {'player_guard': 1, 'player_anchor_finisher': 1}), ('campaign_phase_mid_pairs', 0, 6, {'player_heavy': 1, 'player_standard': 2, 'player_anchor_finisher': 1, 'player_guard': 2}), ('campaign_phase_mid_mixed', 0, 5, {'player_heavy': 2, 'player_anchor_finisher': 1, 'player_guard': 2}), ('campaign_phase_late_mixed', 0, 6, {'player_anchor': 1, 'player_heavy': 1, 'player_standard': 1, 'player_guard': 3}), ('campaign_phase_late_pairs', 2, 6, {'player_heavy': 1, 'player_guard': 2, 'player_anchor': 1, 'player_anchor_finisher': 1, 'player_standard': 1}), ('midboss_002', 0, 2, {'player_guard': 1, 'player_heavy': 1}), ('boss_002', 2, 10, {'player_guard': 4, 'player_standard': 3, 'player_heavy': 2, 'player_anchor_finisher': 1})]
+after_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 3}), ('midboss_001', 0, 2, {'player_guard': 1, 'player_anchor_finisher': 1}), ('campaign_phase_mid_pairs', 0, 5, {'player_heavy': 1, 'player_guard': 2, 'player_standard': 2}), ('campaign_phase_mid_mixed', 0, 4, {'player_standard': 2, 'player_guard': 1, 'player_heavy': 1}), ('campaign_phase_late_mixed', 0, 6, {'player_standard': 3, 'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_late_pairs', 0, 6, {'player_anchor_finisher': 1, 'player_guard': 3, 'player_standard': 2}), ('midboss_002', 1, 3, {'player_anchor': 1, 'player_guard': 1, 'player_heavy': 1}), ('boss_002', 9, 7, {'player_heavy': 2, 'player_guard': 3, 'player_anchor_finisher': 1, 'player_standard': 1})]
+今回悪化2026112106/anchor：7→12。
+before_stages: [('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 0, 2, {'player_guard': 1, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 0, 6, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 2}), ('campaign_phase_late_mixed', 4, 9, {'player_standard': 3, 'player_guard': 5, 'player_heavy': 1}), ('campaign_phase_late_pairs', 0, 7, {'player_standard': 1, 'player_guard': 4, 'player_heavy': 2}), ('midboss_002', 0, 3, {'player_guard': 3}), ('boss_001', 3, 7, {'player_guard': 3, 'player_heavy': 1, 'player_standard': 2, 'player_anchor_finisher': 1})]
+after_stages: [('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 0, 2, {'player_guard': 1, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 3, 7, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 3}), ('campaign_phase_late_mixed', 5, 8, {'player_heavy': 1, 'player_guard': 4, 'player_standard': 2, 'player_anchor': 1}), ('campaign_phase_late_pairs', 2, 7, {'player_heavy': 2, 'player_standard': 1, 'player_guard': 3, 'player_anchor': 1}), ('midboss_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('boss_001', 2, 4, {'player_guard': 1, 'player_heavy': 2, 'player_standard': 1})]
+今回悪化2026112109/bounce：2→3。
+before_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_mixed', 0, 4, {'player_standard': 1, 'player_guard': 2, 'player_heavy': 1}), ('midboss_001', 0, 3, {'player_guard': 2, 'player_heavy': 1}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_cushion_charge': 1}), ('campaign_phase_late_mixed', 0, 7, {'player_heavy': 2, 'player_standard': 1, 'player_guard': 4}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('boss_001', 2, 5, {'player_guard': 2, 'player_heavy': 1, 'player_standard': 2})]
+after_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_mixed', 0, 6, {'player_standard': 2, 'player_guard': 3, 'player_heavy': 1}), ('midboss_001', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_late_mixed', 1, 5, {'player_standard': 3, 'player_heavy': 1, 'player_guard': 1}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('boss_001', 2, 4, {'player_guard': 1, 'player_heavy': 2, 'player_standard': 1})]
+今回悪化2026112105/standard：3→8。
+before_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 3}), ('midboss_001', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('campaign_phase_mid_pairs', 0, 5, {'player_standard': 2, 'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_mixed', 0, 4, {'player_heavy': 1, 'player_guard': 1, 'player_standard': 2}), ('campaign_phase_late_mixed', 0, 6, {'player_heavy': 1, 'player_standard': 3, 'player_guard': 2}), ('campaign_phase_late_pairs', 0, 6, {'player_standard': 1, 'player_guard': 3, 'player_heavy': 2}), ('midboss_002', 1, 3, {'player_heavy': 2, 'player_guard': 1}), ('boss_002', 2, 9, {'player_guard': 4, 'player_standard': 3, 'player_heavy': 2})]
+after_stages: [('normal_002', 0, 3, {'player_guard': 3}), ('normal_002', 0, 3, {'player_guard': 3}), ('midboss_001', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('campaign_phase_mid_pairs', 0, 5, {'player_heavy': 2, 'player_guard': 3}), ('campaign_phase_mid_mixed', 0, 7, {'player_heavy': 1, 'player_guard': 5, 'player_standard': 1}), ('campaign_phase_late_mixed', 1, 8, {'player_standard': 2, 'player_guard': 5, 'player_heavy': 1}), ('campaign_phase_late_pairs', 1, 5, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 1}), ('midboss_002', 3, 3, {'player_heavy': 1, 'player_guard': 1, 'player_standard': 1}), ('boss_002', 3, 7, {'player_guard': 2, 'player_standard': 4, 'player_heavy': 1})]
+今回悪化2026112106/standard：15→20。
+before_stages: [('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_heavy': 1}), ('campaign_phase_mid_pairs', 1, 5, {'player_heavy': 2, 'player_guard': 3}), ('campaign_phase_late_mixed', 1, 5, {'player_heavy': 2, 'player_standard': 2, 'player_guard': 1}), ('campaign_phase_late_pairs', 4, 7, {'player_heavy': 3, 'player_guard': 2, 'player_standard': 1, 'player_anchor': 1}), ('midboss_002', 0, 1, {'player_heavy': 1}), ('boss_001', 9, 6, {'player_heavy': 2, 'player_guard': 2, 'player_standard': 2})]
+after_stages: [('normal_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('normal_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('midboss_002', 0, 3, {'player_guard': 2, 'player_standard': 1}), ('campaign_phase_mid_pairs', 1, 7, {'player_heavy': 1, 'player_guard': 4, 'player_standard': 2}), ('campaign_phase_late_mixed', 2, 5, {'player_heavy': 1, 'player_guard': 1, 'player_standard': 3}), ('campaign_phase_late_pairs', 4, 8, {'player_heavy': 2, 'player_guard': 3, 'player_standard': 2, 'player_bounce': 1}), ('midboss_002', 0, 2, {'player_guard': 1, 'player_standard': 1}), ('boss_001', 13, 7, {'player_heavy': 3, 'player_guard': 1, 'player_standard': 3})]
+実発射照合：{'heavy': {'shots': 58, 'available': 58, 'actual_falls': 1, 'false_negative': 0, 'false_positive': 0, 'complete': 58}, 'special': {'shots': 9, 'available': 9, 'actual_falls': 0, 'false_negative': 0, 'false_positive': 0, 'complete': 9}}
+旧v16重量球276打の同一入力照合：{'shots': 276, 'available': 276, 'complete': 275, 'actual_falls': 3, 'seconds': 53.43947230000049, 'before': {'false_negative': 1, 'false_positive': 1, 'contact_observed_shots': 276, 'enemy_pair_MAE': 0.5905797101449275}, 'after': {'false_negative': 1, 'false_positive': 0, 'contact_observed_shots': 276, 'enemy_pair_MAE': 0.35507246376811596}}
+採点・予測成分の整合性：{'counts': {'evaluated': 464, 'launch_snapshots': 67, 'heavy_shots': 58}, 'issues': []}
+特殊生成物の検証範囲：通常戦・中ボスのミニオンフィニッシャー選択0打、生成物未再現フラグ0打。使用機会や選択回数が減った影響と予測精度を区別し、未使用なら実ランで改善を証明したとは扱わない。
+公開score・HP成分・metricsは名目60%＋ストレス40%の加重平均。prediction_input・接触列・offense_budget・special_ability_estimatesは名目条件の診断であり、平均と混同しない。頑健性サンプルの比率は校正済み確率ではない。候補としての到達可能性も予測器による推定で、実到達保証ではない。
+
+判定：使用率は取得数・提示率・配置にも依存する。使用率上昇だけで有効性を証明せず、被害・手数・実際の能力活用と併記する。生成球・同時接触・浮動小数点・ポケット復帰後を含む実ソルバー全体の完全再現ではない。25条件は確率や損失上限を保証しない。
+各3ランの既知seed比較であり、重みの最適性・未知seedでの性能・面白さは確定しない。主力球を強制する追加点は導入していない。原ログ・固定コード・対応15組と旧8組の全分析を保持。
+
+実測結果の評価
+平均被ダメージは13.71%減少した一方、平均打数は4.22%増えた。主力球使用率のラン平均は0.774ポイント増加にとどまる。重量型の使用率低下は残り、アンカー型の被害は増加した。全型で一様に改善したとは判定しない。
+直接貫通と初回範囲撃破の過小評価は修正前失敗・修正後成功のテストで確認したが、重みの最適性や主力球の使用率低下の全面解消を証明したものではない。低下には使用機会・総打数・代替球の安全性誤差・成長構成・専用ボス採点も関わる。
+
+通常MCPへの反映確認
+ポート8765へv18を反映し、MCP応答のモデル名を確認。元のゲームPID10992、scene=result、HP23、中級者・standard設定と全control設定を維持。途中版と正式版の検証用ポートに待受なし、ゲームは元の1プロセスだけ。正式収集親は終了コード0。main_mcp_verification.jsonに記録。

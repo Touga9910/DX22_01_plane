@@ -160,6 +160,7 @@ TitleViewSnapshot GameView::CaptureTitle()
     const Game& game = *Game::GetInstance();
     TitleViewSnapshot view{};
     view.validRunSave = game.HasValidRunSave();
+    view.transitionTiming = game.GetSceneTransitionTiming();
     return view;
 }
 
@@ -238,7 +239,7 @@ void GameSceneCommands::StartNewRun()
 
 bool GameSceneCommands::LoadSavedRun()
 {
-    return Game::GetInstance()->LoadSavedRun();
+    return Game::GetInstance()->LoadSavedRunWithFade();
 }
 
 void GameSceneCommands::OpenDebugMode()

@@ -57,7 +57,25 @@ PausePresentationIntent GamePresentation::DrawPause(
 	}
 	ImGui::TextDisabled("音声実装後に利用する設定値として保存されます");
 
-	ImGui::SeparatorText("演出");
+	ImGui::SeparatorText("画面遷移");
+	settingsChanged |= ImGui::SliderFloat("フェードアウト時間", &settings.sceneTransition.fadeOutSeconds,
+		0.0f, SceneTransitionTiming::MaximumSeconds, "%.2f 秒", ImGuiSliderFlags_AlwaysClamp);
+	settingsChanged |= ImGui::SliderFloat("完全暗転の保持時間", &settings.sceneTransition.blackHoldSeconds,
+		0.0f, SceneTransitionTiming::MaximumSeconds, "%.2f 秒", ImGuiSliderFlags_AlwaysClamp);
+	settingsChanged |= ImGui::SliderFloat("フェードイン時間", &settings.sceneTransition.fadeInSeconds,
+		0.0f, SceneTransitionTiming::MaximumSeconds, "%.2f 秒", ImGuiSliderFlags_AlwaysClamp);
+	if (ImGui::Button("現在の設定でフェードをプレビュー", ImVec2(-1.0f, 34.0f)))
+	{
+		intent.previewSceneTransition = true;
+	}
+	ImGui::TextWrapped("画面を切り替えず、設定画面のまま演出を再生します。プレビュー中はEscで中断できます。");
+	if (ImGui::Button("画面遷移の時間を初期値に戻す"))
+	{
+		settings.sceneTransition = {};
+		settingsChanged = true;
+	}
+	ImGui::TextWrapped("次の画面遷移から反映します。タイトル開始後の暗転にも適用します。設定画面を閉じると保存されます。");
+	ImGui::SeparatorText("演出効果");
 	const bool vibrationWasEnabled = settings.vibrationEnabled;
 	settingsChanged |= ImGui::Checkbox(
 		"コントローラー振動",

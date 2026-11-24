@@ -51,6 +51,7 @@ struct PausePresentationIntent
 {
 	GameSettings settings{};
 	bool settingsChanged = false;
+	bool previewSceneTransition = false;
 	bool resume = false;
 	bool applyDisplay = false;
 	bool requestDebugExit = false;

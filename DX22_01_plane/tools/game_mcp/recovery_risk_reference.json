@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "source": "1121_mcp_policy_after, 50 runs; pooled stage groups, no seed/build lookup",
+  "calibration_note": "Paired-seed in-sample validation, not held-out generalization",
+  "groups": {
+    "boss": {
+      "samples": 47,
+      "mean": 4.085,
+      "p90": 9,
+      "maximum": 10
+    },
+    "early": {
+      "samples": 100,
+      "mean": 1.03,
+      "p90": 2,
+      "maximum": 3
+    },
+    "late": {
+      "samples": 60,
+      "mean": 12.717,
+      "p90": 21,
+      "maximum": 34
+    },
+    "mid": {
+      "samples": 70,
+      "mean": 8.429,
+      "p90": 13,
+      "maximum": 20
+    },
+    "midBoss": {
+      "samples": 55,
+      "mean": 2.164,
+      "p90": 4,
+      "maximum": 10
+    }
+  }
+}

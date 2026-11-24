@@ -21,6 +21,8 @@ struct TitlePhysicsWorld
     std::array<std::size_t,16> order{};
     int stopCount=0;
     bool hit=false;
+    bool breakFanEnabled=false;
+    bool breakFanApplied=false;
     TitlePhysicsWorld()
     {
         active.fill(true);
@@ -64,6 +66,15 @@ struct TitlePhysicsWorld
         if(BallPhysicsRules::Pair(a,b))
         {
             hit=true;
+            if(breakFanEnabled&&!breakFanApplied&&(i==0||j==0)&&speed>.1f)
+            {
+                // One title-only break accent. The second-row flank balls have
+                // an open outward lane, including a small component toward the cue.
+                breakFanApplied=true;
+                const float fanSpeed=(std::min)(speed*.32f,2.8f);
+                if(active[2])balls[2].velocity=Vector3(-.45f,0,-.893f)*fanSpeed;
+                if(active[3])balls[3].velocity=Vector3(-.45f,0,.893f)*fanSpeed;
+            }
             if(impact)
             {
                 CollisionImpactEvent e{};e.worldPosition=(first+second)*.5f;

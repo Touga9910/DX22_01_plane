@@ -29,12 +29,16 @@ void TitleTable::Awake()
 {
     Release();
     m_Physics=TitlePhysicsWorld{};m_ShakePhase=m_ShakeLifetime=m_ShakeStrength=m_ShakeCooldown=0;m_Age=0;m_Released=false;m_Accumulator=0;m_EffectFrame=0;m_Vfx.Reset();
+    m_CameraBlend=0;m_Physics.breakFanEnabled=true;
     BallStatus fallback;fallback.radius=2.4f;fallback.mass=2;fallback.restitution=.8f;fallback.friction=.02f;
     const auto data=PlayerBallDataLoader::Load("assets/data/player_status.json",fallback,PlayerRunStatus{});
     auto cue=data.defaultBallStatus;
     for(const auto& ball:data.ballDefinitions)if(ball.definitionId=="player_standard")cue=ball.status;
     auto numbered=cue;
     for(const auto& enemy:StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json"))if(enemy.id=="enemy_normal")numbered=enemy.status;
+    // Title-only numbered balls coast farther after the break.
+    constexpr float NumberedBallFrictionScale = .65f;
+    numbered.friction *= NumberedBallFrictionScale;
     m_Physics.impact=[this](const CollisionImpactEvent& event)
     {
         GameSceneCommands::PlayTitleCollision(event);
@@ -72,15 +76,18 @@ void TitleTable::Awake()
         render->LoadModel("assets/model/golf_ball.obj","assets/model/");
         render->SetSpecularStrength(.8f);render->SetEnvironmentStrength(.25f);
     }
+    // Approach the rack from the side rather than straight down its centerline.
+    m_Physics.balls[0].position.z=-12.0f;
     const float spacing=numbered.radius*2+.02f;
     int i=1;
     for(int row=0;row<5;++row) for(int col=0;col<=row;++col)
         m_Physics.balls[i++].position={19+row*spacing*.87f,TableConfig::FIELD_HEIGHT,(col-row*.5f)*spacing};
     m_Ready=true;
 }
-void TitleTable::Step(float dt,bool released)
+void TitleTable::Step(float dt,bool released,float cameraBlend)
 {
     if(!m_Ready)return;
+    m_CameraBlend=std::clamp(cameraBlend,0.0f,1.0f);
     m_Age+=dt;++m_EffectFrame;
     m_ShakeCooldown=(std::max)(0.0f,m_ShakeCooldown-dt);
     m_ShakeLifetime=GameSceneCommands::TitleShakeEnabled()?(std::max)(0.0f,m_ShakeLifetime-dt):0;
@@ -91,8 +98,8 @@ void TitleTable::Step(float dt,bool released)
     {
         m_Released=true;
         auto direction=m_Physics.balls[1].position-m_Physics.balls[0].position;direction.y=0;direction.Normalize();
-        m_Physics.balls[0].velocity=direction*ShotPowerRules::AtFraction(.8f);
-        GameSceneCommands::PlayTitleCue(true,ShotPowerRules::AtFraction(.8f));
+        m_Physics.balls[0].velocity=direction*ShotPowerRules::AtFraction(.95f);
+        GameSceneCommands::PlayTitleCue(true,ShotPowerRules::AtFraction(.95f));
     }
     m_Accumulator+=std::clamp(dt,0.0f,.1f);
     while(m_Accumulator>=1.0f/60)
@@ -110,8 +117,8 @@ void TitleTable::Draw()
     m_RenderWidth=w;m_RenderHeight=h;
     D3D11_VIEWPORT viewport{w*.35f,0,w*.65f,h,0,1};context->RSSetViewports(1,&viewport);
     const float aspect=viewport.Width/viewport.Height;
-    const float distance=230.0f*(std::max)(1.0f,1.0f/aspect);
-    Vector3 eye(-distance*.60f+std::sin(m_Age*.08f)*1.3f,distance*.62f,-distance*.56f);
+    const float distance=(230.0f-50.0f*m_CameraBlend)*(std::max)(1.0f,1.0f/aspect);
+    Vector3 eye(-distance*.60f+std::sin(m_Age*.08f)*1.3f*(1-m_CameraBlend),distance*.62f,-distance*.56f);
     const auto shake=CollisionPresentationRules::ShakeOffset(m_ShakePhase,m_ShakeLifetime,m_ShakeStrength);
     const Vector3 targetPoint(shake.x,1,shake.z);
     RenderViewOverride::View view{DirectX::XMMatrixLookAtLH(eye,targetPoint,Vector3::UnitY),

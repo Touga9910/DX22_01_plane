@@ -161,6 +161,22 @@ class BuildCollectorDecisionTests(unittest.TestCase):
         self.assertTrue(is_terminal_summary({"completed": True, "reason": "final_boss_defeated"}))
         self.assertFalse(is_terminal_summary({"completed": False, "reason": "maximum_steps_reached"}))
 
+    def test_start_waits_for_result_scene_to_leave_after_seed_reset(self):
+        old = {"scene": "result", "balance_validation": {"run_seed": 1001},
+               "mcp_control": {"build_profile": {"id": "standard", "settings_hash": "hash"}}}
+        fading = copy.deepcopy(old)
+        fading["balance_validation"]["run_seed"] = 1002
+        active = copy.deepcopy(fading)
+        active["scene"] = "stage_select"
+        with patch("collect_fixed_balance_runs.get_state", AsyncMock(side_effect=[old, old, fading, active])), \
+             patch("collect_fixed_balance_runs._select_build_before_run", AsyncMock()), \
+             patch("collect_fixed_balance_runs.call", AsyncMock(return_value={"ok": True})) as send, \
+             patch("collect_fixed_balance_runs.asyncio.sleep", AsyncMock()):
+            result = asyncio.run(ensure_comparison_run_started(
+                object(), 1002, "standard", "hash", "fixed"))
+        self.assertEqual(result["state"]["scene"], "stage_select")
+        self.assertEqual(send.await_count, 1)
+
     def setUp(self) -> None:
         path = Path(__file__).resolve().parent / "build_profiles.json"
         self.profiles, _ = load_build_profiles(path)
@@ -591,6 +607,28 @@ class ComparisonCollectionTests(unittest.TestCase):
             "run_progress": {"final_boss_reached": True, "final_boss_defeated": True},
         }
         return run, summary
+
+    def test_rest_metrics_accept_runtime_scene_names(self) -> None:
+        run, summary = self.heavy_run()
+        run["events"].extend([
+            {"event_type": "route_area_completed", "details": {"area_type": "rest_site"}},
+            {"event_type": "ball_upgraded", "details": {"source_scene": "REST_SITE"}},
+            {"event_type": "ball_upgraded", "details": {"source_scene": "BATTLE"}},
+        ])
+        record = extract_run_record(run, summary, Path("run.json"))
+        self.assertEqual(record["rest_visits"], 1)
+        self.assertEqual(record["rest_upgrade_count"], 1)
+
+    def test_shared_shield_absorption_is_not_attributed_to_anchor_ball(self) -> None:
+        run, summary = self.heavy_run()
+        run["controller"]["build_profile"] = "anchor"
+        run["events"].append({"event_type": "stop_shield_absorbed", "details": {"absorbed": 1}})
+        record = extract_run_record(run, summary, Path("run.json"))
+        self.assertEqual(record["generic_shield_absorption_event_count"], 1)
+        self.assertNotIn("stop_shield_absorbed", record["build_mechanic_activation_counts"])
+        status = record["build_mechanic_measurement_status"]["stop_shield_absorbed"]
+        self.assertEqual(status["status"], "unsupported")
+        self.assertIsNone(status["count"])
 
     def test_extracts_requested_comparison_metrics(self) -> None:
         run, summary = self.heavy_run()

@@ -5,6 +5,7 @@
 #include "imgui/imgui.h"
 #include <array>
 #include "GameSettingsRuntime.h"
+#include "GameRuntimeState.h"
 #include "GameRewardState.h"
 #include "GameBallSelectionState.h"
 #include "GamePauseState.h"
@@ -38,6 +39,10 @@ void Game::DrawPauseUI()
 		{
 			Input::SetVibration(0, 0.0f);
 		}
+	}
+	if (intent.previewSceneTransition)
+	{
+		m_RuntimeState->Transition().RequestPreview(intent.settings.sceneTransition);
 	}
 	if (intent.applyDisplay)
 	{

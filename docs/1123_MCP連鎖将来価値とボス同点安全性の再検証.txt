@@ -1,0 +1,208 @@
+作成日：2026年11月23日
+正式比較結果
+作成日：2026年11月23日
+判定：未検証の将来撃破加点の抑制とボス同点内の安全優先は対照検証で確認できた。一方、ラン全体の判断基準の改善は確認できず、今回のv23は通常MCPへ採用しない。通常MCPは検証済みv20を維持する。現在の攻撃得点と被害の交換条件、候補の絞り込みで有効軌道が脱落する問題は残る。
+条件：seed2026112105・2026112106・2026112109、5ビルド各3有効ラン。B0014、中級者、固定難度、DDA無効、legacy/standard。通常・中ボスは照準半径±2%・威力±5%の誤差条件、最終ボスは共通ネイティブ予測で照準誤差なし。v22を主比較元、通常MCPを維持したv20も参照する。
+全勝率 15/15→15/15、平均被害 6.200→6.867、平均手数 37.667→37.200。
+検証済みv20参照：平均被害5.267→6.867、平均手数37.333→37.200。
+v22比：改善7・同等2・悪化6組。
+平均最終HP 44.267→43.933。休憩での回復行動平均 0.000→0.000。被害は回復を差し引かない累計であり、正味HP損失・最終HPと区別する。
+
+前回悪化6組の今回の結果（累計被害 v22→v23）
+重量 2026112105：9→8、手数43→41
+重量 2026112106：7→6、手数31→32
+重量 2026112109：5→6、手数37→29
+反射 2026112106：12→12、手数37→45
+貫通 2026112109：8→7、手数36→37
+標準 2026112109：5→7、手数32→32
+6組中3組改善・1組同等・2組悪化。全15組では反射05・09、貫通06など新たな悪化も発生した。
+
+ビルド別平均：被害／手数／系列使用率（v22→v23）
+標準：5.333→6.000／37.000→37.000／25.07%→35.39%
+重量：7.000→6.667／37.000→34.000／21.51%→23.48%
+貫通：5.667→6.667／41.000→40.667／10.03%→11.19%
+反射：5.667→8.667／34.667→39.000／2.70%→2.63%
+アンカー：7.333→6.333／38.667→35.333／5.98%→2.44%
+
+ボス合計：v20 {'shots': 88, 'damage': 41}、v22 {'shots': 95, 'damage': 43}、v23 {'shots': 95, 'damage': 44}
+緊急修理キットで実際に回復したHP合計：v22 7→v23 12。休憩回復0でも戦闘中の回復はあり得る。
+
+重量型の球単体使用（系列率と分ける）：v22 {'player_guard': 58, 'player_chain_impact': 9, 'player_heavy': 14, 'player_standard': 28, 'player_pierce': 2}、v23 {'player_guard': 51, 'player_heavy': 15, 'player_chain_impact': 9, 'player_standard': 27}
+
+通常戦・中ボスでの主力系列の到達可能候補と採用機会：{'before': {'anchor': {'all_shots': 116, 'target_shots': 7, 'joint_evaluated_shots': 94, 'target_reachable_opportunities': 34, 'target_chosen_when_reachable': 6, 'without_joint_candidate_log': 22}, 'bounce': {'all_shots': 104, 'target_shots': 3, 'joint_evaluated_shots': 92, 'target_reachable_opportunities': 26, 'target_chosen_when_reachable': 3, 'without_joint_candidate_log': 12}, 'heavy': {'all_shots': 111, 'target_shots': 23, 'joint_evaluated_shots': 90, 'target_reachable_opportunities': 48, 'target_chosen_when_reachable': 21, 'without_joint_candidate_log': 21}, 'pierce': {'all_shots': 123, 'target_shots': 12, 'joint_evaluated_shots': 97, 'target_reachable_opportunities': 47, 'target_chosen_when_reachable': 9, 'without_joint_candidate_log': 26}, 'standard': {'all_shots': 111, 'target_shots': 27, 'joint_evaluated_shots': 97, 'target_reachable_opportunities': 92, 'target_chosen_when_reachable': 22, 'without_joint_candidate_log': 14}}, 'after': {'anchor': {'all_shots': 106, 'target_shots': 3, 'joint_evaluated_shots': 89, 'target_reachable_opportunities': 31, 'target_chosen_when_reachable': 3, 'without_joint_candidate_log': 17}, 'bounce': {'all_shots': 117, 'target_shots': 3, 'joint_evaluated_shots': 96, 'target_reachable_opportunities': 23, 'target_chosen_when_reachable': 1, 'without_joint_candidate_log': 21}, 'heavy': {'all_shots': 102, 'target_shots': 24, 'joint_evaluated_shots': 89, 'target_reachable_opportunities': 54, 'target_chosen_when_reachable': 19, 'without_joint_candidate_log': 13}, 'pierce': {'all_shots': 122, 'target_shots': 13, 'joint_evaluated_shots': 101, 'target_reachable_opportunities': 48, 'target_chosen_when_reachable': 8, 'without_joint_candidate_log': 21}, 'standard': {'all_shots': 111, 'target_shots': 39, 'joint_evaluated_shots': 88, 'target_reachable_opportunities': 84, 'target_chosen_when_reachable': 31, 'without_joint_candidate_log': 23}}}。候補に現れないこと、資源不足で能力が出ないこと、得点で選ばれないことを区別する。ボスはこの通常戦候補ログの対象外。
+前回悪化6組および今回の悪化組
+反射 2026112105（前回悪化6組=False）：被害 v20 2→v22 2→v23 6、手数 v22 37→v23 43、最終HP 48→44
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点4.979、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.839, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点4.979、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.839, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_pairs→campaign_phase_mid_pairs：被害0→0、手数5→6、退出HP50→50
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→0、手数4→7、退出HP50→50
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害0→0、手数7→5、退出HP50→50
+  戦闘boss_002→boss_002：被害2→6、手数4→8、退出HP48→44
+反射 2026112106（前回悪化6組=True）：被害 v20 7→v22 12→v23 12、手数 v22 37→v23 45、最終HP 38→38
+  今回最初の分岐：{'kind': 'shot', 'stage': 'campaign_phase_late_mixed', 'shot': 3}
+    before：球player_heavy、個体3、開始位置[-26.576417922973633, 1.0, -13.592663764953613]、実速度[-4.948484897613525, 0.0, 0.6092822551727295]、被害予測1.973、得点10.8746、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.1867, 'damage': 10.8833, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 7.7933, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -0.465, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.6, 'precision': 1.0, 'prevented_attack': 0.0533, 'protection_release': 0.0, 'resource_delta_value': 0.2616, 'safety': -7.8933, 'stable_stop': 0.0, 'stress_tail_risk': -0.04, 'uncertainty': -0.3053, 'waste_penalty': 0.0}
+    after：球player_guard、個体9、開始位置[-26.576417922973633, 1.0, -13.592663764953613]、実速度[0.1912367343902588, 0.0, 2.9853930473327637]、被害予測0.0、得点9.4、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 2.0, 'chain_collisions': 0.7, 'damage': 6.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 2.8, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -2.5, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.0, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.24, 'waste_penalty': 0.0}
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害7→5、手数7→10、退出HP43→45
+  戦闘campaign_phase_late_pairs→campaign_phase_late_pairs：被害4→5、手数7→7、退出HP39→40
+  戦闘boss_001→boss_001：被害1→2、手数4→9、退出HP38→38
+反射 2026112109（前回悪化6組=False）：被害 v20 3→v22 3→v23 8、手数 v22 30→v23 29、最終HP 48→45
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→3、手数6→5、退出HP50→47
+  戦闘midboss_002→midboss_002：被害0→0、手数3→2、退出HP50→47
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害1→0、手数5→6、退出HP50→50
+  戦闘boss_001→boss_001：被害2→5、手数4→4、退出HP48→45
+重量 2026112105（前回悪化6組=True）：被害 v20 6→v22 9→v23 8、手数 v22 43→v23 41、最終HP 41→42
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点4.979、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.839, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点4.979、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.839, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_pairs→campaign_phase_mid_pairs：被害0→0、手数5→6、退出HP50→50
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→1、手数4→6、退出HP50→49
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害3→4、手数8→8、退出HP47→45
+  戦闘midboss_002→midboss_002：被害1→0、手数3→3、退出HP45→44
+  戦闘boss_002→boss_002：被害4→2、手数9→4、退出HP41→42
+重量 2026112106（前回悪化6組=True）：被害 v20 4→v22 7→v23 6、手数 v22 31→v23 32、最終HP 43→44
+  今回最初の分岐：{'kind': 'shot', 'stage': 'campaign_phase_late_pairs', 'shot': 4}
+    before：球player_heavy、個体3、開始位置[-15.221153259277344, 1.0, -13.476775169372559]、実速度[-4.753167152404785, 0.0, 1.2501276731491089]、被害予測1.28、得点14.4744、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.2917, 'damage': 12.8333, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 9.8933, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -6.265, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.6, 'precision': 0.8028, 'prevented_attack': 5.44, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': -5.12, 'stable_stop': 0.0, 'stress_tail_risk': -2.58, 'uncertainty': -0.2217, 'waste_penalty': 0.0}
+    after：球player_guard、個体12、開始位置[-15.221153259277344, 1.0, -13.476775169372559]、実速度[-6.837347030639648, 0.0, 0.7715626358985901]、被害予測0.0、得点8.105、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 1.0, 'chain_collisions': 1.1667, 'damage': 5.2667, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.8733, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -5.3267, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.84, 'precision': 1.0, 'prevented_attack': 2.1333, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.1683, 'waste_penalty': 0.0}
+  戦闘campaign_phase_late_pairs→campaign_phase_late_pairs：被害1→0、手数6→7、退出HP45→46
+重量 2026112109（前回悪化6組=True）：被害 v20 2→v22 5→v23 6、手数 v22 37→v23 29、最終HP 46→47
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→3、手数6→5、退出HP50→47
+  戦闘midboss_001→midboss_001：被害0→0、手数3→2、退出HP50→47
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害1→1、手数9→7、退出HP50→49
+  戦闘midboss_002→midboss_002：被害0→0、手数3→2、退出HP50→49
+  戦闘boss_001→boss_001：被害4→2、手数7→4、退出HP46→47
+貫通 2026112106（前回悪化6組=False）：被害 v20 7→v22 4→v23 9、手数 v22 42→v23 41、最終HP 49→42
+  今回最初の分岐：{'kind': 'shot', 'stage': 'campaign_phase_late_mixed', 'shot': 1}
+    before：球player_heavy、個体3、開始位置[0.0, 1.0, 0.0]、実速度[-2.27791166305542, 0.0, 1.939139485359192]、被害予測0.0、得点17.9438、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.6, 'damage': 11.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 5.6, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.0, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.4438, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.34, 'waste_penalty': 0.0}
+    after：球player_standard、個体2、開始位置[0.0, 1.0, 0.0]、実速度[-2.4591450691223145, 0.0, 1.7034518718719482]、被害予測0.0、得点17.5971、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 10.6, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 6.72, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': 0.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.9021, 'prevented_attack': 0.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': -0.265, 'waste_penalty': 0.0}
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害0→3、手数7→8、退出HP48→45
+  戦闘campaign_phase_late_pairs→campaign_phase_late_pairs：被害0→1、手数6→5、退出HP48→44
+  戦闘midboss_002→midboss_002：被害0→0、手数2→3、退出HP48→44
+  戦闘boss_001→boss_001：被害2→3、手数9→7、退出HP49→42
+貫通 2026112109（前回悪化6組=True）：被害 v20 6→v22 8→v23 7、手数 v22 36→v23 37、最終HP 42→43
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点4.9653、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 3.5, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.0, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 0.8253, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘normal_002→normal_002：被害0→1、手数3→3、退出HP50→49
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害0→2、手数7→8、退出HP48→45
+  戦闘midboss_002→midboss_002：被害1→0、手数3→3、退出HP47→45
+  戦闘boss_001→boss_001：被害5→2、手数8→8、退出HP42→43
+標準 2026112105（前回悪化6組=False）：被害 v20 3→v22 3→v23 4、手数 v22 41→v23 43、最終HP 47→48
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点5.3984、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 4.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.5, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.2584, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[50.624473571777344, 1.0, -6.067829132080078]、実速度[-3.0064520835876465, 0.0, -0.17356525361537933]、被害予測0.0、得点5.3984、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 4.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.5, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.2584, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_pairs→campaign_phase_mid_pairs：被害0→0、手数5→6、退出HP50→50
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→0、手数7→4、退出HP50→50
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害1→2、手数8→6、退出HP49→48
+  戦闘boss_002→boss_002：被害2→2、手数4→10、退出HP47→48
+標準 2026112109（前回悪化6組=True）：被害 v20 4→v22 5→v23 7、手数 v22 32→v23 32、最終HP 46→46
+  今回最初の分岐：{'kind': 'shot', 'stage': 'normal_002', 'shot': 3}
+    before：球player_guard、個体8、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点5.378、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 4.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.5, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.238, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+    after：球player_heavy、個体3、開始位置[-52.35147476196289, 1.0, -8.197651863098145]、実速度[2.9783270359039307, 0.0, -0.09796790033578873]、被害予測0.0、得点5.378、内訳{'anchor_followup_position': 0.0, 'anchor_target_focus': 0.0, 'bank_damage_gain': 0.0, 'chain_collisions': 0.0, 'damage': 3.0, 'danger_priority': 0.0, 'finisher_value': 0.0, 'kills': 4.0, 'lethal_risk': 0.0, 'next_shot_setup_value': 0.0, 'offense_overlap_adjustment': -4.5, 'pierce_followups': 0.0, 'pocket_control': 0.0, 'power_cost': -0.36, 'precision': 1.238, 'prevented_attack': 2.0, 'protection_release': 0.0, 'resource_delta_value': 0.0, 'safety': 0.0, 'stable_stop': 0.0, 'stress_tail_risk': -0.0, 'uncertainty': 0.0, 'waste_penalty': 0.0}
+  戦闘campaign_phase_mid_mixed→campaign_phase_mid_mixed：被害0→3、手数6→5、退出HP50→47
+  戦闘midboss_001→midboss_001：被害0→0、手数3→2、退出HP50→47
+  戦闘midboss_002→midboss_002：被害0→0、手数3→2、退出HP50→47
+  戦闘campaign_phase_late_mixed→campaign_phase_late_mixed：被害3→0、手数7→7、退出HP48→50
+  戦闘boss_001→boss_001：被害2→4、手数4→7、退出HP46→46
+
+被害・危険場面（実被害2以上またはHP被害0予測での被弾、詳細JSONに全件保存）
+反射 2026112105 boss_002 5手目 player_heavy：開始HP48、実累計被害4、緊急修理実回復0、回復前被害予測4.0、正味損失予測4.0、保守正味予測None、内訳{'boss_strong_attack': 4}。ボスは専用予測を別監査。
+重量 2026112105 campaign_phase_late_mixed 4手目 player_standard：開始HP49、実累計被害4、緊急修理実回復0、回復前被害予測4.0、正味損失予測4.0、保守正味予測4.0、内訳{'enemy_attack': 4}。ボスは専用予測を別監査。
+反射 2026112106 campaign_phase_late_mixed 6手目 player_heavy：開始HP49、実累計被害4、緊急修理実回復0、回復前被害予測4.267、正味損失予測4.267、保守正味予測5.0、内訳{'enemy_attack': 4}。ボスは専用予測を別監査。
+アンカー 2026112106 campaign_phase_mid_pairs 4手目 player_standard：開始HP50、実累計被害3、緊急修理実回復0、回復前被害予測2.76、正味損失予測2.76、保守正味予測4.0、内訳{'enemy_attack': 3}。ボスは専用予測を別監査。
+アンカー 2026112106 campaign_phase_late_mixed 6手目 player_standard：開始HP45、実累計被害3、緊急修理実回復0、回復前被害予測3.2、正味損失予測3.2、保守正味予測4.0、内訳{'enemy_attack': 3}。ボスは専用予測を別監査。
+反射 2026112106 campaign_phase_late_pairs 4手目 player_standard：開始HP45、実累計被害3、緊急修理実回復0、回復前被害予測3.4、正味損失予測3.4、保守正味予測5.0、内訳{'enemy_attack': 3}。ボスは専用予測を別監査。
+反射 2026112109 boss_001 1手目 player_ricochet_finisher：開始HP50、実累計被害3、緊急修理実回復0、回復前被害予測3.0、正味損失予測3.0、保守正味予測None、内訳{'enemy_attack': 3}。ボスは専用予測を別監査。
+貫通 2026112105 boss_002 4手目 player_pierce_finisher：開始HP50、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測None、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+貫通 2026112105 boss_002 5手目 player_guard：開始HP48、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測None、内訳{'boss_strong_attack': 1, 'enemy_attack': 1}。ボスは専用予測を別監査。
+標準 2026112105 campaign_phase_late_mixed 3手目 player_standard：開始HP50、実累計被害2、緊急修理実回復0、回復前被害予測2.003、正味損失予測2.003、保守正味予測2.003、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+アンカー 2026112106 campaign_phase_late_mixed 4手目 player_guard：開始HP47、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+アンカー 2026112106 campaign_phase_late_pairs 2手目 player_standard：開始HP42、実累計被害2、緊急修理実回復0、回復前被害予測2.2、正味損失予測2.2、保守正味予測3.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+反射 2026112106 campaign_phase_late_pairs 5手目 player_heavy：開始HP42、実累計被害2、緊急修理実回復0、回復前被害予測2.013、正味損失予測2.013、保守正味予測2.013、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+重量 2026112106 campaign_phase_mid_pairs 3手目 player_heavy：開始HP50、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+貫通 2026112106 campaign_phase_late_mixed 6手目 player_guard：開始HP47、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+標準 2026112106 campaign_phase_late_mixed 3手目 player_standard：開始HP50、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+標準 2026112106 campaign_phase_late_pairs 2手目 player_standard：開始HP48、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+アンカー 2026112109 campaign_phase_late_mixed 3手目 player_standard：開始HP50、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+反射 2026112109 campaign_phase_mid_mixed 3手目 player_standard：開始HP49、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+重量 2026112109 campaign_phase_mid_mixed 3手目 player_standard：開始HP49、実累計被害2、緊急修理実回復0、回復前被害予測2.0、正味損失予測2.0、保守正味予測2.0、内訳{'enemy_attack': 2}。ボスは専用予測を別監査。
+
+低HP（10以下）観測：[]。敗北：[]
+
+予測精度と整合性
+通常・中ボス敵ターンHP予測：MAE0.033877、0予測被弾0件。
+自己落下リスク0で実落下：0件。HP被害合計0予測で実被害：0件。
+撃破数過大予測：0件。整合性：{'counts': {'evaluated': 463, 'launch_snapshots': 331, 'heavy_shots': 63}, 'issues': []}
+最終ボス共有予測：{'shots': 95, 'enemy_zero_with_damage': 0, 'enemy_hp_mae': 0.0, 'immediate_hp_mae': 0.0, 'total_zero_with_damage': 0}
+ボス同点安全性監査：{'shots': 95, 'issues': []}。ネイティブのstate_keyで実ショットと対応した95手のうち、最高得点群の被害内訳が全候補同じで安全同点処理が選択を変えない手は95。違うリスクの同点候補が存在することだけでは、v22から選択が変わった証拠にはしない。
+標準05は通常戦4手短縮に対してボス4→10手、総41→43手、被害3→4。実ボス10手はすべて最高得点群の被害内訳が同じで、同じ候補集合なら今回の安全同点処理は選択を変えない。到達時デッキは反射球から貫通球への置き換え、ガード球の残る個体と並び順も変化している。標準05の長期化を同点修正だけの効果と断定しない。standard05_boss_entry_comparison.jsonとstandard05_boss_same_risks.jsonを参照。
+標準05は累計被害3→4でも最終HP47→48。新ボス戦で緊急修理キットの実回復1が2回あり、ボス戦開始HP48・累計被害2・終了HP48だった。累計被害だけで生存性が低下したと断定しない。一方、ボス手数増は別の不利益として残る。
+重量06 mid_pairs 3手目は旧v22と新v23でプレイヤー状態・敵状態・狙い・実発射速度が一致し、同じ重量球が選ばれた。資源得点1.815→0.220、総得点12.6978→11.1028でも、被害0予測ガード4.7569より高い。将来加点を丸ごと除いても順位が変わらないため、この手の選択を将来価値だけの問題とは説明できない。予測損失2・実HP減少2、実撃破2。heavy06_same_scene_scoring_comparison.jsonを参照。
+前回悪化6組のうち重量05：旧late_mixed 3手目の資源得点3.184には次の手札・配置を確認していない撃破価値が含まれていた。同一保存入力では新18.1207が安全ガード19.8165を下回り、この過大加点は是正できた。ただし実ランは初戦3手目の同得点ガード→重量から分岐し、同じ問題盤面へは到達していない。全体9→8の内訳はmid_mixed 0→1、late_mixed 3→4、中ボス1→0、ボス4→2であり、旧問題場面の修正だけで全体改善を説明しない。
+重量06：mid_pairsで予測2・実被害2の交換を新採点でも受け入れた。全体7→6はlate_pairsの1→0によるもので、その戦闘は6→7手、全体31→32手へ増えた。前回の過大な将来加点は一因だが、現在の撃破得点とHP費用の交換条件も残る。
+重量09：初戦3手目の同得点ガード→重量から経路が分岐。mid_mixed被害0→3に対し、ボス被害4→2・7→4手で一部相殺し、全体5→6・37→29手となった。mid_mixed 3手目の標準球は資源加点0、損失予測2・実被害2。将来連鎖加点の過大評価だけでは説明できない。最終HP46→47は回復も含むため、累計被害増と分けて評価する。
+標準09：初戦の同得点候補の分岐後、mid_mixed被害0→3、late_mixed 3→0、ボス2→4。全体5→7・32→32手、最終HP46→46で、ボス4→7手が残る不利益。新mid_mixed 3手目は資源加点0、損失予測2・実被害2。旧late_mixedの損失予測1.827・実被害2も0予測の見逃しではない。盤面・到達デッキの変化とボス再順位付けを混同しない。
+貫通09：全体8→7、36→37手、最終HP42→43。ボスは被害5→2でも8→8手で短縮していない。通常戦等は3→5で、第2通常戦0→1、late_mixed 0→2、中ボス1→0。実ランの最初の分岐は初戦3手目のガード→重量で、保存された旧ボス同点盤面より前に発生した。新ボス8手の最高得点群はすべて同じ被害内訳であり、保存盤面で確認した同点修正の効果を、そのまま今回のボス被害減の原因とは断定できない。
+反射06 late_mixed 3手目は重量球（旧得点10.8746、損失予測1.973）からガード球（新得点9.4、損失予測0）へ分岐。同じ敵・プレイヤーの位置とHPを持つ旧重量軌道を新採点で再評価すると10.613（資源加点0）で、今回公開された重量候補8.5813や選択ガード9.4より高い。候補を少数へ絞る段階で軌道集合が変わるため、今回の選択を全軌道に対する新得点の最適解とは主張できない。これは有限探索の残る制限であり、同じ候補の加点差だけでラン差を説明しない。危険な重量軌道を優先すべきだと断定するものでもない。bounce06_scene_scoring_control.jsonを参照。
+新たな悪化の貫通06は被害4→9、最終HP49→42、手数42→41。最初の分岐はlate_mixed初手で、0損失予測の重量球（17.9438、資源0.4438）から0損失予測の標準球（17.5971、資源0）へ変化し、後続盤面が分岐。late_mixed被害0→3、late_pairs0→1、ボス2→3、ボス9→7手。ボス7手の同じ候補に対して将来仕事量費用だけを除いても選択は変わらず、被害1を伴う上位候補が被害0の代替より高得点だった。ボス同点処理だけを悪化原因とはしない。緊急修理の実回復差も最終HPで扱う。pierce06_boss_risk_component_control.jsonを参照。
+反射05の新たな悪化2→6はボスで発生。5手目は強攻撃4を正確に予測した重量球を最終採点2.000で選び、最も高得点の低被害候補は-7.200（公開候補の最小損失1）だった。得点差9.2で同点修正の対象ではない。反射09は3→8で、中盤被害0→3、late_mixed 1→0、ボス2→5。新ボス初手の3被害は公開候補の最小損失も3であり、同じ候補集合で安全な選択を見落とした証拠ではない。その前の盤面・デッキ形成と、限定された探索候補を含めて課題とする。boss_risk_tradeoffs.jsonを参照。
+実発射速度リプレイ：{'heavy': {'shots': 63, 'available': 63, 'actual_falls': 0, 'false_negative': 0, 'false_positive': 0, 'complete': 63}, 'guard': {'shots': 260, 'available': 260, 'actual_falls': 59, 'false_negative': 0, 'false_positive': 0, 'complete': 259}, 'special': {'shots': 8, 'available': 8, 'actual_falls': 0, 'false_negative': 0, 'false_positive': 0, 'complete': 8}}
+ガード球シールド監査：{'shots': 260, 'enemy_hp_mae': 0.004365384615384616, 'pocket_hp_mae': 0.0, 'errors': 7, 'enemy_hp_overpredictions': 7, 'enemy_hp_underpredictions': 0, 'maximum_enemy_hp_error': 0.24, 'shield_at_return_comparable': 59, 'shield_at_return_mismatches': 0, 'shield_at_return_mae': 0.0, 'shield_at_return_skipped': 0}。実落下59件の帰還時シールドは全件一致。敵ターンHPの過大予測7件は、実被害0が6件、予測1.163に対し実被害1が1件。5件では実速度での離散軌道に落下がなくても幾何経路由来の非ゼロリスクを残しており、残る2件は連鎖だけの攻撃防止を0.8で割り引くため0.2が残る。両要因が重なる例もある。近似・保守値の校正課題であり、落下やシールド消費の見逃しとは区別する。residual_forecast_causes.jsonに再計算入力と内訳を保存。
+実速度リプレイ331件中、反射05・5戦目・7手目のガード軌道1件は512反復で未完了。実落下なし・予測落下なしでも、その後の全物理挙動が正確と検証できたことにはしない。重量63件・特殊8件は全件計算完了、ガードは259/260件完了。
+重量資源の残る誤差：実速度を使った63件中、重量06・6戦目・7手目と標準09・6戦目・初手の2件は生成3予測に対して実生成0。いずれも追加生成ボーナス2を含む予測で、実ログの未制限要求も0、ターン上限・保管上限による破棄も0だった。上限で捨てられたという説明はできない。移動距離だけでなく生存中の距離計上とショット終了時の生成条件を照合する必要があり、現時点で根因は未確定。落下予測の一致を資源生成まで正確という主張へ広げない。residual_forecast_causes.jsonに入力資源・予測生存中距離・実際の総移動距離を保存。今回の凍結比較の途中で追加修正はしていない。
+終了済み戦闘の敵ターンHP予測差：0.001超の過小予測2件、過大予測53件。許容誤差条件の重み平均と実際の1ショットの差を、物理モデルの誤りと直ちに同一視しない。
+  重量 2026112106 campaign_phase_late_mixed 4手目：予測2.0、実敵ターン被害1。
+  重量 2026112105 campaign_phase_mid_mixed 3手目：予測0.983、実敵ターン被害0。
+  標準 2026112105 campaign_phase_mid_mixed 4手目：予測0.6、実敵ターン被害0。
+  アンカー 2026112106 campaign_phase_mid_pairs 5手目：予測0.56、実敵ターン被害0。
+  貫通 2026112106 campaign_phase_late_pairs 4手目：予測1.533、実敵ターン被害1。
+  アンカー 2026112106 normal_002 2手目：予測0.52、実敵ターン被害0。
+  反射 2026112106 normal_002 2手目：予測0.52、実敵ターン被害0。
+  貫通 2026112106 normal_002 2手目：予測0.52、実敵ターン被害0。
+25条件などの有限誤差サンプルの重みは校正済み確率ではない。conservative_*は条件別の保守値を重み付けした値で、全サンプルの最大被害とは限らない。ボスの安全優先は公開された各球上位12候補の中での判断であり、未公開の全軌道の最適性は主張しない。
+監視側の照合修正：貫通06 mid_pairsで、ライブ状態が6手後なのに保存済みショットが5手までだったため、5手目の0予測へ6手目のHP減少1を重ねた誤検知があった。連続する保存ショットの開始HPで閉じた区間を照合すると、5→6手目はHP49→49、6→7手目は49→48で予測1.148。以後ライブHPは進捗表示だけに使い、手別HP差は連続した保存ショットで照合。被害イベントの割当も次ショットか戦闘終了で区間を閉じる。方針・収集器・ゲームは変更せず、正式被害集計は完了したネイティブ原ログを使用した。誤検知は予測誤差件数に含めない。pierce06_guard_observer_resolution.jsonを参照。
+通信の復旧：アンカー06 late_pairs 2手後・HP40・位置(-39.94940185546875,1,19.42327117919922)で、前回v22と同じGET待ち停止が再発。ゲームはaiming_direction・fire_shot可能、サーバーCPUが約4分で0.39秒しか進まず、GET接続だけが残ることを確認。今回の旧クライアント12100だけを停止状態に保ち、ゲーム14052・同じ凍結v23サーバー2504を保持して新しい収集接続へ引き継いだ。resumed=true・既存1有効ランを確認。サーバーを再起動せず、start_new_run時にのみ設定される照準誤差の決定的Random状態も保持した。ゲームも再起動していない。通信停止を含む実時間は性能比較に使わず、手数で長期化を比較する。SDK内部の正確な停止原因は未確定。
+再開したアンカー06のクライアント履歴とinitial_deckは途中開始の診断値であり、初期条件・手数・球使用・被害・回復・結果は開始から保存されたネイティブ原ログを正とする。初期デッキと初戦条件もその原ログで全15組を照合する。引継ぎの詳細はanchor_collector_handoff.json、anchor_recovery_before.json、anchor_resume_verification.json、anchor_replacement_exit.json、anchor_handoff_completed.jsonを参照。
+追加の通信対策：既定設定で再接続した収集器34648も同じ盤面でGET待ちになったため、その収集器も停止状態に保った。読み取り専用SDK診断では状態取得・終了処理が正常に完了し、実行可能な重量球の反射ショットが返った。インストール済みSDKの既定HTTP読取待ちは300秒で、長時間評価後の待機との関連が疑われたが、SDK内部の根因までは確定していない。最終収集接続では元の凍結collectorを読み込み、SDKのHTTP読取待ちだけ1800秒へ変更する外部アダプターを使用。判断関数・候補採点・ゲーム・サーバー・seedは変更せず、呼出時間のトレースを保存した。最終収集器の実終了はanchor_timeout_replacement_exit.json、途中収集器の終了0は引継ぎ完了のための退役応答であり実ラン完了の証拠とは区別する。
+
+制約：この3seedの比較は未知seedへの一般化、重みの最適性、人間の面白さを証明しない。盤面の分岐後は別候補集合になるため、ラン全体の差だけで単一採点項目の因果効果と断定しない。将来資源の在庫価値0.1/最大0.5、ボス残り仕事量は近似であり校正済み確率ではない。
+詳細：six_pairs_and_new_regressions.json、dangerous_turns.json、saved_input_scoring_control.json、survival_pairs.csv、comparison_v20.json、initial_conditions_audit.json。
+
+通常MCPの扱い：{'candidate_policy': 'v23', 'adopted': False, 'retained_policy': 'v20', 'reason': '局所的な論理不具合は対照入力で修正を確認したが、15組の平均累計被害がv22比6.2から6.866666666666666へ増え、平均最終HPも44.266666666666666から43.93333333333333へ低下した。現在の攻撃と被害の交換条件、有限候補探索の課題が残る。全勝だけでは採用しない。', 'wins_before': 15, 'wins_after': 15, 'valid_runs': 15, 'damage_improved_pairs': 7, 'damage_equal_pairs': 2, 'damage_worsened_pairs': 6, 'mean_shots_before': 37.666666666666664, 'mean_shots_after': 37.2, 'normal_model_observed': 'build_tactics_v20_guard_idle_friction_and_progress_budget', 'normal_server_pid': 5096, 'original_game_pid': 10992}
+最終確認：179テスト成功、85ファイルの方針ソース凍結とEXE不変、全15組の初期デッキ・初戦条件一致、実被害イベント割当を確認。キャンペーン親プロセスの実終了0を観測し、今回の専用ポート9000～9004は終了、旧収集接続2個も退役済み。通常MCPは凍結v20、元のゲームのシーン・HP・操作設定を保持。詳細の機械検証はfinal_verification.jsonを参照。
+
+実装前に記録した方針・対照検証・ラン中観測
+作成日：2026年11月23日
+実装前の方針
+プレイヤーに見える変化：未確認の将来の連鎖撃破のために現在のHPを払う選択を抑え、ボスの同点候補では予測被害が小さい狙いを選ぶ。
+強める柱：選択・狙い・連鎖。現在の衝突・撃破の評価を保持し、所有する消費球だけを根拠に範囲命中や将来撃破を仮定しない。
+取得・強化前後：実際の追加ダメージや命中範囲が現在の予測で裏付けられる強化を評価する。未来の手札・配置を予測していない重量資源は小さな在庫価値に限定する。
+危険：主力球使用率のために球を強制すること、同点の安全優先を大きな得点差にも適用して攻撃を止めること、既知seedの全勝を一般的な妥当性と誤認すること。
+成功条件：保存された将来価値過大評価とボス同点の反例を回帰検証。ゲーム本体を変更せずv22と同じseed2026112105/06/09、中級者、固定難度、DDA無効、5ビルド各3ランを凍結v23で実行。前回悪化6組と新たな危険場面、ボス手数、球単体と系列使用率を比較する。
+
+実装・対照入力での確認
+将来の連鎖：次の消費球の提示、到達可能な主対象、範囲対象を連続して予測していないので、残敵HPだけから次回の増分ダメージと撃破を計上する処理を停止。現在のショットの連鎖ダメージと撃破予測は維持。重量生成の在庫価値は所有する消費球の未充填容量に対して1スタック0.1、最大0.5、さらに将来割引。未所有・満容量は0。これは校正済み期待ダメージではなく小さな選択肢価値である。
+ボス同点：最大得点から1e-6以内の候補群をまとめ、即時HP損失と敵ターンHP損失の合計、即時損失、敵ターン損失の順で小さいものを優先。群の基準を先頭の最大得点に固定し、曖昧な比較による非推移的な並び替えを避けた。意味のある得点差は維持し、共通物理予測・candidate_id・state_keyを変更しない。
+回帰テスト：関連22モジュール・179テストすべて成功。一括実行ではMCPツール整合性テストで進行が止まったため（停止原因は未確定）、今回の待機プロセスだけを停止し、各モジュールを独立プロセスで実行して全件の成功を確認。既存の別テストプロセスは停止していない。ログ：1123_mcp_policy_v23_final_tests.log。
+同入力対照：重量05 late_mixed 3手目は同じ候補・25誤差条件で得点21.0407→18.1207、資源得点3.184→0.264、被害予測2→2。旧ガード候補19.8165との順位逆転を確認。ただし候補全体の再探索ではなく保存された候補単体の比較である。
+重量06 mid_pairs 3手目は12.6978→11.1028、資源得点1.815→0.220、被害予測2→2。
+保存されたボス95盤面の同候補比較では変更1件。貫通09の同点標準球0:14からガード球2:14へ変更し、予測HP損失2→0、得点差0。実走の手数短縮や未知seedへの改善の証明とは分ける。
+
+前回悪化6組の原因整理（v20→v22）
+重量05：被害6→9。late_mixedの資源生成と未確認の将来撃破を高く見積もり、予測被害2の重量球が安全なガードを上回った。後の資源消費時の範囲対象予測は0で、有効利用を裏付けられなかった。通常戦被害0→5、ボス6→4。
+重量06：被害4→7。mid_pairs 3手目から選択が分岐。系列使用9→11、総手数33→31でも通常戦被害2→5、ボス2→2で、使用回数や短縮だけを改善指標にできない。
+重量09：被害2→5。late_mixed 5手目が最初の分岐で、その手の資源得点は両版0、安全費用も0。撃破・物理連鎖評価の差で別の候補が選ばれた。将来資源の過大評価が6組すべての原因とは断定しない。
+反射06：被害7→12。late_mixed初手の重量球は両版とも被害予測0だが角度が変わり、その後の盤面が分岐。通常戦late_mixed2→7、late_pairs3→4、ボス2→1。後続被害2・3・2は非ゼロ予測で受け入れており、単純な0予測の見逃しではない。
+貫通09：被害6→8。通常戦は同じで、ボス7手目の同点選択が最初の分岐。予測HP損失2を受け入れて追加HP除去3を選んだが、ボスは同じ8手で終わり、被害3→5。今回の保存反例に対応。
+標準09：被害4→5。late_mixed初手の重量球の角度・威力選択が最初の分岐。旧・新ともその手の安全費用0で、将来資源得点は0.4455→0.3350とむしろ減少。撃破・反射評価など複数項目と物理予測が変わり、その後の被害に波及した。後続を同一盤面の候補比較と誤認しない。
+
+ラン中観測（正式集計とは分ける）
+seed05初戦3手目で各ビルドの球選択が分岐。旧重量候補の威力費用-0.60が新候補では-0.36となり、新重量候補4.979が安全なガード4.979と同点で選ばれた。最終資源加点は両版0でも候補探索の途中の採点が候補の威力に影響する。initial_stage_candidate_change.jsonを保存。
+重量05 mid_mixedの標準球では予測HP損失1.2・保守値2に対してライブHP50→49。標準05 late_mixed 3手目は予測2.003に対して50→48、実撃破3。標準球19.7237が安全なガード14.83を上回り、将来資源加点は0。残る現在火力とHPのトレードオフであり、将来資源過大評価や0予測の見逃しに一括分類しない。standard05_known_loss_candidate_audit.jsonを保存。
+ライブHP差は回復も含む正味差で、ステージ中の被害イベントが原ログへ未保存の場合もある。正式比較の総被害は終了済みネイティブ戦闘記録を正とする。

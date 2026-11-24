@@ -64,32 +64,67 @@ def validate_entry(before, after):
         raise ValueError('Boss entry HP, deck or relics differ from paired baseline')
 
 
+def campaign_seeds(explicit, baseline=None, target=10):
+    if type(target) is not int or target<=0:raise ValueError('Run target must be a positive integer')
+    if explicit and baseline is not None:
+        raise ValueError('Explicit seeds cannot replace the paired baseline seeds')
+    seeds = list(explicit or range(1001, 1001+target))
+    if len(seeds) != target or len(set(seeds)) != target:
+        raise ValueError(f'Exactly {target} distinct seeds are required')
+    if any(type(seed) is not int or not 0 <= seed <= 0xffffffff for seed in seeds):
+        raise ValueError('Seeds must be unsigned 32-bit integers')
+    return seeds
+
+
 def run(args):
+    target=getattr(args,'valid_runs_per_build',10)
+    seeds_requested = campaign_seeds(getattr(args, 'seed', None), args.baseline,target)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    baseline = load_campaign(args.baseline.resolve())
-    assert (baseline['version'],args.version) in (('B0009','B0010'),('B0010','B0011'),('B0011','B0012'),('B0012','B0013'))
+    policy_audit = getattr(args, 'policy_audit', False)
+    baseline = load_campaign(args.baseline.resolve()) if args.baseline else None
+    if not policy_audit:
+        if baseline is None:
+            raise ValueError('--baseline is required for balance comparisons')
+        assert (baseline['version'],args.version) in (('B0009','B0010'),('B0010','B0011'),('B0011','B0012'),('B0012','B0013'))
+    elif baseline is not None and baseline['version'] != args.version:
+        raise ValueError('Policy comparison requires the same balance version')
     registry = read(PROJECT/'assets/data/balance_version.json')
     exe = args.exe.resolve()
-    target = 10
     assert registry['current_version'] == args.version
-    assert all(sum(r['build']==b for r in baseline['runs']) == target for b in BUILDS)
+    if baseline is not None:
+        assert all(sum(r['build']==b for r in baseline['runs']) == target for b in BUILDS)
     baseline_paths={}
-    for batch in read(args.baseline.resolve()/'analysis.json')['batches']:
+    for batch in read(args.baseline.resolve()/'analysis.json')['batches'] if baseline else []:
         for record in read_lines(Path(batch)/'all_runs.jsonl'):
             baseline_paths[(record['run_seed'],record['build_profile'])]=Path(record['source_log'])
     verified=set()
     verified_signatures=set()
     metadata = dict(started_at=datetime.now().astimezone().isoformat(),
-        deadline='target_10_valid_runs_per_build',
+        deadline=f'target_{target}_valid_runs_per_build',
         runner_pid=os.getpid(), required_balance_version=args.version,
         target_runs_per_build=target, builds_requested=BUILDS,
+        seeds_requested=seeds_requested if baseline is None else None,
+        orchestrator_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         player_level='intermediate', validation_variant='fixed', dynamic_balance=False,
-        comparison_baseline=str(args.baseline.resolve()),
+        comparison_baseline=str(args.baseline.resolve()) if args.baseline else None,
+        policy_audit=policy_audit,
         exe_sha256=hashlib.sha256(exe.read_bytes()).hexdigest(),
         profile_progress_sha256=hashlib.sha256((PROJECT/'saves/profile_progress.json').read_bytes()).hexdigest(),
         isolation='One local game, MCP endpoint and save directory per build; identical authored files',
         batches=[], workers={})
+    tool_root = PROJECT/'tools/game_mcp'
+    if policy_audit:
+        tool_root = output/'policy_snapshot/tools/game_mcp'
+        tool_root.mkdir(parents=True)
+        policy_source = getattr(args, 'policy_source', None) or PROJECT/'tools/game_mcp'
+        for pattern in ('*.py', '*.json'):
+            for source in policy_source.glob(pattern):
+                shutil.copy2(source, tool_root/source.name)
+        metadata['policy_source_hashes'] = {
+            source.name: hashlib.sha256(source.read_bytes()).hexdigest()
+            for source in sorted(tool_root.iterdir())
+        }
     children, streams = [], []
     def launch(command, directory, log):
         stream=(output/(log+'.log')).open('w',encoding='utf-8')
@@ -127,8 +162,12 @@ def run(args):
             # Keep all logger inputs byte-identical; only private visual preferences.
             (folder/'saves').mkdir()
             shutil.copy2(PROJECT/'saves/profile_progress.json',folder/'saves/profile_progress.json')
-            save(folder/'saves/settings.json',dict(bgm_volume=0,se_volume=0,fullscreen=False,
-                resolution_index=0,camera_shake_enabled=False))
+            visual_settings = dict(bgm_volume=0,se_volume=0,fullscreen=False,
+                resolution_index=0,camera_shake_enabled=False)
+            if policy_audit:
+                visual_settings['scene_transition'] = dict(
+                    fade_out_seconds=0,black_hold_seconds=0,fade_in_seconds=0)
+            save(folder/'saves/settings.json',visual_settings)
             game=launch([str(exe)],folder,build+'_game')
             until=time.monotonic()+60
             while True:
@@ -144,13 +183,13 @@ def run(args):
                 time.sleep(.2)
             port=args.first_port+index
             endpoint=f'http://127.0.0.1:{port}/mcp'
-            server=launch([sys.executable,str(PROJECT/'tools/game_mcp/server.py'),
+            server=launch([sys.executable,str(tool_root/'server.py'),
                 '--port',str(port),'--bridge-directory',str(folder/'runtime/game_mcp'),
                 '--build-profile',build,'--command-timeout-seconds','60',
                 '--maximum-state-age-seconds','120'],PROJECT,build+'_server')
             batch=output/'batches'/build
-            seeds=sorted(r['seed'] for r in baseline['runs'] if r['build']==build)
-            command=[sys.executable,str(PROJECT/'tools/game_mcp/collect_fixed_balance_runs.py'),
+            seeds=sorted(r['seed'] for r in baseline['runs'] if r['build']==build) if baseline else seeds_requested
+            command=[sys.executable,str(tool_root/'collect_fixed_balance_runs.py'),
                 '--url',endpoint,'--comparison-suite','--comparison-build',build,
                 '--valid-runs-per-build',str(target),'--profile','intermediate',
                 '--validation-variant','fixed','--output-directory',str(batch),
@@ -177,7 +216,8 @@ def run(args):
                     if key in verified:continue
                     raw=read(Path(record['source_log']))
                     if raw.get('balance_version')!=args.version:raise ValueError('Unexpected balance version')
-                    validate_entry(read(baseline_paths[key]),raw)
+                    if not policy_audit:
+                        validate_entry(read(baseline_paths[key]),raw)
                     if args.version in ('B0011','B0012','B0013'):audit_run(raw,strict=True)
                     if args.version in ('B0012','B0013'):audit_strong_run(raw)
                     if args.version=='B0013':audit_supply_run(raw)
@@ -199,9 +239,14 @@ def run(args):
                 pair=(record['run_seed'],record['build_profile'])
                 assert pair not in pairs
                 pairs.add(pair)
-        assert len(signatures)==1 and pairs==baseline['pairs']
+        expected_pairs = baseline['pairs'] if baseline else {(seed, build) for seed in seeds_requested for build in BUILDS}
+        assert len(signatures)==1 and pairs==expected_pairs
         result=analyze(output,metadata['batches'],metadata)
-        report=compare_campaigns(args.baseline.resolve(),output,target)
+        if baseline and policy_audit:
+            from compare_policy_campaigns import compare as compare_policies
+            report = compare_policies(args.baseline.resolve(), output, target)
+        else:
+            report=compare_campaigns(args.baseline.resolve(),output,target) if baseline else None
         status('completed',valid_runs=result['valid_runs'],comparison_report=report)
     except BaseException as error:
         status('failed',error=repr(error))
@@ -220,8 +265,12 @@ def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--baseline',type=Path,required=True)
+    parser.add_argument('--baseline',type=Path)
+    parser.add_argument('--policy-audit',action='store_true',help='Compare decision policies with frozen Python sources and unchanged balance rules.')
+    parser.add_argument('--policy-source',type=Path,help='Previously frozen Python policy directory; only used with --policy-audit.')
     parser.add_argument('--exe',type=Path,required=True)
     parser.add_argument('--version',required=True)
     parser.add_argument('--first-port',type=int,default=8870)
+    parser.add_argument('--valid-runs-per-build',type=int,default=10)
+    parser.add_argument('--seed',type=int,action='append',help='Repeat exactly 10 times for an explicit seed set; cannot be used with --baseline.')
     run(parser.parse_args())

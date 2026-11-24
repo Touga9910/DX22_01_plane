@@ -3,6 +3,7 @@
 #include "FixedStepClock.h"
 #include "GameWorld.h"
 #include "SceneManager.h"
+#include "SceneTransition.h"
 
 #include <array>
 #include <cstdint>
@@ -117,6 +118,7 @@ public:
 	Scene* CurrentScene() const;
 	SceneType CurrentSceneType() const;
 	GameWorld& World();
+	SceneTransition& Transition() { return m_Transition; }
 
 	void ResetPhysicsTiming();
 	int BeginPhysicsFrame(double elapsedSeconds);
@@ -180,6 +182,7 @@ private:
 
 	GameWorld m_World;
 	SceneManager m_Scenes;
+	SceneTransition m_Transition;
 	FixedStepClock m_PhysicsClock;
 	bool m_ResetPhysicsElapsed = true;
 	std::uint64_t m_PhysicsTickCount = 0;

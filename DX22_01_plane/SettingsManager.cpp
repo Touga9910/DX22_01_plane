@@ -32,6 +32,18 @@ bool SettingsManager::Load(const std::string& path)
 	{
 		nlohmann::json settings;
 		file >> settings;
+		m_Settings.sceneTransition = {};
+		if (settings.contains("scene_transition") && settings.at("scene_transition").is_object())
+		{
+			const auto& timing = settings.at("scene_transition");
+			auto readSeconds = [&](const char* key, float fallback) {
+				return timing.contains(key) && timing.at(key).is_number()
+					? SceneTransitionTiming::ClampSeconds(timing.at(key).get<float>(), fallback) : fallback;
+			};
+			m_Settings.sceneTransition.fadeOutSeconds = readSeconds("fade_out_seconds", m_Settings.sceneTransition.fadeOutSeconds);
+			m_Settings.sceneTransition.blackHoldSeconds = readSeconds("black_hold_seconds", m_Settings.sceneTransition.blackHoldSeconds);
+			m_Settings.sceneTransition.fadeInSeconds = readSeconds("fade_in_seconds", m_Settings.sceneTransition.fadeInSeconds);
+		}
 		m_Settings.bgmVolume = std::clamp(
 			settings.value("bgm_volume", m_Settings.bgmVolume),
 			0.0f,
@@ -138,6 +150,7 @@ bool SettingsManager::Load(const std::string& path)
 
 bool SettingsManager::Save(const std::string& path)
 {
+	m_Settings.sceneTransition.Normalize();
 	std::error_code error;
 	const std::filesystem::path settingsPath(path);
 	if (settingsPath.has_parent_path())
@@ -153,6 +166,10 @@ bool SettingsManager::Save(const std::string& path)
 	}
 	file << std::setw(2) << nlohmann::json{
 		{ "schema_version", 2 },
+		{ "scene_transition", {
+			{ "fade_out_seconds", m_Settings.sceneTransition.fadeOutSeconds },
+			{ "black_hold_seconds", m_Settings.sceneTransition.blackHoldSeconds },
+			{ "fade_in_seconds", m_Settings.sceneTransition.fadeInSeconds } } },
 		{ "bgm_volume", m_Settings.bgmVolume },
 		{ "se_volume", m_Settings.seVolume },
 		{ "vibration_enabled", m_Settings.vibrationEnabled },
