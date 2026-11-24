@@ -42,7 +42,7 @@ struct BossWorld
     /// </summary>
     const auto& PocketSpheres() const { return pockets; }
     /// <summary>
-    /// テスト用盤面ではサブステップの開始時に追加処理を行わない。
+    /// 単一の球を扱うテスト盤面向けに、サブステップ開始時の空のフックを提供する。
     /// </summary>
     void BeginSubstep() {}
     /// <summary>

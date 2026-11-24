@@ -19,7 +19,7 @@ namespace IllustratedUi
 namespace BallCardPresentation
 {
     /// <summary>
-    /// テスト画面の球アイコン描画を置き換える空の実装を提供する。
+    /// テスト画面で球アイコン描画の空のスタブを提供する。
     /// </summary>
     void DrawBallIcon(const PlayerBallData&,const ImVec2&,const ImVec2&,bool) {}
     /// <summary>

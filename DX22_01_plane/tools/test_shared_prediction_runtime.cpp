@@ -11,7 +11,7 @@
 
 using namespace BallPhysicsRules;
 /// <summary>
-/// 二つの浮動小数点値の差がテストの許容値以内かを返す。
+/// 二つの浮動小数点値の差がテストの許容値未満かを返す。
 /// </summary>
 bool Near(float a, float b) { return std::abs(a-b) < 0.00001f; }
 

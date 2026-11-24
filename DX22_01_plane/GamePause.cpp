@@ -71,7 +71,7 @@ bool Game::CanPause() const
 }
 
 /// <summary>
-/// 現在のランを再開可能な状態で保存し、成功したらタイトル画面に戻る。
+/// 現在のランを再開可能な状態で保存し、成功したらタイトル画面に戻る。デバッグ中は終了を要求する。
 /// </summary>
 bool Game::SaveAndReturnToTitle()
 {

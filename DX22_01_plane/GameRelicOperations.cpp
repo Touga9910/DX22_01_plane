@@ -57,7 +57,7 @@ bool Game::BuyRelic(int relicIndex)
 // Relicを付与する。
 
 /// <summary>
-/// 未所持のレリックを巡回中の所持品に加え、入手元を記録する。
+/// 未所持のレリックをラン中の所持品に加え、入手元を記録する。
 /// </summary>
 bool Game::GrantRelic(int relicIndex, const char* source)
 {

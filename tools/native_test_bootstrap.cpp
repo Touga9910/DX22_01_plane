@@ -8,7 +8,7 @@ namespace
 struct ConsoleFailureReports final
 {
     /// <summary>
-    /// ネイティブテストの異常終了やアサーションをダイアログではなく標準エラーに出力するように設定する。
+    /// ネイティブテストの異常終了やアサーションの報告先を標準エラーに設定する。
     /// </summary>
     ConsoleFailureReports()
     {
