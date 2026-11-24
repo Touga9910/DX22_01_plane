@@ -308,6 +308,7 @@ private:
 	void DrawFloatingFeedback(Game& game);
 	void DrawFeedbackDiagnostics(Game& game);
 	void DrawShotSummary();
+	void DrawPierceTraces(Game& game);
 	void UpdatePlayerAura(Game& game, float deltaSeconds);
 	void DrawPlayerAura(Game& game);
 	void DrawEnemyStatusEffects(Game& game);

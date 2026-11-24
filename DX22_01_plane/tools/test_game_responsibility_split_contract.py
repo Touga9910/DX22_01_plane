@@ -114,7 +114,7 @@ class GameResponsibilitySplitContractTests(unittest.TestCase):
         self.assertIn("GameBattleEvents::PlayerShotFired", player_ball)
         self.assertIn("GamePlayerState::CaptureFrom", player_ball)
         self.assertIn("GameShotPrediction::Preview", player_ball)
-        self.assertIn("GameShotTraceView::Current", player_ball)
+        self.assertIn("GameShotTraceView::Current", source("GamePresentation.cpp"))
         self.assertIn("BallShotPrediction::Predict(", battle_bridge)
         self.assertIn("void GameBattleEvents::PlayerShotFired", battle_bridge)
         self.assertNotIn('#include "PierceTraceRules.h"', source("GameBattleView.h"))

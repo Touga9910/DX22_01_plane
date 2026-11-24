@@ -7,7 +7,6 @@
 #include "GamePlayerState.h"
 #include "GameRuntime.h"
 #include "GameShotPrediction.h"
-#include "GameShotTraceView.h"
 #include "GameWorld.h"
 #include "input.h"
 #include "Ground.h"
@@ -217,7 +216,6 @@ void PlayerBall::Draw(Camera* cam)
 
 	// ★ 弾道予測線の描画（新しいメソッド）
 	DrawTrajectoryLine();
-	DrawPierceTraces();
 }
 
 void PlayerBall::Uninit()

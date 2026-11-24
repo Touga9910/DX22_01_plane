@@ -1,23 +1,14 @@
 ﻿#include "PlayerBall.h"
 #include "GameShotPrediction.h"
-#include "GameShotTraceView.h"
 #include "GameRuntime.h"
 #include "PlayerBallData.h"
 #include "Renderer.h"
-#include "TableConfig.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 
 using namespace DirectX::SimpleMath;
-
-namespace
-{
-    constexpr int TraceGlow = 4;
-    constexpr int TraceCore = 5;
-    constexpr int TraceHighlight = 6;
-}
 
 // Preview caching and guide rendering, independent of runtime ball updates.
 void PlayerBall::GeneratePreTrajectory(
@@ -144,9 +135,6 @@ void PlayerBall::InitTrajectoryVisualModel()
 	addGuideMaterial({ 1.0f, 1.0f, 1.0f, 0.9f });     // 接触時のプレイヤーボール半径の色
 	addGuideMaterial({ 1.0f, 0.86f, 0.25f, 1.0f });   // 当たったボールが飛ぶ方向の色
 	addGuideMaterial({ 0.78f, 0.34f, 1.0f, 1.0f });   // 連鎖衝撃の実寸範囲
-	addGuideMaterial({ 0.52f, 0.24f, 0.85f, 0.18f }); // TraceGlow
-	addGuideMaterial({ 0.73f, 0.49f, 1.0f, 0.58f });  // TraceCore
-	addGuideMaterial({ 0.92f, 0.82f, 1.0f, 0.96f });  // TraceHighlight
 
 	// サブセットを作成
 	SUBSET subset;
@@ -241,45 +229,6 @@ void PlayerBall::DrawTrajectoryLine()
 	Renderer::SetDepthEnable(true);
 }
 
-void PlayerBall::DrawPierceTraces()
-{
-    const auto& traces = GameShotTraceView::Current().traces;
-    if (traces.empty()) return;
-
-    const std::size_t firstHighlighted = traces.size() - GameShotTraceView::SelectedMinionTraceCount();
-    constexpr float traceHeight = 0.05f;
-    constexpr double pulsePeriod = 1.25;
-    const double seconds = std::chrono::duration<double>(
-        std::chrono::steady_clock::now().time_since_epoch()).count();
-    const float pulse = static_cast<float>(std::fmod(seconds, pulsePeriod) / pulsePeriod);
-
-    Renderer::SetDepthEnable(true);
-    m_PreviewMeshRenderer.BeforeDraw();
-    for (std::size_t index = 0; index < traces.size(); ++index)
-    {
-        Vector3 start = traces[index].start;
-        Vector3 end = traces[index].end;
-        start.y = end.y = TableConfig::FIELD_HEIGHT;
-        const bool highlighted = index >= firstHighlighted;
-
-        DrawGuideSegment(start, end, 0.40f, traceHeight, TraceGlow);
-        DrawGuideSegment(start, end, highlighted ? 0.18f : 0.13f,
-            traceHeight + 0.01f, TraceCore);
-        DrawGuideCircle(start, 0.58f, 0.12f, traceHeight + 0.02f,
-            highlighted ? TraceHighlight : TraceCore, 16);
-
-        if (highlighted)
-        {
-            // Clip both ends so the pulse travels from the launch ring to the trace tip.
-            const Vector3 direction = end - start;
-            const float head = (std::min)(1.0f, pulse * 1.14f);
-            const float tail = (std::max)(0.0f, pulse * 1.14f - 0.14f);
-            DrawGuideSegment(start + direction * tail, start + direction * head,
-                0.24f, traceHeight + 0.03f, TraceHighlight);
-        }
-    }
-}
-
 void PlayerBall::DrawGuideSegment(
 	const DirectX::SimpleMath::Vector3& start,
 	const DirectX::SimpleMath::Vector3& end,
@@ -324,9 +273,9 @@ void PlayerBall::DrawGuideCircle(
 	float radius,
 	float thickness,
 	float yOffset,
-	int materialIndex,
-	int segmentCount)
+	int materialIndex)
 {
+	constexpr int segmentCount = 48;
 	for (int i = 0; i < segmentCount; ++i)
 	{
 		float angle0 = DirectX::XM_2PI * static_cast<float>(i) / static_cast<float>(segmentCount);

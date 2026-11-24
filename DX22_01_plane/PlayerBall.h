@@ -193,7 +193,6 @@ private:
 	//=======================================
 	void InitTrajectoryVisualModel();
 	void DrawTrajectoryLine();
-	void DrawPierceTraces();
 
 	void DrawGuideSegment(
 		const DirectX::SimpleMath::Vector3& start,
@@ -207,8 +206,7 @@ private:
 		float radius,
 		float thickness,
 		float yOffset,
-		int materialIndex,
-		int segmentCount = 48);
+		int materialIndex);
 
 private:
 	BallComponent* m_Ball = nullptr;

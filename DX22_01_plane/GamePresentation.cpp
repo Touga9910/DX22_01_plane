@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "Game.h"
 #include "GameRuntime.h"
+#include "GameShotTraceView.h"
 #include "GameWorld.h"
 #include "GameObject.h"
 #include "GameUi.h"
@@ -228,6 +229,7 @@ void GamePresentation::Draw(Game& game)
 	}
 	if (battleScene)
 	{
+		DrawPierceTraces(game);
 		DrawEnemyStatusEffects(game);
 		DrawBattleHud(game);
 		if (m_TutorialActive)
@@ -301,6 +303,50 @@ void GamePresentation::Draw(Game& game)
 	{
 		DrawTutorial(game);
 	}
+}
+
+void GamePresentation::DrawPierceTraces(Game& game)
+{
+    if (game.IsPaused() || game.IsClearRewardActive() ||
+        game.GetLastBattleResult() != BattleResult::None)
+        return;
+
+    const auto& traces = GameShotTraceView::Current().traces;
+    if (traces.empty()) return;
+
+    const std::size_t firstHighlighted = traces.size() - GameShotTraceView::SelectedMinionTraceCount();
+    const float pulse = std::fmod(m_PresentationTimeSeconds, 1.25f) / 1.25f;
+    auto* viewport = ImGui::GetMainViewport();
+    auto* draw = ImGui::GetBackgroundDrawList(viewport);
+    const float scale = std::clamp(viewport->Size.y / 900.0f, 0.85f, 1.75f);
+    const Vector3 height(0.0f, 0.55f, 0.0f);
+    for (std::size_t index = 0; index < traces.size(); ++index)
+    {
+        ImVec2 start, end;
+        if (!TryProjectToScreen(traces[index].start + height, start) ||
+            !TryProjectToScreen(traces[index].end + height, end))
+            continue;
+
+        const bool highlighted = index >= firstHighlighted;
+        draw->AddLine(start, end, IM_COL32(115, 52, 201, 110), 6.0f * scale);
+        draw->AddLine(start, end,
+            highlighted ? IM_COL32(220, 175, 255, 255) : IM_COL32(200, 145, 255, 218),
+            (highlighted ? 3.0f : 2.5f) * scale);
+        draw->AddCircle(start, 5.0f * scale,
+            highlighted ? IM_COL32(249, 223, 255, 255) : IM_COL32(212, 165, 255, 240),
+            0, 2.0f * scale);
+
+        if (highlighted)
+        {
+            const auto alongTrace = [&](float t) {
+                return ImVec2(start.x + (end.x - start.x) * t, start.y + (end.y - start.y) * t);
+            };
+            const float head = (std::min)(1.0f, pulse * 1.14f);
+            const float tail = (std::max)(0.0f, pulse * 1.14f - 0.14f);
+            draw->AddLine(alongTrace(tail), alongTrace(head), IM_COL32(252, 235, 255, 255),
+                4.0f * scale);
+        }
+    }
 }
 
 void GamePresentation::UpdatePlayerAura(Game& game, float deltaSeconds)
