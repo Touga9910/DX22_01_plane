@@ -42,7 +42,7 @@ void GamePresentation::OnBattleStarted(Game&)
 	m_CameraShakeCooldown = 0.0f;
 	m_DeckListOpen = false;
 	m_RelicListOpen = false;
-	if (!m_TutorialCompleted)
+	if (!m_TutorialCompleted && (!m_TutorialActive || m_TutorialReplay))
 	{
 		StartTutorial(false);
 	}
@@ -73,9 +73,7 @@ void GamePresentation::OnShotFired(int ballCategory)
 	m_CurrentShotResourceConsumed.fill(0);
 	m_CurrentShotFinisherMask = 0;
 	m_HitSummaryLifetime = 0.0f;
-	if (m_TutorialActive &&
-		(m_TutorialStep == TutorialStep::ChooseAndAim ||
-			m_TutorialStep == TutorialStep::SetPower))
+	if (m_TutorialActive && m_TutorialStep == TutorialStep::PracticeShot)
 	{
 		m_TutorialStep = TutorialStep::WatchShot;
 	}

@@ -164,19 +164,10 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 	{
 		ClearHitReactions();
 	}
-	if (m_TutorialActive && IsBattleScene(game))
+	if (m_TutorialActive && m_TutorialStep == TutorialStep::WatchShot &&
+		IsBattleScene(game) && currentState != static_cast<int>(BattleState::BallsMoving))
 	{
-		if (m_TutorialStep == TutorialStep::ChooseAndAim &&
-			game.GetBattleState() == BattleState::AimingPower)
-		{
-			m_TutorialStep = TutorialStep::SetPower;
-		}
-		else if (m_TutorialStep == TutorialStep::WatchShot &&
-			m_PreviousBattleState == static_cast<int>(BattleState::BallsMoving) &&
-			currentState != static_cast<int>(BattleState::BallsMoving))
-		{
-			m_TutorialStep = TutorialStep::ReadResult;
-		}
+		m_TutorialStep = TutorialStep::ReadResult;
 	}
 	m_PreviousBattleState = currentState;
 	++m_PresentationFrame;
