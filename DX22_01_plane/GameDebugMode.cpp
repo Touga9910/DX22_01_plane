@@ -13,6 +13,8 @@
 #include "GameDebugController.h"
 #include "GameDebugHost.h"
 #include "DebugRunPreset.h"
+#include "RunEventView.h"
+#include "RunRouteCommands.h"
 #include "json/json.hpp"
 #include "GameUi.h"
 #include "GameMcpBridge.h"
@@ -25,10 +27,20 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <utility>
 
 namespace
 {
+    constexpr const char* RunDestinationLabels[] = {"ルート選択", "通常戦", "中ボス戦", "ショップ",
+        "休憩所", "最終ボス前の休憩", "最終ボス戦", "イベント"};
+
+    const char* RunEventLabel(const std::string& id)
+    {
+        const auto* event = FindRunEventDefinition(id);
+        return event ? event->title : "ランダム";
+    }
+
     /// <summary>
     /// 指定した球種IDの表示名を取得する。
     /// </summary>
@@ -119,12 +131,36 @@ bool GameDebugHost::JumpRun(Game& game, const DebugRunSetup& setup)
         if (found == stages.end()) return false;
         selected = *found;
     }
+    auto state = setup.BuildProgress(game.m_RunController->Progress().GetMap().Seed());
+    std::string eventId;
+    std::vector<int> eventChoices;
+    if (setup.destination == DebugRunDestination::Event)
+    {
+        eventChoices = state.map.Available();
+        if (eventChoices.empty()) return false;
+        const auto* entry = state.map.Node(eventChoices.front());
+        if (entry == nullptr || entry->type != StageRouteType::Event) return false;
+
+        const auto& events = RunEventDefinitions();
+        if (setup.eventId.empty())
+        {
+            std::random_device random;
+            std::uniform_int_distribution<std::size_t> pick(0, events.size() - 1);
+            eventId = events[pick(random)].id;
+        }
+        else
+        {
+            const auto* event = FindRunEventDefinition(setup.eventId);
+            if (event == nullptr) return false;
+            eventId = event->id;
+        }
+        game.SetPaused(false);
+    }
     // Destroy the previous scene before applying the destination state. ChangeScene captures HP.
     game.ChangeScene(SceneType::Select);
     game.m_BossShotPlanner->Reset();
     game.m_StageOverrideState->ClearQueued();
     game.m_StageOverrideState->ClearCurrent();
-    auto state = setup.BuildProgress(game.m_RunController->Progress().GetMap().Seed());
     // Jumping does not fabricate cleared battles or grant skipped rewards.
     state.clearedBattles = game.m_RunController->Progress().GetClearedBattleCount();
     state.phaseNormalBattleEncounters = game.m_RunController->Progress().GetPhaseNormalBattleEncounterCount();
@@ -133,12 +169,22 @@ bool GameDebugHost::JumpRun(Game& game, const DebugRunSetup& setup)
     game.m_PersistenceRuntime->Statistics().CompleteArea(game.GetAreaProgress());
     game.m_RunController->SetCombatMode(setup.combatMode);
     SetInfiniteMoney(game, setup.infiniteMoney);
+    game.m_DebugRunEventId = eventId;
     if (selected) game.m_StageOverrideState->Queue(*selected);
-    if (battle) game.StartNextBattle(type);
+    if (setup.destination == DebugRunDestination::Event)
+    {
+        if (!RunRouteCommands::Choose(eventChoices.front(), 0, eventChoices, "debug"))
+        {
+            game.m_DebugRunEventId.clear();
+            return false;
+        }
+    }
+    else if (battle) game.StartNextBattle(type);
     else if (setup.destination == DebugRunDestination::Shop) game.ChangeScene(SceneType::Shop);
     else if (setup.destination == DebugRunDestination::Rest || setup.destination == DebugRunDestination::Preparation) game.ChangeScene(SceneType::RestSite);
     else game.ChangeScene(SceneType::Select);
-    game.RecordBalanceEvent("debug_run_jump", {{"area_progress", game.GetAreaProgress()}, {"stage_id", setup.stageId}, {"infinite_money", setup.infiniteMoney}});
+    game.RecordBalanceEvent("debug_run_jump", {{"area_progress", game.GetAreaProgress()}, {"stage_id", setup.stageId},
+        {"event_id", eventId}, {"infinite_money", setup.infiniteMoney}});
     return true;
 }
 
@@ -190,6 +236,7 @@ bool GameDebugHost::CaptureRunEntry(const Game& game, DebugRunSetup& setup)
     setup.completedAreas = game.GetAreaProgress();
     setup.combatMode = game.GetRunCombatMode();
     setup.stageId.clear();
+    setup.eventId.clear();
     switch (game.GetCurrentSceneType())
     {
     case SceneType::Select:
@@ -198,6 +245,11 @@ bool GameDebugHost::CaptureRunEntry(const Game& game, DebugRunSetup& setup)
     case SceneType::Shop: setup.destination = DebugRunDestination::Shop; break;
     case SceneType::RestSite:
         setup.destination = game.IsBossPreparation() ? DebugRunDestination::Preparation : DebugRunDestination::Rest;
+        break;
+    case SceneType::Event:
+        setup.destination = DebugRunDestination::Event;
+        setup.eventId = game.CaptureRunEvent().eventId;
+        if (setup.eventId.empty()) return false;
         break;
     case SceneType::Battle:
     {
@@ -306,6 +358,7 @@ void GameDebugHost::EndSession(
     const DebugRunSnapshot& snapshot)
 {
     game.DeactivateRunSession();
+	game.m_DebugRunEventId.clear();
 	game.m_RunController->SetDebugInfiniteMoney(false);
 	game.SetPaused(false);
     game.m_BalanceRuntime->SetAutoPlayEnabled(snapshot.autoPlayEnabled);
@@ -542,7 +595,7 @@ bool GameDebugController::StartRun(Game& game)
     if (!GameDebugHost::JumpRun(game, m_DebugRunSetup))
     {
         m_DebugEditorOpen = true;
-        m_DebugMessage = "移動先のステージを読み込めません。自動選択か別のステージを選んでください。";
+        m_DebugMessage = "指定した移動先を開けません。移動先と選択内容を確認してください。";
         return false;
     }
     Game::ResetFrameTiming();
@@ -661,7 +714,7 @@ bool GameDebugController::Update(Game& game)
             m_DebugEditorOpen = false;
             m_DebugRunInfiniteMoneyActive = m_DebugRunSetup.infiniteMoney;
         }
-        else m_DebugMessage = "指定先へ移動できませんでした。ステージ種別とランの状態を確認してください。";
+        else m_DebugMessage = "指定先へ移動できませんでした。移動先とランの状態を確認してください。";
         Game::ResetFrameTiming(); return true;
     }
     if (request == 5)
@@ -1009,8 +1062,7 @@ void GameDebugController::DrawRunPresetPreview()
         return;
     }
     const auto& preset = *m_DebugRunPresetPreview;
-    const char* destinations[] = {"ルート選択", "通常戦", "中ボス戦", "ショップ", "休憩所", "最終ボス前の休憩", "最終ボス戦"};
-    const bool finalArea = preset.run.destination == DebugRunDestination::Preparation || preset.run.destination == DebugRunDestination::FinalBoss;
+    const bool finalArea = preset.run.UsesFinalBossRoute();
     if (ImGui::BeginTable("saved_run_conditions", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
     {
         ImGui::TableSetupColumn("項目", ImGuiTableColumnFlags_WidthFixed, 140.0f);
@@ -1023,8 +1075,11 @@ void GameDebugController::DrawRunPresetPreview()
         };
         row("プリセット", m_DebugRunPresetSelected);
         row("進行度", std::to_string(finalArea ? kNormalRouteAreaGoal : preset.run.completedAreas) + " / " + std::to_string(kNormalRouteAreaGoal));
-        row("移動先", destinations[static_cast<int>(preset.run.destination)]);
-        row("ステージ", RunStageLabel(m_DebugStages, preset.run.stageId));
+        row("移動先", RunDestinationLabels[static_cast<int>(preset.run.destination)]);
+        if (preset.run.destination == DebugRunDestination::Event)
+            row("イベントの種類", RunEventLabel(preset.run.eventId));
+        else
+            row("ステージ", RunStageLabel(m_DebugStages, preset.run.stageId));
         row("抽選ルール", preset.run.combatMode == RunCombatMode::PhaseTest ? "フェーズ制試遊" : "本編");
         row("ゴールド無限", preset.run.infiniteMoney ? "ON（開始時999999）" : "OFF");
         row("保存所持金", std::to_string(preset.battle.money));
@@ -1128,7 +1183,7 @@ void GameDebugController::DrawRunPresets(Game& game)
     ImGui::SameLine();
     if (ImGui::Button("読み込んでラン開始")) LoadRunPreset(true);
     ImGui::EndDisabled();
-    ImGui::TextWrapped("進行度・移動先・ステージID・デッキ・レリック・シード・HP・ゴールド設定を保存します。同名は上書き。盤面の途中状態は含みません。");
+    ImGui::TextWrapped("進行度・移動先・ステージ・イベントの種類・デッキ・レリック・シード・HP・ゴールド設定を保存します。同名は上書き。盤面の途中状態は含みません。");
     if (!m_DebugRunPresetMessage.empty()) ImGui::TextWrapped("%s", m_DebugRunPresetMessage.c_str());
 }
 
@@ -1139,13 +1194,13 @@ void GameDebugController::DrawRunTools(Game& game)
 {
     ImGui::TextWrapped("デッキ・HP・レリックは開始時の条件タブを使用します。ラン中の移動は現在の所持品を維持し、飛ばしたエリアの報酬は付与しません。");
     int destination = static_cast<int>(m_DebugRunSetup.destination);
-    const char* destinations[] = {"ルート選択", "通常戦", "中ボス戦", "ショップ", "休憩所", "最終ボス前の休憩", "最終ボス戦"};
-    if (ImGui::Combo("移動先", &destination, destinations, IM_ARRAYSIZE(destinations)))
+    if (ImGui::Combo("移動先", &destination, RunDestinationLabels, IM_ARRAYSIZE(RunDestinationLabels)))
     {
         m_DebugRunSetup.destination = static_cast<DebugRunDestination>(destination);
         m_DebugRunSetup.stageId.clear();
+        m_DebugRunSetup.eventId.clear();
     }
-    const bool endRoute = destination >= static_cast<int>(DebugRunDestination::Preparation);
+    const bool endRoute = m_DebugRunSetup.UsesFinalBossRoute();
     ImGui::BeginDisabled(endRoute);
     ImGui::SliderInt("完了エリア数", &m_DebugRunSetup.completedAreas, 0, kNormalRouteAreaGoal - 1);
     ImGui::EndDisabled();
@@ -1154,10 +1209,13 @@ void GameDebugController::DrawRunTools(Game& game)
     const char* modes[] = {"本編のステージ抽選", "フェーズ制試遊の抽選"};
     if (ImGui::Combo("自動選択ルール", &mode, modes, 2))
         m_DebugRunSetup.combatMode = mode ? RunCombatMode::PhaseTest : RunCombatMode::Legacy;
-    const bool battle = destination == 1 || destination == 2 || destination == 6;
+    const auto entry = m_DebugRunSetup.destination;
+    const bool battle = entry == DebugRunDestination::Battle || entry == DebugRunDestination::MidBoss ||
+        entry == DebugRunDestination::FinalBoss;
     if (battle)
     {
-        const StageType type = destination == 6 ? StageType::Boss : destination == 2 ? StageType::MidBoss : StageType::Normal;
+        const StageType type = entry == DebugRunDestination::FinalBoss ? StageType::Boss :
+            entry == DebugRunDestination::MidBoss ? StageType::MidBoss : StageType::Normal;
         const auto preview = RunStageLabel(m_DebugStages, m_DebugRunSetup.stageId);
         if (ImGui::BeginCombo("今回のステージ", preview.c_str()))
         {
@@ -1171,6 +1229,17 @@ void GameDebugController::DrawRunTools(Game& game)
             }
             ImGui::EndCombo();
         }
+    }
+    else if (entry == DebugRunDestination::Event &&
+        ImGui::BeginCombo("イベントの種類", RunEventLabel(m_DebugRunSetup.eventId)))
+    {
+        if (ImGui::Selectable("ランダム", m_DebugRunSetup.eventId.empty())) m_DebugRunSetup.eventId.clear();
+        for (const auto& event : RunEventDefinitions())
+        {
+            if (ImGui::Selectable(event.title, m_DebugRunSetup.eventId == event.id))
+                m_DebugRunSetup.eventId = event.id;
+        }
+        ImGui::EndCombo();
     }
     if (ImGui::Checkbox("ゴールド無限（支払いで減らない）", &m_DebugRunSetup.infiniteMoney) && IsRunActive() && !m_DebugEditorOpen)
         m_DebugRunInfiniteMoneyActive = m_DebugRunSetup.infiniteMoney;
@@ -1193,7 +1262,7 @@ void GameDebugController::DrawRunTools(Game& game)
 void GameDebugController::Draw(Game& game)
 {
     if (m_DebugEditorOpen || m_DebugMode) DrawRunPresetComparison();
-    if (m_DebugMode && !m_DebugEditorOpen)
+    if (m_DebugMode && !m_DebugEditorOpen && game.GetCurrentSceneType() != SceneType::Event)
     {
         GameUi::PrepareWindow(IsRunActive() ? "debug_run_controls" : "debug_mode_controls", ImVec2(600, 20), IsRunActive() ? ImVec2(590, 620) : ImVec2(450, 130));
         ImGui::Begin(IsRunActive() ? "デバッグラン操作" : "デバッグ戦闘", nullptr, IsRunActive() ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoCollapse);

@@ -296,6 +296,7 @@ void Game::StartNewRun(
 	std::optional<PhaseRunProgressionMode> forcedPhaseProgressionMode,
 	const std::string& mcpShotPolicy)
 {
+	m_DebugRunEventId.clear();
 	if (!IsDebugMode()) LoadPlayerStatusFromJson(); // Refresh the catalog after newly completed achievements.
 	ResetPlayerRuntimeStatus();
 	const RunCombatMode runCombatMode = forcedRunCombatMode.value_or(

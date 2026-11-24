@@ -3,7 +3,7 @@
 #include <string>
 
 // Debug jumps create a valid remaining route; skipped areas grant no rewards.
-enum class DebugRunDestination { Route, Battle, MidBoss, Shop, Rest, Preparation, FinalBoss };
+enum class DebugRunDestination { Route, Battle, MidBoss, Shop, Rest, Preparation, FinalBoss, Event };
 
 struct DebugRunSetup
 {
@@ -12,14 +12,20 @@ struct DebugRunSetup
     RunCombatMode combatMode = RunCombatMode::Legacy;
     bool infiniteMoney = false;
     std::string stageId;
+    std::string eventId;
+
+    bool UsesFinalBossRoute() const
+    {
+        return destination == DebugRunDestination::Preparation ||
+            destination == DebugRunDestination::FinalBoss;
+    }
 
     /// <summary>
     /// 指定した遷移先とルートのシードを使い、デバッグ用のラン進行状態を組み立てる。
     /// </summary>
     RunProgressState BuildProgress(std::uint32_t routeSeed) const
     {
-        const bool endRoute = destination == DebugRunDestination::Preparation ||
-            destination == DebugRunDestination::FinalBoss;
+        const bool endRoute = UsesFinalBossRoute();
         const int area = endRoute ? kNormalRouteAreaGoal :
             std::clamp(completedAreas, 0, kNormalRouteAreaGoal - 1);
         RunProgressState state;
@@ -35,6 +41,10 @@ struct DebugRunSetup
                 state.map.Choose(1);
                 state.phase = RunPhase::FinalBossReady;
             }
+        }
+        else if (destination == DebugRunDestination::Event)
+        {
+            state.map.SetDebugEventEntry();
         }
         else if (destination != DebugRunDestination::Route)
         {

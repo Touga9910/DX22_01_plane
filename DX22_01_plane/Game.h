@@ -102,6 +102,7 @@ private:
 	std::unique_ptr<GameRunSession> m_RunSession;
 	std::unique_ptr<RunController> m_RunController;
 	int m_RunEventActions = 0;
+	std::string m_DebugRunEventId;
 	std::unique_ptr<GameStageOverrideState> m_StageOverrideState;
 	bool m_PhaseTestRunRequested = false;
 	RunCombatMode m_LastRequestedRunCombatMode = RunCombatMode::Legacy;

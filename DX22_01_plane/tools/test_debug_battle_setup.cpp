@@ -3,6 +3,7 @@
 #include "DebugRunSetup.h"
 #include "DebugRunPreset.h"
 #include "RunController.h"
+#include "RunEventView.h"
 #include <cassert>
 #include <fstream>
 #include <limits>
@@ -16,27 +17,38 @@ int main()
     // Jumps keep a connected remaining map, including both final boss transitions.
     for (int area = 0; area < kNormalRouteAreaGoal; ++area)
     {
-        for (int destination = 0; destination <= 6; ++destination)
+        for (const auto destination : { DebugRunDestination::Route, DebugRunDestination::Battle,
+            DebugRunDestination::MidBoss, DebugRunDestination::Shop, DebugRunDestination::Rest,
+            DebugRunDestination::Preparation, DebugRunDestination::FinalBoss, DebugRunDestination::Event })
         {
             DebugRunSetup run;
             run.completedAreas = area;
-            run.destination = static_cast<DebugRunDestination>(destination);
+            run.destination = destination;
             auto state = run.BuildProgress(12345);
-            assert(state.areaProgress == (destination >= 5 ? 15 : area));
+            assert(state.areaProgress == (run.UsesFinalBossRoute() ? kNormalRouteAreaGoal : area));
             assert(state.map.CompletedAreas() == state.areaProgress);
             assert(RunMap::Restore(state.map.Save()).Save() == state.map.Save());
             RunProgressController progress;
             progress.Restore(state);
-            if (destination >= 5)
+            if (run.UsesFinalBossRoute())
             {
-                if (destination == 5) assert(progress.CompleteBossPreparation());
+                if (destination == DebugRunDestination::Preparation) assert(progress.CompleteBossPreparation());
                 assert(progress.BeginFinalBoss());
                 progress.CompleteFinalBoss();
                 assert(progress.GetPhase() == RunPhase::Completed);
             }
             else
             {
-                if (destination == 0) assert(progress.ChooseNode(progress.GetMap().Available().front()));
+                if (destination == DebugRunDestination::Route || destination == DebugRunDestination::Event)
+                {
+                    const auto& map = progress.GetMap();
+                    assert(map.Active() == -1);
+                    const auto options = map.Available();
+                    assert(!options.empty());
+                    if (destination == DebugRunDestination::Event)
+                        assert(map.Node(options.front())->type == StageRouteType::Event);
+                    assert(progress.ChooseNode(options.front()));
+                }
                 assert(progress.CompleteNormalArea(false, 15, 0) != AreaCompletionResult::Rejected);
                 assert(progress.GetAreaProgress() == area + 1);
                 if (area == 14) assert(progress.IsBossPreparation());
@@ -178,6 +190,26 @@ int main()
         automatic["run"]["completed_areas"] = destination >= 5 ? 15 : 0;
         assert(DebugRunPreset::FromJson(automatic, catalog, enemies, stages).ToJson() == automatic);
     }
+    DebugRunPreset randomEvent = runPreset;
+    randomEvent.run.destination = DebugRunDestination::Event;
+    randomEvent.run.stageId.clear();
+    const auto randomEventJson = randomEvent.ToJson();
+    assert(randomEventJson["run"]["destination"] == "event" && !randomEventJson["run"].contains("event_id"));
+    assert(DebugRunPreset::FromJson(randomEventJson, catalog, enemies, stages).run.eventId.empty());
+    for (const auto& event : RunEventDefinitions())
+    {
+        auto specifiedEvent = randomEvent;
+        specifiedEvent.run.eventId = event.id;
+        const auto serialized = specifiedEvent.ToJson();
+        assert(serialized["run"]["event_id"] == event.id);
+        assert(DebugRunPreset::FromJson(serialized, catalog, enemies, stages).ToJson() == serialized);
+        differences = CompareDebugRunPresets(randomEvent, specifiedEvent);
+        assert(!changedRow("progress") && changedRow("event"));
+    }
+    badRun = randomEventJson; badRun["run"]["event_id"] = "missing_event"; rejectRun(badRun);
+    badRun = randomEventJson; badRun["run"]["event_id"] = 1; rejectRun(badRun);
+    badRun = randomEventJson; badRun["run"]["completed_areas"] = kNormalRouteAreaGoal; rejectRun(badRun);
+    badRun = presetJson; badRun["run"]["event_id"] = RunEventDefinitions().front().id; rejectRun(badRun);
     const std::filesystem::path runPresetsPath = "tools/runtime_tests/debug_run_presets/presets.json";
     std::filesystem::create_directories(runPresetsPath.parent_path());
     { std::ofstream file(runPresetsPath); file << R"({"format":"dx22_debug_run_presets","version":1,"presets":{}})"; }
@@ -297,7 +329,7 @@ int main()
     assert(debugProfile.highestUnlockedAscension == 7 &&
         debugProfile.selectedAscension == 5 &&
         debugProfile.IsAchievementUnlocked(AchievementId::FirstVictory));
-    assert(roundtrip.DefaultStartingHp() == setup.maxHp - 5);
+    assert(roundtrip.DefaultStartingHp() == setup.maxHp - 10);
     assert(roundtrip.breakBallPositions.size() == 3 &&
         roundtrip.breakBallPositions[1].x == 11 &&
         roundtrip.breakBallPositions[1].z == -7);
@@ -388,5 +420,5 @@ int main()
     setup.armor = 2; setup.breakShots = 0;
     setup.breakBallPositions = {{0, TableConfig::FIELD_HEIGHT, 0}};
     save("setup_break_chain.json");
-    std::cout << "PASS: independent preset copies, collision/limit rejection, 105 debug run destinations, final boss transitions, infinite money purchases/reset, roundtrip, duplicate identities, 1-ball redraw, " << rejected << " malformed presets, nonfinite values, boss limit, overlap and fixtures\n";
+    std::cout << "PASS: independent preset copies, collision/limit rejection, 120 debug run destinations, event preset selection, final boss transitions, infinite money purchases/reset, roundtrip, duplicate identities, 1-ball redraw, " << rejected << " malformed presets, nonfinite values, boss limit, overlap and fixtures\n";
 }

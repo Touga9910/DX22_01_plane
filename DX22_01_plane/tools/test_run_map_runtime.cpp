@@ -67,7 +67,7 @@ int main()
     for (unsigned seed = 0; seed < 200; ++seed)
     {
         RunMap map;
-        map.Generate(seed);
+        map.Generate(seed, 0, 15, 3);
         const auto initial = map.Save();
         assert(initial.at("version") == 3);
         assert(RunMap::Restore(initial).Snapshot() == map.Snapshot());
@@ -152,7 +152,60 @@ int main()
     assert(sawEarlyEvent && sawLateEvent && selectedEvent);
     assert(std::string(RunMapRouteId(StageRouteType::Event)) == "event");
 
-    for (int version : {1, 2, 3})
+    int normalAndEventCount = 0;
+    int eventCount = 0;
+    for (unsigned seed = 0; seed < 200; ++seed)
+    {
+        RunMap map;
+        map.Generate(seed);
+        assert(map.Version() == 4);
+        assert(RunMap::Restore(map.Save()).Snapshot() == map.Snapshot());
+
+        RunMap original;
+        original.Generate(seed, 0, 15, 2);
+        assert(original.Nodes().size() == map.Nodes().size());
+        int mapPoolSize = 0;
+        int mapEvents = 0;
+        for (const auto& node : map.Nodes())
+        {
+            const auto& originalNode = *original.Node(node.id);
+            assert(node.floor == originalNode.floor && node.lane == originalNode.lane);
+            assert(node.next == originalNode.next);
+            if (node.type == StageRouteType::Event)
+            {
+                assert(node.floor >= 2 && node.floor < 15);
+                assert(originalNode.type == StageRouteType::NormalBattle);
+                ++mapEvents;
+            }
+            else
+            {
+                assert(node.type == originalNode.type);
+            }
+            if (node.type == StageRouteType::NormalBattle || node.type == StageRouteType::Event)
+                ++mapPoolSize;
+            if (!node.next.empty())
+            {
+                assert(std::any_of(node.next.begin(), node.next.end(), [&map](int next)
+                {
+                    return map.Node(next)->type != StageRouteType::Event;
+                }));
+            }
+        }
+        for (int floor = 0; floor < 15; ++floor)
+        {
+            assert(std::any_of(map.Nodes().begin(), map.Nodes().end(), [floor](const RunMapNode& node)
+            {
+                return node.floor == floor && node.type == StageRouteType::NormalBattle;
+            }));
+        }
+        assert(mapEvents <= (mapPoolSize + 2) / 4);
+        normalAndEventCount += mapPoolSize;
+        eventCount += mapEvents;
+    }
+    assert(eventCount * 100 >= normalAndEventCount * 24);
+    assert(eventCount * 100 <= normalAndEventCount * 26);
+
+    for (int version : {1, 2, 3, 4})
     {
         RunProgressController progress;
         RunProgressState state;
@@ -180,6 +233,20 @@ int main()
     assert(legacy.Active() == 0 && legacy.CompletedAreas() == 6);
     assert(RunMap::Restore(legacy.Save()).Snapshot() == legacy.Snapshot());
     legacy.CompleteActive(); assert(legacy.CompletedAreas() == 7);
+
+    RunMap debugEvent;
+    assert(!debugEvent.SetDebugEventEntry());
+    debugEvent.Generate(20261124, 6, 9);
+    assert(debugEvent.SetDebugEventEntry());
+    assert(!debugEvent.SetDebugEventEntry() && debugEvent.Active() == -1);
+    assert(debugEvent.Available().front() == 0 && debugEvent.Node(0)->type == StageRouteType::Event);
+    assert(RunMap::Restore(debugEvent.Save()).Snapshot() == debugEvent.Snapshot());
+    assert(debugEvent.Choose(0));
+    assert(RunMap::Restore(debugEvent.Save()).Snapshot() == debugEvent.Snapshot());
+    RunMap old;
+    old.Generate(20261124, 6, 9, 3);
+    assert(!old.SetDebugEventEntry());
+
     RunMap prep; prep.Generate(1, 15, 0);
     assert(prep.Available() == std::vector<int>{0});
     assert(prep.Choose(0) && prep.CompleteActive() && prep.Choose(1));
@@ -199,5 +266,7 @@ int main()
         try { RunMap::Restore(saved); } catch (const std::exception&) { rejected = true; }
         assert(rejected);
     }
-    std::cout << "Run map: 200 seeds, all versions, reachability, event placement, boss preparation, save round trips, legacy entries and corrupt paths passed.\n";
+    std::cout << "Run map: 200 seeds, all versions, reachability, event ratio ("
+        << eventCount << "/" << normalAndEventCount
+        << "), boss preparation, save round trips, entry overrides and corrupt paths passed.\n";
 }

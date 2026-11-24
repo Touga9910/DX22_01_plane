@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <random>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace
@@ -187,15 +189,23 @@ EventOffer BuildEvent(
 	const RunMapNode& node,
 	const PlayerRunStatus& status,
 	const PlayerDeck& deck,
-	int polishActions)
+	int polishActions,
+	std::string_view debugEventId)
 {
 	auto random = MakeEventRandom(map, node, 17);
-	const auto type = static_cast<EventType>(random() % static_cast<unsigned>(EventType::Count));
-	EventOffer offer{};
-	switch (type)
+	const auto& definitions = RunEventDefinitions();
+	static_assert(std::tuple_size_v<std::remove_cvref_t<decltype(definitions)>> == static_cast<std::size_t>(EventType::Count));
+	std::size_t index = random() % definitions.size();
+	if (!debugEventId.empty())
+	{
+		if (const auto* forced = FindRunEventDefinition(debugEventId))
+			index = static_cast<std::size_t>(forced - definitions.data());
+	}
+	const auto& definition = definitions[index];
+	EventOffer offer{ definition.id, definition.title, {} };
+	switch (static_cast<EventType>(index))
 	{
 	case EventType::PolishingTable:
-		offer = { "polishing_table", Utf8(u8"熱を帯びる研磨台"), {} };
 		offer.options.push_back(MakeOption(status, EventEffect::UpgradeBall,
 			Utf8(u8"球を磨く"), Utf8(u8"選んだ球を1段階強化。次回は消費HPが3増える"),
 			{ 5 + 3 * polishActions, 0 }));
@@ -203,7 +213,6 @@ EventOffer BuildEvent(
 		break;
 	case EventType::WaterStation:
 	{
-		offer = { "water_station", Utf8(u8"道端の給水所"), {} };
 		const int heal = (std::min)(10, status.maxHp - status.currentHp);
 		offer.options.push_back(MakeOption(status, EventEffect::Heal,
 			Utf8(u8"水を飲む"), "HP +" + std::to_string(heal), { 0, 8 }, heal));
@@ -211,11 +220,9 @@ EventOffer BuildEvent(
 		break;
 	}
 	case EventType::LostBallLocker:
-		offer = { "lost_ball_locker", Utf8(u8"忘れ物ロッカー"), {} };
 		AddCatalogOptions(offer, status, deck, random, false);
 		break;
 	case EventType::BallRecycler:
-		offer = { "ball_recycler", Utf8(u8"古球回収所"), {} };
 		offer.options.push_back(MakeOption(status, EventEffect::RemoveBall,
 			Utf8(u8"Moneyで回収を頼む"), Utf8(u8"選んだ球を1個削除"), { 0, 10 }));
 		offer.options.push_back(MakeOption(status, EventEffect::RemoveBall,
@@ -223,11 +230,9 @@ EventOffer BuildEvent(
 		for (EventOption& option : offer.options) AddDeckTargets(option, deck);
 		break;
 	case EventType::TradeWorkshop:
-		offer = { "trade_workshop", Utf8(u8"下取り工房"), {} };
 		AddCatalogOptions(offer, status, deck, random, true);
 		break;
 	case EventType::PendulumSafe:
-		offer = { "pendulum_safe", Utf8(u8"振り子金庫"), {} };
 		offer.options.push_back(MakeOption(status, EventEffect::GainMoney,
 			Utf8(u8"振り子を押さえる"), "Money +12", { 6, 0 }, 12));
 		offer.options.push_back(MakeOption(status, EventEffect::Gamble,
@@ -253,8 +258,9 @@ RunEventViewSnapshot Game::CaptureRunEvent() const
 	if (node == nullptr) return {};
 
 	const PlayerRunStatus& status = m_RunController->Status();
-	EventOffer offer = BuildEvent(map, *node, status, m_RunController->Deck(), m_RunEventActions);
-	RunEventViewSnapshot snapshot{ offer.title, status.currentHp, status.maxHp, status.money, {} };
+	const auto debugEvent = IsDebugRunMode() ? std::string_view(m_DebugRunEventId) : std::string_view{};
+	EventOffer offer = BuildEvent(map, *node, status, m_RunController->Deck(), m_RunEventActions, debugEvent);
+	RunEventViewSnapshot snapshot{ offer.title, status.currentHp, status.maxHp, status.money, {}, offer.id };
 	for (EventOption& option : offer.options) snapshot.choices.push_back(std::move(option.choice));
 	return snapshot;
 }
@@ -271,7 +277,8 @@ bool Game::ChooseRunEvent(int choiceIndex, int targetIndex)
 
 	PlayerRunStatus& status = m_RunController->Status();
 	PlayerDeck& deck = m_RunController->Deck();
-	const EventOffer offer = BuildEvent(map, *node, status, deck, m_RunEventActions);
+	const auto debugEvent = IsDebugRunMode() ? std::string_view(m_DebugRunEventId) : std::string_view{};
+	const EventOffer offer = BuildEvent(map, *node, status, deck, m_RunEventActions, debugEvent);
 	if (static_cast<std::size_t>(choiceIndex) >= offer.options.size()) return false;
 	const EventOption& option = offer.options[choiceIndex];
 	const auto& targets = option.choice.targets;
@@ -342,6 +349,7 @@ bool Game::ChooseRunEvent(int choiceIndex, int targetIndex)
 	}
 	else
 	{
+		m_DebugRunEventId.clear();
 		CompleteNormalRouteArea("event");
 		EnterNextRouteAfterArea();
 	}

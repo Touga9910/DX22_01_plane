@@ -2,17 +2,26 @@
 #include "DebugRunPreset.h"
 #include "PlayerBallSaveData.h"
 #include "PlayerBallText.h"
+#include "RunEventView.h"
 #include <Windows.h>
 #include <fstream>
 #include <set>
 #include <stdexcept>
+#include <utility>
 
 namespace
 {
     using Json = nlohmann::json;
     constexpr std::uintmax_t MaximumBytes = 4 * 1024 * 1024;
     constexpr size_t MaximumPresets = 64;
-    const char* Destinations[] = {"route", "battle", "midboss", "shop", "rest", "boss_preparation", "final_boss"};
+    const char* Destinations[] = {"route", "battle", "midboss", "shop", "rest", "boss_preparation", "final_boss", "event"};
+
+    const char* EventLabel(const DebugRunSetup& run)
+    {
+        if (run.destination != DebugRunDestination::Event) return "なし";
+        const auto* event = FindRunEventDefinition(run.eventId);
+        return event ? event->title : "ランダム";
+    }
 
     /// <summary>
     /// プリセット名が空白のみ、長すぎる名前、制御文字を含む名前に該当しないことを検証する。
@@ -73,14 +82,19 @@ std::vector<DebugRunPresetComparisonRow> CompareDebugRunPresets(
     {
         rows.push_back({key, label, a, b, a != b});
     };
-    const char* destinations[] = {"ルート選択", "通常戦", "中ボス戦", "ショップ", "休憩所", "最終ボス前の休憩", "最終ボス戦"};
+    const char* destinations[] = {"ルート選択", "通常戦", "中ボス戦", "ショップ", "休憩所", "最終ボス前の休憩", "最終ボス戦", "イベント"};
     auto progress = [](const DebugRunPreset& p) {
-        return std::to_string(p.run.destination >= DebugRunDestination::Preparation ? kNormalRouteAreaGoal : p.run.completedAreas) + " / 15";
+        const int area = p.run.UsesFinalBossRoute() ? kNormalRouteAreaGoal : p.run.completedAreas;
+        return std::to_string(area) + " / " + std::to_string(kNormalRouteAreaGoal);
     };
     row("progress", "進行度", progress(before), progress(after));
     row("destination", "移動先", destinations[static_cast<int>(before.run.destination)], destinations[static_cast<int>(after.run.destination)]);
     row("stage", "ステージ", before.run.stageId.empty() ? "進行度から自動選択" : before.run.stageId,
         after.run.stageId.empty() ? "進行度から自動選択" : after.run.stageId);
+    if (before.run.destination == DebugRunDestination::Event || after.run.destination == DebugRunDestination::Event)
+    {
+        row("event", "イベントの種類", EventLabel(before.run), EventLabel(after.run));
+    }
     row("combat_mode", "抽選ルール", before.run.combatMode == RunCombatMode::PhaseTest ? "フェーズ制試遊" : "本編",
         after.run.combatMode == RunCombatMode::PhaseTest ? "フェーズ制試遊" : "本編");
     row("infinite_money", "ゴールド無限", before.run.infiniteMoney ? "ON" : "OFF", after.run.infiniteMoney ? "ON" : "OFF");
@@ -138,10 +152,11 @@ nlohmann::json DebugRunPreset::ToJson() const
     const int destination = static_cast<int>(run.destination);
     if (destination < 0 || destination >= static_cast<int>(std::size(Destinations)))
         throw std::runtime_error("移動先が不正です。");
-    return {{"format", "dx22_debug_run_preset"}, {"version", 1},
-        {"run", {{"completed_areas", run.completedAreas}, {"destination", Destinations[destination]},
-            {"combat_mode", ToString(run.combatMode)}, {"stage_id", run.stageId},
-            {"infinite_money", run.infiniteMoney}}},
+    Json entry = {{"completed_areas", run.completedAreas}, {"destination", Destinations[destination]},
+        {"combat_mode", ToString(run.combatMode)}, {"stage_id", run.stageId},
+        {"infinite_money", run.infiniteMoney}};
+    if (!run.eventId.empty()) entry["event_id"] = run.eventId;
+    return {{"format", "dx22_debug_run_preset"}, {"version", 1}, {"run", std::move(entry)},
         {"battle_setup", battle.ToJson()}};
 }
 
@@ -165,14 +180,19 @@ DebugRunPreset DebugRunPreset::FromJson(const nlohmann::json& value,
     const auto found = std::find(std::begin(Destinations), std::end(Destinations), destination);
     if (found == std::end(Destinations)) throw std::runtime_error("移動先が不正です。");
     next.run.destination = static_cast<DebugRunDestination>(found - std::begin(Destinations));
-    if (next.run.completedAreas == kNormalRouteAreaGoal &&
-        next.run.destination != DebugRunDestination::Preparation && next.run.destination != DebugRunDestination::FinalBoss)
+    if (next.run.completedAreas == kNormalRouteAreaGoal && !next.run.UsesFinalBossRoute())
         throw std::runtime_error("進行度15では最終準備または最終ボスを指定してください。");
     const auto mode = run.at("combat_mode").get<std::string>();
     if (mode != "legacy" && mode != "phase_test") throw std::runtime_error("ステージ抽選ルールが不正です。");
     next.run.combatMode = RunCombatModeFromString(mode);
     next.run.infiniteMoney = run.at("infinite_money").get<bool>();
     next.run.stageId = run.at("stage_id").get<std::string>();
+    next.run.eventId = run.value("event_id", std::string{});
+    if (!next.run.eventId.empty() &&
+        (next.run.destination != DebugRunDestination::Event || !FindRunEventDefinition(next.run.eventId)))
+    {
+        throw std::runtime_error("指定イベントが存在しないか、移動先がイベントではありません。");
+    }
     if (!next.run.stageId.empty())
     {
         const bool battle = next.run.destination == DebugRunDestination::Battle ||
