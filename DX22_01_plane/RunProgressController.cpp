@@ -98,12 +98,15 @@ AreaCompletionResult RunProgressController::CompleteNormalArea(
 	if (!enduranceMode && m_AreaProgress >= NormalRouteAreaGoal)
 	{
 		m_AreaProgress = NormalRouteAreaGoal;
-		m_Phase = RunPhase::BossPreparation;
-		if (!m_Map.Choose(m_Map.AreaCount() * 3))
+		const auto choices = m_Map.Available();
+		const RunMapNode* preparation = choices.size() == 1
+			? m_Map.Node(choices.front()) : nullptr;
+		if (preparation == nullptr || preparation->type != StageRouteType::BossPreparation ||
+			!m_Map.Choose(preparation->id))
 		{
-			m_Phase = RunPhase::NormalRoute;
 			return AreaCompletionResult::Rejected;
 		}
+		m_Phase = RunPhase::BossPreparation;
 		return AreaCompletionResult::BossPreparationEntered;
 	}
 

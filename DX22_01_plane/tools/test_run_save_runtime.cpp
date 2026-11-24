@@ -97,7 +97,48 @@ int main()
     assert(!GameSaveManager::Load(rules, restored, message));
     Write(original);
     assert(GameSaveManager::Load(rules, restored, message));
+
+    // Park a route at an event without starting a battle, then reload its
+    // accumulated upgrade count and continue on the same map.
+    auto eventRun = snapshot;
+    auto& map = eventRun.progress.map;
+    int eventNode = -1;
+    while (map.CompletedAreas() < map.AreaCount())
+    {
+        const auto available = map.Available();
+        assert(!available.empty());
+        for (int id : available)
+        {
+            if (map.Node(id)->type == StageRouteType::Event)
+            {
+                eventNode = id;
+                break;
+            }
+        }
+        assert(map.Choose(eventNode >= 0 ? eventNode : available.front()));
+        if (eventNode >= 0) break;
+        assert(map.CompleteActive());
+    }
+    assert(eventNode >= 0);
+    eventRun.progress.areaProgress = map.CompletedAreas();
+    eventRun.runEventActions = 2;
+    eventRun.status.currentHp = 18;
+    eventRun.deck.drawPile.front().upgradeLevel = 2;
+    assert(GameSaveManager::Save(eventRun, SceneType::Event, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.resumeScene == SceneType::Event);
+    assert(restored.snapshot.runEventActions == 2);
+    assert(restored.snapshot.status.currentHp == 18);
+    assert(restored.snapshot.deck.drawPile.front().upgradeLevel == 2);
+    assert(restored.snapshot.progress.map.Save() == map.Save());
+    assert(map.CompleteActive());
+    eventRun.progress.areaProgress = map.CompletedAreas();
+    assert(GameSaveManager::Save(eventRun, SceneType::Select, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.resumeScene == SceneType::Select);
+    assert(restored.snapshot.runEventActions == 0);
+
     assert(GameSaveManager::Remove());
     assert(!GameSaveManager::Inspect().exists);
-    std::cout << "PASS: real save/load, deck IDs, map, RNG state, invalid/debug save rejection, atomic failure preservation, corrupt/truncated/unsupported saves, recovery\n";
+    std::cout << "PASS: save/load, deck IDs, map, RNG, event progress, invalid/debug saves, atomic failure and recovery\n";
 }

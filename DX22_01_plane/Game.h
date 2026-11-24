@@ -51,6 +51,7 @@ class GamePauseState;
 class GameStageOverrideState;
 class ProgressionProfile;
 struct PlayerBallData;
+struct RunEventViewSnapshot;
 struct StageData;
 enum class StageType;
 struct RunResultSnapshot;
@@ -100,6 +101,7 @@ private:
 	std::unique_ptr<GameRunDefaults> m_RunDefaults;
 	std::unique_ptr<GameRunSession> m_RunSession;
 	std::unique_ptr<RunController> m_RunController;
+	int m_RunEventActions = 0;
 	std::unique_ptr<GameStageOverrideState> m_StageOverrideState;
 	bool m_PhaseTestRunRequested = false;
 	RunCombatMode m_LastRequestedRunCombatMode = RunCombatMode::Legacy;
@@ -440,6 +442,8 @@ public:
 	void CompleteCurrentStage();
 	void LeaveShop();
 	void LeaveRestSite();
+	RunEventViewSnapshot CaptureRunEvent() const;
+	bool ChooseRunEvent(int choiceIndex, int targetIndex);
 	void ContinueAfterClearReward();
 	void StartNextBattle();
 	void StartNextBattle(StageType stageType);

@@ -7,7 +7,7 @@
 #include <vector>
 #include <utility>
 
-enum class StageRouteType { NormalBattle, MidBoss, Shop, RestSite, FinalBoss, BossPreparation };
+enum class StageRouteType { NormalBattle, MidBoss, Shop, RestSite, FinalBoss, BossPreparation, Event };
 
 // ルート種別をセーブデータやMCP出力で使用する文字列IDへ変換
 /// <summary>
@@ -23,6 +23,7 @@ inline const char* RunMapRouteId(StageRouteType type)
     case StageRouteType::RestSite: return "rest";
     case StageRouteType::FinalBoss: return "final_boss";
     case StageRouteType::BossPreparation: return "boss_preparation";
+    case StageRouteType::Event: return "event";
     default: return "unknown";
     }
 }
@@ -44,7 +45,7 @@ class RunMap
 {
     std::uint32_t m_Seed = 0;
     int m_StartArea = 0;
-    int m_Version = 2;
+    int m_Version = 3;
     int m_AreaCount = 15;
     int m_EntryOverride = -1;    // 旧形式セーブデータから移行した開始地点の種類（通常時は-1）
     std::vector<RunMapNode> m_Nodes;
@@ -130,6 +131,39 @@ class RunMap
         for (int from : previous) Connect(from, prep);
     }
 
+    /// <summary>
+    /// 通常戦と分岐の選択肢を残しながら、各区間に最大1つのイベントを配置する。
+    /// </summary>
+    void PlaceEvents(std::mt19937& rng)
+    {
+        const int areaRanges[][2] = {{3, 7}, {8, 13}};
+        for (const auto& [firstArea, lastArea] : areaRanges)
+        {
+            std::vector<int> candidates;
+            for (const RunMapNode& node : m_Nodes)
+            {
+                const int area = node.floor + 1;
+                if (area < firstArea || area > lastArea || node.type != StageRouteType::NormalBattle)
+                    continue;
+
+                // 各行の先頭に確保した通常戦を残す。
+                if (node.id == 0 || m_Nodes[node.id - 1].floor != node.floor)
+                    continue;
+
+                const bool required = std::any_of(m_Nodes.begin(), m_Nodes.end(),
+                    [&node](const RunMapNode& previous)
+                    {
+                        return previous.next.size() == 1 && previous.next.front() == node.id;
+                    });
+                if (!required)
+                    candidates.push_back(node.id);
+            }
+
+            if (!candidates.empty())
+                m_Nodes[candidates[rng() % candidates.size()]].type = StageRouteType::Event;
+        }
+    }
+
 public:
     /// <summary>
     /// ルート生成方式のバージョンに合わせて、中央レーンの番号を返す。
@@ -139,23 +173,26 @@ public:
     /// 現在のルート生成に使ったシードを返す。
     /// </summary>
     std::uint32_t Seed() const { return m_Seed; }
+    int Version() const { return m_Version; }
     // 指定Seedから3レーン構成のランマップを生成し、進行状態を初期化
     // 通常エリアの後ろには、ボス準備ノードと最終ボスノードが必ず追加される。
     /// <summary>
     /// 生成条件を検証して通常エリアを作り、最後にボス準備と最終ボスのノードを追加する。
     /// </summary>
-    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 2)
+    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 3)
     {
         if (startArea < 0 || startArea > 1000000 || areaCount < 0 || areaCount > 15)
             throw std::runtime_error("Invalid run map extent");
-        if (version != 1 && version != 2) throw std::runtime_error("Unsupported run map version");
+        if (version < 1 || version > 3) throw std::runtime_error("Unsupported run map version");
         m_Version = version;
         m_Seed = seed; m_StartArea = startArea; m_AreaCount = areaCount;
         m_EntryOverride = -1; m_Nodes.clear(); m_Path.clear(); m_Active = -1;
         std::mt19937 rng(seed);
-        if (m_Version == 2)
+        if (m_Version >= 2)
         {
             GenerateBranching(rng);
+            if (m_Version == 3)
+                PlaceEvents(rng);
             return;
         }
         for (int row = 0; row < areaCount; ++row)

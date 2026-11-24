@@ -130,6 +130,10 @@ bool Game::SaveCurrentRun()
 	{
 		sceneType = SceneType::Shop;
 	}
+	else if (GetCurrentSceneType() == SceneType::Event)
+	{
+		sceneType = SceneType::Event;
+	}
 	else
 	{
 		SetSaveLoadMessage(UiText::BattleAutosaveNotice);

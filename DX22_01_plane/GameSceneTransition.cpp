@@ -68,6 +68,10 @@ void Game::ChangeScene(SceneType sceneType)
 	}
 
 	ResetFrameTiming();
+	if (sceneType == SceneType::Event && !m_PersistenceRuntime->IsRestoringRunSave())
+	{
+		m_RunEventActions = 0;
+	}
 	int score = 0;
 	Scene* currentScene = m_Instance->GetCurrentScene();
 
@@ -78,6 +82,7 @@ void Game::ChangeScene(SceneType sceneType)
 			(sceneType == SceneType::Select ||
 			 sceneType == SceneType::Battle ||
 			 sceneType == SceneType::RestSite ||
+			 sceneType == SceneType::Event ||
 			 sceneType == SceneType::Shop))
 		{
 			m_Instance->SaveRunCheckpoint(sceneType, false, false);

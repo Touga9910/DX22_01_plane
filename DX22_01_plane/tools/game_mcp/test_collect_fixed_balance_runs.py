@@ -324,6 +324,21 @@ class BuildCollectorDecisionTests(unittest.TestCase):
                          ["choose_relic", "choose_reward"])
         self.assertEqual(send.await_args_list[0].args[2]["relic_index"], 4)
 
+    def test_collector_can_leave_a_run_event(self):
+        event = {"scene": "event", "available_actions": ["choose_run_event", "continue_to_battle"]}
+        result_scene = {"scene": "result", "run_progress": {"final_boss_defeated": True}}
+        with (
+            patch("collect_fixed_balance_runs.get_state", AsyncMock(side_effect=[event, result_scene])),
+            patch("collect_fixed_balance_runs.call", AsyncMock(return_value={"ok": True})) as send,
+        ):
+            result = asyncio.run(play_current_run(
+                object(), "intermediate", "standard", self.profiles["standard"],
+                self.profiles, "test", 2, 1,
+            ))
+        self.assertTrue(result["completed"])
+        self.assertEqual(result["actions"], 1)
+        self.assertEqual(send.await_args.args[1], "continue_to_battle")
+
     def test_collector_uses_boss_plan_without_legacy_enemy_targeting(self):
         state = {
             "scene": "battle", "boss_state": {"hp": 60},

@@ -26,10 +26,38 @@ for x in [52,836,1620]:
  for y in [44,897]: body+=f'<circle cx="{x}" cy="{y}" r="24" fill="#090c09"/>'
 body+=plate(90,205,300,420)
 save('map_background',1672,941,body)
-for name,color,stripe,mark in [('node_battle','#d6a52a',False,''),('node_rest','#277f72',True,''),('node_shop','#bd7726',True,''),('node_midboss','#722f35',False,'boss'),('cue','#f2e8cd',False,'')]:
+for name,color,mark in [('node_battle','#d6a52a',''),('node_midboss','#722f35','boss'),('cue','#f2e8cd',''),('node_event','#6352ad','event')]:
  b='<ellipse cx="65" cy="118" rx="47" ry="8" fill="#000" opacity=".25"/>'
  b+=f'<circle cx="64" cy="60" r="48" fill="{color}" stroke="#201b15" stroke-width="2"/>'
- if stripe: b+='<path d="M21 39a48 48 0 0 1 86 0zM21 81a48 48 0 0 0 86 0z" fill="#e9e4d2"/>'
  b+='<circle cx="64" cy="60" r="48" fill="url(#ball)"/><ellipse cx="46" cy="37" rx="13" ry="9" fill="#fff" opacity=".55"/>'
- if mark:b+='<path d="M39 52l12 12 13-22 13 22 12-12-6 31H45z" fill="#d8b16b" stroke="#44351e" stroke-width="2"/>'
+ if mark == 'boss':
+  b+='<path d="M39 52l12 12 13-22 13 22 12-12-6 31H45z" fill="#d8b16b" stroke="#44351e" stroke-width="2"/>'
+ if mark == 'event':
+  b+='<circle cx="65" cy="62" r="32" fill="#fff3da" stroke="#372b62" stroke-width="3"/>'
+  b+='<path d="M54 51c0-14 26-14 26 0 0 8-13 9-13 18" fill="none" stroke="#282143" stroke-width="8" stroke-linecap="round"/><circle cx="67" cy="81" r="4.5" fill="#282143"/>'
  save(name,128,128,b)
+
+campfire = (
+ '<ellipse cx="64" cy="117" rx="48" ry="7" fill="#000" opacity=".34"/>'
+ '<path d="M30 109l66-22m-64 0l66 22" fill="none" stroke="#3a2018" stroke-width="18" stroke-linecap="round"/>'
+ '<path d="M30 109l66-22m-64 0l66 22" fill="none" stroke="#aa6a39" stroke-width="10" stroke-linecap="round"/>'
+ '<path d="M66 12c2 23 23 28 30 48 8 22-5 42-31 42-24 0-39-16-35-35 2-9 6-16 11-22 0 11 4 17 8 20-2-18 9-34 17-53z" fill="#ff713c" stroke="#532719" stroke-width="5" stroke-linejoin="round"/>'
+ '<path d="M65 51c2 14 15 18 17 28 2 9-6 17-17 17-12 0-19-8-17-17 1-5 4-9 7-13 0 7 4 8 4 8-1-9 4-16 6-23z" fill="#ffdf77"/>'
+ '<path d="M68 76c2 5 7 8 7 12s-4 7-10 7c-5 0-8-3-8-7 0-4 3-7 5-10 0 4 2 6 3 7z" fill="#fff3bd"/>'
+)
+save('node_rest',128,128,campfire)
+
+shop_coins = (
+ '<ellipse cx="64" cy="114" rx="50" ry="8" fill="#000" opacity=".34"/>'
+ '<ellipse cx="48" cy="62" rx="31" ry="42" fill="#b87925" stroke="#654016" stroke-width="5" transform="rotate(-14 48 62)"/>'
+ '<ellipse cx="43" cy="60" rx="26" ry="39" fill="#ffd168" stroke="#fff0ac" stroke-width="3" transform="rotate(-14 43 60)"/>'
+ '<ellipse cx="43" cy="60" rx="18" ry="29" fill="none" stroke="#af7726" stroke-width="4" transform="rotate(-14 43 60)"/>'
+ '<path d="M39 49l7-4 6 26m-7 2l13-3" fill="none" stroke="#a36819" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
+)
+for y in (95, 83, 71):
+ shop_coins+=(
+  f'<path d="M56 {y}v9a29 10 0 0 0 58 0v-9z" fill="#bd7e24" stroke="#654016" stroke-width="3"/>'
+  f'<ellipse cx="85" cy="{y}" rx="29" ry="10" fill="#ffd16b" stroke="#fff0ac" stroke-width="2"/>'
+  f'<ellipse cx="85" cy="{y}" rx="20" ry="5" fill="none" stroke="#af7726" stroke-width="2"/>'
+ )
+save('node_shop',128,128,shop_coins)

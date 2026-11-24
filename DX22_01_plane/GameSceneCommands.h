@@ -32,6 +32,7 @@ public:
     static bool RestHeal();
     static bool RestUpgradeBall(int index);
     static void LeaveRestSite();
+    static bool ChooseRunEvent(int choiceIndex, int targetIndex);
 
     /// <summary>
     /// 静的なシーン操作インターフェースのインスタンス化を禁止する。

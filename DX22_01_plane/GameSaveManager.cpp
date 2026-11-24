@@ -45,6 +45,7 @@ namespace
 		case SceneType::Battle: return "battle";
 		case SceneType::RestSite: return "rest";
 		case SceneType::Shop: return "shop";
+		case SceneType::Event: return "event";
 		default: return "invalid";
 		}
 	}
@@ -58,6 +59,7 @@ namespace
 		if (id == "battle") return SceneType::Battle;
 		if (id == "rest") return SceneType::RestSite;
 		if (id == "shop") return SceneType::Shop;
+		if (id == "event") return SceneType::Event;
 		throw std::runtime_error(UiText::InvalidSaveData);
 	}
 
@@ -308,6 +310,7 @@ bool GameSaveManager::Save(
 				{ "rest_action_used", restActionUsed },
 				{ "shop_ball_offers", snapshot.shopBallOffers },
 				{ "shop_relic_offers", snapshot.shopRelicOffers },
+				{ "run_event_actions", resumeScene == SceneType::Event ? snapshot.runEventActions : 0 },
 			} },
 			{ "run", {
 				{ "run_combat_mode", ToString(snapshot.runCombatMode) },
@@ -638,9 +641,16 @@ bool GameSaveManager::Load(
 			: std::mt19937(runSeed ^ 0xd3a2646cu);
 		std::vector<int> shopBallOffers;
 		std::vector<int> shopRelicOffers;
+		int runEventActions = 0;
 		if (payload.contains("scene_state"))
 		{
 			const json& sceneState = payload.at("scene_state");
+			runEventActions = sceneState.value("run_event_actions", 0);
+			if (runEventActions < 0 || runEventActions > 1000000 ||
+				(resumeScene != SceneType::Event && runEventActions != 0))
+			{
+				throw std::runtime_error(UiText::InvalidSaveData);
+			}
 			shopBallOffers = sceneState.value(
 				"shop_ball_offers", std::vector<int>{});
 			if (legacyBallCatalog)
@@ -675,11 +685,16 @@ bool GameSaveManager::Load(
 		}
 		else
 		{
+			if (resumeScene == SceneType::Event)
+			{
+				throw std::runtime_error(UiText::InvalidSaveData);
+			}
 			// Historical choices are unknown. Start the visible map at this checkpoint.
 			restoredMap.Generate(
 				routeSeed,
 				areaProgress,
-				(std::max)(0, rules.normalRouteAreaGoal - areaProgress));
+				(std::max)(0, rules.normalRouteAreaGoal - areaProgress),
+				2);
 			if (runPhase == RunPhase::BossPreparation || runPhase == RunPhase::FinalBossReady || runPhase == RunPhase::FinalBoss)
 			{
 				restoredMap.Choose(0);
@@ -700,12 +715,18 @@ bool GameSaveManager::Load(
 				activeMapNode != nullptr && (
 					(resumeScene == SceneType::Shop && activeMapNode->type == StageRouteType::Shop) ||
 					(resumeScene == SceneType::RestSite && activeMapNode->type == StageRouteType::RestSite) ||
+					(resumeScene == SceneType::Event && activeMapNode->type == StageRouteType::Event) ||
 					(resumeScene == SceneType::Battle && (activeMapNode->type == StageRouteType::NormalBattle || activeMapNode->type == StageRouteType::MidBoss)));
 		}
 		else if (runPhase == RunPhase::BossPreparation)
 			mapSceneValid = resumeScene == SceneType::RestSite && activeMapNode && activeMapNode->type == StageRouteType::BossPreparation;
 		else if (runPhase == RunPhase::FinalBossReady)
-			mapSceneValid = resumeScene == SceneType::Select && !activeMapNode && restoredMap.Available() == std::vector<int>{restoredMap.AreaCount() * 3 + 1};
+		{
+			const std::vector<int> available = restoredMap.Available();
+			const RunMapNode* next = available.size() == 1 ? restoredMap.Node(available.front()) : nullptr;
+			mapSceneValid = resumeScene == SceneType::Select && !activeMapNode &&
+				next && next->type == StageRouteType::FinalBoss;
+		}
 		else if (runPhase == RunPhase::FinalBoss)
 			mapSceneValid = resumeScene == SceneType::Battle && activeMapNode && activeMapNode->type == StageRouteType::FinalBoss;
 		if (restoredMap.CompletedAreas() != areaProgress || !mapSceneValid)
@@ -727,6 +748,7 @@ bool GameSaveManager::Load(
 		request.snapshot.stageSelector = { stageEngine };
 		request.snapshot.shopBallOffers = std::move(shopBallOffers);
 		request.snapshot.shopRelicOffers = std::move(shopRelicOffers);
+		request.snapshot.runEventActions = runEventActions;
 		request.snapshot.statistics = std::move(restoredStatistics);
 		request.snapshot.activeAscension = activeAscension;
 		request.snapshot.runSeed = runSeed;

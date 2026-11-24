@@ -928,6 +928,15 @@ async def play_current_run(
                 actions_taken += 1
                 continue
 
+            if scene == "event" and "continue_to_battle" in actions:
+                result = await call(session, "continue_to_battle")
+                if result.get("ok"):
+                    actions_taken += 1
+                else:
+                    transient_errors += 1
+                    await asyncio.sleep(0.15)
+                continue
+
             if scene == "rest_site":
                 rest_decision = evaluate_rest_site_action(
                     state, build_profiles, active_build_id,

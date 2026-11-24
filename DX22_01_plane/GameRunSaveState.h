@@ -25,6 +25,7 @@ struct GameRunSaveSnapshot
 	StageSelectorSnapshot stageSelector{};
 	std::vector<int> shopBallOffers{};
 	std::vector<int> shopRelicOffers{};
+	int runEventActions = 0;
 	RunResultSnapshot statistics{};
 	int activeAscension = 0;
 	std::uint32_t runSeed = 0;

@@ -67,6 +67,7 @@ bool Game::CanPause() const
 		(dynamic_cast<BattleScene*>(GetCurrentScene()) != nullptr ||
 		 dynamic_cast<StageSelectScene*>(GetCurrentScene()) != nullptr ||
 		 dynamic_cast<RestSiteScene*>(GetCurrentScene()) != nullptr ||
+		 GetCurrentSceneType() == SceneType::Event ||
 		 dynamic_cast<ShopScene*>(GetCurrentScene()) != nullptr);
 }
 
@@ -104,6 +105,10 @@ bool Game::SaveAndReturnToTitle()
 	else if (dynamic_cast<ShopScene*>(GetCurrentScene()) != nullptr)
 	{
 		resumeScene = SceneType::Shop;
+	}
+	else if (GetCurrentSceneType() == SceneType::Event)
+	{
+		resumeScene = SceneType::Event;
 	}
 
 	if (resumeScene == SceneType::Max ||

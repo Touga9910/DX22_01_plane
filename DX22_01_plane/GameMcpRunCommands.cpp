@@ -4,9 +4,11 @@
 #include "Game.h"
 #include "GameTypes.h"
 #include "RestSiteScene.h"
+#include "RunEventView.h"
 #include "StageSelectScene.h"
 
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -206,13 +208,51 @@ std::optional<nlohmann::json> GameMcpCommandHandlers::TryRun(
 			" (" + selectedDestination + ").");
 	}
 
+	if (action == "choose_run_event")
+	{
+		if (scene != "event")
+		{
+			return CommandResult(false, "There is no active run event.");
+		}
+		const auto choice = arguments.value("choice_index", nlohmann::json(-1));
+		const auto target = arguments.value("target_index", nlohmann::json(-1));
+		const auto maxIndex = (std::numeric_limits<int>::max)();
+		const auto isValidIndex = [maxIndex](const nlohmann::json& index, int minIndex)
+		{
+			if (index.is_number_unsigned())
+			{
+				return index.get<std::uint64_t>() <= static_cast<std::uint64_t>(maxIndex);
+			}
+			return index.is_number_integer() && index >= minIndex && index <= maxIndex;
+		};
+		if (!isValidIndex(choice, 0) || !isValidIndex(target, -1))
+		{
+			return CommandResult(false, "The choice or target index is invalid.");
+		}
+		if (!game.ChooseRunEvent(choice.get<int>(), target.get<int>()))
+		{
+			return CommandResult(false, "The event choice or target is unavailable.");
+		}
+		return CommandResult(true, "Applied the event choice.");
+	}
+
 	if (action == "continue_to_battle")
 	{
+		if (scene == "event")
+		{
+			const auto event = game.CaptureRunEvent();
+			if (event.choices.empty() || !game.ChooseRunEvent(
+				static_cast<int>(event.choices.size()) - 1, -1))
+			{
+				return CommandResult(false, "There is no active run event to leave.");
+			}
+			return CommandResult(true, "Left the event and returned to the map.");
+		}
 		if (scene != "rest_site" && scene != "shop")
 		{
 			return CommandResult(
 				false,
-				"This action is only available at a rest site or shop.");
+				"This action is only available at a rest site, shop or event.");
 		}
 		if (scene == "rest_site")
 		{

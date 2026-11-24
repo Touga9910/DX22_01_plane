@@ -289,6 +289,7 @@
     <ClCompile Include="GameMcpBridge.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameRestActions.cpp" />
+    <ClCompile Include="GameRunEvent.cpp" />
     <ClCompile Include="GameRewardOperations.cpp" />
     <ClCompile Include="GameShopOperations.cpp" />
     <ClCompile Include="GameRelicOperations.cpp" />
@@ -334,6 +335,7 @@
     <ClCompile Include="ResultScene.cpp" />
     <ClCompile Include="RunStatisticsTracker.cpp" />
     <ClCompile Include="RestSiteScene.cpp" />
+    <ClCompile Include="RunEventScene.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="sound.cpp" />
@@ -459,6 +461,8 @@
     <ClInclude Include="RunResultSnapshot.h" />
     <ClInclude Include="RunStatisticsTracker.h" />
     <ClInclude Include="RestSiteScene.h" />
+    <ClInclude Include="RunEventScene.h" />
+    <ClInclude Include="RunEventView.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SphereColliderComponent.h" />

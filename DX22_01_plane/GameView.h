@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include "RunEventView.h"
 #include "SceneTransitionTiming.h"
 
 struct PlayerBallData;
@@ -50,6 +51,7 @@ class GameView final
 {
 public:
     static RestSiteViewSnapshot CaptureRestSite();
+    static RunEventViewSnapshot CaptureRunEvent();
     static ShopViewSnapshot CaptureShop();
     static TitleViewSnapshot CaptureTitle();
     static ResultViewSnapshot CaptureResult();

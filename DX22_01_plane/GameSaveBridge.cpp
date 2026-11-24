@@ -32,6 +32,7 @@ GameRunSaveSnapshot Game::CaptureRunSaveSnapshot() const
 	snapshot.stageSelector = m_RunController->StageSelection().CaptureSnapshot();
 	snapshot.shopBallOffers = m_RunController->ShopBallOffers();
 	snapshot.shopRelicOffers = m_RunController->ShopRelicOffers();
+	snapshot.runEventActions = m_RunEventActions;
 	snapshot.statistics = m_PersistenceRuntime->Statistics().GetState();
 	snapshot.activeAscension = m_PersistenceRuntime->ActiveAscension();
 	snapshot.runSeed = m_BalanceRuntime->runRandomSeed;
@@ -71,6 +72,7 @@ void Game::RestoreRunSaveSnapshot(GameRunRestoreRequest request)
 		snapshot.pocketRandomEngine;
 	m_RunController->RelicRandomEngine() = snapshot.relicRandomEngine;
 	m_PersistenceRuntime->Statistics().Restore(snapshot.statistics);
+	m_RunEventActions = snapshot.runEventActions;
 	ActivateRunSession();
 
 	if (!m_RunController->Deck().RestoreSnapshot(std::move(snapshot.deck)))

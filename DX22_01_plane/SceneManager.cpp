@@ -2,6 +2,7 @@
 
 #include "RestSiteScene.h"
 #include "ResultScene.h"
+#include "RunEventScene.h"
 #include "Scene.h"
 #include "ShopScene.h"
 #include "StageSelectScene.h"
@@ -98,6 +99,8 @@ std::unique_ptr<Scene> SceneManager::Create(SceneType sceneType) const
 		return std::make_unique<RestSiteScene>();
 	case SceneType::Shop:
 		return std::make_unique<ShopScene>();
+	case SceneType::Event:
+		return std::make_unique<RunEventScene>();
 	case SceneType::Result:
 		return std::make_unique<ResultScene>();
 	default:

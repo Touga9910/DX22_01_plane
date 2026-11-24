@@ -23,6 +23,7 @@
     <Link><SubSystem>Console</SubSystem><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding><AdditionalLibraryDirectories>C:\directxtk\lib\x64\Debug;C:\assimp\5.2.5\lib;$(ProjectDir)..;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories></Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\RunProgressController.cpp" />
     <ClCompile Include="test_run_map_runtime.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

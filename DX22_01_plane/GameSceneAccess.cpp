@@ -25,6 +25,7 @@ namespace
         case StageRouteType::MidBoss: return "Mid Boss";
         case StageRouteType::Shop: return "Shop";
         case StageRouteType::RestSite: return "Rest Site";
+        case StageRouteType::Event: return "Event";
         case StageRouteType::FinalBoss: return "Final Boss";
         case StageRouteType::BossPreparation: return "Boss Preparation";
         default: return "Unknown";
@@ -118,7 +119,7 @@ bool RunRouteCommands::Choose(
             { "selected_index", selectedIndex },
             { "map_node_id", nodeId },
             { "map_path", game.GetRunMap().Path() },
-            { "map_version", 1 },
+            { "map_version", game.GetRunMap().Version() },
             { "selected_route", RouteLogName(routeType) },
             { "area_progress", game.GetAreaProgress() },
             { "run_phase", ToString(game.GetRunPhase()) },
@@ -137,6 +138,9 @@ bool RunRouteCommands::Choose(
         break;
     case StageRouteType::RestSite:
         game.ChangeScene(SceneType::RestSite);
+        break;
+    case StageRouteType::Event:
+        game.ChangeScene(SceneType::Event);
         break;
     case StageRouteType::FinalBoss:
         game.StartNextBattle(StageType::Boss);
@@ -163,6 +167,16 @@ RestSiteViewSnapshot GameView::CaptureRestSite()
     view.canRestHeal = game.CanRestHeal();
     view.availableRestBenefit = game.HasAvailableRestBenefit();
     return view;
+}
+
+RunEventViewSnapshot GameView::CaptureRunEvent()
+{
+    return Game::GetInstance()->CaptureRunEvent();
+}
+
+bool GameSceneCommands::ChooseRunEvent(int choiceIndex, int targetIndex)
+{
+    return Game::GetInstance()->ChooseRunEvent(choiceIndex, targetIndex);
 }
 
 /// <summary>

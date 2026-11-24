@@ -243,8 +243,8 @@ void GamePresentation::Draw(Game& game)
 		}
 		return;
 	}
-    // The illustrated map already includes its own controls and route legend.
-    if (game.GetCurrentSceneType() == SceneType::Select) return;
+    if (game.GetCurrentSceneType() == SceneType::Select ||
+        game.GetCurrentSceneType() == SceneType::Event) return;
 	GameUi::PrepareWindow("play_hints", ImVec2(805, 35), ImVec2(450, 170));
 	if (ImGui::Begin("操作と攻略", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize))
 	{

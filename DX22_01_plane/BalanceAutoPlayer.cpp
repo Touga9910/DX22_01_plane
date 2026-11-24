@@ -3,6 +3,7 @@
 #include "GameRuntime.h"
 #include "GameWorld.h"
 #include "PlayerBall.h"
+#include "RunEventView.h"
 #include "StageSelectScene.h"
 #include "input.h"
 #include "json/json.hpp"
@@ -212,6 +213,18 @@ bool BalanceAutoPlayer::Update(Game& game)
 
 		ApplyShopAction(game);
 		return true;
+	}
+
+	if (game.GetCurrentSceneType() == SceneType::Event)
+	{
+		if (!isDecisionReady())
+		{
+			return false;
+		}
+
+		const auto event = game.CaptureRunEvent();
+		return !event.choices.empty() && game.ChooseRunEvent(
+			static_cast<int>(event.choices.size()) - 1, -1);
 	}
 
 	if (game.IsClearRewardActive())

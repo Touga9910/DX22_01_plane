@@ -122,6 +122,7 @@ public:
     std::vector<int> RollDistinctCatalogOfferIndices(int offerSize = 3);
     bool AddCatalogBall(int index);
     bool RemoveRewardTarget(int index);
+    bool ReplaceRewardTarget(int targetIndex, int catalogIndex);
 
     // Save I/O receives a typed copy instead of privileged field access.
     PlayerDeckSnapshot CaptureSnapshot() const;

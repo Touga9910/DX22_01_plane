@@ -1980,11 +1980,34 @@ def create_server(
         )
 
     @mcp.tool(
-        title="戦闘へ進む",
+        title="イベントの選択肢を選ぶ",
         description=(
-            "休憩所またはショップから次の戦闘へ進みます。"
+            "イベント画面でrun_event.choicesにあるchoice_indexを指定します。"
+            "球を選ぶ選択肢では、同じ選択肢のtargetsにあるtarget_indexも指定します。"
+            "選択結果に応じてHP、Money、デッキが変化します。"
+            "研磨台では続けて選択できます。"
+        ),
+        annotations=destructive_write,
+        structured_output=True,
+    )
+    def choose_run_event(
+        choice_index: int, target_index: int = -1,
+    ) -> GameToolResult:
+        if choice_index < 0 or target_index < -1:
+            raise GameBridgeError("choice_indexまたはtarget_indexが範囲外です。")
+        return GameToolResult(
+            result=store.submit_command(
+                "choose_run_event",
+                {"choice_index": choice_index, "target_index": target_index},
+            )
+        )
+
+    @mcp.tool(
+        title="マップに戻る",
+        description=(
+            "休憩所、ショップ、イベント画面からマップへ戻ります。"
             "休憩所では、利用可能な回復または強化を1つ選んだ後にだけ使用します。"
-            "利用可能な休憩ボーナスを未取得のまま進むことはできません。"
+            "イベント画面では報酬を受け取らずに立ち去ります。"
         ),
         annotations=local_write,
         structured_output=True,

@@ -9,6 +9,9 @@
 #include "PlayerBall.h"
 #include "PlayerBallData.h"
 #include "RunMap.h"
+#include "RunEventView.h"
+
+#include <utility>
 
 using namespace GameMcpJson;
 
@@ -140,6 +143,39 @@ void AppendAvailableActions(Game& game, const GameMcpReadSnapshot& snapshot, con
 		}
 		state["available_actions"].push_back(
 			"continue_to_battle");
+	}
+	else if (scene == "event")
+	{
+		const auto event = game.CaptureRunEvent();
+		auto choices = nlohmann::json::array();
+		for (const auto& choice : event.choices)
+		{
+			auto targets = nlohmann::json::array();
+			for (const auto& target : choice.targets)
+			{
+				targets.push_back({
+					{ "target_index", target.index },
+					{ "label", target.label },
+					{ "detail", target.detail },
+				});
+			}
+			choices.push_back({
+				{ "choice_index", choices.size() },
+				{ "label", choice.label },
+				{ "detail", choice.detail },
+				{ "enabled", choice.enabled },
+				{ "targets", std::move(targets) },
+			});
+		}
+		state["run_event"] = {
+			{ "title", event.title },
+			{ "choices", std::move(choices) },
+		};
+		if (!event.choices.empty())
+		{
+			state["available_actions"].push_back("choose_run_event");
+			state["available_actions"].push_back("continue_to_battle");
+		}
 	}
 	else if (scene == "battle" &&
 		game.GetBattleState() == BattleState::AimingDirection &&

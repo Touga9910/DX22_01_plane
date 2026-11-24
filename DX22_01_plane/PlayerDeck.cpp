@@ -461,6 +461,30 @@ bool PlayerDeck::RemoveRewardTarget(int index)
 }
 
 /// <summary>
+/// 指定球を同じ位置でカタログ球に差し替え、デッキ枚数を維持する。
+/// </summary>
+bool PlayerDeck::ReplaceRewardTarget(int targetIndex, int catalogIndex)
+{
+    PlayerBallData* target = GetRewardTarget(targetIndex);
+    const PlayerBallData* catalogBall = GetCatalogBall(catalogIndex);
+    if (target == nullptr || catalogBall == nullptr)
+    {
+        return false;
+    }
+
+    PlayerBallData replacement = *catalogBall;
+    replacement.instanceId = m_NextInstanceId;
+    replacement.status = NormalizeBallStatus(replacement.status);
+    *target = std::move(replacement);
+    ++m_NextInstanceId;
+    if (target == GetCurrent())
+    {
+        m_IsCurrentBallUsed = false;
+    }
+    return true;
+}
+
+/// <summary>
 /// 全ての札と候補、現在の球、乱数生成器を保存用のスナップショットにまとめる。
 /// </summary>
 PlayerDeckSnapshot PlayerDeck::CaptureSnapshot() const

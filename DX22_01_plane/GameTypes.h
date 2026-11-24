@@ -25,6 +25,7 @@ enum class SceneType
 	RestSite,	// 休憩所
 	Shop,		// ショップ
 	Result,		// ラン終了後のリザルト画面
+	Event,		// マップで遭遇するイベント
 	Max			// SceneTypeの要素数を表す終端値
 };
 

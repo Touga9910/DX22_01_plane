@@ -35,6 +35,7 @@ namespace
 			return UiUtf8(u8"\u4e2d\u30dc\u30b9");
 		case StageRouteType::Shop: return UiText::RouteShop;
 		case StageRouteType::RestSite: return UiText::RouteRest;
+		case StageRouteType::Event: return "イベント";
 		case StageRouteType::FinalBoss:
 			return UiUtf8(u8"\u6700\u7d42\u30dc\u30b9");
 		default: return "Unknown";
@@ -51,6 +52,7 @@ namespace
         case StageRouteType::MidBoss: return "強敵との戦闘。撃破するとレリックを選べます。";
         case StageRouteType::Shop: return "Moneyでボールやレリックを購入し、デッキを調整できます。";
         case StageRouteType::RestSite: return "HP回復かボール強化を選べます。";
+        case StageRouteType::Event: return "到着するとイベントが発生し、行動を選べます。";
         case StageRouteType::BossPreparation: return "15エリアの後に必ず立ち寄る休憩所です。";
         case StageRouteType::FinalBoss: return "最終戦。撃破すればランをクリアします。";
         default: return "通常の戦闘。Moneyとクリア報酬を獲得できます。";
@@ -69,6 +71,7 @@ namespace
         case StageRouteType::Shop: return "assets/UI/Lounge/node_shop.png";
         case StageRouteType::RestSite:
         case StageRouteType::BossPreparation: return "assets/UI/Lounge/node_rest.png";
+        case StageRouteType::Event: return "assets/UI/Lounge/node_event.png";
         default: return "assets/UI/Lounge/node_battle.png";
         }
     }
@@ -209,13 +212,15 @@ void StageSelectScene::DrawUI()
     ui.Art("assets/UI/Lounge/map_background.png", 0, 0, 1672, 941, IM_COL32_WHITE, false);
     ui.Text("ルートマップ", 100, 77, 340, 58, 36, Cream, false);
     ui.Text("選んだボールへ、次の一打。", 520, 91, 660, 35, 23);
-    ui.Text("ボールの種類", 110, 219, 260, 42, 25);
+    ui.Text("マスの種類", 110, 219, 260, 42, 25);
     const StageRouteType types[] = {StageRouteType::NormalBattle, StageRouteType::RestSite,
-        StageRouteType::Shop, StageRouteType::MidBoss};
-    for (int i=0;i<4;++i)
+        StageRouteType::Shop, StageRouteType::Event, StageRouteType::MidBoss};
+    float legendY = 270.0f;
+    for (const auto type : types)
     {
-        ui.Art(RouteArt(types[i]), 110, 281+i*77.0f, 65, 65);
-        ui.Text(GetLocalizedRouteName(types[i]), 183, 290+i*77.0f, 192, 42, 23, Cream, false);
+        ui.Art(RouteArt(type), 110, legendY, 64, 64);
+        ui.Text(GetLocalizedRouteName(type), 183, legendY + 9, 192, 42, 23, Cream, false);
+        legendY += 65.0f;
     }
     ui.Text("白球が現在地です。", 100, 664, 290, 35, 21);
     ui.Text("ホイール：先の道を見る", 100, 711, 290, 35, 18);

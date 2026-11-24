@@ -6,6 +6,7 @@
 #include "BattleScene.h"
 #include "ResultScene.h"
 #include "RestSiteScene.h"
+#include "RunEventScene.h"
 #include "ShopScene.h"
 #include "StageSelectScene.h"
 #include "TitleScene.h"
@@ -85,6 +86,10 @@ namespace GameMcpJson
 		if (dynamic_cast<const ShopScene*>(scene) != nullptr)
 		{
 			return "shop";
+		}
+		if (dynamic_cast<const RunEventScene*>(scene) != nullptr)
+		{
+			return "event";
 		}
 		if (dynamic_cast<const ResultScene*>(scene) != nullptr)
 		{

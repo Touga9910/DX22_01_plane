@@ -136,6 +136,12 @@
     <ClInclude Include="RestSiteScene.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
     </ClInclude>
+    <ClInclude Include="RunEventScene.h">
+      <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
+    </ClInclude>
+    <ClInclude Include="RunEventView.h">
+      <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
+    </ClInclude>
     <ClInclude Include="LoungeServicePresentation.h"><Filter>ヘッダー ファイル</Filter></ClInclude>
     <ClInclude Include="ShopScene.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
@@ -1003,6 +1009,9 @@
     <ClCompile Include="RestSiteScene.cpp">
       <Filter>ソース ファイル\01_Scene\Facility</Filter>
     </ClCompile>
+    <ClCompile Include="RunEventScene.cpp">
+      <Filter>ソース ファイル\01_Scene\Facility</Filter>
+    </ClCompile>
     <ClCompile Include="ShopScene.cpp">
       <Filter>ソース ファイル\01_Scene\Facility</Filter>
     </ClCompile>
@@ -1140,6 +1149,9 @@
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
     </ClCompile>
     <ClCompile Include="GameRestActions.cpp">
+      <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
+    </ClCompile>
+    <ClCompile Include="GameRunEvent.cpp">
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
     </ClCompile>
     <ClCompile Include="GameRewardOperations.cpp">

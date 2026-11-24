@@ -1,4 +1,5 @@
 #include "../RunMap.h"
+#include "../RunProgressController.h"
 #include <cassert>
 #include <iostream>
 
@@ -60,18 +61,44 @@ int main()
         assert(map.Available().empty());
         assert(RunMap::Restore(map.Save()).Snapshot() == map.Snapshot());
     }
+    bool sawEarlyEvent = false;
+    bool sawLateEvent = false;
+    bool selectedEvent = false;
     for (unsigned seed = 0; seed < 200; ++seed)
     {
         RunMap map;
         map.Generate(seed);
         const auto initial = map.Save();
-        assert(initial.at("version") == 2);
+        assert(initial.at("version") == 3);
         assert(RunMap::Restore(initial).Snapshot() == map.Snapshot());
         assert(map.Available() == std::vector<int>({0, 1, 2}));
 
+        RunMap previousVersion;
+        previousVersion.Generate(seed, 0, 15, 2);
+        assert(previousVersion.Nodes().size() == map.Nodes().size());
+        assert(RunMap::Restore(previousVersion.Save()).Snapshot() == previousVersion.Snapshot());
+
+        int earlyEvents = 0;
+        int lateEvents = 0;
         int finalApproaches = 0;
         for (const auto& node : map.Nodes())
         {
+            const auto& previousNode = *previousVersion.Node(node.id);
+            assert(node.floor == previousNode.floor && node.lane == previousNode.lane);
+            assert(node.next == previousNode.next);
+            if (node.type == StageRouteType::Event)
+            {
+                assert(previousNode.type == StageRouteType::NormalBattle);
+                assert(node.floor >= 2 && node.floor <= 12);
+                if (node.floor <= 6) ++earlyEvents;
+                else ++lateEvents;
+                for (const auto& incoming : map.Nodes())
+                    assert(incoming.next.size() != 1 || incoming.next.front() != node.id);
+            }
+            else
+            {
+                assert(node.type == previousNode.type);
+            }
             assert(map.Reachable(node.id));
             if (node.type != StageRouteType::FinalBoss) assert(!node.next.empty());
             for (int id : node.next)
@@ -91,17 +118,63 @@ int main()
             }
         }
         assert(finalApproaches == 5);
+        assert(earlyEvents <= 1 && lateEvents <= 1);
+        sawEarlyEvent |= earlyEvents == 1;
+        sawLateEvent |= lateEvents == 1;
+        for (int floor = 0; floor < 15; ++floor)
+        {
+            assert(std::any_of(map.Nodes().begin(), map.Nodes().end(), [floor](const RunMapNode& node)
+            {
+                return node.floor == floor && node.type == StageRouteType::NormalBattle;
+            }));
+        }
         for (int floor = 0; floor < 17; ++floor)
         {
             const auto choices = map.Available();
             assert(!choices.empty());
-            assert(map.Choose(choices[(seed + floor) % choices.size()]));
-            assert(RunMap::Restore(map.Save()).Save() == map.Save());
+            const int choice = choices[(seed + floor) % choices.size()];
+            assert(map.Choose(choice));
+            if (map.Node(choice)->type == StageRouteType::Event)
+            {
+                selectedEvent = true;
+                const RunMap restored = RunMap::Restore(map.Save());
+                assert(restored.Active() == choice && restored.Node(choice)->type == StageRouteType::Event);
+            }
+            else
+            {
+                assert(RunMap::Restore(map.Save()).Save() == map.Save());
+            }
             assert(map.CompleteActive());
             assert(map.CompletedAreas() == (std::min)(15, floor + 1));
         }
         assert(map.Available().empty());
     }
+    assert(sawEarlyEvent && sawLateEvent && selectedEvent);
+    assert(std::string(RunMapRouteId(StageRouteType::Event)) == "event");
+
+    for (int version : {1, 2, 3})
+    {
+        RunProgressController progress;
+        RunProgressState state;
+        state.map.Generate(20261124, 0, 15, version);
+        progress.Restore(std::move(state));
+        for (int area = 1; area <= 15; ++area)
+        {
+            const auto available = progress.GetMap().Available();
+            assert(!available.empty() && progress.ChooseNode(available.front()));
+            assert(progress.CompleteNormalArea(false, 15, 0) == (area < 15
+                ? AreaCompletionResult::Advanced : AreaCompletionResult::BossPreparationEntered));
+        }
+        const RunMap& map = progress.GetMap();
+        assert(progress.IsBossPreparation());
+        const RunMapNode* active = map.Node(map.Active());
+        assert(active != nullptr && active->type == StageRouteType::BossPreparation);
+        assert(progress.CompleteBossPreparation());
+        assert(progress.IsFinalBossReady());
+        const auto available = map.Available();
+        assert(available.size() == 1 && map.Node(available.front())->type == StageRouteType::FinalBoss);
+    }
+
     RunMap legacy; legacy.Generate(20260817, 6, 9);
     legacy.MigrateEntry(StageRouteType::Shop);
     assert(legacy.Active() == 0 && legacy.CompletedAreas() == 6);
@@ -126,5 +199,5 @@ int main()
         try { RunMap::Restore(saved); } catch (const std::exception&) { rejected = true; }
         assert(rejected);
     }
-    std::cout << "Run map: 200 seeds, both versions, all-node reachability, noncrossing routes, recovery access, save round trips, legacy entries and corrupt paths passed.\n";
+    std::cout << "Run map: 200 seeds, all versions, reachability, event placement, boss preparation, save round trips, legacy entries and corrupt paths passed.\n";
 }
