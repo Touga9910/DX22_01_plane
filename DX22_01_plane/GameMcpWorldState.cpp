@@ -14,6 +14,7 @@
 #include "PlayerBallData.h"
 #include "BallComponent.h"
 #include "StageData.h"
+#include "EnemyText.h"
 
 using namespace GameMcpJson;
 
@@ -29,6 +30,7 @@ namespace
 		{
 			enemies.push_back({
 				{ "enemy_id", spawn.enemyId },
+				{ "display_name", EnemyLabel(spawn.enemyId) },
 				{ "position", VectorToJson(spawn.position) },
 				{ "max_hp", spawn.enemyData.maxHp },
 				{ "can_charge", spawn.enemyData.canCharge },
@@ -41,6 +43,7 @@ namespace
 
 		return {
 			{ "layout_id", stage.id },
+			{ "display_name", stage.DisplayName() },
 			{ "stage_type", StageTypeToMcpString(stage.stageType) },
 			{ "combat_mode", ToString(stage.combatMode) },
 			{ "difficulty", stage.difficulty },

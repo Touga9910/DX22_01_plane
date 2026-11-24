@@ -8,6 +8,7 @@
         { "enemyId": "enemy_normal", "position": [0, 1.0, 23] }
       ],
       "id": "normal_001",
+      "name": "Stage1",
       "par": 4,
       "stageType": "normal",
       "preserveLayout": true,
@@ -49,6 +50,7 @@
         }
       ],
       "id": "normal_002",
+      "name": "Stage2",
       "par": 4,
       "stageType": "normal",
       "preserveLayout": true,
@@ -98,6 +100,7 @@
         }
       ],
       "id": "normal_003",
+      "name": "Stage3",
       "par": 5,
       "stageType": "normal",
       "combatMode": "phasePrototype",
@@ -154,6 +157,7 @@
         }
       ],
       "id": "normal_004",
+      "name": "Stage4",
       "par": 6,
       "stageType": "normal",
       "combatMode": "phasePrototype",
@@ -194,6 +198,7 @@
         }
       ],
       "id": "midboss_001",
+      "name": "Stage5",
       "par": 6,
       "stageType": "midBoss",
       "combatMode": "phasePrototype",
@@ -234,6 +239,7 @@
         }
       ],
       "id": "midboss_002",
+      "name": "Stage6",
       "par": 6,
       "stageType": "midBoss",
       "combatMode": "phasePrototype",
@@ -272,6 +278,7 @@
         }
       ],
       "id": "boss_001",
+      "name": "Stage7",
       "par": 7,
       "preserveLayout": true,
       "stageType": "boss",
@@ -299,6 +306,7 @@
         }
       ],
       "id": "boss_002",
+      "name": "Stage8",
       "par": 7,
       "stageType": "boss",
       "combatMode": "phasePrototype",
@@ -315,6 +323,7 @@
     {
       "difficulty": 2,
       "id": "board_swarm_dense6",
+      "name": "Stage9",
       "par": 6,
       "preserveLayout": true,
       "stageType": "normal",
@@ -340,6 +349,7 @@
     {
       "difficulty": 2,
       "id": "board_impact_brittle_wall",
+      "name": "Stage10",
       "par": 5,
       "preserveLayout": true,
       "stageType": "normal",
@@ -363,6 +373,7 @@
     {
       "difficulty": 3,
       "id": "board_resonance_cluster",
+      "name": "Stage11",
       "par": 6,
       "preserveLayout": true,
       "stageType": "normal",
@@ -386,6 +397,7 @@
     {
       "difficulty": 3,
       "id": "board_control_composite",
+      "name": "Stage12",
       "par": 7,
       "preserveLayout": true,
       "stageType": "normal",
@@ -411,6 +423,7 @@
     {
       "difficulty": 2,
       "id": "normal_swarm_center",
+      "name": "Stage13",
       "par": 6,
       "preserveLayout": true,
       "stageType": "normal",
@@ -436,6 +449,7 @@
     {
       "difficulty": 2,
       "id": "normal_brittle_wall",
+      "name": "Stage14",
       "par": 6,
       "preserveLayout": true,
       "stageType": "normal",
@@ -461,6 +475,7 @@
     {
       "difficulty": 2,
       "id": "normal_resonance_guard",
+      "name": "Stage15",
       "par": 7,
       "preserveLayout": true,
       "stageType": "normal",
@@ -488,6 +503,7 @@
     {
       "difficulty": 2,
       "id": "normal_dual_threat",
+      "name": "Stage16",
       "par": 7,
       "preserveLayout": true,
       "stageType": "normal",
@@ -515,6 +531,7 @@
     {
       "difficulty": 3,
       "id": "normal_resonant_swarm",
+      "name": "Stage17",
       "par": 8,
       "preserveLayout": true,
       "stageType": "normal",
@@ -544,6 +561,7 @@
     {
       "difficulty": 3,
       "id": "normal_triple_encirclement",
+      "name": "Stage18",
       "par": 8,
       "preserveLayout": true,
       "stageType": "normal",
@@ -573,6 +591,7 @@
     {
       "difficulty": 2,
       "id": "validation_break_rack6",
+      "name": "Stage19",
       "par": 6,
       "preserveLayout": true,
       "stageType": "normal",
@@ -597,6 +616,7 @@
     },
     {
       "id": "campaign_phase_mid_mixed",
+      "name": "Stage20",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -626,6 +646,7 @@
     },
     {
       "id": "campaign_phase_mid_pairs",
+      "name": "Stage21",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -655,6 +676,7 @@
     },
     {
       "id": "campaign_phase_late_mixed",
+      "name": "Stage22",
       "stageType": "normal",
       "difficulty": 3,
       "par": 7,
@@ -686,6 +708,7 @@
     },
     {
       "id": "campaign_phase_late_pairs",
+      "name": "Stage23",
       "stageType": "normal",
       "difficulty": 3,
       "par": 7,
@@ -717,6 +740,7 @@
     },
     {
       "id": "phase_run_p1_mixed6",
+      "name": "Stage24",
       "stageType": "normal",
       "difficulty": 1,
       "par": 5,
@@ -743,6 +767,7 @@
     },
     {
       "id": "phase_run_p1_pairs6",
+      "name": "Stage25",
       "stageType": "normal",
       "difficulty": 1,
       "par": 5,
@@ -769,6 +794,7 @@
     },
     {
       "id": "phase_run_p3_mixed10",
+      "name": "Stage26",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -799,6 +825,7 @@
     },
     {
       "id": "phase_run_p3_pairs10",
+      "name": "Stage27",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -829,6 +856,7 @@
     },
     {
       "id": "phase_prototype_001",
+      "name": "Stage28",
       "stageType": "normal",
       "difficulty": 2,
       "par": 8,
@@ -867,6 +895,7 @@
     },
     {
       "id": "phase_prototype_002",
+      "name": "Stage29",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -897,6 +926,7 @@
     },
     {
       "id": "phase_prototype_003",
+      "name": "Stage30",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -927,6 +957,7 @@
     },
     {
       "id": "phase_prototype_004",
+      "name": "Stage31",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -957,6 +988,7 @@
     },
     {
       "id": "phase_prototype_005",
+      "name": "Stage32",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -989,6 +1021,7 @@
     },
     {
       "id": "phase_prototype_006",
+      "name": "Stage33",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -1021,6 +1054,7 @@
     },
     {
       "id": "phase_prototype_007",
+      "name": "Stage34",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -1053,6 +1087,7 @@
     },
     {
       "id": "phase_prototype_008",
+      "name": "Stage35",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -1085,6 +1120,7 @@
     },
     {
       "id": "phase_prototype_009",
+      "name": "Stage36",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -1117,6 +1153,7 @@
     },
     {
       "id": "phase_prototype_010",
+      "name": "Stage37",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,
@@ -1149,6 +1186,7 @@
     },
     {
       "id": "phase_prototype_011",
+      "name": "Stage38",
       "stageType": "normal",
       "difficulty": 2,
       "par": 6,

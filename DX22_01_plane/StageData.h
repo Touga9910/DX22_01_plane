@@ -1,6 +1,8 @@
 ﻿#pragma once
 
+#include <cstddef>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <optional>
 #include "EnemyData.h"
@@ -69,9 +71,26 @@ struct PhaseBattleData
     std::vector<EnemyPhaseData> phases;
 };
 
+inline std::string FormatStageDisplayName(
+    std::string_view name,
+    std::size_t openingEnemyCount,
+    const std::vector<std::size_t>& reinforcementCounts)
+{
+    std::string result(name);
+    result += '_';
+    result += std::to_string(openingEnemyCount);
+    for (const std::size_t count : reinforcementCounts)
+    {
+        result += '*';
+        result += std::to_string(count);
+    }
+    return result;
+}
+
 struct StageData
 {
     std::string id;
+    std::string name;
     StageType stageType = StageType::Normal;
     int difficulty = 1;
     int par = 4;
@@ -84,6 +103,14 @@ struct StageData
     PhaseBattleData phaseBattle;
     std::vector<DirectX::SimpleMath::Vector3> breakBallPositions;
     std::optional<EnemyValidationSettings> enemyValidation;
+
+    std::string DisplayName() const
+    {
+        std::vector<std::size_t> reinforcementCounts;
+        for (std::size_t i = 1; i < phaseBattle.phases.size(); ++i)
+            reinforcementCounts.push_back(phaseBattle.phases[i].enemies.size());
+        return FormatStageDisplayName(name.empty() ? id : name, enemies.size(), reinforcementCounts);
+    }
 };
 
 inline std::vector<DirectX::SimpleMath::Vector3> DefaultBossBreakBallPositions()

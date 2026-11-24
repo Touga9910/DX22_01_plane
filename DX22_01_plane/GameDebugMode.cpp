@@ -33,6 +33,13 @@ namespace
     {
         return PlayerBallText::GetName(id);
     }
+    std::string RunStageLabel(const std::vector<StageData>& stages, const std::string& id)
+    {
+        if (id.empty()) return "進行度から自動選択";
+        const auto* stage = StageDataLoader::FindById(stages, id);
+        return stage ? stage->DisplayName() : id;
+    }
+
     void EditStatus(BallStatus& s, bool includeDefense)
     {
         ImGui::SliderInt("攻撃", &s.attack, 0, 999, "%d", ImGuiSliderFlags_AlwaysClamp);
@@ -842,9 +849,11 @@ void GameDebugController::DrawRunPresetComparison()
                     if (m_DebugRunPresetCompareChangesOnly && !row.changed) continue;
                     ImGui::TableNextRow();
                     if (row.changed) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, .85f, .35f, 1));
-                    for (const auto* text : {&row.label, &row.before, &row.after})
+                    ImGui::TableNextColumn(); ImGui::TextWrapped("%s", row.label.c_str());
+                    for (const auto* text : {&row.before, &row.after})
                     {
-                        ImGui::TableNextColumn(); ImGui::TextWrapped("%s", text->c_str());
+                        const std::string value = row.key == "stage" ? RunStageLabel(m_DebugStages, *text) : *text;
+                        ImGui::TableNextColumn(); ImGui::TextWrapped("%s", value.c_str());
                     }
                     if (row.changed) ImGui::PopStyleColor();
                 }
@@ -884,7 +893,7 @@ void GameDebugController::DrawRunPresetPreview()
         row("プリセット", m_DebugRunPresetSelected);
         row("進行度", std::to_string(finalArea ? kNormalRouteAreaGoal : preset.run.completedAreas) + " / " + std::to_string(kNormalRouteAreaGoal));
         row("移動先", destinations[static_cast<int>(preset.run.destination)]);
-        row("ステージ", preset.run.stageId.empty() ? "進行度から自動選択" : preset.run.stageId);
+        row("ステージ", RunStageLabel(m_DebugStages, preset.run.stageId));
         row("抽選ルール", preset.run.combatMode == RunCombatMode::PhaseTest ? "フェーズ制試遊" : "本編");
         row("ゴールド無限", preset.run.infiniteMoney ? "ON（開始時999999）" : "OFF");
         row("保存所持金", std::to_string(preset.battle.money));
@@ -1012,13 +1021,17 @@ void GameDebugController::DrawRunTools(Game& game)
     if (battle)
     {
         const StageType type = destination == 6 ? StageType::Boss : destination == 2 ? StageType::MidBoss : StageType::Normal;
-        const char* preview = m_DebugRunSetup.stageId.empty() ? "進行度から自動選択" : m_DebugRunSetup.stageId.c_str();
-        if (ImGui::BeginCombo("今回のステージ", preview))
+        const auto preview = RunStageLabel(m_DebugStages, m_DebugRunSetup.stageId);
+        if (ImGui::BeginCombo("今回のステージ", preview.c_str()))
         {
             if (ImGui::Selectable("進行度から自動選択", m_DebugRunSetup.stageId.empty())) m_DebugRunSetup.stageId.clear();
             for (const auto& stage : m_DebugStages)
-                if (stage.stageType == type && ImGui::Selectable(stage.id.c_str(), stage.id == m_DebugRunSetup.stageId))
+            {
+                if (stage.stageType != type) continue;
+                const auto label = stage.DisplayName() + "###" + stage.id;
+                if (ImGui::Selectable(label.c_str(), stage.id == m_DebugRunSetup.stageId))
                     m_DebugRunSetup.stageId = stage.id;
+            }
             ImGui::EndCombo();
         }
     }
@@ -1372,7 +1385,8 @@ void GameDebugController::Draw(Game& game)
                     static_cast<EnemyValidationLayoutPattern>(patternIndex);
             }
             ImGui::TextDisabled(
-                "6体=2/3/1、8体=3/4/1、10体=4/5/1、12体=5/6/1（enemy_normal/strong/tank）。");
+                "6体=2/3/1、8体=3/4/1、10体=4/5/1、12体=5/6/1（%s / %s / %s）。",
+                EnemyLabel("enemy_normal"), EnemyLabel("enemy_strong"), EnemyLabel("enemy_tank"));
             ImGui::TextDisabled(
                 "Random配置は「HP・所持金・レリック」の乱数シードで再現します。");
             if (m_DebugSetup.enemyValidation.enabled)
@@ -1382,14 +1396,15 @@ void GameDebugController::Draw(Game& game)
                     "下の手動敵編成・位置・開始HPは比較検証中は使用しません。");
             }
             ImGui::SeparatorText("手動の敵編成・配置");
-            if (ImGui::BeginCombo("既存ステージから編成を作る", "ステージを選択"))
+            if (ImGui::BeginCombo("既存ステージの初期配置を読み込む", "ステージを選択"))
             {
                 for (const auto& stage : m_DebugStages)
-                    if (ImGui::Selectable(stage.id.c_str()))
-                    {
-                        m_DebugSetup.enemies.clear();
-                        for (const auto& spawn : stage.enemies) m_DebugSetup.enemies.push_back({spawn, spawn.enemyData.maxHp});
-                    }
+                {
+                    const auto label = stage.DisplayName() + "###" + stage.id;
+                    if (!ImGui::Selectable(label.c_str())) continue;
+                    m_DebugSetup.enemies.clear();
+                    for (const auto& spawn : stage.enemies) m_DebugSetup.enemies.push_back({spawn, spawn.enemyData.maxHp});
+                }
                 ImGui::EndCombo();
             }
             if (ImGui::BeginCombo("敵を追加", "種類を選択"))

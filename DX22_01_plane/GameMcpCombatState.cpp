@@ -6,6 +6,7 @@
 #include "GameWorld.h"
 #include "GameObject.h"
 #include "EnemyBall.h"
+#include "EnemyText.h"
 #include "BreakBall.h"
 #include "BallComponent.h"
 #include "PlayerBallData.h"
@@ -214,7 +215,8 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
         {
             const auto& boss = enemy->GetBossState();
             state["boss_state"] = {
-                {"boss_id", enemy->GetEnemyId()}, {"target_id", "enemy:" + std::to_string(enemyIndex)},
+                {"boss_id", enemy->GetEnemyId()}, {"target_id", enemyTargetId},
+                {"display_name", EnemyLabel(enemy->GetEnemyId())},
                 {"phase", 1}, {"hp", enemy->GetHP()}, {"max_hp", enemy->GetMaxHP()},
                 {"armor", boss.armor}, {"max_armor", BossCombatRules::MaxArmor},
                 {"is_broken", boss.IsBroken()}, {"break_shots_remaining", boss.shotsRemaining},
@@ -235,9 +237,9 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
                 {"minion_impact_damage",4},{"break_interrupts_boss_attack",true}};
         }
 		state["enemies"].push_back({
-			{ "target_id",
-				enemyTargetId },
+			{ "target_id", enemyTargetId },
 			{ "enemy_id", enemy->GetEnemyId() },
+			{ "display_name", EnemyLabel(enemy->GetEnemyId()) },
             { "boss_minion", enemy->IsBossMinion() },
             { "boss_minion_serial", enemy->GetBossMinionSerial() },
             { "wreck_until_shot_end", enemy->IsBossMinion() && enemy->IsDefeated() },

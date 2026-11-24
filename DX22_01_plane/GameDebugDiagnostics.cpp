@@ -5,6 +5,7 @@
 #include "GameWorld.h"
 #include "GameUi.h"
 #include "EnemyBall.h"
+#include "EnemyText.h"
 #include "PlayerBall.h"
 #include "PlayerBallData.h"
 #include "imgui/imgui.h"
@@ -283,7 +284,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 		ImGui::Text(
 			"  #%zu %s: %d / %d  攻撃: %d  予測: %d  [%s]",
 			index + 1,
-			enemy.id.c_str(),
+			EnemyLabel(enemy.id),
 			enemy.currentHp,
 			enemy.maxHp,
 			enemy.attack,
@@ -318,7 +319,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 					"#%llu %s/%s: %d -> %d  (-%d)",
 					static_cast<unsigned long long>(record.sequence),
 					record.source.c_str(),
-					record.sourceId.empty() ? "-" : record.sourceId.c_str(),
+					record.sourceId.empty() ? "-" : EnemyLabel(record.sourceId),
 					record.hpBefore,
 					record.hpAfter,
 					record.damage);
@@ -329,7 +330,7 @@ void GameDebugController::DrawDiagnostics(Game& game)
 					"#%llu %s/%s: -%d",
 					static_cast<unsigned long long>(record.sequence),
 					record.source.c_str(),
-					record.sourceId.empty() ? "-" : record.sourceId.c_str(),
+					record.sourceId.empty() ? "-" : EnemyLabel(record.sourceId),
 					record.damage);
 			}
 		}

@@ -1,5 +1,6 @@
 ﻿#include "GamePresentation.h"
 #include "GameUi.h"
+#include "StageDataLoader.h"
 #include "json/json.hpp"
 #include "imgui/imgui.h"
 
@@ -452,7 +453,9 @@ void GamePresentation::DrawDashboard()
 				for (const StageSummary& stage : m_Dashboard.stages)
 				{
 					ImGui::TableNextRow();
-					ImGui::TableNextColumn(); ImGui::TextUnformatted(stage.id.c_str());
+					ImGui::TableNextColumn(); ImGui::TextUnformatted(stage.displayName.c_str());
+					if (stage.displayName != stage.id && ImGui::IsItemHovered())
+						ImGui::SetTooltip("%s", stage.id.c_str());
 					ImGui::TableNextColumn(); ImGui::TextUnformatted(stage.type.c_str());
 					ImGui::TableNextColumn(); ImGui::Text("%d", stage.sampleCount);
 					ImGui::TableNextColumn(); ImGui::Text("%.1f%%", stage.clearRate * 100.0f);
@@ -747,10 +750,14 @@ void GamePresentation::LoadDashboard()
 
 		if (report.contains("stages") && report["stages"].is_array())
 		{
+			const auto stageCatalog = StageDataLoader::LoadAll(
+				"assets/data/stage_01.json", "assets/data/enemy_data.json");
 			for (const json& item : report["stages"])
 			{
 				StageSummary stage;
 				stage.id = ReadString(item, "stage_id");
+				const auto* definition = StageDataLoader::FindById(stageCatalog, stage.id);
+				stage.displayName = definition ? definition->DisplayName() : stage.id;
 				stage.type = ReadString(item, "stage_type");
 				stage.sampleCount = item.value("sample_count", 0);
 				const json& stageMetrics = item.value(

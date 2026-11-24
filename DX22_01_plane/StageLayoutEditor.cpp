@@ -134,10 +134,24 @@ namespace
     }
 }
 
+std::string StageLayoutEditor::DisplayName(const Json& value)
+{
+    const std::string name = value.value("name", std::string{});
+    std::vector<std::size_t> reinforcementCounts;
+    if (value.contains("additional_phases"))
+    {
+        for (const auto& phase : value.at("additional_phases"))
+            reinforcementCounts.push_back(phase.size());
+    }
+    return FormatStageDisplayName(name.empty() ? value.at("id").get<std::string>() : name,
+        value.at("enemies").size(), reinforcementCounts);
+}
+
 StageLayoutEditor::Json StageLayoutEditor::Encode(const StageData& stage)
 {
     Json result = {{"id", stage.id}, {"stage_type", ToString(stage.stageType)}, {"difficulty", stage.difficulty},
         {"par", stage.par}, {"enemies", Json::array()}, {"break_balls", Json::array()}};
+    if (!stage.name.empty()) result["name"] = stage.name;
     result["enemies"] = EncodeEnemies(stage.enemies, false);
     if (stage.combatMode == CombatMode::PhasePrototype)
     {
@@ -160,7 +174,11 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
     stage.id = value.at("id").get<std::string>();
     if (stage.id.empty() || stage.id.size() > 64 || !std::all_of(stage.id.begin(), stage.id.end(), [](unsigned char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.';
-    })) throw std::runtime_error("ステージ名は英数字・_・-・.で1～64文字です。");
+    })) throw std::runtime_error("ステージIDは英数字・_・-・.で1～64文字です。");
+    stage.name = value.value("name", std::string{});
+    if (stage.name.size() > 64 || std::any_of(stage.name.begin(), stage.name.end(), [](unsigned char c) {
+        return c < 32 || c == 127 || c == '#';
+    })) throw std::runtime_error("ステージ名は制御文字と # を除く64バイト以内で入力してください。");
     auto type = value.at("stage_type").get<std::string>();
     if (type == "normal") stage.stageType = StageType::Normal;
     else if (type == "midBoss" || type == "midboss") stage.stageType = StageType::MidBoss;
@@ -215,7 +233,7 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
             {
                 auto enemies = DecodeEnemies(phases[i], catalog);
                 if (CountBossCores(enemies) != 0)
-                    throw std::runtime_error("Armor球はフェーズ1に配置してください。");
+                    throw std::runtime_error("装甲球はフェーズ1に配置してください。");
                 battle.phases.push_back({std::move(enemies)});
             }
             catch (const std::exception& error)
@@ -225,7 +243,7 @@ StageData StageLayoutEditor::Decode(const Json& value, const std::vector<EnemyDa
         }
     }
     if (CountBossCores(stage.enemies) != (stage.stageType == StageType::Boss ? 1 : 0))
-        throw std::runtime_error("最終ボスステージの初期配置にはArmor球を1体配置してください（他の種別には配置できません）。");
+        throw std::runtime_error("最終ボスステージの初期配置には装甲球を1体配置してください（他の種別には配置できません）。");
     return stage;
 }
 
@@ -330,6 +348,8 @@ void StageLayoutEditor::Save(const std::filesystem::path& path, const std::vecto
     }
     if (!target) { stages.push_back(Json::object()); target = &stages.back(); }
     (*target)["id"] = stage.id; (*target)["stageType"] = ToString(stage.stageType);
+    if (stage.name.empty()) target->erase("name");
+    else (*target)["name"] = stage.name;
     (*target)["difficulty"] = stage.difficulty; (*target)["par"] = stage.par; (*target)["preserveLayout"] = true;
     (*target)["enemies"] = EncodeEnemies(stage.enemies, true);
     if (stage.combatMode == CombatMode::PhasePrototype)
@@ -370,6 +390,9 @@ void StageLayoutEditor::Propose(const Json& value, std::uint64_t expected, const
 {
     if (dragging || expected != revision) throw std::runtime_error("配置が変更されています。最新のrevisionを取得してください。");
     Json candidate = value;
+    if (!candidate.contains("name") && draft.contains("name") &&
+        candidate.contains("id") && candidate.at("id") == draft.at("id"))
+        candidate["name"] = draft.at("name");
     if (!candidate.contains("additional_phases") && draft.contains("additional_phases") &&
         candidate.contains("id") && candidate.at("id") == draft.at("id"))
     {
@@ -393,6 +416,6 @@ StageLayoutEditor::Json StageLayoutEditor::Snapshot(const std::vector<EnemyData>
     return {{"revision", revision}, {"draft", draft}, {"report", Inspect(draft, catalog, playerRadius)}, {"proposal", proposal},
         {"proposal_is_current", !proposal.is_null() && proposalRevision == revision}, {"catalog", definitions},
         {"bounds", {{"half_width", TableConfig::GetFieldWidth() * .5f}, {"half_depth", TableConfig::GetFieldDepth() * .5f}, {"player_x", 0}, {"player_z", 0}, {"player_radius", playerRadius},  {"pocket_radius", TableConfig::POCKET_RADIUS}, {"pockets", pockets}}},
-        {"boss_layout_rule", "最終ボスにはArmor球1体を配置。取り巻きは自動生成。break_ballsは旧データ保持専用で配置には使用しません。"},
+        {"boss_layout_rule", "最終ボスには装甲球1体を配置。取り巻きは自動生成。break_ballsは旧データ保持専用で配置には使用しません。"},
         {"workflow", "validate_stage_layout → propose_stage_layout(expected_revision) → 画面でAI案を採用 → 試遊／保存。AIはファイルを直接変更しません。"}};
 }

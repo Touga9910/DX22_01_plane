@@ -226,6 +226,7 @@ private:
 	struct StageSummary
 	{
 		std::string id;
+		std::string displayName;
 		std::string type;
 		int sampleCount = 0;
 		float clearRate = 0.0f;

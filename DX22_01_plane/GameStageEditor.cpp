@@ -75,10 +75,13 @@ void GameDebugController::DrawStageEditor(Game&)
     if (editor.draft.is_null()) { ImGui::TextUnformatted("既存ステージを読み込めませんでした。"); return; }
     auto change = [&](Json next) { int selection = editor.selected; editor.Replace(next); editor.selected = selection; };
     ImGui::BeginChild("stage_properties", ImVec2(285, 0), true);
-    if (ImGui::BeginCombo("読み込む", editor.draft["id"].get<std::string>().c_str()))
+    const auto preview = StageLayoutEditor::DisplayName(editor.draft);
+    if (ImGui::BeginCombo("読み込む", preview.c_str()))
     {
-        for (const auto& stage : m_DebugStages) if (ImGui::Selectable(stage.id.c_str()))
+        for (const auto& stage : m_DebugStages)
         {
+            const auto label = stage.DisplayName() + "###" + stage.id;
+            if (!ImGui::Selectable(label.c_str())) continue;
             try
             {
                 // Refresh both the selected stage and conflict baseline from disk together.
@@ -108,9 +111,21 @@ void GameDebugController::DrawStageEditor(Game&)
     ImGui::BeginDisabled(editor.undo.empty()); if (ImGui::Button("元に戻す")) editor.Undo(false); ImGui::EndDisabled(); ImGui::SameLine();
     ImGui::BeginDisabled(editor.redo.empty()); if (ImGui::Button("やり直す")) editor.Undo(true); ImGui::EndDisabled();
     auto next = editor.draft;
-    const auto id = next["id"].get<std::string>();
-    if (!ImGui::IsAnyItemActive()) snprintf(editor.name, sizeof(editor.name), "%s", id.c_str());
-    if (ImGui::InputText("ステージ名", editor.name, sizeof(editor.name))) { next["id"] = editor.name; change(next); }
+    if (!ImGui::IsAnyItemActive())
+    {
+        snprintf(editor.name, sizeof(editor.name), "%s", next.value("name", std::string{}).c_str());
+        snprintf(editor.stageId, sizeof(editor.stageId), "%s", next.at("id").get<std::string>().c_str());
+    }
+    if (ImGui::InputTextWithHint("ステージ名", "敵数は自動で付加", editor.name, sizeof(editor.name)))
+    {
+        next["name"] = editor.name;
+        change(next);
+    }
+    if (ImGui::InputText("ステージID", editor.stageId, sizeof(editor.stageId)))
+    {
+        next["id"] = editor.stageId;
+        change(next);
+    }
     int type = next["stage_type"] == "normal" ? 0 : (next["stage_type"] == "boss" ? 2 : 1);
     const char* types[] = {"通常", "中ボス", "最終ボス"};
     if (ImGui::Combo("種別", &type, types, 3))
@@ -436,7 +451,7 @@ void GameDebugController::DrawStageEditor(Game&)
     }
     if (!editor.proposal.is_null())
     {
-        ImGui::TextWrapped("AI案：%s / %s / 難易度%d / 基準%dショット / %d体", editor.proposal["id"].get<std::string>().c_str(),
+        ImGui::TextWrapped("AI案：%s / %s / 難易度%d / 基準%dショット / %d体", StageLayoutEditor::DisplayName(editor.proposal).c_str(),
             editor.proposal["stage_type"] == "boss" ? "最終ボス" : editor.proposal["stage_type"] == "normal" ? "通常" : "中ボス",
             editor.proposal["difficulty"].get<int>(), editor.proposal["par"].get<int>(), static_cast<int>(editor.proposal["enemies"].size()));
         ImGui::BeginDisabled(editor.proposalRevision != editor.revision || editor.dragging);
@@ -449,7 +464,7 @@ void GameDebugController::DrawStageEditor(Game&)
     if (ImGui::Button("配置とデッキを適用して最初から開始")) TestStageEditorLayout();
     ImGui::SameLine();
     bool existing = std::any_of(m_DebugStages.begin(), m_DebugStages.end(), [&](const auto& s) { return s.id == editor.draft["id"].get<std::string>(); });
-    if (ImGui::Button(existing ? "同名ステージに上書き保存" : "新しいステージとして保存"))
+    if (ImGui::Button(existing ? "既存ステージに上書き保存" : "新しいステージとして保存"))
     {
         try { editor.Save("assets/data/stage_01.json", m_DebugEnemyCatalog, StageEditorPlayerRadius()); m_DebugStages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json"); editor.message = "保存しました。次のステージ生成から使用されます。直前のファイルは .editor.bak に保存しました。"; }
         catch (const std::exception& e) { editor.message = e.what(); }

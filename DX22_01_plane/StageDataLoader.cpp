@@ -456,6 +456,9 @@ std::vector<StageData> StageDataLoader::LoadAll(
 
             stage.stageType =
                 ParseStageType(stageJson["stageType"].get<std::string>());
+            const auto name = stageJson.find("name");
+            if (name != stageJson.end() && name->is_string())
+                stage.name = name->get<std::string>();
             stage.difficulty = stageJson["difficulty"].get<int>();
             stage.par = stageJson.value("par", stage.par);
             stage.preserveLayout = stageJson.value("preserveLayout", false);

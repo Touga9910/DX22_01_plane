@@ -10,6 +10,11 @@ int main()
     auto catalog = StageDataLoader::LoadEnemyDefinitions("assets/data/enemy_data.json");
     assert(!catalog.empty());
     const auto existingStages = StageDataLoader::LoadAll("assets/data/stage_01.json", "assets/data/enemy_data.json");
+    const auto* opening = StageDataLoader::FindById(existingStages, "normal_001");
+    assert(opening != nullptr && opening->DisplayName() == "Stage1_3*3");
+    assert(StageLayoutEditor::DisplayName(StageLayoutEditor::Encode(*opening)) == opening->DisplayName());
+    const auto* threePhases = StageDataLoader::FindById(existingStages, "phase_prototype_001");
+    assert(threePhases != nullptr && threePhases->DisplayName() == threePhases->name + "_6*4*4");
     const auto authoredBoss = std::find_if(existingStages.begin(), existingStages.end(),
         [](const StageData& stage) { return stage.stageType == StageType::Boss; });
     assert(authoredBoss != existingStages.end());
@@ -87,6 +92,7 @@ int main()
     { std::ofstream file(path); file << root.dump(2); }
     // Both formations and the phase interval must survive editing, playtest, and reload.
     StageData phased = StageLayoutEditor::Decode(layout, catalog);
+    phased.name = "TestStage";
     phased.combatMode = CombatMode::PhasePrototype;
     phased.prototypeOnly = true;
     phased.phaseBattle.turnsPerPhase = 3;
@@ -98,10 +104,13 @@ int main()
     StageLayoutEditor phaseEditor;
     phaseEditor.Load(path, phased);
     auto phaseDraft = phaseEditor.draft;
+    assert(StageLayoutEditor::DisplayName(phaseDraft) == "TestStage_4*1");
     phaseDraft["enemies"][0]["x"] = -34;
     phaseDraft["enemies"].erase(1);
     phaseDraft["additional_phases"][0][0]["x"] = 32;
     phaseDraft["turns_per_phase"] = 5;
+    phaseDraft["name"] = "EditedStage";
+    assert(StageLayoutEditor::DisplayName(phaseDraft) == "EditedStage_3*1");
     bad = phaseDraft; bad["turns_per_phase"] = 0; invalid(bad);
     bad = phaseDraft; bad["additional_phases"][0][0]["x"] = 80; invalid(bad);
     bad = phaseDraft; bad["additional_phases"][0] = Json::array(); invalid(bad);
@@ -110,6 +119,7 @@ int main()
     const StageData appliedPhase = phaseEditor.BuildPlaytestStage(catalog);
     assert(appliedPhase.id == phased.id && appliedPhase.combatMode == CombatMode::PhasePrototype);
     assert(appliedPhase.prototypeOnly && appliedPhase.preserveLayout);
+    assert(appliedPhase.DisplayName() == "EditedStage_3*1");
     assert(appliedPhase.enemies.size() == 3 && appliedPhase.enemies.front().position.x == -34);
     assert(appliedPhase.enemies.front().attackInterval == 5 && appliedPhase.enemies.front().spawnGroup == 2);
     assert(appliedPhase.phaseBattle.turnsPerPhase == 5 && appliedPhase.phaseBattle.defaultAttackInterval == 4);
@@ -127,6 +137,7 @@ int main()
     phaseEditor.Propose(oldProposal, phaseEditor.revision, catalog, 3);
     assert(phaseEditor.proposal["additional_phases"] == phaseDraft["additional_phases"]);
     assert(phaseEditor.proposal["turns_per_phase"] == 5);
+    assert(phaseEditor.proposal["name"] == "EditedStage");
 
     phaseDraft["id"] = "new_stage";
     phaseEditor.Replace(phaseDraft);

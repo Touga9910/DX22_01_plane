@@ -13,6 +13,7 @@
 #include "GameObject.h"
 #include "GameUi.h"
 #include "EnemyBall.h"
+#include "EnemyText.h"
 #include "BreakBall.h"
 #include "PlayerBall.h"
 #include "PlayerBallData.h"
@@ -263,8 +264,8 @@ void GamePresentation::Draw(Game& game)
 				{
 					const auto& boss = enemy->GetBossState();
 					ImGui::Separator();
-					ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.6f, 1.0f), "最終ボス  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
-					ImGui::Text("Armor %d / %d", boss.armor, BossCombatRules::MaxArmor);
+					ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.6f, 1.0f), "%s  HP %d / %d", EnemyLabel(enemy->GetEnemyId()), enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::Text("装甲 %d / %d", boss.armor, BossCombatRules::MaxArmor);
 					if (boss.IsBroken())
 					{
 						ImGui::TextColored(ImVec4(1, 0.85f, 0.2f, 1), "BREAK！ 通常ダメージ100%% / 残り%dショット", boss.shotsRemaining);
@@ -284,14 +285,14 @@ void GamePresentation::Draw(Game& game)
 				if (enemy->GetFrontalDamageMultiplier() < 1.0f)
 				{
 					ImGui::Separator();
-					ImGui::TextColored(ImVec4(0.3f, 0.85f, 1.0f, 1.0f), "中ボス：ガード球（水色）  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::TextColored(ImVec4(0.3f, 0.85f, 1.0f, 1.0f), "%s（水色）  HP %d / %d", EnemyLabel(enemy->GetEnemyId()), enemy->GetHP(), enemy->GetMaxHP());
 					ImGui::Text("テーブル手前側からの衝突ダメージを%d%%軽減（最低1）。", static_cast<int>(std::lround((1.0f - enemy->GetFrontalDamageMultiplier()) * 100.0f)));
 					ImGui::TextUnformatted("側面・奥側から狙おう。ガードの向きは固定。");
 				}
 				if (enemy->GetPocketDamageRatio() > 0.0f)
 				{
 					ImGui::Separator();
-					ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "中ボス：ポケット球（緑）  HP %d / %d", enemy->GetHP(), enemy->GetMaxHP());
+					ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s（緑）  HP %d / %d", EnemyLabel(enemy->GetEnemyId()), enemy->GetHP(), enemy->GetMaxHP());
 					ImGui::Text("ポケットに落とすと最大HPの%d%%ダメージ。", static_cast<int>(std::lround(enemy->GetPocketDamageRatio() * 100.0f)));
 					ImGui::TextUnformatted("重い球で押し出そう。生存時は待機列に入り、後で復帰する。");
 				}

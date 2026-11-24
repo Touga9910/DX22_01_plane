@@ -9,6 +9,7 @@
 #include "GameWorld.h"
 #include "GameObject.h"
 #include "EnemyBall.h"
+#include "EnemyText.h"
 #include "EnemyAttackComponent.h"
 #include "PlayerBall.h"
 #include "GameUi.h"
@@ -363,6 +364,10 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 			const int currentHp = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->currentHp : (std::max)(0, enemy->GetHP());
 			const int maximumHp =
 				hpVisual != m_EnemyHpVisuals.end() ? hpVisual->maximumHp : (std::max)(1, enemy->GetMaxHP());
+			if (hoverOverlayPass)
+			{
+				ImGui::SetTooltip("%s\nHP %d / %d", EnemyLabel(enemy->GetEnemyId()), currentHp, maximumHp);
+			}
 			const float trailingHp =
 				hpVisual != m_EnemyHpVisuals.end() ? hpVisual->trailingHp : static_cast<float>(currentHp);
 			const float damageHold = hpVisual != m_EnemyHpVisuals.end() ? hpVisual->damageHold : 0.0f;

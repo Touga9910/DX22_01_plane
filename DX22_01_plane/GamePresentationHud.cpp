@@ -7,6 +7,7 @@
 #include "GameWorld.h"
 #include "PlayerBall.h"
 #include "EnemyBall.h"
+#include "EnemyText.h"
 #include "PlayerBallData.h"
 #include "PlayerBallText.h"
 #include "GameUi.h"
@@ -118,7 +119,8 @@ void DrawBossEncounterPanel(Game& game, const ImGuiViewport* viewport, float hud
     ImGui::SetNextWindowSize(ImVec2(450,0),ImGuiCond_Always);
     if (ImGui::Begin("##boss_encounter_intent",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoInputs|ImGuiWindowFlags_NoSavedSettings))
     {
-        ImGui::TextColored(ImVec4(1,0.65f,0.2f,1),"BOSS HP %d/%d   Armor %d/2   BREAK %d",boss->GetHP(),boss->GetMaxHP(),armor.armor,armor.shotsRemaining);
+        ImGui::TextColored(ImVec4(1, 0.65f, 0.2f, 1), PresentationUtf8(u8"%s  HP %d/%d   装甲 %d/2   BREAK %d"),
+            EnemyLabel(boss->GetEnemyId()), boss->GetHP(), boss->GetMaxHP(), armor.armor, armor.shotsRemaining);
         ImGui::TextWrapped(PresentationUtf8(u8"予告：%s   本体%d + 取り巻き%d"),armor.IsBroken() ? PresentationUtf8(u8"BREAK中：本体攻撃なし") : intent,damage,minionDamage);
         if (armor.IsBroken())
             ImGui::TextWrapped("%s",PresentationUtf8(u8"BREAK復帰後：次のショットに強攻撃4（再BREAKで中断）"));

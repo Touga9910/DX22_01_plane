@@ -25,7 +25,9 @@ public:
     bool dragging = false;
     Json dragStart;
     char name[65] = {};
+    char stageId[65] = {};
 
+    static std::string DisplayName(const Json& value);
     static Json Encode(const StageData& stage);
     static StageData Decode(const Json& value, const std::vector<EnemyData>& catalog);
     static Json Inspect(const Json& value, const std::vector<EnemyData>& catalog, float playerRadius);
