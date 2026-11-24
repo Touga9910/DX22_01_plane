@@ -312,7 +312,6 @@ private:
 	void DrawPlayerAura(Game& game);
 	void DrawEnemyStatusEffects(Game& game);
 	void DrawPlayerResourceBadges(Game& game);
-	void DrawPierceTraces(Game& game);
 	void DrawDashboard();
 	void DrawBattleHud(Game& game);
 	void DrawDeckList(Game& game);

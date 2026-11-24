@@ -228,7 +228,6 @@ void GamePresentation::Draw(Game& game)
 	}
 	if (battleScene)
 	{
-		DrawPierceTraces(game);
 		DrawEnemyStatusEffects(game);
 		DrawBattleHud(game);
 		if (m_TutorialActive)
@@ -301,51 +300,6 @@ void GamePresentation::Draw(Game& game)
 	if (m_TutorialActive)
 	{
 		DrawTutorial(game);
-	}
-}
-
-void GamePresentation::DrawPierceTraces(Game& game)
-{
-	if (game.IsPaused() || game.GetLastBattleResult() != BattleResult::None) return;
-	const auto& traces = game.GetPierceTraceState().traces;
-	if (traces.empty()) return;
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImDrawList* foreground = ImGui::GetForegroundDrawList(viewport);
-	const ImU32 purple = IM_COL32(205, 91, 255, 255);
-	for (const auto& trace : traces)
-	{
-		ImVec2 start;
-		ImVec2 end;
-		ImVec2 directionBase;
-		const Vector3 height(0.0f, 0.55f, 0.0f);
-		if (!TryProjectToScreen(trace.start + height, start) ||
-			!TryProjectToScreen(trace.end + height, end) ||
-			!TryProjectToScreen(trace.end - trace.direction * 2.0f + height, directionBase))
-			continue;
-		foreground->AddLine(start, end, IM_COL32(18, 6, 28, 235), 9.0f);
-		foreground->AddLine(start, end, purple, 5.0f);
-		ImVec2 direction(end.x - directionBase.x, end.y - directionBase.y);
-		const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-		if (length > 0.001f)
-		{
-			direction.x /= length;
-			direction.y /= length;
-			const ImVec2 perpendicular(-direction.y, direction.x);
-			const ImVec2 base(end.x - direction.x * 15.0f, end.y - direction.y * 15.0f);
-			foreground->AddTriangleFilled(
-				end,
-				ImVec2(base.x + perpendicular.x * 7.0f, base.y + perpendicular.y * 7.0f),
-				ImVec2(base.x - perpendicular.x * 7.0f, base.y - perpendicular.y * 7.0f),
-				purple);
-		}
-		char label[64]{};
-		sprintf_s(label, PresentationUtf8(u8"貫通痕 #%llu"),
-			static_cast<unsigned long long>(trace.id));
-		const ImVec2 midpoint((start.x + end.x) * 0.5f, (start.y + end.y) * 0.5f);
-		const ImVec2 textSize = ImGui::CalcTextSize(label);
-		const ImVec2 textAt(midpoint.x - textSize.x * 0.5f, midpoint.y - textSize.y - 9.0f);
-		foreground->AddText(ImVec2(textAt.x + 2.0f, textAt.y + 2.0f), IM_COL32(0, 0, 0, 235), label);
-		foreground->AddText(textAt, purple, label);
 	}
 }
 

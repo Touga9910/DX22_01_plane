@@ -110,19 +110,23 @@ namespace PierceTraceRules
 		return useful;
 	}
 
+    // Each group of three stacks starts with a launch from the newest remaining trace.
+    inline std::size_t MinionLaunchCount(const State& state, int consumedStacks)
+    {
+        const auto stacks = static_cast<std::size_t>((std::max)(0, consumedStacks));
+        return (std::min)({state.traces.size(), MaxTraceCount, (stacks + 2) / 3});
+    }
+
 	inline std::vector<MinionLaunch> BuildMinionLaunches(
 		const State& state,
 		int consumedStacks,
 		bool finisher)
 	{
 		std::vector<MinionLaunch> launches;
-		const int availableTraces = (std::min)(
-			static_cast<int>(state.traces.size()),
-			static_cast<int>(MaxTraceCount));
-		for (int minionIndex = 0; minionIndex < availableTraces; ++minionIndex)
+		const int launchCount = static_cast<int>(MinionLaunchCount(state, consumedStacks));
+		for (int minionIndex = 0; minionIndex < launchCount; ++minionIndex)
 		{
 			const int creationStack = minionIndex * 3 + 1;
-			if (consumedStacks < creationStack) break;
 
 			const Trace& trace = state.traces[
 				state.traces.size() - 1 - static_cast<std::size_t>(minionIndex)];

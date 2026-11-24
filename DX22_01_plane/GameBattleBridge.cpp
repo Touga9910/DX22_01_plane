@@ -130,6 +130,24 @@ const PierceTraceRules::State& GameShotTraceView::Current()
     return Game::GetInstance()->GetPierceTraceState();
 }
 
+std::size_t GameShotTraceView::SelectedMinionTraceCount()
+{
+    const Game& game = *Game::GetInstance();
+    const BattleState battleState = game.GetBattleState();
+    if ((battleState != BattleState::AimingDirection && battleState != BattleState::AimingPower) ||
+        !game.IsShotPreparationInputEnabled())
+        return 0;
+
+    const auto* selected = game.GetBallOffer(game.GetSelectedBallOfferIndex());
+    if (selected == nullptr || selected->definitionId != "player_minion_finisher")
+        return 0;
+
+    const auto& state = Current();
+    const int stacks = PierceTraceRules::CalculateEffectiveMinionStackConsume(
+        state, PierceTraceRules::MaxStackCount, true);
+    return PierceTraceRules::MinionLaunchCount(state, stacks);
+}
+
 void GameBattleCommands::CompleteCurrentStage()
 {
     Game::GetInstance()->CompleteCurrentStage();

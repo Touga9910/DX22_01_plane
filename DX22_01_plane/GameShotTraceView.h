@@ -8,6 +8,7 @@ class GameShotTraceView final
 {
 public:
     static const PierceTraceRules::State& Current();
+    static std::size_t SelectedMinionTraceCount();
 
     GameShotTraceView() = delete;
 };

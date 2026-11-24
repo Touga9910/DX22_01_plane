@@ -317,6 +317,13 @@ int main()
 	const auto fiveStackMinions = PierceTraceRules::BuildMinionLaunches(
 		traces, 5, false);
 	assert(fiveStackMinions.size() == 2);
+    assert(PierceTraceRules::MinionLaunchCount(traces, 0) == 0);
+    assert(PierceTraceRules::MinionLaunchCount(traces, 1) == 1);
+    assert(PierceTraceRules::MinionLaunchCount(traces, 3) == 1);
+    assert(PierceTraceRules::MinionLaunchCount(traces, 4) == fiveStackMinions.size());
+    assert(PierceTraceRules::MinionLaunchCount(traces, 7) == 3);
+    assert(fiveStackMinions[0].start == traces.traces[2].start);
+    assert(fiveStackMinions[1].start == traces.traces[1].start);
 	assert(fiveStackMinions[0].attack == 2 &&
 		std::abs(fiveStackMinions[0].knockbackMultiplier - 1.5f) < 0.001f);
 	assert(fiveStackMinions[1].attack == 2 &&

@@ -4,12 +4,20 @@
 #include "GameRuntime.h"
 #include "PlayerBallData.h"
 #include "Renderer.h"
+#include "TableConfig.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 
 using namespace DirectX::SimpleMath;
+
+namespace
+{
+    constexpr int TraceGlow = 4;
+    constexpr int TraceCore = 5;
+    constexpr int TraceHighlight = 6;
+}
 
 // Preview caching and guide rendering, independent of runtime ball updates.
 void PlayerBall::GeneratePreTrajectory(
@@ -136,7 +144,9 @@ void PlayerBall::InitTrajectoryVisualModel()
 	addGuideMaterial({ 1.0f, 1.0f, 1.0f, 0.9f });     // 接触時のプレイヤーボール半径の色
 	addGuideMaterial({ 1.0f, 0.86f, 0.25f, 1.0f });   // 当たったボールが飛ぶ方向の色
 	addGuideMaterial({ 0.78f, 0.34f, 1.0f, 1.0f });   // 連鎖衝撃の実寸範囲
-	addGuideMaterial({ 0.72f, 0.22f, 1.0f, 0.88f });  // Pierce Trace
+	addGuideMaterial({ 0.52f, 0.24f, 0.85f, 0.18f }); // TraceGlow
+	addGuideMaterial({ 0.73f, 0.49f, 1.0f, 0.58f });  // TraceCore
+	addGuideMaterial({ 0.92f, 0.82f, 1.0f, 0.96f });  // TraceHighlight
 
 	// サブセットを作成
 	SUBSET subset;
@@ -162,30 +172,36 @@ void PlayerBall::DrawTrajectoryLine()
 	const float OBJECT_LINE_THICKNESS = 0.32f;
 	const float OBJECT_LINE_LENGTH = 10.0f;
 
-	float startTrim = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
-	float traveledDistance = 0.0f;
-	for (size_t i = 0; i < m_PrePositions.size() - 1; i++)
-	{
-		Vector3 start = m_PrePositions[i].position;
-		Vector3 end = m_PrePositions[i + 1].position;
+    constexpr float dashLength = 1.4f;
+    constexpr float dashPeriod = 2.15f;
+    const float startTrim = m_Ball->GetRadius() + MAIN_LINE_THICKNESS;
+    float traveledDistance = 0.0f;
+    for (std::size_t i = 0; i + 1 < m_PrePositions.size(); ++i)
+    {
+        const Vector3 start = m_PrePositions[i].position;
+        const Vector3 delta = m_PrePositions[i + 1].position - start;
+        const float length = delta.Length();
+        const float segmentStart = traveledDistance;
+        traveledDistance += length;
+        if (length <= 0.0001f || traveledDistance <= startTrim) continue;
 
-		Vector3 direction = end - start;
-		const float length = direction.Length();
-		const float segmentStartDistance = traveledDistance;
-		traveledDistance += length;
-		if (length <= startTrim) { startTrim -= length; continue; }
-		if (startTrim > 0.0f) { start += direction * (startTrim / length); startTrim = 0.0f; }
-		const bool directionOnly =
-			!m_PreviewComplete && segmentStartDistance >= m_PreviewReachableDistance - 0.001f;
-		if (directionOnly && i % 2 == 0) continue;
-
-		DrawGuideSegment(
-			start,
-			end,
-			directionOnly ? MAIN_LINE_THICKNESS * 0.72f : MAIN_LINE_THICKNESS,
-			Y_OFFSET,
-			0);
-	}
+        const float visibleStart = (std::max)(segmentStart, startTrim);
+        const float firstDash = startTrim +
+            std::floor((visibleStart - startTrim) / dashPeriod) * dashPeriod;
+        const Vector3 direction = delta / length;
+        for (float dash = firstDash; dash < traveledDistance; dash += dashPeriod)
+        {
+            const float from = (std::max)(visibleStart, dash);
+            const float to = (std::min)(traveledDistance, dash + dashLength);
+            if (to <= from) continue;
+            const bool directionOnly =
+                !m_PreviewComplete && from >= m_PreviewReachableDistance - 0.001f;
+            DrawGuideSegment(start + direction * (from - segmentStart),
+                start + direction * (to - segmentStart),
+                directionOnly ? MAIN_LINE_THICKNESS * 0.72f : MAIN_LINE_THICKNESS,
+                Y_OFFSET, 0);
+        }
+    }
 
 	if (m_PreviewHitBall)
 	{
@@ -227,17 +243,41 @@ void PlayerBall::DrawTrajectoryLine()
 
 void PlayerBall::DrawPierceTraces()
 {
-	const auto& state = GameShotTraceView::Current();
-	if (state.traces.empty()) return;
-	Renderer::SetDepthEnable(true);
-	m_PreviewMeshRenderer.BeforeDraw();
-	for (const auto& trace : state.traces)
-	{
-		DrawGuideSegment(trace.start, trace.end, 0.16f, 0.13f, 4);
-		const Vector3 markerStart = trace.end - trace.direction * 2.0f;
-		DrawGuideSegment(markerStart, trace.end, 0.30f, 0.16f, 4);
-	}
-	Renderer::SetDepthEnable(true);
+    const auto& traces = GameShotTraceView::Current().traces;
+    if (traces.empty()) return;
+
+    const std::size_t firstHighlighted = traces.size() - GameShotTraceView::SelectedMinionTraceCount();
+    constexpr float traceHeight = 0.05f;
+    constexpr double pulsePeriod = 1.25;
+    const double seconds = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    const float pulse = static_cast<float>(std::fmod(seconds, pulsePeriod) / pulsePeriod);
+
+    Renderer::SetDepthEnable(true);
+    m_PreviewMeshRenderer.BeforeDraw();
+    for (std::size_t index = 0; index < traces.size(); ++index)
+    {
+        Vector3 start = traces[index].start;
+        Vector3 end = traces[index].end;
+        start.y = end.y = TableConfig::FIELD_HEIGHT;
+        const bool highlighted = index >= firstHighlighted;
+
+        DrawGuideSegment(start, end, 0.40f, traceHeight, TraceGlow);
+        DrawGuideSegment(start, end, highlighted ? 0.18f : 0.13f,
+            traceHeight + 0.01f, TraceCore);
+        DrawGuideCircle(start, 0.58f, 0.12f, traceHeight + 0.02f,
+            highlighted ? TraceHighlight : TraceCore, 16);
+
+        if (highlighted)
+        {
+            // Clip both ends so the pulse travels from the launch ring to the trace tip.
+            const Vector3 direction = end - start;
+            const float head = (std::min)(1.0f, pulse * 1.14f);
+            const float tail = (std::max)(0.0f, pulse * 1.14f - 0.14f);
+            DrawGuideSegment(start + direction * tail, start + direction * head,
+                0.24f, traceHeight + 0.03f, TraceHighlight);
+        }
+    }
 }
 
 void PlayerBall::DrawGuideSegment(
@@ -284,10 +324,9 @@ void PlayerBall::DrawGuideCircle(
 	float radius,
 	float thickness,
 	float yOffset,
-	int materialIndex)
+	int materialIndex,
+	int segmentCount)
 {
-	const int segmentCount = 48;                    // 円を構成する線分数
-
 	for (int i = 0; i < segmentCount; ++i)
 	{
 		float angle0 = DirectX::XM_2PI * static_cast<float>(i) / static_cast<float>(segmentCount);

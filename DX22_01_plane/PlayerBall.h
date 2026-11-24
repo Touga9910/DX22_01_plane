@@ -207,7 +207,8 @@ private:
 		float radius,
 		float thickness,
 		float yOffset,
-		int materialIndex);
+		int materialIndex,
+		int segmentCount = 48);
 
 private:
 	BallComponent* m_Ball = nullptr;
