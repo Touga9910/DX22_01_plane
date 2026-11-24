@@ -147,10 +147,10 @@ void PlayerBall::FixedUpdate()
 	{
 		UpdateSimulation();
 	}
-    else if (!m_SkipSimulationOnNextFixedUpdate && m_Ball->HasPierceAbility() &&
+    else if (!m_SkipSimulationOnNextFixedUpdate &&
 		GameBattleView::State() == BattleState::BallsMoving)
     {
-        // Another moving enemy can enter a piercer that has already gone idle.
+        // An enemy can put the idle cue ball back in motion.
         UpdateStopByFriction();
     }
 	m_SkipSimulationOnNextFixedUpdate = false;
@@ -368,7 +368,12 @@ void PlayerBall::UpdateStopByFriction()
         const auto* collision = GetGameObject()->GetComponent<BallCollisionComponent>();
         exitingPierce = collision && collision->TryGetPierceExitDirection(exitDirection);
     }
-    if (exitingPierce) m_State = State::Simulation;
+    if (m_State == State::Idle &&
+        (exitingPierce || BallPhysicsRules::HasResidualMotion(m_Ball->GetVelocity())))
+    {
+        m_State = State::Simulation;
+        m_StopCount = 0;
+    }
     if (m_State != State::Simulation) return;
     if (BallPhysicsRules::PlayerFriction(m_Ball->GetMutableVelocity(), m_Ball->GetMutableAcceleration(),
         m_Ball->GetStatus(), m_Ball->GetMutableFriction(), m_StopCount,

@@ -172,7 +172,7 @@ namespace
 				result.heavyCollisions,
 				ball.physics.id,
 				movement.Length(),
-				result.shotStatus.abilities.heavyDistanceStacks);
+				AxisStackGeneration::HeavyDistance(result.shotCategory, result.shotStatus));
 		}
 
         void RecordPreviewReflection(const Ball& ball, const Ball* other = nullptr)
@@ -285,12 +285,12 @@ namespace
 				{
 					result.shot.Wall();
 					CushionChargeRules::ReflectionConfig config;
-					config.generatesStacks =
+					config.generatesStacks = result.shotCategory == BallCategory::Bounce ||
 						result.shot.ballId == "player_cushion_charge";
-					config.generationLimit =
-						result.shotStatus.cushionReflectionLimit;
-					config.stacksPerReflection =
-						result.shotStatus.cushionStackGenerateAmount;
+					config.generationLimit = AxisStackGeneration::ReflectionLimit(
+						result.shotCategory, result.shotStatus);
+					config.stacksPerReflection = AxisStackGeneration::ReflectionAmount(
+						result.shotCategory, result.shotStatus);
 					config.consumesStacks =
 						result.shot.ballId == "player_bounce";
 					config.consumptionLimit =
@@ -299,7 +299,7 @@ namespace
 						result.shotStatus.cushionReflectionSpeedMultiplier;
 					const auto cushion = CushionChargeRules::ApplyValidReflection(
 						result.cushionCharges, config, ball.physics.velocity);
-					result.cushionBoostConsumed = cushion.consumed > 0;
+					result.cushionBoostConsumed |= cushion.consumed > 0;
 					result.cushionStrongUses =
 						result.cushionCharges.consumedThisShot;
 				}
@@ -551,19 +551,6 @@ namespace
 						targetEnemy->physics.id,
 						1 + result.shotStatus.eventStackGenerationBonus);
 				}
-				if (playerHitCombatEnemy &&
-					!result.anchorGrantCommitted &&
-					result.shotStatus.anchorEnemyStackGenerate > 0)
-				{
-					AnchorStackRules::GrantEnemyStacksOnCollision(
-						targetEnemy->anchorStacks,
-						result.shotStatus.anchorEnemyStackGenerate,
-						result.playerAnchorStacks,
-						result.shotStatus.anchorPlayerStacksPerBonus,
-						0,
-						result.shotStatus.anchorStackMax);
-					result.anchorGrantCommitted = true;
-				}
 				if (combatEnemyPair)
 				{
 					const int beforeShield = result.playerShieldRemaining;
@@ -714,6 +701,21 @@ namespace
 					}
 					if (a.physics.enemy) damage.first += bonus;
 					else damage.second += bonus;
+				}
+				const int anchorAmount = AxisStackGeneration::AnchorAmount(
+					result.shotCategory, result.shotStatus);
+				if (playerHitCombatEnemy &&
+					!result.anchorGrantCommitted &&
+					anchorAmount > 0)
+				{
+					AnchorStackRules::GrantEnemyStacksOnCollision(
+						targetEnemy->anchorStacks,
+						anchorAmount,
+						result.playerAnchorStacks,
+						result.shotStatus.anchorPlayerStacksPerBonus,
+						result.shotCategory == BallCategory::Anchor ? result.anchorNextGrantBonus : 0,
+						result.shotStatus.anchorStackMax);
+					result.anchorGrantCommitted = true;
 				}
 				Damage(a, damage.first, b.physics.position);
 				Damage(b, damage.second, a.physics.position);
@@ -878,11 +880,15 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
 	result.heavyCollisionCount = input.heavyCollisions.stackCount;
 	result.playerAnchorStacks = input.playerAnchorStacks;
 	result.anchorConversionProgress = input.anchorConversionProgress;
+    result.anchorNextGrantBonus = input.anchorNextGrantBonus;
 	CushionChargeRules::BeginPlayerShot(result.cushionCharges);
 	HeavyCollisionRules::BeginShot(result.heavyCollisions);
 	PierceTraceRules::BeginShot(result.pierceTraces);
     result.shot = input.shot;
     if (offer) result.shot.ballId = offer->definitionId;
+    result.shotCategory = offer ? offer->category : input.hasCurrentBall
+        ? static_cast<BallCategory>(input.currentBallCategory)
+        : BallCategoryFromId({}, result.shot.ballId);
     World world{ result };
     world.playerId = reinterpret_cast<std::uintptr_t>(player.GetBall());
     world.playerPocketDamage = input.playerPocketDamage;
@@ -987,7 +993,13 @@ Result BallShotPrediction::Predict(const Input& input, const PlayerBall& player,
                     for (const auto& other : result.balls)
                         if (other.active && BallPhysicsRules::PierceExitDirection(ball.physics, other.physics, exitDirection))
                         { exitingPierce = true; break; }
-                if (ball.playerSimulation || exitingPierce)
+                if (!ball.playerSimulation &&
+                    (exitingPierce || BallPhysicsRules::HasResidualMotion(ball.physics.velocity)))
+                {
+                    ball.playerSimulation = true;
+                    ball.stopCount = 0;
+                }
+                if (ball.playerSimulation)
                     ball.playerSimulation = !BallPhysicsRules::PlayerFriction(ball.physics.velocity, ball.acceleration,
                     ball.physics.status, ball.physics.status.friction, ball.stopCount,
                     exitingPierce ? &exitDirection : nullptr);
@@ -1102,6 +1114,7 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
 	scalar(input.heavyCollisions.activeEnemyCollisionMultiplier);
 	add(input.playerAnchorStacks);
 	add(input.anchorConversionProgress);
+    add(input.anchorNextGrantBonus);
 	add(input.pierceTraces.stackCount);
 	for (const auto& trace : input.pierceTraces.traces)
 	{

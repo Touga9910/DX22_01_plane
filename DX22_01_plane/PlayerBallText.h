@@ -112,6 +112,18 @@ namespace PlayerBallText
         return Utf8(u8"[汎用]");
     }
 
+    inline const char* GetCommonStackRule(BallCategory category)
+    {
+        switch (category)
+        {
+        case BallCategory::Heavy: return Utf8(u8"敵球の移動距離で重量スタックを得る。");
+        case BallCategory::Pierce: return Utf8(u8"貫通した敵1体ごとに貫通スタックを得る。");
+        case BallCategory::Bounce: return Utf8(u8"壁反射で反射スタックを得る。");
+        case BallCategory::Anchor: return Utf8(u8"最初の敵接触で敵に錨スタックを付ける。");
+        default: return "";
+        }
+    }
+
     // カード内説明は拡大表示で3～4行に収まりやすい短文にする。
     inline std::string GetShortDescription(const PlayerBallData& ball)
     {
@@ -205,6 +217,11 @@ namespace PlayerBallText
         }
         else
             text << Utf8(u8"ボール効果の説明は未登録。");
+        if ((ball.category == BallCategory::Heavy && id != "player_heavy") ||
+            (ball.category == BallCategory::Bounce && id != "player_cushion_charge") ||
+            (ball.category == BallCategory::Anchor && s.anchorEnemyStackGenerate == 0) ||
+            id == "player_minion_finisher")
+            text << "\n" << GetCommonStackRule(ball.category);
         return text.str();
     }
 

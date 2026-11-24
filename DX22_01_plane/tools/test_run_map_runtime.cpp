@@ -6,8 +6,8 @@ int main()
 {
     for (unsigned seed = 0; seed < 200; ++seed)
     {
-        RunMap map; map.Generate(seed);
-        RunMap same; same.Generate(seed);
+        RunMap map; map.Generate(seed, 0, 15, 1);
+        RunMap same; same.Generate(seed, 0, 15, 1);
         assert(map.Snapshot() == same.Snapshot());
         assert(map.Nodes().size() == 47);
         assert(!map.Choose(-1) && !map.Choose(3) && !map.Choose(46));
@@ -57,6 +57,48 @@ int main()
         assert(map.Available().empty());
         assert(RunMap::Restore(map.Save()).Snapshot() == map.Snapshot());
     }
+    for (unsigned seed = 0; seed < 200; ++seed)
+    {
+        RunMap map;
+        map.Generate(seed);
+        const auto initial = map.Save();
+        assert(initial.at("version") == 2);
+        assert(RunMap::Restore(initial).Snapshot() == map.Snapshot());
+        assert(map.Available() == std::vector<int>({0, 1, 2}));
+
+        int finalApproaches = 0;
+        for (const auto& node : map.Nodes())
+        {
+            assert(map.Reachable(node.id));
+            if (node.type != StageRouteType::FinalBoss) assert(!node.next.empty());
+            for (int id : node.next)
+            {
+                const auto& next = *map.Node(id);
+                assert(next.floor == node.floor + 1);
+                for (const auto& other : map.Nodes())
+                    if (other.floor == node.floor && other.lane > node.lane)
+                        for (int end : other.next)
+                            assert(map.Node(end)->lane >= next.lane);
+            }
+            if (node.floor == 14)
+            {
+                ++finalApproaches;
+                assert(node.next.size() == 1);
+                assert(map.Node(node.next.front())->type == StageRouteType::BossPreparation);
+            }
+        }
+        assert(finalApproaches == 5);
+        for (int floor = 0; floor < 17; ++floor)
+        {
+            const auto choices = map.Available();
+            assert(!choices.empty());
+            assert(map.Choose(choices[(seed + floor) % choices.size()]));
+            assert(RunMap::Restore(map.Save()).Save() == map.Save());
+            assert(map.CompleteActive());
+            assert(map.CompletedAreas() == (std::min)(15, floor + 1));
+        }
+        assert(map.Available().empty());
+    }
     RunMap legacy; legacy.Generate(20260817, 6, 9);
     legacy.MigrateEntry(StageRouteType::Shop);
     assert(legacy.Active() == 0 && legacy.CompletedAreas() == 6);
@@ -81,5 +123,5 @@ int main()
         try { RunMap::Restore(saved); } catch (const std::exception&) { rejected = true; }
         assert(rejected);
     }
-    std::cout << "Run map: 200 seeds, all-node reachability, connected routes, recovery access, save round trips, legacy entries and corrupt paths passed.\n";
+    std::cout << "Run map: 200 seeds, both versions, all-node reachability, noncrossing routes, recovery access, save round trips, legacy entries and corrupt paths passed.\n";
 }

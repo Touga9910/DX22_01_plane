@@ -195,15 +195,16 @@ void StageSelectScene::DrawUI()
         m_RouteFlight>=0 ? ImGuiWindowFlags_NoScrollWithMouse : ImGuiWindowFlags_None);
     const auto origin=ImGui::GetCursorScreenPos();
     const auto local=ImGui::GetCursorPos();
+    const float laneWidth=350.0f/map.CenterLane();
     auto position=[&](const RunMapNode& node)
-    { return ImVec2(origin.x+(180+350*node.lane)*ui.scale,
+    { return ImVec2(origin.x+(180+laneWidth*node.lane)*ui.scale,
         origin.y+(45+(rows-1-(node.floor-map.StartArea()))*rowHeight)*ui.scale); };
     // Generate in canonical map coordinates, then transform for scrolling/zoom.
     auto curveFor=[&](const RunMapNode& from,const RunMapNode& to)
     {
         auto curve=RouteVisualPath::Curve(map.Seed(),from.id,to.id,
-            {350.0f*from.lane,-115.0f*(from.floor-map.StartArea())},
-            {350.0f*to.lane,-115.0f*(to.floor-map.StartArea())});
+            {laneWidth*from.lane,-115.0f*(from.floor-map.StartArea())},
+            {laneWidth*to.lane,-115.0f*(to.floor-map.StartArea())});
         for(auto& point:curve)
         {
             point.x=origin.x+(180+point.x)*ui.scale;
@@ -218,17 +219,20 @@ void StageSelectScene::DrawUI()
     {
         const auto* next=map.Node(id); if (!next) continue;
         const bool used=map.Visited(node.id)&&map.Visited(id);
-        const auto curve=curveFor(node,*next);
-        const ImU32 color=used ? Gold : reachable[id] ? IM_COL32(220,218,193,210) : IM_COL32(120,125,118,85);
-        for (const auto& dash:RouteVisualPath::Dashes(curve,ui.scale))
-            draw->AddLine(ImVec2(dash.from.x,dash.from.y),ImVec2(dash.to.x,dash.to.y),color,
-                (std::max)(1.5f,ui.scale*(used?5.0f:3.8f)));
+        const bool nextChoice=!map.Path().empty() && node.id==map.Path().back() &&
+            std::find(m_RouteNodes.begin(),m_RouteNodes.end(),id)!=m_RouteNodes.end();
+        const ImU32 color=used || nextChoice ? Gold : reachable[node.id] ? IM_COL32(220,218,193,170) : IM_COL32(120,125,118,65);
+        draw->AddLine(position(node),position(*next),color,
+            (std::max)(1.5f,ui.scale*(used || nextChoice ? 5.0f : 3.0f)));
     }
     RunMapNode start;
     start.floor=m_RouteNodes.empty()?map.StartArea()-1:map.Node(m_RouteNodes.front())->floor-1;
-    start.lane=1;
+    start.lane=map.CenterLane();
     const auto* current=map.Path().empty()?nullptr:map.Node(map.Path().back());
     const ImVec2 cueStart=position(current?*current:start);
+    if (!current)
+        for (int id : m_RouteNodes)
+            draw->AddLine(cueStart,position(*map.Node(id)),Gold,(std::max)(1.5f,4.0f*ui.scale));
     for (const auto& node:map.Nodes())
     {
         const auto center=position(node);

@@ -206,7 +206,11 @@ int main()
     status.radius = 2.0f;
     Vector3 velocity(0.1f, 0, 0), acceleration(1, 0, 0);
     int count = 0;
-    for (int i = 0; i < 10; ++i) assert(!PlayerFriction(velocity, acceleration, status, 0.02f, count));
+    // An incoming enemy can give an idle cue ball a sub-threshold speed.
+    assert(HasResidualMotion(velocity));
+    assert(!PlayerFriction(velocity, acceleration, status, 0.02f, count));
+    assert(Near(velocity.x, 0.08f) && Near(acceleration.x, -0.02f));
+    for (int i = 1; i < 10; ++i) assert(!PlayerFriction(velocity, acceleration, status, 0.02f, count));
     assert(PlayerFriction(velocity, acceleration, status, 0.02f, count));
     assert(velocity == Vector3::Zero && acceleration == Vector3::Zero);
 

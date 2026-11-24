@@ -5,6 +5,7 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <utility>
 
 enum class StageRouteType { NormalBattle, MidBoss, Shop, RestSite, FinalBoss, BossPreparation };
 
@@ -40,6 +41,7 @@ class RunMap
 {
     std::uint32_t m_Seed = 0;
     int m_StartArea = 0;
+    int m_Version = 2;
     int m_AreaCount = 15;
     int m_EntryOverride = -1;    // 旧形式セーブデータから移行した開始地点の種類（通常時は-1）
     std::vector<RunMapNode> m_Nodes;
@@ -54,17 +56,90 @@ class RunMap
         std::sort(next.begin(), next.end());
     }
 
+    void GenerateBranching(std::mt19937& rng)
+    {
+        std::vector<int> previous;
+        for (int row = 0; row < m_AreaCount; ++row)
+        {
+            const int area = m_StartArea + row + 1;
+            const int width = row == 0 ? 3 : row + 1 == m_AreaCount ? 5 : 3 + rng() % 3;
+            std::vector<int> lanes{0, 1, 2, 3, 4};
+            if (row == 0) lanes = {0, 2, 4};
+            while (static_cast<int>(lanes.size()) > width)
+                lanes.erase(lanes.begin() + rng() % lanes.size());
+
+            std::vector<int> current;
+            for (int lane : lanes)
+            {
+                const unsigned roll = rng() % 150;
+                const auto type = area <= 2 || roll < 95 || (area < 4 && roll < 114)
+                    ? StageRouteType::NormalBattle :
+                    roll < 114 ? StageRouteType::MidBoss :
+                    roll < 132 ? StageRouteType::Shop : StageRouteType::RestSite;
+                const int id = static_cast<int>(m_Nodes.size());
+                current.push_back(id);
+                m_Nodes.push_back({id, m_StartArea + row, lane, type, {}});
+            }
+            m_Nodes[current[0]].type = StageRouteType::NormalBattle;
+            if (area % 4 == 0) m_Nodes[current[width / 2]].type = StageRouteType::RestSite;
+            if (area == 3 || area == 7 || area == 11 || area == 14)
+                m_Nodes[current.back()].type = StageRouteType::Shop;
+            if (area % 5 == 0) m_Nodes[current.back()].type = StageRouteType::MidBoss;
+
+            if (!previous.empty())
+            {
+                // Cover both rows with ordered edges before adding optional forks.
+                const int fromCount = static_cast<int>(previous.size());
+                const int samples = (std::max)(fromCount, width);
+                for (int i = 0; i < samples; ++i)
+                    Connect(previous[i * fromCount / samples], current[i * width / samples]);
+
+                std::vector<std::pair<int, int>> candidates;
+                for (int from : previous)
+                    for (int to : current)
+                        if (m_Nodes[from].lane >= m_Nodes[to].lane - 1 &&
+                            m_Nodes[from].lane <= m_Nodes[to].lane + 1)
+                            candidates.emplace_back(from, to);
+                while (!candidates.empty())
+                {
+                    const auto index = rng() % candidates.size();
+                    const auto [from, to] = candidates[index];
+                    candidates.erase(candidates.begin() + index);
+                    if (m_Nodes[from].next.size() >= 3 || rng() % 3 == 0) continue;
+                    bool crosses = false;
+                    for (int other : previous)
+                        for (int end : m_Nodes[other].next)
+                            crosses |= (from < other && to > end) || (from > other && to < end);
+                    if (!crosses) Connect(from, to);
+                }
+            }
+            previous = std::move(current);
+        }
+        const int prep = static_cast<int>(m_Nodes.size());
+        m_Nodes.push_back({prep, m_StartArea + m_AreaCount, CenterLane(), StageRouteType::BossPreparation, {prep + 1}});
+        m_Nodes.push_back({prep + 1, m_StartArea + m_AreaCount + 1, CenterLane(), StageRouteType::FinalBoss, {}});
+        for (int from : previous) Connect(from, prep);
+    }
+
 public:
+    int CenterLane() const { return m_Version == 1 ? 1 : 2; }
     std::uint32_t Seed() const { return m_Seed; }
     // 指定Seedから3レーン構成のランマップを生成し、進行状態を初期化
     // 通常エリアの後ろには、ボス準備ノードと最終ボスノードが必ず追加される。
-    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15)
+    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 2)
     {
         if (startArea < 0 || startArea > 1000000 || areaCount < 0 || areaCount > 15)
             throw std::runtime_error("Invalid run map extent");
+        if (version != 1 && version != 2) throw std::runtime_error("Unsupported run map version");
+        m_Version = version;
         m_Seed = seed; m_StartArea = startArea; m_AreaCount = areaCount;
         m_EntryOverride = -1; m_Nodes.clear(); m_Path.clear(); m_Active = -1;
         std::mt19937 rng(seed);
+        if (m_Version == 2)
+        {
+            GenerateBranching(rng);
+            return;
+        }
         for (int row = 0; row < areaCount; ++row)
         {
             const int area = startArea + row + 1;
@@ -185,7 +260,7 @@ public:
     int CompletedAreas() const
     {
         return m_StartArea + static_cast<int>(std::count_if(m_Path.begin(), m_Path.end(),
-            [this](int id) { return id < m_AreaCount * 3; }));
+            [this](int id) { return m_Nodes[id].floor < m_StartArea + m_AreaCount; }));
     }
     
     // 現在位置または次の選択候補から、指定ノードへ将来到達できるかを探索
@@ -201,7 +276,7 @@ public:
             if (current == id) return true;
             if (seen[current]) continue;
             seen[current] = true;
-            pending.insert(pending.end(), m_Nodes[current].next.begin(), m_Nodes[current].next.end());
+            for (int next : m_Nodes[current].next) pending.push_back(next);
         }
         return false;
     }
@@ -221,7 +296,7 @@ public:
     // ノード本体は固定生成規則に従ってSeedから再生成するため保存しない。
     nlohmann::json Save() const
     {
-        return { {"version", 1}, {"seed", m_Seed}, {"start_area", m_StartArea},
+        return { {"version", m_Version}, {"seed", m_Seed}, {"start_area", m_StartArea},
             {"area_count", m_AreaCount}, {"path", m_Path}, {"active_node_id", m_Active},
             {"legacy_entry_type", m_EntryOverride} };
     }
@@ -230,9 +305,8 @@ public:
     // バージョン不一致や接続しない経路など、不正なデータの場合は例外を送出
     static RunMap Restore(const nlohmann::json& data)
     {
-        if (data.at("version").get<int>() != 1) throw std::runtime_error("Unsupported run map version");
         RunMap result;
-        result.Generate(data.at("seed").get<std::uint32_t>(), data.at("start_area").get<int>(), data.at("area_count").get<int>());
+        result.Generate(data.at("seed").get<std::uint32_t>(), data.at("start_area").get<int>(), data.at("area_count").get<int>(), data.at("version").get<int>());
         const int entry = data.value("legacy_entry_type", -1);
         if (entry < -1 || entry > static_cast<int>(StageRouteType::RestSite))
             throw std::runtime_error("Invalid legacy map entry type");

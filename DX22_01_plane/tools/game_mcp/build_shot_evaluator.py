@@ -563,7 +563,7 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
                      if hp.get(key, 0) - damage_by_id.get(key, 0) > 0.01]
     facts["exceptional_stack_setup"] = False
 
-    if definition == "player_heavy" and stats.get("heavyDistanceStacks", False):
+    if ball.get("category") == "heavy" or definition in _HEAVY_BALLS or stats.get("heavyDistanceStacks", False):
         divisor = max(0.1, _number(sy.get("heavy_stack_distance_per_stack", 40), 40))
         remaining = max(0, _whole(sy.get("heavy_stack_gain_limit_per_turn", 10), 10)
                         - _whole(sy.get("heavy_stacks_gained_this_turn")))
@@ -573,7 +573,8 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
         living_distances=pushed_motion.get('living_enemy_distances')
         requested=(sum(int(max(0,d)//divisor) for key,d in living_distances.items() if key!='player')
                    if living_distances is not None else int(travel//divisor))
-        if requested:requested+=max(0,_whole(stats.get('eventStackGenerationBonus')))
+        if requested and stats.get('heavyDistanceStacks', False):
+            requested += max(0, _whole(stats.get('eventStackGenerationBonus')))
         generated = min(remaining, requested)
         facts["heavy_stacks_generated_estimate"] = generated
         facts["heavy_estimated_travel"] = round(travel, 3)
@@ -634,8 +635,8 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
         elif launched:
             reasons.append("既存トレースからのミニオン命中見込みを評価する")
 
-    if definition == "player_cushion_charge" and reflection_hit:
-        generated = max(0, _whole(stats.get("cushionStackGenerateAmount", 1)))
+    if (ball.get("category") == "bounce" or definition in _BOUNCE_BALLS) and reflection_hit:
+        generated = max(1, _whole(stats.get("cushionStackGenerateAmount", 1)))
         facts["reflection_stacks_generated_estimate"] = generated
         if generated:
             resource_gain += generated * (0.45 if _present_ball(state, {"player_bounce", "player_ricochet_finisher"}) else 0.13) * future
@@ -650,7 +651,8 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
         # Actual bonus damage was already applied to damage_by_id.
         if consumed: reasons.append("共有反射スタックを消費して強化命中する")
 
-    if definition == "player_ricochet_finisher" and reflection >= _whole(stats.get("ricochetStackConsume", 6), 6):
+    if (definition == "player_ricochet_finisher" and
+            reflection + int(reflection_hit) >= _whole(stats.get("ricochetStackConsume", 6), 6)):
         consume = _whole(stats.get("ricochetStackConsume", 6), 6)
         facts["pinball_activation_estimate"] = 1
         facts["reflection_stacks_consumed_estimate"] = consume
@@ -672,14 +674,12 @@ def _special_score(state, ball, stats, enemies, target, path, hp,
             reasons.append("次ショットの反射スタック生成を予約する")
         facts["reflection_setup_armed_estimate"] = amount
 
-    if definition in {"player_anchor", "player_origin_anchor"} and target_id in alive_touched:
-        if definition == "player_anchor":
-            grant = (_whole(stats.get("anchorEnemyStackGenerate", 2), 2)
-                     + anchor_player // max(1, _whole(stats.get("anchorPlayerStacksPerBonus", 4), 4)))
-            grant += _whole(sy.get("anchor_next_grant_bonus"))
-        else:
-            grant = _whole(stats.get("anchorEnemyStackGenerate", 1), 1)
-            grant += _whole(sy.get("anchor_next_grant_bonus"))
+    if (ball.get("category") == "anchor" or definition in _ANCHOR_BALLS) and target_id in alive_touched:
+        grant = max(1, _whole(stats.get("anchorEnemyStackGenerate", 2 if definition == "player_anchor" else 1)))
+        per_bonus = _whole(stats.get("anchorPlayerStacksPerBonus", 4 if definition == "player_anchor" else 0))
+        if per_bonus > 0:
+            grant += anchor_player // per_bonus
+        grant += _whole(sy.get("anchor_next_grant_bonus"))
         grant = min(grant, max(0, _whole(stats.get("anchorStackMax", 99), 99) - anchor_targets.get(target_id, 0)))
         facts["anchor_enemy_stacks_generated_estimate"] = grant
         if grant:

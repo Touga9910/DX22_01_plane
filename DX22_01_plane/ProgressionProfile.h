@@ -57,5 +57,5 @@ public:
     static float EnemyHpMultiplier(int level);
     static int EnemyAttackBonus(int level);
     static int StartingHpPenalty(int level);
-    static float RestHealPenalty(int level);
+    static int StartingHp(int maxHp, int level);
 };

@@ -294,7 +294,7 @@ int main()
     assert(debugProfile.highestUnlockedAscension == 7 &&
         debugProfile.selectedAscension == 5 &&
         debugProfile.IsAchievementUnlocked(AchievementId::FirstVictory));
-    assert(roundtrip.EffectiveMaxHp() == setup.maxHp - 5);
+    assert(roundtrip.DefaultStartingHp() == setup.maxHp - 5);
     assert(roundtrip.breakBallPositions.size() == 3 &&
         roundtrip.breakBallPositions[1].x == 11 &&
         roundtrip.breakBallPositions[1].z == -7);

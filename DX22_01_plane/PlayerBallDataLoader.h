@@ -12,7 +12,7 @@ struct PlayerBallDataLoadResult
 {
 	BallStatus defaultBallStatus{};
 	PlayerRunStatus defaultRunStatus{};
-	float restHealRatio = 0.25f;
+	float restHealRatio = 0.30f;
 	float heavyStackDistancePerStack =
 		HeavyCollisionRules::DefaultDistancePerStack;
 	int heavyStackGainLimitPerTurn =

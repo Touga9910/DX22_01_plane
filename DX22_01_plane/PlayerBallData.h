@@ -67,6 +67,32 @@ inline BallCategory BallCategoryFromId(
 	return BallCategory::Standard;
 }
 
+namespace AxisStackGeneration
+{
+    inline bool HeavyDistance(BallCategory category, const BallStatus& status)
+    {
+        return category == BallCategory::Heavy || status.abilities.heavyDistanceStacks;
+    }
+
+    inline int ReflectionAmount(BallCategory category, const BallStatus& status)
+    {
+        return category == BallCategory::Bounce
+            ? (std::max)(1, status.cushionStackGenerateAmount) : status.cushionStackGenerateAmount;
+    }
+
+    inline int ReflectionLimit(BallCategory category, const BallStatus& status)
+    {
+        return category == BallCategory::Bounce
+            ? (std::max)(1, status.cushionReflectionLimit) : status.cushionReflectionLimit;
+    }
+
+    inline int AnchorAmount(BallCategory category, const BallStatus& status)
+    {
+        return category == BallCategory::Anchor
+            ? (std::max)(1, status.anchorEnemyStackGenerate) : status.anchorEnemyStackGenerate;
+    }
+}
+
 // 各強化段階で適用するボール性能一式を表す
 using BallUpgradeStep = BallStatus;
 

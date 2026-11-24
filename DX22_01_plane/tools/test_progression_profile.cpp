@@ -78,8 +78,12 @@ int main()
     assert(loaded.achievements == p.achievements);
     assert(ProgressionProfile::EnemyHpMultiplier(10) == 1.35f);
     assert(ProgressionProfile::EnemyAttackBonus(10) == 3);
-    assert(ProgressionProfile::StartingHpPenalty(7) == 10);
-    assert(ProgressionProfile::RestHealPenalty(8) == .10f);
+    assert(ProgressionProfile::StartingHp(50, 0) == 50);
+    assert(ProgressionProfile::StartingHp(50, 2) == 45);
+    assert(ProgressionProfile::StartingHp(50, 4) == 40);
+    assert(ProgressionProfile::StartingHp(50, 7) == 35);
+    assert(ProgressionProfile::StartingHp(50, 8) == 30);
+    assert(ProgressionProfile::StartingHp(5, 8) == 1);
     { std::ofstream bad(path); bad << "{broken"; }
     loaded.Load(path); assert(loaded.totalRuns == 0 && loaded.highestUnlockedAscension == 0);
     std::cout << "PASS progression achievements, unlock gates, ascension sequence/effects, persistence and corrupt fallback\n";
