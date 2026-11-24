@@ -30,7 +30,7 @@ void GamePresentation::DrawEnemyStatusEffects(Game& game)
 	const BattleController* battleController =
 		game.GetBattleControllerDiagnostics();
 	const bool phasePrototype = battleController != nullptr &&
-		battleController->IsPhasePrototype();
+		battleController->UsesPhaseAttackTiming();
 	const BattleState state = game.GetBattleState();
 	const bool showActionPlan =
 		state == BattleState::AimingDirection ||

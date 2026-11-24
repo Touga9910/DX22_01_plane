@@ -366,6 +366,15 @@ class BalanceConfigurationTests(unittest.TestCase):
             ]
             self.assertTrue(set(ids).issubset(enemy_ids))
             self.assertTrue(set(ids).issubset(costs))
+            self.assertEqual(stage.get("combatMode"), "phasePrototype")
+            self.assertGreaterEqual(stage["turnsPerPhase"], 1)
+            self.assertTrue(stage["additionalPhases"])
+            for phase in stage["additionalPhases"]:
+                self.assertTrue(phase["enemies"])
+                self.assertTrue(all(
+                    spawn.get("enemyId", "enemy_normal") in enemy_ids
+                    for spawn in phase["enemies"]
+                ))
             layout = (
                 "dense_auto_layout"
                 if len(ids) >= 4
@@ -500,6 +509,11 @@ class BalanceConfigurationTests(unittest.TestCase):
 
         opening = next(pool for pool in pools if pool["id"] == "opening")
         self.assertEqual(opening["stage_ids"], ["normal_001", "normal_002"])
+        opening_ids = set(opening["stage_ids"]) | {"phase_run_p1_mixed6", "phase_run_p1_pairs6"}
+        for stage in stages:
+            if stage["id"] in opening_ids:
+                self.assertEqual(len(stage["enemies"]), 3)
+                self.assertEqual([len(phase["enemies"]) for phase in stage["additionalPhases"]], [3])
         for progress in range(5, 10):
             pool = next(item for item in pools
                 if item["min_progress"] <= progress <= item["max_progress"])

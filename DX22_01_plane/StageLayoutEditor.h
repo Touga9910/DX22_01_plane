@@ -17,6 +17,7 @@ public:
     std::string sourceBytes;
     std::string message;
     int selected = -1;
+    int activePhase = 0;
     int palette = 0;
     bool snap = true;
     bool placing = false;
@@ -37,5 +38,5 @@ public:
     bool Accept();
     Json Snapshot(const std::vector<EnemyData>& catalog, float playerRadius) const;
 private:
-    std::optional<StageData> m_SourceStage;
+    std::string m_SourcePrototypeStageId;
 };

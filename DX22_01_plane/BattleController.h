@@ -156,6 +156,10 @@ public:
     {
         return m_CombatMode == CombatMode::PhasePrototype;
     }
+    bool UsesPhaseAttackTiming() const
+    {
+        return IsPhasePrototype() && m_StageType != StageType::Boss;
+    }
     int GetCurrentPhase() const { return m_CurrentPhase; }
     int GetTotalPhases() const { return m_TotalPhases; }
     int GetTurnsUntilNextPhase() const { return m_TurnsUntilNextPhase; }

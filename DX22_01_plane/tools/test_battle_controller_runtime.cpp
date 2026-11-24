@@ -134,10 +134,11 @@ namespace
 
     void VerifyTwoPhase(
         const StageData& stage,
+        int expectedFirstPhaseCount,
         int expectedSecondPhaseCount)
     {
         assert(stage.phaseBattle.phases.size() == 2);
-        assert(stage.phaseBattle.phases[0].enemies.size() == 6);
+        assert(static_cast<int>(stage.phaseBattle.phases[0].enemies.size()) == expectedFirstPhaseCount);
         assert(static_cast<int>(stage.phaseBattle.phases[1].enemies.size()) ==
             expectedSecondPhaseCount);
 
@@ -162,7 +163,7 @@ namespace
 		assert(controller.GetDefeatedEnemyCount() == 2);
 		assert(controller.GetPocketDefeatedEnemyCount() == 1);
 
-        assert(!BattleControllerTestAccess::AdvancePhase(controller, 6));
+        assert(!BattleControllerTestAccess::AdvancePhase(controller, expectedFirstPhaseCount));
         assert(spawns.calls == 0);
 
         assert(BattleControllerTestAccess::AdvancePhase(controller, 0));
@@ -235,7 +236,10 @@ int main()
         "assets/data/stage_01.json",
         "assets/data/enemy_data.json");
 
-    const StageData& single = FindStage(stages, "phase_run_p1_mixed6");
+    const StageData& opening = FindStage(stages, "normal_001");
+    const StageData& boss = FindStage(stages, "boss_001");
+    StageData single = FindStage(stages, "campaign_phase_mid_mixed");
+    single.phaseBattle.phases.resize(1);
     const StageData& sixToFour = FindStage(
 		stages, "campaign_phase_mid_mixed");
     const StageData& sixToSix = FindStage(
@@ -243,11 +247,13 @@ int main()
 
     VerifyLegacyPocketClear();
     VerifySinglePhase(single);
-    VerifyTwoPhase(sixToFour, 4);
-    VerifyTwoPhase(sixToSix, 6);
+    VerifyTwoPhase(opening, 3, 3);
+    VerifyTwoPhase(boss, 1, 2);
+    VerifyTwoPhase(sixToFour, 6, 4);
+    VerifyTwoPhase(sixToSix, 6, 6);
     VerifyDefeatAndDuplicateGuards(sixToSix);
 
     std::cout <<
-        "BattleController runtime: 6x1, 6->4, 6->6, final victory, "
+        "BattleController runtime: 6x1, 3->3, boss, 6->4, 6->6, final victory, "
         "mid-phase defeat, and duplicate update guards passed\n";
 }

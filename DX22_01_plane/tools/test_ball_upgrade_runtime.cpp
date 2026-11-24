@@ -406,6 +406,10 @@ int main()
     for (const auto& stage : stages)
     {
         assert(stageIds.insert(stage.id).second);
+        assert(stage.combatMode == CombatMode::PhasePrototype);
+        assert(stage.phaseBattle.phases.size() >= 2);
+        for (const auto& phase : stage.phaseBattle.phases)
+            assert(!phase.enemies.empty());
     }
     for (const char* existingId : {
         "normal_001", "normal_002", "normal_003", "normal_004",
@@ -648,8 +652,8 @@ int main()
 
     const std::array<std::tuple<const char*, std::size_t, std::size_t>, 4>
         phaseRunStages{{
-            { "phase_run_p1_mixed6", 1, 6 },
-            { "phase_run_p1_pairs6", 1, 6 },
+            { "phase_run_p1_mixed6", 2, 6 },
+            { "phase_run_p1_pairs6", 2, 6 },
             { "phase_run_p3_mixed10", 2, 10 },
             { "phase_run_p3_pairs10", 2, 10 },
         }};
@@ -676,7 +680,8 @@ int main()
         std::vector<std::string>({ "phase_run_p3_mixed10", "phase_run_p3_pairs10" }));
     assert(GetPhaseTestStageIds(5) ==
         std::vector<std::string>({ "phase_prototype_009", "phase_prototype_010" }));
-	assert(GetCampaignPhaseStageIds(4).empty());
+	assert(GetCampaignPhaseStageIds(4) == std::vector<std::string>({
+		"normal_003", "board_impact_brittle_wall" }));
 	assert(GetCampaignPhaseStageIds(5) == std::vector<std::string>({
 		"campaign_phase_mid_mixed", "campaign_phase_mid_pairs" }));
 	assert(GetCampaignPhaseStageIds(10) == std::vector<std::string>({
@@ -689,20 +694,19 @@ int main()
 			stages, floor, std::string(), {});
 		assert(selected != nullptr);
 		assert(!selected->prototypeOnly);
-		if (floor < 5)
-		{
-			assert(selected->combatMode == CombatMode::Legacy);
-			assert(selected->enemies.size() >= 3);
-			assert(selected->enemies.size() <= 5);
-		}
-		else
-		{
-			assert(selected->combatMode == CombatMode::PhasePrototype);
-			assert(selected->phaseBattle.phases.size() == 2);
-			assert(selected->phaseBattle.phases[0].enemies.size() == 6);
-			assert(selected->phaseBattle.phases[1].enemies.size() ==
-				static_cast<std::size_t>(floor < 10 ? 4 : 6));
-		}
+        assert(selected->combatMode == CombatMode::PhasePrototype);
+        assert(selected->phaseBattle.phases.size() == 2);
+        if (floor <= 2)
+        {
+            assert(selected->phaseBattle.phases[0].enemies.size() == 3);
+            assert(selected->phaseBattle.phases[1].enemies.size() == 3);
+        }
+        else if (floor >= 5)
+        {
+            assert(selected->phaseBattle.phases[0].enemies.size() == 6);
+            assert(selected->phaseBattle.phases[1].enemies.size() ==
+                static_cast<std::size_t>(floor < 10 ? 4 : 6));
+        }
 	}
     StageSelector phaseRunSelector;
     phaseRunSelector.Seed(20261114u);

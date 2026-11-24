@@ -34,7 +34,9 @@ std::vector<std::string> GetCampaignPhaseStageIds(int floor)
 {
 	if (floor < 5)
 	{
-		return {};
+		return floor < 3
+			? std::vector<std::string>{ "normal_001", "normal_002" }
+			: std::vector<std::string>{ "normal_003", "board_impact_brittle_wall" };
 	}
 	if (floor < 10)
 	{
@@ -186,11 +188,10 @@ const StageData* StageSelector::SelectCampaignNormalStage(
 	const std::vector<std::string>& allowedStageIds)
 {
 	const int normalizedFloor = (std::max)(1, floor);
-	const bool phaseBattle = normalizedFloor >= 5;
-	const int expectedSecondPhaseCount = normalizedFloor >= 10 ? 6 : 4;
-	const DifficultyRange difficulty = GetDifficultyRange(normalizedFloor);
 	const std::vector<std::string> campaignPhaseIds =
 		GetCampaignPhaseStageIds(normalizedFloor);
+	const auto& candidatesForFloor = allowedStageIds.empty()
+		? campaignPhaseIds : allowedStageIds;
 	std::vector<const StageData*> candidates;
 
 	for (const StageData& stage : stages)
@@ -199,36 +200,12 @@ const StageData* StageSelector::SelectCampaignNormalStage(
 		{
 			continue;
 		}
-		if (!allowedStageIds.empty() &&
-			std::find(allowedStageIds.begin(), allowedStageIds.end(), stage.id) ==
-				allowedStageIds.end())
+		if (stage.combatMode != CombatMode::PhasePrototype ||
+			stage.phaseBattle.phases.size() < 2 ||
+			std::find(candidatesForFloor.begin(), candidatesForFloor.end(),
+				stage.id) == candidatesForFloor.end())
 		{
 			continue;
-		}
-
-		if (!phaseBattle)
-		{
-			if (stage.combatMode != CombatMode::Legacy ||
-				stage.difficulty < difficulty.min ||
-				stage.difficulty > difficulty.max ||
-				stage.enemies.size() < 3 || stage.enemies.size() > 5)
-			{
-				continue;
-			}
-		}
-		else
-		{
-			if (stage.combatMode != CombatMode::PhasePrototype ||
-				std::find(campaignPhaseIds.begin(), campaignPhaseIds.end(),
-					stage.id) == campaignPhaseIds.end() ||
-				stage.phaseBattle.phases.size() != 2 ||
-				stage.phaseBattle.phases[0].enemies.size() != 6 ||
-				static_cast<int>(
-					stage.phaseBattle.phases[1].enemies.size()) !=
-					expectedSecondPhaseCount)
-			{
-				continue;
-			}
 		}
 		candidates.push_back(&stage);
 	}
@@ -236,9 +213,7 @@ const StageData* StageSelector::SelectCampaignNormalStage(
 	if (candidates.empty())
 	{
 		std::cerr << "[StageSelector] Campaign floor " << normalizedFloor
-			<< " has no valid "
-			<< (phaseBattle ? "phase" : "opening")
-			<< " normal stage. No combat-mode fallback was applied."
+			<< " has no valid phase normal stage."
 			<< std::endl;
 		return nullptr;
 	}

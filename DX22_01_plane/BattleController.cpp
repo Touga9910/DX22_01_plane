@@ -57,7 +57,7 @@ void BattleController::BeginStage(const StageData& stage)
             if (enemy != nullptr) enemy->RefreshBoardAbilityState(false);
         }
     }
-    if (!IsPhasePrototype()) PlanNextTurn();
+    if (!UsesPhaseAttackTiming()) PlanNextTurn();
 }
 
 const char* ToString(BattleState state)
@@ -438,7 +438,7 @@ void BattleController::CompleteShot()
         {
             --m_TurnsUntilNextPhase;
         }
-        PlanPhaseTurn();
+        if (UsesPhaseAttackTiming()) PlanPhaseTurn();
     }
 
     // Positions are now stable. Re-evaluate only board-dependent modifiers;
@@ -512,7 +512,7 @@ void BattleController::CompleteShot()
         }
     }
 
-    if (bossEncounterCleared || AreAllEnemiesDefeated())
+    if ((!IsPhasePrototype() && bossEncounterCleared) || AreAllEnemiesDefeated())
     {
         FinishBattle(BattleResult::Victory);
         return;
@@ -584,7 +584,7 @@ void BattleController::ProcessEnemyAttack()
         if (action == EnemyActionType::ChargeStart)
         {
             enemy->BeginCharge();
-            if (IsPhasePrototype()) enemy->ResetAttackTimer();
+            if (UsesPhaseAttackTiming()) enemy->ResetAttackTimer();
             continue;
         }
         if (action == EnemyActionType::ChargeAttack &&
@@ -623,7 +623,7 @@ void BattleController::ProcessEnemyAttack()
         {
             enemy->CompleteChargeAttack();
         }
-        if (IsPhasePrototype()) enemy->ResetAttackTimer();
+        if (UsesPhaseAttackTiming()) enemy->ResetAttackTimer();
 
         const int hpAfter = player->GetHP();
         const int damage =
@@ -739,8 +739,8 @@ void BattleController::ProcessTurnEnd()
         return;
     }
 
-    if (!IsPhasePrototype()) PlanNextTurn();
-    if (IsPhasePrototype() && m_World != nullptr)
+    if (!UsesPhaseAttackTiming()) PlanNextTurn();
+    if (UsesPhaseAttackTiming() && m_World != nullptr)
     {
         for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())
         {
@@ -757,7 +757,7 @@ void BattleController::ProcessTurnEnd()
 
 void BattleController::PlanPhaseTurn()
 {
-    if (m_World == nullptr || !IsPhasePrototype()) return;
+    if (m_World == nullptr || !UsesPhaseAttackTiming()) return;
 
     EnemyActionTurnPlan plan{};
     for (EnemyBall* enemy : m_World->GetComponents<EnemyBall>())

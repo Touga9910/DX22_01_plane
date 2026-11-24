@@ -210,7 +210,7 @@ std::vector<EnemyBall*> AppendEnemies(Game& game, nlohmann::json& state)
 				{ "brittle_action_count", enemy->GetBrittleActionCount() },
 			} },
 		};
-        if (enemy->IsArmorBoss())
+        if (combatActive && enemy->IsArmorBoss())
         {
             const auto& boss = enemy->GetBossState();
             state["boss_state"] = {

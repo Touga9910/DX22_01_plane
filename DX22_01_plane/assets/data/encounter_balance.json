@@ -18,7 +18,7 @@
     "mcp_override": 1.0
   },
   "stage_target_budgets": {
-    "normal_001": 24.0,
+    "normal_001": 36.0,
     "normal_002": 36.0,
     "normal_003": 75.0,
     "normal_004": 105.0,

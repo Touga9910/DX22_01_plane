@@ -96,9 +96,13 @@ void GameDebugController::DrawStageEditor(Game&)
         int suffix = 1; std::string id;
         do { id = "custom_" + std::to_string(suffix++); }
         while (std::any_of(m_DebugStages.begin(), m_DebugStages.end(), [&](const auto& s) { return s.id == id; }));
-        auto next = editor.draft; next["id"] = id; next["stage_type"] = "normal";
-        next["enemies"] = Json::array(); next["break_balls"] = Json::array();
-        editor.Replace(next); editor.proposal = nullptr;
+        Json next = {{"id", id}, {"stage_type", "normal"}, {"difficulty", 1}, {"par", 4},
+            {"enemies", Json::array()}, {"break_balls", Json::array()},
+            {"turns_per_phase", PhaseBattleData{}.turnsPerPhase},
+            {"additional_phases", Json::array({Json::array()})}};
+        editor.Replace(next);
+        editor.activePhase = 0;
+        editor.proposal = nullptr;
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(editor.undo.empty()); if (ImGui::Button("元に戻す")) editor.Undo(false); ImGui::EndDisabled(); ImGui::SameLine();
@@ -119,6 +123,59 @@ void GameDebugController::DrawStageEditor(Game&)
     int difficulty = next["difficulty"], par = next["par"];
     if (ImGui::SliderInt("難易度", &difficulty, 1, type == 0 ? 3 : 99)) { next["difficulty"] = difficulty; change(next); }
     if (ImGui::SliderInt("基準ショット数", &par, 1, 99)) { next["par"] = par; change(next); }
+    if (!next.contains("additional_phases") && ImGui::Button("フェーズ戦闘にする"))
+    {
+        next["turns_per_phase"] = PhaseBattleData{}.turnsPerPhase;
+        next["additional_phases"] = Json::array({Json::array()});
+        editor.Replace(next);
+    }
+    if (next.contains("additional_phases"))
+    {
+        ImGui::SeparatorText("フェーズ戦闘");
+        int turns = next["turns_per_phase"];
+        if (ImGui::SliderInt("進行間隔（ターン）", &turns, 1, 99, "%d", ImGuiSliderFlags_AlwaysClamp))
+        {
+            next["turns_per_phase"] = turns;
+            change(next);
+        }
+        ImGui::TextWrapped("設定ターン数の経過、または盤上の敵の全滅で次のフェーズに進みます。");
+        auto& phases = next["additional_phases"];
+        editor.activePhase = std::clamp(editor.activePhase, 0, static_cast<int>(phases.size()));
+        const std::string current = "フェーズ " + std::to_string(editor.activePhase + 1);
+        if (ImGui::BeginCombo("編集する配置", current.c_str()))
+        {
+            for (int i = 0; i <= static_cast<int>(phases.size()); ++i)
+            {
+                const std::string label = "フェーズ " + std::to_string(i + 1);
+                if (ImGui::Selectable(label.c_str(), editor.activePhase == i))
+                {
+                    editor.activePhase = i;
+                    editor.selected = -1;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (ImGui::Button("フェーズを追加"))
+        {
+            phases.push_back(Json::array());
+            editor.Replace(next);
+            editor.activePhase = static_cast<int>(phases.size());
+        }
+        if (editor.activePhase > 0 && phases.size() > 1)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("フェーズを削除"))
+            {
+                phases.erase(editor.activePhase - 1);
+                editor.Replace(next);
+                --editor.activePhase;
+            }
+        }
+    }
+    else
+    {
+        editor.activePhase = 0;
+    }
     if (!m_DebugEnemyCatalog.empty())
     {
         editor.palette = std::clamp(editor.palette, 0, static_cast<int>(m_DebugEnemyCatalog.size()) - 1);
@@ -148,6 +205,12 @@ void GameDebugController::DrawStageEditor(Game&)
     ImGui::EndChild(); ImGui::SameLine();
     ImGui::BeginChild("stage_placement", ImVec2(0, 0), false);
 
+    auto phaseEnemies = [&](Json& layout) -> Json&
+    {
+        return editor.activePhase == 0
+            ? layout.at("enemies")
+            : layout.at("additional_phases").at(editor.activePhase - 1);
+    };
     const float width = (std::max)(200.0f, (std::min)(ImGui::GetContentRegionAvail().x - 8, 600.0f));
     const float scale = width / TableConfig::GetFieldWidth();
     const float height = TableConfig::GetFieldDepth() * scale;
@@ -165,18 +228,18 @@ void GameDebugController::DrawStageEditor(Game&)
             droppedEnemy = *static_cast<const int*>(payload->Data);
         ImGui::EndDragDropTarget();
     }
-    if (droppedEnemy >= 0 && droppedEnemy < static_cast<int>(m_DebugEnemyCatalog.size()) && editor.draft["enemies"].size() < 32)
+    if (droppedEnemy >= 0 && droppedEnemy < static_cast<int>(m_DebugEnemyCatalog.size()) && phaseEnemies(editor.draft).size() < 32)
     {
         const auto& mouse = ImGui::GetIO().MousePos;
         float x = (mouse.x - origin.x) / scale - hw, z = hd - (mouse.y - origin.y) / scale;
         if (editor.snap) { x = std::round(x / 2) * 2; z = std::round(z / 2) * 2; }
         const float radius = m_DebugEnemyCatalog[droppedEnemy].status.radius + .01f;
         auto added = editor.draft;
-        added["enemies"].push_back({{"enemy_id", m_DebugEnemyCatalog[droppedEnemy].id},
+        phaseEnemies(added).push_back({{"enemy_id", m_DebugEnemyCatalog[droppedEnemy].id},
             {"x", std::clamp(x, -hw + radius, hw - radius)},
             {"z", std::clamp(z, -hd + radius, hd - radius)}});
         editor.Replace(added);
-        editor.selected = static_cast<int>(added["enemies"].size()) - 1;
+        editor.selected = static_cast<int>(phaseEnemies(added).size()) - 1;
     }
     if (ImGui::IsMouseReleased(0)) m_DebugEnemyDragCatalog = -1;
     draw->AddRectFilled(origin, ImVec2(origin.x + width, origin.y + height), IM_COL32(20, 74, 64, 255));
@@ -193,9 +256,9 @@ void GameDebugController::DrawStageEditor(Game&)
     float mx = (mouse.x - origin.x) / scale - hw, mz = hd - (mouse.y - origin.y) / scale;
     const bool hovered = ImGui::IsItemHovered();
     int enemyHit = -1;
-    for (int i = 0; i < static_cast<int>(editor.draft["enemies"].size()); ++i)
+    for (int i = 0; i < static_cast<int>(phaseEnemies(editor.draft).size()); ++i)
     {
-        const auto& e = editor.draft["enemies"][i]; float x = e["x"], z = e["z"], r = radiusFor(e);
+        const auto& e = phaseEnemies(editor.draft)[i]; float x = e["x"], z = e["z"], r = radiusFor(e);
         auto position = screen(x, z);
         draw->AddCircleFilled(position, r * scale, editor.selected == i ? IM_COL32(240, 145, 65, 255) : IM_COL32(85, 170, 235, 255));
         char number[16]; snprintf(number, sizeof(number), "%d", i + 1);
@@ -203,10 +266,15 @@ void GameDebugController::DrawStageEditor(Game&)
         if (std::hypot(mx - x, mz - z) < r + 1) enemyHit = i;
     }
     if (hovered && enemyHit >= 0)
-        ImGui::SetTooltip("#%d %s", enemyHit + 1, EnemyLabel(editor.draft["enemies"][enemyHit]["enemy_id"].get<std::string>()));
-    if (!editor.proposal.is_null()) for (size_t i = 0; i < editor.proposal["enemies"].size(); ++i)
+        ImGui::SetTooltip("#%d %s", enemyHit + 1, EnemyLabel(phaseEnemies(editor.draft)[enemyHit]["enemy_id"].get<std::string>()));
+    const Json* proposedEnemies = nullptr;
+    if (!editor.proposal.is_null() &&
+        (editor.activePhase == 0 || (editor.proposal.contains("additional_phases") &&
+            editor.proposal.at("additional_phases").size() >= static_cast<std::size_t>(editor.activePhase))))
+        proposedEnemies = &phaseEnemies(editor.proposal);
+    for (std::size_t i = 0; proposedEnemies && i < proposedEnemies->size(); ++i)
     {
-        const auto& e = editor.proposal["enemies"][i]; const float x = e["x"], z = e["z"], r = radiusFor(e);
+        const auto& e = (*proposedEnemies)[i]; const float x = e["x"], z = e["z"], r = radiusFor(e);
         const auto position = screen(x, z);
         draw->AddCircle(position, r * scale, IM_COL32(255, 225, 70, 255), 32, 2);
         const auto label = "AI" + std::to_string(i + 1);
@@ -221,17 +289,17 @@ void GameDebugController::DrawStageEditor(Game&)
             editor.dragging = true;
             editor.dragStart = editor.draft;
         }
-        else if (editor.placing && !m_DebugEnemyCatalog.empty() && editor.draft["enemies"].size() < 32)
+        else if (editor.placing && !m_DebugEnemyCatalog.empty() && phaseEnemies(editor.draft).size() < 32)
         {
             auto added = editor.draft;
             if (editor.snap) { mx = std::round(mx / 2) * 2; mz = std::round(mz / 2) * 2; }
-            added["enemies"].push_back({{"enemy_id", m_DebugEnemyCatalog[editor.palette].id}, {"x", mx}, {"z", mz}});
-            editor.Replace(added); editor.selected = static_cast<int>(added["enemies"].size()) - 1;
+            phaseEnemies(added).push_back({{"enemy_id", m_DebugEnemyCatalog[editor.palette].id}, {"x", mx}, {"z", mz}});
+            editor.Replace(added); editor.selected = static_cast<int>(phaseEnemies(added).size()) - 1;
         }
     }
     if (editor.dragging && editor.selected != -1)
     {
-        auto& entry = editor.draft["enemies"][editor.selected];
+        auto& entry = phaseEnemies(editor.draft)[editor.selected];
         const float r = radiusFor(entry) + .01f;
         if (editor.snap) { mx = std::round(mx / 2) * 2; mz = std::round(mz / 2) * 2; }
         // Include the release position even if the final move/release share a frame.
@@ -242,22 +310,22 @@ void GameDebugController::DrawStageEditor(Game&)
             editor.dragging = false; auto moved = editor.draft; editor.draft = editor.dragStart; change(moved);
         }
     }
-    if (editor.selected >= static_cast<int>(editor.draft["enemies"].size())) editor.selected = -1;
+    if (editor.selected >= static_cast<int>(phaseEnemies(editor.draft).size())) editor.selected = -1;
     if (editor.selected >= 0)
     {
-        ImGui::Text("選択中 #%d : %s", editor.selected + 1, EnemyLabel(editor.draft["enemies"][editor.selected]["enemy_id"].get<std::string>()));
+        ImGui::Text("選択中 #%d : %s", editor.selected + 1, EnemyLabel(phaseEnemies(editor.draft)[editor.selected]["enemy_id"].get<std::string>()));
         ImGui::SeparatorText("初期バフ・デバフ");
-        ImGui::TextWrapped("この敵だけが戦闘開始時から持つ効果です。効果量は攻撃力／防御力の増減値です。");
+        ImGui::TextWrapped("この敵が出現時から持つ効果です。効果量は攻撃力／防御力の増減値です。");
         for (const StatusEffectType effectType : AllStatusEffectTypes)
         {
-            const auto& selectedEnemy = editor.draft["enemies"][editor.selected];
+            const auto& selectedEnemy = phaseEnemies(editor.draft)[editor.selected];
             const int effectIndex = FindStatusEffectIndex(selectedEnemy, effectType);
             bool enabled = effectIndex >= 0;
             ImGui::PushID(ToString(effectType));
             if (ImGui::Checkbox(StatusEffectLabel(effectType), &enabled))
             {
                 auto edited = editor.draft;
-                auto& enemy = edited["enemies"][editor.selected];
+                auto& enemy = phaseEnemies(edited)[editor.selected];
                 if (!enemy.contains("status_effects") || !enemy["status_effects"].is_array())
                     enemy["status_effects"] = Json::array();
                 const int existingIndex = FindStatusEffectIndex(enemy, effectType);
@@ -278,14 +346,14 @@ void GameDebugController::DrawStageEditor(Game&)
                 if (ImGui::DragInt("効果量", &magnitude, 0.1f, 1, StatusEffectCollection::MaxMagnitude, "%d", ImGuiSliderFlags_AlwaysClamp))
                 {
                     auto edited = editor.draft;
-                    edited["enemies"][editor.selected]["status_effects"][effectIndex]["magnitude"] = magnitude;
+                    phaseEnemies(edited)[editor.selected]["status_effects"][effectIndex]["magnitude"] = magnitude;
                     change(edited);
                 }
             }
             ImGui::PopID();
         }
         const auto& selectedEnemyForGimmick =
-            editor.draft["enemies"][editor.selected];
+            phaseEnemies(editor.draft)[editor.selected];
         const auto selectedDefinition = std::find_if(
             m_DebugEnemyCatalog.begin(),
             m_DebugEnemyCatalog.end(),
@@ -321,7 +389,7 @@ void GameDebugController::DrawStageEditor(Game&)
             if (ImGui::Combo("付与デバフ", &debuffIndex, debuffs, 2))
             {
                 auto edited = editor.draft;
-                edited["enemies"][editor.selected]["nuisance_status_effects"] =
+                phaseEnemies(edited)[editor.selected]["nuisance_status_effects"] =
                     Json::array({{
                         {"type", ToString(debuffIndex == 0
                             ? StatusEffectType::AttackDown
@@ -334,7 +402,7 @@ void GameDebugController::DrawStageEditor(Game&)
                 StatusEffectCollection::MaxMagnitude, "%d", ImGuiSliderFlags_AlwaysClamp))
             {
                 auto edited = editor.draft;
-                edited["enemies"][editor.selected]["nuisance_status_effects"] =
+                phaseEnemies(edited)[editor.selected]["nuisance_status_effects"] =
                     Json::array({{
                         {"type", ToString(debuffIndex == 0
                             ? StatusEffectType::AttackDown
@@ -348,20 +416,21 @@ void GameDebugController::DrawStageEditor(Game&)
                 selectedDefinition->nuisanceBall.respawnDelayTurns);
         }
         ImGui::Separator();
-        if (ImGui::Button("選択した敵を削除")) { auto edited = editor.draft; edited["enemies"].erase(editor.selected); editor.Replace(edited); }
+        if (ImGui::Button("選択した敵を削除")) { auto edited = editor.draft; phaseEnemies(edited).erase(editor.selected); editor.Replace(edited); }
         ImGui::SameLine();
-        if (ImGui::Button("選択した敵を複製") && editor.selected >= 0 && editor.draft["enemies"].size() < 32)
+        if (ImGui::Button("選択した敵を複製") && editor.selected >= 0 && phaseEnemies(editor.draft).size() < 32)
         {
-            auto edited = editor.draft; auto copy = edited["enemies"][editor.selected]; copy["x"] = copy["x"].get<float>() + 8; edited["enemies"].push_back(copy); editor.Replace(edited); editor.selected = static_cast<int>(edited["enemies"].size()) - 1;
+            auto edited = editor.draft; auto copy = phaseEnemies(edited)[editor.selected]; copy["x"] = copy["x"].get<float>() + 8; phaseEnemies(edited).push_back(copy); editor.Replace(edited); editor.selected = static_cast<int>(phaseEnemies(edited).size()) - 1;
         }
     }
     auto report = StageLayoutEditor::Inspect(editor.draft, m_DebugEnemyCatalog, StageEditorPlayerRadius());
     for (const auto& error : report["errors"]) ImGui::TextColored(ImVec4(1, .5f, .3f, 1), "%s", error.get<std::string>().c_str());
-    if (report["metrics"].contains("total_base_hp"))
+    const auto& metrics = report.contains("phase_metrics")
+        ? report.at("phase_metrics").at(editor.activePhase) : report.at("metrics");
+    if (metrics.contains("total_base_hp"))
     {
-        const auto& metrics = report["metrics"];
         ImGui::Text("配置敵%d体 / 旧ブレイク%d個（不使用） / 基礎HP合計%d / 貫通の並び%d組 / 近接%d組（目安）",
-            static_cast<int>(editor.draft["enemies"].size()), metrics["legacy_break_ball_count"].get<int>(),
+            static_cast<int>(phaseEnemies(editor.draft).size()), metrics["legacy_break_ball_count"].get<int>(),
             metrics["total_base_hp"].get<int>(), metrics["pierce_aligned_pairs"].get<int>(),
             metrics["nearby_collision_pairs"].get<int>());
     }
@@ -386,7 +455,7 @@ void GameDebugController::DrawStageEditor(Game&)
         catch (const std::exception& e) { editor.message = e.what(); }
     }
     ImGui::EndDisabled();
-    ImGui::TextWrapped("保存対象は敵の種類・配置・初期バフ／デバフ、ステージ情報です。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
+    ImGui::TextWrapped("敵の配置と初期効果、フェーズの進行間隔を保存します。デバッグ専用のHP・性能変更は保存されません。試遊には現在のデッキを使います。");
     if (!editor.message.empty()) ImGui::TextWrapped("%s", editor.message.c_str());
     ImGui::EndChild();
 }
