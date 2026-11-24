@@ -49,14 +49,19 @@ void Game::OnBattleStageStarted(const StageData& stage)
 	m_BattleState->anchorContactTarget = nullptr;
 	m_BattleState->playerShield = 0;
 	InvalidateDebugCombatForecast("戦闘開始");
-	m_PersistenceRuntime->Statistics().ReachFloor(
-		m_RunController->Status().progress);
+	auto& statistics = m_PersistenceRuntime->Statistics();
+	statistics.ReachFloor(m_RunController->Status().progress);
 	if (m_GamePresentation != nullptr &&
 		!m_BalanceRuntime->autoPlayer.IsEnabled())
 	{
-		m_GamePresentation->OnBattleStarted(*this);
+		// 旧セーブには戦闘開始回数がなく、クリア回数だけが残っている場合がある。
+		const bool firstBattleOfRun = IsRunSessionActive() &&
+			(!IsDebugMode() || IsDebugRunMode()) &&
+			statistics.GetState().totalBattles == 0 &&
+			m_RunController->Progress().GetClearedBattleCount() == 0;
+		m_GamePresentation->OnBattleStarted(firstBattleOfRun);
 	}
-	m_PersistenceRuntime->Statistics().BeginBattle(
+	statistics.BeginBattle(
 		stage.stageType == StageType::MidBoss,
 		stage.stageType == StageType::Boss &&
 			m_RunController->Progress().GetPhase() == RunPhase::FinalBoss,

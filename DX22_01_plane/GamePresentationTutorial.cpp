@@ -5,24 +5,19 @@
 #include "GameRuntime.h"
 #include "GameWorld.h"
 #include "PlayerBall.h"
-#include "json/json.hpp"
 #include "imgui/imgui.h"
 
 #pragma execution_character_set("utf-8")
 
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
-#include <fstream>
 
 using DirectX::SimpleMath::Vector3;
 using GamePresentationPrimitives::PresentationUtf8;
 using GamePresentationPrimitives::TryProjectToScreen;
-using nlohmann::json;
 
 namespace
 {
-constexpr const char* kTutorialProgressPath = "runtime/tutorial_progress.json";
 constexpr float kHintMargin = 12.0f;
 constexpr float kHintGap = 6.0f;
 
@@ -137,44 +132,13 @@ ImVec2 KeepMouseHintsOnScreen(const ImGuiViewport& viewport, ImVec2 position, Im
 }
 
 /// <summary>
-/// 通常開始か再生かを記録して、チュートリアルを最初の手順から始める。
+/// 自動表示か手動表示かを記録して、チュートリアルを最初の手順から始める。
 /// </summary>
-void GamePresentation::StartTutorial(bool replay)
+void GamePresentation::StartTutorial(bool openedManually)
 {
-	m_TutorialReplay = replay;
+	m_TutorialOpenedManually = openedManually;
 	m_TutorialActive = true;
 	m_TutorialStep = TutorialStep::PracticeShot;
-}
-
-/// <summary>
-/// チュートリアルを閉じ、初回の完了状態をファイルに保存する。
-/// </summary>
-void GamePresentation::CompleteTutorial()
-{
-	m_TutorialActive = false;
-	if (!m_TutorialReplay)
-	{
-		m_TutorialCompleted = true;
-		SaveTutorialProgress();
-	}
-}
-
-/// <summary>
-/// チュートリアルの完了状態をJSONファイルに保存する。
-/// </summary>
-void GamePresentation::SaveTutorialProgress() const
-{
-	std::error_code error;
-	std::filesystem::create_directories("runtime", error);
-	std::ofstream destination(kTutorialProgressPath, std::ios::trunc);
-	if (!destination)
-	{
-		return;
-	}
-	destination << json{
-		{ "schema_version", 1 },
-		{ "completed", m_TutorialCompleted },
-	}.dump(2) << '\n';
 }
 
 /// <summary>
@@ -279,6 +243,9 @@ void GamePresentation::DrawTutorial(Game& game)
 		return;
 
 	const bool battleScene = IsBattleScene(game);
+	if (!battleScene && !m_TutorialOpenedManually)
+		return;
+
 	const BattleState state = game.GetBattleState();
 	if (battleScene && m_TutorialStep == TutorialStep::PracticeShot &&
 		game.IsShotPreparationInputEnabled() &&
@@ -314,7 +281,7 @@ void GamePresentation::DrawTutorial(Game& game)
 				ImGui::TreePop();
 			}
 			if (ImGui::SmallButton(PresentationUtf8(u8"ガイドを閉じる")))
-				CompleteTutorial();
+				m_TutorialActive = false;
 		}
 		else
 		{
@@ -323,29 +290,8 @@ void GamePresentation::DrawTutorial(Game& game)
 			else if (m_TutorialStep == TutorialStep::WatchShot)
 				ImGui::TextUnformatted(PresentationUtf8(u8"赤い数字が与えたダメージです"));
 			if (ImGui::SmallButton(PresentationUtf8(u8"ガイドをスキップ")))
-				CompleteTutorial();
+				m_TutorialActive = false;
 		}
 	}
 	ImGui::End();
-}
-
-/// <summary>
-/// 保存されたJSONからチュートリアルの完了状態を読み込む。
-/// </summary>
-void GamePresentation::LoadTutorialProgress()
-{
-	std::ifstream tutorialFile(kTutorialProgressPath);
-	if (tutorialFile)
-	{
-		try
-		{
-			json progress;
-			tutorialFile >> progress;
-			m_TutorialCompleted = progress.value("completed", false);
-		}
-		catch (const json::exception&)
-		{
-			m_TutorialCompleted = false;
-		}
-	}
 }

@@ -32,14 +32,13 @@ using DirectX::SimpleMath::Vector3;
 using namespace GamePresentationPrimitives;
 
 /// <summary>
-/// 戦闘UIのアイコン、チュートリアルの進行、ダッシュボードの設定を読み込む。
+/// 戦闘UIのアイコンとダッシュボードの設定を読み込む。
 /// </summary>
 void GamePresentation::Initialize(Game& game)
 {
 	// Upload every combat HUD icon once after the renderer is available. Draw
 	// calls only reuse the cached shader-resource views.
 	CombatOverlayDrawing::LoadIcons();
-	LoadTutorialProgress();
 	m_PreviousBattleState = static_cast<int>(game.GetBattleState());
 	LoadDashboard();
 }
@@ -50,9 +49,14 @@ void GamePresentation::Initialize(Game& game)
 void GamePresentation::Update(Game& game, float deltaSeconds)
 {
 	const float presentationDelta = std::clamp(deltaSeconds, 0.0f, 0.10f);
+	const bool battleScene = IsBattleScene(game);
 	UpdatePlayerAura(game, presentationDelta);
 	m_PresentationTimeSeconds += presentationDelta;
     if (m_AttackFlightAge >= 0.0f) m_AttackFlightAge += presentationDelta;
+	if (!battleScene && !m_TutorialOpenedManually)
+	{
+		m_TutorialActive = false;
+	}
 	if (Input::GetKeyTrigger(VK_F1))
 	{
 		if (m_TutorialActive)
@@ -105,7 +109,7 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 	m_CollisionVfx.Update(
 		presentationDelta,
 		(game.IsCollisionImpactEffectsEnabled() || game.IsDefeatVfxEnabled()) &&
-		IsBattleScene(game));
+		battleScene);
 	std::erase_if(
 		m_Feedback,
 		[](const FloatingFeedback& feedback)
@@ -165,7 +169,7 @@ void GamePresentation::Update(Game& game, float deltaSeconds)
 		ClearHitReactions();
 	}
 	if (m_TutorialActive && m_TutorialStep == TutorialStep::WatchShot &&
-		IsBattleScene(game) && currentState != static_cast<int>(BattleState::BallsMoving))
+		battleScene && currentState != static_cast<int>(BattleState::BallsMoving))
 	{
 		m_TutorialStep = TutorialStep::ReadResult;
 	}

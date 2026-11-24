@@ -105,7 +105,7 @@ public:
 		return m_DeckListOpen || m_RelicListOpen || m_DashboardOpen;
 	}
 
-	void OnBattleStarted(Game& game);
+	void OnBattleStarted(bool firstBattleOfRun);
 	void OnShotFired(int ballCategory);
 	void OnCollisionImpact(const CollisionImpactEvent& event);
 	/// <summary>
@@ -310,10 +310,7 @@ private:
 		std::vector<DashboardVersionData> versions;
 	};
 
-	void LoadTutorialProgress();
-	void StartTutorial(bool replay);
-	void CompleteTutorial();
-	void SaveTutorialProgress() const;
+	void StartTutorial(bool openedManually);
 	void DrawTutorial(Game& game);
 	void DrawTutorialBallChoice(ImVec2 cardTopCenter);
 	void DrawTutorialShotHint(BattleState state);
@@ -352,9 +349,8 @@ private:
 		DiscardPile,
 	};
 
-	bool m_TutorialCompleted = false;
 	bool m_TutorialActive = false;
-	bool m_TutorialReplay = false;
+	bool m_TutorialOpenedManually = false;
 	TutorialStep m_TutorialStep = TutorialStep::PracticeShot;
 	int m_PreviousBattleState = -1;
 	bool m_DashboardOpen = false;

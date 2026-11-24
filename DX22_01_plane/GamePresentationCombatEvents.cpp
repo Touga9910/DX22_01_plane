@@ -15,9 +15,9 @@
 using DirectX::SimpleMath::Vector3;
 
 /// <summary>
-/// 戦闘開始時に前の戦闘演出を初期化し、必要に応じてチュートリアルを開始する。
+/// 戦闘演出を初期化し、ランの最初の戦闘ならチュートリアルを開始する。
 /// </summary>
-void GamePresentation::OnBattleStarted(Game&)
+void GamePresentation::OnBattleStarted(bool firstBattleOfRun)
 {
 	m_PlayerAura.Reset();
     m_AttackFlightAge = -1.0f;
@@ -42,9 +42,13 @@ void GamePresentation::OnBattleStarted(Game&)
 	m_CameraShakeCooldown = 0.0f;
 	m_DeckListOpen = false;
 	m_RelicListOpen = false;
-	if (!m_TutorialCompleted && (!m_TutorialActive || m_TutorialReplay))
+	if (firstBattleOfRun)
 	{
 		StartTutorial(false);
+	}
+	else if (!m_TutorialOpenedManually)
+	{
+		m_TutorialActive = false;
 	}
 }
 
