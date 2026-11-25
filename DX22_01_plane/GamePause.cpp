@@ -90,9 +90,9 @@ bool Game::SaveAndReturnToTitle()
 	if (dynamic_cast<BattleScene*>(GetCurrentScene()) != nullptr)
 	{
 		resumeScene = IsClearRewardActive()
-			? SceneType::Select
+			? (IsBossPreparation() ? SceneType::RestSite : SceneType::Select)
 			: SceneType::Battle;
-		sceneAlreadyActive = false;
+		sceneAlreadyActive = !IsClearRewardActive();
 	}
 	else if (dynamic_cast<StageSelectScene*>(GetCurrentScene()) != nullptr)
 	{

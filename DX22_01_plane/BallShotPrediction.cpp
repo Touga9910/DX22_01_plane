@@ -850,7 +850,18 @@ namespace
         {
             order.clear();
             for (std::size_t i = 0; i < result.balls.size(); ++i)
+            {
+                auto& ball = result.balls[i];
+                // PierceMinion::FixedUpdate removes stopped small balls after
+                // friction, before the runtime's shared collision step.
+                if (ball.active && ball.physics.minion &&
+                    ball.physics.velocity.LengthSquared() < 0.03f)
+                {
+                    ball.active = false;
+                    ball.physics.velocity = ball.acceleration = Vector3::Zero;
+                }
                 if (result.balls[i].active) order.push_back(i);
+            }
             for (auto i : order)
             {
                 for (auto it = result.balls[i].collisionGraceByBall.begin();

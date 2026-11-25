@@ -195,6 +195,11 @@ async def run(args):
         metadata["resumed_from"] = str(resume_from.resolve())
         for batch in metadata["batches"]:
             records = read_lines(Path(batch)/"all_runs.jsonl")
+            for record in records:
+                signature = record["configuration_signature"]
+                if configuration_signature is not None and signature != configuration_signature:
+                    raise RuntimeError("Configuration changed between resumed collection runs")
+                configuration_signature = signature
             completed_pairs.update((int(r["run_seed"]), r["build_profile"]) for r in records)
             if not records:
                 request = json.loads((Path(batch)/"comparison_request.json").read_text(encoding="utf-8"))
@@ -272,7 +277,7 @@ async def run(args):
                             if not progress.get("running"):
                                 if not progress.get("completed"):
                                     raise RuntimeError(f"Collector failed: {progress}")
-                                if target is not None or metadata["required_balance_version"]:
+                                if target is not None or metadata["required_balance_version"] or configuration_signature is not None:
                                     accepted = read_lines(Path(batch)/"all_runs.jsonl")
                                     if len(accepted) != 1 or (accepted[0]["run_seed"], accepted[0]["build_profile"]) != (seed, build):
                                         raise RuntimeError("Collector did not save exactly the requested valid run")

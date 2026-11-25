@@ -63,12 +63,12 @@ private:
 	static Input* m_Instance;
 
 	//キー入力情報を保存する変数
-	BYTE keyState[256];
-	BYTE keyState_old[256];
+	BYTE keyState[256]{};
+	BYTE keyState_old[256]{};
 
 	//コントローラー入力情報を保存する変数
-	XINPUT_STATE controllerState;
-	XINPUT_STATE controllerState_old;
+	XINPUT_STATE controllerState{};
+	XINPUT_STATE controllerState_old{};
 
 	int VibrationTime; //振動継続時間をカウントする変数
 

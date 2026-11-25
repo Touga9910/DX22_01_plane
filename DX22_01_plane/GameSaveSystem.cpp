@@ -98,10 +98,10 @@ bool Game::SaveRunCheckpoint(
 		restActionUsed = rest != nullptr && rest->HasUsedAction();
 	}
 	const GameRunSaveSnapshot snapshot = CaptureRunSaveSnapshot();
-	const bool saved = GameSaveManager::Save(
+	const bool saved = m_PersistenceRuntime->SaveCheckpoint(
 		snapshot,
 		sceneType,
-		IsDebugMode(),
+		sceneAlreadyActive,
 		restActionUsed,
 		message);
 	if (showNotification || !saved)
@@ -154,6 +154,7 @@ bool Game::LoadSavedRun()
 	}
 	std::string message;
 	GameRunRestoreRequest request{};
+	m_PersistenceRuntime->ClearBattleCheckpoint();
 	const GameRunLoadRules rules{
 		IsEnduranceMode(),
 		GetNormalRouteAreaGoal(),
@@ -169,6 +170,7 @@ bool Game::LoadSavedRun()
 		}
 		catch (const std::exception& exception)
 		{
+			m_PersistenceRuntime->ClearBattleCheckpoint();
 			message = std::string(UiText::LoadFailedPrefix) + exception.what();
 			loaded = false;
 		}

@@ -50,6 +50,7 @@ private:
 	int m_FramesUntilCommandPoll = 0;
 	std::uint64_t m_StateSequence = 0;
 	std::string m_LastCommandId;
+	std::string m_LastCommandResult;
 	std::vector<std::string> m_StageEnemyIds;
 	std::filesystem::path m_BridgeDirectory =
 		"runtime/game_mcp";

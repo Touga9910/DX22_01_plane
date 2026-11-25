@@ -27,12 +27,20 @@ void Input::Update()
 	m_Instance->controllerState_old = m_Instance->controllerState;
 	m_Instance->mousePos_old = m_Instance->mousePos;
 
-	BOOL hr = GetKeyboardState(m_Instance->keyState);
+	if (!GetKeyboardState(m_Instance->keyState))
+	{
+		ZeroMemory(m_Instance->keyState, sizeof(m_Instance->keyState));
+		ZeroMemory(m_Instance->keyState_old, sizeof(m_Instance->keyState_old));
+	}
 
 	GetCursorPos(&m_Instance->mousePos);
 	ScreenToClient(Application::GetWindow(), &m_Instance->mousePos);
 
-	XInputGetState(0, &(m_Instance->controllerState));
+	if (XInputGetState(0, &(m_Instance->controllerState)) != ERROR_SUCCESS)
+	{
+		m_Instance->controllerState = {};
+		m_Instance->controllerState_old = {};
+	}
 
 	if (m_Instance->VibrationTime > 0) {
 		m_Instance->VibrationTime--;

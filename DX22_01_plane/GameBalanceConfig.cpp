@@ -259,6 +259,7 @@ void Game::LoadPlayerStatusFromJson(
 /// </summary>
 void Game::ResetPlayerRuntimeStatus()
 {
+	m_PersistenceRuntime->ClearBattleCheckpoint();
 	// プレイヤーとラン進行に属する一時状態を新規ラン開始前の値へ戻す。
 	m_RunController->ResetRuntimeState(m_RunDefaults->PlayerStatus());
 	ResetShotRelicState();

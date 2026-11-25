@@ -2,7 +2,9 @@
 
 #include "ProgressionProfile.h"
 #include "RunStatisticsTracker.h"
+#include "GameRunSaveState.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +33,10 @@ public:
 	void SetRestoringRunSave(bool restoring);
 	void SetSaveLoadMessage(std::string message);
 	const std::string& SaveLoadMessage() const;
+	bool SaveCheckpoint(const GameRunSaveSnapshot& snapshot, SceneType resumeScene,
+		bool sceneAlreadyActive, bool restActionUsed, std::string& message);
+	void RestoreBattleCheckpoint(const GameRunSaveSnapshot& snapshot);
+	void ClearBattleCheckpoint();
 
 private:
 	RunStatisticsTracker m_Statistics{};
@@ -42,4 +48,5 @@ private:
 	bool m_IsRestoringRunSave = false;
 	std::string m_SaveLoadMessage;
 	int m_SaveLoadMessageFrames = 0;
+	std::optional<GameRunSaveSnapshot> m_BattleCheckpoint;
 };

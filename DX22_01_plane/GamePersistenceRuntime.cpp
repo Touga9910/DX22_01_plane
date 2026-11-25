@@ -1,4 +1,6 @@
 #include "GamePersistenceRuntime.h"
+#include "GameSaveManager.h"
+#include "UiText.h"
 
 #include <utility>
 
@@ -149,4 +151,39 @@ void GamePersistenceRuntime::SetSaveLoadMessage(std::string message)
 const std::string& GamePersistenceRuntime::SaveLoadMessage() const
 {
 	return m_SaveLoadMessage;
+}
+
+// A battle resumes by rebuilding the whole arena. Keep the matching player,
+// deck, statistics and RNG state from before that arena was constructed.
+bool GamePersistenceRuntime::SaveCheckpoint(const GameRunSaveSnapshot& snapshot,
+	SceneType resumeScene, bool sceneAlreadyActive, bool restActionUsed, std::string& message)
+{
+	if (resumeScene == SceneType::Battle)
+	{
+		if (sceneAlreadyActive)
+		{
+			if (!m_BattleCheckpoint)
+			{
+				message = UiText::SavingUnavailable;
+				return false;
+			}
+			return GameSaveManager::Save(*m_BattleCheckpoint, resumeScene, false, false, message);
+		}
+		m_BattleCheckpoint = snapshot;
+	}
+	else
+	{
+		ClearBattleCheckpoint();
+	}
+	return GameSaveManager::Save(snapshot, resumeScene, false, restActionUsed, message);
+}
+
+void GamePersistenceRuntime::RestoreBattleCheckpoint(const GameRunSaveSnapshot& snapshot)
+{
+	m_BattleCheckpoint = snapshot;
+}
+
+void GamePersistenceRuntime::ClearBattleCheckpoint()
+{
+	m_BattleCheckpoint.reset();
 }

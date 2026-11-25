@@ -10,6 +10,51 @@ import collect_until_deadline as subject
 
 
 class DeadlineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_resume_rejects_configuration_change_from_completed_batches(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            old_batch = root / 'old_batch'
+            old_batch.mkdir()
+            old_log = old_batch / 'run.json'
+            old_log.write_text(json.dumps({'balance_version': 'B0007'}), encoding='utf-8')
+            (old_batch / 'all_runs.jsonl').write_text(json.dumps(dict(
+                run_seed=1001, build_profile='standard', source_log=str(old_log),
+                configuration_signature='before-restart')) + '\n', encoding='utf-8')
+            previous = root / 'previous.json'
+            previous.write_text(json.dumps({'batches': [str(old_batch)]}), encoding='utf-8')
+            class Session:
+                async def __aenter__(self): return self
+                async def __aexit__(self, *args): pass
+                async def initialize(self): pass
+                async def call_tool(self, name, arguments):
+                    data = {'scene': 'title'}
+                    if name == 'run_build_comparison':
+                        batch = root / 'new_batch'
+                        batch.mkdir()
+                        log = batch / 'run.json'
+                        log.write_text(json.dumps({'balance_version': 'B0007'}), encoding='utf-8')
+                        (batch / 'all_runs.jsonl').write_text(json.dumps(dict(
+                            run_seed=1001, build_profile='heavy', source_log=str(log),
+                            configuration_signature='after-restart')) + '\n', encoding='utf-8')
+                        data = {'ok': True, 'output_paths': {'output_directory': str(batch)}}
+                    if name == 'get_build_comparison_status':
+                        data = {'state': 'completed', 'running': False, 'completed': True}
+                    return SimpleNamespace(isError=False, structuredContent={'result': data})
+            class Transport:
+                async def __aenter__(self): return (None, None)
+                async def __aexit__(self, *args): pass
+            args = SimpleNamespace(output=root / 'output', deadline=None,
+                url='http://127.0.0.1:8766/mcp', game=None, launch_server=False,
+                first_seed=1001, target_runs_per_build=1, balance_version='B0007',
+                compare_with=None, resume_from=previous)
+            with patch.object(subject, 'BUILDS', ('standard', 'heavy')), \
+                patch.object(subject, 'ClientSession', lambda *a: Session()), \
+                patch.object(subject, 'streamable_http_client', lambda *a: Transport()), \
+                patch.object(subject.asyncio, 'sleep', AsyncMock()), \
+                patch.object(subject, 'analyze', return_value={'valid_runs': 2}):
+                with self.assertRaisesRegex(RuntimeError, 'Configuration changed'):
+                    await subject.run(args)
+
     async def test_game_crash_marks_failed_instead_of_collecting_forever(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)

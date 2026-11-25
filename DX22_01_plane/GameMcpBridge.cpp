@@ -295,9 +295,16 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 
 	const auto envelope = GameMcpCommandValidation::Validate(command);
 	const std::string& commandId = envelope.commandId;
-	if (commandId.empty() ||
-		commandId == m_LastCommandId)
+	if (commandId.empty() || commandId == m_LastCommandId)
 	{
+		// An action may already be applied while its result is still blocked
+		// by a reader. Retry its acknowledgement without applying it again.
+		if (commandId == m_LastCommandId && !m_LastCommandResult.empty() &&
+			!WriteJsonAtomically(GetResultPath(),
+				nlohmann::json::parse(m_LastCommandResult)))
+		{
+			return;
+		}
 		std::error_code error;
 		std::filesystem::remove(commandPath, error);
 		return;
@@ -327,6 +334,7 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 	result["completed_at_unix_ms"] =
 		UnixTimeMilliseconds();
 	result["state_sequence"] = m_StateSequence;
+	m_LastCommandResult = result.dump();
 
 	if (!WriteJsonAtomically(GetResultPath(), result))
 	{

@@ -120,6 +120,50 @@ namespace
         world.Damage(target, 3, Vector3::Zero, false);
         assert(target.hp == 15); // Its retained corpse provides no protection.
     }
+
+    void CheckStoppedPierceMinion()
+    {
+        Result result;
+        Ball minion;
+        minion.physics.id = 1;
+        minion.physics.minion = true;
+        minion.physics.status.radius = 2.0f;
+        minion.physics.status.friction = 0.02f;
+        minion.physics.velocity = Vector3(0.18f, 0.0f, 0.0f);
+        minion.attack = 7;
+        minion.hp = minion.maxHp = 1;
+        result.balls = { minion,
+            MakeEnemy(2, Vector3(4.0f, 0.0f, 0.0f), 20) };
+        result.balls[1].physics.velocity = Vector3(-1.0f, 0.0f, 0.0f);
+        World world{ result };
+
+        // PierceMinion::FixedUpdate destroys the small ball immediately after
+        // friction puts it below the same IsStopped threshold used by runtime.
+        BallPhysicsRules::EnemyFriction(
+            result.balls[0].physics.velocity,
+            result.balls[0].physics.status.friction);
+        assert(result.balls[0].physics.velocity.LengthSquared() < 0.03f);
+        world.BeginTick();
+        assert(!result.balls[0].active);
+        assert(result.balls[0].physics.velocity == Vector3::Zero);
+        assert(world.Count() == 1);
+        ContinuousBallStepper::Step(world);
+        assert(result.balls[1].hp == 20); // No ghost hit or impulse from the minion.
+        assert(result.balls[1].physics.velocity.x == -1.0f);
+
+        // A moving minion, a stopped enemy corpse and a neutral remain physical.
+        result.balls[0].active = true;
+        result.balls[0].physics.velocity = Vector3(0.2f, 0.0f, 0.0f);
+        result.balls[1].defeated = true;
+        result.balls[1].physics.enemy = false;
+        result.balls[1].physics.velocity = Vector3::Zero;
+        Ball neutral;
+        neutral.physics.id = 3;
+        neutral.physics.breakBall = true;
+        result.balls.push_back(neutral);
+        world.BeginTick();
+        assert(world.Count() == 3);
+    }
 }
 
 int main()
@@ -131,5 +175,6 @@ int main()
     CheckCorpseContact(true);
     CheckCorpseContact(false);
     CheckProtection();
+    CheckStoppedPierceMinion();
     std::cout << "shot prediction combat regressions passed\n";
 }

@@ -58,6 +58,10 @@ void Game::RestoreRunSaveSnapshot(GameRunRestoreRequest request)
 		"human", "save_load", "", "", snapshot.runSeed, "",
 		snapshot.runCombatMode,
 		snapshot.phaseProgressionMode);
+	if (request.resumeScene == SceneType::Battle)
+	{
+		m_PersistenceRuntime->RestoreBattleCheckpoint(snapshot);
+	}
 
 	m_PersistenceRuntime->ActiveAscension() = snapshot.activeAscension;
 	m_RunController->RestHealRatio() = m_PersistenceRuntime->DefaultRestHealRatio();

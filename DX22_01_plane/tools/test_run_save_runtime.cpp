@@ -1,5 +1,6 @@
 #include "../GameSaveManager.h"
 #include "../GameRunSaveState.h"
+#include "../GamePersistenceRuntime.h"
 #include "../json/json.hpp"
 #include <filesystem>
 #include <fstream>
@@ -99,6 +100,108 @@ int main(int argc, char** argv)
     Write(original);
     assert(GameSaveManager::Load(rules, restored, message));
 
+    // Interrupting a battle must restart the entire encounter from its entry
+    // checkpoint, including HP, shot statistics, ball order and random state.
+    // The enemy arena is rebuilt too, so saving the live player state would
+    // retain damage while reviving every enemy and count the battle twice.
+    auto battleEntry = snapshot;
+    assert(battleEntry.progress.map.Choose(battleEntry.progress.map.Available().front()));
+    battleEntry.status.SetSelectedStageId("normal_checkpoint_fixture");
+    GamePersistenceRuntime persistence;
+    assert(persistence.SaveCheckpoint(battleEntry, SceneType::Battle, false, false, message));
+    PlayerDeck liveDeck;
+    assert(liveDeck.RestoreSnapshot(battleEntry.deck));
+    liveDeck.Reset();
+    assert(liveDeck.PrepareOffer(3));
+    std::vector<std::uint64_t> firstOffers;
+    for (int index = 0; index < 3; ++index) firstOffers.push_back(liveDeck.GetOffer(index)->instanceId);
+    assert(liveDeck.SelectOffer(0));
+    RunStatisticsTracker battleStatistics;
+    battleStatistics.Restore(battleEntry.statistics);
+    battleStatistics.BeginBattle(false, false, battleEntry.status.GetSelectedStageId());
+    battleStatistics.BeginShot("player_standard");
+    battleStatistics.RecordPlayerDamage(7);
+    auto interruptedBattle = battleEntry;
+    interruptedBattle.status.currentHp -= 7;
+    interruptedBattle.statistics = battleStatistics.GetState();
+    interruptedBattle.deck = liveDeck.CaptureSnapshot();
+    interruptedBattle.pocketRandomEngine();
+    assert(persistence.SaveCheckpoint(interruptedBattle, SceneType::Battle, true, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.snapshot.status.currentHp == battleEntry.status.currentHp);
+    assert(restored.snapshot.statistics.totalBattles == 0 && restored.snapshot.statistics.totalShots == 0);
+    assert(restored.snapshot.statistics.damageTaken == 0);
+    assert(restored.snapshot.deck.randomEngine == battleEntry.deck.randomEngine);
+    assert(restored.snapshot.pocketRandomEngine == battleEntry.pocketRandomEngine);
+    PlayerDeck restartedDeck;
+    assert(restartedDeck.RestoreSnapshot(restored.snapshot.deck));
+    restartedDeck.Reset();
+    assert(restartedDeck.PrepareOffer(3));
+    for (int index = 0; index < 3; ++index) assert(restartedDeck.GetOffer(index)->instanceId == firstOffers[index]);
+    battleStatistics.Restore(restored.snapshot.statistics);
+    battleStatistics.BeginBattle(false, false, battleEntry.status.GetSelectedStageId());
+    assert(battleStatistics.GetState().totalBattles == 1);
+
+    // After loading, another interruption uses the loaded entry checkpoint.
+    // Clearing a run or abandoning a failed load must reject stale state.
+    persistence.ClearBattleCheckpoint();
+    const std::string battleCheckpointBytes = Read();
+    assert(!persistence.SaveCheckpoint(interruptedBattle, SceneType::Battle, true, false, message));
+    assert(Read() == battleCheckpointBytes);
+    persistence.RestoreBattleCheckpoint(restored.snapshot);
+    assert(persistence.SaveCheckpoint(interruptedBattle, SceneType::Battle, true, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.snapshot.statistics.totalBattles == 0 && restored.snapshot.status.currentHp == 31);
+
+    // A phase encounter restarts at its original map, stage and encounter
+    // ordinal, even if interruption occurs after an internal battle phase.
+    auto phaseEntry = battleEntry;
+    phaseEntry.runCombatMode = RunCombatMode::PhaseTest;
+    phaseEntry.phaseProgressionMode = PhaseRunProgressionMode::RouteProgress;
+    phaseEntry.progress.phaseNormalBattleEncounters = 3;
+    phaseEntry.status.SetSelectedStageId("phase_checkpoint_fixture");
+    assert(persistence.SaveCheckpoint(phaseEntry, SceneType::Battle, false, false, message));
+    auto interruptedPhase = phaseEntry;
+    interruptedPhase.status.currentHp = 1;
+    interruptedPhase.statistics.totalBattles = 1;
+    assert(persistence.SaveCheckpoint(interruptedPhase, SceneType::Battle, true, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.snapshot.runCombatMode == RunCombatMode::PhaseTest);
+    assert(restored.snapshot.phaseProgressionMode == PhaseRunProgressionMode::RouteProgress);
+    assert(restored.snapshot.progress.map.Save() == phaseEntry.progress.map.Save());
+    assert(restored.snapshot.status.GetSelectedStageId() == phaseEntry.status.GetSelectedStageId());
+    assert(restored.snapshot.progress.phaseNormalBattleEncounters == 3);
+    assert(restored.snapshot.status.currentHp == phaseEntry.status.currentHp);
+    assert(restored.snapshot.statistics.totalBattles == 0);
+
+    assert(persistence.SaveCheckpoint(snapshot, SceneType::Select, true, false, message));
+    const std::string routeCheckpointBytes = Read();
+    assert(!persistence.SaveCheckpoint(interruptedPhase, SceneType::Battle, true, false, message));
+    assert(Read() == routeCheckpointBytes);
+
+    // The last ordinary battle advances the map to boss preparation before
+    // its reward UI closes. Pausing after choosing the bonus must therefore
+    // resume at the preparation rest, rather than a route-selection screen.
+    RunProgressController endpointProgress;
+    endpointProgress.Reset(snapshot.routeSelectionSeed);
+    for (int area = 0; area < 15; ++area)
+    {
+        assert(endpointProgress.ChooseNode(endpointProgress.GetMap().Available().front()));
+        const auto completion = endpointProgress.CompleteNormalArea(false, 15, 0);
+        assert(completion == (area == 14 ? AreaCompletionResult::BossPreparationEntered : AreaCompletionResult::Advanced));
+    }
+    auto endpointReward = snapshot;
+    endpointReward.progress = endpointProgress.Capture();
+    endpointReward.status.progress = 15;
+    endpointReward.statistics.areaProgress = 15;
+    assert(GameSaveManager::Save(endpointReward, SceneType::Select, false, false, message));
+    assert(!GameSaveManager::Load(rules, restored, message));
+    assert(persistence.SaveCheckpoint(endpointReward, SceneType::RestSite, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.resumeScene == SceneType::RestSite && !restored.restActionUsed);
+    assert(restored.snapshot.progress.phase == RunPhase::BossPreparation);
+    assert(restored.snapshot.progress.map.Save() == endpointReward.progress.map.Save());
+
     // Park a route at an event without starting a battle, then reload its
     // accumulated upgrade count and continue on the same map.
     auto eventRun = snapshot;
@@ -191,5 +294,5 @@ int main(int argc, char** argv)
 
     assert(GameSaveManager::Remove());
     assert(!GameSaveManager::Inspect().exists);
-    std::cout << "PASS: save/load, deck IDs, map, RNG, event progress, invalid/debug saves, atomic failure and recovery\n";
+    std::cout << "PASS: save/load, battle/phase restart, deck IDs, map, RNG, event progress, invalid/debug saves, atomic failure and recovery\n";
 }
