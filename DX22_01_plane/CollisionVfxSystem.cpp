@@ -3,7 +3,6 @@
 #include "imgui/imgui.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 
 using DirectX::SimpleMath::Vector3;
@@ -40,40 +39,6 @@ namespace
 		value *= 0x7feb352du;
 		value ^= value >> 15;
 		return static_cast<float>(value & 0xffffu) / 65535.0f - 0.5f;
-	}
-
-	/// <summary>
-	/// ワールド座標上の円周を画面に投影し、線分でリングを描画する。
-	/// </summary>
-	void DrawWorldRing(
-		ImDrawList* drawList,
-		CollisionVfxSystem::ProjectWorldToScreen projector,
-		const Vector3& center,
-		float radius,
-		ImU32 color,
-		float thickness)
-	{
-		constexpr int segmentCount = 32;
-		std::array<ImVec2, segmentCount> points{};
-		for (int index = 0; index < segmentCount; ++index)
-		{
-			const float angle = DirectX::XM_2PI *
-				static_cast<float>(index) / static_cast<float>(segmentCount);
-			const Vector3 point = center + Vector3(
-				std::cos(angle) * radius,
-				0.18f,
-				std::sin(angle) * radius);
-			if (!projector(point, points[index]))
-			{
-				return;
-			}
-		}
-		drawList->AddPolyline(
-			points.data(),
-			segmentCount,
-			color,
-			ImDrawFlags_Closed,
-			thickness);
 	}
 
 	/// <summary>
@@ -757,35 +722,8 @@ void CollisionVfxSystem::Draw(
 			m_Diagnostics.primitiveSubmissionsLastFrame += 2;
 		}
 	}
-	for (const Shockwave& wave : m_Waves)
-	{
-		if (!wave.active || wave.totalLifetime <= kFrameEpsilon) continue;
-		const float progress = Clamp01(1.0f - wave.lifetime / wave.totalLifetime);
-		const float expansion = Clamp01(progress * m_Tuning.waveExpansionSpeed);
-		const float eased = 1.0f - std::pow(1.0f - expansion, 2.2f);
-		const float radius = wave.startRadius +
-			(wave.endRadius - wave.startRadius) * eased;
-		const float alpha = std::pow(1.0f - progress, 1.35f);
-		DrawWorldRing(
-			drawList,
-			projector,
-			wave.worldPosition,
-			radius,
-			WithAlpha(wave.color, alpha * 0.92f),
-			wave.thickness * (0.72f + 0.28f * (1.0f - progress)));
-		++m_Diagnostics.primitiveSubmissionsLastFrame;
-		if (wave.doubleRing)
-		{
-			DrawWorldRing(
-				drawList,
-				projector,
-				wave.worldPosition,
-				radius * 0.68f,
-				WithAlpha(wave.color, alpha * 0.48f),
-				(std::max)(1.0f, wave.thickness - 1.0f));
-			++m_Diagnostics.primitiveSubmissionsLastFrame;
-		}
-	}
+	// Wave lifetimes still coalesce nearby impacts in Spawn; the circular
+	// overlay is no longer submitted to the draw list.
 
 	for (const ImpactBurst& burst : m_Bursts)
 	{
@@ -844,23 +782,6 @@ void CollisionVfxSystem::Draw(
 				burst.milestone ? 2.2f : 1.45f);
 			++m_Diagnostics.primitiveSubmissionsLastFrame;
 		}
-
-		drawList->AddCircleFilled(
-			center,
-			core * 2.25f,
-			WithAlpha(burst.color, flash * 0.10f),
-			32);
-		drawList->AddCircleFilled(
-			center,
-			core * 1.35f,
-			WithAlpha(burst.accentColor, flash * 0.24f),
-			24);
-		drawList->AddCircleFilled(
-			center,
-			core * 0.58f,
-			WithAlpha(m_Tuning.peakColor, flash * 0.92f),
-			20);
-		m_Diagnostics.primitiveSubmissionsLastFrame += 3;
 
 		if (burst.secondaryCollision)
 		{

@@ -112,7 +112,6 @@ void GamePresentation::OnCombatFeedback(
 		: 0.86f;
 	const bool enhancedImpact =
 		Game::GetInstance()->IsCollisionImpactEffectsEnabled();
-	feedback.drawRing = !enhancedImpact;
 	feedback.enemyEnemyCollision = enemyEnemyCollision;
 	feedback.createdFrame = m_PresentationFrame;
 	feedback.createdTimeSeconds = m_PresentationTimeSeconds;

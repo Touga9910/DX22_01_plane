@@ -108,7 +108,7 @@ PausePresentationIntent GamePresentation::DrawPause(
 		"ショット中フレーム時間計測",
 		&settings.frameTimeMeasurementEnabled);
 	settingsChanged |= ImGui::SliderInt(
-		"装飾リング量",
+		"衝突エフェクト量",
 		&settings.decorativeRingAmount,
 		0,
 		3);
