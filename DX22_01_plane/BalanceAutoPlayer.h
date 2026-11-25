@@ -97,6 +97,7 @@ private:
     void ApplyRouteChoice(Game& game, StageSelectScene* stageSelect);
     void ApplyRestSiteAction(Game& game);
     void ApplyShopAction(Game& game);
+    bool ApplyRunEventAction(Game& game);
     void SelectBall(Game& game);
     bool FireShot(Game& game);
     void ApplyReward(Game& game);

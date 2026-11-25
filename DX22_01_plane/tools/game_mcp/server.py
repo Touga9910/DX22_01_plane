@@ -1985,7 +1985,7 @@ def create_server(
             "イベント画面でrun_event.choicesにあるchoice_indexを指定します。"
             "球を選ぶ選択肢では、同じ選択肢のtargetsにあるtarget_indexも指定します。"
             "選択結果に応じてHP、Money、デッキが変化します。"
-            "研磨台では続けて選択できます。"
+            "適用後は結果待ちになり、continue_run_eventで確認して進みます。研磨台は結果確認後に再選択できます。"
         ),
         annotations=destructive_write,
         structured_output=True,
@@ -2003,11 +2003,23 @@ def create_server(
         )
 
     @mcp.tool(
+        title="イベントの結果を確認して進む",
+        description=(
+            "イベント結果待ちのときだけ使います。フェードアウトしてマップへ進みます。"
+            "研磨結果でさらに強化したい場合だけrepeat=trueを指定すると再選択へ戻ります。"
+        ),
+        annotations=local_write,
+        structured_output=True,
+    )
+    def continue_run_event(repeat: bool = False) -> GameToolResult:
+        return GameToolResult(result=store.submit_command("continue_run_event", {"repeat": repeat}))
+
+    @mcp.tool(
         title="マップに戻る",
         description=(
             "休憩所、ショップ、イベント画面からマップへ戻ります。"
             "休憩所では、利用可能な回復または強化を1つ選んだ後にだけ使用します。"
-            "イベント画面では報酬を受け取らずに立ち去ります。"
+            "イベントの選択中は立ち去る結果を表示し、結果待ちなら確認して進みます。"
         ),
         annotations=local_write,
         structured_output=True,

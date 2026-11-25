@@ -34,6 +34,14 @@ namespace
 	const std::filesystem::path kSavePath =
 		std::filesystem::path("saves") / "run_save.json";
 
+	json SaveEventResult(const RunEventResult& result)
+	{
+		if (!result.pending) return nullptr;
+		return { {"event_id", result.eventId}, {"title", result.title}, {"detail", result.detail},
+			{"repeatable", result.repeatable}, {"hp_before", result.hpBefore}, {"hp_after", result.hpAfter},
+			{"money_before", result.moneyBefore}, {"money_after", result.moneyAfter} };
+	}
+
 	/// <summary>
 	/// 再開時のシーン種別をセーブファイルの識別文字列へ変換する。
 	/// </summary>
@@ -311,6 +319,8 @@ bool GameSaveManager::Save(
 				{ "shop_ball_offers", snapshot.shopBallOffers },
 				{ "shop_relic_offers", snapshot.shopRelicOffers },
 				{ "run_event_actions", resumeScene == SceneType::Event ? snapshot.runEventActions : 0 },
+				{ "run_event_id", resumeScene == SceneType::Event ? snapshot.runEventId : "" },
+				{ "run_event_result", resumeScene == SceneType::Event ? SaveEventResult(snapshot.runEventResult) : json(nullptr) },
 			} },
 			{ "run", {
 				{ "run_combat_mode", ToString(snapshot.runCombatMode) },
@@ -642,10 +652,47 @@ bool GameSaveManager::Load(
 		std::vector<int> shopBallOffers;
 		std::vector<int> shopRelicOffers;
 		int runEventActions = 0;
+		std::string runEventId;
+		RunEventResult runEventResult;
+		bool needsLegacyEventId = false;
 		if (payload.contains("scene_state"))
 		{
 			const json& sceneState = payload.at("scene_state");
 			runEventActions = sceneState.value("run_event_actions", 0);
+			runEventId = sceneState.value("run_event_id", std::string{});
+			// Older checkpoints stored only the polishing count. Keep their
+			// existing event rather than drawing from the new eligible pool.
+			if (resumeScene == SceneType::Event && runEventId.empty())
+			{
+				if (runEventActions > 0) runEventId = "polishing_table";
+				else if (!sceneState.contains("run_event_id"))
+				{
+					needsLegacyEventId = true;
+				}
+			}
+			if ((!runEventId.empty() && FindRunEventDefinition(runEventId) == nullptr) ||
+				(resumeScene != SceneType::Event && !runEventId.empty()))
+				throw std::runtime_error(UiText::InvalidSaveData);
+			if (sceneState.contains("run_event_result") && !sceneState.at("run_event_result").is_null())
+			{
+				const auto& saved = sceneState.at("run_event_result");
+				runEventResult.pending = true;
+				runEventResult.eventId = saved.at("event_id").get<std::string>();
+				runEventResult.title = saved.at("title").get<std::string>();
+				runEventResult.detail = saved.at("detail").get<std::string>();
+				runEventResult.repeatable = saved.at("repeatable").get<bool>();
+				runEventResult.hpBefore = saved.at("hp_before").get<int>();
+				runEventResult.hpAfter = saved.at("hp_after").get<int>();
+				runEventResult.moneyBefore = saved.at("money_before").get<int>();
+				runEventResult.moneyAfter = saved.at("money_after").get<int>();
+				if (resumeScene != SceneType::Event || runEventId.empty() || runEventResult.eventId != runEventId ||
+					runEventResult.title.empty() || runEventResult.title.size() > 512 || runEventResult.detail.size() > 16384 ||
+					runEventResult.hpBefore <= 0 || runEventResult.hpBefore > restoredStatus.maxHp ||
+					runEventResult.hpAfter != restoredStatus.currentHp || runEventResult.moneyBefore < 0 ||
+					runEventResult.moneyAfter != restoredStatus.money ||
+					(runEventResult.repeatable && runEventId != "polishing_table"))
+					throw std::runtime_error(UiText::InvalidSaveData);
+			}
 			if (runEventActions < 0 || runEventActions > 1000000 ||
 				(resumeScene != SceneType::Event && runEventActions != 0))
 			{
@@ -731,6 +778,12 @@ bool GameSaveManager::Load(
 			mapSceneValid = resumeScene == SceneType::Battle && activeMapNode && activeMapNode->type == StageRouteType::FinalBoss;
 		if (restoredMap.CompletedAreas() != areaProgress || !mapSceneValid)
 			throw std::runtime_error(UiText::InvalidSaveData);
+		if (needsLegacyEventId)
+		{
+			std::seed_seq eventSeed{restoredMap.Seed(), static_cast<unsigned>(activeMapNode->id), 17u};
+			std::mt19937 eventRandom(eventSeed);
+			runEventId = RunEventDefinitions()[eventRandom() % RunEventDefinitions().size()].id;
+		}
 
 		request = {};
 		request.snapshot.runCombatMode = runCombatMode;
@@ -749,6 +802,8 @@ bool GameSaveManager::Load(
 		request.snapshot.shopBallOffers = std::move(shopBallOffers);
 		request.snapshot.shopRelicOffers = std::move(shopRelicOffers);
 		request.snapshot.runEventActions = runEventActions;
+		request.snapshot.runEventId = std::move(runEventId);
+		request.snapshot.runEventResult = std::move(runEventResult);
 		request.snapshot.statistics = std::move(restoredStatistics);
 		request.snapshot.activeAscension = activeAscension;
 		request.snapshot.runSeed = runSeed;

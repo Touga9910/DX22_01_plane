@@ -46,6 +46,27 @@ struct RunEventChoice
 	std::string detail;
 	bool enabled = false;
 	std::vector<RunEventTarget> targets;
+	bool requiresConfirmation = false;
+	std::string effectId;
+	int hpCost = 0;
+	int moneyCost = 0;
+	int amount = 0;
+	int catalogIndex = -1;
+};
+
+// Retained until the player acknowledges it. Saving this value prevents an
+// already-applied choice from being applied again after loading a checkpoint.
+struct RunEventResult
+{
+	bool pending = false;
+	bool repeatable = false;
+	std::string eventId;
+	std::string title;
+	std::string detail;
+	int hpBefore = 0;
+	int hpAfter = 0;
+	int moneyBefore = 0;
+	int moneyAfter = 0;
 };
 
 struct RunEventViewSnapshot
@@ -56,4 +77,6 @@ struct RunEventViewSnapshot
 	int money = 0;
 	std::vector<RunEventChoice> choices;
 	std::string eventId;
+	RunEventResult result;
+	std::vector<RunEventTarget> deck;
 };

@@ -33,6 +33,7 @@ public:
     static bool RestUpgradeBall(int index);
     static void LeaveRestSite();
     static bool ChooseRunEvent(int choiceIndex, int targetIndex);
+    static bool ContinueRunEvent(bool repeat = false);
 
     /// <summary>
     /// 静的なシーン操作インターフェースのインスタンス化を禁止する。

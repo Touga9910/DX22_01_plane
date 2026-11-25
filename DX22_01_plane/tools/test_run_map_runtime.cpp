@@ -2,6 +2,49 @@
 #include "../RunProgressController.h"
 #include <cassert>
 #include <iostream>
+#include <limits>
+
+struct EventPathMetrics
+{
+    int minimum = 0;
+    int maximum = 0;
+    int longestSequence = 0;
+};
+
+// The graph is a DAG ordered by floor. This covers every possible route,
+// rather than checking only one arbitrary path through a generated map.
+EventPathMetrics MeasureEventPaths(const RunMap& map)
+{
+    const auto count = map.Nodes().size();
+    std::vector<int> minimum(count), maximum(count), sequence(count);
+    EventPathMetrics result;
+    result.minimum = (std::numeric_limits<int>::max)();
+    for (std::size_t index = count; index-- > 0;)
+    {
+        const auto& node = map.Nodes()[index];
+        const bool event = node.type == StageRouteType::Event;
+        int childMinimum = node.next.empty() ? 0 : (std::numeric_limits<int>::max)();
+        int childMaximum = 0;
+        int childSequence = 0;
+        for (int next : node.next)
+        {
+            assert(next > static_cast<int>(index));
+            childMinimum = (std::min)(childMinimum, minimum[next]);
+            childMaximum = (std::max)(childMaximum, maximum[next]);
+            childSequence = (std::max)(childSequence, sequence[next]);
+        }
+        minimum[index] = childMinimum + (event ? 1 : 0);
+        maximum[index] = childMaximum + (event ? 1 : 0);
+        sequence[index] = event ? childSequence + 1 : 0;
+        result.longestSequence = (std::max)(result.longestSequence, sequence[index]);
+    }
+    for (int start : map.Available())
+    {
+        result.minimum = (std::min)(result.minimum, minimum[start]);
+        result.maximum = (std::max)(result.maximum, maximum[start]);
+    }
+    return result;
+}
 
 /// <summary>
 /// 複数のシードとマップ版で、経路の再現性や到達可能性、保存と破損データの扱いを検証する。
@@ -154,58 +197,79 @@ int main()
 
     int normalAndEventCount = 0;
     int eventCount = 0;
-    for (unsigned seed = 0; seed < 200; ++seed)
+    int maximumEventsPerRoute = 0;
+    int maximumConsecutiveEvents = 0;
+    for (int version : {4, 5})
     {
-        RunMap map;
-        map.Generate(seed);
-        assert(map.Version() == 4);
-        assert(RunMap::Restore(map.Save()).Snapshot() == map.Snapshot());
-
-        RunMap original;
-        original.Generate(seed, 0, 15, 2);
-        assert(original.Nodes().size() == map.Nodes().size());
-        int mapPoolSize = 0;
-        int mapEvents = 0;
-        for (const auto& node : map.Nodes())
+        normalAndEventCount = eventCount = maximumEventsPerRoute = maximumConsecutiveEvents = 0;
+        for (unsigned seed = 0; seed < 200; ++seed)
         {
-            const auto& originalNode = *original.Node(node.id);
-            assert(node.floor == originalNode.floor && node.lane == originalNode.lane);
-            assert(node.next == originalNode.next);
-            if (node.type == StageRouteType::Event)
+            RunMap map;
+            map.Generate(seed, 0, 15, version);
+            const auto eventPaths = MeasureEventPaths(map);
+            // From every decision point a non-event route remains available.
+            assert(eventPaths.minimum == 0);
+            assert(eventPaths.maximum <= map.AreaCount() - 2);
+            assert(eventPaths.longestSequence <= eventPaths.maximum);
+            if (version == 5) assert(eventPaths.longestSequence <= 2);
+            maximumEventsPerRoute = (std::max)(maximumEventsPerRoute, eventPaths.maximum);
+            maximumConsecutiveEvents = (std::max)(maximumConsecutiveEvents, eventPaths.longestSequence);
+            assert(map.Version() == version);
+            assert(RunMap::Restore(map.Save()).Snapshot() == map.Snapshot());
+
+            RunMap original;
+            original.Generate(seed, 0, 15, 2);
+            assert(original.Nodes().size() == map.Nodes().size());
+            int mapPoolSize = 0;
+            int mapEvents = 0;
+            for (const auto& node : map.Nodes())
             {
-                assert(node.floor >= 2 && node.floor < 15);
-                assert(originalNode.type == StageRouteType::NormalBattle);
-                ++mapEvents;
-            }
-            else
-            {
-                assert(node.type == originalNode.type);
-            }
-            if (node.type == StageRouteType::NormalBattle || node.type == StageRouteType::Event)
-                ++mapPoolSize;
-            if (!node.next.empty())
-            {
-                assert(std::any_of(node.next.begin(), node.next.end(), [&map](int next)
+                const auto& originalNode = *original.Node(node.id);
+                assert(node.floor == originalNode.floor && node.lane == originalNode.lane);
+                assert(node.next == originalNode.next);
+                if (node.type == StageRouteType::Event)
                 {
-                    return map.Node(next)->type != StageRouteType::Event;
+                    assert(node.floor >= 2 && node.floor < 15);
+                    assert(originalNode.type == StageRouteType::NormalBattle);
+                    ++mapEvents;
+                }
+                else
+                {
+                    assert(node.type == originalNode.type);
+                }
+                if (node.type == StageRouteType::NormalBattle || node.type == StageRouteType::Event)
+                    ++mapPoolSize;
+                if (!node.next.empty())
+                {
+                    assert(std::any_of(node.next.begin(), node.next.end(), [&map](int next)
+                    {
+                        return map.Node(next)->type != StageRouteType::Event;
+                    }));
+                }
+            }
+            for (int floor = 0; floor < 15; ++floor)
+            {
+                assert(std::any_of(map.Nodes().begin(), map.Nodes().end(), [floor](const RunMapNode& node)
+                {
+                    return node.floor == floor && node.type == StageRouteType::NormalBattle;
                 }));
             }
+            assert(mapEvents <= (mapPoolSize + 2) / 4);
+            normalAndEventCount += mapPoolSize;
+            eventCount += mapEvents;
         }
-        for (int floor = 0; floor < 15; ++floor)
-        {
-            assert(std::any_of(map.Nodes().begin(), map.Nodes().end(), [floor](const RunMapNode& node)
-            {
-                return node.floor == floor && node.type == StageRouteType::NormalBattle;
-            }));
-        }
-        assert(mapEvents <= (mapPoolSize + 2) / 4);
-        normalAndEventCount += mapPoolSize;
-        eventCount += mapEvents;
+        assert(eventCount * 100 >= normalAndEventCount * 24);
+        assert(eventCount * 100 <= normalAndEventCount * 26);
+        std::cout << "Run map v" << version << ": event ratio " << eventCount << "/" << normalAndEventCount
+            << ", all-path event range 0-" << maximumEventsPerRoute
+            << ", longest event sequence " << maximumConsecutiveEvents << ".\n";
     }
-    assert(eventCount * 100 >= normalAndEventCount * 24);
-    assert(eventCount * 100 <= normalAndEventCount * 26);
 
-    for (int version : {1, 2, 3, 4})
+    RunMap newest;
+    newest.Generate(20261125);
+    assert(newest.Version() == 5);
+
+    for (int version : {1, 2, 3, 4, 5})
     {
         RunProgressController progress;
         RunProgressState state;
@@ -268,5 +332,7 @@ int main()
     }
     std::cout << "Run map: 200 seeds, all versions, reachability, event ratio ("
         << eventCount << "/" << normalAndEventCount
-        << "), boss preparation, save round trips, entry overrides and corrupt paths passed.\n";
+        << "), all-path event range 0-" << maximumEventsPerRoute
+        << ", longest event sequence " << maximumConsecutiveEvents
+        << ", boss preparation, save round trips, entry overrides and corrupt paths passed.\n";
 }

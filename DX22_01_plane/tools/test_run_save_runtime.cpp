@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <iostream>
+#include <string_view>
 #include "test_checks.h"
 
 namespace fs = std::filesystem;
@@ -32,7 +33,7 @@ void Write(const std::string& bytes)
 /// <summary>
 /// 隔離された作業場所で、セーブの保存と復元、不正データの拒否、失敗時の保護を検証する。
 /// </summary>
-int main()
+int main(int argc, char** argv)
 {
     // Never run this fixture against a user's existing saves.
     assert(!fs::exists("saves"));
@@ -122,21 +123,54 @@ int main()
     assert(eventNode >= 0);
     eventRun.progress.areaProgress = map.CompletedAreas();
     eventRun.runEventActions = 2;
+    eventRun.runEventId = "polishing_table";
     eventRun.status.currentHp = 18;
     eventRun.deck.drawPile.front().upgradeLevel = 2;
+    eventRun.runEventResult = {true, true, "polishing_table", "球を強化しました", "スタンダード球 +1 → +2", 26, 18, 27, 27};
     assert(GameSaveManager::Save(eventRun, SceneType::Event, false, false, message));
     assert(GameSaveManager::Load(rules, restored, message));
     assert(restored.resumeScene == SceneType::Event);
     assert(restored.snapshot.runEventActions == 2);
+    assert(restored.snapshot.runEventId == "polishing_table");
+    assert(restored.snapshot.runEventResult.pending && restored.snapshot.runEventResult.repeatable);
+    assert(restored.snapshot.runEventResult.detail == eventRun.runEventResult.detail);
+    assert(restored.snapshot.runEventResult.hpBefore == 26 && restored.snapshot.runEventResult.hpAfter == 18);
+    // Reject a result that does not describe the already-applied saved state.
+    auto inconsistentEvent = eventRun;
+    inconsistentEvent.runEventResult.hpAfter = 19;
+    assert(GameSaveManager::Save(inconsistentEvent, SceneType::Event, false, false, message));
+    assert(!GameSaveManager::Load(rules, restored, message));
+    assert(GameSaveManager::Save(eventRun, SceneType::Event, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
     assert(restored.snapshot.status.currentHp == 18);
+    auto legacyPolish = eventRun;
+    legacyPolish.runEventId.clear();
+    legacyPolish.runEventResult = {};
+    assert(GameSaveManager::Save(legacyPolish, SceneType::Event, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
+    assert(restored.snapshot.runEventId == "polishing_table" && restored.snapshot.runEventActions == 2);
+    assert(GameSaveManager::Save(eventRun, SceneType::Event, false, false, message));
+    assert(GameSaveManager::Load(rules, restored, message));
     assert(restored.snapshot.deck.drawPile.front().upgradeLevel == 2);
     assert(restored.snapshot.progress.map.Save() == map.Save());
+    // Optional isolated checkpoints for exercising the real UI after this test.
+    if (argc == 2 && std::string_view(argv[1]) == "--write-event-fixtures")
+    {
+        fs::copy_file(path, "event_result_fixture.json", fs::copy_options::overwrite_existing);
+        auto choiceFixture = eventRun;
+        choiceFixture.runEventId = "pendulum_safe";
+        choiceFixture.runEventActions = 0;
+        choiceFixture.runEventResult = {};
+        assert(GameSaveManager::Save(choiceFixture, SceneType::Event, false, false, message));
+        fs::copy_file(path, "event_choice_fixture.json", fs::copy_options::overwrite_existing);
+    }
     assert(map.CompleteActive());
     eventRun.progress.areaProgress = map.CompletedAreas();
     assert(GameSaveManager::Save(eventRun, SceneType::Select, false, false, message));
     assert(GameSaveManager::Load(rules, restored, message));
     assert(restored.resumeScene == SceneType::Select);
     assert(restored.snapshot.runEventActions == 0);
+    assert(restored.snapshot.runEventId.empty() && !restored.snapshot.runEventResult.pending);
 
     assert(GameSaveManager::Remove());
     assert(!GameSaveManager::Inspect().exists);

@@ -236,17 +236,27 @@ std::optional<nlohmann::json> GameMcpCommandHandlers::TryRun(
 		return CommandResult(true, "Applied the event choice.");
 	}
 
+	if (action == "continue_run_event")
+	{
+		if (arguments.contains("repeat") && !arguments.at("repeat").is_boolean())
+			return CommandResult(false, "repeat must be a boolean.");
+		return CommandResult(scene == "event" && game.ContinueRunEvent(arguments.value("repeat", false)),
+			"Continue the acknowledged event result.");
+	}
+
 	if (action == "continue_to_battle")
 	{
 		if (scene == "event")
 		{
 			const auto event = game.CaptureRunEvent();
+			if (event.result.pending)
+				return CommandResult(game.ContinueRunEvent(), "Continue the event result.");
 			if (event.choices.empty() || !game.ChooseRunEvent(
 				static_cast<int>(event.choices.size()) - 1, -1))
 			{
 				return CommandResult(false, "There is no active run event to leave.");
 			}
-			return CommandResult(true, "Left the event and returned to the map.");
+			return CommandResult(true, "Prepared the leave result. Confirm it with continue_run_event.");
 		}
 		if (scene != "rest_site" && scene != "shop")
 		{

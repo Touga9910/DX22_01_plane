@@ -5,6 +5,7 @@
 #include "PlayerRunStatus.h"
 #include "RunProgressController.h"
 #include "RunResultSnapshot.h"
+#include "RunEventView.h"
 #include "StageSelector.h"
 
 #include <array>
@@ -26,6 +27,8 @@ struct GameRunSaveSnapshot
 	std::vector<int> shopBallOffers{};
 	std::vector<int> shopRelicOffers{};
 	int runEventActions = 0;
+	std::string runEventId;
+	RunEventResult runEventResult;
 	RunResultSnapshot statistics{};
 	int activeAscension = 0;
 	std::uint32_t runSeed = 0;

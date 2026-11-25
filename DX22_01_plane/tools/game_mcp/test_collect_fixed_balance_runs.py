@@ -29,6 +29,7 @@ from collect_fixed_balance_runs import (
     paired_seed_metrics,
     play_current_run,
     response_player_level,
+    run_event_decision,
     run_mcp_operation_with_retries,
     set_and_confirm_player_level,
     tool_result,
@@ -338,6 +339,91 @@ class BuildCollectorDecisionTests(unittest.TestCase):
         self.assertTrue(result["completed"])
         self.assertEqual(result["actions"], 1)
         self.assertEqual(send.await_args.args[1], "continue_to_battle")
+
+    def event_state(self, hp=50, money=30, choices=None):
+        return {
+            "scene": "event", "available_actions": ["choose_run_event", "continue_to_battle"],
+            "player": {"current_hp": hp, "max_hp": 50, "money": money},
+            "deck_balls": [
+                {"index": i, "instance_id": i + 1, "definition_id": "player_standard",
+                 "upgrade_level": 0, "can_upgrade": True, "status": {"attack": 1}}
+                for i in range(5)
+            ],
+            "run_event": {"event_id": "test_event", "choices": [*(choices or []),
+                {"choice_index": len(choices or []), "effect_id": "leave", "enabled": True}]},
+        }
+
+    def test_event_policy_preserves_hp_reserve_before_upgrading(self):
+        choices = [{"choice_index": 0, "effect_id": "upgrade", "enabled": True,
+                    "hp_cost": 5, "money_cost": 0, "targets": [{"target_index": 0}]}]
+        unsafe = run_event_decision(self.event_state(hp=25, choices=choices), self.profiles, "standard")
+        safe = run_event_decision(self.event_state(hp=50, choices=choices), self.profiles, "standard")
+        self.assertEqual(unsafe["effect_id"], "leave")
+        self.assertEqual((safe["choice_index"], safe["target_index"]), (0, 0))
+
+    def test_event_policy_uses_free_recovery_at_low_hp(self):
+        state = self.event_state(hp=3, money=0, choices=[{
+            "choice_index": 0, "effect_id": "heal", "enabled": True,
+            "hp_cost": 0, "money_cost": 0, "amount": 3,
+        }])
+        self.assertEqual(run_event_decision(state, self.profiles, "heavy")["effect_id"], "heal")
+
+    def test_event_policy_buys_missing_generator_and_preserves_upgrade_in_trade(self):
+        state = self.event_state(choices=[{
+            "choice_index": 0, "effect_id": "acquire", "enabled": True,
+            "money_cost": 12, "catalog_index": 7,
+        }])
+        state["catalog_balls"] = [{"index": 7, "definition_id": "player_heavy", "status": {"attack": 1}}]
+        self.assertEqual(run_event_decision(state, self.profiles, "heavy")["effect_id"], "acquire")
+        state = self.event_state(choices=[{
+            "choice_index": 0, "effect_id": "trade", "enabled": True,
+            "money_cost": 5, "catalog_index": 0, "targets": [{"target_index": 0}],
+        }])
+        state["deck_balls"][0].update(upgrade_level=2, can_upgrade=False, status={"attack": 4})
+        state["catalog_balls"] = [{"index": 0, "definition_id": "player_standard", "status": {"attack": 1}}]
+        self.assertEqual(run_event_decision(state, self.profiles, "standard")["effect_id"], "leave")
+
+    def test_event_policy_removes_redundant_ball_and_keeps_last_generator(self):
+        state = self.event_state(choices=[{
+            "choice_index": 0, "effect_id": "remove", "enabled": True,
+            "money_cost": 10, "targets": [{"target_index": i} for i in range(6)],
+        }])
+        state["deck_balls"].append({
+            "index": 5, "instance_id": 6, "definition_id": "player_heavy",
+            "upgrade_level": 0, "can_upgrade": True, "status": {"attack": 1},
+        })
+        decision = run_event_decision(state, self.profiles, "heavy")
+        self.assertEqual(decision["effect_id"], "remove")
+        self.assertNotEqual(decision["target_index"], 5)
+
+    def test_collector_confirms_result_without_reapplying_event(self):
+        for repeatable in (False, True):
+            with self.subTest(repeatable=repeatable):
+                effect = "upgrade" if repeatable else "heal"
+                choice = {"choice_index": 0, "effect_id": effect, "enabled": True}
+                if repeatable:
+                    choice.update(hp_cost=5, targets=[{"target_index": 0}])
+                else:
+                    choice.update(money_cost=8, amount=10)
+                state = self.event_state(hp=50 if repeatable else 10, choices=[choice])
+                pending = {**state, "available_actions": ["continue_run_event"],
+                           "run_event": {"result": {"pending": True, "repeatable": repeatable}, "choices": []}}
+                result_scene = {"scene": "result", "run_progress": {"final_boss_defeated": True}}
+                with (
+                    patch("collect_fixed_balance_runs.get_state", AsyncMock(side_effect=[state, pending, result_scene])),
+                    patch("collect_fixed_balance_runs.call", AsyncMock(return_value={"ok": True})) as send,
+                ):
+                    result = asyncio.run(play_current_run(
+                        object(), "intermediate", "standard", self.profiles["standard"],
+                        self.profiles, "test", 3, 1,
+                    ))
+                self.assertTrue(result["completed"])
+                self.assertEqual([item.args[1] for item in send.await_args_list],
+                                 ["choose_run_event", "continue_run_event"])
+                self.assertEqual(send.await_args_list[0].args[2],
+                                 {"choice_index": 0, "target_index": 0 if repeatable else -1})
+                self.assertEqual(send.await_args_list[1].args[2], {"repeat": repeatable})
+                self.assertEqual(result["event_decision_history"][0]["effect_id"], effect)
 
     def test_collector_uses_boss_plan_without_legacy_enemy_targeting(self):
         state = {

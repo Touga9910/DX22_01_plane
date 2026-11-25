@@ -139,6 +139,7 @@
     <ClInclude Include="RunEventScene.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
     </ClInclude>
+    <ClInclude Include="RunEventRuntime.h" />
     <ClInclude Include="RunEventView.h">
       <Filter>ヘッダー ファイル\01_Scene\Facility</Filter>
     </ClInclude>
@@ -1151,6 +1152,7 @@
     <ClCompile Include="GameRestActions.cpp">
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
     </ClCompile>
+    <ClCompile Include="RunEventRuntime.cpp" />
     <ClCompile Include="GameRunEvent.cpp">
       <Filter>ソース ファイル\07_RunSystem\Progression</Filter>
     </ClCompile>

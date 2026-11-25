@@ -52,7 +52,7 @@ namespace
         case StageRouteType::MidBoss: return "強敵との戦闘。撃破するとレリックを選べます。";
         case StageRouteType::Shop: return "Moneyでボールやレリックを購入し、デッキを調整できます。";
         case StageRouteType::RestSite: return "HP回復かボール強化を選べます。";
-        case StageRouteType::Event: return "到着するとイベントが発生し、行動を選べます。";
+        case StageRouteType::Event: return "球の強化・交換や資源の取引。HPやMoneyが必要な場合があります。";
         case StageRouteType::BossPreparation: return "15エリアの後に必ず立ち寄る休憩所です。";
         case StageRouteType::FinalBoss: return "最終戦。撃破すればランをクリアします。";
         default: return "通常の戦闘。Moneyとクリア報酬を獲得できます。";

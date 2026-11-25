@@ -10,6 +10,7 @@
 #include "PierceTraceRules.h"
 #include "GameTypes.h"
 #include "GameEvent.h"
+#include "RunEventView.h"
 #include "json/json_fwd.hpp"
 
 class EnemyBall;
@@ -102,6 +103,8 @@ private:
 	std::unique_ptr<GameRunSession> m_RunSession;
 	std::unique_ptr<RunController> m_RunController;
 	int m_RunEventActions = 0;
+	std::string m_RunEventId;
+	RunEventResult m_RunEventResult;
 	std::string m_DebugRunEventId;
 	std::unique_ptr<GameStageOverrideState> m_StageOverrideState;
 	bool m_PhaseTestRunRequested = false;
@@ -445,6 +448,8 @@ public:
 	void LeaveRestSite();
 	RunEventViewSnapshot CaptureRunEvent() const;
 	bool ChooseRunEvent(int choiceIndex, int targetIndex);
+	void PrepareRunEvent();
+	bool ContinueRunEvent(bool repeat = false);
 	void ContinueAfterClearReward();
 	void StartNextBattle();
 	void StartNextBattle(StageType stageType);

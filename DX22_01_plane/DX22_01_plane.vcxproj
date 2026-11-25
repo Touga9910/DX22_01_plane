@@ -290,6 +290,7 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameRestActions.cpp" />
     <ClCompile Include="GameRunEvent.cpp" />
+    <ClCompile Include="RunEventRuntime.cpp" />
     <ClCompile Include="GameRewardOperations.cpp" />
     <ClCompile Include="GameShopOperations.cpp" />
     <ClCompile Include="GameRelicOperations.cpp" />
@@ -463,6 +464,7 @@
     <ClInclude Include="RestSiteScene.h" />
     <ClInclude Include="RunEventScene.h" />
     <ClInclude Include="RunEventView.h" />
+    <ClInclude Include="RunEventRuntime.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="SphereColliderComponent.h" />

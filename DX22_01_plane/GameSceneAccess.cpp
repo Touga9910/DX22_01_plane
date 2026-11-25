@@ -179,6 +179,11 @@ bool GameSceneCommands::ChooseRunEvent(int choiceIndex, int targetIndex)
     return Game::GetInstance()->ChooseRunEvent(choiceIndex, targetIndex);
 }
 
+bool GameSceneCommands::ContinueRunEvent(bool repeat)
+{
+    return Game::GetInstance()->ContinueRunEvent(repeat);
+}
+
 /// <summary>
 /// 所持金や提示中の商品など、ショップの表示に必要な状態を取得する。
 /// </summary>

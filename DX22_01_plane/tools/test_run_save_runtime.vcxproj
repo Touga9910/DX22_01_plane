@@ -7,7 +7,7 @@
   <PropertyGroup><OutDir>$(ProjectDir)runtime_tests\save\</OutDir><IntDir>$(OutDir)obj\</IntDir><TargetName>test_run_save_runtime</TargetName><LinkIncremental>false</LinkIncremental></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile><LanguageStandard>stdcpp20</LanguageStandard><RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary><AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)..\..\third_party\DirectXTK\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><PreprocessorDefinitions>_DEBUG;_CONSOLE;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions><Optimization>MaxSpeed</Optimization><BasicRuntimeChecks>Default</BasicRuntimeChecks><FunctionLevelLinking>true</FunctionLevelLinking><DebugInformationFormat>OldStyle</DebugInformationFormat><AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions></ClCompile>
-    <Link><SubSystem>Console</SubSystem><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding></Link>
+    <Link><SubSystem>Console</SubSystem><GenerateDebugInformation>false</GenerateDebugInformation><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding><AdditionalLibraryDirectories>$(ProjectDir)..\..\third_party\DirectXTK\lib\x64\Debug;$(ProjectDir)..\..\third_party\assimp\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories></Link>
   </ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="test_run_save_runtime.cpp" /><ClCompile Include="../GameSaveManager.cpp" /><ClCompile Include="../PlayerBallDataLoader.cpp" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

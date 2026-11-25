@@ -71,7 +71,10 @@ void Game::ChangeScene(SceneType sceneType)
 	if (sceneType == SceneType::Event && !m_PersistenceRuntime->IsRestoringRunSave())
 	{
 		m_RunEventActions = 0;
+		m_RunEventId.clear();
+		m_RunEventResult = {};
 	}
+	if (sceneType == SceneType::Event) PrepareRunEvent();
 	int score = 0;
 	Scene* currentScene = m_Instance->GetCurrentScene();
 
@@ -150,4 +153,29 @@ void Game::ChangeScene(SceneType sceneType)
 	// gameplay is allowed its first update.
 	m_Camera.SetTarget(DirectX::SimpleMath::Vector3::Zero);
 	UpdateSceneCamera();
+}
+
+// Keep the result on screen until the player explicitly continues. Route
+// completion is committed under the black overlay, including debug previews.
+bool Game::ContinueRunEvent(bool repeat)
+{
+	if (GetCurrentSceneType() != SceneType::Event || !m_RunEventResult.pending ||
+		m_RuntimeState->Transition().Active()) return false;
+	if (repeat)
+	{
+		if (!m_RunEventResult.repeatable) return false;
+		m_RunEventResult = {};
+		SaveRunCheckpoint(SceneType::Event, false, false);
+		return true;
+	}
+	auto& transition = m_RuntimeState->Transition();
+	transition.Configure(m_SettingsRuntime->Current().sceneTransition);
+	return transition.Request([this]()
+	{
+		m_RunEventResult = {};
+		m_RunEventId.clear();
+		m_DebugRunEventId.clear();
+		CompleteNormalRouteArea("event");
+		EnterNextRouteAfterArea();
+	});
 }

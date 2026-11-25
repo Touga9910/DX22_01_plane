@@ -46,7 +46,7 @@ class RunMap
 {
     std::uint32_t m_Seed = 0;
     int m_StartArea = 0;
-    int m_Version = 4;
+    int m_Version = 5;
     int m_AreaCount = 15;
     int m_EntryOverride = -1;    // セーブ移行やデバッグ試遊で指定した先頭ノードの種類（通常時は-1）
     std::vector<RunMapNode> m_Nodes;
@@ -229,6 +229,87 @@ class RunMap
         }
     }
 
+    // Version 5 preserves the ordinary alternatives while preventing an
+    // event-only chain of three on any route through the branching DAG.
+    bool WouldCreateThreeEventPath(int candidate) const
+    {
+        std::vector<int> chain(m_Nodes.size(), 0);
+        for (const auto& node : m_Nodes)
+        {
+            if (node.id != candidate && node.type != StageRouteType::Event) continue;
+            chain[node.id] = (std::max)(1, chain[node.id]);
+            if (chain[node.id] > 2) return true;
+            for (int next : node.next)
+                chain[next] = (std::max)(chain[next], chain[node.id] + 1);
+        }
+        return false;
+    }
+
+    void PlacePacedEvents(std::mt19937& rng)
+    {
+        const auto battleCount = std::count_if(m_Nodes.begin(), m_Nodes.end(),
+            [](const RunMapNode& node) { return node.type == StageRouteType::NormalBattle; });
+        const auto eventTarget = static_cast<std::size_t>((battleCount + 2) / 4);
+        std::vector<int> candidates;
+        for (int floor = (std::max)(2, m_StartArea); floor < m_StartArea + m_AreaCount; ++floor)
+        {
+            unsigned battleLanes = 0;
+            std::vector<unsigned> incomingChoices;
+            for (const RunMapNode& node : m_Nodes)
+            {
+                if (node.floor == floor && node.type == StageRouteType::NormalBattle)
+                    battleLanes |= 1u << node.lane;
+                if (node.floor == floor - 1)
+                {
+                    unsigned choices = 0;
+                    for (int next : node.next)
+                        choices |= 1u << m_Nodes[next].lane;
+                    incomingChoices.push_back(choices);
+                }
+            }
+
+            // 5レーンの組み合わせを検査し、通常戦とイベント以外の行き先を残す。
+            constexpr unsigned laneCombinations = 1u << 5;
+            int bestCount = 0;
+            std::vector<unsigned> bestCombinations;
+            for (unsigned lanes = 1; lanes < laneCombinations; ++lanes)
+            {
+                if ((lanes & battleLanes) != lanes || lanes == battleLanes)
+                    continue;
+                const int count = std::popcount(lanes);
+                if (count < bestCount || std::any_of(incomingChoices.begin(), incomingChoices.end(),
+                    [lanes](unsigned choices) { return (choices & lanes) == choices; }))
+                    continue;
+                if (count > bestCount)
+                {
+                    bestCount = count;
+                    bestCombinations.clear();
+                }
+                bestCombinations.push_back(lanes);
+            }
+
+            if (bestCombinations.empty())
+                continue;
+            const unsigned lanes = bestCombinations[rng() % bestCombinations.size()];
+            for (const RunMapNode& node : m_Nodes)
+                if (node.floor == floor && (lanes & (1u << node.lane)) != 0)
+                    candidates.push_back(node.id);
+        }
+
+        // 各行の候補から間引いても、通常戦と代替ルートは確保される。
+        std::size_t placed = 0;
+        while (placed < eventTarget && !candidates.empty())
+        {
+            const auto index = rng() % candidates.size();
+            const int candidate = candidates[index];
+            candidates[index] = candidates.back();
+            candidates.pop_back();
+            if (WouldCreateThreeEventPath(candidate)) continue;
+            m_Nodes[candidate].type = StageRouteType::Event;
+            ++placed;
+        }
+    }
+
 public:
     /// <summary>
     /// ルート生成方式のバージョンに合わせて、中央レーンの番号を返す。
@@ -244,11 +325,11 @@ public:
     /// <summary>
     /// 生成条件を検証して通常エリアを作り、最後にボス準備と最終ボスのノードを追加する。
     /// </summary>
-    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 4)
+    void Generate(std::uint32_t seed, int startArea = 0, int areaCount = 15, int version = 5)
     {
         if (startArea < 0 || startArea > 1000000 || areaCount < 0 || areaCount > 15)
             throw std::runtime_error("Invalid run map extent");
-        if (version < 1 || version > 4) throw std::runtime_error("Unsupported run map version");
+        if (version < 1 || version > 5) throw std::runtime_error("Unsupported run map version");
         m_Version = version;
         m_Seed = seed; m_StartArea = startArea; m_AreaCount = areaCount;
         m_EntryOverride = -1; m_Nodes.clear(); m_Path.clear(); m_Active = -1;
@@ -260,6 +341,8 @@ public:
                 PlaceEvents(rng);
             if (m_Version == 4)
                 PlaceRatioEvents(rng);
+            if (m_Version == 5)
+                PlacePacedEvents(rng);
             return;
         }
         for (int row = 0; row < areaCount; ++row)
@@ -461,7 +544,7 @@ public:
     /// </summary>
     bool SetDebugEventEntry()
     {
-        if (m_Version != 4 || m_Nodes.empty() || m_AreaCount == 0 || m_EntryOverride != -1 ||
+        if (m_Version < 4 || m_Nodes.empty() || m_AreaCount == 0 || m_EntryOverride != -1 ||
             !m_Path.empty() || m_Active != -1)
             return false;
 

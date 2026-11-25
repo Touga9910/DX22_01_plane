@@ -164,14 +164,30 @@ void AppendAvailableActions(Game& game, const GameMcpReadSnapshot& snapshot, con
 				{ "label", choice.label },
 				{ "detail", choice.detail },
 				{ "enabled", choice.enabled },
+				{ "requires_confirmation", choice.requiresConfirmation },
+				{ "effect_id", choice.effectId },
+				{ "hp_cost", choice.hpCost }, { "money_cost", choice.moneyCost },
+				{ "amount", choice.amount }, { "catalog_index", choice.catalogIndex },
 				{ "targets", std::move(targets) },
 			});
 		}
 		state["run_event"] = {
 			{ "title", event.title },
+			{ "event_id", event.eventId },
+			{ "result", {
+				{ "pending", event.result.pending }, { "repeatable", event.result.repeatable },
+				{ "title", event.result.title }, { "detail", event.result.detail },
+				{ "hp_before", event.result.hpBefore }, { "hp_after", event.result.hpAfter },
+				{ "money_before", event.result.moneyBefore }, { "money_after", event.result.moneyAfter },
+			} },
 			{ "choices", std::move(choices) },
 		};
-		if (!event.choices.empty())
+		if (event.result.pending)
+		{
+			state["available_actions"].push_back("continue_run_event");
+			state["available_actions"].push_back("continue_to_battle");
+		}
+		else if (!event.choices.empty())
 		{
 			state["available_actions"].push_back("choose_run_event");
 			state["available_actions"].push_back("continue_to_battle");

@@ -21,8 +21,11 @@ from mcp.client.streamable_http import streamable_http_client
 from build_decision import (
     build_decision_snapshot,
     build_progress_snapshot,
+    evaluate_ball_choices,
     evaluate_relic_choices,
+    evaluate_shop_ball_removal,
     evaluate_shop_actions,
+    evaluate_upgrade_choices,
 )
 from build_profiles import load_build_profiles, profile_settings_hash
 from route_decision import evaluate_rest_site_action, evaluate_route_options
@@ -530,6 +533,109 @@ def catalog_candidate(
     return catalog[0] if catalog else None
 
 
+def run_event_decision(
+    state: dict[str, Any],
+    profiles: dict[str, dict[str, Any]],
+    build_id: str,
+) -> dict[str, Any] | None:
+    """Use structured effects and the existing build policy, preserving HP."""
+    event = _as_dict(state.get("run_event"))
+    if _as_dict(event.get("result")).get("pending"):
+        return None
+    player = _as_dict(state.get("player"))
+    hp = max(0, int(player.get("current_hp", 0)))
+    max_hp = max(1, int(player.get("max_hp", max(1, hp))))
+    money = max(0, int(player.get("money", 0)))
+    hp_reserve = max(8, (max_hp * 45 + 99) // 100)
+    deck = [ball for ball in state.get("deck_balls", []) if isinstance(ball, dict)]
+    deck_by_index = {int(ball.get("index", index)): ball for index, ball in enumerate(deck)}
+    catalog = {int(ball.get("index", -1)): ball for ball in state.get("catalog_balls", [])
+               if isinstance(ball, dict)}
+    counts = Counter(str(ball.get("definition_id", "")) for ball in deck)
+    upgrades = evaluate_upgrade_choices(state, profiles, build_id)["choices"]
+    before_progress = build_progress_snapshot(state, profiles, build_id)
+    candidates: list[dict[str, Any]] = []
+    leave: dict[str, Any] | None = None
+
+    for index, choice in enumerate(event.get("choices", [])):
+        if not isinstance(choice, dict) or not choice.get("enabled", False):
+            continue
+        effect = str(choice.get("effect_id", ""))
+        base = {"choice_index": int(choice.get("choice_index", index)),
+                "target_index": -1, "effect_id": effect}
+        if effect == "leave":
+            leave = {**base, "score": 0.0, "reason": "no_safe_beneficial_choice"}
+            continue
+        hp_cost = max(0, int(choice.get("hp_cost", 0)))
+        money_cost = max(0, int(choice.get("money_cost", 0)))
+        if money_cost > money or (hp_cost and hp - hp_cost < hp_reserve):
+            continue
+        payment = hp_cost * 1.5 + money_cost * 0.5
+        targets = {int(target.get("target_index", -1)) for target in choice.get("targets", [])
+                   if isinstance(target, dict)}
+        if effect == "heal":
+            amount = min(max(0, int(choice.get("amount", 0))), max_hp - hp)
+            candidates.append({**base, "score": amount * (4 if hp * 100 <= max_hp * 60 else 2) - payment,
+                               "reason": "recover_hp"})
+        elif effect == "money":
+            candidates.append({**base, "score": int(choice.get("amount", 0)) - payment,
+                               "reason": "safe_resource_trade"})
+        elif effect == "upgrade":
+            target = next((ball for ball in upgrades if int(ball.get("index", -1)) in targets), None)
+            if target:
+                candidates.append({**base, "target_index": int(target["index"]),
+                                   "score": 30.0 - payment, "reason": "build_priority_upgrade"})
+        elif effect == "remove":
+            # Reuse protection of the last generator/finisher and invested balls.
+            removal_state = {**state, "scene": "shop", "available_actions": ["remove_ball"],
+                             "relics": [], "player": {**player, "money": money + 15 - money_cost}}
+            removal = evaluate_shop_ball_removal(removal_state, profiles, build_id)
+            target = _as_dict(removal.get("recommended"))
+            target_index = next((idx for idx, ball in deck_by_index.items()
+                                 if ball.get("instance_id") == target.get("instance_id") and idx in targets), -1)
+            if target and target_index >= 0:
+                candidates.append({**base, "target_index": target_index,
+                                   "score": float(target.get("removal_score", 0)) - payment,
+                                   "reason": "compress_build_without_losing_roles"})
+        elif effect in {"acquire", "trade"}:
+            offered = catalog.get(int(choice.get("catalog_index", -1)))
+            if not offered:
+                continue
+            offered_state = {**state, "event_offers": [offered]}
+            offered_choice = _as_dict(evaluate_ball_choices(
+                offered_state, profiles, build_id, source="event_offers",
+            ).get("recommended"))
+            definition_id = str(offered.get("definition_id", ""))
+            missing = definition_id in before_progress.get("missing_key_parts", [])
+            if effect == "acquire":
+                if len(deck) < 8 and (missing or counts[definition_id] == 0):
+                    candidates.append({**base, "score": 35.0 + (25 if missing else 0) - payment,
+                                       "reason": "acquire_missing_build_part"})
+            else:
+                old_choices = evaluate_ball_choices(
+                    state, profiles, build_id, source="deck_balls",
+                )["choices"]
+                old_scores = {int(ball["index"]): float(ball["score"]) for ball in old_choices}
+                for target_index in sorted(targets):
+                    old = deck_by_index.get(target_index)
+                    if not old:
+                        continue
+                    trial_deck = [({**offered, "index": target_index, "instance_id": old.get("instance_id", 0)}
+                                   if ball is old else ball) for ball in deck]
+                    after = build_progress_snapshot({**state, "deck_balls": trial_deck}, profiles, build_id)
+                    if float(after["completion_rate"]) < float(before_progress["completion_rate"]):
+                        continue
+                    if old.get("definition_id") == "player_guard" and counts["player_guard"] == 1 and hp * 100 <= max_hp * 60:
+                        continue
+                    gain = float(offered_choice.get("score", 0)) - old_scores.get(target_index, 0)
+                    # Explicitly preserve the investment lost by replacing +1/+2.
+                    score = gain - 22 * int(old.get("upgrade_level", 0)) - payment
+                    candidates.append({**base, "target_index": target_index, "score": score,
+                                       "reason": "trade_improves_build_without_losing_completion"})
+    useful = [candidate for candidate in candidates if float(candidate["score"]) > 0]
+    return max(useful, key=lambda candidate: float(candidate["score"])) if useful else leave
+
+
 def midboss_relic_candidate(
     state: dict[str, Any],
     build_profiles: dict[str, dict[str, Any]],
@@ -599,6 +705,7 @@ async def play_current_run(
     route_selection_history: list[dict[str, Any]] = []
     rest_decision_history: list[dict[str, Any]] = []
     shop_action_history: list[dict[str, Any]] = []
+    event_decision_history: list[dict[str, Any]] = []
     shop_attempted_actions: set[str] = set()
     rejected_rewards: Counter[tuple[Any, ...]] = Counter()
 
@@ -684,6 +791,7 @@ async def play_current_run(
                 "route_selection_history": route_selection_history,
                 "rest_decision_history": rest_decision_history,
                 "shop_action_history": shop_action_history,
+                "event_decision_history": event_decision_history,
             }
 
         try:
@@ -928,8 +1036,35 @@ async def play_current_run(
                 actions_taken += 1
                 continue
 
-            if scene == "event" and "continue_to_battle" in actions:
-                result = await call(session, "continue_to_battle")
+            if scene == "event":
+                event_choice = run_event_decision(state, build_profiles, active_build_id)
+                if "continue_run_event" in actions:
+                    if event_decision_history:
+                        event_decision_history[-1]["result"] = dict(
+                            _as_dict(_as_dict(state.get("run_event")).get("result"))
+                        )
+                    result = await call(session, "continue_run_event", {
+                        "repeat": bool(_as_dict(_as_dict(state.get("run_event")).get("result")).get("repeatable", False)),
+                    })
+                elif "choose_run_event" in actions and event_choice is not None:
+                    result = await call(session, "choose_run_event", {
+                        "choice_index": event_choice["choice_index"],
+                        "target_index": event_choice["target_index"],
+                    })
+                    entry = {"progress": state.get("player", {}).get("progress"),
+                             "event_id": _as_dict(state.get("run_event")).get("event_id"),
+                             "hp_before": state.get("player", {}).get("current_hp"),
+                             "money_before": state.get("player", {}).get("money"),
+                             **event_choice, "accepted": bool(result.get("ok"))}
+                    event_decision_history.append(entry)
+                    print(json.dumps({"event": "run_event_decision", "build": active_build_id,
+                                      **entry}, ensure_ascii=False), flush=True)
+                elif "continue_to_battle" in actions:
+                    # Compatibility with older local servers lacking effect metadata.
+                    result = await call(session, "continue_to_battle")
+                else:
+                    await asyncio.sleep(0.05)
+                    continue
                 if result.get("ok"):
                     actions_taken += 1
                 else:
@@ -1095,6 +1230,7 @@ async def play_current_run(
         "route_selection_history": route_selection_history,
         "rest_decision_history": rest_decision_history,
         "shop_action_history": shop_action_history,
+        "event_decision_history": event_decision_history,
     }
 
 
@@ -1746,6 +1882,7 @@ def extract_run_record(
         "build_reward_dependent": build_complete and not initial_build_complete,
         "reward_selection_history": reward_selection_history,
         "rest_decision_history": _as_list(summary.get("rest_decision_history")),
+        "event_decision_history": _as_list(summary.get("event_decision_history")),
         "dynamic_balance_enabled_at_start": context.get(
             "dynamic_balance_enabled_at_start"
         ),

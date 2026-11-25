@@ -222,9 +222,7 @@ bool BalanceAutoPlayer::Update(Game& game)
 			return false;
 		}
 
-		const auto event = game.CaptureRunEvent();
-		return !event.choices.empty() && game.ChooseRunEvent(
-			static_cast<int>(event.choices.size()) - 1, -1);
+		return ApplyRunEventAction(game);
 	}
 
 	if (game.IsClearRewardActive())
