@@ -223,6 +223,22 @@ int main()
     assert(PlayerFriction(velocity, acceleration, status, 0.02f, count));
     assert(velocity == Vector3::Zero && acceleration == Vector3::Zero);
 
+    // Valid high-friction profiles must brake to rest rather than overshooting
+    // into a permanent +0.4/-0.6 velocity cycle.
+    for (const float friction : { 0.02f, 0.4f, 1.0f, 10.0f })
+    {
+        Vector3 enemyVelocity(0.4f, 0, 0);
+        float previousSpeed = enemyVelocity.Length();
+        for (int tick = 0; tick < 100; ++tick)
+        {
+            EnemyFriction(enemyVelocity, friction);
+            assert(enemyVelocity.x >= 0.0f);
+            assert(enemyVelocity.Length() <= previousSpeed + 0.00001f);
+            previousSpeed = enemyVelocity.Length();
+        }
+        assert(enemyVelocity == Vector3::Zero);
+    }
+
     // Selected power and friction affect travel; no implicit normalization to power 8.
     auto distance = [&](float power) {
         Vector3 v(power, 0, 0), a = Vector3::Zero;

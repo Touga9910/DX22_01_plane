@@ -15,9 +15,9 @@
 /// <summary>
 /// ゲームの実行時リソースを初期化する。
 /// </summary>
-void GameRuntime::Initialize()
+bool GameRuntime::Initialize()
 {
-	Game::Init();
+	return Game::Init();
 }
 
 /// <summary>

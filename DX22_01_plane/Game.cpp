@@ -131,14 +131,26 @@ Game::~Game()
 /// <summary>
 /// 描画、入力、カメラなどを初期化し、設定や保存データを読み込んでタイトルシーンを開始する。
 /// </summary>
-void Game::Init()
+bool Game::Init()
 {
+	// Do not initialize game resources or touch saves without a usable renderer.
+	const HRESULT rendererResult = Renderer::Init();
+	if (FAILED(rendererResult))
+	{
+		Renderer::Uninit();
+		wchar_t message[160]{};
+		swprintf_s(message, L"Direct3D initialization failed (0x%08X).",
+			static_cast<unsigned int>(rendererResult));
+		OutputDebugStringW(message);
+		MessageBoxW(Application::GetWindow(), message,
+			L"Graphics initialization error", MB_OK | MB_ICONERROR);
+		return false;
+	}
 	// 静的インスタンスをここで1つだけ生成
 	if (m_Instance == nullptr) {
 		m_Instance = new Game();
 	}
 	// 描画処理を初期化
-	Renderer::Init();
 	BallCardPresentation::LoadResources();
 	m_Instance->m_SettingsRuntime->Initialize();
 	const bool allowGeneratedAudioTestTones =
@@ -183,6 +195,16 @@ void Game::Init()
 		m_Instance->OpenDebugMode();
 		if (m_Instance->LoadDebugPreset()) m_Instance->m_DebugController->RequestStart();
 	}
+#if defined(_DEBUG)
+	// Isolated save round-trip tests use the same restore path as Continue.
+	const char* resumeRun = std::getenv("DX22_TEST_RESUME_RUN");
+	if (resumeRun != nullptr && std::string(resumeRun) == "1" &&
+		m_Instance->LoadSavedRun())
+	{
+		m_Instance->SaveCurrentRun();
+	}
+#endif
+	return true;
 }
 
 /// <summary>
@@ -510,6 +532,7 @@ void Game::Draw()
 /// </summary>
 void Game::Uninit()
 {
+	if (m_Instance == nullptr) return;
 	if (m_Instance != nullptr)
 	{
 		m_Instance->m_SettingsRuntime->SaveIfDirty();
@@ -566,6 +589,7 @@ void Game::Uninit()
 
 	// インスタンスを削除
 	delete m_Instance;
+	m_Instance = nullptr;
 }
 
 /// <summary>

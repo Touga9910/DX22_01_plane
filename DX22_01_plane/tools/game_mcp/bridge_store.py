@@ -35,11 +35,11 @@ class GameBridgeStore:
         self.bridge_directory = bridge_directory.resolve()
         self.command_timeout_seconds = max(
             0.1,
-            command_timeout_seconds,
+            self.require_finite_number(command_timeout_seconds, "command_timeout_seconds"),
         )
         self.maximum_state_age_seconds = max(
             1.0,
-            maximum_state_age_seconds,
+            self.require_finite_number(maximum_state_age_seconds, "maximum_state_age_seconds"),
         )
         self._command_lock = threading.Lock()
 
@@ -174,7 +174,7 @@ class GameBridgeStore:
             try:
                 with path.open("r", encoding="utf-8") as file:
                     return json.load(file)
-            except json.JSONDecodeError as error:
+            except (json.JSONDecodeError, UnicodeError) as error:
                 last_error = error
             except OSError as error:
                 last_error = error
@@ -210,10 +210,26 @@ class GameBridgeStore:
                     file,
                     ensure_ascii=False,
                     indent=2,
+                    allow_nan=False,
                 )
                 file.flush()
                 os.fsync(file.fileno())
-            os.replace(temporary_path, path)
+            # Publish the complete file only if the one-command slot is empty.
+            # A per-store lock cannot protect against another server process.
+            try:
+                if os.name == "nt":
+                    # Windows rename never replaces an existing destination.
+                    os.rename(temporary_path, path)
+                else:
+                    os.link(temporary_path, path)
+            except FileExistsError as error:
+                raise GameCommandBusyError(
+                    "前のゲーム操作がまだ処理中です。"
+                ) from error
+        except (TypeError, ValueError) as error:
+            raise GameBridgeError(
+                "ゲーム操作にはJSONで表現できる有限の値を指定してください。"
+            ) from error
         finally:
             if temporary_path.exists():
                 temporary_path.unlink()

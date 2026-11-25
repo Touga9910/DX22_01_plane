@@ -172,6 +172,23 @@ int main(int argc, char** argv)
     assert(restored.snapshot.runEventActions == 0);
     assert(restored.snapshot.runEventId.empty() && !restored.snapshot.runEventResult.pending);
 
+    // A previous shop leaves its offer vectors populated on the route map.
+    // Load this private fixture and enter the first node to verify that the
+    // incoming shop autosaves its new offers and RNG after ShopScene::Init.
+    if (argc == 2 && std::string_view(argv[1]) == "--write-shop-fixtures")
+    {
+        auto shopFixture = snapshot;
+        shopFixture.progress.map.MigrateEntry(StageRouteType::Shop);
+        shopFixture.progress.map.CancelActive();
+        shopFixture.shopBallOffers = {0, 1, 2};
+        shopFixture.shopRelicOffers = {0, 1, 2};
+        assert(GameSaveManager::Save(shopFixture, SceneType::Select, false, false, message));
+        assert(GameSaveManager::Load(rules, restored, message));
+        assert(restored.snapshot.progress.map.Available().front() == 0);
+        assert(restored.snapshot.progress.map.Node(0)->type == StageRouteType::Shop);
+        fs::copy_file(path, "shop_entry_fixture.json", fs::copy_options::overwrite_existing);
+    }
+
     assert(GameSaveManager::Remove());
     assert(!GameSaveManager::Inspect().exists);
     std::cout << "PASS: save/load, deck IDs, map, RNG, event progress, invalid/debug saves, atomic failure and recovery\n";

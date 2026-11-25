@@ -1,5 +1,6 @@
 #include "GameMcpBridge.h"
 #include "GameMcpJson.h"
+#include "GameMcpCommandValidation.h"
 #include "StageDataLoader.h"
 #include "json/json.hpp"
 
@@ -28,21 +29,8 @@ namespace
 		const std::filesystem::path& path,
 		nlohmann::json& output)
 	{
-		std::ifstream file(path);
-		if (!file)
-		{
-			return false;
-		}
-
-		try
-		{
-			file >> output;
-			return true;
-		}
-		catch (const nlohmann::json::exception&)
-		{
-			return false;
-		}
+		return GameMcpCommandValidation::ReadJsonFile(path, output) ==
+			GameMcpCommandValidation::FileReadStatus::Ready;
 	}
 
 	/// <summary>
@@ -292,19 +280,21 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 {
 	const std::filesystem::path commandPath =
 		GetCommandPath();
-	if (!std::filesystem::exists(commandPath))
+	std::error_code pathError;
+	if (!std::filesystem::exists(commandPath, pathError))
 	{
 		return;
 	}
 
 	nlohmann::json command;
-	if (!ReadJson(commandPath, command))
+	if (GameMcpCommandValidation::ReadPendingCommand(commandPath, command) !=
+		GameMcpCommandValidation::FileReadStatus::Ready)
 	{
 		return;
 	}
 
-	const std::string commandId =
-		command.value("command_id", std::string());
+	const auto envelope = GameMcpCommandValidation::Validate(command);
+	const std::string& commandId = envelope.commandId;
 	if (commandId.empty() ||
 		commandId == m_LastCommandId)
 	{
@@ -317,7 +307,9 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 	nlohmann::json result;
 	try
 	{
-		result = ExecuteCommand(game, command);
+		result = envelope.IsValid()
+			? ExecuteCommand(game, command)
+			: CommandResult(false, envelope.error);
 	}
 	catch (const nlohmann::json::exception& error)
 	{
@@ -331,8 +323,7 @@ void GameMcpBridge::ProcessPendingCommand(Game& game)
 	m_FramesUntilPublish = m_PublishIntervalFrames;
 	result["schema_version"] = 1;
 	result["command_id"] = commandId;
-	result["action"] =
-		command.value("action", std::string());
+	result["action"] = envelope.action;
 	result["completed_at_unix_ms"] =
 		UnixTimeMilliseconds();
 	result["state_sequence"] = m_StateSequence;

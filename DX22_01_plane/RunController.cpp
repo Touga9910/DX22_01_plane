@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 struct RunController::Impl
 {
@@ -243,7 +244,10 @@ bool RunController::RestHeal()
 void RunController::AddMoney(int amount)
 {
     if (m_Impl->debugInfiniteMoney) { m_Impl->status.money = 999999; return; }
-    m_Impl->status.money += (std::max)(0, amount);
+    const std::int64_t total = static_cast<std::int64_t>(m_Impl->status.money) +
+        (std::max)(0, amount);
+    m_Impl->status.money = static_cast<int>(std::clamp(
+        total, std::int64_t{0}, std::int64_t{PlayerRunStatus::MaximumMoney}));
     m_Impl->status = NormalizePlayerRunStatus(m_Impl->status);
 }
 

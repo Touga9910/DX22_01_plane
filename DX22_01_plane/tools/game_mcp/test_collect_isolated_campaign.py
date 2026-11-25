@@ -1,6 +1,9 @@
 import copy
+import io
+import subprocess
 import unittest
-from collect_isolated_campaign import validate_entry, campaign_seeds
+from unittest.mock import Mock
+from collect_isolated_campaign import validate_entry, campaign_seeds, cleanup_children
 
 
 class CampaignSeedsTests(unittest.TestCase):
@@ -41,6 +44,36 @@ class PairedEntryTests(unittest.TestCase):
         after['stages'][0]['stage_result']['player_damage_taken']=4
         with self.assertRaisesRegex(ValueError,'Pre-boss'):
             validate_entry(before,after)
+
+
+class ChildCleanupTests(unittest.TestCase):
+    def test_terminated_child_is_waited_for_before_returning(self):
+        child = Mock()
+        child.wait.side_effect = [subprocess.TimeoutExpired('child', 10), 0]
+        stream = io.StringIO()
+        cleanup_children([child], [stream])
+        self.assertEqual(child.wait.call_count, 2)
+        child.terminate.assert_called_once_with()
+        child.kill.assert_not_called()
+        self.assertTrue(stream.closed)
+
+    def test_child_ignoring_termination_is_killed_and_reaped(self):
+        child = Mock()
+        child.wait.side_effect = [subprocess.TimeoutExpired('child', 10),
+                                 subprocess.TimeoutExpired('child', 5), 0]
+        cleanup_children([child], [])
+        self.assertEqual(child.wait.call_count, 3)
+        child.terminate.assert_called_once_with()
+        child.kill.assert_called_once_with()
+
+    def test_one_child_failure_still_cleans_remaining_children_and_streams(self):
+        failed, healthy = Mock(), Mock()
+        failed.wait.side_effect = OSError('unavailable child')
+        stream = io.StringIO()
+        with self.assertRaisesRegex(RuntimeError, 'cleanup failed'):
+            cleanup_children([failed, healthy], [stream])
+        healthy.wait.assert_called_once_with(timeout=10)
+        self.assertTrue(stream.closed)
 
 
 if __name__=='__main__':unittest.main()

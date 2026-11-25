@@ -236,7 +236,10 @@ HRESULT Renderer::CreateRenderAndDepthResources()
 	ID3D11Texture2D* renderTarget{};
 	HRESULT hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&renderTarget);
 	if (FAILED(hr)) return hr;
-	if (renderTarget != nullptr) hr = m_pDevice->CreateRenderTargetView(renderTarget, NULL, &m_pRenderTargetView);
+	if (renderTarget == nullptr) return E_FAIL;
+	D3D11_TEXTURE2D_DESC backBufferDesc{};
+	renderTarget->GetDesc(&backBufferDesc);
+	hr = m_pDevice->CreateRenderTargetView(renderTarget, NULL, &m_pRenderTargetView);
 	renderTarget->Release();
 	if (FAILED(hr)) return hr;
 
@@ -244,13 +247,13 @@ HRESULT Renderer::CreateRenderAndDepthResources()
 	// ※（デプスバッファ = 深度バッファ = Zバッファ）→奥行を判定して前後関係を正しく描画できる
 	ID3D11Texture2D* depthStencile{};
 	D3D11_TEXTURE2D_DESC textureDesc{};
-	textureDesc.Width = Application::GetWidth();   // バッファの幅をスワップチェーンに合わせる
-	textureDesc.Height = Application::GetHeight(); // バッファの高さをスワップチェーンに合わせる
+	textureDesc.Width = backBufferDesc.Width;   // バッファの幅をスワップチェーンに合わせる
+	textureDesc.Height = backBufferDesc.Height; // バッファの高さをスワップチェーンに合わせる
 	textureDesc.MipLevels = 1;                            // ミップレベルは1（ミップマップは使用しない）
 	textureDesc.ArraySize = 1;                            // テクスチャの配列サイズ（通常1）
 	textureDesc.Format = DXGI_FORMAT_D16_UNORM;           // フォーマットは16ビットの深度バッファを使用
-	textureDesc.SampleDesc.Count = 1;                     // スワップチェーンと同じサンプル設定
-	textureDesc.SampleDesc.Quality = 0;                   // 同上
+	textureDesc.SampleDesc.Count = backBufferDesc.SampleDesc.Count;                     // スワップチェーンと同じサンプル設定
+	textureDesc.SampleDesc.Quality = backBufferDesc.SampleDesc.Quality;                   // 同上
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;              // 使用方法はデフォルト（GPUで使用）
 	textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;     // 深度ステンシルバッファとして使用
 	textureDesc.CPUAccessFlags = 0;                       // CPUからのアクセスは不要
@@ -263,11 +266,9 @@ HRESULT Renderer::CreateRenderAndDepthResources()
 	depthStencilViewDesc.Format = textureDesc.Format; // デプスステンシルバッファのフォーマットを設定
 	depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D; // ビューの次元を2Dテクスチャとして設定（2Dテクスチャ用のデプスステンシルビュー）
 	depthStencilViewDesc.Flags = 0; // 特別なフラグは設定しない（デフォルトの動作）
-	if (depthStencile != nullptr)m_pDevice->CreateDepthStencilView(depthStencile, &depthStencilViewDesc, &m_pDepthStencilView);
-	if (FAILED(hr)) return hr;
+	if (depthStencile != nullptr) hr = m_pDevice->CreateDepthStencilView(depthStencile, &depthStencilViewDesc, &m_pDepthStencilView);
 	depthStencile->Release();
-
-	return S_OK;
+	return hr;
 }
 
 /// <summary>
@@ -275,7 +276,7 @@ HRESULT Renderer::CreateRenderAndDepthResources()
 /// </summary>
 void Renderer::Uninit()
 {
-	m_pDeviceContext->ClearState();
+	if (m_pDeviceContext != nullptr) m_pDeviceContext->ClearState();
 
 	SAFE_RELEASE(m_pLightBuffer);	//平行光源の追加時に追記
 	SAFE_RELEASE(m_pMaterialBuffer);//マテリアルの追加時に追記
@@ -306,6 +307,7 @@ void Renderer::Uninit()
 /// </summary>
 void Renderer::DrawStart()
 {
+	if (!m_pDeviceContext || !m_pRenderTargetView || !m_pDepthStencilView) return;
 	// 画面塗りつぶし色
 	// 中間色の灰色を背景に使い、ゲームテーブルを見分けやすくする。
 	float clearColor[4] = { 0.35f, 0.35f, 0.35f, 1.0f }; // 赤、緑、青、アルファ
@@ -463,8 +465,12 @@ void Renderer::SetProjectionMatrix(Matrix* ProjectionMatrix)
 /// </summary>
 HRESULT Renderer::ResizeWindow(int width, int height)
 {
+	if (width <= 0 || height <= 0) return E_INVALIDARG;
 	// スワップチェインが存在しない場合は処理しない
-	if (!m_pSwapChain)return S_FALSE;
+	if (!m_pSwapChain || !m_pDeviceContext)return S_FALSE;
+
+	// The immediate context also owns references to the old views.
+	m_pDeviceContext->OMSetRenderTargets(0, nullptr, nullptr);
 
 	// 既存のレンダーターゲットビューを解放
 	if (m_pRenderTargetView) {
@@ -479,11 +485,15 @@ HRESULT Renderer::ResizeWindow(int width, int height)
 	}
 
 	// スワップチェインのバッファサイズを新しいウィンドウサイズに合わせて変更
-	m_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+	const HRESULT resizeResult = m_pSwapChain->ResizeBuffers(
+		0, width, height, DXGI_FORMAT_UNKNOWN, 0);
 
 	// レンダーターゲットビュー・デプスステンシルバッファ・デプスステンシルビュー作成
 	HRESULT hr = CreateRenderAndDepthResources();
 	if (FAILED(hr)) return hr;
+	// On resize failure recreate the original views, keeping drawing safe,
+	// but report the original DXGI error to the caller.
+	if (FAILED(resizeResult)) return resizeResult;
 
 	// ウィンドウとターゲットのアスペクト比を比較してビューポートを調整
 	float windowAspect = (float)width / (float)height;

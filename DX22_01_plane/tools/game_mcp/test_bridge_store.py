@@ -205,6 +205,70 @@ class GameBridgeStoreTests(unittest.TestCase):
             with self.assertRaises(GameCommandBusyError):
                 store.submit_command("heal")
 
+    def test_nonfinite_arguments_never_publish_a_pending_command(self) -> None:
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.write_state(root)
+                store = self.make_store(root)
+                with self.assertRaises(GameBridgeError):
+                    store.submit_command("fire_shot", {"telemetry": {"score": value}})
+                self.assertFalse(store.command_path.exists())
+                self.assertFalse(list(root.glob("*.tmp")))
+
+    def test_nonfinite_wait_limits_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for field in ("command_timeout_seconds", "maximum_state_age_seconds"):
+                for value in (float("nan"), float("inf"), float("-inf")):
+                    with self.subTest(field=field, value=value):
+                        with self.assertRaises(GameBridgeError):
+                            GameBridgeStore(Path(directory), **{field: value})
+
+    def test_concurrent_stores_do_not_overwrite_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_state(root)
+            ready = threading.Barrier(2)
+            results = []
+            errors = []
+            stores = [self.make_store(root), self.make_store(root)]
+            for store in stores:
+                publish = store._write_json_atomically
+
+                def publish_together(path, value, publish=publish):
+                    # Both clients observed the empty slot before either writes.
+                    ready.wait(timeout=2)
+                    publish(path, value)
+
+                store._write_json_atomically = publish_together
+
+            def submit(store):
+                try:
+                    results.append(store.submit_command("heal"))
+                except Exception as error:
+                    errors.append(error)
+
+            threads = [threading.Thread(target=submit, args=(store,)) for store in stores]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=3)
+                self.assertFalse(thread.is_alive())
+            self.assertEqual(len(results), 1)
+            self.assertEqual(len(errors), 1)
+            self.assertIsInstance(errors[0], GameCommandBusyError)
+            command = json.loads(stores[0].command_path.read_text(encoding="utf-8"))
+            self.assertEqual(command["command_id"], results[0]["command_id"])
+            self.assertFalse(list(root.glob("*.tmp")))
+
+    def test_invalid_utf8_is_reported_as_a_bridge_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            store = self.make_store(root)
+            store.state_path.write_bytes(b"\xff")
+            with self.assertRaises(GameBridgeError):
+                store.read_state()
+
 
 if __name__ == "__main__":
     unittest.main()

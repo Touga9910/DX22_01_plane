@@ -276,7 +276,7 @@ public:
 	Game(); // コンストラクタ
 	~Game(); // デストラクタ
 
-	static void Init(); // 初期化
+	static bool Init(); // 初期化
 	static void Update(double elapsedSeconds); // 入力・表示フレームの更新
 	static void ResetFrameTiming();
 	static void Draw(); // 描画

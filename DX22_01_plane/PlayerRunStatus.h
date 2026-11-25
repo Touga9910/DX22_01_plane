@@ -7,6 +7,8 @@
 // HP、所持金、進行度、選択中・直前ステージのIDを管理
 struct PlayerRunStatus
 {
+    static constexpr int MaximumMoney = 1000000000;
+
     int maxHp = 10;       // ラン中の最大HP
     int currentHp = 10;   // 現在HP
 

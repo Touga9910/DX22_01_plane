@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <limits>
 
 namespace
 {
@@ -49,6 +50,20 @@ int main()
 	const auto& node = *map.Node(0);
 	RunController run;
 	Configure(run);
+	// Rewards must remain saveable at the persistence limit and must not
+	// overflow when the caller supplies a large nonnegative reward.
+	run.Status().money = PlayerRunStatus::MaximumMoney;
+	run.AddMoney(20);
+	assert(run.Status().money == PlayerRunStatus::MaximumMoney);
+	run.Status().money = 100;
+	run.AddMoney((std::numeric_limits<int>::max)());
+	assert(run.Status().money == PlayerRunStatus::MaximumMoney);
+	run.AddMoney(-10);
+	assert(run.Status().money == PlayerRunStatus::MaximumMoney);
+	run.Status().money = 100;
+	run.AddMoney(25);
+	assert(run.Status().money == 125);
+	run.Status().money = 100;
 	RunEventResult result;
 	RunEvents::Application applied;
 	int actions = 0;

@@ -205,7 +205,7 @@ namespace
 		const int money = run.at("money").get<int>();
 		if (maxHp < 1 || maxHp > 100000 || currentHp < 0 ||
 			currentHp > maxHp || floor < 1 || floor > 1000000 ||
-			money < 0 || money > 1000000000)
+			money < 0 || money > PlayerRunStatus::MaximumMoney)
 		{
 			throw std::runtime_error(UiText::InvalidSaveData);
 		}

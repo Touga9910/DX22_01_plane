@@ -196,6 +196,7 @@ namespace AssimpPerse
 		if (pScene == nullptr)
 		{
 			std::cout << "load error" << filename.c_str() << importer.GetErrorString() << std::endl;
+			return;
 		}
 		assert(pScene != nullptr);
 

@@ -85,8 +85,7 @@ void Game::ChangeScene(SceneType sceneType)
 			(sceneType == SceneType::Select ||
 			 sceneType == SceneType::Battle ||
 			 sceneType == SceneType::RestSite ||
-			 sceneType == SceneType::Event ||
-			 sceneType == SceneType::Shop))
+			 sceneType == SceneType::Event))
 		{
 			m_Instance->SaveRunCheckpoint(sceneType, false, false);
 		}
@@ -137,6 +136,14 @@ void Game::ChangeScene(SceneType sceneType)
 		}
 		std::cerr << "[Game] シーンの生成に失敗しました" << std::endl;
 		return;
+	}
+
+	// ShopScene::Init rolls both offer lists. Persist the newly entered
+	// shop and its advanced RNG states, rather than the previous shop.
+	if (sceneType == SceneType::Shop &&
+		!m_PersistenceRuntime->IsRestoringRunSave())
+	{
+		SaveRunCheckpoint(sceneType, false, false);
 	}
 
 	if (sceneType == SceneType::Result)

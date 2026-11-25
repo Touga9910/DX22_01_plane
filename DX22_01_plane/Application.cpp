@@ -221,6 +221,10 @@ bool Application::InitApp()
 /// </summary>
 void Application::UninitApp()
 {
+    if (m_hWnd != nullptr && IsWindow(m_hWnd))
+    {
+        DestroyWindow(m_hWnd);
+    }
     // ウィンドウの登録を解除
     if (m_hInst != nullptr)
     {
@@ -239,7 +243,7 @@ void Application::MainLoop()
     MSG msg = {};
 
     // ゲーム初期化処理
-    GameRuntime::Initialize();
+    if (!GameRuntime::Initialize()) return;
 
     // ImGui初期化
     IMGUI_CHECKVERSION();
@@ -309,11 +313,11 @@ void Application::MainLoop()
    while (1)
    {
        // 新たにメッセージがあれば
-       if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+       if (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
        {
            // ウィンドウプロシージャにメッセージを送る
            TranslateMessage(&msg);
-           DispatchMessage(&msg);
+           DispatchMessageW(&msg);
 
            // 「WM_QUIT」メッセージを受け取ったらループを抜ける
            if (msg.message == WM_QUIT) {
@@ -478,7 +482,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
             }
         }
         // 標準挙動を実行
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
+        return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 
     case WM_SIZE: //ウィンドウサイズに変更があったメッセージ
 
@@ -497,7 +501,7 @@ LRESULT CALLBACK Application::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 
     default:
         // 受け取ったメッセージに対してデフォルトの処理を実行
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
+        return DefWindowProcW(hWnd, uMsg, wParam, lParam);
         break;
     }
 

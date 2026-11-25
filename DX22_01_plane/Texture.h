@@ -15,9 +15,10 @@ class Texture
 	std::string m_texname{}; // ファイル名
 	ComPtr<ID3D11ShaderResourceView> m_srv{}; // シェーダーリソースビュー
 
-	int m_width; // 幅
-	int m_height; // 高さ
-	int m_bpp; // 読み込んだ画像の色成分数
+	int m_width{}; // 幅
+	int m_height{}; // 高さ
+	int m_bpp{}; // 読み込んだ画像の色成分数
+	bool UploadRgba(const unsigned char* pixels, int width, int height, int channels);
 public:
 	bool Load(const std::string& filename);
 	bool LoadFromFemory(const unsigned char* data,int len);

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <algorithm>
+#include <cmath>
 
 // ボールが持つ基本的な特殊能力の有無をまとめる
 struct BallAbilities
@@ -112,43 +113,48 @@ struct BallStatus
 /// </summary>
 inline BallStatus NormalizeBallStatus(BallStatus status)
 {
+	const BallStatus defaults;
+	const auto finite = [](float value, float fallback)
+	{
+		return std::isfinite(value) ? value : fallback;
+	};
 	status.impactAttack = std::clamp(status.impactAttack, 0, 100000);
 	status.shotShield = std::clamp(status.shotShield, 0, 1000);
 	status.enemyCollisionShield = std::clamp(status.enemyCollisionShield, 0, 1000);
-	status.mass = (std::max)(0.0001f, status.mass);
-	status.radius = (std::max)(0.0f, status.radius);
-	status.restitution = std::clamp(status.restitution, 0.0f, 1.0f);
-	status.friction = (std::max)(0.0f, status.friction);
-	status.knockbackTransfer = std::clamp(status.knockbackTransfer, 0.0f, 3.0f);
+	status.mass = (std::max)(0.0001f, finite(status.mass, defaults.mass));
+	status.radius = (std::max)(0.0f, finite(status.radius, defaults.radius));
+	status.restitution = std::clamp(finite(status.restitution, defaults.restitution), 0.0f, 1.0f);
+	status.friction = (std::max)(0.0f, finite(status.friction, defaults.friction));
+	status.knockbackTransfer = std::clamp(finite(status.knockbackTransfer, defaults.knockbackTransfer), 0.0f, 3.0f);
 	status.pierceMaxUses = std::clamp(status.pierceMaxUses, 0, 16);
-	status.pierceSpeedRetention = std::clamp(status.pierceSpeedRetention, 0.0f, 1.0f);
-	status.anchorBrakeMultiplier = std::clamp(status.anchorBrakeMultiplier, 1.0f, 5.0f);
-	status.anchorStopSpeedSquared = std::clamp(status.anchorStopSpeedSquared, 0.03f, 1.0f);
+	status.pierceSpeedRetention = std::clamp(finite(status.pierceSpeedRetention, defaults.pierceSpeedRetention), 0.0f, 1.0f);
+	status.anchorBrakeMultiplier = std::clamp(finite(status.anchorBrakeMultiplier, defaults.anchorBrakeMultiplier), 1.0f, 5.0f);
+	status.anchorStopSpeedSquared = std::clamp(finite(status.anchorStopSpeedSquared, defaults.anchorStopSpeedSquared), 0.03f, 1.0f);
 	status.cushionChargeSpeedMultiplier =
-		std::clamp(status.cushionChargeSpeedMultiplier, 1.0f, 3.0f);
+		std::clamp(finite(status.cushionChargeSpeedMultiplier, defaults.cushionChargeSpeedMultiplier), 1.0f, 3.0f);
 	status.stopShieldPerStack = std::clamp(status.stopShieldPerStack, 0, 100);
 	status.stopShieldCapacity = std::clamp(status.stopShieldCapacity, 0, 1000);
-	status.chainImpactRadius = std::clamp(status.chainImpactRadius, 0.0f, 100.0f);
+	status.chainImpactRadius = std::clamp(finite(status.chainImpactRadius, defaults.chainImpactRadius), 0.0f, 100.0f);
 	status.heavyFinisherDamagePerCollision = std::clamp(
-		status.heavyFinisherDamagePerCollision, 0.0f, 100.0f);
+		finite(status.heavyFinisherDamagePerCollision, defaults.heavyFinisherDamagePerCollision), 0.0f, 100.0f);
 	status.heavyCollisionConsumeAmount = std::clamp(status.heavyCollisionConsumeAmount, 0, 9999);
 	status.heavySetupStackConsume = std::clamp(status.heavySetupStackConsume, 0, 9999);
-	status.heavyEnemyCollisionMultiplier = std::clamp(status.heavyEnemyCollisionMultiplier, 1.0f, 10.0f);
-	status.lightweightKnockbackMultiplier = std::clamp(status.lightweightKnockbackMultiplier, 1.0f, 10.0f);
-	status.lightweightSpeedLossReduction = std::clamp(status.lightweightSpeedLossReduction, 0.0f, 1.0f);
+	status.heavyEnemyCollisionMultiplier = std::clamp(finite(status.heavyEnemyCollisionMultiplier, defaults.heavyEnemyCollisionMultiplier), 1.0f, 10.0f);
+	status.lightweightKnockbackMultiplier = std::clamp(finite(status.lightweightKnockbackMultiplier, defaults.lightweightKnockbackMultiplier), 1.0f, 10.0f);
+	status.lightweightSpeedLossReduction = std::clamp(finite(status.lightweightSpeedLossReduction, defaults.lightweightSpeedLossReduction), 0.0f, 1.0f);
 	status.eventStackGenerationBonus = std::clamp(status.eventStackGenerationBonus, 0, 2);
 	status.traceDurability = std::clamp(status.traceDurability, 0, 99);
-	status.traceUseAngleTolerance = std::clamp(status.traceUseAngleTolerance, 1.0f, 89.0f);
-	status.traceUseDistance = std::clamp(status.traceUseDistance, 0.1f, 200.0f);
-	status.traceWidth = std::clamp(status.traceWidth, 0.1f, 50.0f);
+	status.traceUseAngleTolerance = std::clamp(finite(status.traceUseAngleTolerance, defaults.traceUseAngleTolerance), 1.0f, 89.0f);
+	status.traceUseDistance = std::clamp(finite(status.traceUseDistance, defaults.traceUseDistance), 0.1f, 200.0f);
+	status.traceWidth = std::clamp(finite(status.traceWidth, defaults.traceWidth), 0.1f, 50.0f);
 	status.tracePierceSpeedMultiplier = std::clamp(
-		status.tracePierceSpeedMultiplier, 1.0f, 3.0f);
+		finite(status.tracePierceSpeedMultiplier, defaults.tracePierceSpeedMultiplier), 1.0f, 3.0f);
 	status.tracePierceAttackBonus = std::clamp(status.tracePierceAttackBonus, 0, 1000);
 	status.tracePierceMaxUsesBonus = std::clamp(status.tracePierceMaxUsesBonus, 0, 16);
 	status.tracePierceSpeedRetentionBonus = std::clamp(
-		status.tracePierceSpeedRetentionBonus, 0.0f, 1.0f);
+		finite(status.tracePierceSpeedRetentionBonus, defaults.tracePierceSpeedRetentionBonus), 0.0f, 1.0f);
 	status.traceNonPierceSpeedMultiplier = std::clamp(
-		status.traceNonPierceSpeedMultiplier, 1.0f, 1.25f);
+		finite(status.traceNonPierceSpeedMultiplier, defaults.traceNonPierceSpeedMultiplier), 1.0f, 1.25f);
 	status.pierceFinisherBaseBonus = std::clamp(status.pierceFinisherBaseBonus, 0, 1000);
 	status.pierceFinisherMultiTargetBonus = std::clamp(
 		status.pierceFinisherMultiTargetBonus, 0, 1000);
@@ -157,22 +163,22 @@ inline BallStatus NormalizeBallStatus(BallStatus status)
 	status.cushionStackConsumeAmount = std::clamp(status.cushionStackConsumeAmount, 1, 99);
 	status.cushionBounceAttackBonus = std::clamp(status.cushionBounceAttackBonus, 0, 1000);
 	status.cushionNonBounceSpeedMultiplier = std::clamp(
-		status.cushionNonBounceSpeedMultiplier, 1.0f, 1.25f);
+		finite(status.cushionNonBounceSpeedMultiplier, defaults.cushionNonBounceSpeedMultiplier), 1.0f, 1.25f);
 	status.cushionReflectionLimit = std::clamp(status.cushionReflectionLimit, 0, 99);
 	status.cushionConsumptionLimit = std::clamp(status.cushionConsumptionLimit, 0, 99);
-	status.cushionReflectionSpeedMultiplier = std::clamp(status.cushionReflectionSpeedMultiplier, 1.0f, 3.0f);
+	status.cushionReflectionSpeedMultiplier = std::clamp(finite(status.cushionReflectionSpeedMultiplier, defaults.cushionReflectionSpeedMultiplier), 1.0f, 3.0f);
 	status.reflectionSetupAmount = std::clamp(status.reflectionSetupAmount, 0, 99);
 	status.ricochetStackConsume = std::clamp(status.ricochetStackConsume, 0, 99);
 	status.pinballCollisionsPerStage = std::clamp(status.pinballCollisionsPerStage, 0, 99);
-	status.pinballSpeedRetention = std::clamp(status.pinballSpeedRetention, 0.0f, 1.0f);
+	status.pinballSpeedRetention = std::clamp(finite(status.pinballSpeedRetention, defaults.pinballSpeedRetention), 0.0f, 1.0f);
 	status.anchorPlayerStackGenerate = std::clamp(status.anchorPlayerStackGenerate, 0, 99);
 	status.anchorEnemyStackGenerate = std::clamp(status.anchorEnemyStackGenerate, 0, 99);
-	status.anchorStackRadius = std::clamp(status.anchorStackRadius, 0.0f, 100.0f);
+	status.anchorStackRadius = std::clamp(finite(status.anchorStackRadius, defaults.anchorStackRadius), 0.0f, 100.0f);
 	status.anchorStackMax = std::clamp(status.anchorStackMax, 1, 9999);
 	status.anchorFinisherStackConsume = std::clamp(status.anchorFinisherStackConsume, 0, 9999);
 	status.anchorFinisherDamagePerStack = std::clamp(status.anchorFinisherDamagePerStack, 0, 1000);
 	status.anchorFinisherAoeThreshold = std::clamp(status.anchorFinisherAoeThreshold, 0, 9999);
-	status.anchorFinisherAoeRadius = std::clamp(status.anchorFinisherAoeRadius, 0.0f, 100.0f);
+	status.anchorFinisherAoeRadius = std::clamp(finite(status.anchorFinisherAoeRadius, defaults.anchorFinisherAoeRadius), 0.0f, 100.0f);
 	status.anchorPlayerStacksPerBonus = std::clamp(status.anchorPlayerStacksPerBonus, 0, 99);
 	status.anchorEnemyConsumeLimit = std::clamp(status.anchorEnemyConsumeLimit, 0, 9999);
 	status.nextAnchorGrantBonus = std::clamp(status.nextAnchorGrantBonus, 0, 99);

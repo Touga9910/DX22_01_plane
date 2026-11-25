@@ -92,6 +92,10 @@ namespace
                 ball.frontalMultiplier = enemy->GetFrontalDamageMultiplier();
                 ball.pocketDamageRatio = enemy->GetPocketDamageRatio();
                 ball.collisionDamageMultipliers = enemy->GetCollisionDamageMultipliers();
+                ball.boardAbility = enemy->GetBoardAbilityType();
+                ball.boardAbilityRadius = enemy->GetBoardAbilityRadius();
+                ball.protectionDamageReduction =
+                    enemy->GetEnemyData().boardAbility.protectionDamageReduction;
                 ball.collisionStage = enemy->GetCollisionStage();
                 ball.collisionGraceTicks = enemy->GetCollisionCountGraceTicks();
 				ball.anchorStacks = enemy->GetAnchorStacks();
@@ -170,7 +174,7 @@ namespace
         /// </summary>
         int Attack(const Ball& ball) const
         {
-            if (ball.physics.enemy && ball.defeated) return 0;
+            if (!ball.enemyId.empty() && ball.defeated) return 0;
             return ball.attack + (ball.physics.player ? result.shot.collisionBonus : 0);
         }
 
@@ -434,8 +438,23 @@ namespace
 						target.collisionStage));
 			}
             const int before = target.hp;
-            const int applied = target.physics.boss ? BossCombatRules::DirectDamage(amount, target.defense, target.bossState) :
+            const int afterDefense = target.physics.boss ? BossCombatRules::DirectDamage(amount, target.defense, target.bossState) :
                 (std::max)(1, amount - target.defense);
+            int protection = 0;
+            for (const Ball& sourceBall : result.balls)
+            {
+                if (&sourceBall == &target || !sourceBall.active ||
+                    sourceBall.defeated || sourceBall.pocketed ||
+                    sourceBall.boardAbility != EnemyBoardAbilityType::ProtectionResonator)
+                    continue;
+                Vector3 offset = sourceBall.physics.position - target.physics.position;
+                offset.y = 0.0f;
+                const float radius = sourceBall.boardAbilityRadius;
+                if (radius > 0.0f && offset.LengthSquared() <= radius * radius)
+                    protection = (std::max)(protection, sourceBall.protectionDamageReduction);
+            }
+            const int applied = EnemyBoardAbilityRules::ApplyProtectionReduction(
+                afterDefense, protection);
             target.hp = (std::max)(0, target.hp - applied);
             target.defeated = target.hp == 0;
             result.damage += before - target.hp;
@@ -799,9 +818,11 @@ namespace
 					AdvanceCollisionStage(a, b.physics.id);
 					AdvanceCollisionStage(b, a.physics.id);
 				}
-				if (a.physics.player && b.physics.enemy)
+                // Damage can clear physics.enemy when the direct hit kills.
+                // The live contact adapter uses the pre-contact target state.
+                if (playerEnemy && a.physics.player)
 					ChainImpact(a, b.physics.position, b.physics.id, damage.second, bWasDefeated);
-				else if (b.physics.player && a.physics.enemy)
+				else if (playerEnemy && b.physics.player)
 					ChainImpact(b, a.physics.position, a.physics.id, damage.first, aWasDefeated);
                 if (playerEnemy)
                 {
@@ -1197,6 +1218,8 @@ std::uint64_t BallShotPrediction::WorldKey(const Input& input)
 		add(s.anchorFinisherDamagePerStack); add(s.anchorFinisherAoeThreshold); scalar(s.anchorFinisherAoeRadius);
 		add(s.anchorEnemyConsumeLimit);
         scalar(ball.frontalMultiplier); scalar(ball.pocketDamageRatio);
+        add(static_cast<std::uint64_t>(ball.boardAbility));
+        scalar(ball.boardAbilityRadius); add(ball.protectionDamageReduction);
         add(ball.collisionStage); add(ball.collisionGraceTicks); add(ball.nuisanceBall);
         for (float multiplier : ball.collisionDamageMultipliers) scalar(multiplier);
     }

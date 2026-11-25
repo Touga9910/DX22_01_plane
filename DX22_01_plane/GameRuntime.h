@@ -14,7 +14,7 @@ class SceneObjectFactory;
 class GameRuntime final
 {
 public:
-    static void Initialize();
+    static bool Initialize();
     static void Update(double elapsedSeconds);
     static void ResetFrameTiming();
     static void RecordFrameTiming(

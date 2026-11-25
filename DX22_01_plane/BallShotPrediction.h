@@ -7,6 +7,7 @@
 #include "CushionChargeRules.h"
 #include "HeavyCollisionRules.h"
 #include "PierceTraceRules.h"
+#include "EnemyBoardAbilityRules.h"
 #include "PlayerBallData.h"
 #include <cstdint>
 #include <string>
@@ -30,6 +31,9 @@ namespace BallShotPrediction
         std::string enemyId;
         float frontalMultiplier = 1.0f, pocketDamageRatio = 0.0f;
         std::vector<float> collisionDamageMultipliers;
+        EnemyBoardAbilityType boardAbility = EnemyBoardAbilityType::None;
+        float boardAbilityRadius = 0.0f;
+        int protectionDamageReduction = 0;
         int collisionStage = 0, collisionGraceTicks = 0;
         std::unordered_map<std::uintptr_t, int> collisionGraceByBall;
         bool active = true, defeated = false, pocketed = false, playerSimulation = true;

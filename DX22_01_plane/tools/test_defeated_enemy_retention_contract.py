@@ -30,7 +30,7 @@ class DefeatedEnemyRetentionContractTests(unittest.TestCase):
         self.assertIn("bool CanParticipateInCombat() const", header)
         self.assertIn("!enemy->CanParticipateInCombat()", controller)
         self.assertIn("target->CanParticipateInCombat()", collision)
-        self.assertIn("if (ball.physics.enemy && ball.defeated) return 0;", prediction)
+        self.assertIn("if (!ball.enemyId.empty() && ball.defeated) return 0;", prediction)
         self.assertIn("playerHitCombatEnemy || combatEnemyPair", prediction)
 
     def test_retained_corpse_is_physical_but_not_an_enemy_ability_target(self) -> None:

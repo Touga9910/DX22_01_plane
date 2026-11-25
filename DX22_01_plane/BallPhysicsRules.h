@@ -116,7 +116,8 @@ namespace BallPhysicsRules
         {
             Vector3 deceleration = -velocity;
             deceleration.Normalize();
-            velocity += deceleration * friction;
+            const float reduction = (std::min)(friction, velocity.Length());
+            velocity += deceleration * reduction;
         }
     }
 

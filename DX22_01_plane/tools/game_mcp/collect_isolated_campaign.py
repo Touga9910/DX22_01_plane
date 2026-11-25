@@ -76,6 +76,31 @@ def campaign_seeds(explicit, baseline=None, target=10):
     return seeds
 
 
+def cleanup_children(children, streams):
+    """Reap only this campaign's children, including after forced shutdown."""
+    errors = []
+    for process in children:
+        try:
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+        except Exception as error:
+            errors.append(error)
+    for stream in streams:
+        try:
+            stream.close()
+        except Exception as error:
+            errors.append(error)
+    if errors:
+        raise RuntimeError('Campaign child cleanup failed') from errors[0]
+
+
 def run(args):
     target=getattr(args,'valid_runs_per_build',10)
     seeds_requested = campaign_seeds(getattr(args, 'seed', None), args.baseline,target)
@@ -253,13 +278,14 @@ def run(args):
         raise
     finally:
         # Graceful closure of only the games owned by this isolated campaign.
-        for w in metadata['workers'].values():
-            for _,thread in windows(w['game_pid']):ctypes.windll.user32.PostThreadMessageW(thread,0x0012,0,0)
-        for process in children:
-            try:process.wait(timeout=10)
-            except subprocess.TimeoutExpired:process.terminate()
-        for stream in streams:stream.close()
-        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+        try:
+            for w in metadata['workers'].values():
+                for _,thread in windows(w['game_pid']):ctypes.windll.user32.PostThreadMessageW(thread,0x0012,0,0)
+        finally:
+            try:
+                cleanup_children(children, streams)
+            finally:
+                ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
 
 
 if __name__=='__main__':

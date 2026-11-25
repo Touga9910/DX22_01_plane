@@ -6,6 +6,14 @@
 /// </summary>
 void StaticMesh::Load(std::string filename, std::string texturedirectory)
 {
+	// Loading replaces the complete mesh, including an empty failure result.
+	m_vertices.clear();
+	m_indices.clear();
+	m_subsets.clear();
+	m_materials.clear();
+	m_texturenames.clear();
+	m_textures.clear();
+
 	std::vector<AssimpPerse::SUBSET> subsets{};					// サブセット情報
 	std::vector<std::vector<AssimpPerse::VERTEX>> vertices{};	// 頂点データ（メッシュ単位）
 	std::vector<std::vector<unsigned int>> indices{};			// インデックスデータ（メッシュ単位）
