@@ -104,6 +104,17 @@ int main()
 	// Category budgets share a global pool. Adding a category does not raise
 	// the global simultaneous-voice limit.
 	assert(voiceTotal >= CombatAudioRules::MaximumVoices);
+	for (const auto category : {CombatSeCategory::DirectImpact, CombatSeCategory::EnemyImpact})
+	{
+		const float weakPitch = CombatAudioRules::Pitch(category, CollisionPresentationRules::Strength::Weak);
+		const float strongPitch = CombatAudioRules::Pitch(category, CollisionPresentationRules::Strength::Strong);
+		// Impact strength should change loudness while retaining the recorded material.
+		assert(std::abs(weakPitch - strongPitch) <= 0.02001f);
+		assert(CombatAudioRules::Volume(category, CollisionPresentationRules::Strength::Weak, 1.0f) <
+			CombatAudioRules::Volume(category, CollisionPresentationRules::Strength::Medium, 4.0f));
+		assert(CombatAudioRules::Volume(category, CollisionPresentationRules::Strength::Medium, 4.0f) <
+			CombatAudioRules::Volume(category, CollisionPresentationRules::Strength::Strong, 7.0f));
+	}
 	assert(CombatAudioRules::SanitizeSpeed(
 		std::numeric_limits<float>::quiet_NaN()) == 0.0f);
 	assert(CombatAudioRules::SanitizeSpeed(-5.0f) == 0.0f);
@@ -227,6 +238,15 @@ int main()
 		{
 			assert(wavDiagnostics.deviceInitialized);
 			assert(wavDiagnostics.chainStagePlayed[0] == 1);
+			const auto playedBefore = wavDiagnostics.played;
+			const auto cooldownBefore = wavDiagnostics.cooldownSkipped;
+			wavBackend.OnCollisionImpact(directImpact, 0);
+			assert(wavDiagnostics.played == playedBefore);
+			assert(wavDiagnostics.cooldownSkipped == cooldownBefore + 1);
+			wavBackend.Update(0.03, 0.8f);
+			wavBackend.OnCollisionImpact(directImpact, 0);
+			assert(wavDiagnostics.played == playedBefore + 1);
+			assert(wavDiagnostics.activeVoices <= CombatAudioRules::MaximumVoices);
 		}
 		else
 		{

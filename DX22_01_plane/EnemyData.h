@@ -17,9 +17,9 @@ struct NuisanceBallData
     DirectX::SimpleMath::Vector3 spawnOffset =
         DirectX::SimpleMath::Vector3(12.0f, 0.0f, 0.0f);   // 敵位置を基準とした生成位置のオフセット
     float radius = 2.0f;                  // お邪魔ボールの半径
-    float mass = 1.0f;                    // お邪魔ボールの質量
+    float mass = 0.58f;                   // 半径2.4・質量1.0と同密度のお邪魔ボール
     float restitution = 0.8f;             // 衝突時の反発係数
-    float friction = 0.025f;              // 移動時に使用する摩擦値
+    float friction = 0.02f;               // 敵ボール共通の移動摩擦
     StatusEffectCollection debuffs;       // お邪魔ボールによって付与するデバフ
 };
 

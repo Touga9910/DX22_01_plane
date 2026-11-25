@@ -1,5 +1,6 @@
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\assets\audio\combat')
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\assets\audio\combat'),
+    [string]$BilliardSourcePath = (Join-Path $PSScriptRoot '..\assets\audio\combat\source\billiard_ball_clack_539854.wav')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -69,10 +70,92 @@ function Write-PcmWav {
     return $measuredPeak
 }
 
+function Read-BilliardRecording {
+    param([string]$Path)
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -lt 44 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'RIFF' -or
+        [Text.Encoding]::ASCII.GetString($bytes, 8, 4) -ne 'WAVE') {
+        throw 'The billiard source must be a RIFF/WAVE PCM recording.'
+    }
+    $formatFound = $false
+    $dataOffset = -1
+    $dataLength = 0
+    for ($offset = 12; $offset + 8 -le $bytes.Length;) {
+        $chunk = [Text.Encoding]::ASCII.GetString($bytes, $offset, 4)
+        $size = [BitConverter]::ToUInt32($bytes, $offset + 4)
+        $offset += 8
+        if ($size -gt $bytes.Length - $offset) { throw 'Truncated billiard source chunk.' }
+        if ($chunk -eq 'fmt ') {
+            if ($size -lt 16 -or [BitConverter]::ToUInt16($bytes, $offset) -ne 1 -or
+                [BitConverter]::ToUInt16($bytes, $offset + 2) -ne 1 -or
+                [BitConverter]::ToUInt32($bytes, $offset + 4) -ne $script:sampleRate -or
+                [BitConverter]::ToUInt16($bytes, $offset + 12) -ne 2 -or
+                [BitConverter]::ToUInt16($bytes, $offset + 14) -ne 16) {
+                throw 'The billiard source must be 48 kHz, 16-bit, mono PCM.'
+            }
+            $formatFound = $true
+        }
+        elseif ($chunk -eq 'data') {
+            $dataOffset = $offset
+            $dataLength = $size
+        }
+        $offset += $size + ($size -band 1)
+    }
+    if (-not $formatFound -or $dataOffset -lt 0 -or $dataLength -le 0 -or ($dataLength -band 1)) {
+        throw 'The billiard source has no valid PCM sample data.'
+    }
+    $samples = New-Object 'System.Double[]' ($dataLength / 2)
+    for ($index = 0; $index -lt $samples.Length; ++$index) {
+        $samples[$index] = [BitConverter]::ToInt16($bytes, $dataOffset + $index * 2) / 32768.0
+    }
+    return ,$samples
+}
+
+function New-BilliardImpact {
+    param([string]$FileName, [double]$DurationSeconds, [double]$TargetPeak, [string]$Purpose)
+    $sampleCount = [int][Math]::Round($DurationSeconds * $script:sampleRate)
+    if ($sampleCount -gt $script:billiardRecording.Length) { throw 'The billiard recording is too short.' }
+    $samples = New-Object 'System.Double[]' $sampleCount
+    $mean = 0.0
+    for ($index = 0; $index -lt $sampleCount; ++$index) { $mean += $script:billiardRecording[$index] }
+    $mean /= $sampleCount
+    $fadeInSamples = [int]($script:sampleRate * 0.00025)
+    $fadeOutSamples = [int]($script:sampleRate * 0.012)
+    for ($index = 0; $index -lt $sampleCount; ++$index) {
+        $fadeIn = [Math]::Min(1.0, $index / [double]$fadeInSamples)
+        $fadeOut = [Math]::Min(1.0, ($sampleCount - 1 - $index) / [double]$fadeOutSamples)
+        $samples[$index] = ($script:billiardRecording[$index] - $mean) * $fadeIn * $fadeOut
+    }
+    $peak = Write-PcmWav (Join-Path $OutputDirectory $FileName) $samples $TargetPeak
+    return [ordered]@{
+        file = $FileName
+        purpose = $Purpose
+        duration_seconds = $DurationSeconds
+        sample_rate_hz = $script:sampleRate
+        channels = 1
+        bits_per_sample = 16
+        peak_linear = [Math]::Round($peak, 6)
+        peak_dbfs = [Math]::Round(20.0 * [Math]::Log10($peak), 3)
+        method = 'CC0 billiard recording: trim, DC removal, 0.25 ms fade-in, 12 ms fade-out, peak normalization'
+        source = 'source/billiard_ball_clack_539854.wav'
+        generator = 'tools/generate_combat_se.ps1'
+        author = 'Za-Games'
+        original_title = 'billiard ball clack'
+        source_page = 'https://freesound.org/people/Za-Games/sounds/539854/'
+        license = 'CC0 1.0 Universal'
+        license_url = 'https://creativecommons.org/publicdomain/zero/1.0/'
+        source_origin = 'Public HQ MP3 preview decoded and linearly resampled to 48 kHz PCM; original WAV not downloaded'
+        preview_url = 'https://cdn.freesound.org/previews/539/539854_12029332-hq.mp3'
+        preview_sha256 = '8fba3f6faccc03d06ac6fa7f1a3e496b7dba18468364082526a9b8b52af0950d'
+        source_pcm_sha256 = $script:billiardSourceHash
+        status = 'Real-recording replacement; human audition required'
+    }
+}
+
 function New-CombatSound {
     param(
         [string]$FileName,
-        [ValidateSet('direct', 'enemy', 'defeat', 'wall', 'chain3', 'chain6', 'chain10', 'chain15')]
+        [ValidateSet('defeat', 'wall', 'chain3', 'chain6', 'chain10', 'chain15')]
         [string]$Kind,
         [double]$DurationSeconds,
         [double]$TargetPeak,
@@ -97,20 +180,6 @@ function New-CombatSound {
         $previousNoise = $noise
         $value = 0.0
         switch ($Kind) {
-            'direct' {
-                $bodyPhase = $script:twoPi * (158.0 * $time - 210.0 * $time * $time)
-                $body = [Math]::Sin($bodyPhase) * [Math]::Exp(-17.0 * $time)
-                $attack = $highNoise * [Math]::Exp(-68.0 * $time)
-                $knock = [Math]::Sin($script:twoPi * 760.0 * $time) * [Math]::Exp(-38.0 * $time)
-                $value = 0.74 * $body + 0.42 * $attack + 0.24 * $knock
-            }
-            'enemy' {
-                $click = $highNoise * [Math]::Exp(-92.0 * $time)
-                $shell = ([Math]::Sin($script:twoPi * 430.0 * $time) +
-                    0.34 * [Math]::Sin($script:twoPi * 970.0 * $time)) *
-                    [Math]::Exp(-45.0 * $time)
-                $value = 0.48 * $click + 0.52 * $shell
-            }
             'defeat' {
                 $success = Get-BellSample $time 0.000 720.0 11.5
                 $lift = Get-BellSample $time 0.052 960.0 12.5
@@ -163,13 +232,19 @@ function New-CombatSound {
     }
 }
 
+$billiardSourceHash = (Get-FileHash -LiteralPath $BilliardSourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($billiardSourceHash -ne 'e2e14a8910278f3559d5f0a86d8e098fb8d7c4f78bc7221e9e93d2beaa9064e7') {
+    throw 'The billiard source changed. Verify its provenance and update the recorded source hash before regenerating.'
+}
+$billiardRecording = Read-BilliardRecording $BilliardSourcePath
+
 if (-not (Test-Path -LiteralPath $OutputDirectory)) {
     New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 }
 
 $manifest = @()
-$manifest += New-CombatSound 'direct_impact.wav' 'direct' 0.180 0.82 4101 'Player-to-enemy direct impact'
-$manifest += New-CombatSound 'enemy_impact.wav' 'enemy' 0.090 0.55 4102 'Enemy-to-enemy chain impact'
+$manifest += New-BilliardImpact 'direct_impact.wav' 0.180 0.74 'Player-to-enemy billiard-ball impact'
+$manifest += New-BilliardImpact 'enemy_impact.wav' 0.160 0.58 'Enemy-to-enemy billiard-ball impact'
 $manifest += New-CombatSound 'enemy_defeat.wav' 'defeat' 0.320 0.70 4103 'Unique enemy defeat'
 $manifest += New-CombatSound 'wall_impact.wav' 'wall' 0.065 0.42 4104 'Accepted wall reflection'
 $manifest += New-CombatSound 'chain_3.wav' 'chain3' 0.240 0.64 4203 'CHAIN 3 milestone'
@@ -197,4 +272,4 @@ $manifest += [ordered]@{
     (Join-Path $OutputDirectory 'manifest.json'),
     ($manifest | ConvertTo-Json -Depth 10),
     [Text.UTF8Encoding]::new($false))
-$manifest | Format-Table file, duration_seconds, peak_dbfs, purpose
+$manifest | ForEach-Object { [pscustomobject]$_ } | Format-Table file, duration_seconds, peak_dbfs, purpose

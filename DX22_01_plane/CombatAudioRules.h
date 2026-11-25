@@ -55,8 +55,9 @@ public:
 		static_cast<std::size_t>(CombatSeCategory::Count)> Tuning = {{
 		// cooldown, base, min, max, weak pitch, medium pitch, strong pitch,
 		// category voices, priority
-		{ 0.025f, 0.72f, 0.24f, 0.90f, 1.04f, 1.00f, 0.96f, 4, 60 },
-		{ 0.040f, 0.54f, 0.18f, 0.72f, 1.05f, 1.01f, 0.97f, 3, 45 },
+		// The same recorded ball material stays recognizable across collision strengths.
+		{ 0.025f, 0.72f, 0.24f, 0.90f, 1.01f, 1.00f, 0.99f, 4, 60 },
+		{ 0.040f, 0.54f, 0.18f, 0.72f, 1.01f, 1.00f, 0.99f, 3, 45 },
 		{ 0.060f, 0.92f, 0.72f, 1.00f, 1.02f, 1.00f, 0.98f, 3, 90 },
 		{ 0.080f, 0.96f, 0.78f, 1.00f, 1.04f, 1.00f, 0.96f, 4, 100 },
 		{ 0.045f, 0.45f, 0.16f, 0.62f, 1.05f, 1.01f, 0.98f, 2, 25 },
